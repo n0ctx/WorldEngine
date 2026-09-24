@@ -13,7 +13,9 @@
  */
 
 import { memo, useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowDown, Check, Copy, PencilLine, RotateCcw, Trash2 } from 'lucide-react';
+import {
+  ArrowDown, BookOpen, Check, Copy, PencilLine, Plus, RotateCcw, Search, SlidersHorizontal, Trash2, Wrench,
+} from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { stripToolCallLeakage } from './useAssistantStore.js';
@@ -31,14 +33,14 @@ const TOOL_LABELS = {
   find: '搜索',
 };
 
-const TOOL_EMOJI = {
-  read: '📖',
-  create: '✨',
-  update: '✏️',
-  edit: '✏️',
-  set_state: '🎚',
-  delete: '🗑',
-  find: '🔍',
+const TOOL_ICONS = {
+  read: BookOpen,
+  create: Plus,
+  update: PencilLine,
+  edit: PencilLine,
+  set_state: SlidersHorizontal,
+  delete: Trash2,
+  find: Search,
 };
 
 const STATUS_TEXT = {
@@ -292,7 +294,7 @@ function ToolEntryImpl({ msg }) {
   const isRunning = msg.status === 'running';
   const isError = msg.status === 'error';
   const sub = isError && msg.error ? `失败：${formatToolError(msg.error)}` : (STATUS_TEXT[msg.status] ?? '');
-  const emoji = TOOL_EMOJI[msg.toolName] ?? '🔹';
+  const ToolIcon = TOOL_ICONS[msg.toolName] ?? Wrench;
   const variantClass = isError
     ? 'we-asst-entry--tool we-asst-entry--error'
     : isRunning
@@ -305,7 +307,7 @@ function ToolEntryImpl({ msg }) {
       aria-live={isRunning ? 'polite' : undefined}
     >
       <div className="we-asst-entry__head">
-        <span className="we-asst-tool__icon" aria-hidden="true">{emoji}</span>
+        <ToolIcon size={14} className="we-asst-tool__icon" aria-hidden="true" />
         <span className="we-asst-entry__title">{title}</span>
         {sub && <span className="we-asst-entry__sub">{sub}</span>}
         {isRunning && (

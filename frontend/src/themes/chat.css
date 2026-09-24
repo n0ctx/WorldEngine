@@ -1486,7 +1486,8 @@
 }
 
 /* ── Assistant Drawer · 外壳 ────────
-   抽屉贴在顶栏下方，不盖住顶栏；遮罩同样只铺顶栏以下。 */
+   浮在顶栏下方的一张玻璃面板：四周留出页边，不贴边、不画硬边线；
+   与弹窗、输入胶囊同一种材料（.we-material + 暗描边 + 近实远淡的阴影）。遮罩只铺顶栏以下。 */
 
 .we-asst-backdrop {
   position: fixed;
@@ -1498,32 +1499,45 @@
 
 .we-asst-drawer {
   position: fixed;
-  top: var(--we-topbar-height);
-  right: 0;
-  bottom: 0;
+  top: calc(var(--we-topbar-height) + var(--we-space-sm));
+  right: var(--we-space-sm);
+  bottom: var(--we-space-sm);
+  max-width: calc(100vw - 2 * var(--we-space-sm));
   z-index: var(--we-z-modal);
-  display: flex;
-  flex-direction: column;
-  background: var(--we-color-bg-canvas);
-  border-left: 1px solid var(--we-color-border-default);
-  transform: translateX(100%);
+  /* 收起时连同页边一起移出视口，阴影不会在右缘留下暗边 */
+  transform: translateX(calc(100% + var(--we-space-lg)));
+  opacity: 0;
   pointer-events: none;
-  transition: transform var(--we-duration-fast) var(--we-easing-ink),
-              box-shadow var(--we-duration-fast) var(--we-easing-ink);
+  transition: transform var(--we-duration-normal) var(--we-easing-ink),
+              opacity var(--we-duration-fast) var(--we-easing-ink);
 }
 
-/* 阴影只在打开时出现：收起后抽屉停在视口右外侧，带着阴影会在页面右缘留一道暗边 */
 .we-asst-drawer--open {
   transform: none;
+  opacity: 1;
   pointer-events: auto;
-  box-shadow: var(--we-shadow-dialog);
 }
 
+.we-asst-drawer__surface {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  background: var(--we-glass-bg);
+  backdrop-filter: blur(var(--we-glass-blur));
+  border-radius: var(--we-radius-xl);
+  box-shadow:
+    0 0 0 1px var(--we-material-stroke),
+    var(--we-material-shadow-near),
+    var(--we-material-shadow-far);
+}
+
+/* 调宽手柄只占面板中段，避开圆角 */
 .we-asst-drawer__resize {
   left: -4px;
-  top: 0;
+  top: var(--we-space-xl);
   width: 8px;
-  height: 100%;
+  height: calc(100% - 2 * var(--we-space-xl));
 }
 
 .we-asst-drawer__header {
@@ -1531,12 +1545,14 @@
   align-items: center;
   gap: var(--we-space-sm);
   flex-shrink: 0;
-  height: 48px; /* design exact: 32px 图标按钮 + 上下留白 */
+  height: 52px; /* design exact: 32px 图标按钮 + 上下留白 */
   padding: 0 var(--we-space-sm) 0 var(--we-space-lg);
-  border-bottom: 1px solid var(--we-color-border-subtle);
 }
 
 .we-asst-drawer__title {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--we-space-xs);
   font-family: var(--we-font-display);
   font-size: var(--we-text-md);
   color: var(--we-color-text-primary);
@@ -1632,9 +1648,19 @@
 }
 
 /* 输入区：与对话页同一只输入胶囊（.we-chat-input__row），抽屉窄，字号降一档 */
+.we-asst-drawer__title svg {
+  color: var(--we-color-accent);
+}
+
 .we-asst-composer {
   flex-shrink: 0;
-  padding: var(--we-space-sm) var(--we-space-md) var(--we-space-sm);
+  padding: var(--we-space-sm) var(--we-space-md) var(--we-space-md);
+}
+
+/* 面板本身已是玻璃，输入胶囊压暗一档，读作嵌在面板里的输入槽 */
+.we-asst-composer .we-chat-input__row {
+  background: color-mix(in srgb, var(--we-color-bg-canvas) 55%, transparent);
+  backdrop-filter: none;
 }
 
 .we-asst-composer__textarea {
@@ -1690,7 +1716,9 @@
 
 /* ── Assistant Drawer · 过程卡（工具调用 / 错误 / 等待） ──────── */
 
+/* 上下边缘淡出：消息滚进标题栏和输入区下方时不留硬切边 */
 .we-asst-stream {
+  mask-image: linear-gradient(to bottom, transparent, #000 var(--we-space-lg), #000 calc(100% - var(--we-space-lg)), transparent);
   padding: var(--we-space-md) var(--we-space-lg);
   display: flex;
   flex-direction: column;
@@ -1707,12 +1735,13 @@
   gap: var(--we-space-xs);
   padding: var(--we-space-xs) var(--we-space-md);
   border-radius: var(--we-radius-full);
-  border: 1px solid var(--we-color-border-default);
-  background: var(--we-color-bg-canvas);
+  border: none;
+  background: var(--we-glass-bg);
+  backdrop-filter: blur(var(--we-glass-blur));
   color: var(--we-color-text-secondary);
   font-size: var(--we-text-xs);
   font-weight: 500;
-  box-shadow: var(--we-shadow-paper-lift);
+  box-shadow: 0 0 0 1px var(--we-material-stroke), var(--we-material-shadow-near);
   cursor: pointer;
   transition: background var(--we-duration-fast) var(--we-easing-sharp),
               box-shadow var(--we-duration-fast) var(--we-easing-sharp),
@@ -1726,7 +1755,6 @@
 
 .we-asst-new-msg-btn:active {
   transform: translateY(1px);
-  box-shadow: var(--we-shadow-paper-indent);
 }
 
 @keyframes we-bounce-arrow {
@@ -1745,10 +1773,9 @@
   flex-direction: column;
   gap: var(--we-space-xs);
   padding: var(--we-space-md);
-  background: var(--we-color-bg-canvas);
+  background: color-mix(in srgb, var(--we-color-bg-canvas) 35%, transparent);
   border: 1px solid var(--we-color-border-subtle);
-  border-radius: var(--we-radius-sm);
-  box-shadow: var(--we-shadow-paper-lift);
+  border-radius: var(--we-radius-md);
   font-family: var(--we-font-prose);
   color: var(--we-color-text-primary);
   animation: we-bubble-in 0.2s var(--we-easing-ink) both;
@@ -1760,13 +1787,11 @@
   align-self: flex-start;
 }
 
-/* 工具卡：缩小 + 淡色 + emoji（弱化为过程信息，不与对话气泡争视觉） */
+/* 工具卡：缩小 + 淡色 + 线条图标（弱化为过程信息，不与对话气泡争视觉） */
 .we-asst-entry--tool,
 .we-asst-entry--tool-running {
   padding: var(--we-space-xs) var(--we-space-md);
-  box-shadow: var(--we-shadow-paper-lift);
-  border-color: var(--we-color-border-subtle);
-  background: var(--we-color-bg-canvas);
+  border-radius: var(--we-radius-full);
 }
 
 .we-asst-entry--tool .we-asst-entry__head,
@@ -1797,12 +1822,15 @@
 
 .we-asst-tool__icon {
   flex-shrink: 0;
-  font-size: var(--we-text-body);
-  line-height: 1;
-  font-family: 'Apple Color Emoji', 'Segoe UI Emoji', 'Noto Color Emoji', sans-serif;
+  color: var(--we-color-text-tertiary);
+}
+
+.we-asst-entry--error .we-asst-tool__icon {
+  color: var(--we-color-status-danger);
 }
 
 .we-asst-entry--error {
+  border-radius: var(--we-radius-md);
   border-color: color-mix(in srgb, var(--we-color-status-danger) 40%, var(--we-color-border-default));
   background: color-mix(in srgb, var(--we-color-status-danger) 6%, var(--we-color-bg-canvas));
 }
@@ -2042,7 +2070,7 @@
 }
 
 /* ── Assistant Drawer · Bubbles（用户/助手对话气泡） ──────
-   工具/计划/错误用 .we-asst-entry 卡片节奏；user/assistant 文本对话保留传统左右气泡。 */
+   与对话页同一套气泡语言：玩家侧淡强调色、尖角朝右上；助手侧压暗一档的内嵌底、尖角朝左上。 */
 
 .we-asst-row {
   display: flex;
@@ -2067,18 +2095,16 @@
 }
 
 .we-asst-bubble--user {
-  background: var(--we-color-accent);
-  color: var(--we-color-text-inverse);
-  border-radius: var(--we-radius-sm);
-  box-shadow: var(--we-shadow-paper-lift);
+  background: color-mix(in srgb, var(--we-color-accent) 16%, transparent);
+  color: var(--we-color-text-primary);
+  border-radius: var(--we-radius-lg) var(--we-radius-xs) var(--we-radius-lg) var(--we-radius-lg);
 }
 
 .we-asst-bubble--assistant {
-  background: var(--we-color-bg-canvas);
+  background: color-mix(in srgb, var(--we-color-bg-canvas) 55%, transparent);
   color: var(--we-color-text-primary);
-  border: 1px solid var(--we-color-border-subtle);
-  border-radius: var(--we-radius-sm);
-  box-shadow: var(--we-shadow-paper-lift);
+  border-radius: var(--we-radius-xs) var(--we-radius-lg) var(--we-radius-lg) var(--we-radius-lg);
+  box-shadow: 0 0 0 1px var(--we-material-stroke);
 }
 
 .we-asst-bubble__body {
@@ -2099,10 +2125,6 @@
   padding: 0 var(--we-space-xs);
   border-radius: var(--we-radius-sm);
   color: var(--we-color-text-secondary);
-}
-.we-asst-bubble--user .we-asst-bubble__body code {
-  background: color-mix(in srgb, var(--we-color-accent-deep) 35%, transparent);
-  color: var(--we-color-text-inverse);
 }
 .we-asst-bubble__body pre {
   margin: var(--we-space-xs) 0;
@@ -2127,21 +2149,12 @@
   color: var(--we-color-text-secondary);
   font-style: italic;
 }
-.we-asst-bubble--user .we-asst-bubble__body blockquote {
-  color: var(--we-color-text-inverse);
-  opacity: 0.85;
-}
 .we-asst-bubble__body a { color: var(--we-color-accent); text-decoration: underline; }
-.we-asst-bubble--user .we-asst-bubble__body a {
-  color: var(--we-color-text-inverse);
-  text-decoration-color: var(--we-color-text-inverse);
-}
 
 .we-asst-bubble--editing {
   box-shadow:
-    var(--we-shadow-paper-lift),
-    inset 0 0 0 1px color-mix(in srgb, var(--we-color-text-inverse) 55%, transparent),
-    inset 0 0 0 3px color-mix(in srgb, var(--we-color-bg-canvas) 18%, transparent);
+    inset 0 0 0 1px var(--we-color-accent),
+    inset 0 0 0 3px color-mix(in srgb, var(--we-color-accent) 14%, transparent);
 }
 
 .we-asst-bubble__actions {

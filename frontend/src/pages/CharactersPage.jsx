@@ -19,6 +19,7 @@ import { listWorldEntries } from '../core/api/prompt-entries';
 import { listWorldStateFields } from '../core/api/world-state-fields';
 import { getWorldTimeline } from '../core/api/sessions';
 import { createWritingSession } from '../core/api/writing-sessions';
+import { AnimatePresence, motion } from 'framer-motion';
 import { ConfirmModal, SortableList } from '../components';
 import CharacterSeal from '../components/chat/CharacterSeal.jsx';
 import DragHandle from '../components/ui/DragHandle.jsx';
@@ -26,6 +27,7 @@ import Icon from '../components/ui/Icon.jsx';
 import { relativeTime } from '../core/utils/time.js';
 import { formatDateLiterary } from '../core/utils/date-format.js';
 import { log } from '../core/utils/logger.js';
+import { useMotion } from '../core/hooks/useMotion.js';
 
 // ── 拖动感知点击 hook ──────────────────────────────────────────────────────
 
@@ -373,6 +375,14 @@ export default function CharactersPage() {
   const [importingChar, setImportingChar] = useState(false);
   const [importingPersona, setImportingPersona] = useState(false);
   const [personaExpanded, setPersonaExpanded] = useState(false);
+  const m = useMotion();
+  // 收放过程中裁掉溢出，落定后放开，避免卡片阴影和拖拽被裁
+  const personaSwitchMotion = {
+    initial: { height: 0, opacity: 0, overflow: 'hidden' },
+    animate: { height: 'auto', opacity: 1, transitionEnd: { overflow: 'visible' } },
+    exit: { height: 0, opacity: 0, overflow: 'hidden' },
+    transition: m.transition('medium'),
+  };
   const [reloadKey, setReloadKey] = useState(0);
 
   const charImportRef = useRef(null);
@@ -610,7 +620,7 @@ export default function CharactersPage() {
         />
       )}
 
-      {/* 世界层：左窄（故事线）右宽（角色 / 我扮演 / 世界规则） */}
+      {/* 世界层三栏：故事线 / 角色 / 我扮演 + 世界规则 */}
       {!showGuide && (
       <div className="we-worldhub-layout">
 
@@ -659,10 +669,8 @@ export default function CharactersPage() {
           )}
         </div>
 
-        {/* ── 右栏：角色 / 我扮演 / 世界规则 ── */}
-        <div className="we-worldhub-side">
-
-          {/* 角色 */}
+        {/* ── 中栏：角色 ── */}
+        <div className="we-worldhub-cast">
           <div className="we-worldhub-section">
             <div className="we-worldhub-section-header">
               <span className="we-worldhub-section-title">角色</span>
@@ -723,119 +731,129 @@ export default function CharactersPage() {
             </div>
           </div>
 
-          {/* 我扮演 */}
+        </div>
+
+        {/* ── 右栏：我扮演 / 世界规则 ── */}
+        <div className="we-worldhub-side">
           <div className="we-worldhub-section">
             <div className="we-worldhub-section-header">
               <span className="we-worldhub-section-title">我扮演</span>
             </div>
 
-            {!personaExpanded ? (
-              <div className="we-persona-switch-row">
-                {activePersona ? (
-                  <>
-                    <CharacterSeal character={activePersona} size={32} />
-                    <span className="we-persona-switch-name">
-                      {activePersona.name || '（未命名玩家）'}
-                    </span>
-                  </>
-                ) : (
-                  <span className="we-persona-switch-name we-persona-switch-name--empty">
-                    {loading ? '' : '暂无玩家卡'}
-                  </span>
-                )}
-                {activePersona && (
-                  <button
-                    type="button"
-                    className="we-persona-switch-btn"
-                    onClick={() => navigate(
-                      `/worlds/${worldId}/personas/${activePersona.id}/edit`,
-                      { state: { backgroundLocation: location } }
+            {/* 收起行与展开列表同时收放高度，读作同一块区域平滑长高 / 缩回 */}
+            <AnimatePresence initial={false}>
+              {!personaExpanded ? (
+                <motion.div key="persona-row" {...personaSwitchMotion}>
+                  <div className="we-persona-switch-row">
+                    {activePersona ? (
+                      <>
+                        <CharacterSeal character={activePersona} size={32} />
+                        <span className="we-persona-switch-name">
+                          {activePersona.name || '（未命名玩家）'}
+                        </span>
+                      </>
+                    ) : (
+                      <span className="we-persona-switch-name we-persona-switch-name--empty">
+                        {loading ? '' : '暂无玩家卡'}
+                      </span>
                     )}
-                  >
-                    编辑
-                  </button>
-                )}
-                <button
-                  type="button"
-                  className="we-persona-switch-btn"
-                  onClick={() => setPersonaExpanded(true)}
-                >
-                  切换
-                </button>
-              </div>
-            ) : (
-              <div className="we-persona-switch-panel">
-                <div className="we-characters-col-actions we-persona-switch-actions">
-                  <button
-                    onClick={() => personaImportRef.current?.click()}
-                    disabled={importingPersona}
-                    className="we-characters-col-btn"
-                    title="导入玩家卡"
-                  >
-                    {importingPersona ? '…' : '导入'}
-                  </button>
-                  <input
-                    ref={personaImportRef}
-                    type="file"
-                    accept=".json,.wepersona.json,.wechar.json"
-                    className="hidden"
-                    onChange={handleImportPersonaFile}
-                  />
-                  <button
-                    onClick={() => navigate(
-                      `/worlds/${worldId}/personas/new`,
-                      { state: { backgroundLocation: location } }
+                    {activePersona && (
+                      <button
+                        type="button"
+                        className="we-persona-switch-btn"
+                        onClick={() => navigate(
+                          `/worlds/${worldId}/personas/${activePersona.id}/edit`,
+                          { state: { backgroundLocation: location } }
+                        )}
+                      >
+                        编辑
+                      </button>
                     )}
-                    className="we-characters-col-btn we-characters-col-btn--primary"
-                    title="创建玩家"
-                  >
-                    + 创建
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setPersonaExpanded(false)}
-                    className="we-characters-col-btn"
-                    title="收起"
-                  >
-                    收起
-                  </button>
-                </div>
+                    <button
+                      type="button"
+                      className="we-persona-switch-btn"
+                      onClick={() => setPersonaExpanded(true)}
+                    >
+                      切换
+                    </button>
+                  </div>
+                </motion.div>
+              ) : (
+                <motion.div key="persona-panel" {...personaSwitchMotion}>
+                  <div className="we-persona-switch-panel">
+                    <div className="we-characters-col-actions we-persona-switch-actions">
+                      <button
+                        onClick={() => personaImportRef.current?.click()}
+                        disabled={importingPersona}
+                        className="we-characters-col-btn"
+                        title="导入玩家卡"
+                      >
+                        {importingPersona ? '…' : '导入'}
+                      </button>
+                      <input
+                        ref={personaImportRef}
+                        type="file"
+                        accept=".json,.wepersona.json,.wechar.json"
+                        className="hidden"
+                        onChange={handleImportPersonaFile}
+                      />
+                      <button
+                        onClick={() => navigate(
+                          `/worlds/${worldId}/personas/new`,
+                          { state: { backgroundLocation: location } }
+                        )}
+                        className="we-characters-col-btn we-characters-col-btn--primary"
+                        title="创建玩家"
+                      >
+                        + 创建
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setPersonaExpanded(false)}
+                        className="we-characters-col-btn"
+                        title="收起"
+                      >
+                        收起
+                      </button>
+                    </div>
 
-                <div className="we-characters-col-list we-persona-switch-list">
-                  {personas.length === 0 ? (
-                    loading ? null : (
-                      <p className="we-characters-empty-text we-characters-empty-text--centered">
-                        暂无玩家卡
-                      </p>
-                    )
-                  ) : (
-                    <SortableList
-                      items={personas}
-                      onReorder={setPersonas}
-                      onReorderEnd={handlePersonaReorderEnd}
-                      useHandle={true}
-                      renderItem={(p, dragHandleProps) => (
-                        <PersonaCard
-                          persona={{ ...p, _isLast: personas.length === 1 }}
-                          dragHandleProps={dragHandleProps}
-                          onCardClick={() => {
-                            // 切换 persona 时清掉旧 writing session hint，避免误命中其他 persona 的 session
-                            setCurrentWritingSessionId(null);
-                            navigate(`/worlds/${worldId}/writing`);
-                          }}
-                          onActivate={() => handleActivatePersona(p.id)}
-                          onEdit={() => navigate(
-                            `/worlds/${worldId}/personas/${p.id}/edit`,
-                            { state: { backgroundLocation: location } }
+                    <div className="we-characters-col-list we-persona-switch-list">
+                      {personas.length === 0 ? (
+                        loading ? null : (
+                          <p className="we-characters-empty-text we-characters-empty-text--centered">
+                            暂无玩家卡
+                          </p>
+                        )
+                      ) : (
+                        <SortableList
+                          items={personas}
+                          onReorder={setPersonas}
+                          onReorderEnd={handlePersonaReorderEnd}
+                          useHandle={true}
+                          renderItem={(p, dragHandleProps) => (
+                            <PersonaCard
+                              persona={{ ...p, _isLast: personas.length === 1 }}
+                              dragHandleProps={dragHandleProps}
+                              onCardClick={() => {
+                                // 切换 persona 时清掉旧 writing session hint，避免误命中其他 persona 的 session
+                                setCurrentWritingSessionId(null);
+                                navigate(`/worlds/${worldId}/writing`);
+                              }}
+                              onActivate={() => handleActivatePersona(p.id)}
+                              onEdit={() => navigate(
+                                `/worlds/${worldId}/personas/${p.id}/edit`,
+                                { state: { backgroundLocation: location } }
+                              )}
+                              onDelete={() => setDeletingPersona(p)}
+                            />
                           )}
-                          onDelete={() => setDeletingPersona(p)}
                         />
                       )}
-                    />
-                  )}
-                </div>
-              </div>
-            )}
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
 
           {/* 世界规则 */}

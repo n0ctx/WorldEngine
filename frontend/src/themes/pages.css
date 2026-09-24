@@ -701,7 +701,7 @@
   white-space: nowrap;
 }
 
-/* ── 世界层双栏布局：左窄（故事线）右宽（角色/我扮演/世界规则） ── */
+/* ── 世界层三栏布局：故事线 / 角色 / 我扮演 + 世界规则；角色栏吃掉剩余宽度 ── */
 
 .we-worldhub-layout {
   display: flex;
@@ -712,17 +712,15 @@
 }
 
 .we-worldhub-main {
-  flex: 1 1 0%;
-  min-width: 260px;
-  max-width: 380px;
+  flex: 0 1 340px;
+  min-width: 240px;
   display: flex;
   flex-direction: column;
   min-height: 0;
 }
 
+.we-worldhub-cast,
 .we-worldhub-side {
-  flex: 1.6 1 0%;
-  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: var(--we-space-xl);
@@ -733,8 +731,22 @@
   scrollbar-color: var(--we-page-canvas-fg-muted) transparent;
 }
 
+/* 角色栏保底宽度：窗口变窄时先让两侧栏收窄，而不是把角色挤成一条 */
+.we-worldhub-cast {
+  flex: 1 1 0%;
+  min-width: 320px;
+}
+
+.we-worldhub-side {
+  flex: 0 1 320px;
+  min-width: 260px;
+}
+
+.we-worldhub-cast::-webkit-scrollbar,
 .we-worldhub-side::-webkit-scrollbar { width: 4px; }
+.we-worldhub-cast::-webkit-scrollbar-track,
 .we-worldhub-side::-webkit-scrollbar-track { background: transparent; }
+.we-worldhub-cast::-webkit-scrollbar-thumb,
 .we-worldhub-side::-webkit-scrollbar-thumb {
   background: var(--we-page-canvas-fg-muted);
   border-radius: var(--we-radius-full);
@@ -751,7 +763,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  min-height: 20px;
+  min-height: 40px; /* design exact: 27px 按钮 + 底部留白 + 分隔线；与带按钮的栏头同高，三栏分隔线对齐 */
   margin-bottom: var(--we-space-lg);
   padding-bottom: var(--we-space-md);
   border-bottom: 1px solid var(--we-col-header-border-color);
@@ -810,7 +822,7 @@
   background: var(--we-card-bg);
   border: var(--we-card-border);
   border-radius: var(--we-card-radius);
-  padding: var(--we-space-md) var(--we-space-lg);
+  padding: var(--we-space-sm) var(--we-space-lg);
   cursor: pointer;
   position: relative;
   box-shadow: var(--we-card-shadow);
@@ -819,7 +831,7 @@
               border-color var(--we-duration-normal) var(--we-easing-sharp),
               background var(--we-duration-normal) var(--we-easing-sharp);
   user-select: none;
-  margin-bottom: var(--we-space-md);
+  margin-bottom: var(--we-space-sm);
 }
 
 .we-persona-card:hover {
@@ -829,6 +841,32 @@
 
 .we-persona-card:hover .we-character-card-actions {
   opacity: 1;
+}
+
+/* 玩家卡与收起时的「我扮演」行同高同字号：展开前后同一个人不会忽大忽小 */
+.we-persona-card,
+.we-persona-switch-row {
+  min-height: 46px; /* design exact: 8px 上下留白 + 28px 按钮行 + 描边 */
+}
+
+.we-persona-card {
+  display: flex;
+  align-items: center;
+}
+
+.we-persona-card .we-character-card-body {
+  flex: 1;
+  min-width: 0;
+  gap: var(--we-space-sm);
+}
+
+.we-persona-card .we-character-card-name {
+  font-size: var(--we-text-sm);
+}
+
+.we-persona-card .we-character-card-actions {
+  top: 50%;
+  transform: translateY(-50%);
 }
 
 .we-persona-card--active {
@@ -853,7 +891,7 @@
   background: var(--we-color-accent-bg);
   border: 1px solid var(--we-color-accent-border-sm);
   border-radius: var(--we-radius-sm);
-  padding: var(--we-space-xxs) var(--we-space-sm);
+  padding: 0 var(--we-space-xs);
   flex-shrink: 0;
 }
 
@@ -3134,7 +3172,7 @@
     width: 100%;
   }
 
-  /* 世界层双栏改为上下堆叠，各栏不再自带滚动，统一由 .we-characters-canvas 整页滚动 */
+  /* 世界层三栏改为上下堆叠，各栏不再自带滚动，统一由 .we-characters-canvas 整页滚动 */
   .we-worldhub-layout {
     flex-direction: column;
     flex: none;
@@ -3142,6 +3180,7 @@
   }
 
   .we-worldhub-main,
+  .we-worldhub-cast,
   .we-worldhub-side {
     flex: none;
     min-width: 0;

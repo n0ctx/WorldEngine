@@ -5,7 +5,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Eraser, RotateCcw, X } from 'lucide-react';
+import { Eraser, RotateCcw, Sparkles, X } from 'lucide-react';
 import { useAssistantStore } from './useAssistantStore.js';
 import {
   streamAgent,
@@ -427,64 +427,69 @@ export default function AssistantPanel() {
           ariaLabel="拖动调整助手宽度"
           className="we-asst-drawer__resize"
         />
-        <header className="we-asst-drawer__header">
-          <span className="we-asst-drawer__title">写卡助手</span>
-          <AssistantStatusIndicator status={status} isStreaming={isStreaming} />
-          <div className="we-asst-drawer__actions">
-            {(messages.length > 0 || taskId) && (
+        <div className="we-asst-drawer__surface we-material">
+          <header className="we-asst-drawer__header">
+            <span className="we-asst-drawer__title">
+              <Sparkles size={16} aria-hidden="true" />
+              写卡助手
+            </span>
+            <AssistantStatusIndicator status={status} isStreaming={isStreaming} />
+            <div className="we-asst-drawer__actions">
+              {(messages.length > 0 || taskId) && (
+                <button
+                  type="button"
+                  onClick={handleReset}
+                  className="we-asst-drawer__icon-btn"
+                  title="清空对话"
+                  aria-label="清空对话"
+                >
+                  <Eraser size={16} />
+                </button>
+              )}
               <button
                 type="button"
-                onClick={handleReset}
+                onClick={close}
                 className="we-asst-drawer__icon-btn"
-                title="清空对话"
-                aria-label="清空对话"
+                title="关闭 (Esc)"
+                aria-label="关闭"
               >
-                <Eraser size={16} />
-              </button>
-            )}
-            <button
-              type="button"
-              onClick={close}
-              className="we-asst-drawer__icon-btn"
-              title="关闭 (Esc)"
-              aria-label="关闭"
-            >
-              <X size={18} />
-            </button>
-          </div>
-        </header>
-
-        {/* 消息流 */}
-        <div className="flex flex-1 flex-col overflow-hidden">
-          <MessageList
-            messages={messages}
-            onEdit={handleEdit}
-            onDelete={handleDelete}
-            onRegenerate={handleRegenerate}
-            pending={pendingAssistant}
-          />
-          {error && status === 'failed' && !isRestartRecoverable && (
-            <div className="we-asst-error" role="alert">
-              <span className="we-asst-error__text">{error}</span>
-              <button
-                type="button"
-                onClick={handleRegenerateLastUser}
-                className="we-asst-error__retry"
-              >
-                <RotateCcw size={14} />
-                重新生成
+                <X size={18} />
               </button>
             </div>
-          )}
-        </div>
+          </header>
 
-        {/* 输入框（任务执行中也可以继续输入；新消息在服务端排队，输入 `/stop` 终止当前任务） */}
-        <InputBox
-          value={input}
-          onChange={setInput}
-          onSend={handleSend}
-          disabled={inputDisabled}
-        />
+          {/* 消息流 */}
+          <div className="flex flex-1 flex-col overflow-hidden">
+            <MessageList
+              messages={messages}
+              onEdit={handleEdit}
+              onDelete={handleDelete}
+              onRegenerate={handleRegenerate}
+              pending={pendingAssistant}
+            />
+            {error && status === 'failed' && !isRestartRecoverable && (
+              <div className="we-asst-error" role="alert">
+                <span className="we-asst-error__text">{error}</span>
+                <button
+                  type="button"
+                  onClick={handleRegenerateLastUser}
+                  className="we-asst-error__retry"
+                >
+                  <RotateCcw size={14} />
+                  重新生成
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* 输入框（任务执行中也可以继续输入；新消息在服务端排队，输入 `/stop` 终止当前任务） */}
+          <InputBox
+            value={input}
+            onChange={setInput}
+            onSend={handleSend}
+            disabled={inputDisabled}
+          />
+        </div>
       </aside>
     </>
   );
