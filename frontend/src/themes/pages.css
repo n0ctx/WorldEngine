@@ -3714,8 +3714,18 @@
   opacity: 0.35;
 }
 
+/* 首字图章：实环换成细内环 + 半透明外环，边清楚但不硬；左上受光、下沿微暗，字略压进底里 */
 .we-character-seal--initial {
-  background: color-mix(in srgb, var(--seal-color) 18%, var(--we-color-bg-surface));
+  background:
+    radial-gradient(circle at 30% 24%, color-mix(in srgb, var(--we-color-bg-surface) 55%, transparent), transparent 58%),
+    radial-gradient(circle at 50% 115%, color-mix(in srgb, var(--seal-color) 22%, transparent), transparent 60%),
+    color-mix(in srgb, var(--seal-color) 18%, var(--we-color-bg-surface));
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--seal-color) 45%, transparent),
+    0 0 0 1.5px color-mix(in srgb, var(--seal-color) 80%, transparent),
+    0 0 0 3.5px color-mix(in srgb, var(--seal-color) 12%, transparent),
+    var(--we-shadow-paper-lift);
+  text-shadow: 0 1px 0 color-mix(in srgb, var(--we-color-bg-surface) 60%, transparent);
   color: var(--seal-color);
   font-family: var(--we-font-display);
   font-weight: 700;

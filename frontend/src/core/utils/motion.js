@@ -67,6 +67,18 @@ export const SPRING = {
   glowFade: { type: 'spring', stiffness: 300, damping: 35 },
 };
 
+// §2.5 流式书写 —— 新到达的文字逐字打出，书写光标跟着正在出现的字走
+export const STREAM = {
+  // 单个字：从一团墨色微光中显形；已出现的字不再参与
+  char:     { duration: 0.42,           ease: EASE.ink },
+  // 逐字间隔；到达太快时压缩间隔，打字进度最多落后真实到达 lag 秒
+  typing:   { stagger: 0.026, lag: 0.45 },
+  // 书写光标：短促亮起后缓缓回暗，一次呼吸一个周期
+  caret:    { duration: 1.10,           ease: EASE.page },
+  // 生成结束：光标先暗下去再移除
+  caretOut: { duration: DURATION.base,  ease: EASE.retract },
+};
+
 // §2.5 手势目标值（whileHover / whileTap），transition 由 useMotion().gesture 配上对应弹簧
 export const GESTURE = {
   press: {

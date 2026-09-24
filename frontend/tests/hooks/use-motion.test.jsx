@@ -11,7 +11,7 @@ vi.mock('framer-motion', () => ({
 }));
 
 import { useMotion } from '../../src/core/hooks/useMotion.js';
-import { GESTURE, SPRING, variants } from '../../src/core/utils/motion.js';
+import { GESTURE, SPRING, STREAM, variants } from '../../src/core/utils/motion.js';
 
 describe('useMotion', () => {
   beforeEach(() => {
@@ -63,5 +63,19 @@ describe('useMotion', () => {
       hidden: { opacity: 0 },
       visible: { opacity: 1 },
     });
+  });
+
+  it('流式书写的时长缓动以 CSS 变量给出，reduced motion 下为 null', () => {
+    mocks.useReducedMotion.mockReturnValue(false);
+    const { result } = renderHook(() => useMotion());
+    expect(result.current.stream()).toMatchObject({
+      '--we-stream-char-duration': `${STREAM.char.duration * 1000}ms`,
+      '--we-stream-caret-ease': `cubic-bezier(${STREAM.caret.ease.join(', ')})`,
+      '--we-stream-caret-out-duration': `${STREAM.caretOut.duration * 1000}ms`,
+    });
+
+    mocks.useReducedMotion.mockReturnValue(true);
+    const { result: reduced } = renderHook(() => useMotion());
+    expect(reduced.current.stream()).toBeNull();
   });
 });

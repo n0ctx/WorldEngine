@@ -11,9 +11,10 @@ import { useDisplaySettingsStore } from '../../core/state/displaySettings.js';
 import { isImeComposing } from '../../core/utils/ime.js';
 import { applyRules } from '../../core/utils/regex-runner.js';
 import { stripNextPromptBlocks } from '../../core/utils/next-prompt.js';
-import { parseStreamingBlocks } from '../../core/utils/think-blocks.js';
+import { needsTrailingCaret, parseStreamingBlocks } from '../../core/utils/think-blocks.js';
 import ActivatedEntriesRow from '../chat/ActivatedEntriesRow.jsx';
 import InterruptedMark from '../chat/InterruptedMark.jsx';
+import StreamingMarkdown, { StreamCaret } from '../chat/StreamingMarkdown.jsx';
 import SeamlessEditableSurface from '../../../../shared/SeamlessEditableSurface.jsx';
 
 const MotionDiv = motion.div;
@@ -52,7 +53,7 @@ function formatCost(usd) {
   return `$${usd.toFixed(3)}`;
 }
 
-function ThinkBlock({ content, open = false, interrupted = false }) {
+function ThinkBlock({ content, open = false, streaming = false, caret = false, interrupted = false }) {
   const autoCollapse = useDisplaySettingsStore((s) => s.autoCollapseThinking);
   const [expanded, setExpanded] = useState(!autoCollapse);
   const cleanContent = stripNextPromptBlocks(content);
@@ -67,12 +68,13 @@ function ThinkBlock({ content, open = false, interrupted = false }) {
           <polyline points="9 18 15 12 9 6" />
         </Icon>
         思考过程{open && <span className="we-writing-think-open">…</span>}
+        {caret && !expanded && <StreamCaret />}
       </button>
       {expanded && (
         <div className="we-writing-think-body">
-          <ReactMarkdown remarkPlugins={THINK_REMARK_PLUGINS_W} rehypePlugins={THINK_REHYPE_PLUGINS_W}>
+          <StreamingMarkdown streaming={streaming} caret={caret} remarkPlugins={THINK_REMARK_PLUGINS_W} rehypePlugins={THINK_REHYPE_PLUGINS_W}>
             {cleanContent}
-          </ReactMarkdown>
+          </StreamingMarkdown>
           {interrupted && <InterruptedMark />}
         </div>
       )}
@@ -134,6 +136,7 @@ function DeleteBtn({ onDelete }) {
 export default function WritingMessageItem({
   message,
   isStreaming = false,
+  showCaret = true,
   onEdit,
   onRegenerate,
   onEditAssistant,
@@ -158,6 +161,7 @@ export default function WritingMessageItem({
     [displayContent, isStreaming],
   );
   const lastBlockIndex = blocks.length - 1;
+  const trailingCaret = showCaret && isStreaming && needsTrailingCaret(blocks, showThinking);
   const content = displayContent;
 
   const [editing, setEditing] = useState(false);
@@ -279,6 +283,8 @@ export default function WritingMessageItem({
                       key={i}
                       content={block.content}
                       open={isStreaming && block.open}
+                      streaming={isStreaming}
+                      caret={showCaret && isStreaming && isLast && block.open}
                       interrupted={interrupted && isLast}
                     />
                   );
@@ -286,14 +292,20 @@ export default function WritingMessageItem({
                 return (
                   <div key={i}>
                     {block.content && (
-                      <ReactMarkdown remarkPlugins={REMARK_PLUGINS_W} rehypePlugins={REHYPE_PLUGINS_W}>
+                      <StreamingMarkdown
+                        streaming={isStreaming}
+                        caret={showCaret && isLast}
+                        remarkPlugins={REMARK_PLUGINS_W}
+                        rehypePlugins={REHYPE_PLUGINS_W}
+                      >
                         {block.content}
-                      </ReactMarkdown>
+                      </StreamingMarkdown>
                     )}
                     {interrupted && isLast && <InterruptedMark />}
                   </div>
                 );
               })}
+              {trailingCaret && <div><StreamCaret /></div>}
             </>
           )}
           renderEditor={({ editorRef, syncLayout }) => (

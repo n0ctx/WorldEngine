@@ -20,4 +20,20 @@ describe('buildWorldScene', () => {
     expect(scene.layers).toHaveLength(3);
     for (const layer of scene.layers) expect(layer.d).toMatch(/^M.+Z$/);
   });
+
+  it('远层更亮、近层更暗，每层都有边缘起伏的雾片隔开下一层', () => {
+    for (const name of ['魔王与勇者', '纯爱', '豪宅世界', '星海']) {
+      const [far, mid, near] = buildWorldScene(name).layers;
+      expect(far.lightness).toBeGreaterThan(mid.lightness);
+      expect(mid.lightness).toBeGreaterThan(near.lightness);
+      expect(far.fog).toMatch(/^M.+Q.+Z$/);
+      expect(mid.fog).toMatch(/^M.+Q.+Z$/);
+      expect(near.fog).toBeNull();
+    }
+  });
+
+  it('最远一层山脊是平滑曲线，不是折线锯齿', () => {
+    const [far] = buildWorldScene('魔王与勇者').layers;
+    expect(far.d).toContain(' Q');
+  });
 });

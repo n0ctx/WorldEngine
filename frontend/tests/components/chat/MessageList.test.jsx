@@ -10,7 +10,9 @@ vi.mock('../../../src/core/api/sessions.js', () => ({
 
 // 用轻量替身盯住「渲染形态选择」，避免把断言绑死在两个 item 组件的内部实现上
 vi.mock('../../../src/components/chat/MessageItem.jsx', () => ({
-  default: ({ message }) => <div data-testid="bubble" data-id={message.id}>{message.content}</div>,
+  default: ({ message, showCaret }) => (
+    <div data-testid="bubble" data-id={message.id} data-caret={String(showCaret)}>{message.content}</div>
+  ),
 }));
 vi.mock('../../../src/components/writing/WritingMessageItem.jsx', () => ({
   default: ({ message, isStreaming }) => (
@@ -99,6 +101,20 @@ describe('MessageList 的渲染形态', () => {
     const stub = screen.getByText('正在写…');
     expect(stub.getAttribute('data-streaming')).toBe('true');
     expect(screen.getAllByTestId('chapter')).toHaveLength(1);
+  });
+});
+
+describe('MessageList 的流式等待信号', () => {
+  it('选项仍在流式更新时，流式正文不挂光标，只由选项卡给出正在生成', async () => {
+    await renderList({ prose: false, generating: true, streamingText: '她点了点头。', streamingKey: 'sk-1', options: ['甲'] });
+    await waitFor(() => expect(screen.getByText('她点了点头。')).toBeTruthy());
+    expect(screen.getByText('她点了点头。').getAttribute('data-caret')).toBe('false');
+  });
+
+  it('没有选项时流式正文挂光标', async () => {
+    await renderList({ prose: false, generating: true, streamingText: '她点了点头。', streamingKey: 'sk-1' });
+    await waitFor(() => expect(screen.getByText('她点了点头。')).toBeTruthy());
+    expect(screen.getByText('她点了点头。').getAttribute('data-caret')).toBe('true');
   });
 });
 

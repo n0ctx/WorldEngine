@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import { StreamCaret } from './StreamingMarkdown.jsx';
 
 const MotionDiv = motion.div;
 
@@ -69,7 +70,7 @@ export default function OptionCard({ options, streaming, onSelect, initialCollap
             </div>
             {streaming && (
               <div className="we-option-streaming-hint">
-                生成中，选项会继续实时补全
+                正在生成<StreamCaret />
               </div>
             )}
             {!streaming && (

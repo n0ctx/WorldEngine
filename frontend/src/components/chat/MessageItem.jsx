@@ -8,7 +8,7 @@ import rehypeSanitize from 'rehype-sanitize';
 import { markdownSanitizeSchema } from '../../core/utils/markdown-sanitize.js';
 import { applyRules } from '../../core/utils/regex-runner.js';
 import { stripNextPromptBlocks } from '../../core/utils/next-prompt.js';
-import { parseStreamingBlocks } from '../../core/utils/think-blocks.js';
+import { needsTrailingCaret, parseStreamingBlocks } from '../../core/utils/think-blocks.js';
 import { useDisplaySettingsStore } from '../../core/state/displaySettings.js';
 import { isImeComposing } from '../../core/utils/ime.js';
 import { useEscapeKey } from '../../core/hooks/useEscapeKey.js';
@@ -17,6 +17,7 @@ import { Copy, PencilLine, RotateCcw, Trash2 } from 'lucide-react';
 import CharacterSeal from './CharacterSeal.jsx';
 import InterruptedMark from './InterruptedMark.jsx';
 import ActivatedEntriesRow from './ActivatedEntriesRow.jsx';
+import StreamingMarkdown, { StreamCaret } from './StreamingMarkdown.jsx';
 import { useMotion } from '../../core/hooks/useMotion.js';
 import { DURATION } from '../../core/utils/motion.js';
 import SeamlessEditableSurface from '../../../../shared/SeamlessEditableSurface.jsx';
@@ -27,7 +28,7 @@ const MotionDiv = motion.div;
  * open=true：think 块正在流式输出并自动展开
  * open=false：think 块已完成，折叠状态由 autoCollapseThinking 决定
  */
-function ThinkBlock({ content, open = false, interrupted = false }) {
+function ThinkBlock({ content, open = false, streaming = false, caret = false, interrupted = false }) {
   const autoCollapse = useDisplaySettingsStore((s) => s.autoCollapseThinking);
   // 用户是否手动改过展开/折叠;一旦改过就完全尊重用户选择,流式结束也不强制变更
   const [userToggled, setUserToggled] = useState(false);
@@ -54,13 +55,14 @@ function ThinkBlock({ content, open = false, interrupted = false }) {
         {open
           ? <span className="we-think-block-dots">…</span>
           : <span className="we-think-block-status">已完成</span>}
+        {caret && !expanded && <StreamCaret />}
       </button>
       <div className={`we-think-block-body-wrap${expanded ? ' we-think-block-body-wrap--open' : ''}`}>
         <div className="we-think-block-body-inner">
           <div className="we-think-block-body">
-            <ReactMarkdown remarkPlugins={THINK_REMARK_PLUGINS} rehypePlugins={THINK_REHYPE_PLUGINS}>
+            <StreamingMarkdown streaming={streaming} caret={caret} remarkPlugins={THINK_REMARK_PLUGINS} rehypePlugins={THINK_REHYPE_PLUGINS}>
               {cleanContent}
-            </ReactMarkdown>
+            </StreamingMarkdown>
             {interrupted && <InterruptedMark />}
           </div>
         </div>
@@ -243,6 +245,7 @@ export default function MessageItem({
   worldId,
   isStreaming,
   streamingText,
+  showCaret = true,
   onEdit,
   onRegenerate,
   onEditAssistant,
@@ -287,6 +290,7 @@ export default function MessageItem({
     [displayContent, isStreaming],
   );
   const lastBlockIndex = blocks.length - 1;
+  const trailingCaret = showCaret && isStreaming && needsTrailingCaret(blocks, showThinking);
 
   function startEdit() { setDraft(message.content); setEditing(true); }
   function confirmEdit() {
@@ -323,10 +327,8 @@ export default function MessageItem({
           <div className="we-message-body--assistant">
             <div className="we-message-label">{speakerName}</div>
             <div className="we-message-bubble-assistant we-material">
-              <div className="we-message-content we-typing-dots">
-                <span className="typing-dot" />
-                <span className="typing-dot" />
-                <span className="typing-dot" />
+              <div className="we-message-content">
+                {showCaret && <StreamCaret />}
               </div>
             </div>
           </div>
@@ -433,6 +435,8 @@ export default function MessageItem({
                           key={i}
                           content={block.content}
                           open={isStreaming && block.open}
+                          streaming={isStreaming}
+                          caret={showCaret && isStreaming && isLast && block.open}
                           interrupted={interrupted && isLast}
                         />
                       );
@@ -440,14 +444,21 @@ export default function MessageItem({
                     return (
                       <div key={i}>
                         {block.content && (
-                          <ReactMarkdown remarkPlugins={REMARK_PLUGINS} rehypePlugins={REHYPE_PLUGINS} components={MD_COMPONENTS}>
+                          <StreamingMarkdown
+                            streaming={isStreaming}
+                            caret={showCaret && isLast}
+                            remarkPlugins={REMARK_PLUGINS}
+                            rehypePlugins={REHYPE_PLUGINS}
+                            components={MD_COMPONENTS}
+                          >
                             {block.content}
-                          </ReactMarkdown>
+                          </StreamingMarkdown>
                         )}
                         {interrupted && isLast && <InterruptedMark />}
                       </div>
                     );
                   })}
+                  {trailingCaret && <div><StreamCaret /></div>}
                 </>
               )}
               renderEditor={({ editorRef, syncLayout }) => (

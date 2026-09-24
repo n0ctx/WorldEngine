@@ -116,3 +116,11 @@ export function parseStreamingBlocks(text, opts = {}) {
     : (stackParse(source) ?? booleanParse(source));
   return result.length > 0 ? result : [{ type: 'text', content: source, open: false }];
 }
+
+// 流式中最后一块还不是可挂光标的正文（正文还是空的、思考块已收起或被隐藏）时，光标单独占一行放在末尾
+export function needsTrailingCaret(blocks, showThinking) {
+  const last = blocks[blocks.length - 1];
+  if (!last) return true;
+  if (last.type === 'thinking') return !(showThinking && last.open);
+  return !last.content;
+}

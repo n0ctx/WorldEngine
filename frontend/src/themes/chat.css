@@ -2,11 +2,6 @@
 
 /* ── Keyframes ─────────────────────────────────────────── */
 
-@keyframes we-cursor-blink {
-  0%, 100% { opacity: 1; }
-  50%       { opacity: 0; }
-}
-
 @keyframes we-thinking-dots {
   0%   { content: ''; }
   25%  { content: '.'; }
@@ -529,16 +524,81 @@
   letter-spacing: var(--we-tracking-wide);
 }
 
-/* ── Streaming Cursor ──────────────────────────────────── */
+/* ── Streaming ─────────────────────────────────────────── */
 
-.we-cursor {
+/* 时长与缓动由 useMotion().stream() 以 --we-stream-* 变量写入；变量缺失（减少动效）时整条 animation 无效，光标静止、新文字直接显示 */
+/* 单个字从一团墨色微光里显形：先是晕开的光，再收拢成字 */
+/* 起始帧必须完全不可见：还没轮到的字停在起始帧上 */
+@keyframes we-stream-char {
+  from { color: transparent; text-shadow: 0 0 0.45em transparent; }
+  22%  { color: transparent; text-shadow: 0 0 0.4em color-mix(in srgb, var(--we-color-accent) 80%, transparent); }
+  60%  { text-shadow: 0 0 0.16em color-mix(in srgb, var(--we-color-accent) 35%, transparent); }
+  to   { text-shadow: 0 0 0 transparent; }
+}
+
+/* 逐字光标：只在这个字出现的那一拍亮着，连起来就是一道跟着字走的光标 */
+@keyframes we-stream-char-caret {
+  from, to { opacity: 1; }
+}
+
+@keyframes we-stream-caret {
+  0%, 100% { opacity: 1; }
+  40%      { opacity: 0.85; }
+  72%      { opacity: 0.28; }
+}
+
+@keyframes we-stream-caret-out {
+  from { opacity: 0.6; }
+  to   { opacity: 0; }
+}
+
+.we-stream-char {
+  animation: we-stream-char var(--we-stream-char-duration) var(--we-stream-char-ease) backwards;
+  animation-delay: var(--we-stream-char-delay);
+}
+
+/* 用颜色而不是透明度显形：透明度会连带把挂在字上的光标一起藏掉 */
+.we-stream-char--caret {
+  position: relative;
+}
+
+.we-stream-char--caret::after {
+  content: '';
+  position: absolute;
+  top: 0.05em;
+  bottom: 0;
+  right: -3px;
+  width: 2px;
+  border-radius: 1px;
+  background: var(--we-color-accent);
+  box-shadow: 0 0 6px color-mix(in srgb, var(--we-color-accent) 35%, transparent);
+  opacity: 0;
+  pointer-events: none;
+  animation: we-stream-char-caret var(--we-stream-char-step) linear var(--we-stream-char-delay);
+}
+
+/* 书写光标：净宽为 0（负右边距抵消），出现、消失都不推动正文换行 */
+.we-stream-caret {
   display: inline-block;
-  width: 1.5px;
-  height: 0.85em;
-  background: var(--we-color-text-secondary);
-  margin-left: 2px;
+  width: 2px;
+  height: 1.1em;
+  margin: 0 -3px 0 1px;
   vertical-align: text-bottom;
-  animation: we-cursor-blink 0.65s steps(1) infinite;
+  border-radius: 1px;
+  background: linear-gradient(
+    to bottom,
+    transparent,
+    var(--we-color-accent) 22%,
+    var(--we-color-accent) 78%,
+    transparent
+  );
+  box-shadow: 0 0 6px color-mix(in srgb, var(--we-color-accent) 35%, transparent);
+  pointer-events: none;
+  animation: we-stream-caret var(--we-stream-caret-duration) var(--we-stream-caret-ease) infinite;
+}
+
+.we-stream-caret--fading {
+  animation: we-stream-caret-out var(--we-stream-caret-out-duration) var(--we-stream-caret-out-ease) forwards;
 }
 
 /* ── Token Usage ────────────────────────────────────────── */
@@ -816,15 +876,6 @@
   flex-wrap: wrap;
   gap: var(--we-space-sm);
   margin-top: 10px; /* design exact */
-}
-
-/* ── Typing dots ───────────────────────────────────────── */
-
-.we-typing-dots {
-  display: flex;
-  align-items: center;
-  gap: var(--we-space-xs);
-  height: 24px;
 }
 
 /* ── Chapter grouping ──────────────────────────────────── */
@@ -1987,7 +2038,7 @@
   opacity: 1;
 }
 
-/* Pending typing dots（沿用 we-typing-dots 的容器样式） */
+/* Pending typing dots */
 .we-asst-entry__pending {
   display: inline-flex;
   gap: var(--we-space-xs);
@@ -2483,7 +2534,10 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .we-danmaku-track {
+  .we-danmaku-track,
+  .we-stream-char,
+  .we-stream-char--caret::after,
+  .we-stream-caret {
     animation: none;
   }
 }

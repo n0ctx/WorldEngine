@@ -285,6 +285,8 @@ const MessageList = forwardRef(function MessageList({
     return [];
   }, [messages]);
   const suppressLastFrozen = options.length > 0 && areOptionsEqual(options, lastAssistantFrozenOptions);
+  // 选项流式时正文已写完，「正在生成」只由选项卡给出，正文不再挂光标
+  const optionsStreaming = generating && options.length > 0;
 
   // 章节按全局 messages 分（保留稳定 chapterIndex），再投影出当前页可见的章节子集；末页 streaming stub 单独并入末章
   const chapters = useMemo(() => {
@@ -373,6 +375,7 @@ const MessageList = forwardRef(function MessageList({
                     <WritingMessageItem
                       message={displayMsg}
                       isStreaming={isContinuing || isStream}
+                      showCaret={!optionsStreaming}
                       persona={persona}
                       worldId={worldId}
                       onEdit={isStream ? undefined : onEditMessage}
@@ -424,6 +427,7 @@ const MessageList = forwardRef(function MessageList({
                     persona={persona}
                     worldId={worldId}
                     isStreaming={isContinuing || isStream}
+                    showCaret={!optionsStreaming}
                     streamingText={(isContinuing || isStream) ? displayMsg.content : undefined}
                     onEdit={onEditMessage}
                     onRegenerate={onRegenerateMessage}
@@ -451,6 +455,7 @@ const MessageList = forwardRef(function MessageList({
                     character={character}
                     worldId={worldId}
                     isStreaming={true}
+                    showCaret={!optionsStreaming}
                     streamingText={streamingText}
                     onEdit={NOOP}
                     onRegenerate={NOOP}

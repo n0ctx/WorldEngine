@@ -1,12 +1,6 @@
 /* 记忆检索状态指示器 — book-spread shell 独有装饰，由 PageLayout
- * 的 recall slot 注入到 left page 底部。 */
-const Dots = () => (
-  <>
-    <span className="typing-dot typing-dot-accent" />
-    <span className="typing-dot typing-dot-accent" />
-    <span className="typing-dot typing-dot-accent" />
-  </>
-);
+ * 的 recall slot 注入到 left page 底部。
+ * 只给静止的文字：生成时的等待信号只有正文里的书写光标一个。 */
 
 const Wrap = ({ children }) => (
   <div className="we-memory-recall" role="status" aria-live="polite">{children}</div>
@@ -23,14 +17,14 @@ export default function MemoryRecallOverlay({
   if (recallSummary?.expanded > 0) recallParts.push(`展开 ${recallSummary.expanded} 条`);
 
   if (memoryRecalling) {
-    return <Wrap><Dots /><span className="we-memory-recall__label">正在检索记忆…</span></Wrap>;
+    return <Wrap><span className="we-memory-recall__label">正在检索记忆…</span></Wrap>;
   }
   if (memoryExpanding) {
     const label = recallParts.length > 0 ? `${recallParts[0]} · 正在翻阅…` : '正在翻阅历史对话…';
-    return <Wrap><Dots /><span className="we-memory-recall__label">{label}</span></Wrap>;
+    return <Wrap><span className="we-memory-recall__label">{label}</span></Wrap>;
   }
   if (memoryWriting) {
-    return <Wrap><Dots /><span className="we-memory-recall__label">正在记录记忆…</span></Wrap>;
+    return <Wrap><span className="we-memory-recall__label">正在记录记忆…</span></Wrap>;
   }
   if (recallParts.length > 0) {
     return <Wrap><span className="we-memory-recall__summary">{recallParts.join(' · ')}</span></Wrap>;
