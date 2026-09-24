@@ -7,6 +7,7 @@ import NearbyCharacterBlock from './NearbyCharacterBlock.jsx';
 
 import AddSavedNearbyModal from './AddSavedNearbyModal.jsx';
 import MakeCardModal from './MakeCardModal.jsx';
+import ConfirmModal from '../../../components/ui/ConfirmModal.jsx';
 import { fetchNearby, setNearbySaved, removeNearby } from '../../../core/api/session-nearby.js';
 import { RefreshIcon } from '../../../components/state/panel-parts.jsx';
 import { log } from '../../../core/utils/logger.js';
@@ -112,6 +113,7 @@ export default function NearbyPanel({
   const lastAppliedRecallTickRef = useRef(savedRecallTick);
   const [addModalOpen, setAddModalOpen] = useState(false);
   const [makeCardOpen, setMakeCardOpen] = useState(false);
+  const [removingNearby, setRemovingNearby] = useState(null);
 
   const reloadNearby = useCallback(() => {
     if (!worldId || !sessionId) {
@@ -281,7 +283,7 @@ export default function NearbyPanel({
         <button
           type="button"
           className="we-state-section-reset we-panel-card-action we-panel-card-action--chip"
-          onClick={() => handleRemoveFor(n)}
+          onClick={() => setRemovingNearby(n)}
           title="移除（物理删除，下轮不再注入）"
         >
           <TrashIcon /><span>移除</span>
@@ -416,6 +418,20 @@ export default function NearbyPanel({
             />
           )}
         </AnimatePresence>
+        {removingNearby && (
+          <ConfirmModal
+            title="移除附近角色？"
+            message={`「${removingNearby.name || '未命名'}」及其状态将被删除，下轮不再注入，此操作无法撤销。`}
+            confirmText="确认移除"
+            danger
+            onConfirm={async () => {
+              const target = removingNearby;
+              setRemovingNearby(null);
+              await handleRemoveFor(target);
+            }}
+            onClose={() => setRemovingNearby(null)}
+          />
+        )}
     </>
   );
 
