@@ -1634,7 +1634,7 @@
   flex-direction: column;
   height: 100%;
   overflow: hidden;
-  background: var(--we-glass-bg);
+  background: color-mix(in srgb, var(--we-color-bg-elevated) 30%, transparent);
   backdrop-filter: blur(var(--we-glass-blur));
   border-radius: var(--we-radius-xl);
   box-shadow:
