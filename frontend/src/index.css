@@ -9,6 +9,7 @@
    本文件只承载全局基线、可达性降级、通用工具类与根容器。
    ========================================================= */
 :root {
+  color-scheme: var(--we-color-scheme);
   font-family: var(--we-font-ui);
   font-size:   16px;
   line-height: var(--we-leading-normal);

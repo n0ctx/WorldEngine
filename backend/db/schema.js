@@ -237,6 +237,8 @@ CREATE TABLE IF NOT EXISTS turn_records (
   session_id        TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
   round_index       INTEGER NOT NULL,
   summary           TEXT NOT NULL,
+  scene             TEXT,
+  cast_json         TEXT,
   user_message_id   TEXT,
   asst_message_id   TEXT,
   created_at        INTEGER NOT NULL,
@@ -505,6 +507,9 @@ export function initSchema(db) {
   try { db.exec(`ALTER TABLE turn_records ADD COLUMN long_term_memory_snapshot TEXT`); } catch {}
   // 表格记忆文件快照：保存该轮结束时 tables.json 全文，用于回滚时同步还原表格记忆
   try { db.exec(`ALTER TABLE turn_records ADD COLUMN table_memory_snapshot TEXT`); } catch {}
+  // 摘要锚点：场景与在场角色，只用于召回时定位，不参与 embedding
+  try { db.exec(`ALTER TABLE turn_records ADD COLUMN scene TEXT`); } catch {}
+  try { db.exec(`ALTER TABLE turn_records ADD COLUMN cast_json TEXT`); } catch {}
   // 日记系统：sessions 记录创建时的日记模式，daily_entries 存日记元数据
   try { db.exec(`ALTER TABLE sessions ADD COLUMN diary_date_mode TEXT`); } catch {}
   try { db.exec(`CREATE INDEX IF NOT EXISTS idx_daily_entries_session ON daily_entries(session_id, date_str)`); } catch {}

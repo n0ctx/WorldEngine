@@ -20,6 +20,7 @@ import {
   LLM_TASK_TEMPERATURE,
   LLM_TURN_SUMMARY_MAX_TOKENS,
   LONG_TERM_MEMORY_PER_TURN_MAX,
+  TURN_SUMMARY_CAST_MAX,
   LLM_BACKGROUND_TASK_TIMEOUT_MS,
 } from '../utils/constants.js';
 import { renderBackendPrompt } from '../prompts/prompt-loader.js';
@@ -33,13 +34,13 @@ import { appendMemoryLines, readMemoryFile } from '../services/long-term-memory.
 import { readTablesRaw } from '../services/table-memory.js';
 
 /**
- * 从 LLM 原始输出中解析 JSON 结构 {summary, memory[]}。
+ * 从 LLM 原始输出中解析 JSON 结构 {scene, cast[], summary, memory[]}。
  * - 先剥 markdown 围栏，再提取首尾大括号之间的 JSON
- * - 解析失败：整段当摘要、零 memory（保持降级行为）
+ * - 解析失败：整段当摘要、无锚点、零 memory（保持降级行为）
  */
-function splitSummaryAndMemory(raw) {
+function parseSummaryPayload(raw) {
   const text = String(raw ?? '').trim();
-  if (!text) return { summary: '', memoryLines: [] };
+  if (!text) return { summary: '', scene: '', cast: [], memoryLines: [] };
 
   let body = text.replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/i, '').trim();
   const start = body.indexOf('{');
@@ -49,14 +50,20 @@ function splitSummaryAndMemory(raw) {
   try {
     const obj = JSON.parse(body);
     const summary = typeof obj.summary === 'string' ? obj.summary : '';
+    const scene = typeof obj.scene === 'string' ? obj.scene.trim() : '';
+    const castArr = Array.isArray(obj.cast) ? obj.cast : [];
+    const cast = castArr
+      .map((n) => String(n ?? '').trim())
+      .filter(Boolean)
+      .slice(0, TURN_SUMMARY_CAST_MAX);
     const memArr = Array.isArray(obj.memory) ? obj.memory : [];
     const memoryLines = memArr
       .map((l) => String(l ?? '').replace(/^\s*[-*•·\d.)]+\s*/, '').trim())
       .filter(Boolean)
       .slice(0, LONG_TERM_MEMORY_PER_TURN_MAX);
-    return { summary, memoryLines };
+    return { summary, scene, cast, memoryLines };
   } catch {
-    return { summary: text, memoryLines: [] };
+    return { summary: text, scene: '', cast: [], memoryLines: [] };
   }
 }
 
@@ -119,6 +126,8 @@ export async function createTurnRecord(sessionId, { isUpdate = false } = {}) {
 
   // LLM 生成摘要（非流式，temp=0.3）
   let summary;
+  let scene = '';
+  let cast = [];
   let memoryLines = [];
   try {
     const tplName = ltmEnabled ? 'memory-turn-summary-with-ltm.md' : 'memory-turn-summary.md';
@@ -144,18 +153,14 @@ export async function createTurnRecord(sessionId, { isUpdate = false } = {}) {
     if (shouldLogRaw('llm_raw')) {
       log.info(`LLM RAW  ${formatMeta({ session: sid, ltm: ltmEnabled })}\n${stripped}`);
     }
-    if (ltmEnabled) {
-      const split = splitSummaryAndMemory(stripped);
-      memoryLines = split.memoryLines;
-      summary = split.summary
-        .replace(/^\s*\*{1,2}[^*\n]{0,20}[：:]\*{0,2}\s*/u, '')
-        .trim();
-    } else {
-      summary = stripped
-        .replace(/^\s*\*{1,2}[^*\n]{0,20}[：:]\*{0,2}\s*/u, '')
-        .trim();
-    }
-    log.info(`SUMMARY RAW  ${formatMeta({ session: sid, chars: summary.length, ltm: memoryLines.length, preview: shouldLogRaw('llm_raw') ? previewText(summary) : undefined })}`);
+    const payload = parseSummaryPayload(stripped);
+    memoryLines = payload.memoryLines;
+    scene = payload.scene;
+    cast = payload.cast;
+    summary = payload.summary
+      .replace(/^\s*\*{1,2}[^*\n]{0,20}[：:]\*{0,2}\s*/u, '')
+      .trim();
+    log.info(`SUMMARY RAW  ${formatMeta({ session: sid, chars: summary.length, scene: scene || undefined, cast: cast.length || undefined, ltm: memoryLines.length, preview: shouldLogRaw('llm_raw') ? previewText(summary) : undefined })}`);
   } catch (err) {
     log.warn(`SUMMARY FAIL  ${formatMeta({ session: sid, error: err.message })}`);
     // 降级：用前 100 字作为摘要
@@ -191,6 +196,8 @@ export async function createTurnRecord(sessionId, { isUpdate = false } = {}) {
     session_id: sessionId,
     round_index,
     summary,
+    scene: scene || null,
+    cast_json: cast.length > 0 ? JSON.stringify(cast) : null,
     user_message_id: userMsg.id,
     asst_message_id: asstMsg.id,
     state_snapshot: snapshot ? JSON.stringify(snapshot) : null,
@@ -248,3 +255,7 @@ async function embedTurnRecord(turnRecordId, sessionId, worldId) {
     log.warn(`EMBED FAIL  ${formatMeta({ turnRecordId, session: sessionId.slice(0, 8), error: err.message })}`);
   }
 }
+
+export const __testables = {
+  parseSummaryPayload,
+};

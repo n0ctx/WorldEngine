@@ -310,7 +310,7 @@ export default function WorldEditPage() {
         </div>
       ),
     },
-    {
+    ...(!isCreate ? [{
       key: 'state_templates',
       label: '状态模板',
       content: (
@@ -357,7 +357,7 @@ export default function WorldEditPage() {
           />
         </div>
       ),
-    },
+    }] : []),
   ];
 
   return (

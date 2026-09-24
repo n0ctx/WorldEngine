@@ -63,6 +63,18 @@ test('renderXxxState 优先读取 session runtime，再回退 default', async ()
   assert.match(renderPersonaState(world.id, session.id), /75/);
 });
 
+test('renderRecalledSummaries 在有锚点时注入场景与在场人物', async () => {
+  const { renderRecalledSummaries } = await freshImport('backend/memory/recall.js');
+  const text = renderRecalledSummaries([
+    { ref: 1, created_at: 0, session_title: '旧会话', scene: '图书馆', cast: ['赵齐', '白羽岚'], content: '两人否决了风力发电方案。' },
+    { ref: 2, created_at: 0, session_title: '旧会话', scene: '', cast: [], content: '没有锚点的旧摘要。' },
+  ]);
+
+  const [withAnchor, withoutAnchor] = text.split('\n');
+  assert.match(withAnchor, /【图书馆 · 赵齐、白羽岚】两人否决了风力发电方案。$/);
+  assert.match(withoutAnchor, /· 旧会话】没有锚点的旧摘要。$/);
+});
+
 test('searchRecalledSummaries 从向量存储命中旧 turn record 并排除最近轮次', async () => {
   const nextConfig = sandbox.readConfig();
   nextConfig.provider_keys = { ...(nextConfig.provider_keys || {}), openai: 'test-key' };

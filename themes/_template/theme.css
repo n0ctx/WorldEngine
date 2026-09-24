@@ -19,6 +19,9 @@
   --we-color-text-inverse: #ffffff;
   --we-color-text-danger: #7d766f;
 
+  /* 画布偏深的主题必须改成 dark，否则切回标签页时会闪一帧浏览器白底 */
+  --we-color-scheme: light;
+
   --we-color-bg-canvas: #f7f7f4;
   --we-color-bg-surface: #ffffff;
   --we-color-bg-elevated: #ffffff;    /* 弹窗/浮层，主题可加深以制造层次 */

@@ -21,10 +21,10 @@ export function getRecentTurnSummaries(sessionId, limit) {
 /**
  * 插入或更新 turn record（按 session_id + round_index UPSERT）
  *
- * @param {object} data - { session_id, round_index, summary, user_message_id, asst_message_id, state_snapshot }
+ * @param {object} data - { session_id, round_index, summary, scene, cast_json, user_message_id, asst_message_id, state_snapshot }
  * @returns {object} 写入后的行
  */
-export function upsertTurnRecord({ session_id, round_index, summary, user_message_id, asst_message_id, state_snapshot }) {
+export function upsertTurnRecord({ session_id, round_index, summary, scene, cast_json, user_message_id, asst_message_id, state_snapshot }) {
   const existing = db.prepare(
     'SELECT id FROM turn_records WHERE session_id = ? AND round_index = ?',
   ).get(session_id, round_index);
@@ -34,16 +34,16 @@ export function upsertTurnRecord({ session_id, round_index, summary, user_messag
   if (existing) {
     db.prepare(`
       UPDATE turn_records
-      SET summary = ?, user_message_id = ?, asst_message_id = ?, state_snapshot = ?, created_at = ?
+      SET summary = ?, scene = ?, cast_json = ?, user_message_id = ?, asst_message_id = ?, state_snapshot = ?, created_at = ?
       WHERE id = ?
-    `).run(summary, user_message_id ?? null, asst_message_id ?? null, state_snapshot ?? null, now, existing.id);
+    `).run(summary, scene ?? null, cast_json ?? null, user_message_id ?? null, asst_message_id ?? null, state_snapshot ?? null, now, existing.id);
     return getTurnRecordById(existing.id);
   } else {
     const id = crypto.randomUUID();
     db.prepare(`
-      INSERT INTO turn_records (id, session_id, round_index, summary, user_message_id, asst_message_id, state_snapshot, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(id, session_id, round_index, summary, user_message_id ?? null, asst_message_id ?? null, state_snapshot ?? null, now);
+      INSERT INTO turn_records (id, session_id, round_index, summary, scene, cast_json, user_message_id, asst_message_id, state_snapshot, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(id, session_id, round_index, summary, scene ?? null, cast_json ?? null, user_message_id ?? null, asst_message_id ?? null, state_snapshot ?? null, now);
     return getTurnRecordById(id);
   }
 }

@@ -375,6 +375,8 @@ export async function searchRecalledSummaries(worldId, sessionId) {
       round_index: record.round_index,
       created_at: sessionRow?.created_at ?? record.created_at,
       content: record.summary,
+      scene: record.scene || '',
+      cast: parseCastJson(record.cast_json),
       score: hit.score,
       is_same_session: hit.is_same_session,
     });
@@ -386,8 +388,21 @@ export async function searchRecalledSummaries(worldId, sessionId) {
 }
 
 /**
+ * 将 turn record 的 cast_json 解析为人物名数组，非法或缺失时返回空数组。
+ */
+function parseCastJson(castJson) {
+  if (!castJson) return [];
+  try {
+    const parsed = JSON.parse(castJson);
+    return Array.isArray(parsed) ? parsed.map((n) => String(n ?? '').trim()).filter(Boolean) : [];
+  } catch {
+    return [];
+  }
+}
+
+/**
  * 将结构化召回列表渲染为注入用的可读文本。
- * 每条前加 【#ref】 前缀，供 AI 指代。
+ * 每条前加 【#ref】 前缀，供 AI 指代；scene / cast 作为定位锚点紧跟在日期块之后。
  *
  * @param {Array} recalled  searchRecalledSummaries 返回的 recalled 数组
  * @returns {string}  无项时返回空字符串
@@ -398,7 +413,9 @@ export function renderRecalledSummaries(recalled) {
   const lines = [];
   for (const item of recalled) {
     const dateStr = new Date(item.created_at).toISOString().slice(0, 10);
-    lines.push(`- 【#${item.ref}】【${dateStr} · ${item.session_title}】${item.content}`);
+    const anchorParts = [item.scene, (item.cast ?? []).join('、')].filter(Boolean);
+    const anchor = anchorParts.length > 0 ? `【${anchorParts.join(' · ')}】` : '';
+    lines.push(`- 【#${item.ref}】【${dateStr} · ${item.session_title}】${anchor}${item.content}`);
   }
 
   return lines.join('\n');

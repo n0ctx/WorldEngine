@@ -1,0 +1,48 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Grep",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo '{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"allow\",\"additionalContext\":\"提醒:本仓有 codegraph 索引。代码探索/定位/理解优先 codegraph_explore(预建符号图,更准更省 token,能跟踪动态分发);仅在 codegraph 未覆盖的具体细节时才回退到本次 Grep。\"}}'",
+            "statusMessage": "codegraph 提醒"
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/yunzhiwang/.local/bin/headroom init hook ensure --profile init-worldengine-b82d9ec5 --marker headroom-init-claude",
+            "timeout": 15
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "matcher": "startup|resume",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/yunzhiwang/.local/bin/headroom init hook ensure --profile init-worldengine-b82d9ec5 --marker headroom-init-claude",
+            "timeout": 15
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo '{\"hookSpecificOutput\":{\"hookEventName\":\"UserPromptSubmit\",\"additionalContext\":\"探索、定位、理解代码时默认优先 codegraph(先 codegraph_explore;查调用链用 codegraph_callers/callees/impact),替代手动 grep+read。codegraph 工具已常驻(alwaysLoad),直接调用,无需先 ToolSearch。\"}}'"
+          }
+        ]
+      }
+    ]
+  }
+}

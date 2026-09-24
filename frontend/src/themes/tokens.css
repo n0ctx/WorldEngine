@@ -87,6 +87,11 @@
      场景反转成深色，套到头像色板上会导致深字压深底、初始字母不可读。 */
   --we-color-avatar-text:    var(--we-base-white);
 
+  /* 浏览器原生配色方案：决定标签页复原/滚动越界时浏览器自己那层底色，以及
+     原生滚动条、表单控件、自动填充的明暗。必须跟本主题画布明暗一致，
+     否则深色主题切回标签页会先闪一帧白底。深色主题包需覆盖为 dark。 */
+  --we-color-scheme: light;
+
   /* 背景色 */
   --we-color-bg-canvas:   var(--we-base-paper-100);
   --we-color-bg-surface:  var(--we-base-paper-200);  /* 卡片/面板 */

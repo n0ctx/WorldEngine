@@ -355,9 +355,10 @@ export default function EntryEditor({
         const validConditions = conditions.filter((c) => c.target_field && c.value && !/^(year|month|day|hour|minute):$/.test(c.value));
         await replaceEntryConditions(entryId, validConditions);
       }
-      onSave();
+      await onSave();
     } catch (err) {
       log.error('entry.save_failed', err, { toast: `保存失败：${err.message}` });
+    } finally {
       setSaving(false);
     }
   }

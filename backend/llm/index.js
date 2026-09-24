@@ -332,7 +332,6 @@ export async function completeWithToolsDetailed(messages, tools, options = {}) {
 
   const { defs, handlers } = splitTools(tools);
   const timeoutMs = resolveTimeoutMs(options.timeoutMs, llmConfig.provider);
-  const timeout = buildTimedSignal(llmConfig.signal, timeoutMs);
   log.info(`COMPLETE_TOOLS START  ${formatMeta({
     callType: llmConfig.callType,
     provider: llmConfig.provider,
@@ -347,6 +346,8 @@ export async function completeWithToolsDetailed(messages, tools, options = {}) {
   const spinnerId = spinnerAdd('工具调用中');
   try {
     for (let attempt = 0; attempt <= retry.max; attempt++) {
+      // 每次尝试都用一个全新的超时窗口，避免上一轮超时后 signal 保持已中止状态，导致后续重试全部瞬间失败
+      const timeout = buildTimedSignal(llmConfig.signal, timeoutMs);
       try {
         const result = await provider.completeWithTools(messages, defs, handlers, {
           ...llmConfig,
@@ -409,7 +410,6 @@ export async function complete(messages, options = {}) {
   const summary = summarizeMessages(messages);
   const startedAt = Date.now();
   const timeoutMs = resolveTimeoutMs(options.timeoutMs, llmConfig.provider);
-  const timeout = buildTimedSignal(llmConfig.signal, timeoutMs);
 
   log.info(`COMPLETE START  ${formatMeta({
     callType: llmConfig.callType,
@@ -429,6 +429,8 @@ export async function complete(messages, options = {}) {
   const spinnerId = spinnerAdd('非流式响应中');
   try {
     for (let attempt = 0; attempt <= retry.max; attempt++) {
+      // 每次尝试都用一个全新的超时窗口，避免上一轮超时后 signal 保持已中止状态，导致后续重试全部瞬间失败
+      const timeout = buildTimedSignal(llmConfig.signal, timeoutMs);
       try {
         const result = await provider.complete(messages, {
           ...llmConfig,

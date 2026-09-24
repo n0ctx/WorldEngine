@@ -38,6 +38,7 @@
   --we-color-text-danger:    #00d4ff;
 
   /* ==================== 语义色：背景 ==================== */
+  --we-color-scheme: dark;
   --we-color-bg-canvas:   #0a0a14;
   --we-color-bg-surface:  #16161f;
   --we-color-bg-elevated: #1a1a28;
