@@ -344,7 +344,7 @@ const InputBox = forwardRef(function InputBox({
         {/* 附件按钮 */}
         <button
           onClick={() => fileInputRef.current?.click()}
-          disabled={generating || attachments.length >= 3}
+          disabled={generating || attachments.length >= MAX_ATTACHMENTS_PER_MESSAGE}
           className="we-chat-input__attach-btn"
           title="添加图片（最多3张）"
           aria-label="添加图片附件（最多3张）"

@@ -129,7 +129,7 @@ export default function StateExtractPreviewModal({ onExtract, onConfirm, onClose
   const isEmpty = !isLoading && !fetchError && rows.length === 0;
 
   return createPortal(
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 px-4">
+    <div className="fixed inset-0 z-[var(--we-z-modal)] flex items-center justify-center bg-black/60 px-4">
       <div className="we-dialog-panel w-full max-w-2xl flex flex-col max-h-[90vh]">
         <div className="we-dialog-header">
           <h2>AI 提取状态字段建议</h2>

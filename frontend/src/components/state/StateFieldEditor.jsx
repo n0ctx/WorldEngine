@@ -523,7 +523,7 @@ export default function StateFieldEditor({ field, scope, diaryDateMode, onSave, 
 
   if (inline) return panel;
   return createPortal(
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 px-4">
+    <div className="fixed inset-0 z-[var(--we-z-modal)] flex items-center justify-center bg-black/60 px-4">
       {panel}
     </div>,
     document.body,

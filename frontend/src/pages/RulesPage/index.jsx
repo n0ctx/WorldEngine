@@ -944,7 +944,7 @@ function NewSystemWizard({ worldId, scope, scopeKey, onClose, onFinish }) {
 function WizardShell({ title, step, children, footer, onClose }) {
   useEscapeKey(onClose);
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 px-4">
+    <div className="fixed inset-0 z-[var(--we-z-modal)] flex items-center justify-center bg-black/60 px-4">
       <div className="we-dialog-panel w-full max-w-2xl flex flex-col max-h-[90vh]">
         <div className="we-dialog-header flex items-center justify-between">
           <h2>新建系统 · 第 {step}/3 步</h2>
