@@ -1314,27 +1314,53 @@
   align-items: center;
   gap: var(--we-space-xs) var(--we-space-sm);
   padding: var(--we-space-md);
+  isolation: isolate;
+  border-color: transparent;
+  border-radius: var(--we-radius-md);
+  background: transparent;
+  box-shadow: none;
+  animation: we-panel-fade-in var(--we-duration-slow) var(--we-easing-ink) backwards;
   transition: background var(--we-duration-fast) var(--we-easing-sharp),
-              box-shadow var(--we-duration-fast) var(--we-easing-sharp);
+              transform var(--we-duration-fast) var(--we-easing-sharp);
 }
-/* 窄轨里三种外观分开，四边边框始终同一套：未选中标题退一档字色；悬停只铺一层浅墨晕，
-   不位移、不加深投影；按下深一档；选中底色最深、标题回到主字色 */
+/* 窄轨里是玻璃上的透明浮片，三种外观分开：未选中标题退一档字色；悬停铺一层浅墨晕并上浮 1px；
+   按下深一档、落回原位；选中由下方滑动的亮片托着，标题回到主字色 */
 .we-storyline-list--timeline .we-storyline-item-title {
   color: var(--we-color-text-secondary);
 }
 .we-storyline-list--timeline .we-storyline-item--active .we-storyline-item-title {
   color: var(--we-color-text-primary);
 }
-.we-storyline-list--timeline .we-storyline-item:hover {
-  box-shadow: var(--we-card-shadow);
+.we-storyline-list--timeline .we-storyline-item:not(.we-storyline-item--active):hover {
+  background: var(--we-color-ink-wash);
+  box-shadow: none;
+  transform: translateY(-1px);
+}
+.we-storyline-list--timeline .we-storyline-item--active,
+.we-storyline-list--timeline .we-storyline-item--active:hover {
+  background: transparent;
+  box-shadow: none;
   transform: none;
 }
 .we-storyline-list--timeline .we-storyline-item:not(.we-storyline-item--active):active {
   background: var(--we-color-ink-wash-md);
+  transform: none;
 }
 .we-storyline-list--timeline .we-storyline-item:focus-visible {
   outline: none;
-  box-shadow: var(--we-focus-ring), var(--we-card-shadow);
+  box-shadow: var(--we-focus-ring);
+}
+.we-storyline-highlight {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: var(--we-color-bg-elevated);
+  box-shadow:
+    0 0 0 1px var(--we-material-stroke),
+    inset 0 1px 0 var(--we-material-sheen),
+    var(--we-material-shadow-near);
+  pointer-events: none;
 }
 .we-storyline-list--timeline .we-storyline-item-info {
   grid-row: 2;
@@ -3997,7 +4023,6 @@
 
 .we-session-list-head {
   padding: 14px 14px 10px;
-  border-bottom: 1px solid var(--we-color-border-default);
 }
 
 /* 页内「返回世界」：对话列 / 写作列 / 规则页页头共用，不随侧栏收起 */
@@ -4029,16 +4054,17 @@
   opacity: 1;
 }
 
+/* 玻璃面板上的强调按钮：主色淡底 + 细描边，悬停加深一档 */
 .we-session-list-create {
   width: 100%;
   padding: 7px 0; /* design exact */
-  border: 1px solid var(--we-color-border-strong);
+  border: 1px solid var(--we-color-accent-border);
   border-radius: var(--we-radius-full);
-  background: none;
+  background: var(--we-color-accent-bg);
   cursor: pointer;
   font-size: var(--we-text-2xs);
   font-family: var(--we-font-prose);
-  color: var(--we-color-text-secondary);
+  color: var(--we-color-accent);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -4049,10 +4075,19 @@
 }
 
 .we-session-list-create:hover {
-  background: var(--we-color-ink-wash-md);
-  color: var(--we-color-text-primary);
+  background: color-mix(in srgb, var(--we-color-accent) 18%, transparent);
+  color: var(--we-color-accent);
   box-shadow: none;
   transform: none;
+}
+
+.we-session-list-create:active {
+  background: color-mix(in srgb, var(--we-color-accent) 24%, transparent);
+}
+
+.we-session-list-create:focus-visible {
+  outline: none;
+  box-shadow: var(--we-focus-ring);
 }
 
 .we-session-list-scroll {

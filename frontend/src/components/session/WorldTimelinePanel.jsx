@@ -21,6 +21,7 @@
  */
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import Icon from '../ui/Icon.jsx';
 import { getWorldTimeline, renameSession, deleteSession } from '../../core/api/sessions.js';
 import { getCharactersByWorld } from '../../core/api/characters.js';
@@ -31,6 +32,14 @@ import { formatDateLiterary } from '../../core/utils/date-format.js';
 import { relativeTime } from '../../core/utils/time.js';
 import { log } from '../../core/utils/logger.js';
 import { isImeComposing } from '../../core/utils/ime.js';
+import { STAGGER } from '../../core/utils/motion.js';
+import { useMotion } from '../../core/hooks/useMotion.js';
+
+const MotionDiv = motion.div;
+const MotionSpan = motion.span;
+
+// 入场逐条浮现只排前几条：列表长时后面的条目不再额外等待
+const STAGGER_CAP = 8;
 
 function StorylineModeBadge({ mode }) {
   return (
@@ -40,7 +49,8 @@ function StorylineModeBadge({ mode }) {
   );
 }
 
-function TimelineItem({ item, title, isActive, editable, onClick, onRename, onDelete }) {
+function TimelineItem({ item, title, index, isActive, editable, onClick, onRename, onDelete }) {
+  const motionPrefs = useMotion();
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState('');
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -95,7 +105,17 @@ function TimelineItem({ item, title, isActive, editable, onClick, onRename, onDe
       aria-current={isActive ? 'true' : undefined}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => { setHovered(false); setConfirmDelete(false); }}
+      style={{ animationDelay: `${Math.min(index, STAGGER_CAP) * STAGGER.list}s` }}
     >
+      {/* 当前会话的托底亮片：切换会话时从旧卡片滑到新卡片 */}
+      {isActive && (
+        <MotionSpan
+          layoutId="we-storyline-highlight"
+          className="we-storyline-highlight"
+          aria-hidden="true"
+          transition={motionPrefs.spring('overlay')}
+        />
+      )}
       <StorylineModeBadge mode={item.mode} />
       <div className="we-storyline-item-info">
         {editing ? (
@@ -298,7 +318,7 @@ export default function WorldTimelinePanel({
         {headerRight}
       </div>
 
-      <div className="we-session-list-scroll">
+      <MotionDiv layoutScroll className="we-session-list-scroll">
         {loadError ? (
           <div className="flex flex-col items-center gap-3 px-4 py-6 text-center">
             <p className="text-sm text-[var(--we-color-text-danger)]">{loadError}</p>
@@ -314,11 +334,12 @@ export default function WorldTimelinePanel({
           <p className="we-session-list-empty">暂无故事线</p>
         ) : (
           <div className="we-storyline-list we-storyline-list--timeline">
-            {timeline.map((item) => (
+            {timeline.map((item, index) => (
               <TimelineItem
                 key={`${item.mode}-${item.id}`}
                 item={item}
                 title={storylineTitle(item)}
+                index={index}
                 isActive={item.mode === currentMode && item.id === currentSessionId}
                 editable={item.mode === currentMode}
                 onClick={() => handleItemClick(item)}
@@ -328,7 +349,7 @@ export default function WorldTimelinePanel({
             ))}
           </div>
         )}
-      </div>
+      </MotionDiv>
     </div>
   );
 }
