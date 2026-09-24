@@ -11,22 +11,18 @@ export default function SpeakerStage({ character }) {
         {character ? (
           <motion.div
             key={character.id}
-            className="we-speaker-stage__cast we-material"
+            className="we-speaker-stage__cast"
             variants={m.variant('speakerEnter')}
             initial="hidden"
             animate="visible"
             exit={{ opacity: 0, transition: m.transition('retract') }}
             transition={m.spring('speaker')}
           >
-            <span className="we-speaker-stage__halo">
-              <CharacterSeal character={character} size={56} />
-            </span>
-            <span className="we-speaker-stage__text">
-              <span className="we-speaker-stage__name">{character.name}</span>
-              {character.description ? (
-                <span className="we-speaker-stage__line">{character.description}</span>
-              ) : null}
-            </span>
+            <CharacterSeal character={character} size={32} />
+            <span className="we-speaker-stage__name">{character.name}</span>
+            {character.description ? (
+              <span className="we-speaker-stage__line">{character.description}</span>
+            ) : null}
           </motion.div>
         ) : null}
       </AnimatePresence>

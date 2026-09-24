@@ -19,7 +19,8 @@ import { listWorldEntries } from '../core/api/prompt-entries';
 import { listWorldStateFields } from '../core/api/world-state-fields';
 import { getWorldTimeline } from '../core/api/sessions';
 import { createWritingSession } from '../core/api/writing-sessions';
-import { ConfirmModal, AvatarCircle, SortableList } from '../components';
+import { ConfirmModal, SortableList } from '../components';
+import CharacterSeal from '../components/chat/CharacterSeal.jsx';
 import DragHandle from '../components/ui/DragHandle.jsx';
 import Icon from '../components/ui/Icon.jsx';
 import { relativeTime } from '../core/utils/time.js';
@@ -78,12 +79,7 @@ function PersonaCard({ persona, dragHandleProps, onActivate, onEdit, onDelete, o
     >
       <div className="we-character-card-body">
         {dragHandleProps && <span className="we-char-drag" {...dragHandleProps}><DragHandle /></span>}
-        <AvatarCircle
-          id={persona.id}
-          name={persona.name}
-          avatarPath={persona.avatar_path}
-          size="sm"
-        />
+        <CharacterSeal character={persona} size={32} />
         <div className="we-character-card-info">
           <div className="we-persona-card-name-row">
             <p className="we-character-card-name">{persona.name || '（未命名玩家）'}</p>
@@ -157,12 +153,7 @@ function CharacterCard({ char, dragHandleProps, onCardClick, onEdit, onDelete })
     >
       <div className="we-character-card-body">
         <span className="we-char-drag" {...dragHandleProps}><DragHandle /></span>
-        <AvatarCircle
-          id={char.id}
-          name={char.name}
-          avatarPath={char.avatar_path}
-          size="sm"
-        />
+        <CharacterSeal character={char} size={32} />
         <div className="we-character-card-info">
           <p className="we-character-card-name">{char.name}</p>
           {char.description ? (
@@ -747,12 +738,7 @@ export default function CharactersPage() {
               <div className="we-persona-switch-row">
                 {activePersona ? (
                   <>
-                    <AvatarCircle
-                      id={activePersona.id}
-                      name={activePersona.name}
-                      avatarPath={activePersona.avatar_path}
-                      size="sm"
-                    />
+                    <CharacterSeal character={activePersona} size={32} />
                     <span className="we-persona-switch-name">
                       {activePersona.name || '（未命名玩家）'}
                     </span>

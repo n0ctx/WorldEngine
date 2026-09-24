@@ -14,7 +14,6 @@ import { isImeComposing } from '../../core/utils/ime.js';
 import { useEscapeKey } from '../../core/hooks/useEscapeKey.js';
 
 import { Copy, PencilLine, RotateCcw, Trash2 } from 'lucide-react';
-import CharacterSeal from './CharacterSeal.jsx';
 import InterruptedMark from './InterruptedMark.jsx';
 import ActivatedEntriesRow from './ActivatedEntriesRow.jsx';
 import StreamingMarkdown, { StreamCaret } from './StreamingMarkdown.jsx';
@@ -273,8 +272,8 @@ export default function MessageItem({
   };
 
   const speakerName = isUser
-    ? (persona?.name || '玩家').toUpperCase()
-    : (character?.name || '旁白').toUpperCase();
+    ? (persona?.name || '玩家')
+    : (character?.name || '旁白');
 
   let displayContent = isStreaming ? (streamingText || '') : (message.content || '');
   let interrupted = false;
@@ -323,10 +322,9 @@ export default function MessageItem({
         transition={m.spring('message', { delay: DURATION.base })}
       >
         <div className="we-message-row-inner">
-          <CharacterSeal character={character} size={40} />
           <div className="we-message-body--assistant">
             <div className="we-message-label">{speakerName}</div>
-            <div className="we-message-bubble-assistant we-material">
+            <div className="we-message-bubble-assistant">
               <div className="we-message-content">
                 {showCaret && <StreamCaret />}
               </div>
@@ -345,12 +343,11 @@ export default function MessageItem({
         {...enterProps}
       >
         <div className="we-message-row-inner">
-          <CharacterSeal character={persona} size={32} color="var(--we-color-status-warning)" />
           <div className="we-message-body">
             <div className="we-message-label">
               {speakerName}
             </div>
-            <div className={`we-message-bubble-user we-material${editing ? ' we-message-bubble--editing' : ''}`}>
+            <div className={`we-message-bubble-user${editing ? ' we-message-bubble--editing' : ''}`}>
               <SeamlessEditableSurface
                 editing={editing}
                 selectEnd
@@ -412,13 +409,12 @@ export default function MessageItem({
       {...enterProps}
     >
       <div className="we-message-row-inner">
-        <CharacterSeal character={character} size={40} />
         <div className="we-message-body--assistant">
           <div className="we-message-label">
             {speakerName}
             {interrupted && <span className="we-message-interrupted">已中断</span>}
           </div>
-          <div className={`we-message-bubble-assistant we-material${editingAI ? ' we-message-bubble--editing' : ''}`}>
+          <div className={`we-message-bubble-assistant${editingAI ? ' we-message-bubble--editing' : ''}`}>
             <SeamlessEditableSurface
               editing={editingAI}
               trackValue={aiDraft}

@@ -21,7 +21,7 @@ import PageLayout from '../layout/PageLayout.jsx';
 import StatePanel from '../../components/state/StatePanel.jsx';
 import { syncDiaryTimeField } from '../../core/api/world-state-fields.js';
 import { loadRules } from '../../core/utils/regex-runner.js';
-import { getAvatarColor, getAvatarUrl } from '../../core/utils/avatar.js';
+import CharacterSeal from '../../components/chat/CharacterSeal.jsx';
 import { log } from '../../core/utils/logger.js';
 import { usePageConfig } from '../../core/hooks/usePageConfig.js';
 import { useMemoryIndicators } from '../../core/hooks/useMemoryIndicators.js';
@@ -270,14 +270,7 @@ export default function ChatPage() {
           >
             <div className="max-w-[800px] mx-auto">
               <div className="flex items-start gap-3">
-                <div
-                  className="we-chat-error-avatar"
-                  style={{ '--avatar-bg': getAvatarColor(character?.id) }}
-                >
-                  {getAvatarUrl(character?.avatar_path)
-                    ? <img src={getAvatarUrl(character?.avatar_path)} alt="" className="w-6 h-6 object-cover" />
-                    : (character?.name?.[0] || '?')}
-                </div>
+                <CharacterSeal character={character} size={24} />
                 <div className="flex flex-col gap-1 max-w-[75%]">
                   <span className="text-xs opacity-50">{character?.name}</span>
                   {errorBubble.partialContent && (

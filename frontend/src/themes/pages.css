@@ -3701,42 +3701,10 @@
   width: var(--seal-size);
   height: var(--seal-size);
   flex-shrink: 0;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: var(--we-radius-full);
-  overflow: hidden;
-  box-shadow: 0 0 0 2px var(--seal-color), var(--we-shadow-paper-lift);
-}
-
-.we-character-seal--empty {
-  box-shadow: 0 0 0 1.5px var(--we-color-text-tertiary);
-  opacity: 0.35;
-}
-
-/* 首字图章：实环换成细内环 + 半透明外环，边清楚但不硬；左上受光、下沿微暗，字略压进底里 */
-.we-character-seal--initial {
-  background:
-    radial-gradient(circle at 30% 24%, color-mix(in srgb, var(--we-color-bg-surface) 55%, transparent), transparent 58%),
-    radial-gradient(circle at 50% 115%, color-mix(in srgb, var(--seal-color) 22%, transparent), transparent 60%),
-    color-mix(in srgb, var(--seal-color) 18%, var(--we-color-bg-surface));
-  box-shadow:
-    inset 0 0 0 1px color-mix(in srgb, var(--seal-color) 45%, transparent),
-    0 0 0 1.5px color-mix(in srgb, var(--seal-color) 80%, transparent),
-    0 0 0 3.5px color-mix(in srgb, var(--seal-color) 12%, transparent),
-    var(--we-shadow-paper-lift);
-  text-shadow: 0 1px 0 color-mix(in srgb, var(--we-color-bg-surface) 60%, transparent);
-  color: var(--seal-color);
-  font-family: var(--we-font-display);
-  font-weight: 700;
-  font-size: calc(var(--seal-size) * 0.42);
-  line-height: 1;
-}
-
-.we-character-seal-avatar {
-  width: 100%;
-  height: 100%;
   object-fit: cover;
+  border-radius: var(--we-radius-sm);
+  /* 只留一层自上而下的轻投影，不描边、不套环 */
+  box-shadow: 0 1px 3px var(--we-color-shadow-md);
 }
 
 .we-parchment-texture,

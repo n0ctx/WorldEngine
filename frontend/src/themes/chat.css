@@ -58,23 +58,6 @@
   margin: 0 auto;
 }
 
-.we-chat-error-avatar {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex: none;
-  overflow: hidden;
-  border-radius: var(--we-radius-full);
-  background: var(--avatar-bg);
-  /* 见 tokens.css --we-color-avatar-text 注释：不要换回 bg-canvas */
-  color: var(--we-color-avatar-text);
-  font-weight: 700;
-  width: 24px;
-  height: 24px;
-  flex-shrink: 0;
-  font-size: var(--we-text-xs);
-}
-
 /* ── Message Row ───────────────────────────────────────── */
 
 .we-message-row {
@@ -97,42 +80,31 @@
 }
 
 /* ── Bubble containers ─────────────────────────────────── */
-/* 两侧同一种材料（.we-material），靠光区分：
-   角色叙事是一块铺满读宽的玻璃面，左上沿有一道氛围色边缘光，接地阴影完整；
-   玩家台词按内容收宽，没有氛围色，只留近处一层阴影，更安静。 */
+/* 角色在左、玩家在右：不描边、不绕光，只靠底色和一层短投影把气泡托起来；
+   靠近说话人的那个角收小，指向名字。 */
 
-.we-message-bubble-user {
-  width: fit-content;
-  max-width: 100%;
-  background: color-mix(in srgb, var(--we-color-bg-canvas) 45%, transparent);
-  border-radius: var(--we-radius-sm) var(--we-radius-lg) var(--we-radius-lg) var(--we-radius-lg);
-  box-shadow:
-    0 0 0 1px var(--we-material-stroke),
-    var(--we-material-shadow-near);
+.we-message-bubble-user,
+.we-message-bubble-assistant {
   padding: var(--we-space-sm) var(--we-space-lg);
   font-family: var(--we-font-prose);
   font-size: var(--we-text-prose);
   line-height: var(--we-leading-prose);
+  box-shadow: 0 1px 2px var(--we-color-shadow-md);
+}
+
+.we-message-bubble-user {
+  width: fit-content;
+  max-width: 85%;
+  background: color-mix(in srgb, var(--we-color-accent) 14%, transparent);
+  border-radius: var(--we-radius-lg) var(--we-radius-xs) var(--we-radius-lg) var(--we-radius-lg);
 }
 
 .we-message-bubble-assistant {
-  --material-rim:
-    inset 0 1px 0 color-mix(in srgb, var(--we-atmosphere-color) 60%, transparent),
-    inset 1px 0 0 color-mix(in srgb, var(--we-atmosphere-color) 28%, transparent),
-    inset 0 0 28px -12px color-mix(in srgb, var(--we-atmosphere-color) 45%, transparent);
   width: 100%;
-  padding: var(--we-space-md) var(--we-space-lg);
-  background:
-    linear-gradient(180deg, color-mix(in srgb, var(--we-atmosphere-color) 8%, transparent), transparent 120px),
-    color-mix(in srgb, var(--we-color-bg-elevated) 70%, transparent);
-  border-radius: var(--we-radius-lg);
-  box-shadow:
-    0 0 0 1px var(--we-material-stroke),
-    var(--we-material-shadow-near),
-    var(--we-material-shadow-far);
-  font-family: var(--we-font-prose);
-  font-size: var(--we-text-prose);
-  line-height: var(--we-leading-prose);
+  padding-top: var(--we-space-md);
+  padding-bottom: var(--we-space-md);
+  background: color-mix(in srgb, var(--we-color-bg-elevated) 72%, transparent);
+  border-radius: var(--we-radius-xs) var(--we-radius-lg) var(--we-radius-lg) var(--we-radius-lg);
   color: var(--we-color-text-primary);
 }
 
@@ -150,10 +122,10 @@
 /* ── Speaker Label ─────────────────────────────────────── */
 
 .we-message-label {
-  font-family: var(--we-font-ui);
-  font-size: var(--we-text-xs);
-  font-weight: 600;
-  letter-spacing: 0.06em;
+  font-family: var(--we-font-display);
+  font-size: var(--we-text-base);
+  font-weight: 500;
+  line-height: var(--we-leading-tight);
   margin-bottom: var(--we-space-xs);
   display: flex;
   align-items: center;
@@ -172,7 +144,7 @@
 .we-message-user .we-message-label {
   color: var(--we-color-status-warning);
 }
-.we-message-assistant .we-message-label { color: var(--we-color-text-tertiary); }
+.we-message-assistant .we-message-label { color: var(--we-color-text-secondary); }
 
 /* ── Message Content ───────────────────────────────────── */
 
@@ -182,11 +154,6 @@
   line-height: var(--we-leading-prose);
   /* 微提亮墨色：近黑正文在浅底上显厚重，回退 10% 朝画布以减轻视觉重量（仍远高于 4.5:1） */
   color: color-mix(in srgb, var(--we-color-text-primary) 90%, var(--we-color-bg-canvas));
-}
-
-/* 玩家行动：文字颜色比 AI 正文低一档，由台词卡承托 */
-.we-message-user .we-message-content {
-  color: var(--we-color-text-secondary);
 }
 
 .we-message-content p      { margin-bottom: 0.5em; }
@@ -400,83 +367,44 @@
   animation: we-panel-fade var(--we-duration-normal) var(--we-easing-ink) both;
 }
 
-/* 台前：当前说话的角色，正文上方居中，与正文同宽 */
+/* 台前：当前说话的角色，名字直接落在正文上方，与正文同宽、同一左边线 */
 .we-speaker-stage {
   flex-shrink: 0;
   width: 100%;
   max-width: var(--we-text-width-prose);
   margin: 0 auto;
-  padding: var(--we-space-lg) var(--we-space-xl) var(--we-space-sm);
-  min-height: 92px; /* design exact: 56px 头像 + 上下留白，换角色时台前不塌陷 */
+  padding: var(--we-space-lg) 0 var(--we-space-sm);
+  min-height: 56px; /* design exact: 32px 头像 + 上下留白，换角色时台前不塌陷 */
 }
 
 .we-speaker-stage__cast {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   gap: var(--we-space-md);
   min-width: 0;
 }
 
-/* 台前底板：与消息同一种材料，但更有存在感——氛围色边缘光绕满一圈，接地阴影离地更远 */
-.we-speaker-stage__cast.we-material {
-  --material-rim:
-    inset 0 0 0 1px color-mix(in srgb, var(--we-atmosphere-color) 22%, transparent),
-    inset 0 1px 0 color-mix(in srgb, var(--we-atmosphere-color) 40%, transparent),
-    inset 0 0 32px -14px color-mix(in srgb, var(--we-atmosphere-color) 45%, transparent);
-  width: fit-content;
-  max-width: 100%;
-  padding: var(--we-space-sm) var(--we-space-xl) var(--we-space-sm) var(--we-space-sm);
-  background: var(--we-glass-bg);
-  backdrop-filter: blur(var(--we-glass-blur));
-  border-radius: var(--we-radius-full);
-  box-shadow:
-    0 0 0 1px var(--we-material-stroke),
-    var(--we-material-shadow-near),
-    var(--we-material-shadow-lift);
-}
-
-.we-speaker-stage__halo {
-  display: inline-flex;
-  border-radius: var(--we-radius-full);
-}
-
-/* 台前头像：暗描边包住头像，内侧顶部一道窄高光；没有头像时是有微弱体积的底上的一个首字 */
-.we-speaker-stage .we-character-seal {
-  box-shadow:
-    0 0 0 1px var(--we-material-stroke),
-    inset 0 1px 0 var(--we-material-sheen),
-    var(--we-material-shadow-near);
-}
-
-.we-speaker-stage .we-character-seal--initial {
-  background:
-    radial-gradient(120% 90% at 30% 15%, color-mix(in srgb, var(--we-atmosphere-color) 22%, transparent), transparent 70%),
-    linear-gradient(180deg, var(--we-color-bg-elevated), var(--we-color-bg-surface));
-  color: var(--we-color-text-primary);
-  font-family: var(--we-font-display);
-  font-weight: 500;
-}
-
-.we-speaker-stage__text {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
+.we-speaker-stage__cast .we-character-seal {
+  align-self: center;
 }
 
 .we-speaker-stage__name {
+  flex-shrink: 0;
   font-family: var(--we-font-display);
-  font-size: var(--we-text-xl);
+  font-size: var(--we-text-lg);
   font-weight: 500;
   line-height: var(--we-leading-tight);
   letter-spacing: var(--we-tracking-tight);
   color: var(--we-color-text-primary);
+  /* 唯一的一层光：自上而下的轻投影，让名字压在氛围上 */
+  text-shadow: 0 1px 2px var(--we-color-shadow-md);
 }
 
 .we-speaker-stage__line {
-  font-family: var(--we-font-ui);
+  min-width: 0;
+  font-family: var(--we-font-prose);
   font-size: var(--we-text-sm);
-  color: var(--we-color-text-secondary);
+  color: color-mix(in srgb, var(--we-color-text-primary) 90%, var(--we-color-bg-canvas));
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -484,11 +412,11 @@
 
 @media (max-width: 767px) {
   .we-speaker-stage {
-    padding: var(--we-space-md) var(--we-space-md) var(--we-space-xs);
-    min-height: 80px; /* design exact */
+    padding: var(--we-space-md) 0 var(--we-space-xs);
+    min-height: 48px; /* design exact */
   }
   .we-speaker-stage__name {
-    font-size: var(--we-text-lg);
+    font-size: var(--we-text-md);
   }
 }
 
@@ -845,7 +773,8 @@
 /* ── Prose writing mode overrides ──────────────────────── */
 
 .we-writing-annotation--editing {
-  border-left-color: var(--we-color-accent);
+  text-align: left;
+  border-radius: var(--we-radius-sm);
   background: color-mix(in srgb, var(--we-color-accent) 6%, transparent);
 }
 
@@ -992,21 +921,21 @@
 .we-writing-prose strong { font-weight: 700; font-synthesis: weight; }
 .we-writing-prose em     { font-style: italic; font-synthesis: style; }
 
-/* 玩家行动：与会话页 .we-message-bubble-user 同规格的左线 + 缩进 + 降一档文字颜色，
-   写作模式与会话页保持同一套视觉语言 */
+/* 玩家行动：像剧本里的舞台提示——居中、小一号斜体、降一档颜色、上下多留白，与正文分开又不打断阅读 */
 .we-writing-annotation {
-  border-left: 2px solid var(--we-color-accent);
-  padding-left: var(--we-space-md);
+  max-width: 85%;
+  margin: var(--we-space-xl) auto;
+  text-align: center;
   font-family: var(--we-font-display);
   font-style: italic;
   font-size: var(--we-text-sm);
   color: var(--we-color-text-secondary);
-  margin: var(--we-space-lg) 0 var(--we-space-xl);
   animation: we-ink-rise var(--we-duration-slow) var(--we-easing-ink) both;
 }
 
 .we-writing-annotation .we-message-actions {
   margin-top: 4px;
+  justify-content: center;
 }
 
 .we-writing-prose .we-message-actions {
@@ -1030,8 +959,8 @@
 
 .we-writing-think {
   margin: 0 0 var(--we-space-sm);
-  border-left: 2px solid var(--we-color-border-default);
-  border-radius: 0 var(--we-radius-md) var(--we-radius-md) 0;
+  border-radius: var(--we-radius-sm);
+  background: color-mix(in srgb, var(--we-color-text-primary) 5%, transparent);
   overflow: hidden;
 }
 
@@ -1040,7 +969,7 @@
   align-items: center;
   gap: var(--we-space-xs);
   width: 100%;
-  background: var(--we-color-bg-surface);
+  background: transparent;
   border: none;
   padding: var(--we-space-xs) 10px; /* 10px: design exact */
   cursor: pointer;
@@ -1071,7 +1000,6 @@
   font-size: var(--we-text-2xs);
   color: var(--we-color-text-tertiary);
   line-height: 1.7;
-  background: var(--we-color-bg-surface);
 }
 
 .we-message-actions button.we-message-action-danger {
@@ -1435,8 +1363,8 @@
 
 .we-think-block {
   margin: 0 0 var(--we-space-sm);
-  border-left: 2px solid var(--we-color-border-default);
-  border-radius: 0 var(--we-radius-md) var(--we-radius-md) 0;
+  border-radius: var(--we-radius-sm);
+  background: color-mix(in srgb, var(--we-color-text-primary) 5%, transparent);
   overflow: hidden;
 }
 
@@ -1445,7 +1373,7 @@
   align-items: center;
   gap: var(--we-space-xs);
   width: 100%;
-  background: var(--we-color-bg-surface);
+  background: transparent;
   border: none;
   padding: var(--we-space-xs) var(--we-space-md);
   cursor: pointer;
@@ -1502,7 +1430,6 @@
   font-size: var(--we-text-xs);
   color: var(--we-color-text-tertiary);
   line-height: 1.7;
-  background: var(--we-color-bg-surface);
 }
 
 .we-message-row-inner {
@@ -1511,7 +1438,7 @@
   gap: var(--we-space-md);
 }
 
-/* 玩家行动与 AI 叙事共用同一套左对齐结构，靠左侧细线 + 缩进区分，不再镜像成对话气泡 */
+/* 角色消息靠左铺满读宽，玩家消息靠右收宽（见 .we-message-user .we-message-body） */
 .we-message-body,
 .we-message-body--assistant {
   display: flex;
@@ -1519,6 +1446,10 @@
   flex: 1;
   min-width: 0;
   align-items: flex-start;
+}
+
+.we-message-user .we-message-body {
+  align-items: flex-end;
 }
 
 .we-message-actions button.we-delete-btn--confirming {

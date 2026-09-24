@@ -193,7 +193,7 @@ export default function WritingMessageItem({
 
   if (!content && !isStreaming) return null;
 
-  /* ── 玩家输入：朱砂左线批注风格 ── */
+  /* ── 玩家输入：居中的舞台提示 ── */
   if (isUser) {
     return (
       <MotionDiv

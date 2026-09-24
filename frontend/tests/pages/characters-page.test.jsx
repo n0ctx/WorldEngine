@@ -94,7 +94,6 @@ vi.mock('../../src/components', () => ({
       <button onClick={onClose}>取消</button>
     </div>
   ),
-  AvatarCircle: ({ name }) => <div>{name}</div>,
   SortableList: ({ items, renderItem }) => <div>{items.map((item) => <div key={item.id}>{renderItem(item, {})}</div>)}</div>,
 }));
 vi.mock('../../src/components/ui/Icon.jsx', () => ({
@@ -130,8 +129,8 @@ describe('CharactersPage', () => {
   it('渲染角色区、我扮演切换器与世界规则入口', async () => {
     render(<CharactersPage />);
 
-    expect(await screen.findAllByText('阿塔')).toHaveLength(2);
-    expect(screen.getAllByText('旅者')).toHaveLength(2);
+    expect(await screen.findAllByText('阿塔')).toHaveLength(1);
+    expect(screen.getAllByText('旅者')).toHaveLength(1);
     expect(screen.getByText('世界规则')).toBeInTheDocument();
     expect(screen.getByText('1 条设定 · 2 个状态字段')).toBeInTheDocument();
   });
