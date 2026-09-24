@@ -42,3 +42,7 @@ frontend/coverage/
 
 # Serena tool cache
 .serena/
+
+# Local agent tooling
+/.grok/
+/skills-lock.json
