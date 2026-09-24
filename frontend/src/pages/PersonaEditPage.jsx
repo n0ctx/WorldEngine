@@ -51,6 +51,11 @@ export default function PersonaEditPage() {
   const [avatarPath, setAvatarPath] = useState(null);
   const [stateFields, setStateFields] = useState([]);
   const [showExtract, setShowExtract] = useState(false);
+  // 最近一次从服务端加载的表单值，用于判断关闭时是否有未保存修改
+  const [saved, setSaved] = useState(null);
+  const dirty = !!saved && (
+    name !== saved.name || description !== saved.description || systemPrompt !== saved.systemPrompt
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -68,6 +73,20 @@ export default function PersonaEditPage() {
       };
     }
 
+    const applyPersona = (p) => {
+      const loaded = {
+        name: p.name ?? '',
+        description: p.description ?? '',
+        systemPrompt: p.system_prompt ?? '',
+      };
+      setResolvedPersonaId(p.id);
+      setSaved(loaded);
+      setName(loaded.name);
+      setDescription(loaded.description);
+      setSystemPrompt(loaded.systemPrompt);
+      setAvatarPath(p.avatar_path ?? null);
+    };
+
     const handleLoadError = (err) => {
       log.error('persona_edit.load_failed', err);
       setLoadError(err.message || '人设加载失败');
@@ -79,13 +98,7 @@ export default function PersonaEditPage() {
         getPersonaById(personaIdParam),
         getPersonaStateValuesByPersonaId(worldId, personaIdParam),
       ]).then(([p, fields]) => {
-        if (p) {
-          setResolvedPersonaId(p.id);
-          setName(p.name ?? '');
-          setDescription(p.description ?? '');
-          setSystemPrompt(p.system_prompt ?? '');
-          setAvatarPath(p.avatar_path ?? null);
-        }
+        if (p) applyPersona(p);
         setStateFields(fields);
         setLoading(false);
       }).catch(handleLoadError);
@@ -95,11 +108,7 @@ export default function PersonaEditPage() {
         getPersona(worldId),
         getPersonaStateValues(worldId),
       ]).then(([p, fields]) => {
-        setResolvedPersonaId(p.id);
-        setName(p.name ?? '');
-        setDescription(p.description ?? '');
-        setSystemPrompt(p.system_prompt ?? '');
-        setAvatarPath(p.avatar_path ?? null);
+        applyPersona(p);
         setStateFields(fields);
         setLoading(false);
       }).catch(handleLoadError);
@@ -223,7 +232,7 @@ export default function PersonaEditPage() {
   ) : null;
 
   return (
-    <EditPageShell loading={loading} loadError={loadError} onRetry={retryLoad} isOverlay={isOverlay} onClose={() => navigate(-1)} title={pageTitle} headerActions={exportAction}>
+    <EditPageShell loading={loading} loadError={loadError} onRetry={retryLoad} dirty={dirty} isOverlay={isOverlay} onClose={() => navigate(-1)} title={pageTitle} headerActions={exportAction}>
       <div className="we-edit-form-stack">
         <AvatarUpload
           name={name}

@@ -121,6 +121,22 @@ describe('WorldEditPage', () => {
     expect(await screen.findByDisplayValue('群星海')).toBeInTheDocument();
   });
 
+  it('有未保存修改时返回需确认，未修改时直接返回', async () => {
+    render(<WorldEditPage />);
+    const nameInput = await screen.findByDisplayValue('群星海');
+
+    fireEvent.click(screen.getByText('← 返回'));
+    expect(mocks.useNavigate).toHaveBeenCalledWith(-1);
+    mocks.useNavigate.mockClear();
+
+    fireEvent.change(nameInput, { target: { value: '群星海-修订' } });
+    fireEvent.click(screen.getByText('← 返回'));
+    expect(mocks.useNavigate).not.toHaveBeenCalled();
+
+    fireEvent.click(await screen.findByText('放弃修改'));
+    await waitFor(() => expect(mocks.useNavigate).toHaveBeenCalledWith(-1));
+  });
+
   it('会加载世界并保存配置', async () => {
     render(<WorldEditPage />);
 

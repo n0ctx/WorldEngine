@@ -1,13 +1,16 @@
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
+import ConfirmModal from '../../components/ui/ConfirmModal.jsx';
 
 /**
  * loadError 非空时只显示错误与重试/返回，不渲染表单：
  * 加载失败时表单是空值，误点保存会把空值写回。
+ * dirty 为 true 时，返回按钮与点击遮罩先确认再关闭。
  */
 export default function EditPageShell({
   loading = false,
   loadError = '',
   onRetry,
+  dirty = false,
   isOverlay = false,
   onClose,
   title,
@@ -15,9 +18,16 @@ export default function EditPageShell({
   children,
 }) {
   const mouseDownOnOverlay = useRef(false);
+  const [confirmingClose, setConfirmingClose] = useState(false);
+
+  function requestClose() {
+    if (dirty) setConfirmingClose(true);
+    else onClose();
+  }
+
   const overlayHandlers = {
     onMouseDown: (e) => { mouseDownOnOverlay.current = e.target === e.currentTarget; },
-    onClick: () => { if (mouseDownOnOverlay.current) onClose(); },
+    onClick: () => { if (mouseDownOnOverlay.current) requestClose(); },
   };
 
   if (loading || loadError) {
@@ -57,7 +67,7 @@ export default function EditPageShell({
       onClick={isOverlay ? (e) => e.stopPropagation() : undefined}
     >
       <div className="we-edit-header">
-        <button className="we-edit-back" onClick={onClose}>← 返回</button>
+        <button className="we-edit-back" onClick={requestClose}>← 返回</button>
         <div className="we-edit-header-row">
           {title && <h1 className="we-edit-title">{title}</h1>}
           {headerActions && <div className="we-edit-header-actions">{headerActions}</div>}
@@ -67,17 +77,35 @@ export default function EditPageShell({
     </div>
   );
 
+  const closeConfirm = confirmingClose && (
+    <ConfirmModal
+      title="放弃未保存的修改？"
+      message="关闭后本次修改将丢失。"
+      confirmText="放弃修改"
+      cancelText="继续编辑"
+      danger
+      onConfirm={async () => onClose()}
+      onClose={() => setConfirmingClose(false)}
+    />
+  );
+
   if (isOverlay) {
     return (
-      <div className="we-settings-overlay" {...overlayHandlers}>
-        {panel}
-      </div>
+      <>
+        <div className="we-settings-overlay" {...overlayHandlers}>
+          {panel}
+        </div>
+        {closeConfirm}
+      </>
     );
   }
 
   return (
-    <div className="we-edit-canvas">
-      {panel}
-    </div>
+    <>
+      <div className="we-edit-canvas">
+        {panel}
+      </div>
+      {closeConfirm}
+    </>
   );
 }

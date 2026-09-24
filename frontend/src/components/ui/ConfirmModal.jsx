@@ -32,7 +32,7 @@ export default function ConfirmModal({
   return (
     <AnimatePresence>
       <motion.div
-        className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+        className="fixed inset-0 z-[var(--we-z-modal)] flex items-center justify-center bg-black/50"
         variants={variants.overlayBackdrop}
         initial="hidden"
         animate="visible"

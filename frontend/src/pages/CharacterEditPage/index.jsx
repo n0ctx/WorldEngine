@@ -42,6 +42,12 @@ export default function CharacterEditPage() {
   const [stateFields, setStateFields] = useState([]);
   const [reloadKey, setReloadKey] = useState(0);
   const [showExtract, setShowExtract] = useState(false);
+  // 最近一次从服务端加载的表单值，用于判断关闭时是否有未保存修改
+  const [saved, setSaved] = useState(null);
+  const dirty = !!saved && (
+    name !== saved.name || description !== saved.description || systemPrompt !== saved.systemPrompt
+    || postPrompt !== saved.postPrompt || firstMessage !== saved.firstMessage
+  );
 
   // 创建模式：从 sessionStorage 恢复草稿
   useEffect(() => {
@@ -73,12 +79,20 @@ export default function CharacterEditPage() {
       getCharacter(characterId),
       getCharacterStateValues(characterId),
     ]).then(([c, fields]) => {
+      const loaded = {
+        name: c.name,
+        description: c.description ?? '',
+        systemPrompt: c.system_prompt ?? '',
+        postPrompt: c.post_prompt ?? '',
+        firstMessage: c.first_message ?? '',
+      };
       setCharacter(c);
-      setName(c.name);
-      setDescription(c.description ?? '');
-      setSystemPrompt(c.system_prompt ?? '');
-      setPostPrompt(c.post_prompt ?? '');
-      setFirstMessage(c.first_message ?? '');
+      setSaved(loaded);
+      setName(loaded.name);
+      setDescription(loaded.description);
+      setSystemPrompt(loaded.systemPrompt);
+      setPostPrompt(loaded.postPrompt);
+      setFirstMessage(loaded.firstMessage);
       setAvatarPath(c.avatar_path);
       setStateFields(fields);
       setLoading(false);
@@ -292,6 +306,7 @@ export default function CharacterEditPage() {
         loading={loading}
         loadError={loadError}
         onRetry={retryLoad}
+        dirty={dirty}
         isOverlay={isOverlay}
         onClose={handleClose}
         title={isCreate ? '新建角色' : (name ? `编辑角色 · ${name}` : '')}

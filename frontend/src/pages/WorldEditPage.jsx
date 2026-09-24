@@ -53,6 +53,12 @@ export default function WorldEditPage() {
   const [maxTokens, setMaxTokens] = useState('');
   const [reloadKey, setReloadKey] = useState(0);
   const [diaryChatDateMode, setDiaryChatDateMode] = useState('virtual');
+  // 最近一次从服务端加载的表单值，用于判断关闭时是否有未保存修改
+  const [saved, setSaved] = useState(null);
+  const dirty = !!saved && (
+    name !== saved.name || description !== saved.description
+    || temperature !== saved.temperature || maxTokens !== saved.maxTokens
+  );
 
   // 页面进入时同步 diary_time 字段，并获取日记日期模式
   useEffect(() => {
@@ -85,10 +91,17 @@ export default function WorldEditPage() {
   useEffect(() => {
     if (isCreate) return;
     getWorld(worldId).then((w) => {
-      setName(w.name ?? '');
-      setDescription(w.description ?? '');
-      setTemperature(w.temperature != null ? String(w.temperature) : '');
-      setMaxTokens(w.max_tokens != null ? String(w.max_tokens) : '');
+      const loaded = {
+        name: w.name ?? '',
+        description: w.description ?? '',
+        temperature: w.temperature != null ? String(w.temperature) : '',
+        maxTokens: w.max_tokens != null ? String(w.max_tokens) : '',
+      };
+      setSaved(loaded);
+      setName(loaded.name);
+      setDescription(loaded.description);
+      setTemperature(loaded.temperature);
+      setMaxTokens(loaded.maxTokens);
       setCoverPath(w.cover_path ?? null);
       setAccentColor(w.accent_color ?? null);
       setAccentSource(w.accent_source === 'manual' ? 'manual' : 'auto');
@@ -375,6 +388,7 @@ export default function WorldEditPage() {
       loading={loading}
       loadError={loadError}
       onRetry={retryLoad}
+      dirty={dirty}
       isOverlay={isOverlay}
       onClose={handleClose}
       title={isCreate ? '新建世界' : (name ? `编辑世界 · ${name}` : '')}
