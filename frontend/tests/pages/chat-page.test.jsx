@@ -238,11 +238,13 @@ describe('ChatPage', () => {
     expect(screen.getByTestId('session-list')).toBeInTheDocument();
     expect(screen.getByTestId('state-panel')).toBeInTheDocument();
 
-    // 再次收起，内容卸载
+    // 再次收起，内容淡出后卸载
     fireEvent.click(screen.getByRole('button', { name: '收起会话列表' }));
     fireEvent.click(screen.getByRole('button', { name: '收起状态面板' }));
-    expect(screen.queryByTestId('session-list')).not.toBeInTheDocument();
-    expect(screen.queryByTestId('state-panel')).not.toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.queryByTestId('session-list')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('state-panel')).not.toBeInTheDocument();
+    });
   });
 
   it('continue 在 onStreamEnd 前不会允许重复触发', async () => {

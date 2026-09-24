@@ -124,7 +124,7 @@
   --we-material-shadow-near: 0 1px 1px rgba(60, 38, 18, 0.14), 0 2px 4px -2px rgba(60, 38, 18, 0.14);
   --we-material-shadow-far: 0 10px 20px -12px rgba(60, 38, 18, 0.20), 0 26px 44px -28px rgba(60, 38, 18, 0.26);
   --we-material-shadow-lift: 0 14px 24px -12px rgba(60, 38, 18, 0.20), 0 34px 56px -30px rgba(60, 38, 18, 0.26);
-  --we-atmosphere-scrim: var(--we-color-bg-canvas);
+  --we-atmosphere-scrim: radial-gradient(ellipse 60% 120% at 50% 50%, var(--we-color-bg-canvas) 0%, var(--we-color-bg-canvas) 42%, color-mix(in srgb, var(--we-color-bg-canvas) 55%, transparent) 72%, transparent 100%), color-mix(in srgb, var(--we-color-paper-tint) 50%, transparent);
   --we-stage-surface: var(--we-color-bg-canvas);
   --we-glass-bg: var(--we-color-bg-surface);
   --we-glass-blur: 0px;

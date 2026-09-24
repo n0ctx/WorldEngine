@@ -161,13 +161,17 @@
   --we-atmosphere-opacity:        0.9;   /* 书架、世界等场景页的光尘强度（0–1）*/
   --we-atmosphere-opacity-quiet:  0.35;  /* 会话、写作等长时间阅读页的光尘强度 */
   --we-atmosphere-glow-strength:  14%;   /* 静态光晕浓度；减少动效时只剩这一层 */
-  /* 正文阅读遮罩：会话正文列背后的径向加深，保证氛围再亮也不降低正文对比度 */
-  --we-atmosphere-scrim: radial-gradient(
-    ellipse 64% 110% at 50% 50%,
-    color-mix(in srgb, var(--we-color-bg-canvas) 88%, transparent) 0%,
-    color-mix(in srgb, var(--we-color-bg-canvas) 64%, transparent) 62%,
-    transparent 100%
-  );
+  /* 正文阅读遮罩：正文列中心是实底 canvas，氛围再亮也不降低正文对比度；向两侧渐渐露出
+     底下一层淡纸色，外缘只剩这层纸色，氛围（随封面主色）只从外缘透出来 */
+  --we-atmosphere-scrim:
+    radial-gradient(
+      ellipse 60% 120% at 50% 50%,
+      var(--we-color-bg-canvas) 0%,
+      var(--we-color-bg-canvas) 42%,
+      color-mix(in srgb, var(--we-color-bg-canvas) 55%, transparent) 72%,
+      transparent 100%
+    ),
+    color-mix(in srgb, var(--we-color-paper-tint) 50%, transparent);
   /* 胶片颗粒：整屏一层极淡的静态噪点，给平涂的暗部一点质地（0 为关闭）*/
   --we-atmosphere-grain:          0.04;
   --we-grain-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.9 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");

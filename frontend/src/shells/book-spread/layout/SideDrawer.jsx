@@ -8,7 +8,13 @@
  * （不是叠在正文之上的独立层），展开时让正文（we-page-right 的 flex-1）自然让出空间，
  * 比额外引入一层遮挡正文的浮层更简单、也更不容易在 1024px 窄屏下盖住内容。
  */
+import { useState } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
 import Icon from '../../../components/ui/Icon.jsx';
+import { DURATION, EASE } from '../../../core/utils/motion.js';
+import { useMotion } from '../../../core/hooks/useMotion.js';
+
+const MotionDiv = motion.div;
 
 /* 收起态两侧各给一个表意图形：左轨是列表（会话），右轨是面板（情境）。
    两侧共用同一个箭头会让用户分不清哪边装的是什么——窄轨上只有一个图标，
@@ -34,10 +40,15 @@ const COLLAPSED_GLYPH = {
 const CHEVRON_ROTATION = { left: 90, right: -90 };
 
 export default function SideDrawer({ side, open, onToggle, label, footer = null, children }) {
+  const { reduced } = useMotion();
   const toggleLabel = open ? `收起${label}` : `展开${label}`;
+  // 收起时内容先淡出、卸载完再收回宽度：内容还在离场时，抽屉保持展开宽度
+  const [contentMounted, setContentMounted] = useState(open);
+  if (open && !contentMounted) setContentMounted(true);
+  const expanded = open || contentMounted;
 
   return (
-    <div className={`we-side-drawer we-side-drawer--${side}${open ? ' we-side-drawer--open' : ''}`}>
+    <div className={`we-side-drawer we-side-drawer--${side}${expanded ? ' we-side-drawer--open' : ''}`}>
       <button
         type="button"
         className="we-side-drawer-toggle"
@@ -57,7 +68,20 @@ export default function SideDrawer({ side, open, onToggle, label, footer = null,
           </Icon>
         ) : COLLAPSED_GLYPH[side]}
       </button>
-      {open && <div className="we-side-drawer-content">{children}</div>}
+      {/* 展开时宽度先让出来，内容稍后淡入；减少动效时宽度与透明度都瞬间切换 */}
+      <AnimatePresence initial={false} onExitComplete={() => setContentMounted(false)}>
+        {open && (
+          <MotionDiv
+            key="content"
+            className="we-side-drawer-content"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1, transition: reduced ? { duration: 0 } : { duration: DURATION.quick, delay: DURATION.micro, ease: EASE.ink } }}
+            exit={{ opacity: 0, transition: reduced ? { duration: 0 } : { duration: DURATION.quick, ease: EASE.retract } }}
+          >
+            {children}
+          </MotionDiv>
+        )}
+      </AnimatePresence>
       {/* footer（记忆检索状态指示器）不跟随收起/展开挂卸：它是独立于「会话列表内容」
           的实时反馈，收起时用户也应该能看到后台正在检索/记录记忆。 */}
       {footer}

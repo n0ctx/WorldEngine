@@ -1,8 +1,10 @@
-import { useEffect, useId, useRef, useState } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { motion } from 'framer-motion';
 import { DURATION, EASE } from '../../core/utils/motion';
+import { useMotion } from '../../core/hooks/useMotion.js';
 
 const MotionDiv = motion.div;
+const MotionSpan = motion.span;
 
 /**
  * SectionTabs
@@ -15,8 +17,7 @@ const MotionDiv = motion.div;
  *   - tab 列表获焦时支持 ← / → 键盘切换(home/end 跳到首尾)
  */
 export default function SectionTabs({ sections, defaultKey, variant, globalActions, staticMotion = false }) {
-  const reactId = useId();
-  const layoutId = `tab-indicator-${reactId}`;
+  const { reduced } = useMotion();
   const [storedActive, setActive] = useState(defaultKey ?? sections[0]?.key);
   const [prevIndex, setPrevIndex] = useState(sections.findIndex(s => s.key === (defaultKey ?? sections[0]?.key)));
   // sections 热更新时，若 active 已不在列表中，回退到第一个（仅渲染期推导，不写回状态）
@@ -28,6 +29,21 @@ export default function SectionTabs({ sections, defaultKey, variant, globalActio
 
   const listRef = useRef(null);
   const tabRefs = useRef({});
+  const [indicator, setIndicator] = useState(null);
+
+  // 指示器是列表里常驻的一条线，按当前 tab 的位置和宽度移动；不随 tab 挂卸，
+  // 连点时从当前位置接着走。列表宽度变化（抽屉展开、窗口缩放）时重新量一次。
+  useLayoutEffect(() => {
+    const measure = () => {
+      const el = tabRefs.current[active];
+      if (el) setIndicator({ x: el.offsetLeft, width: el.offsetWidth });
+    };
+    measure();
+    if (typeof ResizeObserver === 'undefined' || !listRef.current) return undefined;
+    const observer = new ResizeObserver(measure);
+    observer.observe(listRef.current);
+    return () => observer.disconnect();
+  }, [active, sections.length]);
 
   // active 变化时，把当前 tab 按钮滚到可视区
   useEffect(() => {
@@ -43,7 +59,7 @@ export default function SectionTabs({ sections, defaultKey, variant, globalActio
     setActive(sections[nextIdx].key);
     // 让新 tab 立刻拿到键盘焦点,后续 ←/→ 能继续连按
     requestAnimationFrame(() => {
-      tabRefs.current[sections[nextIdx].key]?.focus?.();
+      tabRefs.current[sections[nextIdx].key]?.focus?.({ preventScroll: true });
     });
   };
 
@@ -88,19 +104,16 @@ export default function SectionTabs({ sections, defaultKey, variant, globalActio
               }}
             >
               {s.label}
-              {active === s.key && (
-                staticMotion ? (
-                  <span className="we-section-tab-indicator" />
-                ) : (
-                  <motion.div
-                    className="we-section-tab-indicator"
-                    layoutId={layoutId}
-                    transition={{ duration: DURATION.quick, ease: EASE.ink }}
-                  />
-                )
-              )}
             </button>
           ))}
+          {indicator && (
+            <MotionSpan
+              className="we-section-tab-indicator"
+              initial={false}
+              animate={indicator}
+              transition={{ duration: staticMotion || reduced ? 0 : DURATION.quick, ease: EASE.ink }}
+            />
+          )}
         </div>
           {globalActions && (
             <span className="we-section-tabs-globals">{globalActions}</span>
@@ -116,17 +129,15 @@ export default function SectionTabs({ sections, defaultKey, variant, globalActio
       {staticMotion ? (
         <div>{current?.content}</div>
       ) : (
-        <AnimatePresence mode="wait" initial={false}>
-          <MotionDiv
-            key={active}
-            initial={{ opacity: 0, x: dir * 16 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: dir * -16 }}
-            transition={{ duration: DURATION.medium, ease: EASE.ink }}
-          >
-            {current?.content}
-          </MotionDiv>
-        </AnimatePresence>
+        // 旧内容立即换下、只让新内容淡入：等旧内容淡出完再进场会在连点时空一拍
+        <MotionDiv
+          key={active}
+          initial={reduced ? false : { opacity: 0.4, x: dir * 6 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: DURATION.quick, ease: EASE.ink }}
+        >
+          {current?.content}
+        </MotionDiv>
       )}
     </div>
   );

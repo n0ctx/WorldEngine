@@ -1314,6 +1314,28 @@
   align-items: center;
   gap: var(--we-space-xs) var(--we-space-sm);
   padding: var(--we-space-md);
+  transition: background var(--we-duration-fast) var(--we-easing-sharp),
+              box-shadow var(--we-duration-fast) var(--we-easing-sharp);
+}
+/* 窄轨里三种外观分开：选中项左侧一条常驻金线，不悬停也认得出；
+   悬停只铺一层墨晕，不位移、不加深投影，不会被看成选中；按下再深一档 */
+.we-storyline-list--timeline .we-storyline-item:hover {
+  box-shadow: var(--we-card-shadow);
+  transform: none;
+}
+.we-storyline-list--timeline .we-storyline-item:active {
+  background: var(--we-color-ink-wash-strong);
+}
+.we-storyline-list--timeline .we-storyline-item--active,
+.we-storyline-list--timeline .we-storyline-item--active:hover {
+  box-shadow: inset 2px 0 0 var(--we-color-gold), var(--we-card-shadow);
+}
+.we-storyline-list--timeline .we-storyline-item:focus-visible {
+  outline: none;
+  box-shadow: var(--we-focus-ring), var(--we-card-shadow);
+}
+.we-storyline-list--timeline .we-storyline-item--active:focus-visible {
+  box-shadow: inset 2px 0 0 var(--we-color-gold), var(--we-focus-ring), var(--we-card-shadow);
 }
 .we-storyline-list--timeline .we-storyline-item-info {
   grid-row: 2;
@@ -1926,6 +1948,7 @@
 }
 
 .we-section-tabs-list {
+  position: relative;
   display: flex;
   flex-wrap: nowrap;
   min-width: 0;
@@ -1980,16 +2003,25 @@
   color: var(--we-color-text-secondary);
 }
 
-.we-section-tab.active {
+.we-section-tab.active,
+.we-section-tab:active {
   color: var(--we-color-text-primary);
 }
 
+.we-section-tab:focus-visible {
+  outline: none;
+  box-shadow: var(--we-focus-ring);
+  border-radius: var(--we-radius-sm);
+}
+
+/* 列表里常驻的一条线，位置与宽度由 SectionTabs 按当前 tab 设置；两端各收进 14px 与文字对齐 */
 .we-section-tab-indicator {
   position: absolute;
   bottom: 0;
-  left: 14px;
-  right: 14px;
+  left: 0;
   height: 2px;
+  clip-path: inset(0 14px);
+  pointer-events: none;
   background: var(--we-color-gold);
   border-radius: var(--we-radius-none);
 }
