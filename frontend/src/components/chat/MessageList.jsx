@@ -406,7 +406,8 @@ const MessageList = forwardRef(function MessageList({
         </div>
       ) : (
         <div className="we-message-list">
-          <AnimatePresence mode="popLayout">
+          {/* initial={false}：历史消息随列表一起出现，不成片入场；只有之后新加入的消息做入场 */}
+          <AnimatePresence mode="popLayout" initial={false}>
             {(() => {
               const items = [];
               messagesForDisplay.forEach((msg, msgIdx) => {

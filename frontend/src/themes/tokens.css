@@ -178,12 +178,12 @@
   --we-space-2xl: 32px;
 
   /* === 圆角 Scale === */
-  --we-radius-none: 1px;  /* 微圆角，代码块/行内代码等保留平直感 */
-  --we-radius-xs:   3px;
-  --we-radius-sm:   6px;
-  --we-radius-md:   8px;
-  --we-radius-lg:   12px;
-  --we-radius-xl:   26px;
+  --we-radius-none: 2px;  /* 微圆角，代码块/行内代码等保留平直感 */
+  --we-radius-xs:   6px;
+  --we-radius-sm:   10px;
+  --we-radius-md:   14px;
+  --we-radius-lg:   20px;
+  --we-radius-xl:   28px;
   --we-radius-full: 9999px;
 
   /* === Z-index Scale === */
@@ -368,13 +368,6 @@
     inset 0 2px 4px rgba(0, 0, 0, 0.18),
     inset 0 1px 0 rgba(0, 0, 0, 0.10),
     0 1px 0 var(--we-color-accent-deep);
-  --we-shadow-paper-stack:
-    inset 0 1px 0 rgba(255, 255, 255, 0.22),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.06),
-    1px 2px 0 var(--we-color-bg-muted),
-    2px 4px 0 var(--we-color-border-default),
-    0 6px 18px rgba(0, 0, 0, 0.12),
-    0 2px 4px rgba(0, 0, 0, 0.07);
   --we-shadow-paper-lift:
     0 0 5px rgba(23, 23, 23, 0.12),
     0 0 12px rgba(23, 23, 23, 0.06);

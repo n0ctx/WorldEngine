@@ -45,6 +45,34 @@ export const BLUR = {
   overlay: '0px',
 };
 
+// §2.5 命名弹簧 —— 页面只引用键名，不直接写 stiffness/damping。
+// 弹簧没有对应的 CSS 曲线；CSS 侧的按压/悬停反馈继续用 --we-duration-* 与 --we-easing-*。
+// 透明度不走弹簧，单独用短淡入：弹簧驱动 opacity 时，结束交接那一帧会闪回初始透明度。
+const SPRING_FADE = { duration: DURATION.quick, ease: EASE.ink };
+
+export const SPRING = {
+  // 轻按压：按下立即压缩，松开短促回弹一次
+  press:   { type: 'spring', stiffness: 520, damping: 26, mass: 0.6, opacity: SPRING_FADE },
+  // 卡片：悬停靠近、按下压缩、松开带一点过冲回弹
+  card:    { type: 'spring', stiffness: 360, damping: 22, mass: 0.9, opacity: SPRING_FADE },
+  // 消息入场：像角色走上舞台，短回弹后静止
+  message: { type: 'spring', stiffness: 420, damping: 28, mass: 0.8, opacity: SPRING_FADE },
+  // 弹窗 / 设置：近临界阻尼，几乎不过冲
+  overlay: { type: 'spring', stiffness: 380, damping: 34, mass: 0.9, opacity: SPRING_FADE },
+};
+
+// §2.5 手势目标值（whileHover / whileTap），transition 由 useMotion().gesture 配上对应弹簧
+export const GESTURE = {
+  press: {
+    whileHover: { scale: 1.03 },
+    whileTap:   { scale: 0.95 },
+  },
+  card: {
+    whileHover: { y: -6, scale: 1.015 },
+    whileTap:   { y: -2, scale: 0.97 },
+  },
+};
+
 // §2.6 预组合 variants（framer-motion variants 对象，直接展开使用）
 export const variants = {
   // 组件级：从下浮现 + 模糊消散（主入场）
@@ -76,6 +104,21 @@ export const variants = {
     hidden:  { opacity: 0, y: 6 },
     visible: { opacity: 1, y: 0, transition: { duration: DURATION.quick, ease: EASE.ink } },
     exit:    { opacity: 0,       transition: { duration: 0.08,           ease: EASE.retract } },
+  },
+  // 消息入场：从下方轻跳上台（配 SPRING.message）
+  messageEnter: {
+    hidden:  { opacity: 0, y: 14, scale: 0.97 },
+    visible: { opacity: 1, y: 0,  scale: 1    },
+  },
+  // 场景入场：世界卡 / 空状态（配 SPRING.card，可放在 staggerList 容器下）
+  sceneEnter: {
+    hidden:  { opacity: 0, y: 18, scale: 0.96 },
+    visible: { opacity: 1, y: 0,  scale: 1    },
+  },
+  // 弹窗 / 设置面板入场（配 SPRING.overlay）
+  overlayEnter: {
+    hidden:  { opacity: 0, y: 10, scale: 0.98 },
+    visible: { opacity: 1, y: 0,  scale: 1    },
   },
   // overlay 级：背景遮罩淡入淡出（供 ConfirmModal 等复用）
   overlayBackdrop: {

@@ -10,6 +10,7 @@
  * (BookSpread / PageLeft / PageRight / MemoryRecallOverlay) lives under
  * `./layout` and `./chrome` and MUST NOT be imported by pages directly.
  */
+import { MotionConfig } from 'framer-motion';
 import TopBar from './chrome/TopBar.jsx';
 import PageTransition from './transitions/PageTransition.jsx';
 import GlobalToast from '../../components/ui/GlobalToast.jsx';
@@ -22,16 +23,19 @@ export default function AppShell({ children, locationKey }) {
   // 书架层 / 无主色 / 浅色主题下返回 null，不注入，页面用主题自身默认色。
   const worldAccentVars = useWorldAccentVars();
 
+  // reducedMotion="user"：系统要求减少动效时，所有 framer 动画关闭位移与缩放，只保留透明度
   return (
-    <div className="we-app-root we-shell-book-spread" style={worldAccentVars ?? undefined}>
-      <a href="#we-main-content" className="we-skip-link">跳到主内容</a>
-      <TopBar />
-      <GlobalToast />
-      <PageLayoutRendererProvider render={RenderPageLayout}>
-        <PageTransition locationKey={locationKey}>
-          {children}
-        </PageTransition>
-      </PageLayoutRendererProvider>
-    </div>
+    <MotionConfig reducedMotion="user">
+      <div className="we-app-root we-shell-book-spread" style={worldAccentVars ?? undefined}>
+        <a href="#we-main-content" className="we-skip-link">跳到主内容</a>
+        <TopBar />
+        <GlobalToast />
+        <PageLayoutRendererProvider render={RenderPageLayout}>
+          <PageTransition locationKey={locationKey}>
+            {children}
+          </PageTransition>
+        </PageLayoutRendererProvider>
+      </div>
+    </MotionConfig>
   );
 }

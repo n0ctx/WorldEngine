@@ -11,6 +11,7 @@ vi.mock('framer-motion', () => ({
 }));
 
 import { useMotion } from '../../src/core/hooks/useMotion.js';
+import { GESTURE, SPRING, variants } from '../../src/core/utils/motion.js';
 
 describe('useMotion', () => {
   beforeEach(() => {
@@ -35,5 +36,29 @@ describe('useMotion', () => {
     expect(result.current.duration(0.3)).toBe(0);
     expect(result.current.ease([1, 2, 3])).toBe('linear');
     expect(result.current.blur('2px')).toBe('0px');
+  });
+
+  it('普通模式下返回命名弹簧、手势与入场 variants', () => {
+    mocks.useReducedMotion.mockReturnValue(false);
+    const { result } = renderHook(() => useMotion());
+
+    expect(result.current.spring('card')).toBe(SPRING.card);
+    expect(result.current.gesture('press')).toEqual({ ...GESTURE.press, transition: SPRING.press });
+    expect(result.current.variant('messageEnter')).toBe(variants.messageEnter);
+    // 禁用时去掉手势目标，但保留弹簧，按下后变禁用的按钮仍能回弹
+    expect(result.current.gesture('press', { disabled: true })).toEqual({ transition: SPRING.press });
+  });
+
+  it('reduced motion 下关闭回弹、手势与位移缩放', () => {
+    mocks.useReducedMotion.mockReturnValue(true);
+    const { result } = renderHook(() => useMotion());
+
+    expect(result.current.spring('card')).toEqual({ duration: 0 });
+    expect(result.current.gesture('card')).toEqual({});
+    expect(result.current.gesture('card', { disabled: true })).toEqual({});
+    expect(result.current.variant('sceneEnter')).toEqual({
+      hidden: { opacity: 0 },
+      visible: { opacity: 1 },
+    });
   });
 });

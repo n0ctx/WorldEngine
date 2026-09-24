@@ -1,3 +1,5 @@
+import Button from './Button.jsx';
+
 /**
  * EmptyState — 统一空状态组件。
  * 结构：icon(可选) → title → hint(可选) → primaryAction → secondaryAction(可选)
@@ -25,20 +27,14 @@ export default function EmptyState({
       {(primaryAction || secondaryAction) && (
         <div className="we-empty-state__actions">
           {primaryAction && (
-            <button
-              className="we-btn we-btn-primary"
-              onClick={primaryAction.onClick}
-            >
+            <Button variant="primary" onClick={primaryAction.onClick}>
               {primaryAction.label}
-            </button>
+            </Button>
           )}
           {secondaryAction && (
-            <button
-              className="we-btn we-btn-ghost"
-              onClick={secondaryAction.onClick}
-            >
+            <Button variant="ghost" onClick={secondaryAction.onClick}>
               {secondaryAction.label}
-            </button>
+            </Button>
           )}
         </div>
       )}

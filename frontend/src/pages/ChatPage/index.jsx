@@ -25,8 +25,10 @@ import { log } from '../../core/utils/logger.js';
 import { usePageConfig } from '../../core/hooks/usePageConfig.js';
 import { useMemoryIndicators } from '../../core/hooks/useMemoryIndicators.js';
 import { useChatStream } from './hooks/useChatStream.js';
+import { useMotion } from '../../core/hooks/useMotion.js';
 
 export default function ChatPage() {
+  const motionPrefs = useMotion();
   const { characterId } = useParams();
   const navigate = useNavigate();
 
@@ -256,10 +258,11 @@ export default function ChatPage() {
         {errorBubble && !generating && (
           <motion.div
             key="error-bubble"
-            initial={{ opacity: 0, y: 8, filter: 'blur(1.5px)' }}
-            animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
-            exit={{ opacity: 0, y: -4, filter: 'blur(1px)', transition: { duration: 0.15 } }}
-            transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+            variants={motionPrefs.variant('messageEnter')}
+            initial="hidden"
+            animate="visible"
+            exit={{ opacity: 0, transition: motionPrefs.transition('retract') }}
+            transition={motionPrefs.spring('message')}
             className="px-4 pb-2 shrink-0"
           >
             <div className="max-w-[800px] mx-auto">

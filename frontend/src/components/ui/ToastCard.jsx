@@ -1,5 +1,6 @@
-import { motion, useReducedMotion } from 'framer-motion';
+import { motion } from 'framer-motion';
 import Icon from './Icon.jsx';
+import { useMotion } from '../../core/hooks/useMotion.js';
 
 const TYPE_META = {
   error: { color: 'var(--we-color-status-danger)', seal: '驳' },
@@ -18,9 +19,9 @@ const CLOSE_PATHS = (
 export default function ToastCard({ toast, onClose, onMouseEnter, onMouseLeave }) {
   const meta = TYPE_META[toast.type] || TYPE_META.info;
   const isAssertive = toast.type === 'error';
-  const reduced = useReducedMotion();
+  const m = useMotion();
 
-  const motionProps = reduced
+  const motionProps = m.reduced
     ? {
       initial: { opacity: 0 },
       animate: { opacity: 1 },
@@ -31,7 +32,7 @@ export default function ToastCard({ toast, onClose, onMouseEnter, onMouseLeave }
       initial: { opacity: 0, scale: 0.9, y: -8 },
       animate: { opacity: 1, scale: 1, y: 0 },
       exit: { opacity: 0, x: 24, scale: 0.96, transition: { duration: 0.18 } },
-      transition: { type: 'spring', stiffness: 420, damping: 22, mass: 0.6 },
+      transition: m.spring('message'),
       whileHover: { scale: 1.01 },
     };
 

@@ -1,5 +1,7 @@
 import { useRef } from 'react';
 import { createPortal } from 'react-dom';
+import { motion } from 'framer-motion';
+import { useMotion } from '../../core/hooks/useMotion.js';
 import { useEscapeKey } from '../../core/hooks/useEscapeKey.js';
 
 // portal 出 SettingsPage 后 React 事件仍沿 React 树冒泡，overlay 必须 stopPropagation，
@@ -7,6 +9,7 @@ import { useEscapeKey } from '../../core/hooks/useEscapeKey.js';
 // 关闭语义用 mousedown-起点-在-overlay 双段判定，防止模态内拖选文字到背景松手误关。
 export default function DialogShell({ children, onClose, panelClassName = 'w-full max-w-lg max-h-[90vh] flex flex-col' }) {
   const mouseDownOnOverlay = useRef(false);
+  const m = useMotion();
   useEscapeKey(onClose);
 
   return createPortal(
@@ -23,9 +26,15 @@ export default function DialogShell({ children, onClose, panelClassName = 'w-ful
         mouseDownOnOverlay.current = false;
       }}
     >
-      <div className={`we-dialog-panel ${panelClassName}`}>
+      <motion.div
+        className={`we-dialog-panel ${panelClassName}`}
+        variants={m.variant('overlayEnter')}
+        initial="hidden"
+        animate="visible"
+        transition={m.spring('overlay')}
+      >
         {children}
-      </div>
+      </motion.div>
     </div>,
     document.body
   );

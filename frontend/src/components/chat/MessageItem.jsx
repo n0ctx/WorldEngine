@@ -16,7 +16,8 @@ import { useEscapeKey } from '../../core/hooks/useEscapeKey.js';
 import CharacterSeal from './CharacterSeal.jsx';
 import InterruptedMark from './InterruptedMark.jsx';
 import ActivatedEntriesRow from './ActivatedEntriesRow.jsx';
-import { variants, transitions } from '../../core/utils/motion.js';
+import { useMotion } from '../../core/hooks/useMotion.js';
+import { DURATION } from '../../core/utils/motion.js';
 import SeamlessEditableSurface from '../../../../shared/SeamlessEditableSurface.jsx';
 
 const MotionDiv = motion.div;
@@ -265,6 +266,15 @@ export default function MessageItem({
   const showTokenUsage = useDisplaySettingsStore((s) => s.showTokenUsage);
   const currentModelPricing = useDisplaySettingsStore((s) => s.currentModelPricing);
   const isUser = message.role === 'user';
+  const m = useMotion();
+  // 入场像角色走上台：短回弹后静止；离场只收透明度，不牵动相邻正文
+  const enterProps = {
+    variants: m.variant('messageEnter'),
+    initial: 'hidden',
+    animate: 'visible',
+    transition: m.spring('message'),
+    exit: { opacity: 0, transition: m.transition('retract') },
+  };
 
   const speakerName = isUser
     ? (persona?.name || '玩家').toUpperCase()
@@ -307,15 +317,13 @@ export default function MessageItem({
   function handleKeyDownAI(e) { if (e.key === 'Escape') cancelEditAI(); }
 
   if (isStreaming && !streamingText) {
+    // 角色等玩家这句落定后再上台，同一时刻只有一个主运动
     return (
       <MotionDiv
         data-message-id={message?.id}
         className="we-message-row we-message-assistant"
-        initial="hidden"
-        animate="visible"
-        variants={variants.inkRise}
-        transition={transitions.ink}
-        exit={{ opacity: 0, transition: { duration: 0.15 } }}
+        {...enterProps}
+        transition={m.spring('message', { delay: DURATION.base })}
       >
         <div className="we-message-row-inner">
           <CharacterSeal character={character} size={40} />
@@ -339,11 +347,7 @@ export default function MessageItem({
       <MotionDiv
         data-message-id={message?.id}
         className="we-message-row we-message-user"
-        initial="hidden"
-        animate="visible"
-        variants={variants.inkRise}
-        transition={transitions.ink}
-        exit={{ opacity: 0, y: -4, transition: { duration: 0.18 } }}
+        {...enterProps}
       >
         <div className="we-message-row-inner">
           <CharacterSeal character={persona} size={32} color="var(--we-color-status-warning)" />
@@ -413,11 +417,7 @@ export default function MessageItem({
     <MotionDiv
       data-message-id={message?.id}
       className="we-message-row we-message-assistant"
-      initial="hidden"
-      animate="visible"
-      variants={variants.inkRise}
-      transition={transitions.ink}
-      exit={{ opacity: 0, y: -4, transition: { duration: 0.18 } }}
+      {...enterProps}
     >
       <div className="we-message-row-inner">
         <CharacterSeal character={character} size={40} />

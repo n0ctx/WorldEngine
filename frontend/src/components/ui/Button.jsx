@@ -1,3 +1,6 @@
+import { motion } from 'framer-motion';
+import { useMotion } from '../../core/hooks/useMotion.js';
+
 const sizeCls = {
   sm: 'we-btn-sm',
   md: '',
@@ -12,8 +15,9 @@ export default function Button({
   children,
   ...props
 }) {
+  const m = useMotion();
   return (
-    <button
+    <motion.button
       disabled={disabled}
       className={[
         'we-btn',
@@ -21,9 +25,10 @@ export default function Button({
         sizeCls[size] ?? '',
         className,
       ].filter(Boolean).join(' ')}
+      {...m.gesture('press', { disabled })}
       {...props}
     >
       {children}
-    </button>
+    </motion.button>
   );
 }

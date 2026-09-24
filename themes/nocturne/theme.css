@@ -1,46 +1,46 @@
 :root {
   /*
    * 夜航 nocturne —— 深色沉浸主题
-   * 中性冷灰地面，单一低饱和板岩蓝主色，把颜色让给世界封面插画。
-   * 危险色单独覆盖为低饱和暖赭红（不沿用主色），理由见 themes/nocturne 报告。
+   * 暖墨色舞台地面，单一余烬橙主色；进入世界后主色由世界封面接管。
+   * 危险色单独覆盖为暖赭红（不沿用主色）。
    */
 
   /* ──────────────────────────────────────────────────────────────
      § 1 语义色与透明层
      ────────────────────────────────────────────────────────────── */
 
-  --we-color-text-primary: #ebe8e3;
-  --we-color-text-secondary: #a2a8af;
-  --we-color-text-tertiary: #7d848c;
-  --we-color-text-inverse: #15181b;
-  --we-color-text-danger: #c98673;
+  --we-color-text-primary: #f3ece2;
+  --we-color-text-secondary: #bcb0a2;
+  --we-color-text-tertiary: #9a8e80;
+  --we-color-text-inverse: #17130f;
+  --we-color-text-danger: #e38e78;
 
   --we-color-scheme: dark;
-  --we-color-bg-canvas: #15181b;
-  --we-color-bg-surface: #1b1f23;
-  --we-color-bg-elevated: #1f2327;
-  --we-color-bg-subtle: #1b1f23;
-  --we-color-bg-muted: #262b30;
-  --we-color-bg-overlay: rgba(10, 12, 14, 0.62);
-  --we-color-bg-inverse: #0e1012;
+  --we-color-bg-canvas: #17130f;
+  --we-color-bg-surface: #211c17;
+  --we-color-bg-elevated: #2a241e;
+  --we-color-bg-subtle: #1c1814;
+  --we-color-bg-muted: #342d26;
+  --we-color-bg-overlay: rgba(12, 9, 6, 0.66);
+  --we-color-bg-inverse: #0f0c09;
 
   /* 边框对比度按 WCAG 非文本 ≥3:1 硬指标标定（相邻画布/卡面均实测达标），
      border-subtle 例外：仅用于卡片内部极轻高光分隔，非功能性描边 */
-  --we-color-border-default: rgba(255, 255, 255, 0.36);
-  --we-color-border-subtle: rgba(255, 255, 255, 0.05);
-  --we-color-border-strong: rgba(255, 255, 255, 0.44);
-  --we-color-border-focus: #7f95a8;
+  --we-color-border-default: rgba(255, 238, 220, 0.34);
+  --we-color-border-subtle: rgba(255, 238, 220, 0.07);
+  --we-color-border-strong: rgba(255, 238, 220, 0.44);
+  --we-color-border-focus: #f2a65e;
 
   --we-color-status-success: #6f9e82;
   --we-color-status-warning: #b08b52;
-  --we-color-status-danger: #c98673;
+  --we-color-status-danger: #e38e78;
   --we-color-status-info: #7a8794;
 
-  --we-color-accent: #7f95a8;
-  --we-color-accent-deep: #63788c;
-  --we-color-accent-bg: rgba(127, 149, 168, 0.12);
-  --we-color-gold: #8d8579;
-  --we-color-gold-pale: #a49b8c;
+  --we-color-accent: #f2a65e;
+  --we-color-accent-deep: #d9853d;
+  --we-color-accent-bg: rgba(242, 166, 94, 0.14);
+  --we-color-gold: #c9a57a;
+  --we-color-gold-pale: #f6d2a8;
   --we-color-avatar-placeholder: #bfa088;
 
   --we-color-ink-wash: rgba(0, 0, 0, 0.16);
@@ -50,15 +50,15 @@
   --we-color-shadow-md: rgba(0, 0, 0, 0.30);
   --we-color-shadow-lg: rgba(0, 0, 0, 0.40);
   --we-color-shadow-xl: rgba(0, 0, 0, 0.55);
-  --we-color-overlay-medium: rgba(10, 12, 14, 0.45);
-  --we-color-overlay-heavy: rgba(10, 12, 14, 0.72);
-  --we-color-paper-wash: rgba(21, 24, 27, 0.35);
-  --we-color-paper-tint: rgba(38, 43, 48, 0.45);
-  --we-color-paper-overlay: rgba(51, 58, 65, 0.14);
-  --we-color-ink-secondary-wash: rgba(162, 168, 175, 0.14);
-  --we-color-ink-secondary-wash-sm: rgba(162, 168, 175, 0.10);
-  --we-color-accent-border: rgba(127, 149, 168, 0.28);
-  --we-color-accent-border-sm: rgba(127, 149, 168, 0.20);
+  --we-color-overlay-medium: rgba(12, 9, 6, 0.45);
+  --we-color-overlay-heavy: rgba(12, 9, 6, 0.74);
+  --we-color-paper-wash: rgba(23, 19, 15, 0.35);
+  --we-color-paper-tint: rgba(52, 45, 38, 0.45);
+  --we-color-paper-overlay: rgba(66, 57, 48, 0.14);
+  --we-color-ink-secondary-wash: rgba(188, 176, 162, 0.14);
+  --we-color-ink-secondary-wash-sm: rgba(188, 176, 162, 0.10);
+  --we-color-accent-border: rgba(242, 166, 94, 0.34);
+  --we-color-accent-border-sm: rgba(242, 166, 94, 0.22);
   --we-color-white-wash: rgba(255, 255, 255, 0.04);
   --we-color-white-sheen-sm: rgba(255, 255, 255, 0.07);
   --we-color-white-sheen-md: rgba(255, 255, 255, 0.10);
@@ -80,46 +80,46 @@
      ────────────────────────────────────────────────────────────── */
 
   --we-card-bg: var(--we-color-bg-surface);
-  --we-card-border: 1px solid var(--we-color-border-default);
-  --we-card-radius: var(--we-radius-sm);
-  --we-card-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.03),
-    0 1px 2px rgba(0, 0, 0, 0.30);
-  --we-card-hover-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.05),
-    0 4px 12px rgba(0, 0, 0, 0.35);
-  --we-panel-card-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+  --we-card-border: 1px solid var(--we-color-border-subtle);
+  --we-card-radius: var(--we-radius-md);
+  --we-card-shadow: inset 0 1px 0 rgba(255, 238, 220, 0.05),
+    0 2px 4px rgba(0, 0, 0, 0.30),
+    0 12px 28px -10px rgba(0, 0, 0, 0.60);
+  --we-card-hover-shadow: inset 0 1px 0 rgba(255, 238, 220, 0.07),
+    0 6px 12px rgba(0, 0, 0, 0.32),
+    0 26px 44px -14px rgba(0, 0, 0, 0.72);
+  --we-panel-card-shadow: inset 0 1px 0 rgba(255, 238, 220, 0.04);
 
 
   /* ──────────────────────────────────────────────────────────────
      § 4 壳层、书架与质感
      ────────────────────────────────────────────────────────────── */
 
-  --we-topbar-bg: #0e1012;
-  --we-topbar-border: rgba(255, 255, 255, 0.08);
-  --we-topbar-item: rgba(235, 232, 227, 0.56);
-  --we-topbar-item-hover: rgba(235, 232, 227, 0.85);
-  --we-topbar-sep: rgba(255, 255, 255, 0.14);
-  --we-topbar-active-bg: rgba(127, 149, 168, 0.12);
-  --we-topbar-active-ring: rgba(127, 149, 168, 0.32);
-  --we-topbar-dropdown-bg: #1b1f23;
-  --we-topbar-dropdown-border: rgba(255, 255, 255, 0.10);
-  --we-topbar-dropdown-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
-  --we-topbar-item-hover-bg: rgba(255, 255, 255, 0.05);
-  --we-topbar-item-dim: rgba(235, 232, 227, 0.32);
-  --we-topbar-item-muted: rgba(235, 232, 227, 0.40);
-  --we-topbar-item-faint: rgba(235, 232, 227, 0.62);
-  --we-topbar-divider: rgba(255, 255, 255, 0.08);
+  --we-topbar-bg: var(--we-color-bg-canvas);
+  --we-topbar-border: transparent;
+  --we-topbar-item: rgba(243, 236, 226, 0.66);
+  --we-topbar-item-hover: rgba(243, 236, 226, 0.94);
+  --we-topbar-sep: rgba(243, 236, 226, 0.26);
+  --we-topbar-active-bg: rgba(242, 166, 94, 0.16);
+  --we-topbar-active-ring: rgba(242, 166, 94, 0.40);
+  --we-topbar-dropdown-bg: #2a241e;
+  --we-topbar-dropdown-border: rgba(255, 238, 220, 0.08);
+  --we-topbar-dropdown-shadow: 0 18px 40px -12px rgba(0, 0, 0, 0.70);
+  --we-topbar-item-hover-bg: rgba(255, 238, 220, 0.07);
+  --we-topbar-item-dim: rgba(243, 236, 226, 0.36);
+  --we-topbar-item-muted: rgba(243, 236, 226, 0.48);
+  --we-topbar-item-faint: rgba(243, 236, 226, 0.72);
+  --we-topbar-divider: rgba(255, 238, 220, 0.08);
 
   --we-canvas-texture-image: none;
-  --we-card-overlay-bg: linear-gradient(160deg, rgba(0, 0, 0, 0.35) 0%, rgba(0, 0, 0, 0.68) 100%);
-  --we-card-overlay-hover-bg: var(--we-card-overlay-bg);
-  --we-card-cover-text-color: rgba(235, 232, 227, 0.92);
-  --we-card-cover-meta-color: rgba(210, 214, 219, 0.88);
+  --we-card-overlay-bg: linear-gradient(180deg, rgba(10, 8, 6, 0) 35%, rgba(10, 8, 6, 0.55) 70%, rgba(10, 8, 6, 0.86) 100%);
+  --we-card-overlay-hover-bg: linear-gradient(180deg, rgba(10, 8, 6, 0.82) 0%, rgba(10, 8, 6, 0.45) 45%, rgba(10, 8, 6, 0.55) 70%, rgba(10, 8, 6, 0.86) 100%);
+  --we-card-cover-text-color: rgba(255, 248, 238, 0.96);
+  --we-card-cover-meta-color: rgba(236, 224, 210, 0.86);
   --we-col-header-border-color: var(--we-color-border-default);
   --we-col-btn-border-color: var(--we-color-border-strong);
   --we-col-btn-color: var(--we-color-text-secondary);
-  --we-col-btn-primary-hover-bg: rgba(127, 149, 168, 0.16);
+  --we-col-btn-primary-hover-bg: rgba(242, 166, 94, 0.18);
   --we-parchment-display: none;
   --we-parchment-fiber-opacity: 0;
   --we-spine-display: none;
@@ -131,12 +131,11 @@
   --we-spine-shadow-right: linear-gradient(to left, transparent, transparent);
 
   /* 书架空/加载/错误态面板 */
-  --we-bookshelf-empty-bg: rgba(255, 255, 255, 0.02);
-  --we-bookshelf-empty-border: rgba(255, 255, 255, 0.05);
+  --we-bookshelf-empty-bg: var(--we-color-bg-surface);
+  --we-bookshelf-empty-border: var(--we-color-border-subtle);
 
   /* 设置面板加载占位 scrim：换掉羊皮纸渐变，改为中性深灰 */
-  --we-loading-scrim-bg:
-    linear-gradient(180deg, rgb(27 31 35 / 55%), rgb(21 24 27 / 35%));
+  --we-loading-scrim-bg: linear-gradient(180deg, rgb(33 28 23 / 55%), rgb(23 19 15 / 35%));
   --we-loading-scrim-border: rgb(255 255 255 / 8%);
   --we-loading-scrim-shadow:
     inset 0 1px 0 rgb(255 255 255 / 6%),
@@ -146,56 +145,54 @@
      § 5 基础色板
      ────────────────────────────────────────────────────────────── */
 
-  --we-base-paper-100: #15181b;
-  --we-base-paper-200: #1b1f23;
-  --we-base-paper-300: #262b30;
-  --we-base-paper-400: #333a41;
-  --we-base-ink-900: #ebe8e3;
-  --we-base-ink-700: #a2a8af;
-  --we-base-ink-500: #7d848c;
-  --we-base-vermilion-600: #7f95a8;
-  --we-base-vermilion-800: #63788c;
-  --we-base-gold-600: #8d8579;
-  --we-base-gold-400: #a49b8c;
+  --we-base-paper-100: #17130f;
+  --we-base-paper-200: #211c17;
+  --we-base-paper-300: #342d26;
+  --we-base-paper-400: #433a31;
+  --we-base-ink-900: #f3ece2;
+  --we-base-ink-700: #bcb0a2;
+  --we-base-ink-500: #9a8e80;
+  --we-base-vermilion-600: #f2a65e;
+  --we-base-vermilion-800: #d9853d;
+  --we-base-gold-600: #c9a57a;
+  --we-base-gold-400: #f6d2a8;
   --we-base-moss-600: #6f9e82;
   --we-base-amber-600: #b08b52;
   --we-base-slate-600: #7a8794;
-  --we-base-book-bg: #0e1012;
+  --we-base-book-bg: #0f0c09;
   --we-base-white: #ffffff;
   --we-base-peach-200: #bfa088;
 
   /* ──────────────────────────────────────────────────────────────
      § 6 阴影 / 圆角 / 动效
-     深色靠亮度分层，不靠投影分层：物理投影全部换成极轻内高光 / 极淡外阴影。
+     物件落在舞台上：内高光 + 向下的柔和接地投影；主按钮用实色底边做出可按压的厚度。
      ────────────────────────────────────────────────────────────── */
 
-  --we-shadow-stamp-up:
-    inset 0 1px 0 rgba(255, 255, 255, 0.05),
-    0 1px 2px rgba(0, 0, 0, 0.25);
-  --we-shadow-stamp-down:
-    inset 0 1px 2px rgba(0, 0, 0, 0.30);
-  --we-shadow-paper-stack: none;
-  --we-shadow-paper-lift: 0 0 0 1px rgba(255, 255, 255, 0.06);
-  --we-shadow-paper-indent: inset 0 1px 2px rgba(0, 0, 0, 0.20);
-  --we-shadow-dialog:
-    0 0 0 1px rgba(255, 255, 255, 0.07),
-    0 4px 18px rgba(0, 0, 0, 0.35),
-    0 16px 48px rgba(0, 0, 0, 0.35);
-  --we-shadow-toast:
-    0 0 0 1px rgba(255, 255, 255, 0.08),
-    0 4px 12px rgba(0, 0, 0, 0.35);
+  --we-shadow-stamp-up: inset 0 1px 0 rgba(255, 255, 255, 0.28),
+    0 3px 0 var(--we-color-accent-deep),
+    0 8px 18px -6px rgba(0, 0, 0, 0.55);
+  --we-shadow-stamp-down: inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    0 1px 0 var(--we-color-accent-deep),
+    0 3px 8px -4px rgba(0, 0, 0, 0.50);
+  --we-shadow-paper-lift: inset 0 1px 0 rgba(255, 238, 220, 0.05),
+    0 10px 24px -12px rgba(0, 0, 0, 0.60);
+  --we-shadow-paper-indent: inset 0 1px 2px rgba(0, 0, 0, 0.28);
+  --we-shadow-dialog: 0 0 0 1px rgba(255, 238, 220, 0.06),
+    0 24px 60px -16px rgba(0, 0, 0, 0.78),
+    0 8px 18px rgba(0, 0, 0, 0.35);
+  --we-shadow-toast: 0 0 0 1px rgba(255, 238, 220, 0.08),
+    0 14px 32px -10px rgba(0, 0, 0, 0.65);
   --we-shadow-btn-primary-inner-glow: none;
   --we-shadow-range-thumb: 0 1px 3px rgba(0, 0, 0, 0.40);
-  --we-shadow-range-thumb-active:
-    0 0 0 3px rgba(127, 149, 168, 0.20),
+  --we-shadow-range-thumb-active: 0 0 0 3px rgba(242, 166, 94, 0.22),
     0 1px 3px rgba(0, 0, 0, 0.40);
 
-  --we-radius-none: 1px;
-  --we-radius-xs: 3px;
-  --we-radius-sm: 6px;
-  --we-radius-md: 8px;
-  --we-radius-lg: 12px;
-  --we-radius-xl: 16px;
+  --we-radius-none: 2px;
+  --we-radius-xs: 6px;
+  --we-radius-sm: 10px;
+  --we-radius-md: 14px;
+  --we-radius-lg: 20px;
+  --we-radius-xl: 28px;
   --we-radius-full: 9999px;
 
   /* ──────────────────────────────────────────────────────────────
@@ -203,18 +200,18 @@
      ────────────────────────────────────────────────────────────── */
 
   --we-pager-btn-bg: var(--we-color-bg-surface);
-  --we-pager-btn-border: 1px solid var(--we-color-border-default);
+  --we-pager-btn-border: 1px solid var(--we-color-border-subtle);
   --we-pager-btn-shadow: none;
   --we-pager-btn-hover-bg: var(--we-color-accent-bg);
   --we-pager-btn-hover-shadow: none;
 
-  --we-composer-field-bg: var(--we-color-bg-surface);
+  --we-composer-field-bg: var(--we-color-bg-elevated);
   --we-composer-field-border: 1px solid var(--we-color-border-default);
   --we-composer-field-shadow: none;
   --we-composer-btn-border: 1px solid var(--we-color-border-default);
-  --we-composer-send-shadow: none;
-  --we-composer-send-hover-shadow: 0 2px 8px rgba(0, 0, 0, 0.30);
-  --we-composer-send-active-shadow: none;
+  --we-composer-send-shadow: var(--we-shadow-stamp-up);
+  --we-composer-send-hover-shadow: var(--we-shadow-stamp-up);
+  --we-composer-send-active-shadow: var(--we-shadow-stamp-down);
 
-  --we-page-gutter-border: 1px solid color-mix(in srgb, var(--we-color-border-default) 55%, transparent);
+  --we-page-gutter-border: 1px solid transparent;
 }

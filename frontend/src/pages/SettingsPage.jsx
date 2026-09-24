@@ -1,5 +1,6 @@
 import { useState, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import { useSettingsConfig } from '../core/hooks/useSettingsConfig';
 import { useEscapeKey } from '../core/hooks/useEscapeKey.js';
 import LlmConfigPanel from '../components/settings/LlmConfigPanel';
@@ -13,6 +14,7 @@ import RegexRulesManager from '../components/settings/RegexRulesManager';
 import FeaturesConfigPanel from '../components/settings/FeaturesConfigPanel';
 import ThemeManager from '../components/settings/ThemeManager.jsx';
 import { NAV_SECTIONS, NAV_KEY, SETTINGS_MODE } from '../core/constants/settings';
+import { useMotion } from '../core/hooks/useMotion.js';
 
 const SETTINGS_MODE_STORAGE_KEY = 'we:settings:mode';
 
@@ -26,6 +28,7 @@ function readPersistedSettingsMode() {
 
 export default function SettingsPage() {
   const navigate = useNavigate();
+  const m = useMotion();
   const location = useLocation();
   const isOverlay = !!location.state?.backgroundLocation;
   const [activeSection, setActiveSection] = useState(NAV_SECTIONS[0].key);
@@ -63,13 +66,23 @@ export default function SettingsPage() {
     },
   };
 
+  // 加载态与内容态共用同一个面板节点（同样的外层结构），入场只播一次，内容在已落定的面板里替换
+  const panelMotion = {
+    variants: m.variant('overlayEnter'),
+    initial: 'hidden',
+    animate: 'visible',
+    transition: m.spring('overlay'),
+  };
+
   if (loading) {
     return isOverlay ? (
       <div className="we-settings-overlay" {...overlayHandlers}>
-        <div ref={panelRef} className="we-settings-panel we-settings-panel-overlay">
-          <div className="we-settings-loading" role="status" aria-label="设置加载中">
-            <div className="we-settings-loading-scrim" aria-hidden="true" />
-          </div>
+        <div className="we-settings-panel-wrap">
+          <motion.div ref={panelRef} className="we-settings-panel we-settings-panel-overlay" {...panelMotion}>
+            <div className="we-settings-loading" role="status" aria-label="设置加载中">
+              <div className="we-settings-loading-scrim" aria-hidden="true" />
+            </div>
+          </motion.div>
         </div>
       </div>
     ) : (
@@ -83,9 +96,10 @@ export default function SettingsPage() {
 
   const settingsContent = (
     <div className="we-settings-panel-wrap">
-      <div
+      <motion.div
         ref={isOverlay ? panelRef : undefined}
         className={`we-settings-panel${isOverlay ? ' we-settings-panel-overlay' : ''}`}
+        {...panelMotion}
       >
         <nav className="we-settings-nav">
           <button className="we-edit-back" onClick={handleBack}>← 返回</button>
@@ -224,7 +238,7 @@ export default function SettingsPage() {
             )}
           </div>
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 

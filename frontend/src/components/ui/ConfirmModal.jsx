@@ -1,7 +1,7 @@
 // frontend/src/components/ui/ConfirmModal.jsx
 import { useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { variants, transitions } from '../../core/utils/motion.js';
+import { useMotion } from '../../core/hooks/useMotion.js';
 import { useEscapeKey } from '../../core/hooks/useEscapeKey.js';
 
 /**
@@ -20,6 +20,8 @@ export default function ConfirmModal({
 }) {
   const [confirming, setConfirming] = useState(false);
   const mouseDownOnBackdrop = useRef(false);
+  const m = useMotion();
+  const press = m.gesture('press', { disabled: confirming });
   useEscapeKey(() => { if (!confirming) onClose(); });
 
   async function handleConfirm() {
@@ -34,42 +36,44 @@ export default function ConfirmModal({
   return (
     <AnimatePresence>
       <motion.div
-        className="fixed inset-0 z-[var(--we-z-modal)] flex items-center justify-center bg-black/50"
-        variants={variants.overlayBackdrop}
+        className="we-modal-backdrop fixed inset-0 z-[var(--we-z-modal)] flex items-center justify-center"
+        variants={m.variant('overlayBackdrop')}
         initial="hidden"
         animate="visible"
         exit="hidden"
-        transition={transitions.quick}
+        transition={m.transition('quick')}
         onMouseDown={(e) => { mouseDownOnBackdrop.current = e.target === e.currentTarget; }}
         onClick={() => { if (mouseDownOnBackdrop.current && !confirming) onClose(); }}
       >
         <motion.div
           className="we-dialog-panel we-confirm-panel w-full max-w-sm mx-4"
-          variants={variants.inkRise}
+          variants={m.variant('overlayEnter')}
           initial="hidden"
           animate="visible"
           exit="hidden"
-          transition={transitions.ink}
+          transition={m.spring('overlay')}
           onClick={(e) => e.stopPropagation()}
         >
           <h2 className="we-confirm-title">{title}</h2>
           <div className="we-confirm-message">{message}</div>
           <div className="flex justify-end gap-3">
-            <button
+            <motion.button
               onClick={onClose}
               autoFocus
               disabled={confirming}
               className="we-confirm-cancel"
+              {...press}
             >
               {cancelText}
-            </button>
-            <button
+            </motion.button>
+            <motion.button
               onClick={handleConfirm}
               disabled={confirming}
               className={['we-confirm-ok', danger ? 'danger' : ''].filter(Boolean).join(' ')}
+              {...press}
             >
               {confirming ? '处理中…' : confirmText}
-            </button>
+            </motion.button>
           </div>
         </motion.div>
       </motion.div>

@@ -163,13 +163,6 @@
     inset 0 2px 4px rgba(0, 0, 0, 0.25),
     inset 0 1px 0 rgba(0, 0, 0, 0.15),
     0 1px 0 var(--we-color-accent-deep);
-  --we-shadow-paper-stack:
-    inset 0 1px 0 rgba(255, 255, 255, 0.04),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.03),
-    1px 2px 0 var(--we-color-bg-muted),
-    2px 4px 0 var(--we-color-border-default),
-    0 6px 18px rgba(0, 0, 0, 0.25),
-    0 2px 4px rgba(0, 0, 0, 0.12);
   --we-shadow-paper-lift:
     0 0 5px rgba(10, 10, 20, 0.15),
     0 0 12px rgba(10, 10, 20, 0.08);

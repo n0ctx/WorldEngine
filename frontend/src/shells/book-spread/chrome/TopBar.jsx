@@ -1,7 +1,7 @@
 /* book-spread shell top bar — three-level breadcrumb + shell chrome */
 import { useState, useEffect, useRef } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { DURATION, EASE } from '../../../core/utils/motion.js';
+import { useMotion } from '../../../core/hooks/useMotion.js';
 import Icon from '../../../components/ui/Icon.jsx';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { getWorlds } from '../../../core/api/worlds.js';
@@ -17,6 +17,7 @@ import { extractIds, resolveTopbarPathname } from '../../../core/utils/worldScop
 export default function TopBar() {
   const navigate = useNavigate();
   const location = useLocation();
+  const m = useMotion();
   const topbarPathname = resolveTopbarPathname(location);
   const { characterId, worldId } = extractIds(topbarPathname);
   const currentWorldId = useStore((s) => s.currentWorldId);
@@ -149,13 +150,14 @@ export default function TopBar() {
           <span className="we-topbar-item we-topbar-crumb-current we-topbar-brand" aria-current="page">WorldEngine</span>
         ) : (
           <>
-            <button
+            <motion.button
               className="we-topbar-item"
               onClick={() => navigate('/')}
-              aria-label="返回书架"
+              aria-label="返回世界列表"
+              {...m.gesture('press')}
             >
-              书架
-            </button>
+              世界
+            </motion.button>
           </>
         )}
 
@@ -175,7 +177,7 @@ export default function TopBar() {
                 <motion.span
                   className="we-topbar-caret"
                   animate={{ rotate: dropdownOpen ? 180 : 0 }}
-                  transition={{ duration: DURATION.quick, ease: EASE.sharp }}
+                  transition={m.transition('quick')}
                   aria-hidden="true"
                 >
                   <Icon size={16} viewBox="0 0 10 10" strokeWidth="1.6"><polyline points="2,3.5 5,6.5 8,3.5" /></Icon>
@@ -186,10 +188,11 @@ export default function TopBar() {
                 {dropdownOpen && (
                   <motion.div
                     className="we-topbar-dropdown"
-                    initial={{ opacity: 0, scaleY: 0.92, y: -4 }}
-                    animate={{ opacity: 1, scaleY: 1,    y: 0 }}
-                    exit={{   opacity: 0, scaleY: 0.92, y: -4 }}
-                    transition={{ duration: DURATION.quick, ease: EASE.ink }}
+                    variants={m.variant('overlayEnter')}
+                    initial="hidden"
+                    animate="visible"
+                    exit="hidden"
+                    transition={m.spring('overlay')}
                   >
                     {worldsLoading ? (
                       <div className="we-topbar-dropdown-empty">
@@ -246,19 +249,20 @@ export default function TopBar() {
 
       {/* 右侧：操作按钮 */}
       <div className="we-topbar-actions">
-        <button
+        <motion.button
           className={`we-topbar-item${isAssistantOpen ? ' we-topbar-item--active' : ''}`}
           onClick={toggleAssistant}
           title="写卡助手"
           aria-label={isAssistantOpen ? '关闭写卡助手' : '打开写卡助手'}
           aria-pressed={isAssistantOpen}
+          {...m.gesture('press')}
         >
           助手
-        </button>
+        </motion.button>
 
         <span className="we-topbar-sep">·</span>
 
-        <button
+        <motion.button
           className="we-topbar-item we-topbar-settings-btn"
           aria-label="打开设置"
           onClick={() => {
@@ -276,12 +280,13 @@ export default function TopBar() {
             });
           }}
           title="设置"
+          {...m.gesture('press')}
         >
           <Icon size={16} strokeWidth="1.8" className="we-topbar-settings-icon">
             <circle cx="12" cy="12" r="3" />
             <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
           </Icon>
-        </button>
+        </motion.button>
       </div>
     </div>
   );

@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import { getWorlds, deleteWorld, reorderWorlds, updateWorld } from '../core/api/worlds';
 import SortableGrid from '../components/ui/SortableGrid';
 import { getCharactersByWorld } from '../core/api/characters';
@@ -10,13 +11,21 @@ import { getAvatarColor, getAvatarUrl } from '../core/utils/avatar';
 import { relativeTime } from '../core/utils/time';
 import ConfirmModal from '../components/ui/ConfirmModal';
 import EmptyState from '../components/ui/EmptyState.jsx';
+import Button from '../components/ui/Button.jsx';
 import Icon from '../components/ui/Icon.jsx';
 import { log } from '../core/utils/logger.js';
+import { useMotion } from '../core/hooks/useMotion.js';
+import { STAGGER } from '../core/utils/motion.js';
+
+// 首屏入场只错开前几张，后面的卡与第 8 张同时落定，避免长列表拖出长尾
+const ENTER_STAGGER_CAP = 8;
 
 export default function WorldsPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const setCurrentWorldId = useStore((s) => s.setCurrentWorldId);
+  const m = useMotion();
+  const sceneEnter = m.variant('sceneEnter');
 
   const [worlds, setWorlds] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -128,16 +137,16 @@ export default function WorldsPage() {
       {/* 页头 */}
       <div className="we-worlds-header">
         <div>
-          <h1 className="we-worlds-title">书架</h1>
+          <h1 className="we-worlds-title">世界</h1>
         </div>
         <div className="we-worlds-header-actions">
-          <button
+          <Button
+            variant="ghost"
             onClick={() => worldImportRef.current?.click()}
             disabled={importingWorld}
-            className="we-btn we-btn-ghost"
           >
             {importingWorld ? '导入中…' : '导入世界卡'}
-          </button>
+          </Button>
           <input
             ref={worldImportRef}
             type="file"
@@ -145,12 +154,12 @@ export default function WorldsPage() {
             className="hidden"
             onChange={handleImportWorldFile}
           />
-          <button
+          <Button
+            variant="primary"
             onClick={() => navigate('/worlds/new', { state: { backgroundLocation: location } })}
-            className="we-btn we-btn-primary"
           >
             + 创建世界
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -176,14 +185,20 @@ export default function WorldsPage() {
           />
         </div>
       ) : worlds.length === 0 ? (
-        <div className="we-worlds-state">
+        <motion.div
+          className="we-worlds-state"
+          variants={sceneEnter}
+          initial="hidden"
+          animate="visible"
+          transition={m.spring('card')}
+        >
           <EmptyState
             title="暂无世界记录"
             hint="一个「世界」是一整套故事设定：背景、角色、这里什么是真的。建好之后你可以在里面对话或写故事，AI 全程按这套设定来。如果手头已经有别人做好的世界卡，也可以直接导入，不用从零开始写。"
             primaryAction={{ label: '新建世界', onClick: () => navigate('/worlds/new', { state: { backgroundLocation: location } }) }}
             secondaryAction={{ label: '导入世界卡', onClick: () => worldImportRef.current?.click() }}
           />
-        </div>
+        </motion.div>
       ) : (
         <SortableGrid
           items={worlds}
@@ -204,7 +219,7 @@ export default function WorldsPage() {
                 {...listeners}
                 className={`we-world-card-shell${isFeature ? ' we-world-card-shell--feature' : ''}`}
               >
-                <div
+                <motion.div
                   data-dragging={isDragging || undefined}
                   className={`we-world-card${world.cover_path ? ' we-world-card--has-cover' : ' we-world-card--tinted'}${isFeature ? ' we-world-card--feature' : ''}`}
                   role="link"
@@ -217,6 +232,17 @@ export default function WorldsPage() {
                     e.stopPropagation();
                     handleEnterWorld(world);
                   }}
+                  variants={{
+                    hidden: sceneEnter.hidden,
+                    visible: {
+                      ...sceneEnter.visible,
+                      transition: m.spring('card', { delay: Math.min(index, ENTER_STAGGER_CAP) * STAGGER.list }),
+                    },
+                  }}
+                  // DragOverlay 里的拖动副本是新挂载的，不重放入场
+                  initial={isDragging ? false : 'hidden'}
+                  animate="visible"
+                  {...m.gesture('card', { disabled: isDragging })}
                 >
                   {world.cover_path ? (
                     <img src={`${getAvatarUrl(world.cover_path)}?t=${reloadKey}`} alt="" className="we-world-card-bg" />
@@ -282,7 +308,7 @@ export default function WorldsPage() {
                       </Icon>
                     </button>
                   </div>
-                </div>
+                </motion.div>
               </div>
             );
           }}

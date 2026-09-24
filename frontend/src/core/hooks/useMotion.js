@@ -1,5 +1,20 @@
 import { useReducedMotion } from 'framer-motion';
-import { transitions as motionTransitions } from '../utils/motion.js';
+import {
+  GESTURE,
+  SPRING,
+  transitions as motionTransitions,
+  variants as motionVariants,
+} from '../utils/motion.js';
+
+const REDUCED_INSTANT = { duration: 0 };
+const MOTION_KEYS = ['x', 'y', 'scale', 'scaleX', 'scaleY', 'rotate', 'filter'];
+
+function stripMotion(state) {
+  if (!state || typeof state !== 'object') return state;
+  const next = { ...state };
+  for (const key of MOTION_KEYS) delete next[key];
+  return next;
+}
 
 export function useMotion() {
   const systemReduced = useReducedMotion();
@@ -14,6 +29,25 @@ export function useMotion() {
     transition: (preset) => {
       const t = motionTransitions[preset] ?? motionTransitions.ink;
       return reduced ? { ...t, duration: 0 } : t;
+    },
+    // 命名弹簧；delay 同时作用于位移弹簧和透明度淡入；reduced 模式下瞬时落定，不回弹
+    spring: (key, { delay = 0 } = {}) => {
+      if (reduced) return REDUCED_INSTANT;
+      const s = SPRING[key];
+      return delay ? { ...s, delay, opacity: { ...s.opacity, delay } } : s;
+    },
+    // 手势 props（whileHover / whileTap / transition），可直接展开到 motion 元素上；
+    // disabled 时只保留弹簧，让按下后立刻变禁用的按钮（如发送）仍能回弹落定；
+    // reduced 模式下不返回任何手势，悬停与按压都不产生位移或缩放
+    gesture: (key, { disabled = false } = {}) => {
+      if (reduced) return {};
+      return disabled ? { transition: SPRING[key] } : { ...GESTURE[key], transition: SPRING[key] };
+    },
+    // variants 预设；reduced 模式下去掉位移 / 缩放 / 模糊，只保留透明度
+    variant: (key) => {
+      const v = motionVariants[key];
+      if (!reduced || !v) return v;
+      return Object.fromEntries(Object.entries(v).map(([state, value]) => [state, stripMotion(value)]));
     },
   };
 }

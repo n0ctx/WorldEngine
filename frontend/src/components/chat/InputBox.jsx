@@ -1,10 +1,12 @@
 import { useState, useRef, useEffect, useImperativeHandle, forwardRef } from 'react';
+import { motion } from 'framer-motion';
 import { applyRules } from '../../core/utils/regex-runner.js';
 import Icon from '../ui/Icon.jsx';
 import ConfirmModal from '../ui/ConfirmModal.jsx';
 import { log } from '../../core/utils/logger.js';
 import { isImeComposing } from '../../core/utils/ime.js';
 import { MAX_ATTACHMENTS_PER_MESSAGE, MAX_ATTACHMENT_SIZE_MB } from '../../core/utils/constants.js';
+import { useMotion } from '../../core/hooks/useMotion.js';
 
 const SLASH_COMMANDS = [
   { cmd: '/continue',    desc: '续写上一条 AI 回复' },
@@ -34,6 +36,8 @@ const InputBox = forwardRef(function InputBox({
   onTableMemory = null,
   pagerSlot = null,
 }, ref) {
+  const m = useMotion();
+  const press = m.gesture('press');
   const [text, setText] = useState('');
   const [attachments, setAttachments] = useState([]);
   const [slashOpen, setSlashOpen] = useState(false);
@@ -258,21 +262,22 @@ const InputBox = forwardRef(function InputBox({
       <div className="we-chat-input__toolbar">
         <div className="we-chat-input__toolbar-pager">{pagerSlot}</div>
         <div className="we-chat-quick-actions">
-          <button
+          <motion.button
             type="button"
             onMouseDown={keepInputFocus}
             onClick={() => onScrollToBottom?.()}
             className="we-chat-quick-btn"
             title="跳转到底部"
             aria-label="跳转到底部"
+            {...press}
           >
             <Icon size={16} strokeWidth="2.2">
               <line x1="4" y1="20" x2="20" y2="20" />
               <polyline points="8 12 12 16 16 12" />
               <line x1="12" y1="4" x2="12" y2="16" />
             </Icon>
-          </button>
-          <button
+          </motion.button>
+          <motion.button
             type="button"
             onMouseDown={keepInputFocus}
             onClick={() => onContinue?.()}
@@ -280,13 +285,14 @@ const InputBox = forwardRef(function InputBox({
             className="we-chat-quick-btn"
             title="续写上一条 AI 回复"
             aria-label="续写上一条 AI 回复"
+            {...m.gesture('press', { disabled: generating })}
           >
             <Icon size={16} strokeWidth="2.2">
               <polyline points="13 17 18 12 13 7" />
               <polyline points="6 17 11 12 6 7" />
             </Icon>
-          </button>
-          <button
+          </motion.button>
+          <motion.button
             type="button"
             onMouseDown={keepInputFocus}
             onClick={() => onImpersonate?.()}
@@ -294,20 +300,22 @@ const InputBox = forwardRef(function InputBox({
             className="we-chat-quick-btn"
             title="AI 替你写一条消息"
             aria-label="AI 替你写一条消息"
+            {...m.gesture('press', { disabled: generating })}
           >
             <Icon size={16} strokeWidth="2.2">
               <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
               <circle cx="12" cy="7" r="4" />
             </Icon>
-          </button>
+          </motion.button>
           {onLongTermMemory && (
-            <button
+            <motion.button
               type="button"
               onMouseDown={keepInputFocus}
               onClick={() => onLongTermMemory()}
               className="we-chat-quick-btn"
               title="长期记忆"
               aria-label="长期记忆"
+              {...press}
             >
               <Icon size={16} strokeWidth="2.2">
                 <path d="M4 4h12a4 4 0 0 1 4 4v12H8a4 4 0 0 1-4-4V4z" />
@@ -315,16 +323,17 @@ const InputBox = forwardRef(function InputBox({
                 <path d="M8 12h8" />
                 <path d="M8 16h5" />
               </Icon>
-            </button>
+            </motion.button>
           )}
           {onTableMemory && (
-            <button
+            <motion.button
               type="button"
               onMouseDown={keepInputFocus}
               onClick={() => onTableMemory()}
               className="we-chat-quick-btn"
               title="表格记忆"
               aria-label="表格记忆"
+              {...press}
             >
               <Icon size={16} strokeWidth="2.2">
                 <rect x="3" y="4" width="18" height="16" rx="1.5" />
@@ -332,7 +341,7 @@ const InputBox = forwardRef(function InputBox({
                 <path d="M3 14h18" />
                 <path d="M9 4v16" />
               </Icon>
-            </button>
+            </motion.button>
           )}
         </div>
       </div>
@@ -365,19 +374,20 @@ const InputBox = forwardRef(function InputBox({
 
       <div className="we-chat-input__row">
         {/* 附件按钮 */}
-        <button
+        <motion.button
           onClick={() => fileInputRef.current?.click()}
           disabled={generating || attachments.length >= MAX_ATTACHMENTS_PER_MESSAGE}
           className="we-chat-input__attach-btn"
           title="添加图片（最多3张）"
           aria-label="添加图片附件（最多3张）"
+          {...m.gesture('press', { disabled: generating || attachments.length >= MAX_ATTACHMENTS_PER_MESSAGE })}
         >
           <Icon size={16} strokeWidth="1.8">
             <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
             <circle cx="8.5" cy="8.5" r="1.5" />
             <polyline points="21 15 16 10 5 21" />
           </Icon>
-        </button>
+        </motion.button>
         <input
           ref={fileInputRef}
           type="file"
@@ -435,29 +445,31 @@ const InputBox = forwardRef(function InputBox({
 
         {/* 发送 / 停止 */}
         {generating ? (
-          <button
+          <motion.button
             onClick={onStop}
             className="we-chat-send-btn"
             title="停止生成"
             aria-label="停止生成"
+            {...press}
           >
             <Icon size={16} fill="currentColor" stroke="none">
               <rect x="6" y="6" width="12" height="12" rx="1" />
             </Icon>
-          </button>
+          </motion.button>
         ) : (
-          <button
+          <motion.button
             onClick={handleSend}
             disabled={!text.trim()}
             className="we-chat-send-btn"
             title="发送 (Enter)"
             aria-label="发送消息"
+            {...m.gesture('press', { disabled: !text.trim() })}
           >
             <Icon size={16} strokeWidth="2.5">
               <line x1="22" y1="2" x2="11" y2="13" />
               <polygon points="22 2 15 22 11 13 2 9 22 2" />
             </Icon>
-          </button>
+          </motion.button>
         )}
       </div>
 
