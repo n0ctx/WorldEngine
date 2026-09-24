@@ -13,6 +13,9 @@ const SLASH_COMMANDS = [
   { cmd: '/title',       desc: '根据最近对话上下文重新生成会话标题' },
 ];
 
+const SLASH_LISTBOX_ID = 'we-chat-slash-listbox';
+const slashOptionId = (i) => `${SLASH_LISTBOX_ID}-${i}`;
+
 const InputBox = forwardRef(function InputBox({
   onSend,
   onStop,
@@ -117,6 +120,7 @@ const InputBox = forwardRef(function InputBox({
   const filteredCommands = text.startsWith('/')
     ? SLASH_COMMANDS.filter((c) => c.cmd.startsWith(text.toLowerCase().trim()))
     : [];
+  const slashMenuOpen = slashOpen && filteredCommands.length > 0;
 
   // 当输入变化时控制浮层
   function handleChange(e) {
@@ -147,7 +151,7 @@ const InputBox = forwardRef(function InputBox({
   function handleKeyDown(e) {
     if (isImeComposing(e)) return;
     // Slash 命令浮层键盘导航
-    if (slashOpen && filteredCommands.length > 0) {
+    if (slashMenuOpen) {
       if (e.key === 'ArrowDown') {
         e.preventDefault();
         setSlashIndex((i) => (i + 1) % filteredCommands.length);
@@ -239,6 +243,11 @@ const InputBox = forwardRef(function InputBox({
     });
   }
 
+  // 点击工具条按钮时不让输入框失焦；动作本身走 onClick，键盘 Enter/Space 同样可触发
+  function keepInputFocus(e) {
+    e.preventDefault();
+  }
+
   function removeAttachment(i) {
     setAttachments((prev) => prev.filter((_, idx) => idx !== i));
   }
@@ -250,7 +259,9 @@ const InputBox = forwardRef(function InputBox({
         <div className="we-chat-input__toolbar-pager">{pagerSlot}</div>
         <div className="we-chat-quick-actions">
           <button
-            onMouseDown={(e) => { e.preventDefault(); onScrollToBottom?.(); }}
+            type="button"
+            onMouseDown={keepInputFocus}
+            onClick={() => onScrollToBottom?.()}
             className="we-chat-quick-btn"
             title="跳转到底部"
             aria-label="跳转到底部"
@@ -262,7 +273,9 @@ const InputBox = forwardRef(function InputBox({
             </Icon>
           </button>
           <button
-            onMouseDown={(e) => { e.preventDefault(); if (!generating) onContinue?.(); }}
+            type="button"
+            onMouseDown={keepInputFocus}
+            onClick={() => onContinue?.()}
             disabled={generating}
             className="we-chat-quick-btn"
             title="续写上一条 AI 回复"
@@ -274,7 +287,9 @@ const InputBox = forwardRef(function InputBox({
             </Icon>
           </button>
           <button
-            onMouseDown={(e) => { e.preventDefault(); if (!generating) onImpersonate?.(); }}
+            type="button"
+            onMouseDown={keepInputFocus}
+            onClick={() => onImpersonate?.()}
             disabled={generating}
             className="we-chat-quick-btn"
             title="AI 替你写一条消息"
@@ -287,7 +302,9 @@ const InputBox = forwardRef(function InputBox({
           </button>
           {onLongTermMemory && (
             <button
-              onMouseDown={(e) => { e.preventDefault(); onLongTermMemory(); }}
+              type="button"
+              onMouseDown={keepInputFocus}
+              onClick={() => onLongTermMemory()}
               className="we-chat-quick-btn"
               title="长期记忆"
               aria-label="长期记忆"
@@ -302,7 +319,9 @@ const InputBox = forwardRef(function InputBox({
           )}
           {onTableMemory && (
             <button
-              onMouseDown={(e) => { e.preventDefault(); onTableMemory(); }}
+              type="button"
+              onMouseDown={keepInputFocus}
+              onClick={() => onTableMemory()}
               className="we-chat-quick-btn"
               title="表格记忆"
               aria-label="表格记忆"
@@ -325,15 +344,19 @@ const InputBox = forwardRef(function InputBox({
             <div key={i} className="we-chat-input__attachment-item">
               <img
                 src={att.preview}
-                alt=""
+                alt={`附件图片 ${i + 1}`}
                 className="we-chat-input__attachment-img"
               />
               <button
+                type="button"
                 onClick={() => removeAttachment(i)}
                 aria-label={`移除第 ${i + 1} 张图片`}
                 className="we-chat-input__attachment-remove"
               >
-                ×
+                <Icon size={10} strokeWidth="2.4">
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </Icon>
               </button>
             </div>
           ))}
@@ -367,11 +390,16 @@ const InputBox = forwardRef(function InputBox({
         {/* 输入框 */}
         <div className="we-chat-input__text-wrap">
           {/* Slash 命令浮层 */}
-          {slashOpen && filteredCommands.length > 0 && (
-            <div className="we-chat-slash-dropdown">
+          {slashMenuOpen && (
+            <div id={SLASH_LISTBOX_ID} role="listbox" aria-label="命令" className="we-chat-slash-dropdown">
               {filteredCommands.map((c, i) => (
                 <button
                   key={c.cmd}
+                  id={slashOptionId(i)}
+                  type="button"
+                  role="option"
+                  aria-selected={i === slashIndex}
+                  tabIndex={-1}
                   onMouseDown={(e) => { e.preventDefault(); executeCommand(c.cmd); }}
                   className={`we-chat-slash-item${i === slashIndex ? ' we-chat-slash-item--active' : ''}`}
                 >
@@ -391,6 +419,10 @@ const InputBox = forwardRef(function InputBox({
 
           <textarea
             ref={textareaRef}
+            aria-label="消息输入"
+            aria-expanded={slashMenuOpen}
+            aria-controls={slashMenuOpen ? SLASH_LISTBOX_ID : undefined}
+            aria-activedescendant={slashMenuOpen ? slashOptionId(slashIndex) : undefined}
             placeholder={impersonating && !text ? '' : '发送消息… (Shift+Enter 换行，/ 调出命令)'}
             value={text}
             onChange={handleChange}
