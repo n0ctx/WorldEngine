@@ -68,14 +68,14 @@ export default function SideDrawer({ side, open, onToggle, label, footer = null,
           </Icon>
         ) : COLLAPSED_GLYPH[side]}
       </button>
-      {/* 展开时宽度先让出来，内容稍后淡入；减少动效时宽度与透明度都瞬间切换 */}
+      {/* 展开时宽度先让出来（CSS 过渡 base 时长），走过大半后内容再淡入；减少动效时宽度与透明度都瞬间切换 */}
       <AnimatePresence initial={false} onExitComplete={() => setContentMounted(false)}>
         {open && (
           <MotionDiv
             key="content"
             className="we-side-drawer-content"
             initial={{ opacity: 0 }}
-            animate={{ opacity: 1, transition: reduced ? { duration: 0 } : { duration: DURATION.quick, delay: DURATION.micro, ease: EASE.ink } }}
+            animate={{ opacity: 1, transition: reduced ? { duration: 0 } : { duration: DURATION.quick, delay: DURATION.quick, ease: EASE.ink } }}
             exit={{ opacity: 0, transition: reduced ? { duration: 0 } : { duration: DURATION.quick, ease: EASE.retract } }}
           >
             {children}

@@ -1295,9 +1295,9 @@
   opacity: 1;
 }
 
-/* 混编时间线在对话页/写作页复用时，当前打开的那一条打选中态 */
+/* 混编时间线在对话页/写作页复用时，当前打开的那一条打选中态：边框与未选中同一套，
+   只靠更深的底色认出 */
 .we-storyline-item--active {
-  border-color: var(--we-color-accent-border);
   background: var(--we-color-ink-wash-strong);
 }
 
@@ -1317,25 +1317,24 @@
   transition: background var(--we-duration-fast) var(--we-easing-sharp),
               box-shadow var(--we-duration-fast) var(--we-easing-sharp);
 }
-/* 窄轨里三种外观分开：选中项左侧一条常驻金线，不悬停也认得出；
-   悬停只铺一层墨晕，不位移、不加深投影，不会被看成选中；按下再深一档 */
+/* 窄轨里三种外观分开，四边边框始终同一套：未选中标题退一档字色；悬停只铺一层浅墨晕，
+   不位移、不加深投影；按下深一档；选中底色最深、标题回到主字色 */
+.we-storyline-list--timeline .we-storyline-item-title {
+  color: var(--we-color-text-secondary);
+}
+.we-storyline-list--timeline .we-storyline-item--active .we-storyline-item-title {
+  color: var(--we-color-text-primary);
+}
 .we-storyline-list--timeline .we-storyline-item:hover {
   box-shadow: var(--we-card-shadow);
   transform: none;
 }
-.we-storyline-list--timeline .we-storyline-item:active {
-  background: var(--we-color-ink-wash-strong);
-}
-.we-storyline-list--timeline .we-storyline-item--active,
-.we-storyline-list--timeline .we-storyline-item--active:hover {
-  box-shadow: inset 2px 0 0 var(--we-color-gold), var(--we-card-shadow);
+.we-storyline-list--timeline .we-storyline-item:not(.we-storyline-item--active):active {
+  background: var(--we-color-ink-wash-md);
 }
 .we-storyline-list--timeline .we-storyline-item:focus-visible {
   outline: none;
   box-shadow: var(--we-focus-ring), var(--we-card-shadow);
-}
-.we-storyline-list--timeline .we-storyline-item--active:focus-visible {
-  box-shadow: inset 2px 0 0 var(--we-color-gold), var(--we-focus-ring), var(--we-card-shadow);
 }
 .we-storyline-list--timeline .we-storyline-item-info {
   grid-row: 2;
@@ -3637,13 +3636,15 @@
   min-height: 0;
   background: var(--we-glass-bg);
   backdrop-filter: blur(var(--we-glass-blur));
-  transition: flex-basis var(--we-duration-slow) var(--we-easing-page),
-    min-width var(--we-duration-slow) var(--we-easing-page),
-    max-width var(--we-duration-slow) var(--we-easing-page);
+  transition: flex-basis var(--we-duration-normal) var(--we-easing-page),
+    min-width var(--we-duration-normal) var(--we-easing-page),
+    max-width var(--we-duration-normal) var(--we-easing-page);
 }
 
+/* 收起态显式写 min-width: 0：从默认的 auto 切到展开态的像素下限无法插值，宽度会一步跳满 */
 .we-side-drawer--left {
   flex: 0 0 52px;
+  min-width: 0;
   border-right: var(--we-page-gutter-border);
   border-radius: 0 0 0 var(--we-radius-sm);
 }
@@ -3656,6 +3657,7 @@
 
 .we-side-drawer--right {
   flex: 0 0 52px;
+  min-width: 0;
   border-left: var(--we-page-gutter-border);
 }
 
@@ -3663,6 +3665,15 @@
   flex: 0 0 28%;
   min-width: 360px;
   max-width: 520px;
+}
+
+/* 内容始终按展开态的下限排版，宽度过渡途中由 .we-side-drawer-content 裁切，不被挤窄 */
+.we-side-drawer--left .we-side-drawer-content > * {
+  min-width: 216px;
+}
+
+.we-side-drawer--right .we-side-drawer-content > * {
+  min-width: 360px;
 }
 
 /* 窄屏（平板及以下）：两侧抽屉的固定 min-width 加起来会挤爆正文——
@@ -3676,6 +3687,12 @@
   .we-side-drawer--right.we-side-drawer--open {
     min-width: 280px;
     max-width: 320px;
+  }
+  .we-side-drawer--left .we-side-drawer-content > * {
+    min-width: 180px;
+  }
+  .we-side-drawer--right .we-side-drawer-content > * {
+    min-width: 280px;
   }
 }
 
