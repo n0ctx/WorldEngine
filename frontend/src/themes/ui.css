@@ -1157,35 +1157,8 @@
 }
 
 @media (min-width: 768px) {
-  .we-app-root:has(.we-chat-center-pane) {
-    --we-topbar-height: 30px;
-  }
-
   .we-app-root:has(.we-chat-center-pane) .we-book-spread-inner {
     padding-top: var(--we-space-sm);
-  }
-
-  .we-app-root:has(.we-chat-center-pane) .we-topbar-item {
-    min-height: var(--we-space-xl);
-    padding-block: 0;
-    padding-inline: var(--we-space-sm);
-    justify-content: center;
-    font-size: var(--we-text-xs);
-  }
-
-  .we-app-root:has(.we-chat-center-pane) :is(.we-topbar-world-name, .we-topbar-brand) {
-    font-size: var(--we-text-sm);
-  }
-
-  .we-app-root:has(.we-chat-center-pane) .we-topbar-actions svg {
-    width: var(--we-space-lg);
-    height: var(--we-space-lg);
-  }
-
-  .we-app-root:has(.we-chat-center-pane) .we-topbar-settings-btn {
-    width: var(--we-space-xl);
-    height: var(--we-space-xl);
-    padding: 0;
   }
 }
 
@@ -2151,11 +2124,13 @@
 .we-topbar-item {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   font-family: var(--we-font-ui);
-  font-size: var(--we-text-sm);
+  font-size: var(--we-text-xs);
   line-height: var(--we-leading-flush);
   letter-spacing: var(--we-tracking-tight);
-  padding: 7px 14px;
+  min-height: var(--we-space-xl);
+  padding: 0 var(--we-space-sm);
   border: none;
   border-radius: var(--we-radius-full);
   cursor: pointer;
@@ -2190,6 +2165,7 @@
     min-height: 44px;
     min-width: 44px;
     padding: 0 var(--we-space-md);
+    font-size: var(--we-text-sm);
   }
 }
 
@@ -2314,27 +2290,38 @@
 }
 
 .we-topbar-settings-btn {
-  width: 40px;
-  height: 40px;
+  width: var(--we-space-xl);
+  height: var(--we-space-xl);
   padding: 0;
-  justify-content: center;
 }
 
 .we-topbar-actions .we-topbar-item {
   gap: var(--we-space-xs);
 }
 
+.we-topbar-actions svg {
+  width: var(--we-space-lg);
+  height: var(--we-space-lg);
+}
+
+@media (max-width: 767px) {
+  .we-topbar-actions svg {
+    width: 20px;
+    height: 20px;
+  }
+}
+
 /* 当前世界名：用展示字体，在一排小字导航里是唯一有分量的一项 */
 .we-topbar-world-name {
   font-family: var(--we-font-display);
-  font-size: var(--we-text-md);
+  font-size: var(--we-text-sm);
   font-weight: 600;
   letter-spacing: var(--we-tracking-tight);
 }
 
 .we-topbar-brand {
   font-family: var(--we-font-display);
-  font-size: var(--we-text-md);
+  font-size: var(--we-text-sm);
   letter-spacing: var(--we-tracking-normal);
 }
 
