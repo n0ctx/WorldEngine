@@ -218,6 +218,8 @@
 /* 跟随指针的光（WorldsPage 的 PortalGlow）：边缘光只露 1px 的环，表面光是一团模糊的氛围色，两层分开 */
 .we-world-card-glow {
   display: contents;
+  /* display: contents 也参与继承：把卡片的圆角传给 rim，否则 rim 的 border-radius: inherit 会拿到初始值 0 */
+  border-radius: inherit;
 }
 
 .we-world-card-glow-rim,
