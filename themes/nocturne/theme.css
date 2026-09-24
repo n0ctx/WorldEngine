@@ -115,7 +115,7 @@
   --we-atmosphere-color: var(--we-color-accent);
   --we-atmosphere-shade: rgba(38, 50, 98, 0.34);
   --we-atmosphere-opacity: 0.95;
-  --we-atmosphere-opacity-quiet: 0.4;
+  --we-atmosphere-opacity-quiet: 0.75;
   --we-atmosphere-glow-strength: 16%;
   --we-atmosphere-grain: 0.05;
   --we-material-stroke: rgba(0, 0, 0, 0.55);
@@ -129,7 +129,8 @@
   --we-glass-blur: 18px;
   --we-pane-gap: var(--we-space-md);
   --we-pane-center-bg: color-mix(in srgb, var(--we-color-bg-canvas) 93%, transparent);
-  --we-pane-side-bg: color-mix(in srgb, var(--we-color-bg-elevated) 58%, transparent);
+  --we-pane-side-bg: color-mix(in srgb, var(--we-color-bg-elevated) 34%, transparent);
+  --we-pane-glow: color-mix(in srgb, var(--we-atmosphere-color) 26%, transparent);
 
   --we-canvas-texture-image: none;
   --we-card-overlay-bg: linear-gradient(180deg, rgba(10, 8, 6, 0) 35%, rgba(10, 8, 6, 0.55) 70%, rgba(10, 8, 6, 0.86) 100%);

@@ -143,7 +143,7 @@
   --we-atmosphere-color: var(--we-color-accent);
   --we-atmosphere-shade: rgba(160, 0, 120, 0.18);
   --we-atmosphere-opacity: 1;
-  --we-atmosphere-opacity-quiet: 0.4;
+  --we-atmosphere-opacity-quiet: 0.75;
   --we-atmosphere-glow-strength: 14%;
   --we-atmosphere-grain: 0.05;
   --we-material-stroke: rgba(0, 0, 0, 0.6);
@@ -157,7 +157,8 @@
   --we-glass-blur: 16px;
   --we-pane-gap: var(--we-space-md);
   --we-pane-center-bg: color-mix(in srgb, var(--we-color-bg-canvas) 94%, transparent);
-  --we-pane-side-bg: color-mix(in srgb, var(--we-color-bg-elevated) 55%, transparent);
+  --we-pane-side-bg: color-mix(in srgb, var(--we-color-bg-elevated) 30%, transparent);
+  --we-pane-glow: color-mix(in srgb, var(--we-atmosphere-color) 26%, transparent);
 
   /* ==================== 质感阴影（棱角分明的赛博风格） ==================== */
   --we-shadow-stamp-up:

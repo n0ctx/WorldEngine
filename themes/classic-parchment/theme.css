@@ -115,7 +115,7 @@
   --we-atmosphere-color: #d9b56a;
   --we-atmosphere-shade: rgba(20, 12, 6, 0.35);
   --we-atmosphere-opacity: 0.55;
-  --we-atmosphere-opacity-quiet: 0.2;
+  --we-atmosphere-opacity-quiet: 0.45;
   --we-atmosphere-glow-strength: 10%;
   --we-atmosphere-grain: 0.03;
   --we-material-stroke: rgba(120, 78, 40, 0.30);
@@ -130,7 +130,8 @@
   --we-glass-blur: 16px;
   --we-pane-gap: var(--we-space-md);
   --we-pane-center-bg: color-mix(in srgb, var(--we-color-bg-canvas) 97%, transparent);
-  --we-pane-side-bg: color-mix(in srgb, var(--we-color-bg-canvas) 60%, transparent);
+  --we-pane-side-bg: color-mix(in srgb, var(--we-color-bg-canvas) 42%, transparent);
+  --we-pane-glow: color-mix(in srgb, var(--we-atmosphere-color) 20%, transparent);
 
 
   /* 纸张与印章质感 */

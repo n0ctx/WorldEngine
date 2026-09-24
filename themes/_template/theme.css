@@ -126,7 +126,7 @@
   --we-atmosphere-color: var(--we-color-accent);
   --we-atmosphere-shade: rgba(52, 64, 96, 0.22);   /* 对角暗部的冷色 */
   --we-atmosphere-opacity: 0.9;                     /* 场景页光尘强度 0–1 */
-  --we-atmosphere-opacity-quiet: 0.35;              /* 阅读页光尘强度 */
+  --we-atmosphere-opacity-quiet: 0.6;               /* 阅读页光尘强度 */
   --we-atmosphere-glow-strength: 14%;               /* 静态光晕浓度 */
   --we-atmosphere-grain: 0.04;                      /* 胶片颗粒强度，0 为关闭 */
   /* 表面材料（世界入口、台前、消息、输入胶囊、弹窗）：暗色描边、内侧光与顶部窄高光、静态颗粒、近实远淡的接地阴影 */
@@ -146,7 +146,8 @@
   --we-glass-blur: 18px;
   --we-pane-gap: var(--we-space-md);                /* 会话页三块悬浮面板之间与四周的缝隙 */
   --we-pane-center-bg: color-mix(in srgb, var(--we-color-bg-canvas) 94%, transparent);    /* 中栏正文纸面：最实 */
-  --we-pane-side-bg: color-mix(in srgb, var(--we-color-bg-elevated) 62%, transparent);    /* 两侧磨砂玻璃：更透，模糊沿用 --we-glass-blur */
+  --we-pane-side-bg: color-mix(in srgb, var(--we-color-bg-elevated) 40%, transparent);    /* 两侧磨砂玻璃：更透，模糊沿用 --we-glass-blur */
+  --we-pane-glow: color-mix(in srgb, var(--we-atmosphere-color) 18%, transparent);       /* 面板背后的环境光，透过两侧玻璃可见 */
 
   --we-canvas-texture-image: none;
   --we-card-overlay-bg: transparent;

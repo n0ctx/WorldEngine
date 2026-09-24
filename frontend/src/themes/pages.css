@@ -3652,7 +3652,7 @@
   flex-direction: column;
   min-height: 0;
   background: var(--we-pane-side-bg);
-  backdrop-filter: blur(var(--we-glass-blur)) saturate(1.2);
+  backdrop-filter: blur(var(--we-glass-blur)) saturate(1.6);
   border-radius: var(--we-radius-lg);
   box-shadow:
     0 0 0 1px var(--we-material-stroke),

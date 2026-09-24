@@ -1135,7 +1135,8 @@
 }
 
 /* 三块悬浮面板（左抽屉 / 正文 / 右抽屉）铺在桌面上：两侧、底部与面板之间留同一道缝隙露出氛围；
-   顶部不留，缝隙会和顶栏连成一片，看起来像顶栏变高。只有这一层裁切，面板的投影能落进缝隙 */
+   顶部不留，缝隙会和顶栏连成一片，看起来像顶栏变高。只有这一层裁切，面板的投影能落进缝隙。
+   两侧面板背后垫环境光（暖）与暗部（冷），中栏纸面把它挡住，只从两侧玻璃与缝隙透出来 */
 .we-book-spread-inner {
   flex: 1;
   display: flex;
@@ -1145,7 +1146,11 @@
   overflow: hidden;
   min-height: 0;
   padding: 0 var(--we-pane-gap) var(--we-pane-gap);
-  background: var(--we-stage-surface);
+  background:
+    radial-gradient(28% 55% at 8% 30%, var(--we-pane-glow), transparent 70%),
+    radial-gradient(32% 60% at 92% 72%, var(--we-pane-glow), transparent 70%),
+    radial-gradient(30% 45% at 4% 96%, var(--we-atmosphere-shade), transparent 70%),
+    var(--we-stage-surface);
 }
 
 @media (max-width: 900px) {
