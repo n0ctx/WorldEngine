@@ -268,15 +268,8 @@ CREATE TABLE IF NOT EXISTS assistant_tasks (
   context_json               TEXT NOT NULL,
   messages_json              TEXT NOT NULL,
   pending_user_messages_json TEXT NOT NULL,
-  plan_doc_content           TEXT NOT NULL DEFAULT '',
-  plan_doc_data_json         TEXT,
   model_context_json         TEXT,
   created_at                 INTEGER NOT NULL,
-  current_step_id            TEXT,
-  last_tool_failure_json     TEXT,
-  last_subagent_result_json  TEXT,
-  approval_checkpoint_json   TEXT,
-  loop_iteration             INTEGER NOT NULL DEFAULT 0,
   error                      TEXT,
   updated_at                 INTEGER NOT NULL
 );
@@ -422,14 +415,13 @@ export function initSchema(db) {
   try { db.exec(`ALTER TABLE characters ADD COLUMN post_prompt TEXT NOT NULL DEFAULT ''`); } catch {}
   // T35: 为现有数据库添加 worlds.description 列
   try { db.exec(`ALTER TABLE worlds ADD COLUMN description TEXT NOT NULL DEFAULT ''`); } catch {}
-  // T-assistant-resume: 为现有数据库补持久化计划文档正文
-  try { db.exec(`ALTER TABLE assistant_tasks ADD COLUMN plan_doc_content TEXT NOT NULL DEFAULT ''`); } catch {}
-  // T-plan-doc-structured: 为现有数据库补持久化计划文档结构化数据（渲染 md 的真源）
-  try { db.exec(`ALTER TABLE assistant_tasks ADD COLUMN plan_doc_data_json TEXT`); } catch {}
-  try { db.exec(`ALTER TABLE assistant_tasks ADD COLUMN last_tool_failure_json TEXT`); } catch {}
-  try { db.exec(`ALTER TABLE assistant_tasks ADD COLUMN last_subagent_result_json TEXT`); } catch {}
-  try { db.exec(`ALTER TABLE assistant_tasks ADD COLUMN approval_checkpoint_json TEXT`); } catch {}
-  try { db.exec(`ALTER TABLE assistant_tasks ADD COLUMN loop_iteration INTEGER NOT NULL DEFAULT 0`); } catch {}
+  // 写卡助手改为单代理后不再有计划文档 / 审批 / 子代理状态，移除对应列
+  for (const column of [
+    'plan_doc_content', 'plan_doc_data_json', 'current_step_id', 'last_tool_failure_json',
+    'last_subagent_result_json', 'approval_checkpoint_json', 'loop_iteration',
+  ]) {
+    try { db.exec(`ALTER TABLE assistant_tasks DROP COLUMN ${column}`); } catch {}
+  }
   // T-chat-writing-resume: 为现有数据库补 session 级流快照字段
   try { db.exec(`ALTER TABLE session_stream_tasks ADD COLUMN streaming_text TEXT NOT NULL DEFAULT ''`); } catch {}
   try { db.exec(`ALTER TABLE session_stream_tasks ADD COLUMN continuing_message_id TEXT`); } catch {}

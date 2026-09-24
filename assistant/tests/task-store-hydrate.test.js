@@ -11,31 +11,19 @@ sandbox.setEnv();
 const now = Date.now();
 const insert = sandbox.db.prepare(`
   INSERT INTO assistant_tasks (
-    id, status, context_json, messages_json, pending_user_messages_json,
-    plan_doc_content, plan_doc_data_json, model_context_json, created_at, current_step_id, error, updated_at
-  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    id, status, context_json, messages_json, pending_user_messages_json, model_context_json, created_at, error, updated_at
+  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 `);
-const bbbbbbb1PlanData = {
-  title: 'T',
-  status: 'running',
-  createdAt: 'x',
-  intent: 'i',
-  assumptions: [],
-  steps: [
-    { id: 'step-1', title: '执行中', targetType: 'world-card', operation: 'update', dependsOn: [], task: 'a', done: false, completedAt: null },
-    { id: 'step-2', title: '待办', targetType: 'world-card', operation: 'update', dependsOn: ['step-1'], task: 'b', done: false, completedAt: null },
-  ],
-};
 const seeds = [
-  { id: 'task-aaaaaaa1', status: 'completed', context: {}, messages: [], pendingUserMessages: [], planDocContent: '', planDocData: null, createdAt: 1, currentStepId: null, modelContext: null, error: null, updatedAt: now },
-  { id: 'task-aaaaaaa2', status: 'failed', context: {}, messages: [], pendingUserMessages: [], planDocContent: '', planDocData: null, createdAt: 1, currentStepId: null, modelContext: null, error: 'boom', updatedAt: now },
-  { id: 'task-bbbbbbb1', status: 'running', context: {}, messages: [{ id: 'm1', role: 'user', content: 'x' }], pendingUserMessages: [], planDocContent: '# live plan', planDocData: bbbbbbb1PlanData, createdAt: 1, currentStepId: 'step-1', modelContext: null, error: null, updatedAt: now },
-  { id: 'task-bbbbbbb2', status: 'awaiting_approval', context: { worldId: 'w' }, messages: [
-    { id: 'call-1', role: 'tool_call', toolName: 'preview_card', status: 'running' },
-    { id: 'step-1', role: 'step', stepId: 'step-1', title: '执行中', status: 'running' },
-    { id: 'plan-doc-task-bbbbbbb2', role: 'plan_doc', content: '# plan' },
-  ], pendingUserMessages: [], planDocContent: '# plan', planDocData: null, createdAt: 1, currentStepId: null, modelContext: null, error: null, updatedAt: now },
-  { id: 'task-ccccccc1', status: 'paused', context: { worldId: 'w2' }, messages: [{ id: 'm2', role: 'assistant', content: 'pending' }], pendingUserMessages: ['继续'], planDocContent: '# paused plan', planDocData: null, createdAt: 2, currentStepId: null, modelContext: { summary: 'old', summarizedUntilMessageId: 'm1', sourceMessageCount: 1, sourceChars: 3 }, error: null, updatedAt: now },
+  { id: 'task-aaaaaaa1', status: 'completed', context: {}, messages: [], pendingUserMessages: [], createdAt: 1, modelContext: null, error: null },
+  { id: 'task-aaaaaaa2', status: 'failed', context: {}, messages: [], pendingUserMessages: [], createdAt: 1, modelContext: null, error: 'boom' },
+  { id: 'task-bbbbbbb1', status: 'running', context: { worldId: 'w' }, messages: [
+    { id: 'm1', role: 'user', content: 'x' },
+    { id: 'call-1', role: 'tool_call', toolName: 'read', summary: 'world', status: 'running' },
+  ], pendingUserMessages: ['继续'], createdAt: 1, modelContext: { summary: 'old', untilId: 'm1' }, error: null },
+  // 旧版本遗留的审批 / 暂停状态：新版本没有这两种状态，按重启中断处理
+  { id: 'task-bbbbbbb2', status: 'awaiting_approval', context: {}, messages: [], pendingUserMessages: [], createdAt: 1, modelContext: null, error: null },
+  { id: 'task-ccccccc1', status: 'paused', context: {}, messages: [], pendingUserMessages: [], createdAt: 2, modelContext: null, error: null },
 ];
 for (const s of seeds) {
   insert.run(
@@ -44,13 +32,10 @@ for (const s of seeds) {
     JSON.stringify(s.context),
     JSON.stringify(s.messages),
     JSON.stringify(s.pendingUserMessages),
-    s.planDocContent,
-    s.planDocData ? JSON.stringify(s.planDocData) : null,
     s.modelContext ? JSON.stringify(s.modelContext) : null,
     s.createdAt,
-    s.currentStepId,
     s.error,
-    s.updatedAt,
+    now,
   );
 }
 
@@ -61,7 +46,6 @@ fs.writeFileSync(path.join(sandbox.assistantStateDir, 'task-ddddddd1.json'), JSO
   messages: [{ id: 'm3', role: 'user', content: 'legacy' }],
   pendingUserMessages: [],
   createdAt: 3,
-  currentStepId: null,
   version: 1,
 }));
 
@@ -78,46 +62,26 @@ test('hydrate: 终态任务原样保留', () => {
   assert.equal(taskStore.getTask('task-aaaaaaa2').status, 'failed');
 });
 
-test('hydrate: running / awaiting_approval / paused 保留为可恢复状态', () => {
+test('hydrate: running 保留为可恢复状态，运行中的工具记录标为中断', () => {
   const t1 = taskStore.getTask('task-bbbbbbb1');
   assert.equal(t1.status, 'running');
   assert.equal(t1.error, undefined);
-  assert.equal(t1.messages.length, 1);
-  assert.equal(t1.currentStepId, 'step-1');
-  assert.equal(t1.planDocContent, '# live plan');
-  const t2 = taskStore.getTask('task-bbbbbbb2');
-  assert.equal(t2.status, 'awaiting_approval');
-  assert.deepEqual(t2.context, { worldId: 'w' });
-  assert.equal(t2.messages[0].role, 'tool_call');
-  assert.equal(t2.messages[0].status, 'error');
-  assert.equal(t2.messages[1].role, 'step');
-  assert.equal(t2.messages[1].status, 'error');
-  assert.equal(t2.messages[2].role, 'plan_doc');
+  assert.deepEqual(t1.context, { worldId: 'w' });
+  assert.deepEqual(t1.pendingUserMessages, ['继续']);
+  assert.equal(t1.modelContext.summary, 'old');
+  assert.equal(t1.messages[1].status, 'error');
 
-  const t3 = taskStore.getTask('task-ccccccc1');
-  assert.equal(t3.status, 'paused');
-  assert.deepEqual(t3.pendingUserMessages, ['继续']);
-  assert.equal(t3.modelContext.summary, 'old');
-  assert.equal(t3.planDocContent, '# paused plan');
-});
-
-test('hydrate: running 状态保持写回数据库', () => {
   const raw = sandbox.db.prepare('SELECT status, error FROM assistant_tasks WHERE id = ?').get('task-bbbbbbb1');
   assert.equal(raw.status, 'running');
   assert.equal(raw.error, null);
 });
 
-test('hydrate: planDocData 从 DB 正确恢复到内存任务，且能按 stepId 找到 step（dispatch_subagent 依赖的查找路径）', () => {
-  const t1 = taskStore.getTask('task-bbbbbbb1');
-  assert.deepEqual(t1.planDocData, bbbbbbb1PlanData);
-  const step = t1.planDocData?.steps?.find((s) => s.id === 'step-1');
-  assert.ok(step, 'dispatch_subagent 按 stepId 在恢复后的结构里应能找到 step');
-  assert.equal(step.title, '执行中');
-  assert.equal(step.targetType, 'world-card');
-
-  // 未写入过结构化计划的任务应保持 planDocData 为 null，不应该被污染
-  const t2 = taskStore.getTask('task-bbbbbbb2');
-  assert.equal(t2.planDocData, null);
+test('hydrate: 旧版审批 / 暂停状态转为重启中断，可继续恢复', () => {
+  for (const id of ['task-bbbbbbb2', 'task-ccccccc1']) {
+    const t = taskStore.getTask(id);
+    assert.equal(t.status, 'failed');
+    assert.equal(t.error, taskStore.RESTART_INTERRUPTED_ERROR);
+  }
 });
 
 test('hydrate: 旧 JSON sidecar 导入到 SQLite', () => {

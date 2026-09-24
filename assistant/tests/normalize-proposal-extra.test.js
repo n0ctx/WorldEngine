@@ -8,9 +8,7 @@ import { insertWorld, insertCharacter, insertPersona } from '../../backend/tests
 const sandbox = createTestSandbox('assistant-normalize-proposal');
 sandbox.setEnv();
 
-const routesMod = await freshImport('assistant/server/routes.js');
 const np = await freshImport('assistant/server/normalize-proposal.js');
-const { __testables } = routesMod;
 const { normalizeProposal, applyProposal, normalizeStateFieldOps, normalizeEntryOps } = np;
 
 after(() => sandbox.cleanup());

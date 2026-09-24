@@ -2,12 +2,8 @@
  * 写卡助手前端 API（单 /agent 接口模型）
  *
  *   POST /api/assistant/agent             —— SSE 流式入口
- *   POST /api/assistant/agent/:id/approve —— 批准计划
- *   POST /api/assistant/agent/:id/reject  —— 拒绝当前计划，保留任务继续对话
  *   POST /api/assistant/agent/:id/cancel  —— 取消任务
  *   GET  /api/assistant/agent/recover     —— 找回最近可恢复任务
- *   GET  /api/assistant/agent/:id/stream  —— 补订阅任务 SSE
- *   GET  /api/assistant/agent/:id/plan-doc —— 拉取最新计划文档
  */
 
 import { SSE_EVENTS } from '../server/sse-events.js';
@@ -15,7 +11,7 @@ import { SSE_EVENTS } from '../server/sse-events.js';
 const BASE = '/api/assistant';
 
 /**
- * 与父代理建立 SSE 流。
+ * 与写卡助手建立 SSE 流。
  * 服务端按 `data: <json>\n\n` 帧推送事件。
  *
  * @param {object}   args
@@ -40,14 +36,6 @@ export async function resumeTask({ taskId, onEvent, signal }) {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ taskId, resume: true }),
-    signal,
-  });
-  await consumeSseResponse(res, onEvent);
-}
-
-export async function subscribeTask({ taskId, onEvent, signal }) {
-  const res = await fetch(`${BASE}/agent/${taskId}/stream`, {
-    method: 'GET',
     signal,
   });
   await consumeSseResponse(res, onEvent);
@@ -143,18 +131,6 @@ export async function listRecoverableTasks(excludeContext = null) {
   return Array.isArray(j.tasks) ? j.tasks : [];
 }
 
-export async function approveTask(taskId) {
-  const r = await fetch(`${BASE}/agent/${taskId}/approve`, { method: 'POST' });
-  if (!r.ok) throw new Error(`approve failed: ${r.status}`);
-}
-
-export async function rejectPlan(taskId) {
-  const r = await fetch(`${BASE}/agent/${taskId}/reject`, { method: 'POST' });
-  if (!r.ok) throw new Error(`reject failed: ${r.status}`);
-  const j = await r.json().catch(() => ({}));
-  return j.task || null;
-}
-
 export async function cancelTask(taskId) {
   await fetch(`${BASE}/agent/${taskId}/cancel`, { method: 'POST' });
 }
@@ -177,11 +153,4 @@ export async function deleteMessage(taskId, messageId) {
   });
   if (!r.ok) throw new Error(`delete failed: ${r.status}`);
   return r.json();
-}
-
-export async function fetchPlanDoc(taskId) {
-  const r = await fetch(`${BASE}/agent/${taskId}/plan-doc`);
-  if (!r.ok) return '';
-  const j = await r.json().catch(() => ({}));
-  return j.content || '';
 }

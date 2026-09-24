@@ -134,9 +134,11 @@ async function applyProposal(proposal, worldRefId = null) {
       let updated = null;
       if (Object.keys(safeChanges).length > 0) updated = await updateWorld(entityId, safeChanges);
       const worldOps = proposal.entryOps?.length ? proposal.entryOps : newEntries.map((e) => ({ op: 'create', ...e }));
+      const createdEntryIds = [];
       for (const op of worldOps) {
         if (op.op === 'create') {
           const entry = createWorldPromptEntry(entityId, op);
+          createdEntryIds.push(entry.id);
           // 以「落库后条目的实际 trigger_type」为准，而不是本次 op 是否声明 state，
           // 避免 op 省略/由后端归一 trigger_type 时条件写不进去。
           if (Array.isArray(op.conditions) && op.conditions.length > 0 && entry?.trigger_type === 'state') {
@@ -156,7 +158,7 @@ async function applyProposal(proposal, worldRefId = null) {
         else if (op.op === 'update' && op.id) await applyStateFieldUpdate(op);
         else if (op.op === 'delete' && op.id) await applyStateFieldDelete(op);
       }
-      return updated;
+      return { world: updated, createdEntryIds };
     }
 
     case 'character-card': {
@@ -864,6 +866,9 @@ function normalizeEntryOps(rawOps, { includeMode = false, allowTriggerType = fal
     if ('keyword_logic' in raw) {
       normalized.keyword_logic = raw.keyword_logic === 'AND' ? 'AND' : 'OR';
     }
+    if ('condition_logic' in raw) {
+      normalized.condition_logic = raw.condition_logic === 'OR' ? 'OR' : 'AND';
+    }
     if ('active_turns' in raw) {
       const t = parseInt(raw.active_turns, 10);
       normalized.active_turns = Number.isFinite(t) && t >= 0 ? t : 1;
@@ -1140,12 +1145,11 @@ function normalizeIntegerOrNull(value) {
   const num = Number(value);
   return Number.isInteger(num) ? num : null;
 }
+// 字段编辑器把 datetime 默认值存成裸字符串，历史数据也有 JSON 引号包裹的写法，两种都接受。
 function assertDatetimeDefaultValue(defaultValue, idx) {
   if (defaultValue == null || defaultValue === '') return;
-  let parsed;
-  try { parsed = JSON.parse(defaultValue); } catch {
-    throw new Error(`提案格式错误：stateFieldOps[${idx}].default_value 必须是 JSON 字符串（datetime 字段写成 "\\"YYYY-MM-DDTHH:mm\\"" 形式）`);
-  }
+  let parsed = defaultValue;
+  try { parsed = JSON.parse(defaultValue); } catch { /* 裸字符串 */ }
   if (typeof parsed !== 'string' || !ISO_LOCAL_DATETIME_RE.test(parsed)) {
     throw new Error(`提案格式错误：stateFieldOps[${idx}].default_value 不符合 datetime 格式 "YYYY-MM-DDTHH:mm"（年份为正整数、可任意位数；月/日/时/分各 2 位）`);
   }
@@ -1179,6 +1183,8 @@ function deepOmit(obj, keys) {
 export {
   normalizeProposal,
   applyProposal,
+  buildWorldConditionContext,
+  resolveConditionField,
   normalizeEntryOps,
   normalizeStateFieldOps,
   normalizeStateValueOps,

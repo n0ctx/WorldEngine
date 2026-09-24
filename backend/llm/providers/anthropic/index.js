@@ -345,7 +345,5 @@ export async function completeAnthropicWithTools(messages, toolDefs, toolHandler
     toolHandlers,
     config,
     completeResultMode: config.toolResultMode ?? 'text',
-    // 调用方可按场景收紧轮数（如子代理单步落库任务 < 8 轮），未传时走全局默认 25。
-    ...(Number.isInteger(config.maxIterations) ? { maxIterations: config.maxIterations } : {}),
   });
 }

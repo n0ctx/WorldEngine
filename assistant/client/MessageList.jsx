@@ -1,9 +1,8 @@
 /**
  * 写卡助手消息列表 — 卷宗条目（Scroll Entries）
  *
- * 所有消息（user / assistant / step / tool_call / error）共用同一卡片原子
+ * 所有消息（user / assistant / tool_call / error）共用同一卡片原子
  * `.we-asst-entry`，通过左侧细竖线区分语义；不再用气泡 + 紧凑工具条混排。
- * 计划文档（plan_doc）已迁移至输入框上方的 PlanTaskHud，不在消息流中渲染。
  *
  * 交互保留：
  *   - 入场动效（we-bubble-in）
@@ -21,35 +20,23 @@ import { parseStreamingBlocks } from '../../frontend/src/core/utils/think-blocks
 import SeamlessEditableSurface from '../../shared/SeamlessEditableSurface.jsx';
 
 const TOOL_LABELS = {
-  preview_card: '预览卡片',
-  list_resources: '列出资源',
-  read_file: '读取文件',
-  apply_world_card: '写入世界卡',
-  apply_character_card: '写入角色卡',
-  apply_persona_card: '写入用户卡',
-  apply_global_config: '写入全局设置',
-  apply_css_snippet: '写入 CSS 片段',
-  apply_regex_rule: '写入正则规则',
-  write_plan_doc: '编写计划',
-  edit_plan_doc: '更新计划',
-  dispatch_subagent: '派发子任务',
-  delete_plan_doc: '清除计划',
+  read: '读取',
+  create: '新建',
+  update: '修改',
+  edit: '编辑',
+  set_state: '设置状态',
+  delete: '删除',
+  find: '搜索',
 };
 
 const TOOL_EMOJI = {
-  preview_card: '👁',
-  list_resources: '📋',
-  read_file: '📖',
-  apply_world_card: '🌍',
-  apply_character_card: '🧑',
-  apply_persona_card: '👤',
-  apply_global_config: '⚙️',
-  apply_css_snippet: '🎨',
-  apply_regex_rule: '🔧',
-  write_plan_doc: '📝',
-  edit_plan_doc: '✏️',
-  dispatch_subagent: '📤',
-  delete_plan_doc: '🗑',
+  read: '📖',
+  create: '✨',
+  update: '✏️',
+  edit: '✏️',
+  set_state: '🎚',
+  delete: '🗑',
+  find: '🔍',
 };
 
 const STATUS_TEXT = {
@@ -291,14 +278,11 @@ function AssistantEntryImpl({ msg, onRegenerate, onDelete }) {
 const AssistantEntry = memo(AssistantEntryImpl, sameMsg);
 
 function ToolEntryImpl({ msg }) {
-  const isStep = msg.role === 'step';
-  const title = isStep
-    ? (msg.title ?? msg.stepId)
-    : (TOOL_LABELS[msg.toolName] ?? msg.toolName);
+  const title = [TOOL_LABELS[msg.toolName] ?? msg.toolName, msg.summary].filter(Boolean).join(' ');
   const isRunning = msg.status === 'running';
   const isError = msg.status === 'error';
-  const sub = msg.subtitle ?? STATUS_TEXT[msg.status] ?? '';
-  const emoji = isStep ? '◦' : (TOOL_EMOJI[msg.toolName] ?? '🔹');
+  const sub = isError && msg.error ? `失败：${msg.error}` : (STATUS_TEXT[msg.status] ?? '');
+  const emoji = TOOL_EMOJI[msg.toolName] ?? '🔹';
   const variantClass = isError
     ? 'we-asst-entry--tool we-asst-entry--error'
     : isRunning
@@ -416,10 +400,7 @@ export default function MessageList({ messages, onEdit, onDelete, onRegenerate, 
       >
         {messages.map((msg, i) => {
           const key = msg.id ?? `${msg.role}-${i}`;
-          if (msg.role === 'step' || msg.role === 'tool_call') {
-            if (msg.toolName === 'reply_to_user') return null;
-            return <ToolEntry key={key} msg={msg} />;
-          }
+          if (msg.role === 'tool_call') return <ToolEntry key={key} msg={msg} />;
           if (msg.role === 'user') {
             return <UserEntry key={key} msg={msg} onEdit={onEdit} onDelete={onDelete} />;
           }
@@ -434,8 +415,6 @@ export default function MessageList({ messages, onEdit, onDelete, onRegenerate, 
             );
           }
           if (msg.role === 'error') return <ErrorEntry key={key} msg={msg} />;
-          // plan_doc 历史消息（来自服务端 snapshot）静默忽略，由 PlanTaskHud 负责展示
-          if (msg.role === 'plan_doc') return null;
           return null;
         })}
         {pending && <PendingEntry />}

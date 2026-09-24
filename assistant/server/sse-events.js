@@ -7,7 +7,7 @@
  *
  * 使用：
  *   import { SSE_EVENTS } from './sse-events.js';
- *   emitFn({ type: SSE_EVENTS.STEP_STARTED, ... });
+ *   emitFn({ type: SSE_EVENTS.TOOL_CALL_STARTED, ... });
  *
  * 新增事件时：同步追加 tests/sse-events.test.js 的期望列表。
  */
@@ -19,17 +19,6 @@ export const SSE_EVENTS = Object.freeze({
   TASK_COMPLETED: 'task_completed',
   TASK_FAILED: 'task_failed',
   TASK_CANCELLED: 'task_cancelled',
-
-  // 计划文档与审批
-  PLAN_DOC_UPDATED: 'plan_doc_updated',
-  PLAN_APPROVED: 'plan_approved',
-  AWAITING_APPROVAL: 'awaiting_approval',
-  PAUSED: 'paused',
-
-  // 子代理步骤
-  STEP_STARTED: 'step_started',
-  STEP_COMPLETED: 'step_completed',
-  STEP_FAILED: 'step_failed',
 
   // 工具调用
   TOOL_CALL_STARTED: 'tool_call_started',

@@ -58,7 +58,7 @@ export function isToolLoopControlSignal(err) {
  * @param {'text'|'detail'} [opts.completeResultMode='text']
  *   - 'text'  : 返回最终文本字符串
  *   - 'detail': 返回 { text, messages }
- * @param {number}   [opts.maxIterations]  最大轮数,默认走全局常量
+ * 最大轮数取 config.maxIterations（调用方按场景指定），未给时走全局常量。
  */
 export async function runToolLoop({
   provider,
@@ -67,8 +67,8 @@ export async function runToolLoop({
   toolHandlers,
   config,
   completeResultMode = 'text',
-  maxIterations = LLM_TOOL_RESOLUTION_MAX_ITERATIONS,
 }) {
+  const maxIterations = Number.isInteger(config?.maxIterations) ? config.maxIterations : LLM_TOOL_RESOLUTION_MAX_ITERATIONS;
   let state = provider.initState(messages);
   const stateToMessages = () => (provider.stateToMessages ? provider.stateToMessages(state) : state.messages);
   const buildCompleteResult = async (textOrPromise) => {

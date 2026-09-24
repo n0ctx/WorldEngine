@@ -1,108 +1,57 @@
 // assistant/server/tools/adapter.js
 //
-// 公共工具适配器：把多种工具导出形态归一为 splitTools 期望形态；
-// 包装 execute 时统一发 tool_call_started / tool_call_completed SSE 事件，
-// 可选注入 cancel 闸门（用于父代理被前端 /cancel 后中断 tool loop）。
+// 包装工具 execute：统一发 tool_call_started / tool_call_completed SSE 事件，
+// 并注入 cancel 闸门（前端 /cancel 后中断工具循环）。
 
 import { randomUUID } from 'node:crypto';
 
-import {
-  ToolLoopCancelledError,
-  isToolLoopControlSignal,
-} from '../../../backend/llm/tool-loop-control.js';
+import { ToolLoopCancelledError } from '../../../backend/llm/tool-loop-control.js';
 import { SSE_EVENTS } from '../sse-events.js';
-
-export function toLLMTool(input, executeOverride) {
-  if (input && input.type === 'function' && input.function && typeof input.execute === 'function' && !executeOverride) {
-    return input;
-  }
-  const def = input?.definition ?? input;
-  const exec = executeOverride ?? input?.execute;
-  if (typeof exec !== 'function') {
-    throw new Error('toLLMTool: missing execute function');
-  }
-  if (def?.type === 'function' && def.function) {
-    return { type: 'function', function: def.function, execute: exec };
-  }
-  if (def?.name) {
-    return {
-      type: 'function',
-      function: { name: def.name, description: def.description, parameters: def.parameters },
-      execute: exec,
-    };
-  }
-  throw new Error('toLLMTool: unrecognized definition shape');
-}
 
 /**
  * wrapToolEvents(tool, emitFn, opts?)
- *   opts.cancelCheck: () => boolean。若返回 true，在 execute 前/后立刻抛 ToolLoopCancelledError。
+ *   tool.describe(args): 返回 { summary, target }，随 started 事件发给前端显示操作对象、决定刷新哪类数据。
+ *   tool.recordResult: 为 true 时成功结果（写入类工具的简短回执）随 completed 事件带出，写进任务记录。
+ *   opts.cancelCheck: () => boolean。返回 true 时在 execute 前/后抛 ToolLoopCancelledError。
  *   opts.makeCallId:  () => string。默认 crypto.randomUUID().slice(0,8)。
  *   opts.onCancelLog: (toolName) => void。命中后置闸门时的日志钩子。
- *   opts.afterCompleted: ({ success, error, name, failureKind }) => void | throws。
- *     在 tool_call_completed 事件发出后调用，调用方可在此分级累计失败次数。
- *     failureKind 取值：'precheck'（参数级 / 模型可自纠的格式错） / 'runtime'（真实业务或异常失败）。
- *     工具可在 success:false 时返回 { failureKind: 'precheck' } 显式标注；
- *     未声明时默认 'runtime'。execute throw 一律视为 'runtime'。
- *     抛 ToolLoopControlSignal 会向上传播，终止工具循环（用于"连续失败 → 暂停等用户"）。
+ *
+ * 工具失败以 { success: false, error } 返回；其它返回值都视为成功。
  */
 export function wrapToolEvents(tool, emitFn, opts = {}) {
-  if (!emitFn) return tool;
   const name = tool.function?.name ?? 'unknown';
   const cancelCheck = opts.cancelCheck ?? (() => false);
   const makeCallId = opts.makeCallId ?? defaultCallId;
   const onCancelLog = opts.onCancelLog ?? (() => {});
-  const afterCompleted = opts.afterCompleted ?? (() => {});
+  const describe = tool.describe ?? (() => ({}));
   return {
-    ...tool,
+    type: 'function',
+    function: tool.function,
     execute: async (args) => {
       if (cancelCheck()) throw new ToolLoopCancelledError('task cancelled');
       const callId = makeCallId();
-      emitFn({ type: SSE_EVENTS.TOOL_CALL_STARTED, toolName: name, callId });
+      const { summary, target } = describe(args ?? {});
+      emitFn?.({ type: SSE_EVENTS.TOOL_CALL_STARTED, toolName: name, callId, summary, target });
       try {
         const result = await tool.execute(args);
         if (cancelCheck()) {
-          emitFn({ type: SSE_EVENTS.TOOL_CALL_COMPLETED, toolName: name, callId, success: false, error: 'task cancelled mid-execution' });
+          emitFn?.({ type: SSE_EVENTS.TOOL_CALL_COMPLETED, toolName: name, callId, success: false, error: 'task cancelled mid-execution' });
           onCancelLog(name);
           throw new ToolLoopCancelledError('task cancelled mid-execution');
         }
-        // 成功判定区分两类工具：
-        // - 写入类（apply_*、meta 工具）通过返回 { success: true | false } 显式表态；
-        //   写入语义重，必须强约束："声明 success===false" / "应当声明却没声明" 都视为失败。
-        // - 读取类（preview_card / list_resources / read_file）返回任意 payload（JSON / 字符串 / 数据对象），
-        //   没有 success 字段是设计如此，只要没 throw 就算成功——否则会把"读到了数据"也染成失败气泡。
-        // 判别策略：result 是普通对象且含 success 字段 → 走严格契约；否则 → 假定成功（信任 throw 表达失败）。
-        const hasSuccessField =
-          result !== null &&
-          typeof result === 'object' &&
-          !Array.isArray(result) &&
-          Object.prototype.hasOwnProperty.call(result, 'success');
-        const success = hasSuccessField ? result.success === true : true;
-        const error = success ? undefined : (result?.error ?? 'tool failed');
-        emitFn({
+        const failed = result !== null && typeof result === 'object' && result.success === false;
+        emitFn?.({
           type: SSE_EVENTS.TOOL_CALL_COMPLETED,
           toolName: name,
           callId,
-          success,
-          error,
+          success: !failed,
+          error: failed ? (result.error ?? 'tool failed') : undefined,
+          result: !failed && tool.recordResult ? result : undefined,
         });
-        const completedPayload = { success, error, name };
-        if (!success) {
-          completedPayload.failureKind = result?.failureKind === 'precheck' ? 'precheck' : 'runtime';
-        }
-        afterCompleted(completedPayload);
         return result;
       } catch (err) {
-        if (isToolLoopControlSignal(err)) {
-          emitFn({ type: SSE_EVENTS.TOOL_CALL_COMPLETED, toolName: name, callId, success: true });
-          throw err;
-        }
-        emitFn({ type: SSE_EVENTS.TOOL_CALL_COMPLETED, toolName: name, callId, success: false, error: err.message });
-        // 抛错路径也通知 afterCompleted；它内部若再抛 ToolLoopControlSignal 会终止循环
-        try {
-          afterCompleted({ success: false, error: err.message, name, failureKind: 'runtime' });
-        } catch (signal) {
-          if (isToolLoopControlSignal(signal)) throw signal;
+        if (!(err instanceof ToolLoopCancelledError)) {
+          emitFn?.({ type: SSE_EVENTS.TOOL_CALL_COMPLETED, toolName: name, callId, success: false, error: err.message });
         }
         throw err;
       }

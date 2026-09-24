@@ -1,31 +1,23 @@
 /**
  * 写卡助手侧边面板（单 /agent 接口模型）
  *
- * 布局：消息列表 → 审批按钮（awaiting_approval）→ 任务进度 HUD → 输入框
- * 计划文档不再以消息气泡嵌入消息流；任务勾选实时显示在输入框上方的 HUD。
- * 旧版 ChangeProposalCard / 计划面板 / step 审批 UI 已全部删除。
+ * 布局：消息列表（含工具调用记录）→ 输入框
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
 import { useAssistantStore } from './useAssistantStore.js';
 import {
   streamAgent,
   resumeTask,
-  subscribeTask,
   fetchTask,
   recoverTask,
   listRecoverableTasks,
-  approveTask,
-  rejectPlan,
   cancelTask,
   truncateFrom as apiTruncateFrom,
   deleteMessage as apiDeleteMessage,
 } from './api.js';
 import MessageList from './MessageList.jsx';
 import InputBox from './InputBox.jsx';
-import PlanTaskHud from './PlanTaskHud.jsx';
 import DragHandle from './DragHandle.jsx';
 import { findRegenerateSource } from './message-helpers.js';
 import { SSE_EVENTS } from '../server/sse-events.js';
@@ -35,20 +27,10 @@ import { getCharacter } from '../../frontend/src/core/api/characters.js';
 import { getConfig } from '../../frontend/src/core/api/config.js';
 import { log } from '../../frontend/src/core/utils/logger.js';
 
-const ACTIVE_CANCELABLE_STATUSES = new Set(['running', 'awaiting_approval', 'paused']);
 const RECOVERABLE_TERMINAL_ERROR = 'interrupted by restart';
-const HARNESS_ERROR_PREFIX = 'agent loop error: ';
-const PLAN_REJECTED_PAUSE_REASON = 'plan rejected by user';
-// 服务端 pauseForRecoverableHarnessIssue 写入 task.error 的标记；
-// 用于让面板把该类暂停视作"等待用户主动输入"，不要自动 resume 死循环。
-const HARNESS_RECOVERABLE_PAUSE_REASON = 'harness recoverable pause';
-const CONSECUTIVE_TOOL_FAILURES_PAUSE_REASON = 'consecutive tool failures';
 
 function isRestartInterrupted(error) {
   return error === RECOVERABLE_TERMINAL_ERROR;
-}
-function isHarnessSoftFail(error) {
-  return typeof error === 'string' && error.startsWith(HARNESS_ERROR_PREFIX);
 }
 
 export default function AssistantPanel() {
@@ -58,7 +40,6 @@ export default function AssistantPanel() {
   const close = useAssistantStore((s) => s.close);
   const taskId = useAssistantStore((s) => s.taskId);
   const status = useAssistantStore((s) => s.status);
-  const planDoc = useAssistantStore((s) => s.planDoc);
   const messages = useAssistantStore((s) => s.messages);
   const error = useAssistantStore((s) => s.error);
   const ingestEvent = useAssistantStore((s) => s.ingestEvent);
@@ -73,24 +54,19 @@ export default function AssistantPanel() {
 
   const [input, setInput] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
-  const [reviseInput, setReviseInput] = useState('');
   const abortRef = useRef(null);
   const recoveringRef = useRef(false);
   const recoveryToastKeyRef = useRef('');
 
-  // 只有"服务重启被打断"才需要自动恢复 + 重新订阅 SSE；harness 软失败仅放开输入框。
+  // 只有"服务重启被打断"才需要自动恢复 + 重新订阅 SSE。
   const isRestartRecoverable = status === 'failed' && isRestartInterrupted(error);
-  const isHarnessRecoverable = status === 'failed' && isHarnessSoftFail(error);
-  const isRecoverableTerminal = isRestartRecoverable || isHarnessRecoverable;
 
   // 页面刷新后任务态被清；store 不持久化任务字段，这里仅做防御
   useEffect(() => {
     return () => abortRef.current?.abort?.();
   }, []);
 
-  // 主界面刷新事件已改为按 tool_call_completed 实时派发（见 useAssistantStore），
-  // 不再等到 task_completed 才统一通知，避免 awaiting_approval/running 阶段已经写入
-  // 但列表迟迟不更新的体验问题。
+  // 主界面刷新事件按 tool_call_completed 实时派发（见 useAssistantStore），不等 task_completed。
 
   const buildContext = useCallback(async () => {
     let context = { worldId: currentWorldId, characterId: currentCharacterId };
@@ -108,30 +84,22 @@ export default function AssistantPanel() {
   }, [currentWorldId, currentCharacterId]);
 
   const openRecoveryStream = useCallback(
-    async (nextTaskId, mode = 'subscribe') => {
+    async (nextTaskId) => {
       if (!nextTaskId) return;
       abortRef.current?.abort?.();
       const ctrl = new AbortController();
       abortRef.current = ctrl;
-      setIsStreaming(mode === 'resume');
+      setIsStreaming(true);
       try {
-        if (mode === 'resume') {
-          await resumeTask({
-            taskId: nextTaskId,
-            onEvent: ingestEvent,
-            signal: ctrl.signal,
-          });
-        } else {
-          await subscribeTask({
-            taskId: nextTaskId,
-            onEvent: ingestEvent,
-            signal: ctrl.signal,
-          });
-        }
+        await resumeTask({
+          taskId: nextTaskId,
+          onEvent: ingestEvent,
+          signal: ctrl.signal,
+        });
       } catch (err) {
         if (err?.name !== 'AbortError') {
-          log.error(`assistant.resume.${mode}_failed`, err, {
-            toast: err?.message || (mode === 'resume' ? '断点续传恢复失败' : '断点续传订阅失败'),
+          log.error('assistant.resume.resume_failed', err, {
+            toast: err?.message || '断点续传恢复失败',
           });
           ingestEvent({ type: SSE_EVENTS.TASK_FAILED, error: err?.message || '恢复订阅失败' });
         }
@@ -146,23 +114,11 @@ export default function AssistantPanel() {
     [ingestEvent],
   );
 
-  const attachRecoveryStream = useCallback(
-    async (nextTaskId) => {
-      await openRecoveryStream(nextTaskId, 'subscribe');
-    },
-    [openRecoveryStream],
-  );
-
   // 通用的恢复入口：开面板时 / 依赖变化时 / 回到前台时都走这里。
   // 重入靠 recoveringRef + isStreaming 守门，可被外部事件（visibility/focus/online）反复触发。
   const runRecovery = useCallback(async () => {
     if (!isOpen || recoveringRef.current || isStreaming) return;
-    const shouldRecover =
-      Boolean(taskId) ||
-      status === 'awaiting_approval' ||
-      status === 'paused' ||
-      status === 'running' ||
-      isRestartRecoverable;
+    const shouldRecover = Boolean(taskId) || status === 'running' || isRestartRecoverable;
     if (!shouldRecover) return;
 
     recoveringRef.current = true;
@@ -202,10 +158,7 @@ export default function AssistantPanel() {
       replaceTaskSnapshot(task);
       const toastKey = `${task.id}:${task.updatedAt ?? ''}:${task.status}:${task.error ?? ''}`;
       const shouldToastRecovery =
-        task.status === 'running' ||
-        task.status === 'paused' ||
-        task.status === 'awaiting_approval' ||
-        (task.status === 'failed' && isRestartInterrupted(task.error));
+        task.status === 'running' || (task.status === 'failed' && isRestartInterrupted(task.error));
       if (shouldToastRecovery && recoveryToastKeyRef.current !== toastKey) {
         recoveryToastKeyRef.current = toastKey;
         if (task.status === 'failed' && isRestartInterrupted(task.error)) {
@@ -218,28 +171,13 @@ export default function AssistantPanel() {
           log.info('assistant.resume.reconnected', null, { toast: '写卡助手已恢复连接' });
         }
       }
-      const isUserRejectedPlanPause =
-        task.status === 'paused' && task.error === PLAN_REJECTED_PAUSE_REASON;
-      const isHarnessRecoverablePause =
-        task.status === 'paused' && task.error === HARNESS_RECOVERABLE_PAUSE_REASON;
-      const isConsecutiveToolFailuresPause =
-        task.status === 'paused' && task.error === CONSECUTIVE_TOOL_FAILURES_PAUSE_REASON;
       const shouldAutoResume =
-        task.status === 'running' ||
-        (task.status === 'paused'
-          && !isUserRejectedPlanPause
-          && !isHarnessRecoverablePause
-          && !isConsecutiveToolFailuresPause) ||
-        (task.status === 'failed' && isRestartInterrupted(task.error));
-      if (shouldAutoResume) {
-        await openRecoveryStream(task.id, 'resume');
-      } else if (task.status === 'awaiting_approval') {
-        await attachRecoveryStream(task.id);
-      }
+        task.status === 'running' || (task.status === 'failed' && isRestartInterrupted(task.error));
+      if (shouldAutoResume) await openRecoveryStream(task.id);
     } finally {
       recoveringRef.current = false;
     }
-  }, [isOpen, isStreaming, taskId, status, isRestartRecoverable, replaceTaskSnapshot, attachRecoveryStream, openRecoveryStream, resetTask, currentWorldId, currentCharacterId]);
+  }, [isOpen, isStreaming, taskId, status, isRestartRecoverable, replaceTaskSnapshot, openRecoveryStream, resetTask, currentWorldId, currentCharacterId]);
 
   // 依赖（isOpen / taskId / status / 上下文）变化时跑一次。
   useEffect(() => {
@@ -320,17 +258,6 @@ export default function AssistantPanel() {
       const ctrl = new AbortController();
       abortRef.current = ctrl;
       setIsStreaming(true);
-      // 进入 awaiting_approval / paused 时 SSE 仍保持长连，但 LLM 已停止吐 token；
-      // 此时 isStreaming 应立即置 false，否则发送按钮卡在"停止"态、省略号常驻。
-      const handleEvent = (event) => {
-        if (
-          event?.type === SSE_EVENTS.AWAITING_APPROVAL ||
-          event?.type === SSE_EVENTS.PAUSED
-        ) {
-          setIsStreaming(false);
-        }
-        ingestEvent(event);
-      };
       try {
         const context = await buildContext();
         await streamAgent({
@@ -338,7 +265,7 @@ export default function AssistantPanel() {
           message: text,
           messageId,
           context,
-          onEvent: handleEvent,
+          onEvent: ingestEvent,
           signal: ctrl.signal,
         });
       } catch (err) {
@@ -438,52 +365,10 @@ export default function AssistantPanel() {
     [taskId, handleSend],
   );
 
-  const handleApprove = useCallback(() => {
-    if (!taskId) return;
-    // 乐观更新：立即隐藏审批面板，避免等 SSE PLAN_APPROVED 回来才切换状态的视觉卡顿
-    beginUserTurn(taskId);
-    setIsStreaming(true);
-    approveTask(taskId).catch(async (err) => {
-      setIsStreaming(false);
-      const task = await fetchTask(taskId).catch(() => null);
-      if (task) replaceTaskSnapshot(task);
-      log.warn('assistant.approve_plan_failed', err, { toast: err?.message || '确认执行失败' });
-    });
-  }, [taskId, beginUserTurn, replaceTaskSnapshot]);
-
-  const handleRejectPlan = useCallback(() => {
-    if (!taskId) return;
-    rejectPlan(taskId)
-      .then((task) => {
-        abortRef.current?.abort?.();
-        setIsStreaming(false);
-        if (task) replaceTaskSnapshot(task);
-      })
-      .catch((err) => {
-        log.warn('assistant.reject_plan_failed', err, { toast: err?.message || '拒绝计划失败' });
-      });
-  }, [taskId, replaceTaskSnapshot]);
-
-  const handleRevise = useCallback(async () => {
-    const text = reviseInput.trim();
-    if (!text || !taskId) return;
-    setReviseInput('');
-    try {
-      const task = await rejectPlan(taskId);
-      abortRef.current?.abort?.();
-      setIsStreaming(false);
-      if (task) replaceTaskSnapshot(task);
-    } catch (err) {
-      log.warn('assistant.revise_plan_failed', err, { toast: err?.message || '拒绝计划失败' });
-      return;
-    }
-    await handleSend(text, { skipPush: false });
-  }, [reviseInput, taskId, replaceTaskSnapshot, handleSend]);
-
   const handleReset = useCallback(() => {
-    // 必须先通知后端 cancel：仅 abort 本地 SSE 不会中断后端 runParentAgent 的工具循环，
-    // 残留循环会继续调用 apply_* 等落库工具，造成"清空后旧任务仍在执行"的错觉
-    if (taskId && ACTIVE_CANCELABLE_STATUSES.has(status)) {
+    // 必须先通知后端 cancel：仅 abort 本地 SSE 不会中断后端 runAgent 的工具循环，
+    // 残留循环会继续落库，造成"清空后旧任务仍在执行"的错觉
+    if (taskId && status === 'running') {
       cancelTask(taskId).catch(() => {});
     }
     abortRef.current?.abort?.();
@@ -491,19 +376,13 @@ export default function AssistantPanel() {
     reset();
   }, [taskId, status, reset]);
 
-  // 后端允许在 paused / completed / failed / cancelled 等状态上继续开新一轮对话；
+  // 后端允许在 completed / failed / cancelled 等状态上继续开新一轮对话；
   // 前端不再用任务状态封锁用户输入。真正终止执行由"停止"与"清空"负责。
   const inputDisabled = false;
   const hasRunningItem = messages.some(
     (m) => m.status === 'running' || m.streaming === true,
   );
-  // 省略号气泡仅在「LLM 真的在吐 token」的极短窗口出现：
-  // - isStreaming：本地 SSE fetch 仍在进行
-  // - !hasRunningItem：没有"运行中"占位（step / tool_call）抢眼
-  // - status === 'running'：仅 running 阶段会有自由文本流式输出；进入
-  //   awaiting_approval / paused / 终态后 LLM 不再吐 token，
-  //   省略号必须立刻消失（之前 awaiting_approval 长连接保持时 isStreaming 一直为 true,
-  //   导致省略号常驻，造成"还在跑"的错觉）。
+  // 省略号气泡仅在模型思考、尚无运行中工具占位时出现；终态后立刻消失。
   const pendingAssistant = isStreaming && !hasRunningItem && status === 'running';
 
 
@@ -545,7 +424,7 @@ export default function AssistantPanel() {
           </span>
           <AssistantStatusIndicator status={status} isStreaming={isStreaming} />
           <div className="ml-auto flex items-center gap-2">
-            {(messages.length > 0 || planDoc || taskId) && (
+            {(messages.length > 0 || taskId) && (
               <button
                 type="button"
                 onClick={handleReset}
@@ -568,16 +447,14 @@ export default function AssistantPanel() {
 
         {/* 消息流 */}
         <div className="flex flex-1 flex-col overflow-hidden">
-          {!(status === 'awaiting_approval' && planDoc) && (
-            <MessageList
-              messages={messages}
-              onEdit={handleEdit}
-              onDelete={handleDelete}
-              onRegenerate={handleRegenerate}
-              pending={pendingAssistant}
-            />
-          )}
-          {error && status === 'failed' && !isRecoverableTerminal && (
+          <MessageList
+            messages={messages}
+            onEdit={handleEdit}
+            onDelete={handleDelete}
+            onRegenerate={handleRegenerate}
+            pending={pendingAssistant}
+          />
+          {error && status === 'failed' && !isRestartRecoverable && (
             <div className="mx-3 my-2 flex items-center gap-2 rounded border border-[var(--we-color-accent)]/20 bg-[var(--we-color-accent)]/10 px-3 py-2 text-[12px] text-[var(--we-color-accent)]">
               <span className="flex-1">{error}</span>
               <button
@@ -589,66 +466,7 @@ export default function AssistantPanel() {
               </button>
             </div>
           )}
-          {status === 'awaiting_approval' && (
-            <div className={`flex flex-col border-t border-black/10 bg-[var(--we-color-bg-subtle)] ${planDoc ? 'flex-1 min-h-0' : 'flex-shrink-0'}`}>
-              {/* 计划文档预览区 */}
-              {planDoc && (
-                <div className="flex flex-1 min-h-0 flex-col">
-                  <div className="flex items-center gap-1.5 border-b border-black/5 px-3 py-1.5">
-                    <span className="text-[11px] font-medium tracking-wide text-[var(--we-color-text-tertiary)]" style={{ fontFamily: 'var(--we-font-display)', fontStyle: 'italic' }}>
-                      计划草案
-                    </span>
-                    <span className="ml-auto rounded bg-[var(--we-color-accent)]/10 px-1.5 py-0.5 text-[10px] text-[var(--we-color-accent)]">待审批</span>
-                  </div>
-                  <div className="we-plan-doc-preview flex-1 min-h-0 overflow-y-auto px-3 py-2">
-                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{planDoc}</ReactMarkdown>
-                  </div>
-                </div>
-              )}
-              {/* 确认 / 拒绝 / 修改建议输入 / 确认修改 — 同一行 */}
-              <div className="flex items-center gap-2 border-t border-black/10 px-3 py-2">
-                <button
-                  type="button"
-                  onClick={handleApprove}
-                  className="flex-shrink-0 rounded bg-[var(--we-color-accent)] px-4 py-1.5 text-[12px] font-medium text-white shadow-sm hover:opacity-90 active:opacity-80"
-                >
-                  确认执行
-                </button>
-                <button
-                  type="button"
-                  onClick={handleRejectPlan}
-                  className="flex-shrink-0 rounded border border-black/15 px-3 py-1.5 text-[12px] text-[var(--we-color-text-secondary)] hover:bg-black/5"
-                >
-                  拒绝计划
-                </button>
-                <textarea
-                  value={reviseInput}
-                  onChange={(e) => setReviseInput(e.target.value)}
-                  onKeyDown={(e) => {
-                    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
-                      e.preventDefault();
-                      if (reviseInput.trim()) handleRevise();
-                    }
-                  }}
-                  placeholder="填写修改建议…"
-                  rows={1}
-                  className="min-w-0 flex-1 resize-none rounded border border-black/10 bg-[var(--we-color-bg-canvas)] px-2 py-1.5 text-[12px] text-[var(--we-color-text-primary)] placeholder-[var(--we-color-text-tertiary)] focus:outline-none focus:ring-1 focus:ring-[var(--we-color-accent)]/30"
-                />
-                <button
-                  type="button"
-                  onClick={handleRevise}
-                  disabled={!reviseInput.trim()}
-                  className="flex-shrink-0 rounded border border-black/15 bg-[var(--we-color-bg-canvas)] px-2.5 py-1.5 text-[11px] text-[var(--we-color-text-secondary)] hover:bg-black/5 disabled:opacity-35"
-                >
-                  确认修改
-                </button>
-              </div>
-            </div>
-          )}
         </div>
-
-        {/* 任务进度 HUD（实时展示 plan_doc 任务勾选，全部完成时自动消失） */}
-        <PlanTaskHud />
 
         {/* 输入框（任务执行中也可以继续输入；新消息在服务端排队，输入 `/stop` 终止当前任务） */}
         <InputBox
@@ -662,51 +480,22 @@ export default function AssistantPanel() {
   );
 }
 
-// 标题栏的"主代理活跃"微指示：
-// - running：LLM 还在吐 token 或工具循环还没让出，显示三点呼吸 + "正在处理"
-// - awaiting_approval：等待用户审批，文案明确告诉用户"在等你"
-// - paused：被打断，文案提示"已暂停"，与 running 视觉区分
-// - 其它（completed/failed/cancelled/idle）：不显示，避免空状态噪音
+// 标题栏的"正在处理"微指示：仅在任务运行或本地流仍在进行时显示，其它状态不显示。
 function AssistantStatusIndicator({ status, isStreaming }) {
-  const active = status === 'running' || (isStreaming && status !== 'awaiting_approval' && status !== 'paused');
-  if (active) {
-    return (
-      <span
-        className="flex items-center gap-1.5 text-[11px] text-[var(--we-color-text-tertiary)]"
-        role="status"
-        aria-live="polite"
-        title="主代理正在处理，未中断"
-      >
-        <span className="flex items-center" aria-hidden="true">
-          <span className="typing-dot typing-dot-accent" />
-          <span className="typing-dot typing-dot-accent" />
-          <span className="typing-dot typing-dot-accent" />
-        </span>
-        <span>正在处理</span>
+  if (status !== 'running' && !isStreaming) return null;
+  return (
+    <span
+      className="flex items-center gap-1.5 text-[11px] text-[var(--we-color-text-tertiary)]"
+      role="status"
+      aria-live="polite"
+      title="写卡助手正在处理"
+    >
+      <span className="flex items-center" aria-hidden="true">
+        <span className="typing-dot typing-dot-accent" />
+        <span className="typing-dot typing-dot-accent" />
+        <span className="typing-dot typing-dot-accent" />
       </span>
-    );
-  }
-  if (status === 'awaiting_approval') {
-    return (
-      <span
-        className="text-[11px] text-[var(--we-color-accent)]"
-        role="status"
-        aria-live="polite"
-      >
-        等待审批
-      </span>
-    );
-  }
-  if (status === 'paused') {
-    return (
-      <span
-        className="text-[11px] text-[var(--we-color-text-tertiary)]"
-        role="status"
-        aria-live="polite"
-      >
-        已暂停
-      </span>
-    );
-  }
-  return null;
+      <span>正在处理</span>
+    </span>
+  );
 }

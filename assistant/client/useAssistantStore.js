@@ -1,10 +1,10 @@
 /**
  * 写卡助手 Zustand Store（单接口模型）
  *
- * 状态机：idle → running → awaiting_approval → paused → (completed|failed|cancelled)
+ * 状态机：idle → running → (completed|failed|cancelled)
  *
  * 服务端 SSE 事件由 ingestEvent 集中消费，
- * UI 仅订阅 taskId/status/planDoc/messages/error。
+ * UI 仅订阅 taskId/status/messages/error。
  *
  * 兼容字段：isOpen / open / close / toggle 仅用于面板抽屉显隐，
  *           不参与任务状态机；持久化以避免页面刷新后丢面板偏好。
@@ -14,22 +14,24 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { SSE_EVENTS } from '../server/sse-events.js';
 
-// 写入类工具 → 主界面 reload 事件：tool_call_completed 时按工具名实时派发，
-// 让主界面列表不必等到 task_completed 才刷新（修复"必须刷新才看到新卡"问题）
-const TOOL_REFRESH_EVENTS = {
-  apply_world_card: 'we:world-updated',
-  apply_character_card: 'we:character-updated',
-  apply_persona_card: 'we:persona-updated',
-  apply_css_snippet: 'we:css-updated',
-  apply_regex_rule: 'we:regex-updated',
-  apply_global_config: 'we:global-config-updated',
+// 写入成功 → 主界面 reload 事件：按工具操作的资源类型实时派发，
+// 让主界面列表不必等到 task_completed 才刷新。
+const WRITE_TOOLS = new Set(['create', 'update', 'edit', 'set_state', 'delete']);
+const TARGET_REFRESH_EVENTS = {
+  world: 'we:world-updated',
+  entry: 'we:world-updated',
+  field: 'we:world-updated',
+  character: 'we:character-updated',
+  persona: 'we:persona-updated',
+  css: 'we:css-updated',
+  regex: 'we:regex-updated',
+  config: 'we:global-config-updated',
 };
 
 // 移除模型在普通文本流里泄漏的工具调用 token / XML。
-// 触发场景：父代理 Step 1 工具循环触顶后，Step 2 不再传 tools，模型仍想调用，
-// 把内部 function-call 文本（DSML 特殊 token / 裸 <tool_calls>/<invoke>/<parameter>）
-// 直接吐到普通文本里。根因已经通过提升 LLM_TOOL_RESOLUTION_MAX_ITERATIONS 缓解，
-// 但本函数仍作为渲染前的兜底，避免本地小模型 / 非 function-call provider 再次泄漏。
+// 触发场景：工具循环触顶后退到无工具补全，模型仍想调用工具，把内部 function-call 文本
+// （DSML 特殊 token / 裸 <tool_calls>/<invoke>/<parameter>）直接吐到普通文本里；
+// 本地小模型 / 非 function-call provider 也可能出现。
 export function stripToolCallLeakage(text) {
   if (typeof text !== 'string' || !text) return text;
   let out = text;
@@ -51,25 +53,17 @@ export const useAssistantStore = create(
       // ─── 任务状态 ────────────────────────────────────────────
       taskId: null,
       status: 'idle',
-      planDoc: '',
       messages: [], // [{ role, content, streaming? }]
       error: null,
-      currentStepId: null,
       // replaceTailWithUser 写入后设置；防止 MESSAGES_CHANGED 广播在 abort 尚未完全生效时吞掉本地 user 消息
       pendingUserMessageId: null,
-      // 当前任务在 messages 数组中的起始偏移（task_created 时记录），
-      // 用于限制 tool_call_started 复用失败行的查找范围，避免跨任务污染历史
-      taskMsgOffset: 0,
 
       reset: () =>
         set({
           taskId: null,
           status: 'idle',
-          planDoc: '',
           messages: [],
           error: null,
-          currentStepId: null,
-          taskMsgOffset: 0,
           pendingUserMessageId: null,
         }),
 
@@ -79,10 +73,7 @@ export const useAssistantStore = create(
           ...s,
           taskId: null,
           status: 'idle',
-          planDoc: '',
           error: null,
-          currentStepId: null,
-          taskMsgOffset: 0,
         })),
 
       replaceTaskSnapshot: (task) =>
@@ -94,28 +85,15 @@ export const useAssistantStore = create(
           taskId: taskId ?? s.taskId,
           status: 'running',
           error: null,
-          taskMsgOffset: s.messages.length,
         })),
 
       ingestEvent: (evt) =>
         set((s) => {
           switch (evt.type) {
             case SSE_EVENTS.TASK_CREATED:
-              return { ...s, taskId: evt.taskId, status: 'running', error: null, taskMsgOffset: s.messages.length, pendingUserMessageId: null };
+              return { ...s, taskId: evt.taskId, status: 'running', error: null, pendingUserMessageId: null };
             case SSE_EVENTS.TASK_SNAPSHOT:
               return applyTaskSnapshot(s, evt.task);
-            case SSE_EVENTS.PLAN_DOC_UPDATED: {
-              // 计划文档不再写入 messages 流，由输入框上方的 PlanTaskHud 实时渲染。
-              // 同时清理可能从服务端 snapshot 带入的历史 plan_doc 消息行，防止旧气泡残留。
-              const cleaned = s.messages.filter((m) => m.role !== 'plan_doc');
-              return { ...s, planDoc: evt.content, messages: cleaned };
-            }
-            case SSE_EVENTS.AWAITING_APPROVAL:
-              return { ...s, status: 'awaiting_approval' };
-            case SSE_EVENTS.PLAN_APPROVED:
-              return { ...s, status: 'running' };
-            case SSE_EVENTS.PAUSED:
-              return { ...s, status: 'paused' };
             case SSE_EVENTS.TASK_COMPLETED:
               return {
                 ...s,
@@ -140,76 +118,27 @@ export const useAssistantStore = create(
               }
               return { ...s, messages: newMessages, pendingUserMessageId: null };
             }
-            case SSE_EVENTS.TOOL_CALL_STARTED: {
-              // 若当前任务内同名工具有已失败的条目，复用该条目（重试场景），避免留下永久红色失败标记
-              // 仅在 taskMsgOffset 之后搜索，防止跨任务覆盖历史失败记录
-              const prevFailedIdx = s.messages.reduce(
-                (found, m, i) =>
-                  i >= s.taskMsgOffset && m.role === 'tool_call' && m.toolName === evt.toolName && m.status === 'error'
-                    ? i
-                    : found,
-                -1,
-              );
-              if (prevFailedIdx >= 0) {
-                const next = [...s.messages];
-                next[prevFailedIdx] = { id: evt.callId, role: 'tool_call', toolName: evt.toolName, status: 'running' };
-                return { ...s, messages: next };
-              }
+            case SSE_EVENTS.TOOL_CALL_STARTED:
               return {
                 ...s,
                 messages: [
                   ...s.messages,
-                  { id: evt.callId, role: 'tool_call', toolName: evt.toolName, status: 'running' },
+                  { id: evt.callId, role: 'tool_call', toolName: evt.toolName, summary: evt.summary, target: evt.target, status: 'running' },
                 ],
               };
-            }
             case SSE_EVENTS.TOOL_CALL_COMPLETED: {
-              if (evt.success) {
-                const toolName = s.messages.find((m) => m.id === evt.callId)?.toolName;
-                const eventName = toolName ? TOOL_REFRESH_EVENTS[toolName] : null;
-                if (eventName && typeof window !== 'undefined') {
-                  window.dispatchEvent(new Event(eventName));
-                }
+              const call = s.messages.find((m) => m.id === evt.callId);
+              const eventName = evt.success && WRITE_TOOLS.has(call?.toolName) ? TARGET_REFRESH_EVENTS[call?.target] : null;
+              if (eventName && typeof window !== 'undefined') {
+                window.dispatchEvent(new Event(eventName));
               }
               return {
                 ...s,
                 messages: s.messages.map((m) =>
-                  m.id === evt.callId ? { ...m, status: evt.success ? 'done' : 'error' } : m,
+                  m.id === evt.callId ? { ...m, status: evt.success ? 'done' : 'error', error: evt.success ? undefined : evt.error } : m,
                 ),
               };
             }
-            case SSE_EVENTS.STEP_STARTED: {
-              const stepExists = s.messages.some((m) => m.id === evt.stepId);
-              return {
-                ...s,
-                currentStepId: evt.stepId,
-                messages: stepExists
-                  ? s.messages.map((m) =>
-                      m.id === evt.stepId ? { ...m, title: evt.title, status: 'running' } : m,
-                    )
-                  : [
-                      ...s.messages,
-                      { id: evt.stepId, role: 'step', stepId: evt.stepId, title: evt.title, status: 'running' },
-                    ],
-              };
-            }
-            case SSE_EVENTS.STEP_COMPLETED:
-              return {
-                ...s,
-                currentStepId: null,
-                messages: s.messages.map((m) =>
-                  m.id === evt.stepId ? { ...m, status: 'done' } : m,
-                ),
-              };
-            case SSE_EVENTS.STEP_FAILED:
-              return {
-                ...s,
-                currentStepId: null,
-                error: `Step ${evt.stepId} 失败：${evt.error}`,
-                messages: s.messages.map((m) =>
-                  m.id === evt.stepId ? { ...m, status: 'error', error: evt.error } : m,
-                ),
-              };
             default:
               if (evt.done === true) {
                 // SSE 末尾的 { done: true } 帧：清除最后一条 assistant 的 streaming 标志，使 ActionBar 可显示
@@ -270,8 +199,7 @@ export const useAssistantStore = create(
       name: 'we-assistant-v2',
       // 流式期间不写盘：每个 DELTA 帧都会触发一次 partialize + JSON.stringify(messages)，
       // 累积文本越长每帧成本越高（O(n²)）。这里提供自定义 PersistStorage，在 status==='running'
-      // 时于 stringify 之前直接 early-return，跳过整条写盘链；任务进入任意终态/暂停/idle
-      // （completed/failed/cancelled/paused/idle/awaiting_approval）时才落盘一次。
+      // 时于 stringify 之前直接 early-return，跳过整条写盘链；任务进入终态或 idle 时才落盘一次。
       // 注意：必须早退而非在 partialize 里省略 messages —— 后者每帧仍会用不含 messages 的
       // 整体 blob 覆盖 localStorage，导致流式中刷新丢失全部历史。
       storage: createSkipWhileRunningStorage(),
@@ -281,7 +209,6 @@ export const useAssistantStore = create(
         width: s.width,
         taskId: s.taskId,
         status: s.status,
-        planDoc: s.planDoc,
         messages: sanitizeMessagesForPersist(s.messages),
         error: s.error,
       }),
@@ -386,14 +313,14 @@ function clearStreamingFlag(messages) {
 function sanitizeMessagesForPersist(messages) {
   if (!Array.isArray(messages)) return [];
   return messages
-    .filter((m) => m && ['user', 'assistant', 'tool_call', 'step'].includes(m.role))
+    .filter((m) => m && ['user', 'assistant', 'tool_call'].includes(m.role))
     .map((m) => {
       if (m.role === 'assistant' && m.streaming) {
         const rest = { ...m };
         delete rest.streaming;
         return rest;
       }
-      if ((m.role === 'tool_call' || m.role === 'step') && m.status === 'running') {
+      if (m.role === 'tool_call' && m.status === 'running') {
         return { ...m, status: 'error', error: m.error ?? '刷新后运行状态已中断' };
       }
       return m;
@@ -406,24 +333,16 @@ function applyTaskSnapshot(state, task) {
       ...state,
       taskId: null,
       status: 'idle',
-      planDoc: '',
       messages: state.messages,
       error: null,
-      currentStepId: null,
-      taskMsgOffset: 0,
     };
   }
-  const sanitizedMessages = sanitizeMessagesForPersist(task.messages);
-  const fallbackPlanDoc = sanitizedMessages.find((m) => m.role === 'plan_doc')?.content ?? '';
   return {
     ...state,
     taskId: task.id ?? null,
     status: task.status ?? 'idle',
-    planDoc: typeof task.planDocContent === 'string' ? task.planDocContent : fallbackPlanDoc,
-    messages: sanitizedMessages,
+    messages: sanitizeMessagesForPersist(task.messages),
     error: task.error ?? null,
-    currentStepId: task.currentStepId ?? null,
-    taskMsgOffset: 0,
   };
 }
 

@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { streamAgent, resumeTask, approveTask } from '../../../assistant/client/api.js';
+import { streamAgent, resumeTask } from '../../../assistant/client/api.js';
 
 function createSseResponse(events) {
   const encoder = new TextEncoder();
@@ -85,16 +85,5 @@ describe('assistant client api', () => {
     })).resolves.toBeUndefined();
 
     expect(events.map((e) => e.type ?? (e.done ? 'done' : 'unknown'))).toEqual(['delta', 'done']);
-  });
-
-  it('approveTask 会向后端发送 POST 请求', async () => {
-    fetch.mockResolvedValue({ ok: true });
-    await approveTask('task-1');
-    expect(fetch).toHaveBeenCalledWith('/api/assistant/agent/task-1/approve', { method: 'POST' });
-  });
-
-  it('approveTask 在后端拒绝时抛错，供前端回滚状态', async () => {
-    fetch.mockResolvedValue({ ok: false, status: 400 });
-    await expect(approveTask('task-1')).rejects.toThrow('approve failed: 400');
   });
 });

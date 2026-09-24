@@ -10,7 +10,6 @@ sandbox.setEnv();
 
 const router = (await freshImport('assistant/server/routes.js')).default;
 const taskStore = await freshImport('assistant/server/task-store.js');
-const planDoc = await freshImport('assistant/server/plan-doc.js');
 
 const app = express();
 app.use(express.json());
@@ -40,22 +39,6 @@ async function getJSON(path) {
   const res = await fetch(`${base}${path}`);
   const ct = res.headers.get('content-type') || '';
   return { status: res.status, json: ct.includes('application/json') ? await res.json() : null };
-}
-
-// plan-doc.js 的 writePlanDoc 现在接收结构化 plan 对象（真源），md 由 renderPlanDoc(plan) 派生。
-// 本文件里大量用例只关心"写入什么就该读出什么"，用 title 当区分标记即可。
-function makePlan(title) {
-  return {
-    title,
-    status: 'planning',
-    createdAt: 'x',
-    intent: 'i',
-    assumptions: [],
-    steps: [
-      { id: 'step-1', title: 'A', targetType: 'world-card', operation: 'update', dependsOn: [], task: 'a', done: false, completedAt: null },
-      { id: 'step-2', title: 'B', targetType: 'world-card', operation: 'update', dependsOn: [], task: 'b', done: false, completedAt: null },
-    ],
-  };
 }
 
 async function postSSE(path, body) {
@@ -96,30 +79,21 @@ test('GET /agent/:taskId 404 / 200', async () => {
   assert.equal(r.json.task.id, t.id);
 });
 
-test('GET /agent/:taskId/plan-doc 任务不存在时返回空字符串', async () => {
-  const r = await getJSON('/agent/no-task/plan-doc');
-  assert.equal(r.status, 200);
-  assert.equal(r.json.content, '');
-});
-
 test('GET /agent/recover 返回最近可恢复任务', async () => {
   const oldTask = taskStore.createTask({ context: { worldId: 'old' } });
-  taskStore.setStatus(oldTask.id, 'awaiting_approval');
-  await planDoc.writePlanDoc(oldTask.id, makePlan('old'));
+  taskStore.setStatus(oldTask.id, 'running');
+  oldTask.updatedAt = Date.now() - 60_000;
 
   const latestTask = taskStore.createTask({ context: { worldId: 'latest' } });
   taskStore.setStatus(latestTask.id, 'failed', { error: taskStore.__testables.RESTART_INTERRUPTED_ERROR });
-  await planDoc.writePlanDoc(latestTask.id, makePlan('latest'));
 
   const r = await getJSON('/agent/recover');
   assert.equal(r.status, 200);
   assert.equal(r.json.task.id, latestTask.id);
-  assert.equal(r.json.task.planDocContent, planDoc.renderPlanDoc(makePlan('latest')));
 });
 
-test('POST /agent/:taskId/cancel 切换状态并清理 plan doc', async () => {
+test('POST /agent/:taskId/cancel 切换状态', async () => {
   const t = taskStore.createTask({ context: {} });
-  await planDoc.writePlanDoc(t.id, makePlan('x'));
   const r = await postJSON(`/agent/${t.id}/cancel`, {});
   assert.equal(r.status, 200);
   assert.equal(t.status, 'cancelled');
@@ -131,81 +105,11 @@ test('POST /agent/:taskId/cancel 切换状态并清理 plan doc', async () => {
 test('POST /agent/:taskId/cancel 对终态任务为 no-op', async () => {
   const t = taskStore.createTask({ context: {} });
   t.status = 'completed';
-  await planDoc.writePlanDoc(t.id, makePlan('keep'));
 
   const r = await postJSON(`/agent/${t.id}/cancel`, {});
   assert.equal(r.status, 200);
+  assert.equal(r.json.ignored, true);
   assert.equal(t.status, 'completed');
-
-  const plan = await getJSON(`/agent/${t.id}/plan-doc`);
-  assert.equal(plan.status, 200);
-  assert.equal(plan.json.content, planDoc.renderPlanDoc(makePlan('keep')));
-});
-
-test('GET /agent/:taskId/stream 立即下发 task_snapshot', async () => {
-  const t = taskStore.createTask({ context: {} });
-  taskStore.appendMessage(t.id, { id: 'm1', role: 'user', content: 'hello' });
-  await planDoc.writePlanDoc(t.id, makePlan('live'));
-
-  const res = await fetch(`${base}/agent/${t.id}/stream`);
-  assert.equal(res.status, 200);
-  const reader = res.body.getReader();
-  const decoder = new TextDecoder();
-  const { value } = await reader.read();
-  const text = decoder.decode(value, { stream: true });
-  await reader.cancel();
-  assert.match(text, /"type":"task_snapshot"/);
-  assert.match(text, /"planDocContent":"# 任务：live/);
-});
-
-test('POST /agent/:taskId/approve 拒绝非 awaiting_approval 任务', async () => {
-  const t = taskStore.createTask({ context: {} });
-  const r = await postJSON(`/agent/${t.id}/approve`, {});
-  assert.equal(r.status, 400);
-});
-
-test('POST /agent/:taskId/approve 会把审批 checkpoint 持久化为 approved', async () => {
-  const t = taskStore.createTask({ context: {} });
-  taskStore.setStatus(t.id, 'awaiting_approval');
-  taskStore.setApprovalCheckpoint(t.id, { title: '计划 A', stepCount: 3, status: 'pending' });
-  process.env.MOCK_LLM_COMPLETE_ERROR = 'provider exploded';
-
-  const r = await postJSON(`/agent/${t.id}/approve`, {});
-  assert.equal(r.status, 200);
-  assert.equal(t.approvalCheckpoint?.status, 'approved');
-  assert.ok(Number.isFinite(t.approvalCheckpoint?.approvedAt));
-  delete process.env.MOCK_LLM_COMPLETE_ERROR;
-});
-
-test('POST /agent/:taskId/reject 拒绝计划后保留 plan doc，等用户继续对话修改方案', async () => {
-  const t = taskStore.createTask({ context: {} });
-  taskStore.setStatus(t.id, 'awaiting_approval');
-  const plan = makePlan('plan');
-  const planMd = planDoc.renderPlanDoc(plan);
-  await planDoc.writePlanDoc(t.id, plan);
-  taskStore.emit(t.id, { type: 'plan_doc_updated', taskId: t.id, content: planMd });
-
-  const r = await postJSON(`/agent/${t.id}/reject`, {});
-  assert.equal(r.status, 200);
-  assert.equal(t.status, 'paused');
-  assert.equal(t.error, 'plan rejected by user');
-  // 拒绝后 plan_doc 文件与 task.planDocContent 全部保留，方便父代理在下一轮用 edit_plan_doc 修改未完成步骤
-  assert.equal(await planDoc.readPlanDoc(t.id), planMd);
-  assert.equal(t.planDocContent, planMd);
-  assert.equal(t.messages.some((m) => m.role === 'plan_doc'), true);
-  assert.equal(r.json.task.status, 'paused');
-  assert.equal(r.json.task.error, 'plan rejected by user');
-  assert.equal(r.json.task.planDocContent, planMd);
-
-  process.env.MOCK_LLM_COMPLETE = '可以，我们换个方案';
-  const resumed = await postSSE('/agent', { taskId: t.id, message: '那改成只优化结算' });
-  assert.equal(resumed.status, 200);
-  assert.equal(t.status, 'completed');
-  assert.ok(resumed.events.some((e) => e.type === 'delta'));
-  delete process.env.MOCK_LLM_COMPLETE;
-
-  const bad = await postJSON(`/agent/${t.id}/reject`, {});
-  assert.equal(bad.status, 400);
 });
 
 test('POST /agent/:taskId/truncate 与 /delete 边界', async () => {
@@ -241,38 +145,17 @@ test('POST /agent/:taskId/truncate 与 /delete 边界', async () => {
   assert.equal(e2.status, 404);
 });
 
-test('POST /agent/:taskId/truncate 截掉 plan_doc 消息时同步清空 planDocContent 与 planDocData（不留分叉）', async () => {
-  const t = taskStore.createTask({ context: {} });
-  const plan = makePlan('will-be-truncated');
-  await planDoc.writePlanDoc(t.id, plan);
-  taskStore.appendMessage(t.id, { id: 'plan-msg', role: 'plan_doc', content: planDoc.renderPlanDoc(plan) });
-  taskStore.appendMessage(t.id, { id: 'after', role: 'assistant', content: 'x' });
-
-  assert.equal(t.planDocContent !== '', true);
-  assert.notEqual(t.planDocData, null);
-
-  const tr = await postJSON(`/agent/${t.id}/truncate`, { messageId: 'plan-msg' });
-  assert.equal(tr.status, 200);
-
-  // md 与结构必须一起清空，不能出现 planDocContent 已清空但 planDocData 仍是旧计划的分叉窗口
-  assert.equal(t.planDocContent, '');
-  assert.equal(t.planDocData, null);
-  assert.equal(await planDoc.readPlanDoc(t.id), '');
-  assert.equal(await planDoc.readPlanData(t.id), null);
-});
-
 test('POST /agent 创建新任务并通过 SSE 收到 task_created + done', async () => {
-  process.env.MOCK_LLM_ACTION = JSON.stringify({ action: 'finish', message: 'hi' });
+  process.env.MOCK_LLM_COMPLETE = 'hi';
   const r = await postSSE('/agent', { message: '你好' });
   assert.equal(r.status, 200);
   const types = r.events.map((e) => e.type ?? (e.done ? 'done-flag' : 'unknown'));
   assert.ok(types.includes('task_created'));
-  // task_created 事件必须携带 runId（ARCHITECTURE.md §14 契约）
   const taskCreated = r.events.find((e) => e.type === 'task_created');
   assert.ok(taskCreated?.runId, 'task_created 事件应携带 runId');
   assert.equal(typeof taskCreated.runId, 'string');
   assert.ok(r.events.some((e) => e.done));
-  delete process.env.MOCK_LLM_ACTION;
+  delete process.env.MOCK_LLM_COMPLETE;
 });
 
 test('POST /agent 在 running 任务上仅入队', async () => {
@@ -293,16 +176,8 @@ test('POST /agent 在 running 任务上仅入队', async () => {
   assert.equal(t.pendingUserMessages.length, 1);
 });
 
-test('POST /agent 在 paused / failed / completed 上继续对话会转 running 并继续流式', async () => {
+test('POST /agent 在 failed / completed 上继续对话会转 running 并继续流式', async () => {
   process.env.MOCK_LLM_COMPLETE = '恢复后回复';
-
-  const pausedTask = taskStore.createTask({ context: {} });
-  taskStore.setStatus(pausedTask.id, 'paused');
-  const pausedResult = await postSSE('/agent', { taskId: pausedTask.id, message: '继续' });
-  assert.equal(pausedResult.status, 200);
-  assert.equal(pausedTask.status, 'completed');
-  assert.equal(pausedTask.error, undefined);
-  assert.ok(pausedResult.events.some((e) => e.type === 'delta'));
 
   const failedTask = taskStore.createTask({ context: {} });
   taskStore.setStatus(failedTask.id, 'failed', { error: 'interrupted by restart' });
@@ -324,9 +199,9 @@ test('POST /agent 在 paused / failed / completed 上继续对话会转 running 
 
 test('GET /agent/recover 按 context 严格匹配；无匹配返回 null', async () => {
   const a = taskStore.createTask({ context: { worldId: 'rec-A', characterId: null } });
-  taskStore.setStatus(a.id, 'awaiting_approval');
+  taskStore.setStatus(a.id, 'running');
   const b = taskStore.createTask({ context: { worldId: 'rec-B', characterId: null } });
-  taskStore.setStatus(b.id, 'paused');
+  taskStore.setStatus(b.id, 'running');
 
   const hit = await getJSON('/agent/recover?worldId=rec-A');
   assert.equal(hit.status, 200);
@@ -339,9 +214,9 @@ test('GET /agent/recover 按 context 严格匹配；无匹配返回 null', async
 
 test('GET /agent/recoverable-tasks 排除当前 context，列出其它可恢复任务', async () => {
   const a = taskStore.createTask({ context: { worldId: 'list-A', characterId: null } });
-  taskStore.setStatus(a.id, 'awaiting_approval');
+  taskStore.setStatus(a.id, 'running');
   const b = taskStore.createTask({ context: { worldId: 'list-B', characterId: null } });
-  taskStore.setStatus(b.id, 'paused');
+  taskStore.setStatus(b.id, 'running');
 
   const r = await getJSON('/agent/recoverable-tasks?worldId=list-A');
   assert.equal(r.status, 200);
@@ -360,21 +235,27 @@ test('POST /agent 拒绝跨上下文请求（context mismatch → 409）', async
   assert.equal(res.status, 409);
 });
 
-test('POST /agent 在 paused / interrupted 上可静默 resume，且不追加空 user 消息', async () => {
+test('POST /agent 在未执行的 running / interrupted 任务上可静默 resume，且不追加空 user 消息', async () => {
   process.env.MOCK_LLM_COMPLETE = '后台继续完成';
 
-  const pausedTask = taskStore.createTask({ context: {} });
-  taskStore.appendMessage(pausedTask.id, { id: 'u1', role: 'user', content: '先前需求' });
-  taskStore.setStatus(pausedTask.id, 'paused');
+  const runningTask = taskStore.createTask({ context: {} });
+  taskStore.appendMessage(runningTask.id, { id: 'u1', role: 'user', content: '先前需求' });
+  taskStore.setStatus(runningTask.id, 'running');
 
-  const pausedResult = await postSSE('/agent', { taskId: pausedTask.id, resume: true });
-  assert.equal(pausedResult.status, 200);
-  assert.equal(pausedTask.status, 'completed');
+  const runningResult = await postSSE('/agent', { taskId: runningTask.id, resume: true });
+  assert.equal(runningResult.status, 200);
+  assert.equal(runningTask.status, 'completed');
   assert.deepEqual(
-    pausedTask.messages.filter((m) => m.role === 'user').map((m) => m.content),
+    runningTask.messages.filter((m) => m.role === 'user').map((m) => m.content),
     ['先前需求'],
   );
-  assert.ok(pausedResult.events.some((e) => e.type === 'delta'));
+  assert.ok(runningResult.events.some((e) => e.type === 'delta'));
+
+  const completedTask = taskStore.createTask({ context: {} });
+  taskStore.setStatus(completedTask.id, 'completed');
+  const rejected = await postSSE('/agent', { taskId: completedTask.id, resume: true });
+  assert.ok(rejected.events.some((e) => e.type === 'task_failed' && e.error === 'task is not resumable'));
+  assert.equal(completedTask.status, 'completed');
 
   const interruptedTask = taskStore.createTask({ context: {} });
   taskStore.appendMessage(interruptedTask.id, { id: 'u2', role: 'user', content: '继续之前的任务' });

@@ -23,14 +23,7 @@ const tasks = new Map();
 const sseClients = new Map(); // taskId -> Set<res>
 
 export const TERMINAL_TASK_STATUSES = new Set(['completed', 'failed', 'cancelled']);
-const RESUMABLE_TASK_STATUSES = new Set(['running', 'awaiting_approval', 'paused']);
-const LIVE_RECOVERABLE_TASK_STATUSES = new Set(['running', 'awaiting_approval', 'paused']);
 export const RESTART_INTERRUPTED_ERROR = 'interrupted by restart';
-export const HARNESS_ERROR_PREFIX = 'agent loop error: ';
-
-export function isHarnessError(err) {
-  return typeof err === 'string' && err.startsWith(HARNESS_ERROR_PREFIX);
-}
 
 function cloneTaskForPersist(task) {
   return {
@@ -39,15 +32,8 @@ function cloneTaskForPersist(task) {
     context: task.context ?? {},
     messages: Array.isArray(task.messages) ? task.messages : [],
     pendingUserMessages: Array.isArray(task.pendingUserMessages) ? task.pendingUserMessages : [],
-    planDocContent: typeof task.planDocContent === 'string' ? task.planDocContent : '',
-    planDocData: task.planDocData ?? null,
     modelContext: task.modelContext ?? null,
     createdAt: typeof task.createdAt === 'number' ? task.createdAt : Date.now(),
-    currentStepId: task.currentStepId ?? null,
-    lastToolFailure: task.lastToolFailure ?? null,
-    lastSubagentResult: task.lastSubagentResult ?? null,
-    approvalCheckpoint: task.approvalCheckpoint ?? null,
-    loopIteration: Number.isFinite(task.loopIteration) ? task.loopIteration : 0,
     error: typeof task.error === 'string' ? task.error : undefined,
     updatedAt: typeof task.updatedAt === 'number' ? task.updatedAt : Date.now(),
   };
@@ -71,7 +57,7 @@ function normalizeRecoveredUiMessages(messages) {
   if (!Array.isArray(messages)) return [];
   return messages.map((m) => {
     if (!m || typeof m !== 'object') return m;
-    if ((m.role === 'tool_call' || m.role === 'step') && m.status === 'running') {
+    if (m.role === 'tool_call' && m.status === 'running') {
       return { ...m, status: 'error', error: m.error ?? 'interrupted by restart' };
     }
     if (m.role === 'assistant' && m.streaming) {
@@ -90,18 +76,9 @@ function hydrateTask(data) {
     context: data.context ?? {},
     messages: normalizeRecoveredUiMessages(data.messages),
     pendingUserMessages: Array.isArray(data.pendingUserMessages) ? data.pendingUserMessages : [],
-    planDocContent: typeof data.planDocContent === 'string' ? data.planDocContent : '',
-    planDocData: data.planDocData ?? null,
     modelContext: data.modelContext ?? null,
     createdAt: typeof data.createdAt === 'number' ? data.createdAt : Date.now(),
-    currentStepId: data.currentStepId ?? null,
-    lastToolFailure: data.lastToolFailure ?? null,
-    lastSubagentResult: data.lastSubagentResult ?? null,
-    approvalCheckpoint: data.approvalCheckpoint ?? null,
-    loopIteration: Number.isFinite(data.loopIteration) ? data.loopIteration : 0,
-    pauseRequested: false,
     executionActive: false,
-    appliedResources: [],
     updatedAt: typeof data.updatedAt === 'number' ? data.updatedAt : (typeof data.createdAt === 'number' ? data.createdAt : Date.now()),
   };
   if (typeof data.error === 'string') task.error = data.error;
@@ -121,105 +98,26 @@ function upsertMessageById(task, message) {
   return true;
 }
 
-function upsertToolCallStarted(task, event) {
-  if (!task || !event?.callId) return false;
-  const message = {
-    id: event.callId,
-    role: 'tool_call',
-    toolName: event.toolName,
-    status: 'running',
-  };
-
-  const existingIdx = task.messages.findIndex((m) => m?.id === event.callId);
-  if (existingIdx >= 0) {
-    task.messages[existingIdx] = { ...task.messages[existingIdx], ...message };
-  } else {
-    const prevFailedIdx = event.toolName
-      ? task.messages.reduce(
-        (found, m, i) =>
-          m?.role === 'tool_call' && m.toolName === event.toolName && m.status === 'error'
-            ? i
-            : found,
-        -1,
-      )
-      : -1;
-    if (prevFailedIdx >= 0) {
-      task.messages[prevFailedIdx] = message;
-    } else {
-      task.messages.push(message);
-    }
-  }
-  touch(task);
-  persist(task);
-  return true;
-}
-
 function persistUiEvent(taskId, event) {
   const t = tasks.get(taskId);
-  if (!t || !event?.type) return;
-  switch (event.type) {
-    case SSE_EVENTS.PLAN_DOC_UPDATED: {
-      const planTaskId = event.taskId ?? taskId;
-      t.planDocContent = event.content ?? '';
-      upsertMessageById(t, {
-        id: `plan-doc-${planTaskId}`,
-        role: 'plan_doc',
-        content: event.content ?? '',
-      });
-      return;
-    }
-    case SSE_EVENTS.TOOL_CALL_STARTED:
-      upsertToolCallStarted(t, event);
-      return;
-    case SSE_EVENTS.TOOL_CALL_COMPLETED:
-      if (!event.callId) return;
-      upsertMessageById(t, {
-        id: event.callId,
-        role: 'tool_call',
-        toolName: event.toolName ?? t.messages.find((m) => m?.id === event.callId)?.toolName,
-        status: event.success ? 'done' : 'error',
-      });
-      t.lastToolFailure = event.success
-        ? null
-        : {
-            toolName: event.toolName ?? t.messages.find((m) => m?.id === event.callId)?.toolName ?? null,
-            error: event.error ?? 'tool failed',
-            at: Date.now(),
-          };
-      touch(t);
-      persist(t);
-      return;
-    case SSE_EVENTS.STEP_STARTED:
-      if (!event.stepId) return;
-      upsertMessageById(t, {
-        id: event.stepId,
-        role: 'step',
-        stepId: event.stepId,
-        title: event.title,
-        status: 'running',
-      });
-      return;
-    case SSE_EVENTS.STEP_COMPLETED:
-      if (!event.stepId) return;
-      upsertMessageById(t, {
-        id: event.stepId,
-        role: 'step',
-        stepId: event.stepId,
-        status: 'done',
-      });
-      return;
-    case SSE_EVENTS.STEP_FAILED:
-      if (!event.stepId) return;
-      upsertMessageById(t, {
-        id: event.stepId,
-        role: 'step',
-        stepId: event.stepId,
-        status: 'error',
-        error: event.error,
-      });
-      return;
-    default:
-      return;
+  if (!t || !event?.callId) return;
+  if (event.type === SSE_EVENTS.TOOL_CALL_STARTED) {
+    upsertMessageById(t, {
+      id: event.callId,
+      role: 'tool_call',
+      toolName: event.toolName,
+      summary: event.summary,
+      target: event.target,
+      status: 'running',
+    });
+  } else if (event.type === SSE_EVENTS.TOOL_CALL_COMPLETED) {
+    upsertMessageById(t, {
+      id: event.callId,
+      role: 'tool_call',
+      status: event.success ? 'done' : 'error',
+      error: event.success ? undefined : (event.error ?? 'tool failed'),
+      result: event.result,
+    });
   }
 }
 
@@ -240,8 +138,7 @@ function importLegacySidecars() {
     });
     if (!task) continue;
     try {
-      // 走 cloneTaskForPersist 净化运行期字段（previewCache/executionActive/appliedResources 等），
-      // 避免把 Map/瞬时状态塞进 DB 行。
+      // 走 cloneTaskForPersist 净化运行期字段（executionActive 等），避免把瞬时状态塞进 DB 行。
       upsertAssistantTask(cloneTaskForPersist(task));
       imported += 1;
       try { deleteTaskFile(task.id); } catch { /* ignore */ }
@@ -266,7 +163,7 @@ export function hydrateAssistantTasks() {
   for (const row of rows) {
     const task = hydrateTask(row);
     if (!task) continue;
-    if (!TERMINAL_TASK_STATUSES.has(task.status) && !RESUMABLE_TASK_STATUSES.has(task.status)) {
+    if (!TERMINAL_TASK_STATUSES.has(task.status) && task.status !== 'running') {
       task.status = 'failed';
       task.error = RESTART_INTERRUPTED_ERROR;
       touch(task);
@@ -288,17 +185,9 @@ export function createTask({ context } = {}) {
     context: context ?? {},
     messages: [],
     pendingUserMessages: [],
-    planDocContent: '',
-    planDocData: null,
     modelContext: null,
     createdAt: now,
-    currentStepId: null,
-    lastToolFailure: null,
-    lastSubagentResult: null,
-    approvalCheckpoint: null,
-    loopIteration: 0,
     executionActive: false,
-    appliedResources: [],
     updatedAt: now,
   };
   tasks.set(id, task);
@@ -316,7 +205,7 @@ function isRestartInterruptedTask(task) {
 }
 
 function isRecoverableTask(task) {
-  return LIVE_RECOVERABLE_TASK_STATUSES.has(task?.status) || isRestartInterruptedTask(task);
+  return task?.status === 'running' || isRestartInterruptedTask(task);
 }
 
 function contextMatches(task, context) {
@@ -350,8 +239,7 @@ export function getLatestRecoverableTask(context = null) {
   // 内存缓存覆盖 hydrate 后的全部任务，跨上下文兜底查询只在无 context 时走 DB。
   if (context) return null;
   return getLatestAssistantTask(
-    `status IN ('running', 'awaiting_approval', 'paused')
-     OR (status = 'failed' AND error = ?)`,
+    `status = 'running' OR (status = 'failed' AND error = ?)`,
     [RESTART_INTERRUPTED_ERROR],
   );
 }
@@ -369,7 +257,6 @@ export function listRecoverableTasks({ excludeContext = null } = {}) {
       status: task.status,
       context: task.context ?? {},
       updatedAt: task.updatedAt ?? 0,
-      title: task.approvalCheckpoint?.title ?? null,
     });
   }
   out.sort((a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0));
@@ -392,54 +279,6 @@ export function setStatus(id, status, { error } = {}) {
   log.info(`STATUS  ${formatMeta({ taskId: id, from: prev, to: status })}`);
 }
 
-export function setCurrentStep(id, stepId) {
-  const t = tasks.get(id);
-  if (!t) return;
-  if (t.currentStepId === stepId) return;
-  t.currentStepId = stepId ?? null;
-  touch(t);
-  persist(t);
-}
-
-export function setLastToolFailure(id, payload) {
-  const t = tasks.get(id);
-  if (!t) return;
-  const next = payload ?? null;
-  if (JSON.stringify(t.lastToolFailure ?? null) === JSON.stringify(next)) return;
-  t.lastToolFailure = next;
-  touch(t);
-  persist(t);
-}
-
-export function setLastSubagentResult(id, payload) {
-  const t = tasks.get(id);
-  if (!t) return;
-  const next = payload ?? null;
-  if (JSON.stringify(t.lastSubagentResult ?? null) === JSON.stringify(next)) return;
-  t.lastSubagentResult = next;
-  touch(t);
-  persist(t);
-}
-
-export function setApprovalCheckpoint(id, payload) {
-  const t = tasks.get(id);
-  if (!t) return;
-  const next = payload ?? null;
-  if (JSON.stringify(t.approvalCheckpoint ?? null) === JSON.stringify(next)) return;
-  t.approvalCheckpoint = next;
-  touch(t);
-  persist(t);
-}
-
-export function incrementLoopIteration(id) {
-  const t = tasks.get(id);
-  if (!t) return 0;
-  t.loopIteration = Number.isFinite(t.loopIteration) ? t.loopIteration + 1 : 1;
-  touch(t);
-  persist(t);
-  return t.loopIteration;
-}
-
 export function setExecutionActive(id, active) {
   const t = tasks.get(id);
   if (!t) return;
@@ -450,99 +289,6 @@ export function isExecutionActive(id) {
   return tasks.get(id)?.executionActive === true;
 }
 
-// 连续失败计数：父代理工具循环里若同一轮内连续 N 次失败，主动暂停等用户介入，
-// 避免模型在错误状态下无意义反复重试 → 5/10/25 个失败气泡刷屏。
-// 分两个计数器（均仅运行期，不持久化）：
-// - consecutiveFailures：runtime 类（真实业务或异常失败）；阈值低，重试无意义。
-// - consecutivePrecheckFailures：precheck 类（参数级格式错，模型可自纠）；阈值高，给模型多次纠错机会。
-// 任何一个计数器在成功调用时统一清零，避免"runtime 一次 → 模型纠到 precheck → 又 runtime"地交错堆积。
-export function bumpConsecutiveFailure(id) {
-  const t = tasks.get(id);
-  if (!t) return 0;
-  t.consecutiveFailures = Number.isFinite(t.consecutiveFailures) ? t.consecutiveFailures + 1 : 1;
-  return t.consecutiveFailures;
-}
-
-export function bumpConsecutivePrecheckFailure(id) {
-  const t = tasks.get(id);
-  if (!t) return 0;
-  t.consecutivePrecheckFailures = Number.isFinite(t.consecutivePrecheckFailures)
-    ? t.consecutivePrecheckFailures + 1
-    : 1;
-  return t.consecutivePrecheckFailures;
-}
-
-export function resetConsecutiveFailure(id) {
-  const t = tasks.get(id);
-  if (!t) return;
-  if (t.consecutiveFailures) t.consecutiveFailures = 0;
-  if (t.consecutivePrecheckFailures) t.consecutivePrecheckFailures = 0;
-}
-
-// preview 缓存：子代理在 update/delete 前必须 preview_card；同一 task 内的多个步骤可能针对同一实体，
-// 各自独立跑 preview 浪费时间 / token。这里把命中标记落在 task 内存上，TTL 30s 内同 key 直接放行。
-const PREVIEW_CACHE_TTL_MS = 30_000;
-
-function previewCacheMap(task) {
-  if (!task.previewCache) task.previewCache = new Map();
-  return task.previewCache;
-}
-
-export function markPreviewed(id, key) {
-  const t = tasks.get(id);
-  if (!t || !key) return;
-  previewCacheMap(t).set(key, Date.now() + PREVIEW_CACHE_TTL_MS);
-}
-
-export function hasFreshPreview(id, key) {
-  const t = tasks.get(id);
-  if (!t || !key) return false;
-  const cache = previewCacheMap(t);
-  const expiresAt = cache.get(key);
-  if (!expiresAt) return false;
-  if (expiresAt < Date.now()) {
-    cache.delete(key);
-    return false;
-  }
-  return true;
-}
-
-export function recordAppliedResource(id, entry) {
-  const t = tasks.get(id);
-  if (!t || !entry) return;
-  if (!Array.isArray(t.appliedResources)) t.appliedResources = [];
-  t.appliedResources.push({ at: Date.now(), ...entry });
-  touch(t);
-}
-
-export function findAppliedResource(id, predicate) {
-  const t = tasks.get(id);
-  if (!t || typeof predicate !== 'function') return null;
-  const list = Array.isArray(t.appliedResources) ? t.appliedResources : [];
-  return list.find(predicate) ?? null;
-}
-
-export function clearAppliedResources(id) {
-  const t = tasks.get(id);
-  if (!t) return;
-  if (!Array.isArray(t.appliedResources) || t.appliedResources.length === 0) return;
-  t.appliedResources = [];
-  touch(t);
-}
-
-export function resetLoopState(id) {
-  const t = tasks.get(id);
-  if (!t) return;
-  t.lastToolFailure = null;
-  t.lastSubagentResult = null;
-  t.approvalCheckpoint = null;
-  t.currentStepId = null;
-  t.loopIteration = 0;
-  t.pauseRequested = false;
-  touch(t);
-  persist(t);
-}
-
 export function setModelContext(id, modelContext) {
   const t = tasks.get(id);
   if (!t) return;
@@ -551,41 +297,6 @@ export function setModelContext(id, modelContext) {
   t.modelContext = next;
   touch(t);
   persist(t);
-}
-
-export function setPlanDocContent(id, content) {
-  const t = tasks.get(id);
-  if (!t) return;
-  const next = typeof content === 'string' ? content : '';
-  if (t.planDocContent === next) return;
-  t.planDocContent = next;
-  touch(t);
-  persist(t);
-}
-
-// 结构化计划数据的内存镜像；不发 SSE 事件（前端不消费它，只消费 planDocContent 渲染出的 md）。
-export function setPlanDocData(id, data) {
-  const t = tasks.get(id);
-  if (!t) return;
-  const next = data ?? null;
-  if (JSON.stringify(t.planDocData ?? null) === JSON.stringify(next)) return;
-  t.planDocData = next;
-  touch(t);
-  persist(t);
-}
-
-export function requestPauseAfterCurrentStep(id) {
-  const t = tasks.get(id);
-  if (!t || t.pauseRequested) return;
-  t.pauseRequested = true;
-}
-
-export function consumePauseAfterCurrentStep(id) {
-  const t = tasks.get(id);
-  if (!t) return false;
-  const requested = t.pauseRequested === true;
-  t.pauseRequested = false;
-  return requested;
 }
 
 export function deleteTask(id) {
@@ -667,31 +378,12 @@ export function takeUserMessages(id) {
 export function attachSse(taskId, res) {
   if (!sseClients.has(taskId)) sseClients.set(taskId, new Set());
   sseClients.get(taskId).add(res);
-  const task = tasks.get(taskId);
-  // 重连时清除因短暂断开产生的暂停标志：用户重连说明他们仍在场，不需要暂停。
-  // 真正的用户暂停意图通过 cancelTask API 明确表达，不走此标志。
-  if (task?.status === 'running' && task.pauseRequested) {
-    task.pauseRequested = false;
-    log.info(`CLEAR_STALE_PAUSE_ON_RECONNECT  ${formatMeta({ taskId })}`);
-  }
   log.debug(`ATTACH  ${formatMeta({ taskId, subscribers: sseClients.get(taskId).size })}`);
 }
 
 export function detachSse(taskId, res) {
   sseClients.get(taskId)?.delete(res);
   const remaining = sseClients.get(taskId)?.size ?? 0;
-  const task = tasks.get(taskId);
-  if (remaining === 0 && task?.status === 'running') {
-    // 子代理步骤执行期间（currentStepId 已设置），SSE 断开是预期的长连接波动，
-    // 不触发暂停——子代理结束后父代理会自然继续；子任务完成后若用户仍断线，
-    // 下一次 consumePauseAfterCurrentStep 才会看到 pauseRequested=true。
-    if (task.currentStepId) {
-      log.info(`SKIP_PAUSE_DURING_STEP  ${formatMeta({ taskId, currentStepId: task.currentStepId })}`);
-    } else {
-      requestPauseAfterCurrentStep(taskId);
-      log.info(`PAUSE_ON_DETACH  ${formatMeta({ taskId })}`);
-    }
-  }
   log.debug(`DETACH  ${formatMeta({ taskId, remaining })}`);
 }
 
@@ -738,15 +430,8 @@ export function buildTaskSnapshot(task) {
     context: task.context ?? {},
     messages: Array.isArray(task.messages) ? task.messages : [],
     pendingUserMessages: Array.isArray(task.pendingUserMessages) ? task.pendingUserMessages : [],
-    planDocContent: typeof task.planDocContent === 'string' ? task.planDocContent : '',
     modelContext: task.modelContext ?? null,
     createdAt: task.createdAt ?? null,
-    currentStepId: task.currentStepId ?? null,
-    lastToolFailure: task.lastToolFailure ?? null,
-    lastSubagentResult: task.lastSubagentResult ?? null,
-    approvalCheckpoint: task.approvalCheckpoint ?? null,
-    loopIteration: Number.isFinite(task.loopIteration) ? task.loopIteration : 0,
-    appliedResources: Array.isArray(task.appliedResources) ? task.appliedResources : [],
     error: task.error,
     updatedAt: task.updatedAt ?? null,
   };

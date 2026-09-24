@@ -5,13 +5,11 @@ import { SSE_EVENTS } from '../server/sse-events.js';
 test('SSE_EVENTS 导出所有写卡助手用到的事件类型', () => {
   const expected = [
     'TASK_CREATED', 'TASK_SNAPSHOT', 'TASK_COMPLETED', 'TASK_FAILED', 'TASK_CANCELLED',
-    'PLAN_DOC_UPDATED', 'PLAN_APPROVED',
-    'AWAITING_APPROVAL', 'PAUSED',
-    'STEP_STARTED', 'STEP_COMPLETED', 'STEP_FAILED',
     'TOOL_CALL_STARTED', 'TOOL_CALL_COMPLETED',
     'DELTA', 'DONE',
     'MESSAGES_CHANGED', 'USER_MESSAGE',
   ];
+  assert.deepEqual(Object.keys(SSE_EVENTS).sort(), [...expected].sort());
   for (const key of expected) {
     assert.ok(SSE_EVENTS[key], `应导出 ${key}`);
     assert.equal(typeof SSE_EVENTS[key], 'string', `${key} 应为字符串`);

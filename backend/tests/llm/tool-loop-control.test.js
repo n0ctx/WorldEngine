@@ -187,8 +187,7 @@ test('runToolLoop: 超 maxIterations 兜底 completeNoTools', async () => {
     messages: [{ role: 'user', content: 'x' }],
     toolDefs: [],
     toolHandlers: { foo: async () => 'r' },
-    config: {},
-    maxIterations: 3,
+    config: { maxIterations: 3 },
   });
   assert.equal(out, 'fallback-no-tools');
 });

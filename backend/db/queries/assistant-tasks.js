@@ -21,15 +21,8 @@ function decodeRow(row) {
     context: parseJson(row.context_json, {}),
     messages: parseJson(row.messages_json, []),
     pendingUserMessages: parseJson(row.pending_user_messages_json, []),
-    planDocContent: typeof row.plan_doc_content === 'string' ? row.plan_doc_content : '',
-    planDocData: parseJson(row.plan_doc_data_json, null),
     modelContext: parseJson(row.model_context_json, null),
     createdAt: row.created_at,
-    currentStepId: row.current_step_id ?? null,
-    lastToolFailure: parseJson(row.last_tool_failure_json, null),
-    lastSubagentResult: parseJson(row.last_subagent_result_json, null),
-    approvalCheckpoint: parseJson(row.approval_checkpoint_json, null),
-    loopIteration: Number.isFinite(row.loop_iteration) ? row.loop_iteration : 0,
     error: typeof row.error === 'string' ? row.error : undefined,
     updatedAt: row.updated_at,
   };
@@ -38,24 +31,16 @@ function decodeRow(row) {
 export function upsertAssistantTask(task) {
   db.prepare(`
     INSERT INTO assistant_tasks (
-      id, status, context_json, messages_json, pending_user_messages_json, plan_doc_content,
-      plan_doc_data_json, model_context_json, created_at, current_step_id, last_tool_failure_json,
-      last_subagent_result_json, approval_checkpoint_json, loop_iteration, error, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      id, status, context_json, messages_json, pending_user_messages_json,
+      model_context_json, created_at, error, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     ON CONFLICT(id) DO UPDATE SET
       status = excluded.status,
       context_json = excluded.context_json,
       messages_json = excluded.messages_json,
       pending_user_messages_json = excluded.pending_user_messages_json,
-      plan_doc_content = excluded.plan_doc_content,
-      plan_doc_data_json = excluded.plan_doc_data_json,
       model_context_json = excluded.model_context_json,
       created_at = excluded.created_at,
-      current_step_id = excluded.current_step_id,
-      last_tool_failure_json = excluded.last_tool_failure_json,
-      last_subagent_result_json = excluded.last_subagent_result_json,
-      approval_checkpoint_json = excluded.approval_checkpoint_json,
-      loop_iteration = excluded.loop_iteration,
       error = excluded.error,
       updated_at = excluded.updated_at
   `).run(
@@ -64,15 +49,8 @@ export function upsertAssistantTask(task) {
     encodeJson(task.context, {}),
     encodeJson(task.messages, []),
     encodeJson(task.pendingUserMessages, []),
-    typeof task.planDocContent === 'string' ? task.planDocContent : '',
-    task.planDocData == null ? null : encodeJson(task.planDocData, null),
     task.modelContext == null ? null : encodeJson(task.modelContext, null),
     task.createdAt,
-    task.currentStepId ?? null,
-    task.lastToolFailure == null ? null : encodeJson(task.lastToolFailure, null),
-    task.lastSubagentResult == null ? null : encodeJson(task.lastSubagentResult, null),
-    task.approvalCheckpoint == null ? null : encodeJson(task.approvalCheckpoint, null),
-    Number.isFinite(task.loopIteration) ? task.loopIteration : 0,
     task.error ?? null,
     task.updatedAt,
   );
