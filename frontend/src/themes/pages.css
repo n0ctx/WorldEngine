@@ -234,21 +234,21 @@
   z-index: var(--we-z-card-content);
   border-radius: inherit;
   padding: 1px;
-  background: radial-gradient(200px circle at var(--glow-x) var(--glow-y), color-mix(in srgb, var(--we-atmosphere-color) 75%, white), transparent 100%);
+  background: radial-gradient(160px circle at var(--glow-x) var(--glow-y), color-mix(in srgb, var(--we-atmosphere-color) 75%, white), transparent 100%);
   -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
   -webkit-mask-composite: xor;
   mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
 }
 
-/* 半径 200px、径向到 80% 透明、24px 模糊：取自 MagicCard 的 gradientSize 与 Spotlight 的衰减 / blur-xl */
+/* 半径 160px、径向到 80% 透明、24px 模糊：与边缘光同径，两侧抽屉的指针高光也是 160px */
 .we-world-card-glow-surface {
   top: 0;
   left: 0;
-  width: 200px;
-  height: 200px;
+  width: 160px;
+  height: 160px;
   z-index: var(--we-z-card-overlay);
   border-radius: var(--we-radius-full);
-  transform: translate(calc(var(--glow-x) - 100px), calc(var(--glow-y) - 100px));
+  transform: translate(calc(var(--glow-x) - 80px), calc(var(--glow-y) - 80px));
   background: radial-gradient(circle at center, color-mix(in srgb, var(--we-atmosphere-color) 70%, transparent), transparent 80%);
   filter: blur(24px);
   mix-blend-mode: screen;
@@ -3695,7 +3695,7 @@
 .we-side-drawer::before {
   z-index: -1;
   background: radial-gradient(
-    260px circle at var(--pointer-x, 50%) var(--pointer-y, 0%),
+    160px circle at var(--pointer-x, 50%) var(--pointer-y, 0%),
     var(--we-pane-glow),
     transparent 70%
   );
