@@ -46,7 +46,7 @@ export default function ConfirmModal({
         onClick={() => { if (mouseDownOnBackdrop.current && !confirming) onClose(); }}
       >
         <motion.div
-          className="we-dialog-panel we-confirm-panel w-full max-w-sm mx-4"
+          className="we-dialog-panel we-material we-confirm-panel w-full max-w-sm mx-4"
           variants={m.variant('overlayEnter')}
           initial="hidden"
           animate="visible"

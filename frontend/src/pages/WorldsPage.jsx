@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { motion, useMotionTemplate, useMotionValue, useSpring } from 'framer-motion';
+import { Download, Ellipsis, PencilLine, Plus, Trash2, Upload } from 'lucide-react';
 import { getWorlds, deleteWorld, reorderWorlds, updateWorld } from '../core/api/worlds';
 import SortableGrid from '../components/ui/SortableGrid';
 import { getCharactersByWorld } from '../core/api/characters';
@@ -15,7 +16,6 @@ import EmptyState from '../components/ui/EmptyState.jsx';
 import AvatarCircle from '../components/ui/AvatarCircle.jsx';
 import WorldSceneArt from '../components/ui/WorldSceneArt.jsx';
 import Button from '../components/ui/Button.jsx';
-import Icon from '../components/ui/Icon.jsx';
 import { log } from '../core/utils/logger.js';
 import { useMotion } from '../core/hooks/useMotion.js';
 import { STAGGER } from '../core/utils/motion.js';
@@ -24,6 +24,51 @@ import { STAGGER } from '../core/utils/motion.js';
 const ENTER_STAGGER_CAP = 8;
 // 入口上用头像表达角色数量：最多露出这么多张脸，其余折成 +N
 const CAST_PREVIEW = 4;
+
+// 跟随光出现时的透明度（取自 Magic UI MagicCard 的 gradientOpacity；半径 200px 写在 pages.css）
+const GLOW_OPACITY = 0.8;
+
+// 跟随指针的光：挂在入口卡片里，监听卡片本身的指针；位置与指针同步，只有出现 / 消失走弹簧，
+// 以 CSS 变量交给 pages.css 画边缘光与表面光两层
+function PortalGlow({ fade }) {
+  const ref = useRef(null);
+  const pointerX = useMotionValue(0);
+  const pointerY = useMotionValue(0);
+  const visible = useSpring(0, fade);
+  const glowX = useMotionTemplate`${pointerX}px`;
+  const glowY = useMotionTemplate`${pointerY}px`;
+
+  useEffect(() => {
+    const card = ref.current?.parentElement;
+    if (!card) return undefined;
+    const controller = new AbortController();
+    const { signal } = controller;
+    const track = (e) => {
+      const rect = card.getBoundingClientRect();
+      pointerX.set(e.clientX - rect.left);
+      pointerY.set(e.clientY - rect.top);
+    };
+    card.addEventListener('pointerenter', (e) => {
+      track(e);
+      visible.set(GLOW_OPACITY);
+    }, { signal });
+    card.addEventListener('pointermove', track, { signal });
+    card.addEventListener('pointerleave', () => visible.set(0), { signal });
+    return () => controller.abort();
+  }, [pointerX, pointerY, visible]);
+
+  return (
+    <motion.span
+      ref={ref}
+      className="we-world-card-glow"
+      aria-hidden="true"
+      style={{ '--glow-x': glowX, '--glow-y': glowY, '--glow-opacity': visible }}
+    >
+      <span className="we-world-card-glow-surface" />
+      <span className="we-world-card-glow-rim" />
+    </motion.span>
+  );
+}
 
 // 背景氛围取这个世界的颜色：已存的封面主色 → 本页临时从封面取的色 → 无封面时生成场景的光源色；
 // 有封面但取色还没回来时返回 null，先沿用主题默认色
@@ -40,6 +85,7 @@ export default function WorldsPage() {
   const setAmbientTint = useStore((s) => s.setAmbientTint);
   const m = useMotion();
   const sceneEnter = m.variant('sceneEnter');
+  const glowFade = m.follow('glowFade');
 
   const [worlds, setWorlds] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -181,11 +227,7 @@ export default function WorldsPage() {
             onClick={() => worldImportRef.current?.click()}
             disabled={importingWorld}
           >
-            <Icon size={16}>
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-              <polyline points="17 8 12 3 7 8" />
-              <line x1="12" y1="3" x2="12" y2="15" />
-            </Icon>
+            <Upload size={16} />
             {importingWorld ? '导入中…' : '导入世界卡'}
           </Button>
           <input
@@ -200,10 +242,7 @@ export default function WorldsPage() {
             className="we-worlds-header-btn we-worlds-header-btn--create"
             onClick={() => navigate('/worlds/new', { state: { backgroundLocation: location } })}
           >
-            <Icon size={16}>
-              <line x1="12" y1="5" x2="12" y2="19" />
-              <line x1="5" y1="12" x2="19" y2="12" />
-            </Icon>
+            <Plus size={16} />
             创建世界
           </Button>
         </div>
@@ -272,7 +311,7 @@ export default function WorldsPage() {
               >
                 <motion.div
                   data-dragging={isDragging || undefined}
-                  className={`we-world-card${world.cover_path ? ' we-world-card--has-cover' : ' we-world-card--tinted'}${isFeature ? ' we-world-card--feature' : ''}`}
+                  className={`we-world-card we-material${world.cover_path ? ' we-world-card--has-cover' : ' we-world-card--tinted'}${isFeature ? ' we-world-card--feature' : ''}`}
                   role="link"
                   tabIndex={0}
                   aria-label={world.name}
@@ -309,6 +348,7 @@ export default function WorldsPage() {
                     <WorldSceneArt name={world.name} className="we-world-card-bg we-world-card-scene" />
                   )}
                   <div className="we-world-card-overlay" />
+                  {glowFade && !isDragging ? <PortalGlow fade={glowFade} /> : null}
 
                   <div className="we-world-card-foot">
                     <h3 className="we-world-card-name">{world.name}</h3>
@@ -350,11 +390,7 @@ export default function WorldsPage() {
                           title="导出世界卡"
                           aria-label="导出世界卡"
                         >
-                          <Icon size={16}>
-                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                            <polyline points="7 10 12 15 17 10" />
-                            <line x1="12" y1="15" x2="12" y2="3" />
-                          </Icon>
+                          <Download size={16} />
                         </button>
                         <button
                           className="we-world-card-action-btn"
@@ -362,10 +398,7 @@ export default function WorldsPage() {
                           title="编辑"
                           aria-label="编辑世界"
                         >
-                          <Icon size={16}>
-                            <path d="M12 20h9" />
-                            <path d="M16.5 3.5a2.12 2.12 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
-                          </Icon>
+                          <PencilLine size={16} />
                         </button>
                         <button
                           className="we-world-card-action-btn danger"
@@ -373,10 +406,7 @@ export default function WorldsPage() {
                           title="删除"
                           aria-label="删除世界"
                         >
-                          <Icon size={16}>
-                            <line x1="18" y1="6" x2="6" y2="18" />
-                            <line x1="6" y1="6" x2="18" y2="18" />
-                          </Icon>
+                          <Trash2 size={16} />
                         </button>
                       </>
                     ) : null}
@@ -387,11 +417,7 @@ export default function WorldsPage() {
                       aria-expanded={actionsOpen}
                       title="更多操作"
                     >
-                      <Icon size={16}>
-                        <circle cx="5" cy="12" r="1" />
-                        <circle cx="12" cy="12" r="1" />
-                        <circle cx="19" cy="12" r="1" />
-                      </Icon>
+                      <Ellipsis size={16} />
                     </button>
                   </div>
                 </motion.div>

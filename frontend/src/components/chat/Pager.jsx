@@ -1,3 +1,5 @@
+import { ChevronLeft, ChevronRight } from 'lucide-react';
+
 /**
  * 翻页条（受控组件）：只渲染按钮与页码，不维护自己的状态、不计算切片。
  * 由父组件注入 totalPages / currentPage / onChange；totalPages <= 1 时不渲染。
@@ -23,9 +25,7 @@ export default function Pager({ totalPages, currentPage, onChange }) {
         aria-label="上一页"
         title="上一页"
       >
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-          <polyline points="15 18 9 12 15 6" />
-        </svg>
+        <ChevronLeft size={20} />
       </button>
       <span className="we-pager-label">
         <span className="we-pager-index">第 {current + 1} / {totalPages} 页</span>
@@ -38,9 +38,7 @@ export default function Pager({ totalPages, currentPage, onChange }) {
         aria-label="下一页"
         title="下一页"
       >
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-          <polyline points="9 18 15 12 9 6" />
-        </svg>
+        <ChevronRight size={20} />
       </button>
     </div>
   );

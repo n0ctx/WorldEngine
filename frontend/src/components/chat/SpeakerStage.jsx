@@ -11,7 +11,7 @@ export default function SpeakerStage({ character }) {
         {character ? (
           <motion.div
             key={character.id}
-            className="we-speaker-stage__cast"
+            className="we-speaker-stage__cast we-material"
             variants={m.variant('speakerEnter')}
             initial="hidden"
             animate="visible"

@@ -129,10 +129,18 @@
   --we-atmosphere-opacity-quiet: 0.35;              /* 阅读页光尘强度 */
   --we-atmosphere-glow-strength: 14%;               /* 静态光晕浓度 */
   --we-atmosphere-grain: 0.04;                      /* 胶片颗粒强度，0 为关闭 */
-  /* 世界入口：细光描边代替实色边框，外阴影只留一层接地影 */
-  --we-entry-edge: inset 0 0 0 1px rgba(255, 255, 255, 0.07), inset 0 1px 0 rgba(255, 255, 255, 0.10);
-  --we-entry-shadow: 0 18px 40px -22px rgba(23, 23, 23, 0.30);
-  --we-entry-shadow-hover: 0 28px 56px -24px rgba(23, 23, 23, 0.30);
+  /* 表面材料（世界入口、台前、消息、输入胶囊、弹窗）：暗色描边、内侧光与顶部窄高光、静态颗粒、近实远淡的接地阴影 */
+  --we-material-stroke: rgba(23, 23, 23, 0.16);
+  --we-material-sheen: rgba(255, 255, 255, 0.14);
+  --we-material-grain: 0.03;                        /* 表面颗粒强度，0 为关闭 */
+  --we-material-shadow-near: 0 1px 1px rgba(23, 23, 23, 0.14), 0 2px 4px -2px rgba(23, 23, 23, 0.14);
+  --we-material-shadow-far: 0 12px 24px -14px rgba(23, 23, 23, 0.20), 0 32px 56px -32px rgba(23, 23, 23, 0.30);
+  --we-material-shadow-lift: 0 16px 28px -14px rgba(23, 23, 23, 0.20), 0 40px 68px -34px rgba(23, 23, 23, 0.30);
+  /* 有厚度的按钮（发送、确认）：面、厚度、按下时的收薄；颗粒贴图 */
+  /* --we-material-raised-face:    linear-gradient(180deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0) 55%, rgba(0, 0, 0, 0.10)); */
+  /* --we-material-raised:         inset 0 1px 0 rgba(255, 255, 255, 0.28), inset 0 -1px 0 rgba(0, 0, 0, 0.20), 0 1px 1px var(--we-color-shadow-md), 0 6px 12px -6px var(--we-color-shadow-lg); */
+  /* --we-material-raised-pressed: inset 0 1px 2px rgba(0, 0, 0, 0.24), 0 1px 1px var(--we-color-shadow-sm); */
+  /* --we-grain-image:             url("data:image/svg+xml,…feTurbulence…"); */
   --we-atmosphere-scrim: radial-gradient(ellipse 64% 110% at 50% 50%, rgba(247, 247, 244, 0.88) 0%, rgba(247, 247, 244, 0.64) 62%, transparent 100%);
   --we-stage-surface: transparent;                  /* 页面内容区的底；浅色纸面主题可铺实底 */
   --we-glass-bg: rgba(255, 255, 255, 0.8);          /* 侧栏/设置/弹窗/输入胶囊的半透明底 */
@@ -274,12 +282,7 @@
 
   /* Composer 底部输入栏皮肤（chat / writing 共用）；默认复刻中性观感，按需覆盖 */
   /* --we-composer-field-bg:              var(--we-color-ink-wash); */
-  /* --we-composer-field-border:          1px solid var(--we-color-border-default); */
-  /* --we-composer-field-shadow:          none; */
   /* --we-composer-btn-border:            1px solid var(--we-color-border-default); */
-  /* --we-composer-send-shadow:           0 1px 2px var(--we-color-shadow-sm); */
-  /* --we-composer-send-hover-shadow:     0 4px 12px var(--we-color-shadow-md); */
-  /* --we-composer-send-active-shadow:    0 1px 2px var(--we-color-shadow-sm); */
 
   /* 标题栏 / 书脊 chrome（chat 顶部栏 + 左侧会话列表）；默认复刻中性观感 */
   /* 三栏分隔竖线（左会话 / 中正文 / 右状态）；默认柔化 hairline */

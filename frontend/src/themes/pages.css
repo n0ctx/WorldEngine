@@ -101,7 +101,10 @@
   border-radius: var(--we-radius-lg);
   background:
     linear-gradient(180deg, var(--we-bookshelf-empty-bg) 0%, var(--we-color-ink-wash-strong) 100%);
-  box-shadow: var(--we-entry-edge), inset 0 0 120px var(--we-color-ink-wash-strong);
+  box-shadow:
+    0 0 0 1px var(--we-material-stroke),
+    inset 0 0 0 1px color-mix(in srgb, var(--we-material-sheen) 40%, transparent),
+    inset 0 0 120px var(--we-color-ink-wash-strong);
   overflow: hidden;
 }
 
@@ -170,22 +173,23 @@
   padding: var(--we-space-lg);
   border-radius: var(--we-radius-lg);
   background: var(--we-card-bg);
-  box-shadow: var(--we-entry-shadow);
+  box-shadow:
+    0 0 0 1px var(--we-material-stroke),
+    var(--we-material-shadow-near),
+    var(--we-material-shadow-far);
   cursor: pointer;
   overflow: hidden;
   z-index: var(--we-z-card-overlay);
-  /* 靠近 / 压缩 / 回弹由 framer 弹簧驱动（WorldsPage），CSS 只过渡投影 */
+  /* 让位 / 压缩 / 回弹由 framer 弹簧驱动（WorldsPage），CSS 只过渡投影 */
   transition: box-shadow var(--we-duration-normal) var(--we-easing-sharp);
 }
 
-/* 边缘高光单独一层压在画面之上：封面图不会盖住描边，边缘始终是一圈细光而不是硬切 */
-.we-world-card::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  box-shadow: var(--we-entry-edge);
-  pointer-events: none;
+/* 材料层压在封面之上：颗粒在遮罩下、正文下，边缘光与高光在最上，封面不会盖住描边 */
+.we-world-card.we-material::before {
+  z-index: var(--we-z-card-overlay);
+}
+
+.we-world-card.we-material::after {
   z-index: var(--we-z-card-content);
 }
 
@@ -194,20 +198,58 @@
   padding: clamp(var(--we-space-lg), 2.4vw, var(--we-space-2xl));
 }
 
-/* 悬停 / 聚焦：门框透出这个世界的光（背景氛围此时也换成同一种颜色） */
+/* 悬停：入口轻轻让位，远影随之稍微离开地面；近影不变，物件仍落在原处 */
 .we-world-card:hover,
 .we-world-card[data-dragging] {
   box-shadow:
-    var(--we-entry-shadow-hover),
-    0 0 72px -20px color-mix(in srgb, var(--we-atmosphere-color) 35%, transparent);
+    0 0 0 1px var(--we-material-stroke),
+    var(--we-material-shadow-near),
+    var(--we-material-shadow-lift);
 }
 
 .we-world-card:focus-visible {
   outline: none;
   box-shadow:
     var(--we-focus-ring),
-    var(--we-entry-shadow-hover),
-    0 0 72px -20px color-mix(in srgb, var(--we-atmosphere-color) 35%, transparent);
+    var(--we-material-shadow-near),
+    var(--we-material-shadow-lift);
+}
+
+/* 跟随指针的光（WorldsPage 的 PortalGlow）：边缘光只露 1px 的环，表面光是一团模糊的氛围色，两层分开 */
+.we-world-card-glow {
+  display: contents;
+}
+
+.we-world-card-glow-rim,
+.we-world-card-glow-surface {
+  position: absolute;
+  pointer-events: none;
+  opacity: var(--glow-opacity, 0);
+}
+
+.we-world-card-glow-rim {
+  inset: 0;
+  z-index: var(--we-z-card-content);
+  border-radius: inherit;
+  padding: 1px;
+  background: radial-gradient(200px circle at var(--glow-x) var(--glow-y), color-mix(in srgb, var(--we-atmosphere-color) 75%, white), transparent 100%);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+}
+
+/* 半径 200px、径向到 80% 透明、24px 模糊：取自 MagicCard 的 gradientSize 与 Spotlight 的衰减 / blur-xl */
+.we-world-card-glow-surface {
+  top: 0;
+  left: 0;
+  width: 200px;
+  height: 200px;
+  z-index: var(--we-z-card-overlay);
+  border-radius: var(--we-radius-full);
+  transform: translate(calc(var(--glow-x) - 100px), calc(var(--glow-y) - 100px));
+  background: radial-gradient(circle at center, color-mix(in srgb, var(--we-atmosphere-color) 70%, transparent), transparent 80%);
+  filter: blur(24px);
+  mix-blend-mode: screen;
 }
 
 .we-world-card[data-dragging] {

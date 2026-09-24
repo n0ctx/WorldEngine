@@ -43,6 +43,8 @@ export function useMotion() {
       if (reduced) return {};
       return disabled ? { transition: SPRING[key] } : { ...GESTURE[key], transition: SPRING[key] };
     },
+    // 跟随指针的光（显隐）用的弹簧；reduced 模式下返回 null，调用方不渲染跟随光
+    follow: (key) => (reduced ? null : SPRING[key]),
     // variants 预设；reduced 模式下去掉位移 / 缩放 / 模糊，只保留透明度
     variant: (key) => {
       const v = motionVariants[key];

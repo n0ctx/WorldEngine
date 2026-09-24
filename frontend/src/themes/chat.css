@@ -102,16 +102,18 @@
 }
 
 /* ── Bubble containers ─────────────────────────────────── */
-/* AI 叙事就是舞台正文本身：不设背景/边框，段间距靠外层 row 的 padding 撑开。
-   玩家行动是走上台的一句台词：圆角台词卡，按内容收宽。 */
+/* 两侧同一种材料（.we-material），靠光区分：
+   角色叙事是一块铺满读宽的玻璃面，左上沿有一道氛围色边缘光，接地阴影完整；
+   玩家台词按内容收宽，没有氛围色，只留近处一层阴影，更安静。 */
 
 .we-message-bubble-user {
   width: fit-content;
   max-width: 100%;
-  background: var(--we-color-bg-surface);
-  border: 1px solid var(--we-color-border-subtle);
+  background: color-mix(in srgb, var(--we-color-bg-canvas) 45%, transparent);
   border-radius: var(--we-radius-sm) var(--we-radius-lg) var(--we-radius-lg) var(--we-radius-lg);
-  box-shadow: var(--we-shadow-paper-lift);
+  box-shadow:
+    0 0 0 1px var(--we-material-stroke),
+    var(--we-material-shadow-near);
   padding: var(--we-space-sm) var(--we-space-lg);
   font-family: var(--we-font-prose);
   font-size: var(--we-text-prose);
@@ -119,7 +121,20 @@
 }
 
 .we-message-bubble-assistant {
+  --material-rim:
+    inset 0 1px 0 color-mix(in srgb, var(--we-atmosphere-color) 60%, transparent),
+    inset 1px 0 0 color-mix(in srgb, var(--we-atmosphere-color) 28%, transparent),
+    inset 0 0 28px -12px color-mix(in srgb, var(--we-atmosphere-color) 45%, transparent);
   width: 100%;
+  padding: var(--we-space-md) var(--we-space-lg);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--we-atmosphere-color) 8%, transparent), transparent 120px),
+    color-mix(in srgb, var(--we-color-bg-elevated) 70%, transparent);
+  border-radius: var(--we-radius-lg);
+  box-shadow:
+    0 0 0 1px var(--we-material-stroke),
+    var(--we-material-shadow-near),
+    var(--we-material-shadow-far);
   font-family: var(--we-font-prose);
   font-size: var(--we-text-prose);
   line-height: var(--we-leading-prose);
@@ -407,20 +422,41 @@
   min-width: 0;
 }
 
-/* 头像背后一圈氛围色的光，与背景光尘同色 */
+/* 台前底板：与消息同一种材料，但更有存在感——氛围色边缘光绕满一圈，接地阴影离地更远 */
+.we-speaker-stage__cast.we-material {
+  --material-rim:
+    inset 0 0 0 1px color-mix(in srgb, var(--we-atmosphere-color) 22%, transparent),
+    inset 0 1px 0 color-mix(in srgb, var(--we-atmosphere-color) 40%, transparent),
+    inset 0 0 32px -14px color-mix(in srgb, var(--we-atmosphere-color) 45%, transparent);
+  width: fit-content;
+  max-width: 100%;
+  padding: var(--we-space-sm) var(--we-space-xl) var(--we-space-sm) var(--we-space-sm);
+  background: var(--we-glass-bg);
+  backdrop-filter: blur(var(--we-glass-blur));
+  border-radius: var(--we-radius-full);
+  box-shadow:
+    0 0 0 1px var(--we-material-stroke),
+    var(--we-material-shadow-near),
+    var(--we-material-shadow-lift);
+}
+
 .we-speaker-stage__halo {
   display: inline-flex;
   border-radius: var(--we-radius-full);
-  box-shadow: 0 0 32px -2px color-mix(in srgb, var(--we-atmosphere-color) 32%, transparent);
 }
 
-/* 台前头像：细环代替主色粗环；没有头像时是玻璃底上的一个淡字，不再是主色大字 */
+/* 台前头像：暗描边包住头像，内侧顶部一道窄高光；没有头像时是有微弱体积的底上的一个首字 */
 .we-speaker-stage .we-character-seal {
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--we-atmosphere-color) 45%, transparent);
+  box-shadow:
+    0 0 0 1px var(--we-material-stroke),
+    inset 0 1px 0 var(--we-material-sheen),
+    var(--we-material-shadow-near);
 }
 
 .we-speaker-stage .we-character-seal--initial {
-  background: var(--we-glass-bg);
+  background:
+    radial-gradient(120% 90% at 30% 15%, color-mix(in srgb, var(--we-atmosphere-color) 22%, transparent), transparent 70%),
+    linear-gradient(180deg, var(--we-color-bg-elevated), var(--we-color-bg-surface));
   color: var(--we-color-text-primary);
   font-family: var(--we-font-display);
   font-weight: 500;
@@ -1089,27 +1125,29 @@
   gap: var(--we-space-sm);
   padding: var(--we-space-xs);
   background: var(--we-composer-field-bg);
-  border: var(--we-composer-field-border);
   border-radius: var(--we-radius-xl);
-  box-shadow: var(--we-composer-field-shadow);
+  box-shadow:
+    0 0 0 1px var(--we-material-stroke),
+    var(--we-material-shadow-near),
+    var(--we-material-shadow-far);
   backdrop-filter: blur(var(--we-glass-blur));
-  transition: border-color var(--we-duration-normal), box-shadow var(--we-duration-normal);
 }
 
+/* 静止时只有暗描边与高光；聚焦时氛围色边缘光才亮起 */
 .we-chat-input__row:focus-within {
-  border-color: var(--we-color-border-focus);
-  box-shadow: var(--we-composer-field-shadow), var(--we-focus-ring);
+  --material-rim:
+    inset 0 0 0 1px color-mix(in srgb, var(--we-atmosphere-color) 55%, transparent),
+    inset 0 0 20px -10px color-mix(in srgb, var(--we-atmosphere-color) 60%, transparent);
 }
 
 .we-chat-input__attach-btn {
   flex-shrink: 0;
   padding: var(--we-space-sm);
-  color: var(--we-color-text-tertiary);
+  color: var(--we-color-text-secondary);
   background: none;
   border: none;
   cursor: pointer;
-  opacity: 0.7;
-  transition: opacity var(--we-duration-fast), background var(--we-duration-fast), color var(--we-duration-fast);
+  transition: background var(--we-duration-fast), color var(--we-duration-fast);
   border-radius: var(--we-radius-full);
   display: inline-flex;
   align-items: center;
@@ -1117,15 +1155,13 @@
 }
 
 .we-chat-input__attach-btn:hover:not(:disabled) {
-  opacity: 1;
-  color: var(--we-color-accent);
-  background: var(--we-color-accent-bg);
+  color: var(--we-color-text-primary);
+  background: var(--we-color-white-wash);
 }
 
 .we-chat-input__attach-btn:focus-visible {
   outline: none;
-  opacity: 1;
-  color: var(--we-color-accent);
+  color: var(--we-color-text-primary);
   box-shadow: var(--we-focus-ring);
 }
 
@@ -1249,38 +1285,34 @@
   border-radius: var(--we-radius-full);
   color: var(--we-color-text-tertiary);
   cursor: pointer;
-  opacity: 0.65;
-  transition: opacity var(--we-duration-fast),
-              border-color var(--we-duration-fast),
-              color var(--we-duration-fast),
+  transition: color var(--we-duration-fast),
               background var(--we-duration-fast);
 }
 
+/* 悬停只提亮图标并垫一层极淡的底，不再套主色描边框 */
 .we-chat-quick-btn:hover:not(:disabled) {
-  opacity: 1;
-  color: var(--we-color-accent);
-  border-color: var(--we-color-accent);
-  background: var(--we-color-accent-bg);
+  color: var(--we-color-text-primary);
+  background: var(--we-color-white-wash);
 }
 
 .we-chat-quick-btn:focus-visible {
   outline: none;
-  opacity: 1;
-  color: var(--we-color-accent);
-  border-color: var(--we-color-border-focus);
+  color: var(--we-color-text-primary);
   box-shadow: var(--we-focus-ring);
 }
 
 .we-chat-quick-btn:disabled {
-  opacity: 0.25;
+  opacity: 0.35;
   cursor: not-allowed;
 }
 
 /* Main textarea */
 .we-chat-textarea {
+  display: block; /* 行内文本域会在下方留出基线空隙，把胶囊撑高、文字偏上 */
   width: 100%;
   /* 可见的输入胶囊由外层 .we-chat-input__row 承担，文本域本身不画框 */
-  padding: 6px var(--we-space-sm); /* design exact: 单行时与 36px 发送按钮垂直居中 */
+  /* 单行总高 = 36px，与两侧 36px 的图片 / 发送按钮同高，文字与图标居中对齐 */
+  padding: calc((36px - 1.65em) / 2) var(--we-space-sm); /* design exact: 36px 两侧按钮直径 */
   background: transparent;
   border: none;
   font-family: var(--we-font-prose);
@@ -1293,7 +1325,7 @@
   /* 上限 ≈ 10 行正文(line-height 1.65)+ 上下 padding + 边框。
      缺这个上限时 adjustHeight() 会按 scrollHeight 无限撑高，
      把上方消息区挤成 0 高度；超出后改由 textarea 自身滚动。 */
-  max-height: calc(1.65em * 10 + 12px);
+  max-height: calc(1.65em * 9 + 36px);
   overflow-y: auto;
 }
 
@@ -1315,29 +1347,29 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: var(--we-color-accent);
+  background: var(--we-material-raised-face), var(--we-color-accent);
   color: var(--we-color-text-inverse);
   border: none;
   border-radius: var(--we-radius-full);
   cursor: pointer;
-  box-shadow: var(--we-composer-send-shadow);
-  /* 按压 / 回弹由 framer 弹簧驱动（InputBox），CSS 只过渡阴影与颜色 */
+  box-shadow: var(--we-material-raised);
+  /* 陷落 / 回弹由 framer 弹簧驱动（InputBox），CSS 只把厚度收进去 */
   transition: box-shadow var(--we-duration-fast),
-              background var(--we-duration-fast),
+              filter var(--we-duration-fast),
               opacity var(--we-duration-fast);
 }
 
 .we-chat-send-btn:hover:not(:disabled) {
-  box-shadow: var(--we-composer-send-hover-shadow);
+  filter: brightness(1.06);
 }
 
 .we-chat-send-btn:active:not(:disabled) {
-  box-shadow: var(--we-composer-send-active-shadow);
+  box-shadow: var(--we-material-raised-pressed);
 }
 
 .we-chat-send-btn:focus-visible {
   outline: none;
-  box-shadow: var(--we-focus-ring), var(--we-composer-send-shadow);
+  box-shadow: var(--we-focus-ring), var(--we-material-raised);
 }
 
 .we-chat-send-btn:disabled {

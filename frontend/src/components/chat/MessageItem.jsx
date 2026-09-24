@@ -13,6 +13,7 @@ import { useDisplaySettingsStore } from '../../core/state/displaySettings.js';
 import { isImeComposing } from '../../core/utils/ime.js';
 import { useEscapeKey } from '../../core/hooks/useEscapeKey.js';
 
+import { Copy, PencilLine, RotateCcw, Trash2 } from 'lucide-react';
 import CharacterSeal from './CharacterSeal.jsx';
 import InterruptedMark from './InterruptedMark.jsx';
 import ActivatedEntriesRow from './ActivatedEntriesRow.jsx';
@@ -200,10 +201,7 @@ function CopyButton({ getText }) {
   }
   return (
     <button onClick={copy} aria-label={copied ? '已复制到剪贴板' : '复制消息内容'}>
-      <Icon size={16}>
-        <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
-        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-      </Icon>
+      <Copy size={16} />
       {copied ? '已复制' : '复制'}
     </button>
   );
@@ -232,12 +230,7 @@ function DeleteButton({ onDelete }) {
       aria-label={confirming ? '确认删除消息' : '删除消息'}
       className={confirming ? 'we-delete-btn--confirming' : undefined}
     >
-      <Icon size={16}>
-        <polyline points="3 6 5 6 21 6" />
-        <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
-        <path d="M10 11v6M14 11v6" />
-        <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
-      </Icon>
+      <Trash2 size={16} />
       {confirming ? '确认？' : '删除'}
     </button>
   );
@@ -329,7 +322,7 @@ export default function MessageItem({
           <CharacterSeal character={character} size={40} />
           <div className="we-message-body--assistant">
             <div className="we-message-label">{speakerName}</div>
-            <div className="we-message-bubble-assistant">
+            <div className="we-message-bubble-assistant we-material">
               <div className="we-message-content we-typing-dots">
                 <span className="typing-dot" />
                 <span className="typing-dot" />
@@ -355,7 +348,7 @@ export default function MessageItem({
             <div className="we-message-label">
               {speakerName}
             </div>
-            <div className={`we-message-bubble-user${editing ? ' we-message-bubble--editing' : ''}`}>
+            <div className={`we-message-bubble-user we-material${editing ? ' we-message-bubble--editing' : ''}`}>
               <SeamlessEditableSurface
                 editing={editing}
                 selectEnd
@@ -397,10 +390,7 @@ export default function MessageItem({
                   <span className="we-action-time">{formatTime(message.created_at)}</span>
                   <CopyButton getText={() => message.content} />
                   <button onClick={startEdit} aria-label="编辑消息">
-                    <Icon size={16}>
-                      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                    </Icon>
+                    <PencilLine size={16} />
                     编辑
                   </button>
                   {onDelete && <DeleteButton onDelete={() => onDelete(message.id)} />}
@@ -426,7 +416,7 @@ export default function MessageItem({
             {speakerName}
             {interrupted && <span className="we-message-interrupted">已中断</span>}
           </div>
-          <div className={`we-message-bubble-assistant${editingAI ? ' we-message-bubble--editing' : ''}`}>
+          <div className={`we-message-bubble-assistant we-material${editingAI ? ' we-message-bubble--editing' : ''}`}>
             <SeamlessEditableSurface
               editing={editingAI}
               trackValue={aiDraft}
@@ -520,17 +510,11 @@ export default function MessageItem({
                       <span className="we-action-time">{formatTime(message.created_at)}</span>
                       <CopyButton getText={() => displayContent} />
                       <button onClick={() => onRegenerate(message.id)} aria-label="重新生成 AI 回复">
-                        <Icon size={16}>
-                          <polyline points="1 4 1 10 7 10" />
-                          <path d="M3.51 15a9 9 0 1 0 .49-4.98" />
-                        </Icon>
+                        <RotateCcw size={16} />
                         重新生成
                       </button>
                       <button onClick={startEditAI} aria-label="编辑 AI 回复">
-                        <Icon size={16}>
-                          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                        </Icon>
+                        <PencilLine size={16} />
                         编辑
                       </button>
                       {onDelete && <DeleteButton onDelete={() => onDelete(message.id)} />}

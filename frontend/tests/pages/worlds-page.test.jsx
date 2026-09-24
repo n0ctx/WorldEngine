@@ -15,6 +15,12 @@ const mocks = vi.hoisted(() => ({
   downloadWorldCard: vi.fn(),
   updateWorld: vi.fn(),
   extractAccentColorFromImageSrc: vi.fn(),
+  useReducedMotion: vi.fn(),
+}));
+
+vi.mock('framer-motion', async (importOriginal) => ({
+  ...(await importOriginal()),
+  useReducedMotion: () => mocks.useReducedMotion(),
 }));
 
 vi.mock('react-router-dom', () => ({
@@ -65,7 +71,25 @@ describe('WorldsPage', () => {
     mocks.updateWorld.mockReset();
     mocks.extractAccentColorFromImageSrc.mockReset();
     mocks.extractAccentColorFromImageSrc.mockResolvedValue('#7f95a8');
+    mocks.useReducedMotion.mockReturnValue(false);
     global.alert = vi.fn();
+  });
+
+  it('入口带跟随指针的光；减少动效时不渲染跟随光，材料仍在', async () => {
+    mocks.getWorlds.mockResolvedValue([{ id: 'world-1', name: '群星海', updated_at: Date.now() }]);
+    mocks.getCharactersByWorld.mockResolvedValue([]);
+
+    const { container, unmount } = render(<WorldsPage />);
+    const card = await screen.findByRole('link', { name: '群星海' });
+    expect(card).toHaveClass('we-material');
+    expect(container.querySelector('.we-world-card-glow')).not.toBeNull();
+    unmount();
+
+    mocks.useReducedMotion.mockReturnValue(true);
+    const reduced = render(<WorldsPage />);
+    const reducedCard = await screen.findByRole('link', { name: '群星海' });
+    expect(reducedCard).toHaveClass('we-material');
+    expect(reduced.container.querySelector('.we-world-card-glow')).toBeNull();
   });
 
   it('会加载世界列表并支持进入与删除世界', async () => {

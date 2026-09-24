@@ -170,12 +170,33 @@
   );
   /* 胶片颗粒：整屏一层极淡的静态噪点，给平涂的暗部一点质地（0 为关闭）*/
   --we-atmosphere-grain:          0.04;
-  /* 世界入口的边缘与投影：细光描边代替实色边框，外阴影只留一层柔和接地影 */
-  --we-entry-edge:
-    inset 0 0 0 1px rgba(255, 255, 255, 0.07),
-    inset 0 1px 0 rgba(255, 255, 255, 0.10);
-  --we-entry-shadow:       0 18px 40px -22px var(--we-color-shadow-xl);
-  --we-entry-shadow-hover: 0 28px 56px -24px var(--we-color-shadow-xl);
+  --we-grain-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.9 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  /* 表面材料（世界入口、台前、消息、输入胶囊、弹窗共用，见 ui.css .we-material）：
+     暗色描边包住物件，内侧一圈极淡的光和顶部一条窄高光；表面压一层几乎看不见的静态颗粒；
+     接地阴影分近、远两段：近处实、远处淡，悬停只让远影稍微离开 */
+  --we-material-stroke:     color-mix(in srgb, var(--we-base-ink-900) 16%, transparent);
+  --we-material-sheen:      rgba(255, 255, 255, 0.14);
+  --we-material-grain:      0.03;
+  --we-material-shadow-near:
+    0 1px 1px var(--we-color-shadow-md),
+    0 2px 4px -2px var(--we-color-shadow-md);
+  --we-material-shadow-far:
+    0 12px 24px -14px var(--we-color-shadow-lg),
+    0 32px 56px -32px var(--we-color-shadow-xl);
+  --we-material-shadow-lift:
+    0 16px 28px -14px var(--we-color-shadow-lg),
+    0 40px 68px -34px var(--we-color-shadow-xl);
+  /* 有厚度的按钮（发送、确认）：上亮下暗的面 + 顶部内高光 + 底部厚度边；按下时厚度收进去 */
+  --we-material-raised-face:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0) 55%, rgba(0, 0, 0, 0.10));
+  --we-material-raised:
+    inset 0 1px 0 rgba(255, 255, 255, 0.28),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.20),
+    0 1px 1px var(--we-color-shadow-md),
+    0 6px 12px -6px var(--we-color-shadow-lg);
+  --we-material-raised-pressed:
+    inset 0 1px 2px rgba(0, 0, 0, 0.24),
+    0 1px 1px var(--we-color-shadow-sm);
   /* 页面内容区的底：默认透明让氛围透出；浅色主题可铺回实底 */
   --we-stage-surface:             transparent;
   /* 浮层（侧栏、设置、弹窗、输入胶囊）的半透明底与背景模糊 */
@@ -433,12 +454,7 @@
   /* === Composer（chat / writing 共用的底部输入栏）皮肤 token：
      中性默认复刻历史观感，主题可整体改写输入栏质感（描边 / 填充 / 投影物理） === */
   --we-composer-field-bg:          var(--we-glass-bg);
-  --we-composer-field-border:      1px solid var(--we-color-border-default);
-  --we-composer-field-shadow:      0 16px 40px -18px var(--we-color-shadow-xl);
   --we-composer-btn-border:        1px solid transparent;
-  --we-composer-send-shadow:        0 1px 2px var(--we-color-shadow-sm);
-  --we-composer-send-hover-shadow:  0 4px 12px var(--we-color-shadow-md);
-  --we-composer-send-active-shadow:    0 1px 2px var(--we-color-shadow-sm);
 
   /* === 标题栏 / 书脊（chat 顶部栏 + 左侧会话列表）chrome：中性默认复刻历史观感 === */
 

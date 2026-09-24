@@ -118,9 +118,12 @@
   --we-atmosphere-opacity-quiet: 0.4;
   --we-atmosphere-glow-strength: 16%;
   --we-atmosphere-grain: 0.05;
-  --we-entry-edge: inset 0 0 0 1px rgba(255, 238, 220, 0.07), inset 0 1px 0 rgba(255, 238, 220, 0.12);
-  --we-entry-shadow: 0 18px 40px -22px rgba(0, 0, 0, 0.85);
-  --we-entry-shadow-hover: 0 30px 60px -26px rgba(0, 0, 0, 0.9);
+  --we-material-stroke: rgba(0, 0, 0, 0.55);
+  --we-material-sheen: rgba(255, 238, 220, 0.12);
+  --we-material-grain: 0.035;
+  --we-material-shadow-near: 0 1px 1px rgba(0, 0, 0, 0.45), 0 2px 4px -2px rgba(0, 0, 0, 0.4);
+  --we-material-shadow-far: 0 12px 24px -14px rgba(0, 0, 0, 0.55), 0 32px 56px -32px rgba(0, 0, 0, 0.8);
+  --we-material-shadow-lift: 0 16px 28px -14px rgba(0, 0, 0, 0.5), 0 40px 68px -34px rgba(0, 0, 0, 0.75);
   --we-atmosphere-scrim: radial-gradient(ellipse 64% 110% at 50% 50%, rgba(23, 19, 15, 0.86) 0%, rgba(23, 19, 15, 0.6) 62%, transparent 100%);
   --we-stage-surface: transparent;
   --we-glass-bg: rgba(33, 28, 23, 0.78);
@@ -219,12 +222,7 @@
   --we-pager-btn-hover-shadow: none;
 
   --we-composer-field-bg: var(--we-glass-bg);
-  --we-composer-field-border: 1px solid var(--we-color-border-default);
-  --we-composer-field-shadow: 0 18px 44px -18px rgba(0, 0, 0, 0.80);
   --we-composer-btn-border: 1px solid transparent;
-  --we-composer-send-shadow: var(--we-shadow-stamp-up);
-  --we-composer-send-hover-shadow: var(--we-shadow-stamp-up);
-  --we-composer-send-active-shadow: var(--we-shadow-stamp-down);
 
   --we-page-gutter-border: 1px solid transparent;
 }

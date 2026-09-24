@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useImperativeHandle, forwardRef } from 'react';
 import { motion } from 'framer-motion';
 import { applyRules } from '../../core/utils/regex-runner.js';
-import Icon from '../ui/Icon.jsx';
+import { ArrowDownToLine, ArrowUp, BookMarked, FastForward, ImagePlus, Square, Table2, UserRoundPen, X } from 'lucide-react';
 import ConfirmModal from '../ui/ConfirmModal.jsx';
 import { log } from '../../core/utils/logger.js';
 import { isImeComposing } from '../../core/utils/ime.js';
@@ -271,11 +271,7 @@ const InputBox = forwardRef(function InputBox({
             aria-label="跳转到底部"
             {...press}
           >
-            <Icon size={16} strokeWidth="2.2">
-              <line x1="4" y1="20" x2="20" y2="20" />
-              <polyline points="8 12 12 16 16 12" />
-              <line x1="12" y1="4" x2="12" y2="16" />
-            </Icon>
+            <ArrowDownToLine size={20} />
           </motion.button>
           <motion.button
             type="button"
@@ -287,10 +283,7 @@ const InputBox = forwardRef(function InputBox({
             aria-label="续写上一条 AI 回复"
             {...m.gesture('press', { disabled: generating })}
           >
-            <Icon size={16} strokeWidth="2.2">
-              <polyline points="13 17 18 12 13 7" />
-              <polyline points="6 17 11 12 6 7" />
-            </Icon>
+            <FastForward size={20} fill="currentColor" fillOpacity={0.22} />
           </motion.button>
           <motion.button
             type="button"
@@ -302,10 +295,7 @@ const InputBox = forwardRef(function InputBox({
             aria-label="AI 替你写一条消息"
             {...m.gesture('press', { disabled: generating })}
           >
-            <Icon size={16} strokeWidth="2.2">
-              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-              <circle cx="12" cy="7" r="4" />
-            </Icon>
+            <UserRoundPen size={20} />
           </motion.button>
           {onLongTermMemory && (
             <motion.button
@@ -317,12 +307,7 @@ const InputBox = forwardRef(function InputBox({
               aria-label="长期记忆"
               {...press}
             >
-              <Icon size={16} strokeWidth="2.2">
-                <path d="M4 4h12a4 4 0 0 1 4 4v12H8a4 4 0 0 1-4-4V4z" />
-                <path d="M8 8h8" />
-                <path d="M8 12h8" />
-                <path d="M8 16h5" />
-              </Icon>
+              <BookMarked size={20} />
             </motion.button>
           )}
           {onTableMemory && (
@@ -335,12 +320,7 @@ const InputBox = forwardRef(function InputBox({
               aria-label="表格记忆"
               {...press}
             >
-              <Icon size={16} strokeWidth="2.2">
-                <rect x="3" y="4" width="18" height="16" rx="1.5" />
-                <path d="M3 9h18" />
-                <path d="M3 14h18" />
-                <path d="M9 4v16" />
-              </Icon>
+              <Table2 size={20} />
             </motion.button>
           )}
         </div>
@@ -362,17 +342,14 @@ const InputBox = forwardRef(function InputBox({
                 aria-label={`移除第 ${i + 1} 张图片`}
                 className="we-chat-input__attachment-remove"
               >
-                <Icon size={10} strokeWidth="2.4">
-                  <line x1="18" y1="6" x2="6" y2="18" />
-                  <line x1="6" y1="6" x2="18" y2="18" />
-                </Icon>
+                <X size={12} strokeWidth={2.25} />
               </button>
             </div>
           ))}
         </div>
       )}
 
-      <div className="we-chat-input__row">
+      <div className="we-chat-input__row we-material">
         {/* 附件按钮 */}
         <motion.button
           onClick={() => fileInputRef.current?.click()}
@@ -382,11 +359,7 @@ const InputBox = forwardRef(function InputBox({
           aria-label="添加图片附件（最多3张）"
           {...m.gesture('press', { disabled: generating || attachments.length >= MAX_ATTACHMENTS_PER_MESSAGE })}
         >
-          <Icon size={16} strokeWidth="1.8">
-            <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
-            <circle cx="8.5" cy="8.5" r="1.5" />
-            <polyline points="21 15 16 10 5 21" />
-          </Icon>
+          <ImagePlus size={20} />
         </motion.button>
         <input
           ref={fileInputRef}
@@ -450,11 +423,9 @@ const InputBox = forwardRef(function InputBox({
             className="we-chat-send-btn"
             title="停止生成"
             aria-label="停止生成"
-            {...press}
+            {...m.gesture('sink')}
           >
-            <Icon size={16} fill="currentColor" stroke="none">
-              <rect x="6" y="6" width="12" height="12" rx="1" />
-            </Icon>
+            <Square size={16} fill="currentColor" />
           </motion.button>
         ) : (
           <motion.button
@@ -463,12 +434,9 @@ const InputBox = forwardRef(function InputBox({
             className="we-chat-send-btn"
             title="发送 (Enter)"
             aria-label="发送消息"
-            {...m.gesture('press', { disabled: !text.trim() })}
+            {...m.gesture('sink', { disabled: !text.trim() })}
           >
-            <Icon size={16} strokeWidth="2.5">
-              <line x1="22" y1="2" x2="11" y2="13" />
-              <polygon points="22 2 15 22 11 13 2 9 22 2" />
-            </Icon>
+            <ArrowUp size={20} strokeWidth={2} />
           </motion.button>
         )}
       </div>

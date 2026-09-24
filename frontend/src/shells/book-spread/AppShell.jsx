@@ -11,6 +11,7 @@
  * `./layout` and `./chrome` and MUST NOT be imported by pages directly.
  */
 import { MotionConfig } from 'framer-motion';
+import { LucideProvider } from 'lucide-react';
 import TopBar from './chrome/TopBar.jsx';
 import PageTransition from './transitions/PageTransition.jsx';
 import GlobalToast from '../../components/ui/GlobalToast.jsx';
@@ -37,8 +38,10 @@ export default function AppShell({ children, locationKey }) {
     : worldAccentVars;
 
   // reducedMotion="user"：系统要求减少动效时，所有 framer 动画关闭位移与缩放，只保留透明度
+  // Lucide 图标统一细描边：24 视口下 1.75，20 / 16 尺寸按比例缩放，整站线重一致
   return (
     <MotionConfig reducedMotion="user">
+      <LucideProvider strokeWidth={1.75}>
       <div className="we-app-root we-shell-book-spread" style={rootVars ?? undefined}>
         <AtmosphereLayer
           quiet={QUIET_SCENE.test(locationKey)}
@@ -53,6 +56,7 @@ export default function AppShell({ children, locationKey }) {
           </PageTransition>
         </PageLayoutRendererProvider>
       </div>
+      </LucideProvider>
     </MotionConfig>
   );
 }

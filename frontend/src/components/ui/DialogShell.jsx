@@ -27,7 +27,7 @@ export default function DialogShell({ children, onClose, panelClassName = 'w-ful
       }}
     >
       <motion.div
-        className={`we-dialog-panel ${panelClassName}`}
+        className={`we-dialog-panel we-material ${panelClassName}`}
         variants={m.variant('overlayEnter')}
         initial="hidden"
         animate="visible"

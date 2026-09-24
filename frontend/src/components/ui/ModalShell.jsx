@@ -30,7 +30,7 @@ export default function ModalShell({ children, onClose, maxWidth = 'max-w-xl' })
     >
       <MotionDiv
         className={[
-          'we-modal w-full mx-4 flex flex-col max-h-[90vh] overflow-hidden',
+          'we-modal we-material w-full mx-4 flex flex-col max-h-[90vh] overflow-hidden',
           maxWidth,
         ].join(' ')}
         variants={m.variant('overlayEnter')}
