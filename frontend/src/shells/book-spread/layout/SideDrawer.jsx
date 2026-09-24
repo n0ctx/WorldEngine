@@ -30,7 +30,8 @@ const COLLAPSED_GLYPH = {
   ),
 };
 
-const CHEVRON_ROTATION = { left: -90, right: 90 };
+/* 基准箭头朝下（v）；顺时针 90° 朝左、逆时针 90° 朝右，各指向自己收起的方向。 */
+const CHEVRON_ROTATION = { left: 90, right: -90 };
 
 export default function SideDrawer({ side, open, onToggle, label, footer = null, children }) {
   const toggleLabel = open ? `收起${label}` : `展开${label}`;
