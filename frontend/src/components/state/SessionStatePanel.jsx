@@ -277,8 +277,6 @@ export default function SessionStatePanel({
 
   return (
     <div className={classNames.panel}>
-      <div className={classNames.spine} />
-
       <div className={classNames.scroll}>
         {worldTab}
         <div className="we-state-divider" aria-hidden="true" />

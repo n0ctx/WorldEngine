@@ -372,7 +372,6 @@
   --we-col-btn-color:           var(--we-color-text-secondary);
   --we-parchment-display:       none;
   --we-parchment-fiber-opacity: 0;
-  --we-spine-display:           none;
 
 
   /* === 功能性渐变 Token（允许保留 linear-gradient，因含动态变量）=== */
@@ -402,18 +401,6 @@
   --we-topbar-item-faint:      rgba(255, 255, 255, 0.66);
   --we-topbar-divider:         rgba(255, 255, 255, 0.08);
 
-  --we-spine-shadow-left: linear-gradient(
-    to right,
-    rgba(0, 0, 0, 0.10) 0%,
-    rgba(0, 0, 0, 0.03) 40%,
-    transparent 100%
-  );
-  --we-spine-shadow-right: linear-gradient(
-    to left,
-    rgba(0, 0, 0, 0.07) 0%,
-    rgba(0, 0, 0, 0.02) 40%,
-    transparent 100%
-  );
 
   /* 物理质感阴影：默认中性，主题可替换为纸张、印章等具体材质。 */
   --we-shadow-stamp-up:
@@ -468,9 +455,6 @@
   /* === 标题栏 / 书脊（chat 顶部栏 + 左侧会话列表）chrome：中性默认复刻历史观感 === */
 
   /* 标题栏记忆钮 + 书脊返回钮等图标按钮 chrome：默认无边透明，主题可改墨环圆钮 */
-
-  /* 三栏（左会话 / 中正文 / 右状态）之间的分隔竖线；默认柔化 hairline */
-  --we-page-gutter-border:             1px solid color-mix(in srgb, var(--we-color-border-default) 55%, transparent);
 
   /* ============================================================
    * E 层 · 运行时 token

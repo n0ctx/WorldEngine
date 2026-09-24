@@ -14,7 +14,6 @@ import { log } from '../../../core/utils/logger.js';
 
 const CLASS_NAMES = {
   panel: 'we-cast-panel',
-  spine: 'we-cast-spine',
   scroll: 'we-cast-scroll',
   diaryEntry: 'we-cast-diary-entry',
   diaryEntryStyle: { transition: 'background 0.18s ease' },

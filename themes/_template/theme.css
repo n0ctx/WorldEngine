@@ -160,10 +160,7 @@
   --we-col-btn-primary-hover-bg: rgba(180, 80, 60, 0.12); /* 主按钮 hover 色，主题可换色调 */
   --we-parchment-display: none;
   --we-parchment-fiber-opacity: 0;
-  --we-spine-display: none;
 
-  --we-spine-shadow-left: linear-gradient(to right, transparent, transparent);
-  --we-spine-shadow-right: linear-gradient(to left, transparent, transparent);
 
   /* 书架空/加载/错误态面板 */
   --we-bookshelf-empty-bg:            rgba(255, 255, 255, 0.02);
@@ -288,6 +285,4 @@
   /* --we-composer-btn-border:            1px solid var(--we-color-border-default); */
 
   /* 标题栏 / 书脊 chrome（chat 顶部栏 + 左侧会话列表）；默认复刻中性观感 */
-  /* 三栏分隔竖线（左会话 / 中正文 / 右状态）；默认柔化 hairline */
-  /* --we-page-gutter-border:             1px solid color-mix(in srgb, var(--we-color-border-default) 55%, transparent); */
 }

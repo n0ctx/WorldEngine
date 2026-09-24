@@ -143,11 +143,8 @@
   --we-col-btn-primary-hover-bg: rgba(242, 166, 94, 0.18);
   --we-parchment-display: none;
   --we-parchment-fiber-opacity: 0;
-  --we-spine-display: none;
 
 
-  --we-spine-shadow-left: linear-gradient(to right, transparent, transparent);
-  --we-spine-shadow-right: linear-gradient(to left, transparent, transparent);
 
   /* 书架空/加载/错误态面板 */
   --we-bookshelf-empty-bg: var(--we-color-bg-surface);
@@ -215,7 +212,7 @@
   --we-radius-full: 9999px;
 
   /* ──────────────────────────────────────────────────────────────
-     § 7 Pager / Composer / 书脊 chrome / 三栏分隔
+     § 7 Pager / Composer / 书脊 chrome
      ────────────────────────────────────────────────────────────── */
 
   --we-pager-btn-bg: var(--we-color-bg-surface);
@@ -226,6 +223,4 @@
 
   --we-composer-field-bg: var(--we-glass-bg);
   --we-composer-btn-border: 1px solid transparent;
-
-  --we-page-gutter-border: 1px solid transparent;
 }

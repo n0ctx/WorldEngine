@@ -133,18 +133,6 @@
   --we-pane-center-bg: color-mix(in srgb, var(--we-color-bg-canvas) 97%, transparent);
   --we-pane-side-bg: color-mix(in srgb, var(--we-color-bg-canvas) 60%, transparent);
 
-  --we-spine-shadow-left: linear-gradient(
-    to right,
-    rgba(0, 0, 0, 0.14) 0%,
-    rgba(0, 0, 0, 0.04) 40%,
-    transparent 100%
-  );
-  --we-spine-shadow-right: linear-gradient(
-    to left,
-    rgba(0, 0, 0, 0.08) 0%,
-    rgba(0, 0, 0, 0.02) 40%,
-    transparent 100%
-  );
 
   /* 纸张与印章质感 */
   --we-shadow-stamp-up:
@@ -208,7 +196,6 @@
   --we-col-btn-color:             rgba(200, 185, 154, 0.7);
   --we-parchment-display:         block;
   --we-parchment-fiber-opacity:   0.22;
-  --we-spine-display:             block;
 
 
   /* 条目行：羊皮纸画布底色，无额外阴影 */

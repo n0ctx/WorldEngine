@@ -161,20 +161,6 @@
   --we-pane-center-bg: color-mix(in srgb, var(--we-color-bg-canvas) 94%, transparent);
   --we-pane-side-bg: color-mix(in srgb, var(--we-color-bg-elevated) 55%, transparent);
 
-  /* ==================== 书脊阴影 ==================== */
-  --we-spine-shadow-left: linear-gradient(
-    to right,
-    rgba(0, 0, 0, 0.18) 0%,
-    rgba(0, 0, 0, 0.06) 40%,
-    transparent 100%
-  );
-  --we-spine-shadow-right: linear-gradient(
-    to left,
-    rgba(0, 0, 0, 0.12) 0%,
-    rgba(0, 0, 0, 0.04) 40%,
-    transparent 100%
-  );
-
   /* ==================== 质感阴影（棱角分明的赛博风格） ==================== */
   --we-shadow-stamp-up:
     inset 0 1px 0 rgba(255, 255, 255, 0.06),
@@ -230,7 +216,6 @@
   --we-col-btn-color:             rgba(0, 212, 255, 0.60);
   --we-parchment-display:         none;
   --we-parchment-fiber-opacity:   0;
-  --we-spine-display:             none;
 
 
   /* ==================== 条目行 ==================== */

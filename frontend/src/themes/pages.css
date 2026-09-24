@@ -3587,39 +3587,24 @@
 /* — StatePanel 容器 ─ */
 
 .we-state-panel {
-  /* 尺寸（flex-basis/min/max-width）与接缝边框现由外层 .we-side-drawer--right 统一
+  /* 尺寸（flex-basis/min/max-width）与面板表面由外层 .we-side-drawer--right 统一
      管理——收起时这块内容根本不挂载，尺寸交给抽屉更省心，也避免两处各写一份。 */
   flex: 1;
   min-height: 0;
   display: flex;
   flex-direction: column;
-  background: var(--we-color-bg-surface);
   position: relative;
   overflow: hidden;
 }
 
-/* ── 分栏接缝阴影 ─── */
-.we-state-spine {
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 8px;
-  background: var(--we-spine-shadow-left);
-  pointer-events: none;
-  z-index: var(--we-z-spine);
-}
-
 .we-page-left {
-  /* 尺寸与接缝边框现由外层 .we-side-drawer--left 统一管理，见下方 SideDrawer 规则块。 */
+  /* 尺寸与面板表面由外层 .we-side-drawer--left 统一管理，见下方 SideDrawer 规则块。 */
   flex: 1;
   min-height: 0;
   display: flex;
   flex-direction: column;
   position: relative;
   overflow: hidden;
-  background: var(--we-color-bg-surface);
-  border-radius: 0 0 0 var(--we-radius-sm);
 }
 
 /* ==========================================================
@@ -3628,14 +3613,21 @@
    展开时让出 flex-basis，正文（.we-page-right 里的 flex:1）随之收窄——
    「推开正文」而非浮层：两侧本来就是 book-spread 里的行内 flex 兄弟节点，
    展开收起复用已有的 flex 布局最省事，也不会在 1024px 窄屏下叠住正文。
+   表面是悬浮在氛围上的磨砂玻璃面板：比正文纸面更透，靠缝隙、描边与投影和正文分开。
    ========================================================= */
 .we-side-drawer {
   position: relative;
   display: flex;
   flex-direction: column;
   min-height: 0;
-  background: var(--we-glass-bg);
-  backdrop-filter: blur(var(--we-glass-blur));
+  background: var(--we-pane-side-bg);
+  backdrop-filter: blur(var(--we-glass-blur)) saturate(1.2);
+  border-radius: var(--we-radius-lg);
+  box-shadow:
+    0 0 0 1px var(--we-material-stroke),
+    inset 0 1px 0 var(--we-material-sheen),
+    inset 0 0 0 1px color-mix(in srgb, var(--we-material-sheen) 40%, transparent),
+    var(--we-material-shadow-far);
   transition: flex-basis var(--we-duration-normal) var(--we-easing-page),
     min-width var(--we-duration-normal) var(--we-easing-page),
     max-width var(--we-duration-normal) var(--we-easing-page);
@@ -3645,8 +3637,6 @@
 .we-side-drawer--left {
   flex: 0 0 52px;
   min-width: 0;
-  border-right: var(--we-page-gutter-border);
-  border-radius: 0 0 0 var(--we-radius-sm);
 }
 
 .we-side-drawer--left.we-side-drawer--open {
@@ -3658,7 +3648,6 @@
 .we-side-drawer--right {
   flex: 0 0 52px;
   min-width: 0;
-  border-left: var(--we-page-gutter-border);
 }
 
 .we-side-drawer--right.we-side-drawer--open {
@@ -3726,6 +3715,7 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  border-radius: 0 0 var(--we-radius-lg) var(--we-radius-lg);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -3744,27 +3734,14 @@
   display: none;
 }
 
-.we-page-left-spine {
-  position: absolute;
-  right: 0;
-  top: 0;
-  bottom: 0;
-  width: 8px;
-  background: var(--we-spine-shadow-right);
-  pointer-events: none;
-  z-index: var(--we-z-spine);
-  display: var(--we-spine-display, block);
-}
-
 .we-page-right {
   flex: 1;
   min-height: 0;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   position: relative;
-  overflow: hidden;
   border-radius: 0;
-  background: var(--we-stage-surface);
   padding: 44px 52px 28px 60px;
 }
 
@@ -3775,8 +3752,15 @@
 .we-page-right__body {
   display: flex;
   flex: 1;
+  gap: var(--we-pane-gap);
   min-height: 0;
-  overflow: hidden;
+  min-width: 0;
+}
+
+@media (max-width: 900px) {
+  .we-page-right__body {
+    gap: min(var(--we-pane-gap), var(--we-space-sm));
+  }
 }
 
 .we-character-seal {
@@ -4093,25 +4077,14 @@
 /* — CastPanel + 角色块 + cast 状态 overlay + cast 添加 modal ─ */
 /* ── CastPanel（写作右侧角色台）───────────────────────────── */
 .we-cast-panel {
-  /* 尺寸与接缝边框现由外层 .we-side-drawer--right 统一管理（同 .we-state-panel）。 */
+  /* 尺寸与面板表面由外层 .we-side-drawer--right 统一管理（同 .we-state-panel）。 */
   flex: 1;
   min-height: 0;
   display: flex;
   flex-direction: column;
-  background: var(--we-color-bg-surface);
   position: relative;
   overflow: hidden;
   animation: we-panel-fade var(--we-duration-normal) var(--we-easing-ink) both;
-}
-.we-cast-spine {
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 12px;
-  background: var(--we-spine-shadow-left);
-  pointer-events: none;
-  z-index: var(--we-z-spine);
 }
 .we-cast-scroll {
   flex: 1;

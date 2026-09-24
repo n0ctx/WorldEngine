@@ -10,7 +10,6 @@ import { log } from '../../core/utils/logger.js';
 
 const CLASS_NAMES = {
   panel: 'we-state-panel',
-  spine: 'we-state-spine',
   scroll: 'we-state-scroll',
   diaryEntry: 'we-diary-entry',
   diaryMore: 'we-diary-more',

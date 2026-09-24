@@ -7,8 +7,6 @@ export default function PageLeft({ children, className = '' }) {
   return (
     <div className={['we-page-left', className].filter(Boolean).join(' ')}>
       {children}
-      {/* 右侧书脊阴影 — 让中栏更像微微凸起的纸页 */}
-      <div className="we-page-left-spine" />
     </div>
   );
 }

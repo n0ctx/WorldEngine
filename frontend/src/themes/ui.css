@@ -1134,13 +1134,25 @@
   flex-direction: column;
 }
 
+/* 三块悬浮面板（左抽屉 / 正文 / 右抽屉）铺在桌面上：四周与面板之间留同一道缝隙露出氛围；
+   只有这一层裁切，面板的投影能落进缝隙 */
 .we-book-spread-inner {
   flex: 1;
   display: flex;
+  gap: var(--we-pane-gap);
   width: 100%;
   position: relative;
   overflow: hidden;
   min-height: 0;
+  padding: var(--we-pane-gap);
+  background: var(--we-stage-surface);
+}
+
+@media (max-width: 900px) {
+  .we-book-spread-inner {
+    gap: min(var(--we-pane-gap), var(--we-space-sm));
+    padding: min(var(--we-pane-gap), var(--we-space-sm));
+  }
 }
 
 /* .we-session-item__* 系列现挂在 .we-storyline-item（见下方）下渲染；显隐由
