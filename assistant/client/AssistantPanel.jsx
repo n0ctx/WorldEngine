@@ -5,6 +5,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { Eraser, RotateCcw, X } from 'lucide-react';
 import { useAssistantStore } from './useAssistantStore.js';
 import {
   streamAgent,
@@ -26,6 +27,7 @@ import { getWorld } from '../../frontend/src/core/api/worlds.js';
 import { getCharacter } from '../../frontend/src/core/api/characters.js';
 import { getConfig } from '../../frontend/src/core/api/config.js';
 import { log } from '../../frontend/src/core/utils/logger.js';
+import { useEscapeKey } from '../../frontend/src/core/hooks/useEscapeKey.js';
 
 const RECOVERABLE_TERMINAL_ERROR = 'interrupted by restart';
 
@@ -54,6 +56,7 @@ export default function AssistantPanel() {
 
   const [input, setInput] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
+  const asideRef = useRef(null);
   const abortRef = useRef(null);
   const recoveringRef = useRef(false);
   const recoveryToastKeyRef = useRef('');
@@ -65,6 +68,22 @@ export default function AssistantPanel() {
   useEffect(() => {
     return () => abortRef.current?.abort?.();
   }, []);
+
+  // 打开时焦点进输入框，关闭后还给打开前的位置（通常是顶栏的助手按钮）
+  useEffect(() => {
+    if (!isOpen) return undefined;
+    const aside = asideRef.current;
+    const returnFocusTo = document.activeElement;
+    aside?.querySelector('textarea')?.focus({ preventScroll: true });
+    return () => {
+      if (aside?.contains(document.activeElement) || document.activeElement === document.body) {
+        returnFocusTo?.focus?.({ preventScroll: true });
+      }
+    };
+  }, [isOpen]);
+
+  // Esc 关闭；与其它浮层叠放时只关最上层，消息编辑框自己消费 Esc 时不触发
+  useEscapeKey(close, isOpen);
 
   // 主界面刷新事件按 tool_call_completed 实时派发（见 useAssistantStore），不等 task_completed。
 
@@ -388,22 +407,16 @@ export default function AssistantPanel() {
 
   return (
     <>
-      {/* 背景遮罩：虚化底层内容，点击可关闭抽屉 */}
-      {isOpen && (
-        <div
-          className="fixed inset-x-0 bottom-0 top-[40px] z-[199] cursor-default bg-black/20"
-          onClick={close}
-          aria-hidden="true"
-        />
-      )}
+      {/* 背景遮罩：只盖顶栏以下，点击可关闭抽屉 */}
+      {isOpen && <div className="we-asst-backdrop" onClick={close} aria-hidden="true" />}
       <aside
+        ref={asideRef}
+        aria-label="写卡助手"
         aria-hidden={!isOpen}
+        inert={!isOpen}
         style={{ width: `${width}px` }}
-        className={`fixed right-0 bottom-0 top-[40px] z-[200] flex flex-col border-l border-black/10 bg-[var(--we-color-bg-canvas)] shadow-2xl transition-transform duration-200 ease-out ${
-          isOpen ? 'translate-x-0' : 'translate-x-full pointer-events-none'
-        }`}
+        className={`we-asst-drawer${isOpen ? ' we-asst-drawer--open' : ''}`}
       >
-        {/* 左边沿拖拽手柄 */}
         <DragHandle
           value={width}
           onChange={setWidth}
@@ -412,35 +425,31 @@ export default function AssistantPanel() {
           orientation="vertical"
           inverted
           ariaLabel="拖动调整助手宽度"
-          className="absolute -left-1 top-0 h-full w-2"
+          className="we-asst-drawer__resize"
         />
-        {/* 标题栏 */}
-        <header className="flex h-11 flex-shrink-0 items-center gap-2 border-b border-black/10 bg-[var(--we-color-bg-subtle)] px-3">
-          <span
-            className="text-[14px] italic text-[var(--we-color-text-primary)]"
-            style={{ fontFamily: 'var(--we-font-display)' }}
-          >
-            写卡助手
-          </span>
+        <header className="we-asst-drawer__header">
+          <span className="we-asst-drawer__title">写卡助手</span>
           <AssistantStatusIndicator status={status} isStreaming={isStreaming} />
-          <div className="ml-auto flex items-center gap-2">
+          <div className="we-asst-drawer__actions">
             {(messages.length > 0 || taskId) && (
               <button
                 type="button"
                 onClick={handleReset}
-                className="rounded px-2 py-0.5 text-[11px] text-[var(--we-color-text-tertiary)] hover:bg-black/5"
+                className="we-asst-drawer__icon-btn"
                 title="清空对话"
+                aria-label="清空对话"
               >
-                清空
+                <Eraser size={16} />
               </button>
             )}
             <button
               type="button"
               onClick={close}
+              className="we-asst-drawer__icon-btn"
+              title="关闭 (Esc)"
               aria-label="关闭"
-              className="rounded px-2 py-0.5 text-[16px] leading-none text-[var(--we-color-text-tertiary)] hover:bg-black/5"
             >
-              ×
+              <X size={18} />
             </button>
           </div>
         </header>
@@ -455,13 +464,14 @@ export default function AssistantPanel() {
             pending={pendingAssistant}
           />
           {error && status === 'failed' && !isRestartRecoverable && (
-            <div className="mx-3 my-2 flex items-center gap-2 rounded border border-[var(--we-color-accent)]/20 bg-[var(--we-color-accent)]/10 px-3 py-2 text-[12px] text-[var(--we-color-accent)]">
-              <span className="flex-1">{error}</span>
+            <div className="we-asst-error" role="alert">
+              <span className="we-asst-error__text">{error}</span>
               <button
                 type="button"
                 onClick={handleRegenerateLastUser}
-                className="shrink-0 rounded px-2 py-0.5 hover:bg-[var(--we-color-accent)]/10"
+                className="we-asst-error__retry"
               >
+                <RotateCcw size={14} />
                 重新生成
               </button>
             </div>
@@ -485,12 +495,12 @@ function AssistantStatusIndicator({ status, isStreaming }) {
   if (status !== 'running' && !isStreaming) return null;
   return (
     <span
-      className="flex items-center gap-1.5 text-[11px] text-[var(--we-color-text-tertiary)]"
+      className="we-asst-drawer__status"
       role="status"
       aria-live="polite"
       title="写卡助手正在处理"
     >
-      <span className="flex items-center" aria-hidden="true">
+      <span className="we-asst-entry__pending" aria-hidden="true">
         <span className="typing-dot typing-dot-accent" />
         <span className="typing-dot typing-dot-accent" />
         <span className="typing-dot typing-dot-accent" />

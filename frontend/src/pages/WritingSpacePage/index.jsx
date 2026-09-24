@@ -237,17 +237,6 @@ export default function WritingSpacePage() {
           currentSessionId={currentSession?.id}
           onActiveSessionDeleted={handleActiveWritingSessionDeleted}
           onActiveSessionRenamed={(title) => setCurrentSession((prev) => (prev ? { ...prev, title } : prev))}
-          headerLeft={(
-            <button
-              onClick={() => navigate(`/worlds/${worldId}`)}
-              className="we-session-list-back"
-            >
-              <Icon size={14}>
-                <polyline points="15 18 9 12 15 6" />
-              </Icon>
-              返回世界
-            </button>
-          )}
           headerRight={(
             <button onClick={handleCreateWritingSession} className="we-session-list-create" aria-label="新建会话">
               <Icon size={16} strokeWidth="2.5">
@@ -278,6 +267,18 @@ export default function WritingSpacePage() {
                 />
               )}
             </AnimatePresence>
+
+            <div className="we-chat-pane-nav">
+              <button
+                onClick={() => navigate(`/worlds/${worldId}`)}
+                className="we-chat-pane-back"
+              >
+                <Icon size={14}>
+                  <polyline points="15 18 9 12 15 6" />
+                </Icon>
+                返回世界
+              </button>
+            </div>
 
             {isInitializing ? (
               <div className="flex-1 flex items-center justify-center text-sm text-[var(--we-color-text-secondary)] opacity-60">

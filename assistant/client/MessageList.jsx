@@ -1,8 +1,8 @@
 /**
  * 写卡助手消息列表 — 卷宗条目（Scroll Entries）
  *
- * 所有消息（user / assistant / tool_call / error）共用同一卡片原子
- * `.we-asst-entry`，通过左侧细竖线区分语义；不再用气泡 + 紧凑工具条混排。
+ * user / assistant 用左右气泡；tool_call / error 用紧凑的过程卡 `.we-asst-entry`，
+ * 错误卡靠整圈描边和「出错」标题区分。
  *
  * 交互保留：
  *   - 入场动效（we-bubble-in）
@@ -13,6 +13,7 @@
  */
 
 import { memo, useEffect, useMemo, useRef, useState } from 'react';
+import { ArrowDown, Check, Copy, PencilLine, RotateCcw, Trash2 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { stripToolCallLeakage } from './useAssistantStore.js';
@@ -107,7 +108,8 @@ function CopyBtn({ getText }) {
   }
   useEffect(() => () => clearTimeout(timerRef.current), []);
   return (
-    <ActionBtn onClick={copy} ariaLabel="复制">
+    <ActionBtn onClick={copy} ariaLabel={copied ? '已复制到剪贴板' : '复制'}>
+      {copied ? <Check size={14} /> : <Copy size={14} />}
       {copied ? '已复制' : '复制'}
     </ActionBtn>
   );
@@ -128,8 +130,9 @@ function DeleteBtn({ onDelete }) {
   }
   useEffect(() => () => clearTimeout(timerRef.current), []);
   return (
-    <ActionBtn onClick={handleClick} danger ariaLabel="删除">
-      {confirming ? '确认？' : '删除'}
+    <ActionBtn onClick={handleClick} danger={confirming} ariaLabel={confirming ? '确认删除' : '删除'}>
+      <Trash2 size={14} />
+      {confirming ? '再点一次删除' : '删除'}
     </ActionBtn>
   );
 }
@@ -208,7 +211,12 @@ function UserEntryImpl({ msg, onEdit, onDelete }) {
         ) : (
           <>
             <CopyBtn getText={() => msg.content || ''} />
-            {onEdit && <ActionBtn onClick={startEdit} ariaLabel="编辑">编辑</ActionBtn>}
+            {onEdit && (
+              <ActionBtn onClick={startEdit} ariaLabel="编辑">
+                <PencilLine size={14} />
+                编辑
+              </ActionBtn>
+            )}
             {onDelete && msg.id && <DeleteBtn onDelete={() => onDelete(msg.id)} />}
           </>
         )}
@@ -263,6 +271,7 @@ function AssistantEntryImpl({ msg, onRegenerate, onDelete }) {
           <CopyBtn getText={() => msg.content || ''} />
           {hasActions && onRegenerate && msg.id && (
             <ActionBtn onClick={() => onRegenerate(msg.id)} ariaLabel="重新生成">
+              <RotateCcw size={14} />
               重新生成
             </ActionBtn>
           )}
@@ -382,7 +391,7 @@ export default function MessageList({ messages, onEdit, onDelete, onRegenerate, 
     return (
       <div className="we-assistant-scroll min-h-0 flex-1 overflow-y-auto">
         <div className="we-asst-empty">
-          <div className="we-asst-empty__title">写卡助手</div>
+          <div className="we-asst-empty__title">想写点什么？</div>
           <div className="we-asst-empty__hint">
             可以帮你写世界卡、角色卡、全局设置，或回答关于 WorldEngine 的问题
           </div>
@@ -427,7 +436,7 @@ export default function MessageList({ messages, onEdit, onDelete, onRegenerate, 
           className="we-asst-new-msg-btn"
           aria-label="跳到最新消息"
         >
-          <span className="we-asst-new-msg-arrow">↓</span>
+          <ArrowDown size={14} className="we-asst-new-msg-arrow" />
           新消息
         </button>
       )}

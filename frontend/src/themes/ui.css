@@ -1392,7 +1392,6 @@
   padding: var(--we-space-sm) var(--we-space-md);
   border-radius: var(--we-radius-md);
   background: var(--we-color-accent-bg);
-  box-shadow: inset 2px 0 0 var(--we-color-accent);
   font-size: var(--we-text-xs);
   color: var(--we-color-text-secondary);
 }
@@ -2049,7 +2048,7 @@
 
 /* — Topbar ─ */
 .we-topbar {
-  height: 52px;
+  height: var(--we-topbar-height);
   flex-shrink: 0;
   /* 顶栏退到边缘：默认无底色、无分隔线，只剩贴边的一行导航 */
   background: var(--we-topbar-bg);
@@ -2387,7 +2386,6 @@
 
 /* 引用块行样式 */
 .cm-line.cm-md-blockquote {
-  border-left: 2.5px solid var(--we-color-gold);
   background: color-mix(in srgb, var(--we-base-paper-400) 15%, transparent);
   color: var(--we-color-text-secondary);
   padding-left: 14px;
@@ -3132,26 +3130,8 @@
   background: transparent;
   transition: background var(--we-duration-normal) ease, color var(--we-duration-normal) ease;
 }
-.we-diary-entry::before {
-  content: '';
-  position: absolute;
-  left: 1px;
-  top: 4px;
-  bottom: 4px;
-  width: 2px;
-  background: var(--we-color-accent);
-  border-radius: var(--we-radius-none);
-  opacity: 0;
-  transform: scaleY(0.3);
-  transform-origin: center;
-  transition: opacity var(--we-duration-normal) ease, transform var(--we-duration-normal) ease;
-}
 .we-diary-entry:hover {
   background: color-mix(in srgb, var(--we-color-bg-surface) 55%, transparent);
-}
-.we-diary-entry:hover::before {
-  opacity: 0.5;
-  transform: scaleY(1);
 }
 .we-diary-entry:hover .we-timeline-dot {
   opacity: 0.85;
@@ -3159,10 +3139,6 @@
 .we-diary-entry--selected,
 .we-diary-entry--selected:hover {
   background: color-mix(in srgb, var(--we-color-accent) 7%, color-mix(in srgb, var(--we-color-bg-surface) 65%, transparent));
-}
-.we-diary-entry--selected::before {
-  opacity: 1;
-  transform: scaleY(1);
 }
 .we-diary-entry--selected .we-timeline-dot {
   opacity: 1;
@@ -3564,7 +3540,6 @@
   max-width: 100%;
   overflow: hidden;
   border-radius: var(--we-radius-md);
-  border-left: 4px solid var(--toast-color); /* design exact: 类型色条 */
   background: var(--we-color-bg-canvas);
   box-shadow: var(--we-shadow-toast);
   padding: 10px var(--we-space-md) 10px var(--we-space-lg); /* 10px: design exact 上下 */

@@ -1,8 +1,8 @@
 /**
  * 可复用拖拽手柄（Resize Handle）
  *
- * 支持垂直/水平方向，带最小/最大约束，反相模式。
- * 视觉：hover 显示 1px 朱砂色半透明线。
+ * 支持垂直/水平方向，带最小/最大约束，反相模式；可聚焦后用方向键调整。
+ * 视觉：hover / 聚焦时显示一条细线。
  */
 
 import { useCallback } from 'react';
@@ -61,21 +61,27 @@ export default function DragHandle({
 
   const isVertical = orientation === 'vertical';
 
+  function handleKeyDown(e) {
+    const growKey = isVertical ? (inverted ? 'ArrowLeft' : 'ArrowRight') : (inverted ? 'ArrowUp' : 'ArrowDown');
+    const shrinkKey = isVertical ? (inverted ? 'ArrowRight' : 'ArrowLeft') : (inverted ? 'ArrowDown' : 'ArrowUp');
+    if (e.key !== growKey && e.key !== shrinkKey) return;
+    e.preventDefault();
+    const step = e.shiftKey ? 64 : 16;
+    onChange(Math.min(Math.max(value + (e.key === growKey ? step : -step), min), max));
+  }
+
   return (
     <div
       role="separator"
+      tabIndex={0}
       aria-orientation={orientation}
       aria-label={ariaLabel}
+      aria-valuenow={value}
+      aria-valuemin={min}
+      aria-valuemax={Number.isFinite(max) ? max : undefined}
       onPointerDown={startResize}
-      className={`group z-10 touch-none ${isVertical ? 'cursor-ew-resize' : 'cursor-ns-resize'} ${className}`}
-    >
-      <div
-        className={`absolute bg-transparent transition-colors duration-150 group-hover:bg-[var(--we-color-accent)]/40 ${
-          isVertical
-            ? 'left-1/2 top-0 h-full w-px -translate-x-1/2'
-            : 'left-0 top-1/2 h-px w-full -translate-y-1/2'
-        }`}
-      />
-    </div>
+      onKeyDown={handleKeyDown}
+      className={`we-resize-handle we-resize-handle--${orientation} ${className}`}
+    />
   );
 }

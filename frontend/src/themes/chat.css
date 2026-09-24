@@ -219,7 +219,6 @@
 
 /* 引用块 */
 .we-message-content blockquote {
-  border-left: 2.5px solid var(--we-color-gold);
   background: var(--we-color-paper-overlay);
   padding: 6px 14px 6px 14px; /* 6px: design exact, 14px: design exact */
   margin: 0.6em 0;
@@ -398,6 +397,14 @@
   /* 正文列背后压一层阅读遮罩：氛围只留在两侧边缘，正文对比度不随氛围变化 */
   background: var(--we-atmosphere-scrim);
   animation: we-panel-fade var(--we-duration-normal) var(--we-easing-ink) both;
+}
+
+.we-chat-pane-nav {
+  flex-shrink: 0;
+  width: 100%;
+  max-width: var(--we-text-width-prose);
+  margin: 0 auto;
+  padding: var(--we-space-sm) var(--we-space-xl) 0;
 }
 
 /* 台前：当前说话的角色，正文上方居中，与正文同宽 */
@@ -845,7 +852,6 @@
 /* ── Prose writing mode overrides ──────────────────────── */
 
 .we-writing-annotation--editing {
-  border-left-color: var(--we-color-accent);
   background: color-mix(in srgb, var(--we-color-accent) 6%, transparent);
 }
 
@@ -992,10 +998,8 @@
 .we-writing-prose strong { font-weight: 700; font-synthesis: weight; }
 .we-writing-prose em     { font-style: italic; font-synthesis: style; }
 
-/* 玩家行动：与会话页 .we-message-bubble-user 同规格的左线 + 缩进 + 降一档文字颜色，
-   写作模式与会话页保持同一套视觉语言 */
+/* 玩家行动：缩进 + 斜体 + 降一档文字颜色，与正文区分 */
 .we-writing-annotation {
-  border-left: 2px solid var(--we-color-accent);
   padding-left: var(--we-space-md);
   font-family: var(--we-font-display);
   font-style: italic;
@@ -1104,7 +1108,6 @@
   font-family: var(--we-font-mono, monospace);
 }
 .we-think-block-body blockquote {
-  border-left: 1.5px solid currentColor;
   padding-left: 0.8em;
   opacity: 0.7;
   margin: 0.3em 0;
@@ -1250,7 +1253,6 @@
   gap: var(--we-space-md);
   background: transparent;
   border: none;
-  border-left: 2px solid transparent;
   cursor: pointer;
   transition: background var(--we-duration-fast);
 }
@@ -1258,7 +1260,6 @@
 .we-chat-slash-item:hover,
 .we-chat-slash-item--active {
   background: var(--we-color-bg-surface);
-  border-left-color: var(--we-color-accent);
 }
 
 .we-chat-slash-item__cmd {
@@ -1550,9 +1551,210 @@
   border-radius: var(--we-radius-sm);
 }
 
-/* ── Assistant Drawer · 消息条目 ────────
-   统一的卡片原子：所有消息（用户 / 助手 / 工具 / 错误 / 计划）共用同一节奏，
-   通过左侧朱砂/铁胆墨细竖线区分语义。替代旧的左右气泡+紧凑工具条混排。 */
+/* ── Assistant Drawer · 外壳 ────────
+   抽屉贴在顶栏下方，不盖住顶栏；遮罩同样只铺顶栏以下。 */
+
+.we-asst-backdrop {
+  position: fixed;
+  inset: var(--we-topbar-height) 0 0 0;
+  z-index: calc(var(--we-z-modal) - 1);
+  background: color-mix(in srgb, var(--we-color-bg-overlay) 40%, transparent);
+  animation: we-panel-fade var(--we-duration-fast) var(--we-easing-ink) both;
+}
+
+.we-asst-drawer {
+  position: fixed;
+  top: var(--we-topbar-height);
+  right: 0;
+  bottom: 0;
+  z-index: var(--we-z-modal);
+  display: flex;
+  flex-direction: column;
+  background: var(--we-color-bg-canvas);
+  border-left: 1px solid var(--we-color-border-default);
+  transform: translateX(100%);
+  pointer-events: none;
+  transition: transform var(--we-duration-fast) var(--we-easing-ink),
+              box-shadow var(--we-duration-fast) var(--we-easing-ink);
+}
+
+/* 阴影只在打开时出现：收起后抽屉停在视口右外侧，带着阴影会在页面右缘留一道暗边 */
+.we-asst-drawer--open {
+  transform: none;
+  pointer-events: auto;
+  box-shadow: var(--we-shadow-dialog);
+}
+
+.we-asst-drawer__resize {
+  left: -4px;
+  top: 0;
+  width: 8px;
+  height: 100%;
+}
+
+.we-asst-drawer__header {
+  display: flex;
+  align-items: center;
+  gap: var(--we-space-sm);
+  flex-shrink: 0;
+  height: 48px; /* design exact: 32px 图标按钮 + 上下留白 */
+  padding: 0 var(--we-space-sm) 0 var(--we-space-lg);
+  border-bottom: 1px solid var(--we-color-border-subtle);
+}
+
+.we-asst-drawer__title {
+  font-family: var(--we-font-display);
+  font-size: var(--we-text-md);
+  color: var(--we-color-text-primary);
+  letter-spacing: var(--we-tracking-tight);
+  white-space: nowrap;
+}
+
+.we-asst-drawer__status {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--we-space-xs);
+  font-size: var(--we-text-2xs);
+  color: var(--we-color-text-tertiary);
+  white-space: nowrap;
+}
+
+.we-asst-drawer__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--we-space-xxs);
+  margin-left: auto;
+}
+
+.we-asst-drawer__icon-btn {
+  width: 32px; /* design exact */
+  height: 32px; /* design exact */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: var(--we-radius-full);
+  color: var(--we-color-text-tertiary);
+  cursor: pointer;
+  transition: color var(--we-duration-fast), background var(--we-duration-fast);
+}
+
+.we-asst-drawer__icon-btn:hover {
+  color: var(--we-color-text-primary);
+  background: var(--we-color-white-wash);
+}
+
+.we-asst-drawer__icon-btn:focus-visible {
+  outline: none;
+  color: var(--we-color-text-primary);
+  box-shadow: var(--we-focus-ring);
+}
+
+/* 失败提示：整圈描边 + 淡底，重试按钮跟在文字后 */
+.we-asst-error {
+  display: flex;
+  align-items: center;
+  gap: var(--we-space-sm);
+  margin: var(--we-space-xs) var(--we-space-lg) var(--we-space-sm);
+  padding: var(--we-space-sm) var(--we-space-md);
+  border: 1px solid color-mix(in srgb, var(--we-color-status-danger) 40%, var(--we-color-border-default));
+  border-radius: var(--we-radius-md);
+  background: color-mix(in srgb, var(--we-color-status-danger) 8%, var(--we-color-bg-canvas));
+  font-size: var(--we-text-sm);
+  color: var(--we-color-text-primary);
+}
+
+.we-asst-error__text {
+  flex: 1;
+  min-width: 0;
+  word-break: break-word;
+}
+
+.we-asst-error__retry {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--we-space-xs);
+  padding: var(--we-space-xxs) var(--we-space-sm);
+  background: none;
+  border: 1px solid var(--we-color-border-default);
+  border-radius: var(--we-radius-full);
+  font-size: var(--we-text-xs);
+  color: var(--we-color-text-secondary);
+  cursor: pointer;
+  transition: color var(--we-duration-fast), border-color var(--we-duration-fast);
+}
+
+.we-asst-error__retry:hover {
+  color: var(--we-color-text-primary);
+  border-color: var(--we-color-border-strong);
+}
+
+.we-asst-error__retry:focus-visible {
+  outline: none;
+  box-shadow: var(--we-focus-ring);
+}
+
+/* 输入区：与对话页同一只输入胶囊（.we-chat-input__row），抽屉窄，字号降一档 */
+.we-asst-composer {
+  flex-shrink: 0;
+  padding: var(--we-space-sm) var(--we-space-md) var(--we-space-sm);
+}
+
+.we-asst-composer__textarea {
+  font-size: var(--we-text-sm);
+}
+
+.we-asst-composer__hint {
+  margin-top: var(--we-space-xs);
+  font-size: var(--we-text-2xs);
+  color: var(--we-color-text-tertiary);
+  text-align: center;
+}
+
+/* 拖拽调宽手柄：hover / 聚焦 / 拖动时显出一条中性细线 */
+.we-resize-handle {
+  position: absolute;
+  z-index: 10;
+  touch-action: none;
+  outline: none;
+}
+
+.we-resize-handle--vertical { cursor: ew-resize; }
+.we-resize-handle--horizontal { cursor: ns-resize; }
+
+.we-resize-handle::after {
+  content: '';
+  position: absolute;
+  background: transparent;
+  transition: background var(--we-duration-fast);
+}
+
+.we-resize-handle--vertical::after {
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 2px;
+  transform: translateX(-50%);
+}
+
+.we-resize-handle--horizontal::after {
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 2px;
+  transform: translateY(-50%);
+}
+
+.we-resize-handle:hover::after,
+.we-resize-handle:active::after,
+.we-resize-handle:focus-visible::after {
+  background: var(--we-color-border-strong);
+}
+
+/* ── Assistant Drawer · 过程卡（工具调用 / 错误 / 等待） ──────── */
 
 .we-asst-stream {
   padding: var(--we-space-md) var(--we-space-lg);
@@ -1599,7 +1801,7 @@
 }
 
 .we-asst-new-msg-arrow {
-  display: inline-block;
+  display: block;
   animation: we-bounce-arrow 1.2s var(--we-easing-sharp) infinite;
 }
 
@@ -1608,7 +1810,7 @@
   display: flex;
   flex-direction: column;
   gap: var(--we-space-xs);
-  padding: var(--we-space-md) var(--we-space-md) var(--we-space-md) var(--we-space-lg);
+  padding: var(--we-space-md);
   background: var(--we-color-bg-canvas);
   border: 1px solid var(--we-color-border-subtle);
   border-radius: var(--we-radius-sm);
@@ -1618,26 +1820,11 @@
   animation: we-bubble-in 0.2s var(--we-easing-ink) both;
 }
 
-.we-asst-entry::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 3px;
-  background: var(--we-color-text-tertiary);
-  border-top-left-radius: var(--we-radius-sm);
-  border-bottom-left-radius: var(--we-radius-sm);
-}
-
 .we-asst-entry--tool,
 .we-asst-entry--tool-running {
   max-width: 88%;
   align-self: flex-start;
 }
-.we-asst-entry--tool::before,
-.we-asst-entry--tool-running::before { display: none; }
-.we-asst-entry--error::before    { background: var(--we-color-accent-deep); }
 
 /* 工具卡：缩小 + 淡色 + emoji（弱化为过程信息，不与对话气泡争视觉） */
 .we-asst-entry--tool,
@@ -1682,7 +1869,8 @@
 }
 
 .we-asst-entry--error {
-  background: color-mix(in srgb, var(--we-color-accent) 4%, var(--we-color-bg-canvas));
+  border-color: color-mix(in srgb, var(--we-color-status-danger) 40%, var(--we-color-border-default));
+  background: color-mix(in srgb, var(--we-color-status-danger) 6%, var(--we-color-bg-canvas));
 }
 
 .we-asst-entry__head {
@@ -1778,7 +1966,6 @@
   border-radius: var(--we-radius-full);
 }
 .we-asst-entry__body blockquote {
-  border-left: 2px solid var(--we-color-accent);
   padding-left: var(--we-space-md);
   margin: var(--we-space-xs) 0;
   color: var(--we-color-text-secondary);
@@ -1851,6 +2038,9 @@
 .we-asst-think-line__body p:last-child { margin: 0; }
 
 .we-asst-entry__action {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--we-space-xxs);
   font-family: var(--we-font-display);
   font-style: italic;
   font-size: var(--we-text-xs);
@@ -1876,8 +2066,8 @@
   outline-offset: 1px;
 }
 
-.we-asst-entry__action--danger { color: var(--we-color-accent); }
-.we-asst-entry__action--danger:hover { color: var(--we-color-accent-deep); }
+.we-asst-entry__action--danger,
+.we-asst-entry__action--danger:hover { color: var(--we-color-status-danger); }
 
 /* 流式光标：复用现有 we-stream-pulse */
 .we-asst-stream-cursor {
@@ -1892,7 +2082,7 @@
 
 /* 空状态 */
 .we-asst-empty {
-  flex: 1;
+  min-height: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1998,14 +2188,12 @@
   border-radius: var(--we-radius-full);
 }
 .we-asst-bubble__body blockquote {
-  border-left: 2px solid var(--we-color-accent);
   padding-left: var(--we-space-md);
   margin: var(--we-space-xs) 0;
   color: var(--we-color-text-secondary);
   font-style: italic;
 }
 .we-asst-bubble--user .we-asst-bubble__body blockquote {
-  border-left-color: var(--we-color-text-inverse);
   color: var(--we-color-text-inverse);
   opacity: 0.85;
 }

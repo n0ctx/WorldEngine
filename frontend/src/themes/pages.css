@@ -701,7 +701,7 @@
   white-space: nowrap;
 }
 
-/* ── 世界层双栏布局：左宽（故事线）右窄（角色/我扮演/世界规则） ── */
+/* ── 世界层双栏布局：左窄（故事线）右宽（角色/我扮演/世界规则） ── */
 
 .we-worldhub-layout {
   display: flex;
@@ -712,17 +712,17 @@
 }
 
 .we-worldhub-main {
-  flex: 1.5 1 0%;
-  min-width: 0;
+  flex: 1 1 0%;
+  min-width: 260px;
+  max-width: 380px;
   display: flex;
   flex-direction: column;
   min-height: 0;
 }
 
 .we-worldhub-side {
-  flex: 1 1 0%;
-  min-width: 280px;
-  max-width: 420px;
+  flex: 1.6 1 0%;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: var(--we-space-xl);
@@ -809,9 +809,6 @@
 .we-persona-card {
   background: var(--we-card-bg);
   border: var(--we-card-border);
-  /* 左侧 3px 既是 rest 边框也是 active 指示槽：默认透明(细边主题靠阴影定界)，
-     粗边主题可把 rest 色设为边框色，避免「左侧开口」缺边观感；active 态覆为强调色 */
-  border-left: 3px solid transparent;
   border-radius: var(--we-card-radius);
   padding: var(--we-space-md) var(--we-space-lg);
   cursor: pointer;
@@ -819,7 +816,7 @@
   box-shadow: var(--we-card-shadow);
   transition: transform var(--we-duration-normal) var(--we-easing-sharp),
               box-shadow var(--we-duration-normal) var(--we-easing-sharp),
-              border-left-color var(--we-duration-normal) var(--we-easing-sharp),
+              border-color var(--we-duration-normal) var(--we-easing-sharp),
               background var(--we-duration-normal) var(--we-easing-sharp);
   user-select: none;
   margin-bottom: var(--we-space-md);
@@ -835,7 +832,7 @@
 }
 
 .we-persona-card--active {
-  border-left-color: var(--we-color-accent);
+  border-color: var(--we-color-accent-border);
   /* 显式设置实色背景，防止半透明色透出深色书本底层 */
   background-color: var(--we-color-bg-canvas);
   background-image: linear-gradient(var(--we-color-accent-bg), var(--we-color-accent-bg));
@@ -1156,7 +1153,6 @@
 .we-storyline-continue {
   background: var(--we-card-bg);
   border: var(--we-card-border);
-  border-left: 3px solid var(--we-color-accent);
   border-radius: var(--we-card-radius);
   padding: var(--we-space-lg) var(--we-space-xl);
   cursor: pointer;
@@ -1263,7 +1259,7 @@
 
 /* 混编时间线在对话页/写作页复用时，当前打开的那一条打选中态 */
 .we-storyline-item--active {
-  border-left: 3px solid var(--we-color-accent);
+  border-color: var(--we-color-accent-border);
   background: var(--we-color-ink-wash-strong);
 }
 
@@ -1462,7 +1458,6 @@
 }
 .we-entry-section-row.is-selected {
   border-color: var(--we-color-accent);
-  box-shadow: inset 2px 0 0 var(--we-color-accent);
 }
 
 .we-entry-section-drag {
@@ -2574,7 +2569,6 @@
 .we-settings-provider-hint {
   margin-top: calc(-1 * var(--we-space-xxs));
   padding: var(--we-space-md) var(--we-space-md);
-  border-left: 2px solid var(--we-color-border-default);
   background: color-mix(in srgb, var(--we-color-bg-canvas) 82%, var(--we-color-accent-bg));
 }
 
@@ -3326,7 +3320,7 @@
   transition: background var(--we-duration-fast);
 }
 .we-workshop-nav-item:hover { background: var(--we-color-bg-subtle); }
-.we-workshop-nav-item.is-active { background: var(--we-color-bg-subtle); box-shadow: inset 2px 0 0 var(--we-color-accent); }
+.we-workshop-nav-item.is-active { background: var(--we-color-accent-bg); font-weight: 600; }
 
 .we-workshop-list-actions { display: flex; gap: var(--we-space-xs); }
 
@@ -3360,7 +3354,7 @@
   transition: background var(--we-duration-fast);
 }
 .we-workshop-field-item:hover { background: var(--we-color-bg-subtle); }
-.we-workshop-field-item.is-active { background: var(--we-color-bg-subtle); box-shadow: inset 2px 0 0 var(--we-color-accent); }
+.we-workshop-field-item.is-active { background: var(--we-color-accent-bg); font-weight: 600; }
 .we-workshop-field-name { font-size: var(--we-text-sm); }
 
 .we-workshop-detail { overflow-y: auto; }
@@ -3966,12 +3960,9 @@
   border-bottom: 1px solid var(--we-color-border-default);
 }
 
-.we-session-list-nav {
-  display: flex;
-  align-items: center;
-}
-
-.we-session-list-back {
+/* 页内「返回世界」：对话列 / 写作列 / 规则页页头共用，不随侧栏收起 */
+.we-chat-pane-back,
+.we-workshop-back {
   display: inline-flex;
   align-items: center;
   gap: var(--we-space-xs);
@@ -3987,15 +3978,20 @@
   transition: opacity var(--we-duration-fast);
 }
 
-.we-session-list-back:hover,
-.we-session-list-back:focus-visible {
+.we-workshop-back {
+  align-self: flex-start;
+}
+
+.we-chat-pane-back:hover,
+.we-chat-pane-back:focus-visible,
+.we-workshop-back:hover,
+.we-workshop-back:focus-visible {
   opacity: 1;
 }
 
 .we-session-list-create {
   width: 100%;
   padding: 7px 0; /* design exact */
-  margin-top: 10px; /* design exact */
   border: 1px solid var(--we-color-border-strong);
   border-radius: var(--we-radius-full);
   background: none;
@@ -4097,26 +4093,8 @@
   padding: 3px 6px 3px 9px; /* design exact */
   transition: background var(--we-duration-normal) ease, color var(--we-duration-normal) ease;
 }
-.we-cast-diary-entry::before {
-  content: '';
-  position: absolute;
-  left: 1px;
-  top: 4px;
-  bottom: 4px;
-  width: 2px;
-  background: var(--we-color-accent);
-  border-radius: var(--we-radius-none);
-  opacity: 0;
-  transform: scaleY(0.3);
-  transform-origin: center;
-  transition: opacity var(--we-duration-normal) ease, transform var(--we-duration-normal) ease;
-}
 .we-cast-diary-entry:hover {
   background: color-mix(in srgb, var(--we-color-bg-surface) 55%, transparent);
-}
-.we-cast-diary-entry:hover::before {
-  opacity: 0.5;
-  transform: scaleY(1);
 }
 .we-cast-diary-entry:hover .we-timeline-dot {
   opacity: 0.85;
@@ -4124,10 +4102,6 @@
 .we-cast-diary-entry--selected,
 .we-cast-diary-entry--selected:hover {
   background: color-mix(in srgb, var(--we-color-accent) 7%, color-mix(in srgb, var(--we-color-bg-surface) 65%, transparent));
-}
-.we-cast-diary-entry--selected::before {
-  opacity: 1;
-  transform: scaleY(1);
 }
 .we-cast-diary-entry--selected .we-timeline-dot {
   opacity: 1;
@@ -4585,14 +4559,10 @@
 }
 .we-provider-safety-row--critical,
 .we-provider-safety-row--high {
-  border-left: 3px solid var(--we-color-status-danger);
+  border-color: color-mix(in srgb, var(--we-color-status-danger) 45%, var(--we-color-border-default));
 }
 .we-provider-safety-row--medium {
-  border-left: 3px solid var(--we-color-status-warning);
-}
-.we-provider-safety-row--low,
-.we-provider-safety-row--info {
-  border-left: 3px solid var(--we-color-status-info);
+  border-color: color-mix(in srgb, var(--we-color-status-warning) 45%, var(--we-color-border-default));
 }
 .we-provider-safety-row__head {
   width: 100%;

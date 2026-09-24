@@ -8,6 +8,7 @@
  */
 
 import { useEffect, useRef } from 'react';
+import { ArrowUp } from 'lucide-react';
 import { isImeComposing } from '../../frontend/src/core/utils/ime.js';
 
 export default function InputBox({ value, onChange, onSend, disabled = false, placeholder }) {
@@ -34,30 +35,34 @@ export default function InputBox({ value, onChange, onSend, disabled = false, pl
   }
 
   const sendDisabled = disabled || !value.trim();
-  const hint = placeholder ?? 'Enter 发送 · Shift+Enter 换行 · /stop 停止';
+  const hint = placeholder ?? '描述想写或想改的内容';
 
   return (
-    <div className="flex flex-shrink-0 items-end gap-2 border-t border-black/10 bg-[var(--we-color-bg-canvas)] px-3 py-2">
-      <textarea
-        ref={textareaRef}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        onKeyDown={handleKeyDown}
-        disabled={disabled}
-        placeholder={disabled ? '当前暂不可输入' : hint}
-        rows={1}
-        className="min-h-[36px] max-h-[120px] flex-1 resize-none overflow-y-auto rounded-[var(--we-radius-sm)] border border-[var(--we-color-border-subtle)] bg-[var(--we-color-bg-canvas)] px-3 py-2 text-[13px] leading-relaxed text-[var(--we-color-text-primary)] outline-none transition-colors focus-visible:border-[var(--we-color-accent)] disabled:cursor-not-allowed disabled:bg-[var(--we-color-bg-subtle)]"
-        style={{ fontFamily: 'var(--we-font-body)' }}
-      />
-      <button
-        type="button"
-        onClick={onSend}
-        disabled={sendDisabled}
-        className="h-9 min-w-[52px] flex-shrink-0 rounded-[var(--we-radius-sm)] bg-[var(--we-color-accent)] px-3 text-[13px] italic text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:bg-[var(--we-color-accent)]/30"
-        style={{ fontFamily: 'var(--we-font-display)' }}
-      >
-        发送
-      </button>
+    <div className="we-asst-composer">
+      <div className="we-chat-input__row we-material">
+        <textarea
+          ref={textareaRef}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          onKeyDown={handleKeyDown}
+          disabled={disabled}
+          placeholder={disabled ? '当前暂不可输入' : hint}
+          aria-label="给写卡助手的消息"
+          rows={1}
+          className="we-chat-textarea we-asst-composer__textarea"
+        />
+        <button
+          type="button"
+          onClick={onSend}
+          disabled={sendDisabled}
+          className="we-chat-send-btn"
+          title="发送 (Enter)"
+          aria-label="发送"
+        >
+          <ArrowUp size={20} strokeWidth={2} />
+        </button>
+      </div>
+      <p className="we-asst-composer__hint">Enter 发送 · Shift+Enter 换行 · /stop 停止</p>
     </div>
   );
 }

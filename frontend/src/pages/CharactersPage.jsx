@@ -89,11 +89,6 @@ function PersonaCard({ persona, dragHandleProps, onActivate, onEdit, onDelete, o
             <p className="we-character-card-name">{persona.name || '（未命名玩家）'}</p>
             {isActive && <span className="we-persona-card__badge">激活</span>}
           </div>
-          {persona.description ? (
-            <p className="we-character-card-desc">{persona.description}</p>
-          ) : (
-            <p className="we-character-card-desc we-character-card-desc-empty">暂无简介</p>
-          )}
         </div>
       </div>
 
@@ -624,7 +619,7 @@ export default function CharactersPage() {
         />
       )}
 
-      {/* 世界层：左宽（故事线）右窄（角色 / 我扮演 / 世界规则） */}
+      {/* 世界层：左窄（故事线）右宽（角色 / 我扮演 / 世界规则） */}
       {!showGuide && (
       <div className="we-worldhub-layout">
 
@@ -761,6 +756,18 @@ export default function CharactersPage() {
                   <span className="we-persona-switch-name we-persona-switch-name--empty">
                     {loading ? '' : '暂无玩家卡'}
                   </span>
+                )}
+                {activePersona && (
+                  <button
+                    type="button"
+                    className="we-persona-switch-btn"
+                    onClick={() => navigate(
+                      `/worlds/${worldId}/personas/${activePersona.id}/edit`,
+                      { state: { backgroundLocation: location } }
+                    )}
+                  >
+                    编辑
+                  </button>
                 )}
                 <button
                   type="button"
