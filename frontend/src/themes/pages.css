@@ -1346,6 +1346,11 @@
   background: var(--we-color-ink-wash-md);
   transform: none;
 }
+@media (prefers-reduced-motion: reduce) {
+  .we-storyline-list--timeline .we-storyline-item:not(.we-storyline-item--active):hover {
+    transform: none;
+  }
+}
 .we-storyline-list--timeline .we-storyline-item:focus-visible {
   outline: none;
   box-shadow: var(--we-focus-ring);
@@ -4027,7 +4032,8 @@
 }
 :is(.we-state-panel, .we-cast-panel) .we-status-table-head-cell {
   align-items: center;
-  padding: var(--we-space-sm) var(--we-space-xs) 0;
+  padding: var(--we-space-sm) var(--we-space-xxs) 0;
+  white-space: nowrap;
   font-size: var(--we-text-2xs);
   letter-spacing: var(--we-tracking-normal);
   opacity: 1;
@@ -4035,7 +4041,7 @@
   border-radius: var(--we-radius-md) var(--we-radius-md) 0 0;
 }
 :is(.we-state-panel, .we-cast-panel) .we-status-table-body-cell {
-  padding: 0 var(--we-space-xs) var(--we-space-sm);
+  padding: 0 var(--we-space-xxs) var(--we-space-sm);
   background: var(--we-color-ink-wash);
   border-radius: 0 0 var(--we-radius-md) var(--we-radius-md);
 }

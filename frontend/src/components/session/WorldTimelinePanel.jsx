@@ -105,7 +105,7 @@ function TimelineItem({ item, title, index, isActive, editable, onClick, onRenam
       aria-current={isActive ? 'true' : undefined}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => { setHovered(false); setConfirmDelete(false); }}
-      style={{ animationDelay: `${Math.min(index, STAGGER_CAP) * STAGGER.list}s` }}
+      style={motionPrefs.reduced ? undefined : { animationDelay: `${Math.min(index, STAGGER_CAP) * STAGGER.list}s` }}
     >
       {/* 当前会话的托底亮片：切换会话时从旧卡片滑到新卡片 */}
       {isActive && (
