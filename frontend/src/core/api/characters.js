@@ -1,4 +1,4 @@
-import { request } from './request.js';
+import { request, uploadForm } from './request.js';
 
 const BASE = '/api';
 
@@ -38,14 +38,5 @@ export function reorderCharacters(items) {
 export function uploadAvatar(characterId, file) {
   const formData = new FormData();
   formData.append('avatar', file);
-  return fetch(`${BASE}/characters/${characterId}/avatar`, {
-    method: 'POST',
-    body: formData,
-  }).then(async (res) => {
-    if (!res.ok) {
-      const body = await res.json().catch(() => ({}));
-      throw new Error(body.error || `上传失败：${res.status}`);
-    }
-    return res.json();
-  });
+  return uploadForm(`${BASE}/characters/${characterId}/avatar`, formData);
 }

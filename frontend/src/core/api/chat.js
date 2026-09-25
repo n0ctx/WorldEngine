@@ -55,41 +55,29 @@ export function subscribeChatStream(sessionId, callbacks) {
 /**
  * 代入：AI 代拟用户消息，返回 { content }
  */
-export async function impersonate(sessionId) {
-  const res = await fetch(`/api/sessions/${sessionId}/impersonate`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.error || `HTTP ${res.status}`);
-  }
-  return res.json();
+export function impersonate(sessionId) {
+  return postSessionAction(sessionId, 'impersonate');
 }
 
 /**
  * 编辑 AI 消息内容并触发摘要重新生成（不重新生成 AI 回复）
  */
-export async function editAssistantMessage(sessionId, messageId, content) {
-  const res = await fetch(`/api/sessions/${sessionId}/edit-assistant`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ messageId, content }),
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.error || `HTTP ${res.status}`);
-  }
-  return res.json();
+export function editAssistantMessage(sessionId, messageId, content) {
+  return postSessionAction(sessionId, 'edit-assistant', { messageId, content });
 }
 
 /**
  * 用最近一轮完整上下文重新生成并覆盖会话标题
  */
-export async function retitle(sessionId) {
-  const res = await fetch(`/api/sessions/${sessionId}/retitle`, {
+export function retitle(sessionId) {
+  return postSessionAction(sessionId, 'retitle');
+}
+
+async function postSessionAction(sessionId, action, body) {
+  const res = await fetch(`/api/sessions/${sessionId}/${action}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
+    ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));

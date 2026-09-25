@@ -1,46 +1,23 @@
-const BASE = '/api';
+import { request } from './request.js';
 
-async function request(url) {
-  const res = await fetch(url);
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new Error(body.error || `请求失败：${res.status}`);
-  }
-  return res.json();
-}
+const BASE = '/api';
 
 export function getCharacterStateValues(characterId) {
   return request(`${BASE}/characters/${characterId}/state-values`);
 }
 
-export async function updateCharacterStateValue(characterId, fieldKey, valueJson) {
-  const res = await fetch(`${BASE}/characters/${characterId}/state-values/${fieldKey}`, {
+export function updateCharacterStateValue(characterId, fieldKey, valueJson) {
+  return request(`${BASE}/characters/${characterId}/state-values/${fieldKey}`, {
     method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ value_json: valueJson }),
   });
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new Error(body.error || `请求失败：${res.status}`);
-  }
-  return res.json();
 }
 
 /** AI 从人设正文提取状态字段建议值（只读，不写库） */
-export async function extractCharacterStateValues(characterId) {
-  const res = await fetch(`${BASE}/characters/${characterId}/state-values/extract`, { method: 'POST' });
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new Error(body.error || `提取失败：${res.status}`);
-  }
-  return res.json();
+export function extractCharacterStateValues(characterId) {
+  return request(`${BASE}/characters/${characterId}/state-values/extract`, { method: 'POST' }, '提取失败');
 }
 
-export async function resetCharacterStateValues(characterId) {
-  const res = await fetch(`${BASE}/characters/${characterId}/state-values/reset`, { method: 'POST' });
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new Error(body.error || `重置失败：${res.status}`);
-  }
-  return res.json();
+export function resetCharacterStateValues(characterId) {
+  return request(`${BASE}/characters/${characterId}/state-values/reset`, { method: 'POST' }, '重置失败');
 }

@@ -17,7 +17,7 @@ describe('world state values api', () => {
     await expect(updateWorldStateValue('world-1', 'weather', '"雨"')).resolves.toEqual({ success: true });
     await expect(resetWorldStateValues('world-1')).resolves.toEqual({ success: true });
 
-    expect(fetch).toHaveBeenNthCalledWith(1, '/api/worlds/world-1/state-values');
+    expect(fetch).toHaveBeenNthCalledWith(1, '/api/worlds/world-1/state-values', expect.any(Object));
     expect(fetch).toHaveBeenNthCalledWith(2, '/api/worlds/world-1/state-values/weather', expect.objectContaining({
       method: 'PATCH',
       body: JSON.stringify({ value_json: '"雨"' }),

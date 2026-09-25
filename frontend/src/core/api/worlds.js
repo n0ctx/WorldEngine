@@ -1,4 +1,4 @@
-import { request } from './request.js';
+import { request, uploadForm } from './request.js';
 
 const BASE = '/api/worlds';
 
@@ -34,14 +34,5 @@ export function uploadWorldCover(worldId, file, accentColor) {
   const formData = new FormData();
   formData.append('cover', file);
   if (accentColor) formData.append('accent_color', accentColor);
-  return fetch(`${BASE}/${worldId}/cover`, {
-    method: 'POST',
-    body: formData,
-  }).then(async (res) => {
-    if (!res.ok) {
-      const body = await res.json().catch(() => ({}));
-      throw new Error(body.error || `上传失败：${res.status}`);
-    }
-    return res.json();
-  });
+  return uploadForm(`${BASE}/${worldId}/cover`, formData);
 }

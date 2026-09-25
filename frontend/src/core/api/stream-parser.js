@@ -30,6 +30,11 @@ import { publishProviderSafetySignal } from './provider-safety-events.js';
  */
 export async function subscribeSse(url, callbacks, signal) {
   const res = await fetch(url, { method: 'GET', signal });
+  await readSseResponse(res, callbacks);
+}
+
+/** HTTP 失败时把 body.error（或状态码）交给 onError；成功时解析 SSE 流 */
+export async function readSseResponse(res, callbacks) {
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     callbacks.onError?.(err.error || `HTTP ${res.status}`);

@@ -24,20 +24,19 @@ export function subscribeProviderSafetySignals(cb) {
   return () => listeners.delete(cb);
 }
 
-export function listProviderSafetyEvents(filters = {}) {
+function toQuery(filters) {
   const qs = new URLSearchParams();
   for (const [k, v] of Object.entries(filters)) {
     if (v != null && v !== '') qs.append(k, String(v));
   }
   const suffix = qs.toString();
-  return request(`/api/provider-safety-events${suffix ? `?${suffix}` : ''}`);
+  return suffix ? `?${suffix}` : '';
+}
+
+export function listProviderSafetyEvents(filters = {}) {
+  return request(`/api/provider-safety-events${toQuery(filters)}`);
 }
 
 export function getProviderSafetyStats(filters = {}) {
-  const qs = new URLSearchParams();
-  for (const [k, v] of Object.entries(filters)) {
-    if (v != null && v !== '') qs.append(k, String(v));
-  }
-  const suffix = qs.toString();
-  return request(`/api/provider-safety-events/stats${suffix ? `?${suffix}` : ''}`);
+  return request(`/api/provider-safety-events/stats${toQuery(filters)}`);
 }

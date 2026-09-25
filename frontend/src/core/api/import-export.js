@@ -3,6 +3,17 @@ import { SETTINGS_MODE } from '../constants/settings';
 
 const BASE = '/api';
 
+/** 把 JSON 数据作为文件下载到本地 */
+export function downloadJson(data, filename) {
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 /**
  * 导出角色卡，返回 JSON 数据对象
  */
@@ -15,13 +26,7 @@ export function exportCharacter(characterId) {
  */
 export async function downloadCharacterCard(characterId, filename) {
   const data = await exportCharacter(characterId);
-  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename || 'character.wechar.json';
-  a.click();
-  URL.revokeObjectURL(url);
+  downloadJson(data, filename || 'character.wechar.json');
 }
 
 /**
@@ -46,13 +51,7 @@ export function exportWorld(worldId) {
  */
 export async function downloadWorldCard(worldId, filename) {
   const data = await exportWorld(worldId);
-  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename || 'world.weworld.json';
-  a.click();
-  URL.revokeObjectURL(url);
+  downloadJson(data, filename || 'world.weworld.json');
 }
 
 /**
@@ -67,13 +66,7 @@ export function exportPersona(personaId) {
  */
 export async function downloadPersonaCard(personaId, filename) {
   const data = await exportPersona(personaId);
-  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename || 'persona.wepersona.json';
-  a.click();
-  URL.revokeObjectURL(url);
+  downloadJson(data, filename || 'persona.wepersona.json');
 }
 
 /**
@@ -110,13 +103,7 @@ export function exportGlobalSettings(mode = SETTINGS_MODE.CHAT) {
  */
 export async function downloadGlobalSettings(mode = SETTINGS_MODE.CHAT) {
   const data = await exportGlobalSettings(mode);
-  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `worldengine-global-settings-${mode}.weglobal.json`;
-  a.click();
-  URL.revokeObjectURL(url);
+  downloadJson(data, `worldengine-global-settings-${mode}.weglobal.json`);
 }
 
 /**
@@ -141,13 +128,7 @@ function exportMigration() {
  */
 export async function downloadMigration() {
   const data = await exportMigration();
-  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `worldengine-migration-${new Date().toISOString().slice(0, 10)}.wemigration.json`;
-  a.click();
-  URL.revokeObjectURL(url);
+  downloadJson(data, `worldengine-migration-${new Date().toISOString().slice(0, 10)}.wemigration.json`);
 }
 
 /**

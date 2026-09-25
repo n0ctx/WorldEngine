@@ -1,4 +1,5 @@
-import { request } from './request.js';
+import { downloadJson } from './import-export.js';
+import { assertOk, request } from './request.js';
 
 const BASE = '/api/themes';
 export const DEFAULT_THEME_ID = 'nocturne';
@@ -11,10 +12,7 @@ export function listThemes() {
 
 export async function fetchThemeCss(id) {
   const res = await fetch(`${BASE}/${encodeURIComponent(id)}/css`);
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new Error(body.error || `请求失败：${res.status}`);
-  }
+  await assertOk(res);
   return res.text();
 }
 
@@ -42,13 +40,7 @@ export function deleteTheme(id) {
 
 export async function downloadTheme(id, filename) {
   const data = await exportTheme(id);
-  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename || `${id}.wetheme.json`;
-  a.click();
-  URL.revokeObjectURL(url);
+  downloadJson(data, filename || `${id}.wetheme.json`);
 }
 
 if (import.meta.hot) {

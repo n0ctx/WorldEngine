@@ -1,3 +1,5 @@
+import { request, uploadForm } from './request.js';
+
 const BASE = '/api';
 
 /** 批量更新玩家卡排序 */
@@ -33,13 +35,8 @@ export async function getPersonaById(id) {
 }
 
 /** AI 从人设正文提取状态字段建议值（只读，不写库） */
-export async function extractPersonaStateValues(id) {
-  const res = await fetch(`${BASE}/personas/${id}/state-values/extract`, { method: 'POST' });
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new Error(body.error || `提取失败：${res.status}`);
-  }
-  return res.json();
+export function extractPersonaStateValues(id) {
+  return request(`${BASE}/personas/${id}/state-values/extract`, { method: 'POST' }, '提取失败');
 }
 
 /** 创建新 persona */
@@ -93,29 +90,11 @@ export async function deletePersona(id) {
 export function uploadPersonaAvatar(worldId, file) {
   const formData = new FormData();
   formData.append('avatar', file);
-  return fetch(`${BASE}/worlds/${worldId}/persona/avatar`, {
-    method: 'POST',
-    body: formData,
-  }).then(async (res) => {
-    if (!res.ok) {
-      const body = await res.json().catch(() => ({}));
-      throw new Error(body.error || `上传失败：${res.status}`);
-    }
-    return res.json();
-  });
+  return uploadForm(`${BASE}/worlds/${worldId}/persona/avatar`, formData);
 }
 
 export function uploadPersonaAvatarById(personaId, file) {
   const formData = new FormData();
   formData.append('avatar', file);
-  return fetch(`${BASE}/personas/${personaId}/avatar`, {
-    method: 'POST',
-    body: formData,
-  }).then(async (res) => {
-    if (!res.ok) {
-      const body = await res.json().catch(() => ({}));
-      throw new Error(body.error || `上传失败：${res.status}`);
-    }
-    return res.json();
-  });
+  return uploadForm(`${BASE}/personas/${personaId}/avatar`, formData);
 }

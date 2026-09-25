@@ -1,4 +1,4 @@
-import { parseSSEStream, subscribeSse } from './stream-parser.js';
+import { readSseResponse, subscribeSse } from './stream-parser.js';
 
 /**
  * POST 请求 + SSE 流解析，返回 abort 函数。
@@ -17,12 +17,7 @@ export function streamPost(url, body, callbacks) {
         ...(payload !== undefined ? { body: JSON.stringify(payload) } : {}),
         signal: controller.signal,
       });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        callbacks.onError?.(err.error || `HTTP ${res.status}`);
-        return;
-      }
-      await parseSSEStream(res, callbacks);
+      await readSseResponse(res, callbacks);
     } catch (err) {
       if (err.name !== 'AbortError') {
         callbacks.onError?.(err.message);

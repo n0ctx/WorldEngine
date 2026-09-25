@@ -1,51 +1,33 @@
+import { request } from './request.js';
+
 const BASE = '/api';
 
-export async function getPersonaStateValues(worldId) {
-  const res = await fetch(`${BASE}/worlds/${worldId}/persona-state-values`);
-  if (!res.ok) throw new Error(await res.text());
-  return res.json();
+export function getPersonaStateValues(worldId) {
+  return request(`${BASE}/worlds/${worldId}/persona-state-values`);
 }
 
-export async function updatePersonaStateValue(worldId, fieldKey, valueJson) {
-  const res = await fetch(`${BASE}/worlds/${worldId}/persona-state-values/${fieldKey}`, {
+export function updatePersonaStateValue(worldId, fieldKey, valueJson) {
+  return request(`${BASE}/worlds/${worldId}/persona-state-values/${fieldKey}`, {
     method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ value_json: valueJson }),
   });
-  if (!res.ok) throw new Error(await res.text());
-  return res.json();
 }
 
-export async function getPersonaStateValuesByPersonaId(worldId, personaId) {
-  const res = await fetch(`${BASE}/worlds/${worldId}/personas/${personaId}/state-values`);
-  if (!res.ok) throw new Error(await res.text());
-  return res.json();
+export function getPersonaStateValuesByPersonaId(worldId, personaId) {
+  return request(`${BASE}/worlds/${worldId}/personas/${personaId}/state-values`);
 }
 
-export async function updatePersonaStateValueByPersonaId(worldId, personaId, fieldKey, valueJson) {
-  const res = await fetch(`${BASE}/worlds/${worldId}/personas/${personaId}/state-values/${fieldKey}`, {
+export function updatePersonaStateValueByPersonaId(worldId, personaId, fieldKey, valueJson) {
+  return request(`${BASE}/worlds/${worldId}/personas/${personaId}/state-values/${fieldKey}`, {
     method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ value_json: valueJson }),
   });
-  if (!res.ok) throw new Error(await res.text());
-  return res.json();
 }
 
-export async function resetPersonaStateValuesByPersonaId(worldId, personaId) {
-  const res = await fetch(`${BASE}/worlds/${worldId}/personas/${personaId}/state-values/reset`, { method: 'POST' });
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new Error(body.error || `重置失败：${res.status}`);
-  }
-  return res.json();
+export function resetPersonaStateValuesByPersonaId(worldId, personaId) {
+  return request(`${BASE}/worlds/${worldId}/personas/${personaId}/state-values/reset`, { method: 'POST' }, '重置失败');
 }
 
-export async function resetPersonaStateValues(worldId) {
-  const res = await fetch(`${BASE}/worlds/${worldId}/persona-state-values/reset`, { method: 'POST' });
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new Error(body.error || `重置失败：${res.status}`);
-  }
-  return res.json();
+export function resetPersonaStateValues(worldId) {
+  return request(`${BASE}/worlds/${worldId}/persona-state-values/reset`, { method: 'POST' }, '重置失败');
 }

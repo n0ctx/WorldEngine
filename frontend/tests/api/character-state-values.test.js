@@ -17,7 +17,7 @@ describe('character state values api', () => {
     await expect(updateCharacterStateValue('char-1', 'hp', '10')).resolves.toEqual({ success: true });
     await expect(resetCharacterStateValues('char-1')).resolves.toEqual({ success: true });
 
-    expect(fetch).toHaveBeenNthCalledWith(1, '/api/characters/char-1/state-values');
+    expect(fetch).toHaveBeenNthCalledWith(1, '/api/characters/char-1/state-values', expect.any(Object));
     expect(fetch).toHaveBeenNthCalledWith(2, '/api/characters/char-1/state-values/hp', expect.objectContaining({
       method: 'PATCH',
       body: JSON.stringify({ value_json: '10' }),
