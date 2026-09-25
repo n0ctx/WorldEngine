@@ -291,7 +291,7 @@ function applyStatePatch(activeFields, patchData, upsertFn, logLabel, valueMap =
  * 检查 patch 中 text/list 字段是否超限，超限时调用 LLM 压缩后就地修改 patch。
  * 必须在 applyStatePatch 之前调用，以便 validateValue 处理压缩后的值。
  */
-async function compressOverLimitFields(patch, entityFieldPairs, sid, sessionId) {
+function collectOverLimitFields(entityFieldPairs) {
   const overLengthText = [];
   const overLengthList = [];
 
@@ -327,6 +327,61 @@ async function compressOverLimitFields(patch, entityFieldPairs, sid, sessionId) 
     }
   }
 
+  return { overLengthText, overLengthList };
+}
+
+function parseCompressedResponse(raw, sid) {
+  let compressed = null;
+  if (raw) {
+    try {
+      const cleaned = stripThinkBlocks(raw);
+      const codeBlock = cleaned.match(/```(?:json)?\s*([\s\S]*?)```/);
+      const jsonSource = codeBlock ? codeBlock[1].trim() : cleaned;
+      const match = jsonSource.match(/\{[\s\S]*\}/) || jsonSource.match(/\{[\s\S]*/);
+      if (match) {
+        try { compressed = JSON.parse(match[0]); }
+        catch { compressed = JSON.parse(repairJsonIssues(match[0])); }
+      }
+    } catch {
+      log.warn(`COMPRESS PARSE FAIL  ${formatMeta({ session: sid, preview: previewText(raw) })}`);
+    }
+  }
+  return compressed && typeof compressed === 'object' ? compressed : {};
+}
+
+function applyCompressedFields(patch, compressed, overLengthText, overLengthList, sid) {
+  // 确保 patch[entityKey] 是普通对象；若 LLM 返回畸形桶（字符串/数字/数组等），
+  // 直接覆盖为 {}，避免给非对象赋属性触发严格模式 TypeError 中断整个更新流程。
+  const ensureBucket = (entityKey) => {
+    const cur = patch[entityKey];
+    if (!cur || typeof cur !== 'object' || Array.isArray(cur)) patch[entityKey] = {};
+    return patch[entityKey];
+  };
+
+  for (const { entityKey, fieldKey } of overLengthText) {
+    const val = compressed?.[entityKey]?.[fieldKey];
+    if (typeof val === 'string' && val.length > 0) {
+      ensureBucket(entityKey)[fieldKey] = val;
+      log.info(`COMPRESS TEXT OK  ${formatMeta({ session: sid, field: `${entityKey}.${fieldKey}`, chars: val.length })}`);
+    }
+  }
+  for (const { entityKey, fieldKey, value: original } of overLengthList) {
+    const val = compressed?.[entityKey]?.[fieldKey];
+    if (Array.isArray(val) && val.length > 0 && val.length <= STATE_LIST_MAX_ITEMS) {
+      ensureBucket(entityKey)[fieldKey] = val;
+      log.info(`COMPRESS LIST OK  ${formatMeta({ session: sid, field: `${entityKey}.${fieldKey}`, items: val.length })}`);
+    } else {
+      // 兜底：LLM 未返回有效裁剪结果时，硬截取最近的 STATE_LIST_TRIM_TARGET 条，避免列表无限增长
+      const trimmed = original.slice(-STATE_LIST_TRIM_TARGET);
+      ensureBucket(entityKey)[fieldKey] = trimmed;
+      log.warn(`COMPRESS LIST FALLBACK  ${formatMeta({ session: sid, field: `${entityKey}.${fieldKey}`, from: original.length, to: trimmed.length })}`);
+    }
+  }
+}
+
+async function compressOverLimitFields(patch, entityFieldPairs, sid, sessionId) {
+  const { overLengthText, overLengthList } = collectOverLimitFields(entityFieldPairs);
+
   if (overLengthText.length === 0 && overLengthList.length === 0) return;
 
   log.info(`COMPRESS  ${formatMeta({ session: sid, text: overLengthText.length, list: overLengthList.length })}`);
@@ -360,112 +415,28 @@ async function compressOverLimitFields(patch, entityFieldPairs, sid, sessionId) 
     timeoutMs: LLM_BACKGROUND_TASK_TIMEOUT_MS,
   });
 
-  let compressed = null;
-  if (raw) {
-    try {
-      const cleaned = stripThinkBlocks(raw);
-      const codeBlock = cleaned.match(/```(?:json)?\s*([\s\S]*?)```/);
-      const jsonSource = codeBlock ? codeBlock[1].trim() : cleaned;
-      const match = jsonSource.match(/\{[\s\S]*\}/) || jsonSource.match(/\{[\s\S]*/);
-      if (match) {
-        try { compressed = JSON.parse(match[0]); }
-        catch { compressed = JSON.parse(repairJsonIssues(match[0])); }
-      }
-    } catch {
-      log.warn(`COMPRESS PARSE FAIL  ${formatMeta({ session: sid, preview: previewText(raw) })}`);
-    }
-  }
-  if (!compressed || typeof compressed !== 'object') compressed = {};
-
-  // 确保 patch[entityKey] 是普通对象；若 LLM 返回畸形桶（字符串/数字/数组等），
-  // 直接覆盖为 {}，避免给非对象赋属性触发严格模式 TypeError 中断整个更新流程。
-  const ensureBucket = (entityKey) => {
-    const cur = patch[entityKey];
-    if (!cur || typeof cur !== 'object' || Array.isArray(cur)) patch[entityKey] = {};
-    return patch[entityKey];
-  };
-
-  for (const { entityKey, fieldKey } of overLengthText) {
-    const val = compressed?.[entityKey]?.[fieldKey];
-    if (typeof val === 'string' && val.length > 0) {
-      ensureBucket(entityKey)[fieldKey] = val;
-      log.info(`COMPRESS TEXT OK  ${formatMeta({ session: sid, field: `${entityKey}.${fieldKey}`, chars: val.length })}`);
-    }
-  }
-  for (const { entityKey, fieldKey, value: original } of overLengthList) {
-    const val = compressed?.[entityKey]?.[fieldKey];
-    if (Array.isArray(val) && val.length > 0 && val.length <= STATE_LIST_MAX_ITEMS) {
-      ensureBucket(entityKey)[fieldKey] = val;
-      log.info(`COMPRESS LIST OK  ${formatMeta({ session: sid, field: `${entityKey}.${fieldKey}`, items: val.length })}`);
-    } else {
-      // 兜底：LLM 未返回有效裁剪结果时，硬截取最近的 STATE_LIST_TRIM_TARGET 条，避免列表无限增长
-      const trimmed = original.slice(-STATE_LIST_TRIM_TARGET);
-      ensureBucket(entityKey)[fieldKey] = trimmed;
-      log.warn(`COMPRESS LIST FALLBACK  ${formatMeta({ session: sid, field: `${entityKey}.${fieldKey}`, from: original.length, to: trimmed.length })}`);
-    }
-  }
+  const compressed = parseCompressedResponse(raw, sid);
+  applyCompressedFields(patch, compressed, overLengthText, overLengthList, sid);
 }
 
 // ── 主函数 ──────────────────────────────────────────────────────────────────
 
-/**
- * 单次 LLM 调用同时更新世界/角色（可多个）/玩家状态。
- *
- * @param {string|null} worldId
- * @param {string[]} characterIds  chat 模式传 [characterId]，写作模式传多个
- * @param {string} sessionId
- */
-export async function updateAllStates(worldId, characterIds, sessionId) {
-  const sid = sessionId.slice(0, 8);
-  const world = worldId ? getWorldById(worldId) : null;
-  log.info(`START  ${formatMeta({ session: sid, worldId: worldId ?? null, characterIds })}`);
-
-  const session = getSessionById(sessionId);
-
-  // ── 首轮前状态基线捕获（回滚锚点）──
-  // 在本轮任何状态写入之前、且仅当基线尚未存在时，把当前 session 状态（= 用户首轮前手动预设）
-  // 不可变地存为基线。重生成第一轮会把所有 turn record 删光，届时回滚拿不到轮次快照，
-  // 改用此基线还原，既保住手动预设，又丢弃被重生成轮次的状态污染。
-  // gate 必须是「基线不存在」而非「无 turn record」——重生成首轮时 turn record 已被删空，
-  // 但此时 session 状态仍是污染态，setSessionStateBaselineIfAbsent 的 IS NULL 条件保证不会被覆盖。
-  if (worldId) {
-    const isWriting = session?.mode === 'writing';
-    const baseline = captureFullSnapshot(sessionId, worldId, characterIds || [], isWriting);
-    setSessionStateBaselineIfAbsent(sessionId, JSON.stringify(baseline));
-  }
-
-  // 真实日期模式：直接写入当前系统时间（在 early-return 之前执行，确保每轮都更新）
-  if (session?.diary_date_mode === 'real' && worldId) {
-    const timeStr = formatRealTimeDiaryStr();
-    upsertSessionWorldStateValue(sessionId, worldId, DIARY_TIME_FIELD_KEY, JSON.stringify(timeStr));
-    log.info(`REAL TIME  ${formatMeta({ session: sid, time: timeStr })}`);
-  }
-
-  const messages = getMessagesBySessionId(sessionId, ALL_MESSAGES_LIMIT, 0);
-  if (messages.length === 0) return;
-
-  // ── 确定各类活跃字段 ──
+function loadStateUpdateTargets(worldId, characterIds, world) {
   const worldActiveFields = world ? filterActive(getWorldStateFieldsByWorldId(worldId)) : [];
-
   const characters = (characterIds || []).map((id) => getCharacterById(id)).filter(Boolean);
-  // 角色状态字段 schema 由 world_id 决定，取第一个有效角色的 world_id
+  // 角色状态字段 schema 由 world_id 决定，取第一个有效角色的 world_id。
   const charWorldId = characters[0]?.world_id ?? worldId;
   const charSchemaFields = charWorldId ? filterActive(getCharacterStateFieldsByWorldId(charWorldId)) : [];
   const charactersWithFields = charSchemaFields.length > 0 ? characters : [];
-
   const personaActiveFields = world ? filterActive(getPersonaStateFieldsByWorldId(worldId)) : [];
 
-  if (worldActiveFields.length === 0 && charactersWithFields.length === 0 && personaActiveFields.length === 0) {
-    log.info(`SKIP  ${formatMeta({ session: sid, reason: 'no-active-fields' })}`);
-    return;
-  }
+  return { worldActiveFields, characters, charWorldId, charSchemaFields, charactersWithFields, personaActiveFields };
+}
 
-  // 对话标注用名（用第一个角色名，没有则"角色"）
-  const primaryName = characters[0]?.name ?? '角色';
-
-  // ── 组装 prompt 各节 ──
-  // schemaSections：字段定义（逐字节稳定，进 cacheableSystem 前缀）
-  // valueSections：当前取值（逐轮变化，留在 messages 末尾的 user 段）
+function buildEntityStateSections(targets, { world, worldId, sessionId, session }) {
+  const {
+    worldActiveFields, charactersWithFields, charSchemaFields, personaActiveFields,
+  } = targets;
   const schemaSections = [];
   const valueSections = [];
   const responseKeys = [];
@@ -521,52 +492,42 @@ export async function updateAllStates(worldId, characterIds, sessionId) {
     responseKeys.push('"persona"（玩家状态）');
   }
 
-  // ── 写作模式：组装 nearby pool 段（位置：character 段之后，在玩家段之后追加亦可，
-  //    spec 描述为"character 段之后"，这里在 sections 末尾追加，与 persona 并列） ──
-  const isWriting = session?.mode === 'writing';
-  let nearbyPool = null;
-  let nearbyEnabledFields = null;
-  let nearbyPlayerName = '';
-  if (isWriting && charWorldId) {
-    if (session?.persona_id) {
-      const persona = getPersonaById(session.persona_id);
-      nearbyPlayerName = typeof persona?.name === 'string' ? persona.name.trim() : '';
-    }
-    nearbyEnabledFields = getCharacterStateFieldsByWorldId(charWorldId)
-      .filter((f) => Number(f.nearby_enabled) === 1);
-    const rows = listNearbyBySessionId(sessionId);
-    nearbyPool = rows.map((row) => {
-      const values = getStateValuesByNearbyId(row.id);
-      const state = {};
-      for (const v of values) {
-        if (v.runtime_value_json == null) continue;
-        try { state[v.field_key] = JSON.parse(v.runtime_value_json); }
-        catch { state[v.field_key] = v.runtime_value_json; }
-      }
-      return {
-        id: row.id,
-        name: row.name,
-        is_saved: Number(row.is_saved) === 1 ? 1 : 0,
-        persona: row.persona ?? '',
-        state,
-      };
-    });
-    // TODO(token): nearby pool 每轮由 listNearbyBySessionId + 逐行 getStateValuesByNearbyId 重建，
-    //   且 buildNearbyPromptSection 把「指令」与「逐轮变化的池数据」揉在一起，无法切出稳定前缀。
-    //   后续可考虑：把 nearby 的「字段定义/输出格式说明」抽进 schema 前缀，仅把池数据留在动态段；
-    //   并对 pool 做会话级缓存 + 失效（saved/transient 变更时 invalidate）。当前保守只放进动态段，不缓存。
-    valueSections.push(
-      `=== 登场角色（nearby_characters）===\n` +
-        buildNearbyPromptSection(nearbyPool, nearbyEnabledFields, { playerName: nearbyPlayerName })
-    );
-    responseKeys.push('"nearby_characters"（本轮登场角色，数组）');
-  }
+  return { schemaSections, valueSections, responseKeys, worldValueMap, charValueMaps, personaValueMap };
+}
 
-  // 对话上下文：取最近 4 条（2 轮），分"上一轮"/"本轮"打标签
+function buildNearbyContext(sessionId, charWorldId, personaId) {
+  let nearbyPlayerName = '';
+  if (personaId) {
+    const persona = getPersonaById(personaId);
+    nearbyPlayerName = typeof persona?.name === 'string' ? persona.name.trim() : '';
+  }
+  const nearbyEnabledFields = getCharacterStateFieldsByWorldId(charWorldId)
+    .filter((f) => Number(f.nearby_enabled) === 1);
+  const rows = listNearbyBySessionId(sessionId);
+  const nearbyPool = rows.map((row) => {
+    const values = getStateValuesByNearbyId(row.id);
+    const state = {};
+    for (const value of values) {
+      if (value.runtime_value_json == null) continue;
+      try { state[value.field_key] = JSON.parse(value.runtime_value_json); }
+      catch { state[value.field_key] = value.runtime_value_json; }
+    }
+    return {
+      id: row.id,
+      name: row.name,
+      is_saved: Number(row.is_saved) === 1 ? 1 : 0,
+      persona: row.persona ?? '',
+      state,
+    };
+  });
+  return { nearbyPool, nearbyEnabledFields, nearbyPlayerName };
+}
+
+function buildStateDialogue(messages, primaryName) {
   const recentMsgs = messages
-    .filter((m) => m.role === 'user' || m.role === 'assistant')
+    .filter((message) => message.role === 'user' || message.role === 'assistant')
     .slice(-4);
-  const formatMsg = (m) => `${m.role === 'user' ? '玩家' : primaryName}：${m.content}`;
+  const formatMsg = (message) => `${message.role === 'user' ? '玩家' : primaryName}：${message.content}`;
   const currentTurn = recentMsgs.slice(-2);
   // length > 2：无论是单条开场白还是完整的上一轮，都纳入"上一轮"
   const prevTurn = recentMsgs.length > 2 ? recentMsgs.slice(0, -2) : [];
@@ -575,15 +536,100 @@ export async function updateAllStates(worldId, characterIds, sessionId) {
     dialogueParts.push(`【上一轮（仅供背景参考，状态已处理）】\n${prevTurn.map(formatMsg).join('\n')}`);
   }
   dialogueParts.push(`【本轮（请据此判断状态变化）】\n${currentTurn.map(formatMsg).join('\n')}`);
-  const dialogue = dialogueParts.join('\n\n');
+  return dialogueParts.join('\n\n');
+}
 
-  const exampleKeys = [
+function buildStateUpdateExampleKeys(worldActiveFields, charactersWithFields, personaActiveFields) {
+  return [
     worldActiveFields.length > 0 ? '"world": {"date": "第三纪元第101年"}' : null,
     charactersWithFields[0] ? '"char_0": {"mood": "开心"}' : null,
     personaActiveFields.length > 0 ? '"persona": {"health": 85}' : null,
   ]
     .filter(Boolean)
     .join(', ');
+}
+
+/**
+ * 单次 LLM 调用同时更新世界/角色（可多个）/玩家状态。
+ *
+ * @param {string|null} worldId
+ * @param {string[]} characterIds  chat 模式传 [characterId]，写作模式传多个
+ * @param {string} sessionId
+ */
+export async function updateAllStates(worldId, characterIds, sessionId) {
+  const sid = sessionId.slice(0, 8);
+  const world = worldId ? getWorldById(worldId) : null;
+  log.info(`START  ${formatMeta({ session: sid, worldId: worldId ?? null, characterIds })}`);
+
+  const session = getSessionById(sessionId);
+
+  // ── 首轮前状态基线捕获（回滚锚点）──
+  // 在本轮任何状态写入之前、且仅当基线尚未存在时，把当前 session 状态（= 用户首轮前手动预设）
+  // 不可变地存为基线。重生成第一轮会把所有 turn record 删光，届时回滚拿不到轮次快照，
+  // 改用此基线还原，既保住手动预设，又丢弃被重生成轮次的状态污染。
+  // gate 必须是「基线不存在」而非「无 turn record」——重生成首轮时 turn record 已被删空，
+  // 但此时 session 状态仍是污染态，setSessionStateBaselineIfAbsent 的 IS NULL 条件保证不会被覆盖。
+  if (worldId) {
+    const isWriting = session?.mode === 'writing';
+    const baseline = captureFullSnapshot(sessionId, worldId, characterIds || [], isWriting);
+    setSessionStateBaselineIfAbsent(sessionId, JSON.stringify(baseline));
+  }
+
+  // 真实日期模式：直接写入当前系统时间（在 early-return 之前执行，确保每轮都更新）
+  if (session?.diary_date_mode === 'real' && worldId) {
+    const timeStr = formatRealTimeDiaryStr();
+    upsertSessionWorldStateValue(sessionId, worldId, DIARY_TIME_FIELD_KEY, JSON.stringify(timeStr));
+    log.info(`REAL TIME  ${formatMeta({ session: sid, time: timeStr })}`);
+  }
+
+  const messages = getMessagesBySessionId(sessionId, ALL_MESSAGES_LIMIT, 0);
+  if (messages.length === 0) return;
+
+  // ── 确定各类活跃字段 ──
+  const targets = loadStateUpdateTargets(worldId, characterIds, world);
+  const {
+    worldActiveFields, characters, charWorldId, charSchemaFields,
+    charactersWithFields, personaActiveFields,
+  } = targets;
+
+  if (worldActiveFields.length === 0 && charactersWithFields.length === 0 && personaActiveFields.length === 0) {
+    log.info(`SKIP  ${formatMeta({ session: sid, reason: 'no-active-fields' })}`);
+    return;
+  }
+
+  // 对话标注用名（用第一个角色名，没有则"角色"）
+  const primaryName = characters[0]?.name ?? '角色';
+
+  // ── 组装 prompt 各节 ──
+  // schemaSections：字段定义（逐字节稳定，进 cacheableSystem 前缀）
+  // valueSections：当前取值（逐轮变化，留在 messages 末尾的 user 段）
+  const {
+    schemaSections, valueSections, responseKeys,
+    worldValueMap, charValueMaps, personaValueMap,
+  } = buildEntityStateSections(targets, { world, worldId, sessionId, session });
+
+  // ── 写作模式：组装 nearby pool 段（位置：character 段之后，在玩家段之后追加亦可，
+  //    spec 描述为"character 段之后"，这里在 sections 末尾追加，与 persona 并列） ──
+  const isWriting = session?.mode === 'writing';
+  const nearbyContext = isWriting && charWorldId
+    ? buildNearbyContext(sessionId, charWorldId, session?.persona_id)
+    : null;
+  if (nearbyContext) {
+    // TODO(token): nearby pool 每轮由 listNearbyBySessionId + 逐行 getStateValuesByNearbyId 重建，
+    //   且 buildNearbyPromptSection 把「指令」与「逐轮变化的池数据」揉在一起，无法切出稳定前缀。
+    //   后续可考虑：把 nearby 的「字段定义/输出格式说明」抽进 schema 前缀，仅把池数据留在动态段；
+    //   并对 pool 做会话级缓存 + 失效（saved/transient 变更时 invalidate）。当前保守只放进动态段，不缓存。
+    valueSections.push(
+      `=== 登场角色（nearby_characters）===\n` +
+        buildNearbyPromptSection(nearbyContext.nearbyPool, nearbyContext.nearbyEnabledFields, { playerName: nearbyContext.nearbyPlayerName })
+    );
+    responseKeys.push('"nearby_characters"（本轮登场角色，数组）');
+  }
+
+  // 对话上下文：取最近 4 条（2 轮），分"上一轮"/"本轮"打标签
+  const dialogue = buildStateDialogue(messages, primaryName);
+
+  const exampleKeys = buildStateUpdateExampleKeys(worldActiveFields, charactersWithFields, personaActiveFields);
 
   // ── 切分稳定前缀 / 动态后缀（prompt caching） ──
   // 稳定前缀（cacheableSystem）：通用指令 + 各字段 schema 定义。
@@ -680,14 +726,14 @@ export async function updateAllStates(worldId, characterIds, sessionId) {
   }
 
   // ── 写作模式：应用 nearby_characters 输出 ──
-  if (isWriting && nearbyEnabledFields && nearbyPool) {
+  if (nearbyContext) {
     applyNearbyResult({
       sessionId,
       worldId: charWorldId,
-      fields: nearbyEnabledFields,
+      fields: nearbyContext.nearbyEnabledFields,
       nearby_characters: patch.nearby_characters,
-      pool: nearbyPool,
-      playerName: nearbyPlayerName,
+      pool: nearbyContext.nearbyPool,
+      playerName: nearbyContext.nearbyPlayerName,
     });
   }
 }
@@ -710,6 +756,58 @@ export async function updateAllStates(worldId, characterIds, sessionId) {
  * @param {*}        params.nearby_characters   LLM 输出（可能不是数组）
  * @param {Array<{id:string,name:string,is_saved:0|1}>} params.pool
  */
+function applyNearbyState(targetId, stateObj, { sessionId, enabledKeys, fieldByKey }) {
+  if (!stateObj || typeof stateObj !== 'object' || Array.isArray(stateObj)) return;
+  for (const [key, raw] of Object.entries(stateObj)) {
+    if (!enabledKeys.has(key)) continue;
+    const validated = validateValue(raw, fieldByKey[key]);
+    if (validated === undefined) continue;
+    const valueJson = validated === null ? null : JSON.stringify(validated);
+    upsertNearbyStateValue({ sessionId, nearbyId: targetId, fieldKey: key, valueJson });
+  }
+}
+
+function applyNearbyPatch(targetId, item, context) {
+  const { sessionId, poolById, poolByName, seenIds } = context;
+  const poolItem = poolById[targetId];
+  if (typeof item.persona === 'string') updateNearbyPersona(targetId, item.persona);
+
+  // 改名：仅当 LLM 给了非空 name 且与现有不同 且 池内无同名占用
+  if (typeof item.name === 'string' && item.name.trim() && poolItem && item.name !== poolItem.name) {
+    const conflict = poolByName[item.name];
+    if (!conflict) {
+      updateNearbyName(targetId, item.name);
+    } else if (conflict.id !== targetId) {
+      log.warn(`NEARBY RENAME SKIP  ${formatMeta({ session: sessionId.slice(0, 8), id: targetId, want: item.name, conflictId: conflict.id })}`);
+    }
+  }
+  applyNearbyState(targetId, item.state, context);
+  seenIds.add(targetId);
+}
+
+function createTransientNearby(name, item, context) {
+  const { sessionId, fields, seenIds } = context;
+  const persona = typeof item.persona === 'string' ? item.persona : '';
+  let newId;
+  try {
+    newId = createNearbyCharacter({ sessionId, name, persona, isSaved: 0 });
+  } catch (err) {
+    // UNIQUE 冲突等场景兜底
+    log.warn(`NEARBY CREATE FAIL  ${formatMeta({ session: sessionId.slice(0, 8), name, error: err.message })}`);
+    const existed = getNearbyByName(sessionId, name);
+    if (!existed) return;
+    newId = existed.id;
+  }
+  applyNearbyState(newId, item.state, context);
+  // 诊断：新登场角色按 prompt 约束应填齐所有启用字段，缺字段时 warn
+  const stateKeys = item.state && typeof item.state === 'object' ? Object.keys(item.state) : [];
+  const missing = fields.map((field) => field.field_key).filter((key) => !stateKeys.includes(key));
+  if (missing.length) {
+    log.warn(`NEARBY NEW MISSING FIELDS  ${formatMeta({ session: sessionId.slice(0, 8), name, missing: missing.join(',') })}`);
+  }
+  seenIds.add(newId);
+}
+
 export function applyNearbyResult({ sessionId, worldId: _worldId, fields, nearby_characters, pool, playerName = '' }) {
   const items = Array.isArray(nearby_characters) ? nearby_characters : [];
   const enabledKeys = new Set(fields.map((f) => f.field_key));
@@ -718,38 +816,7 @@ export function applyNearbyResult({ sessionId, worldId: _worldId, fields, nearby
   const poolByName = Object.fromEntries(pool.map((p) => [p.name, p]));
   const seenIds = new Set();
   const playerNameTrim = typeof playerName === 'string' ? playerName.trim() : '';
-
-  const applyState = (targetId, stateObj) => {
-    if (!stateObj || typeof stateObj !== 'object' || Array.isArray(stateObj)) return;
-    for (const [k, raw] of Object.entries(stateObj)) {
-      if (!enabledKeys.has(k)) continue;
-      const field = fieldByKey[k];
-      const validated = validateValue(raw, field);
-      if (validated === undefined) continue;
-      const valueJson = validated === null ? null : JSON.stringify(validated);
-      upsertNearbyStateValue({ sessionId, nearbyId: targetId, fieldKey: k, valueJson });
-    }
-  };
-
-  const applyPatch = (targetId, item) => {
-    const poolItem = poolById[targetId];
-    if (typeof item.persona === 'string') {
-      updateNearbyPersona(targetId, item.persona);
-    }
-    // 改名：仅当 LLM 给了非空 name 且与现有不同 且 池内无同名占用
-    if (typeof item.name === 'string' && item.name.trim() && poolItem && item.name !== poolItem.name) {
-      const conflict = poolByName[item.name];
-      if (!conflict) {
-        updateNearbyName(targetId, item.name);
-      } else if (conflict.id === targetId) {
-        // 同 id 同名（极端情况），无操作
-      } else {
-        log.warn(`NEARBY RENAME SKIP  ${formatMeta({ session: sessionId.slice(0, 8), id: targetId, want: item.name, conflictId: conflict.id })}`);
-      }
-    }
-    applyState(targetId, item.state);
-    seenIds.add(targetId);
-  };
+  const context = { sessionId, fields, enabledKeys, fieldByKey, poolById, poolByName, seenIds };
 
   for (const item of items) {
     if (!item || typeof item !== 'object') continue;
@@ -761,7 +828,7 @@ export function applyNearbyResult({ sessionId, worldId: _worldId, fields, nearby
     const refId = item.ref_id ?? null;
     if (refId) {
       if (poolById[refId]) {
-        applyPatch(refId, item);
+        applyNearbyPatch(refId, item, context);
       } else {
         log.warn(`NEARBY REF MISS  ${formatMeta({ session: sessionId.slice(0, 8), ref_id: refId })}`);
       }
@@ -771,30 +838,10 @@ export function applyNearbyResult({ sessionId, worldId: _worldId, fields, nearby
     const name = typeof item.name === 'string' ? item.name.trim() : '';
     if (!name) continue;
     if (poolByName[name]) {
-      applyPatch(poolByName[name].id, item);
+      applyNearbyPatch(poolByName[name].id, item, context);
       continue;
     }
-    // 新建 transient
-    // 同步到 DB 之前，先确认 name 在 DB 层不会重复（与池一致即可，因为池源自 list）
-    const persona = typeof item.persona === 'string' ? item.persona : '';
-    let newId;
-    try {
-      newId = createNearbyCharacter({ sessionId, name, persona, isSaved: 0 });
-    } catch (err) {
-      // UNIQUE 冲突等场景兜底
-      log.warn(`NEARBY CREATE FAIL  ${formatMeta({ session: sessionId.slice(0, 8), name, error: err.message })}`);
-      const existed = getNearbyByName(sessionId, name);
-      if (!existed) continue;
-      newId = existed.id;
-    }
-    applyState(newId, item.state);
-    // 诊断：新登场角色按 prompt 约束应填齐所有启用字段，缺字段时 warn
-    const stateKeys = item.state && typeof item.state === 'object' ? Object.keys(item.state) : [];
-    const missing = fields.map((f) => f.field_key).filter((k) => !stateKeys.includes(k));
-    if (missing.length) {
-      log.warn(`NEARBY NEW MISSING FIELDS  ${formatMeta({ session: sessionId.slice(0, 8), name, missing: missing.join(',') })}`);
-    }
-    seenIds.add(newId);
+    createTransientNearby(name, item, context);
   }
 
   // 清理：保留 saved 全部 + 本轮提到的 transient

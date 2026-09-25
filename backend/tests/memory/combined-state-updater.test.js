@@ -11,6 +11,7 @@ import {
   insertWorld,
   insertWorldStateField,
 } from '../helpers/fixtures.js';
+import { STATE_LIST_MAX_ITEMS, STATE_LIST_TRIM_TARGET, STATE_TEXT_MAX_LENGTH } from '../../utils/constants.js';
 
 const sandbox = createTestSandbox('state-suite');
 sandbox.setEnv();
@@ -87,4 +88,56 @@ test('updateAllStates 解析 patch 后写入世界/角色/玩家状态', async (
   assert.equal(worldValue?.runtime_value_json, '"晴朗"');
   assert.equal(charValue?.runtime_value_json, '88');
   assert.equal(personaValue?.runtime_value_json, '"减轻"');
+});
+
+test('updateAllStates 压缩超限文本和列表后写入结果', async () => {
+  resetMockEnv();
+  const world = insertWorld(sandbox.db);
+  const character = insertCharacter(sandbox.db, world.id);
+  const session = insertSession(sandbox.db, { character_id: character.id });
+  insertMessage(sandbox.db, session.id, { role: 'user', content: '记录变化', created_at: 1 });
+  insertWorldStateField(sandbox.db, world.id, { field_key: 'note', type: 'text', update_mode: 'llm_auto' });
+  insertWorldStateField(sandbox.db, world.id, { field_key: 'history', type: 'list', update_mode: 'llm_auto' });
+  const longText = '字'.repeat(STATE_TEXT_MAX_LENGTH + 1);
+  const longList = Array.from({ length: STATE_LIST_MAX_ITEMS + 2 }, (_, index) => `条目${index}`);
+  process.env.MOCK_LLM_COMPLETE_QUEUE = JSON.stringify([
+    JSON.stringify({ world: { note: longText, history: longList } }),
+    JSON.stringify({ world: { note: '压缩后的记录', history: ['保留项'] } }),
+  ]);
+
+  const { updateAllStates } = await freshImport('backend/memory/combined-state-updater.js');
+  await updateAllStates(world.id, [character.id], session.id);
+
+  const rows = sandbox.db.prepare(
+    'SELECT field_key, runtime_value_json FROM session_world_state_values WHERE session_id = ?'
+  ).all(session.id);
+  const values = Object.fromEntries(rows.map((row) => [row.field_key, row.runtime_value_json]));
+  assert.equal(values.note, JSON.stringify('压缩后的记录'));
+  assert.equal(values.history, JSON.stringify(['保留项']));
+});
+
+test('updateAllStates 压缩响应无效时保留文本并裁剪列表尾部', async () => {
+  resetMockEnv();
+  const world = insertWorld(sandbox.db);
+  const character = insertCharacter(sandbox.db, world.id);
+  const session = insertSession(sandbox.db, { character_id: character.id });
+  insertMessage(sandbox.db, session.id, { role: 'user', content: '记录变化', created_at: 1 });
+  insertWorldStateField(sandbox.db, world.id, { field_key: 'note', type: 'text', update_mode: 'llm_auto' });
+  insertWorldStateField(sandbox.db, world.id, { field_key: 'history', type: 'list', update_mode: 'llm_auto' });
+  const longText = '字'.repeat(STATE_TEXT_MAX_LENGTH + 1);
+  const longList = Array.from({ length: STATE_LIST_MAX_ITEMS + 2 }, (_, index) => `条目${index}`);
+  process.env.MOCK_LLM_COMPLETE_QUEUE = JSON.stringify([
+    JSON.stringify({ world: { note: longText, history: longList } }),
+    'not-json',
+  ]);
+
+  const { updateAllStates } = await freshImport('backend/memory/combined-state-updater.js');
+  await updateAllStates(world.id, [character.id], session.id);
+
+  const rows = sandbox.db.prepare(
+    'SELECT field_key, runtime_value_json FROM session_world_state_values WHERE session_id = ?'
+  ).all(session.id);
+  const values = Object.fromEntries(rows.map((row) => [row.field_key, row.runtime_value_json]));
+  assert.equal(values.note, JSON.stringify(longText));
+  assert.equal(values.history, JSON.stringify(longList.slice(-STATE_LIST_TRIM_TARGET)));
 });
