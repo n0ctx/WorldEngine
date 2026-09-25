@@ -75,6 +75,37 @@ test('updateWorldDefaultStateValueValidated 在非法 JSON 或非法值时抛错
   assert.throws(() => updateWorldDefaultStateValueValidated(world.id, 'threat', '99'), /类型约束/);
 });
 
+test('validateStateValue 规范化列表并按列校验 table 值', async () => {
+  const { validateStateValue } = await freshImport('backend/services/state-values.js');
+
+  assert.deepEqual(
+    validateStateValue(' a， ，b、c ', { type: 'list', allow_empty: 0 }),
+    ['a', 'b', 'c'],
+  );
+  assert.deepEqual(
+    validateStateValue([0, '', false, null], { type: 'list', allow_empty: 1 }),
+    ['0', 'false', 'null'],
+  );
+  assert.equal(validateStateValue([], { type: 'list', allow_empty: 0 }), undefined);
+
+  const tableField = {
+    type: 'table',
+    allow_empty: 1,
+    table_columns: JSON.stringify([
+      { key: 'hp', min: 0, max: 100 },
+      { key: 'mp', min: '0', max: '50' },
+    ]),
+  };
+  assert.deepEqual(validateStateValue({ hp: '0', mp: 25, extra: 10 }, tableField), { hp: 0, mp: 25 });
+  assert.equal(validateStateValue({ hp: -1 }, tableField), undefined);
+  assert.equal(validateStateValue({ hp: 'unknown' }, tableField), undefined);
+  assert.deepEqual(validateStateValue({}, tableField), {});
+  assert.equal(
+    validateStateValue({ hp: 10 }, { ...tableField, table_columns: 'invalid' }),
+    undefined,
+  );
+});
+
 test('resolveUploadPath 会拒绝空值、越权路径并返回 uploadsDir 内绝对路径', async () => {
   const { resolveUploadPath } = await freshImport('backend/services/state-values.js');
   assert.equal(resolveUploadPath('', sandbox.uploadsDir), null);

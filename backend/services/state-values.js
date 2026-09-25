@@ -46,6 +46,42 @@ function parseValueJson(valueJson) {
 // datetime: 年份允许任意位正整数（参见 STATEVALUE-CHEATSHEET.md），月/日/时/分各 2 位
 const DATETIME_RE = /^\d+-\d{2}-\d{2}T\d{2}:\d{2}$/;
 
+function validateListStateValue(value, field) {
+  const items = typeof value === 'string'
+    ? value.split(/[,，、]/).map((item) => item.trim()).filter(Boolean)
+    : value;
+  if (!Array.isArray(items)) return undefined;
+
+  const validated = items.map(String).filter(Boolean);
+  if (validated.length === 0) return field.allow_empty ? [] : undefined;
+  return validated;
+}
+
+function validateTableStateValue(value, field) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined;
+
+  let columns = field.table_columns;
+  if (typeof columns === 'string') {
+    try { columns = JSON.parse(columns || '[]'); } catch { columns = []; }
+  }
+  if (!Array.isArray(columns) || columns.length === 0) return undefined;
+
+  const result = {};
+  for (const column of columns) {
+    const raw = value[column.key];
+    if (raw === '' || raw == null) continue;
+
+    const num = typeof raw === 'number' ? raw : Number(raw);
+    if (!Number.isFinite(num)) return undefined;
+    if (column.min != null && column.min !== '' && num < Number(column.min)) return undefined;
+    if (column.max != null && column.max !== '' && num > Number(column.max)) return undefined;
+    result[column.key] = num;
+  }
+
+  if (Object.keys(result).length === 0) return field.allow_empty ? {} : undefined;
+  return result;
+}
+
 export function validateStateValue(value, field) {
   if (value === null || value === undefined || value === '') {
     return field.allow_empty ? null : undefined;
@@ -72,35 +108,10 @@ export function validateStateValue(value, field) {
       return value;
     case 'datetime':
       return typeof value === 'string' && DATETIME_RE.test(value) ? value : undefined;
-    case 'list': {
-      const parsedList = typeof value === 'string'
-        ? value.split(/[,，、]/).map((item) => item.trim()).filter(Boolean)
-        : value;
-      if (!Array.isArray(parsedList)) return undefined;
-      const items = parsedList.map(String).filter(Boolean);
-      if (items.length === 0) return field.allow_empty ? [] : undefined;
-      return items;
-    }
-    case 'table': {
-      if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined;
-      let columns = field.table_columns;
-      if (typeof columns === 'string') {
-        try { columns = JSON.parse(columns || '[]'); } catch { columns = []; }
-      }
-      if (!Array.isArray(columns) || columns.length === 0) return undefined;
-      const out = {};
-      for (const col of columns) {
-        const raw = value[col.key];
-        if (raw === '' || raw == null) continue;
-        const num = typeof raw === 'number' ? raw : Number(raw);
-        if (!Number.isFinite(num)) return undefined;
-        if (col.min != null && col.min !== '' && num < Number(col.min)) return undefined;
-        if (col.max != null && col.max !== '' && num > Number(col.max)) return undefined;
-        out[col.key] = num;
-      }
-      if (Object.keys(out).length === 0) return field.allow_empty ? {} : undefined;
-      return out;
-    }
+    case 'list':
+      return validateListStateValue(value, field);
+    case 'table':
+      return validateTableStateValue(value, field);
     default:
       return undefined;
   }
