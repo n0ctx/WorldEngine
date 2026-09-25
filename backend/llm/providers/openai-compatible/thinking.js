@@ -41,6 +41,7 @@ export function applyThinkingToOpenAICompatibleBody(body, config) {
   const isEffort = lvl.startsWith('effort_');
   const isThinkingType = lvl === 'thinking_enabled' || lvl === 'thinking_disabled';
   const enabledFlag = lvl === 'thinking_enabled';
+  const thinkingState = enabledFlag ? 'enabled' : 'disabled';
 
   switch (provider) {
     case 'openai':
@@ -63,7 +64,7 @@ export function applyThinkingToOpenAICompatibleBody(body, config) {
       }
       if (isThinkingType) {
         body.reasoning = { enabled: enabledFlag };
-        return enabledFlag ? 'enabled' : 'disabled';
+        return thinkingState;
       }
       return null;
     }
@@ -71,14 +72,14 @@ export function applyThinkingToOpenAICompatibleBody(body, config) {
     case 'glm-coding':
     case 'deepseek': {
       if (!isThinkingType) return null;
-      body.thinking = { type: enabledFlag ? 'enabled' : 'disabled' };
-      return enabledFlag ? 'enabled' : 'disabled';
+      body.thinking = { type: thinkingState };
+      return thinkingState;
     }
     case 'qwen':
     case 'siliconflow': {
       if (isThinkingType) {
         body.enable_thinking = enabledFlag;
-        return enabledFlag ? 'enabled' : 'disabled';
+        return thinkingState;
       }
       const budget = resolveQwenBudget(lvl);
       if (budget != null) {

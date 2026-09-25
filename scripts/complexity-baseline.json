@@ -14,7 +14,6 @@
     "backend/db/schema.js#initSchema": 86,
     "backend/llm/providers/_shared/provider-safety-signals.js#extractOpenAICompatibleSignal": 58,
     "backend/llm/providers/anthropic/index.js#streamAnthropic": 42,
-    "backend/llm/providers/openai-compatible/thinking.js#applyThinkingToOpenAICompatibleBody": 31,
     "backend/memory/combined-state-updater.js#applyNearbyResult": 39,
     "backend/memory/combined-state-updater.js#compressOverLimitFields": 45,
     "backend/memory/combined-state-updater.js#updateAllStates": 55,
