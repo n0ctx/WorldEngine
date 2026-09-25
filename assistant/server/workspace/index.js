@@ -84,120 +84,128 @@ function snippetAround(text, needle, radius = 40) {
   return `${start > 0 ? '…' : ''}${text.slice(start, idx + needle.length + radius).replace(/\s+/g, ' ')}…`;
 }
 
+function readWorkspace(session, rawRef) {
+  const ref = parseRef(rawRef);
+  if (ref.kind === 'doc') return readDoc(ref.id);
+  const result = ref.list ? readList(ref, session) : readItem(ref, session);
+  return toJson(result);
+}
+
+// world 可选，指定资源建在哪个世界；省略时用当前世界。
+async function createWorkspaceResource(session, kind, data, world = null) {
+  const worldRef = world ? { worldId: String(world).replace(/^world:/, '') } : null;
+  const targetWorld = () => worldIdOf(worldRef, session);
+  switch (kind) {
+    case 'world': return createWorld(session, data);
+    case 'entry': return createEntry(targetWorld(), data);
+    case 'field': return createField(targetWorld(), data);
+    case 'character': return createCharacter(targetWorld(), data);
+    case 'persona': return createPersona(targetWorld(), data);
+    case 'css': return createCss(data);
+    case 'regex': return createRegex(data, worldRef?.worldId ?? session.worldId);
+    case 'theme': return createTheme(data);
+    default: return fail(`kind 只能是 ${CREATE_KINDS.join(' / ')}`);
+  }
+}
+
+async function updateWorkspaceResource(session, rawRef, data) {
+  const ref = parseRef(rawRef);
+  if (ref.list) fail('update 需要单个资源的 ref，不能是列表');
+  switch (ref.kind) {
+    case 'world': return updateWorld(ref.id ?? worldIdOf(ref, session), data);
+    case 'entry': return updateEntry(ref.id, data);
+    case 'field': return updateField(worldIdOf(ref, session), ref, data);
+    case 'character': return updateCharacter(ref.id, data);
+    case 'persona': return updatePersona(loadPersona(ref, ref.worldId ?? session.worldId), data);
+    case 'css': return updateCss(ref.id, data);
+    case 'regex': return updateRegex(ref.id, data, session.worldId);
+    case 'theme': return updateTheme(ref.id, data);
+    case 'config': return updateConfig(data);
+    default: return fail(`${ref.kind} 不支持修改`);
+  }
+}
+
+// pi 式局部替换：oldText 必须在该字段中恰好出现一次。
+async function editWorkspaceResource(session, rawRef, field, oldText, newText) {
+  const ref = parseRef(rawRef);
+  if (ref.list || ref.kind === 'doc') fail('edit 需要可修改的单个资源 ref');
+  if (typeof field !== 'string' || !field.trim()) fail('缺少 field（要修改的文本字段名，如 content / system_prompt / css）');
+  if (typeof oldText !== 'string' || !oldText) fail('old_text 不能为空');
+  const current = getPath(readItem(ref, session), field);
+  if (typeof current !== 'string') fail(`${ref.text} 没有文本字段 ${field}；先 read 查看可用字段`);
+  const count = countOccurrences(current, oldText);
+  if (count === 0) fail(`${field} 中找不到 old_text；先 read("${ref.text}") 核对原文（需逐字一致）`);
+  if (count > 1) fail(`old_text 在 ${field} 中出现 ${count} 次，请多带一些上下文使其唯一`);
+  const next = current.replace(oldText, () => String(newText ?? ''));
+  return updateWorkspaceResource(session, rawRef, setPath({}, field, next));
+}
+
+async function setWorkspaceState(session, rawRef, values) {
+  const ref = parseRef(rawRef);
+  if (ref.kind === 'character') return updateCharacter(ref.id, { state: values });
+  if (ref.kind === 'persona') return updatePersona(loadPersona(ref, ref.worldId ?? session.worldId), { state: values });
+  return fail('set_state 只用于 character:<id> 或 persona[:id]；世界层字段的初始值请用 update("field:world.<字段>", { default })');
+}
+
+async function removeWorkspaceResource(session, rawRef) {
+  const ref = parseRef(rawRef);
+  if (ref.list) fail('delete 需要单个资源的 ref，不能是列表');
+  switch (ref.kind) {
+    case 'world': return removeWorld(session, ref.id ?? worldIdOf(ref, session));
+    case 'entry': return removeEntry(ref.id);
+    case 'field': return removeField(worldIdOf(ref, session), ref);
+    case 'character': return removeCharacter(ref.id);
+    case 'css': return removeCss(ref.id);
+    case 'regex': return removeRegex(ref.id);
+    case 'theme': return removeTheme(ref.id);
+    default: return fail(`${ref.kind} 不支持删除`);
+  }
+}
+
+function findWorkspaceResources(session, query) {
+  const needle = String(query ?? '').trim().toLowerCase();
+  if (!needle) fail('query 不能为空');
+  const hits = [];
+  const scan = (ref, label, texts) => {
+    const text = texts.filter(Boolean).join('\n');
+    if (text.toLowerCase().includes(needle)) hits.push(`${ref} ${label}：${snippetAround(text, needle)}`);
+  };
+  const worldId = session.worldId;
+  if (worldId) {
+    for (const e of getAllWorldEntries(worldId)) {
+      scan(`entry:${e.id}`, e.title, [e.title, e.description, (e.keywords ?? []).join(' '), e.content]);
+    }
+    for (const target of FIELD_TARGETS) {
+      for (const f of listFieldRows(worldId, target)) {
+        scan(fieldRef(target, f.field_key), f.label, [f.label, f.field_key, f.description, f.update_instruction]);
+      }
+    }
+    for (const c of getCharactersByWorldId(worldId)) {
+      scan(`character:${c.id}`, c.name, [c.name, c.description, c.system_prompt, c.post_prompt, c.first_message]);
+    }
+    for (const p of listPersonas(worldId)) scan(`persona:${p.id}`, p.name, [p.name, p.description, p.system_prompt]);
+  }
+  for (const s of listCustomCssSnippets()) scan(`css:${s.id}`, s.name, [s.name, s.content]);
+  for (const r of listRegexRules()) scan(`regex:${r.id}`, r.name, [r.name, r.pattern, r.replacement]);
+  for (const d of searchDocs(needle)) hits.push(`${d.ref}：${d.text}`);
+  if (hits.length === 0) return `没有找到包含 "${query}" 的内容${worldId ? '' : '（当前未选中世界，只搜索了全局资源与文档）'}`;
+  const shown = hits.slice(0, MAX_FIND_HITS);
+  return [...shown, ...(hits.length > shown.length ? [`…共 ${hits.length} 条，请缩小关键词`] : [])].join('\n');
+}
+
 export function createWorkspace(context = {}) {
   const session = {
     worldId: context.worldId ?? null,
     characterId: context.characterId ?? null,
   };
-
-  function read(rawRef) {
-    const ref = parseRef(rawRef);
-    if (ref.kind === 'doc') return readDoc(ref.id);
-    const result = ref.list ? readList(ref, session) : readItem(ref, session);
-    return toJson(result);
-  }
-
-  // world 可选，指定资源建在哪个世界；省略时用当前世界。
-  async function create(kind, data, world = null) {
-    const worldRef = world ? { worldId: String(world).replace(/^world:/, '') } : null;
-    const targetWorld = () => worldIdOf(worldRef, session);
-    switch (kind) {
-      case 'world': return createWorld(session, data);
-      case 'entry': return createEntry(targetWorld(), data);
-      case 'field': return createField(targetWorld(), data);
-      case 'character': return createCharacter(targetWorld(), data);
-      case 'persona': return createPersona(targetWorld(), data);
-      case 'css': return createCss(data);
-      case 'regex': return createRegex(data, worldRef?.worldId ?? session.worldId);
-      case 'theme': return createTheme(data);
-      default: return fail(`kind 只能是 ${CREATE_KINDS.join(' / ')}`);
-    }
-  }
-
-  async function update(rawRef, data) {
-    const ref = parseRef(rawRef);
-    if (ref.list) fail('update 需要单个资源的 ref，不能是列表');
-    switch (ref.kind) {
-      case 'world': return updateWorld(ref.id ?? worldIdOf(ref, session), data);
-      case 'entry': return updateEntry(ref.id, data);
-      case 'field': return updateField(worldIdOf(ref, session), ref, data);
-      case 'character': return updateCharacter(ref.id, data);
-      case 'persona': return updatePersona(loadPersona(ref, ref.worldId ?? session.worldId), data);
-      case 'css': return updateCss(ref.id, data);
-      case 'regex': return updateRegex(ref.id, data, session.worldId);
-      case 'theme': return updateTheme(ref.id, data);
-      case 'config': return updateConfig(data);
-      default: return fail(`${ref.kind} 不支持修改`);
-    }
-  }
-
-  // pi 式局部替换：oldText 必须在该字段中恰好出现一次。
-  async function edit(rawRef, field, oldText, newText) {
-    const ref = parseRef(rawRef);
-    if (ref.list || ref.kind === 'doc') fail('edit 需要可修改的单个资源 ref');
-    if (typeof field !== 'string' || !field.trim()) fail('缺少 field（要修改的文本字段名，如 content / system_prompt / css）');
-    if (typeof oldText !== 'string' || !oldText) fail('old_text 不能为空');
-    const current = getPath(readItem(ref, session), field);
-    if (typeof current !== 'string') fail(`${ref.text} 没有文本字段 ${field}；先 read 查看可用字段`);
-    const count = countOccurrences(current, oldText);
-    if (count === 0) fail(`${field} 中找不到 old_text；先 read("${ref.text}") 核对原文（需逐字一致）`);
-    if (count > 1) fail(`old_text 在 ${field} 中出现 ${count} 次，请多带一些上下文使其唯一`);
-    const next = current.replace(oldText, () => String(newText ?? ''));
-    return update(rawRef, setPath({}, field, next));
-  }
-
-  async function setState(rawRef, values) {
-    const ref = parseRef(rawRef);
-    if (ref.kind === 'character') return updateCharacter(ref.id, { state: values });
-    if (ref.kind === 'persona') return updatePersona(loadPersona(ref, ref.worldId ?? session.worldId), { state: values });
-    return fail('set_state 只用于 character:<id> 或 persona[:id]；世界层字段的初始值请用 update("field:world.<字段>", { default })');
-  }
-
-  async function remove(rawRef) {
-    const ref = parseRef(rawRef);
-    if (ref.list) fail('delete 需要单个资源的 ref，不能是列表');
-    switch (ref.kind) {
-      case 'world': return removeWorld(session, ref.id ?? worldIdOf(ref, session));
-      case 'entry': return removeEntry(ref.id);
-      case 'field': return removeField(worldIdOf(ref, session), ref);
-      case 'character': return removeCharacter(ref.id);
-      case 'css': return removeCss(ref.id);
-      case 'regex': return removeRegex(ref.id);
-      case 'theme': return removeTheme(ref.id);
-      default: return fail(`${ref.kind} 不支持删除`);
-    }
-  }
-
-  function find(query) {
-    const needle = String(query ?? '').trim().toLowerCase();
-    if (!needle) fail('query 不能为空');
-    const hits = [];
-    const scan = (ref, label, texts) => {
-      const text = texts.filter(Boolean).join('\n');
-      if (text.toLowerCase().includes(needle)) hits.push(`${ref} ${label}：${snippetAround(text, needle)}`);
-    };
-    const worldId = session.worldId;
-    if (worldId) {
-      for (const e of getAllWorldEntries(worldId)) {
-        scan(`entry:${e.id}`, e.title, [e.title, e.description, (e.keywords ?? []).join(' '), e.content]);
-      }
-      for (const target of FIELD_TARGETS) {
-        for (const f of listFieldRows(worldId, target)) {
-          scan(fieldRef(target, f.field_key), f.label, [f.label, f.field_key, f.description, f.update_instruction]);
-        }
-      }
-      for (const c of getCharactersByWorldId(worldId)) {
-        scan(`character:${c.id}`, c.name, [c.name, c.description, c.system_prompt, c.post_prompt, c.first_message]);
-      }
-      for (const p of listPersonas(worldId)) scan(`persona:${p.id}`, p.name, [p.name, p.description, p.system_prompt]);
-    }
-    for (const s of listCustomCssSnippets()) scan(`css:${s.id}`, s.name, [s.name, s.content]);
-    for (const r of listRegexRules()) scan(`regex:${r.id}`, r.name, [r.name, r.pattern, r.replacement]);
-    for (const d of searchDocs(needle)) hits.push(`${d.ref}：${d.text}`);
-    if (hits.length === 0) return `没有找到包含 "${query}" 的内容${worldId ? '' : '（当前未选中世界，只搜索了全局资源与文档）'}`;
-    const shown = hits.slice(0, MAX_FIND_HITS);
-    return [...shown, ...(hits.length > shown.length ? [`…共 ${hits.length} 条，请缩小关键词`] : [])].join('\n');
-  }
-
-  return { session, read, create, update, edit, setState, remove, find };
+  return {
+    session,
+    read: (rawRef) => readWorkspace(session, rawRef),
+    create: (kind, data, world) => createWorkspaceResource(session, kind, data, world),
+    update: (rawRef, data) => updateWorkspaceResource(session, rawRef, data),
+    edit: (rawRef, field, oldText, newText) => editWorkspaceResource(session, rawRef, field, oldText, newText),
+    setState: (rawRef, values) => setWorkspaceState(session, rawRef, values),
+    remove: (rawRef) => removeWorkspaceResource(session, rawRef),
+    find: (query) => findWorkspaceResources(session, query),
+  };
 }

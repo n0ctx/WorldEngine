@@ -25,6 +25,21 @@ test('create world 切换当前世界，后续资源默认建在新世界', asyn
   assert.ok(view.fields.persona.some((line) => line.includes('性格')), '新世界自带默认字段');
 });
 
+test('create world 参数覆盖目标世界但不切换会话，删除当前世界会清空会话', async () => {
+  const current = insertWorld(sandbox.db, { name: 'current-world' });
+  const target = insertWorld(sandbox.db, { name: 'target-world' });
+  const ws = createWorkspace({ worldId: current.id });
+
+  await ws.create('entry', { title: '指定世界条目', content: '内容' }, `world:${target.id}`);
+  assert.equal(ws.session.worldId, current.id);
+  assert.deepEqual(JSON.parse(ws.read('entries')), []);
+  assert.match(JSON.parse(ws.read(`entries@${target.id}`))[0].title, /指定世界条目/);
+
+  await ws.remove('world');
+  assert.equal(ws.session.worldId, null);
+  await assert.rejects(() => ws.create('entry', { title: '无世界', content: '内容' }), /当前没有选中世界/);
+});
+
 test('entry：按 keywords / conditions 推断触发类型，条件字段必须存在', async () => {
   const world = insertWorld(sandbox.db, { name: 'entry-world' });
   const ws = createWorkspace({ worldId: world.id });
