@@ -65,11 +65,6 @@ function handleDone(isLive, isContinuation, runId, streamKey, text, optionsState
   memory.startMemoryWriting(isContinuation ? undefined : runId);
 }
 
-function handleEntriesActivated(isLive, pendingEntriesRef, entries) {
-  if (!isLive()) return;
-  pendingEntriesRef.current = Array.isArray(entries) ? entries : [];
-}
-
 function handleDanmaku(isLive, setDanmakuBand, comments) {
   if (!isLive()) return;
   const arr = Array.isArray(comments) ? comments.filter((comment) => typeof comment === 'string' && comment.trim()) : [];
@@ -117,10 +112,6 @@ function handleTitleUpdated(callbackSessionId, isSameSession, sessionListBridge,
   if (isSameSession()) setCurrentSession((prev) => (prev ? { ...prev, title } : prev));
 }
 
-function handleStateQueued(isSameSession, signalState) {
-  if (isSameSession()) signalState('queued');
-}
-
 function handleStateUpdated(isSameSession, isContinuation, runId, memory, signalState) {
   memory.stopMemoryWriting(isContinuation ? undefined : runId);
   if (isSameSession()) signalState('updated');
@@ -139,26 +130,10 @@ function handlePostprocessFailed(isSameSession, isContinuation, runId, memory, m
   log.error(`${mode}.postprocess_failed`, evt?.error, { toast: buildPostgenToast(evt, 'postprocess') });
 }
 
-function handleStateRolledBack(isSameSession, signalState) {
-  if (isSameSession()) signalState('updated');
-}
-
-function handleDiaryUpdated(isLive, signalState) {
-  if (isLive()) signalState('diary');
-}
-
-function handleMemoryRecallStart(isLive, startMemoryRecalling) {
-  if (isLive()) startMemoryRecalling();
-}
-
 function handleMemoryRecallDone(isLive, stopMemoryRecalling, setRecallSummary, evt) {
   if (!isLive()) return;
   stopMemoryRecalling();
   setRecallSummary({ recalled: evt?.hit ?? 0, expanded: 0 });
-}
-
-function handleMemoryExpandStart(isLive, startMemoryExpanding) {
-  if (isLive()) startMemoryExpanding();
 }
 
 function handleMemoryExpandDone(isLive, stopMemoryExpanding, setRecallSummary, evt) {
@@ -215,7 +190,10 @@ export function createSessionStreamCallbacks({
     onDelta: (delta) => handleDelta(isLive, isContinuation, text, options, delta),
     onUserSaved: (realId) => handleUserSaved(isLive, messages, realId),
     onDone: (assistant, finalOptions) => handleDone(isLive, isContinuation, runId, messages.streamingKey, text, options, messages, entries, memory, setGenerating, assistant, finalOptions),
-    onEntriesActivated: (activatedEntries) => handleEntriesActivated(isLive, entries.pendingEntriesRef, activatedEntries),
+    onEntriesActivated: (activatedEntries) => {
+      if (!isLive()) return;
+      entries.pendingEntriesRef.current = Array.isArray(activatedEntries) ? activatedEntries : [];
+    },
     onDanmaku: (comments) => handleDanmaku(isLive, setDanmakuBand, comments),
     onSuggestionFallbackStarted: () => handleSuggestionFallback(isLive, mode, 'started'),
     onSuggestionFallbackSucceeded: () => handleSuggestionFallback(isLive, mode, 'succeeded'),
@@ -223,15 +201,25 @@ export function createSessionStreamCallbacks({
     onAborted: (assistant) => handleAborted(isLive, isContinuation, text, options, messages, memory, assistant),
     onError: (err) => handleError(isLive, isContinuation, text, setErrorBubble, setGenerating, stopRef, mode, err),
     onTitleUpdated: (title) => handleTitleUpdated(callbackSessionId, isSameSession, session.sessionListBridge, session.setCurrentSession, title),
-    onStateQueued: () => handleStateQueued(isSameSession, signalState),
+    onStateQueued: () => {
+      if (isSameSession()) signalState('queued');
+    },
     onStateUpdated: () => handleStateUpdated(isSameSession, isContinuation, runId, memory, signalState),
     onStateUpdateFailed: (evt) => handleStateUpdateFailed(isSameSession, isContinuation, runId, memory, signalState, evt),
     onPostprocessFailed: (evt) => handlePostprocessFailed(isSameSession, isContinuation, runId, memory, mode, evt),
-    onStateRolledBack: () => handleStateRolledBack(isSameSession, signalState),
-    onDiaryUpdated: () => handleDiaryUpdated(isLive, signalState),
-    onMemoryRecallStart: () => handleMemoryRecallStart(isLive, memory.startMemoryRecalling),
+    onStateRolledBack: () => {
+      if (isSameSession()) signalState('updated');
+    },
+    onDiaryUpdated: () => {
+      if (isLive()) signalState('diary');
+    },
+    onMemoryRecallStart: () => {
+      if (isLive()) memory.startMemoryRecalling();
+    },
     onMemoryRecallDone: (evt) => handleMemoryRecallDone(isLive, memory.stopMemoryRecalling, memory.setRecallSummary, evt),
-    onMemoryExpandStart: () => handleMemoryExpandStart(isLive, memory.startMemoryExpanding),
+    onMemoryExpandStart: () => {
+      if (isLive()) memory.startMemoryExpanding();
+    },
     onMemoryExpandDone: (evt) => handleMemoryExpandDone(isLive, memory.stopMemoryExpanding, memory.setRecallSummary, evt),
     onChapterTitleUpdated: (chapterIndex, title) => handleChapterTitleUpdated(isSameSession, extraCallbacks, chapterIndex, title),
     onSavedRecallDone: (evt) => handleSavedRecallDone(isLive, extraCallbacks, evt),

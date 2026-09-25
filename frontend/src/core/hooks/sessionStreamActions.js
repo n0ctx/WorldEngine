@@ -2,25 +2,6 @@ import { deleteMessage as deleteMessageApi } from '../api/sessions.js';
 import { log } from '../utils/logger.js';
 import { latestAssistantDanmaku, toDanmakuBand } from '../utils/danmaku.js';
 
-function prepareSessionStreamRun(state) {
-  state.invalidateCurrentRun();
-  state.recoveryStopRef.current?.();
-  state.recoveryStopRef.current = null;
-  state.setErrorBubble(null);
-  state.streamingTextRef.current = '';
-}
-
-function deleteSessionFromList(deletedId, remaining, state) {
-  const activeSessionId = state.sessionIdRef.current;
-  const fallback = () => (state.onNoSessionsLeft ? state.onNoSessionsLeft() : state.clearActiveSession());
-  if (deletedId === activeSessionId) {
-    if (remaining.length > 0) state.handleSessionSelect(remaining[0]);
-    else fallback();
-    return;
-  }
-  if (activeSessionId && !remaining.some((session) => session.id === activeSessionId)) fallback();
-}
-
 async function sendSessionMessage(content, attachments, state) {
   if (state.generating) return;
   state.prepareNewRun();
@@ -253,29 +234,14 @@ async function retitleSession(targetSessionId, state) {
   }
 }
 
-function selectSessionOption(text, index, state) {
-  state.selectedOptionIndexRef.current = index;
-  state.handleSend(text, []);
-}
-
-function handleSessionMessagesLoaded(messages, state) {
-  const lastAssistant = [...messages].reverse().find((message) => message.role === 'assistant');
-  const options = lastAssistant?.next_options;
-  if (Array.isArray(options) && options.length > 0) {
-    state.setCurrentOptions(options);
-    state.setOptionCollapsed(false);
-  }
-  state.setDanmakuBand(toDanmakuBand(latestAssistantDanmaku(messages)));
-  void state.recoverLiveStream(state.sessionIdRef.current);
-}
-
 function createActionStates({ api, mode, session, generation, messages, view }) {
-  const prepareNewRun = () => prepareSessionStreamRun({
-    invalidateCurrentRun: generation.invalidateCurrentRun,
-    recoveryStopRef: generation.recoveryStopRef,
-    setErrorBubble: generation.setErrorBubble,
-    streamingTextRef: generation.streamingTextRef,
-  });
+  const prepareNewRun = () => {
+    generation.invalidateCurrentRun();
+    generation.recoveryStopRef.current?.();
+    generation.recoveryStopRef.current = null;
+    generation.setErrorBubble(null);
+    generation.streamingTextRef.current = '';
+  };
   const generationActions = {
     sessionIdRef: session.sessionIdRef,
     generating: generation.generating,
@@ -351,7 +317,6 @@ function createActionStates({ api, mode, session, generation, messages, view }) 
   };
   const optionAction = {
     selectedOptionIndexRef: messages.selectedOptionIndexRef,
-    handleSend: (content, attachments) => sendSessionMessage(content, attachments, sendAction),
   };
   const messagesLoadedAction = {
     setCurrentOptions: view.setCurrentOptions,
@@ -388,7 +353,16 @@ export function createSessionStreamActions(getRuntime) {
   const withRuntime = (handler) => (...args) => handler(args, createActionStates(getRuntime()));
   const withoutArgs = (handler) => () => handler(createActionStates(getRuntime()));
   return {
-    handleSessionDelete: withRuntime(([deletedId, remaining], state) => deleteSessionFromList(deletedId, remaining, state.sessionDelete)),
+    handleSessionDelete: withRuntime(([deletedId, remaining], state) => {
+      const activeSessionId = state.sessionDelete.sessionIdRef.current;
+      const onNoSessionsLeft = state.sessionDelete.onNoSessionsLeft || state.sessionDelete.clearActiveSession;
+      if (deletedId === activeSessionId) {
+        if (remaining.length > 0) state.sessionDelete.handleSessionSelect(remaining[0]);
+        else onNoSessionsLeft();
+        return;
+      }
+      if (activeSessionId && !remaining.some((session) => session.id === activeSessionId)) onNoSessionsLeft();
+    }),
     handleSend: withRuntime(([content, attachments], state) => sendSessionMessage(content, attachments, state.send)),
     handleStop: () => stopSessionGeneration(createActionStates(getRuntime()).stop),
     handleEditMessage: withRuntime(([messageId, newContent], state) => editSessionUserMessage(messageId, newContent, state.editUser)),
@@ -400,7 +374,25 @@ export function createSessionStreamActions(getRuntime) {
     handleEditAssistantMessage: withRuntime(([messageId, newContent], state) => editSessionAssistantMessage(messageId, newContent, state.editAssistant)),
     handleDeleteMessage: withRuntime(([messageId], state) => deleteSessionMessage(messageId, state.deleteMessage)),
     handleRetitle: withoutArgs((state) => retitleSession(state.retitleSessionId, state.retitle)),
-    selectOption: withRuntime(([text, index], state) => selectSessionOption(text, index, state.selectOption)),
-    handleMessagesLoaded: withRuntime(([loadedMessages], state) => handleSessionMessagesLoaded(loadedMessages, state.messagesLoaded)),
+    selectOption: withRuntime(([text, index], state) => {
+      state.selectOption.selectedOptionIndexRef.current = index;
+      return sendSessionMessage(text, [], state.send);
+    }),
+    handleMessagesLoaded: withRuntime(([loadedMessages], state) => {
+      let lastAssistant = null;
+      for (let index = loadedMessages.length - 1; index >= 0; index -= 1) {
+        if (loadedMessages[index].role === 'assistant') {
+          lastAssistant = loadedMessages[index];
+          break;
+        }
+      }
+      const options = lastAssistant?.next_options;
+      if (Array.isArray(options) && options.length > 0) {
+        state.messagesLoaded.setCurrentOptions(options);
+        state.messagesLoaded.setOptionCollapsed(false);
+      }
+      state.messagesLoaded.setDanmakuBand(toDanmakuBand(latestAssistantDanmaku(loadedMessages)));
+      void state.messagesLoaded.recoverLiveStream(state.messagesLoaded.sessionIdRef.current);
+    }),
   };
 }
