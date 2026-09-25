@@ -193,3 +193,14 @@ export function getProviderThinkingOptions(provider) {
       return [];
   }
 }
+
+export function getProviderDisplaySettings(provider, onThinkingLevelChange) {
+  const isLocal = provider && LOCAL_PROVIDERS.includes(provider);
+  const needsBaseUrl = provider && NEEDS_BASE_URL_PROVIDERS.has(provider);
+  const providerHint = provider ? (PROVIDER_HINTS[provider] || null) : null;
+  const thinkingOptions = onThinkingLevelChange ? getProviderThinkingOptions(provider) : [];
+  const isModelDrivenThinking = onThinkingLevelChange && thinkingOptions.length === 0
+    && (provider === 'kimi' || provider === 'minimax');
+
+  return { isLocal, needsBaseUrl, providerHint, thinkingOptions, isModelDrivenThinking };
+}

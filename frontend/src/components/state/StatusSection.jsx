@@ -7,8 +7,8 @@ import { applyTemplateVars } from '../../core/utils/template-vars.js';
 import { isImeComposing } from '../../core/utils/ime.js';
 import SeamlessEditableSurface from '../../../../shared/SeamlessEditableSurface.jsx';
 import { ISO_DATETIME_RE, formatFieldValue } from './state-value-format.js';
+import { STATE_LIST_MAX_ITEMS, useStateListInput } from './useStateListInput.js';
 
-const STATE_LIST_MAX_ITEMS = 10;
 const EMPTY_STATUS_DISPLAY = '—';
 
 const parseValue = formatFieldValue;
@@ -233,13 +233,17 @@ function EnumInlineEditor({ row, draft, setDraft, commit, onCancel, readDisplay 
   );
 }
 
+function handleInlineEditorKey(event, draft, commit, onCancel) {
+  if (isImeComposing(event)) return;
+  if (event.key === 'Enter') { event.preventDefault(); commit(draft); }
+  if (event.key === 'Escape') onCancel();
+}
+
 function DatetimeInlineEditor({ draft, setDraft, commit, onCancel, readDisplay }) {
   const value = typeof draft === 'string' && ISO_DATETIME_RE.test(draft) ? draft : '';
 
   function handleKey(event) {
-    if (isImeComposing(event)) return;
-    if (event.key === 'Enter') { event.preventDefault(); commit(draft); }
-    if (event.key === 'Escape') onCancel();
+    handleInlineEditorKey(event, draft, commit, onCancel);
   }
 
   return (
@@ -307,9 +311,7 @@ function BasicInlineEditor({ type, draft, setDraft, commit, onCancel, readDispla
   useEffect(() => { inputRef.current?.focus(); }, []);
 
   function handleKey(event) {
-    if (isImeComposing(event)) return;
-    if (event.key === 'Enter') { event.preventDefault(); commit(draft); }
-    if (event.key === 'Escape') onCancel();
+    handleInlineEditorKey(event, draft, commit, onCancel);
   }
 
   return (
@@ -337,7 +339,6 @@ function BasicInlineEditor({ type, draft, setDraft, commit, onCancel, readDispla
 
 function ListInlineEditor({ initial, onCommit, onCancel, readDisplay }) {
   const [items, setItems] = useState(() => Array.isArray(initial) ? initial : []);
-  const [input, setInput] = useState('');
   const inputRef = useRef(null);
   const boundaryRef = useRef(null);
 
@@ -356,27 +357,10 @@ function ListInlineEditor({ initial, onCommit, onCancel, readDisplay }) {
     return () => document.removeEventListener('mousedown', handlePointerDown);
   }, [onCancel]);
 
-  function commit(next) {
+  const { input, setInput, addItem, removeItem, atMax } = useStateListInput(items, (next) => {
+    setItems(next);
     onCommit(next.length > 0 ? JSON.stringify(next) : null);
-  }
-
-  function addItem(raw) {
-    const value = raw.trim();
-    if (!value || items.includes(value) || items.length >= STATE_LIST_MAX_ITEMS) return;
-    const next = [...items, value];
-    setItems(next);
-    setInput('');
-    commit(next);
-  }
-
-  function removeItem(value) {
-    const next = items.filter((item) => item !== value);
-    setItems(next);
-    setInput('');
-    commit(next);
-  }
-
-  const atMax = items.length >= STATE_LIST_MAX_ITEMS;
+  });
 
   return (
     <div ref={boundaryRef}>

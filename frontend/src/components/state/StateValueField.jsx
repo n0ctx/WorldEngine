@@ -4,8 +4,8 @@ import Select from '../ui/Select';
 import DatetimeSplitInput from './DatetimeSplitInput';
 import { parseLooseJson } from './state-value-format';
 import { isImeComposing } from '../../core/utils/ime.js';
+import { STATE_LIST_MAX_ITEMS, useStateListInput } from './useStateListInput.js';
 
-const STATE_LIST_MAX_ITEMS = 10;
 const AUTOSAVE_DELAY_MS = 450;
 const ISO_DATETIME_RE = /^\d+-\d{2}-\d{2}T\d{2}:\d{2}$/;
 
@@ -136,27 +136,15 @@ function DatetimeStateFieldEditor({ local, setLocal, saveValue }) {
 }
 
 function ListStateFieldEditor({ local, setLocal, saveValue }) {
-  const [listInput, setListInput] = useState('');
   const listRef = useRef(null);
   const items = Array.isArray(local) ? local : [];
-
-  function addListItem(raw) {
-    const v = raw.trim();
-    if (!v || items.includes(v) || items.length >= STATE_LIST_MAX_ITEMS) return;
-    const updated = [...items, v];
+  const {
+    input: listInput, setInput: setListInput, addItem: addListItem, removeItem: removeListItem, atMax,
+  } = useStateListInput(items, (updated) => {
     setLocal(updated);
-    setListInput('');
     saveValue(updated);
-  }
+  });
 
-  function removeListItem(v) {
-    const updated = items.filter((e) => e !== v);
-    setLocal(updated);
-    setListInput('');
-    saveValue(updated);
-  }
-
-  const atMax = items.length >= STATE_LIST_MAX_ITEMS;
   return (
     <div
       className="we-tag-input"

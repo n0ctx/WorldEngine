@@ -6,25 +6,8 @@ import Range from '../ui/Range';
 import ModelSelector from './ModelSelector';
 import FormGroup from '../ui/FormGroup';
 import FieldLabel from '../ui/FieldLabel';
-import {
-  LOCAL_PROVIDERS,
-  NEEDS_BASE_URL_PROVIDERS,
-  DEFAULT_BASE_URLS,
-  PROVIDER_HINTS,
-  getProviderThinkingOptions,
-} from '../../core/constants/settings';
+import { DEFAULT_BASE_URLS, getProviderDisplaySettings } from '../../core/constants/settings';
 import { log } from '../../core/utils/logger.js';
-
-function getMainProviderDisplaySettings(provider, onThinkingLevelChange) {
-  const isLocal = provider && LOCAL_PROVIDERS.includes(provider);
-  const needsBaseUrl = provider && NEEDS_BASE_URL_PROVIDERS.has(provider);
-  const providerHint = provider ? (PROVIDER_HINTS[provider] || null) : null;
-  const thinkingOptions = onThinkingLevelChange ? getProviderThinkingOptions(provider) : [];
-  const isModelDrivenThinking = onThinkingLevelChange && thinkingOptions.length === 0
-    && (provider === 'kimi' || provider === 'minimax');
-
-  return { isLocal, needsBaseUrl, providerHint, thinkingOptions, isModelDrivenThinking };
-}
 
 function MainLlmProviderSettings({
   providers,
@@ -44,7 +27,7 @@ function MainLlmProviderSettings({
   const inheritLabel = inheritFrom?.label ?? '主模型';
   const inheritModel = inheritFrom?.model ?? '';
   const { isLocal, needsBaseUrl, providerHint, thinkingOptions, isModelDrivenThinking } =
-    getMainProviderDisplaySettings(config.provider, onThinkingLevelChange);
+    getProviderDisplaySettings(config.provider, onThinkingLevelChange);
 
   async function handleSaveKey() {
     if (!config.provider) {

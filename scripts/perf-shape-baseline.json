@@ -1,9 +1,6 @@
 {
   "version": 1,
   "loopQueries": [
-    "assistant/server/normalize-proposal.js#applyProposal#replaceEntryConditions",
-    "assistant/server/normalize-proposal.js#applyProposal#replaceEntryConditions ~2",
-    "assistant/server/normalize-proposal.js#applyProposal#replaceEntryConditions ~3",
     "assistant/server/task-store.js#importLegacySidecars#upsertAssistantTask",
     "backend/db/queries/character-state-fields.js#reorderCharacterStateFields#update.run",
     "backend/db/queries/characters.js#reorderCharacters#stmt.run",

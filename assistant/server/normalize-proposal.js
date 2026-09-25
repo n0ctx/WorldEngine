@@ -128,12 +128,7 @@ function createWorldProposal(proposal, changes) {
     temperature: safeChanges.temperature ?? null,
     max_tokens: safeChanges.max_tokens ?? null,
   });
-  for (const op of entryOps) {
-    const entry = createWorldPromptEntry(newWorld.id, op);
-    if (op.trigger_type === 'state' && Array.isArray(op.conditions) && op.conditions.length > 0) {
-      replaceEntryConditions(entry.id, op.conditions);
-    }
-  }
+  applyWorldEntryOps(entryOps, newWorld.id);
   for (const op of stateFieldOps) applyStateFieldCreate(op, newWorld.id);
   return newWorld;
 }

@@ -4,19 +4,8 @@ import Select from '../ui/Select';
 import Button from '../ui/Button';
 import ModelSelector from './ModelSelector';
 import FormGroup from '../ui/FormGroup';
-import { LOCAL_PROVIDERS, NEEDS_BASE_URL_PROVIDERS, DEFAULT_BASE_URLS, PROVIDER_HINTS, getProviderThinkingOptions } from '../../core/constants/settings';
+import { DEFAULT_BASE_URLS, getProviderDisplaySettings } from '../../core/constants/settings';
 import { log } from '../../core/utils/logger.js';
-
-function getAuxProviderDisplaySettings(provider, onThinkingLevelChange) {
-  const isLocal = provider && LOCAL_PROVIDERS.includes(provider);
-  const needsBaseUrl = provider && NEEDS_BASE_URL_PROVIDERS.has(provider);
-  const providerHint = provider ? (PROVIDER_HINTS[provider] || null) : null;
-  const thinkingOptions = onThinkingLevelChange ? getProviderThinkingOptions(provider) : [];
-  const isModelDrivenThinking = onThinkingLevelChange && thinkingOptions.length === 0
-    && (provider === 'kimi' || provider === 'minimax');
-
-  return { isLocal, needsBaseUrl, providerHint, thinkingOptions, isModelDrivenThinking };
-}
 
 /**
  * 副模型(LLM)配置区块
@@ -59,7 +48,7 @@ export default function AuxLlmBlock({ providers, config, onProviderChange, onBas
   }
 
   const { isLocal, needsBaseUrl, providerHint, thinkingOptions, isModelDrivenThinking } =
-    getAuxProviderDisplaySettings(config.provider, onThinkingLevelChange);
+    getProviderDisplaySettings(config.provider, onThinkingLevelChange);
 
   return (
     <div className="we-settings-field-group">

@@ -46,7 +46,7 @@ export function updateStateFieldForm(setForm, key, value) {
   setForm((form) => ({ ...form, [key]: value }));
 }
 
-export function validateStateFieldForm(form) {
+function validateStateFieldForm(form) {
   if (!form.field_key.trim()) return 'field_key 为必填项';
   if (!form.label.trim()) return 'label 为必填项';
   if (!form.type) return 'type 为必填项';
@@ -78,7 +78,7 @@ function validateTableColumns(columns) {
   return '';
 }
 
-export function buildStateFieldPayload(form, scope) {
+function buildStateFieldPayload(form, scope) {
   return {
     field_key: form.field_key.trim(),
     label: form.label.trim(),

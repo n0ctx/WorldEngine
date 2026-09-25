@@ -100,11 +100,17 @@ function regenerateSessionFrom(afterMessageId, truncateTo, targetSessionId, stat
   );
 }
 
-function regenerateSessionMessage(assistantMessageId, state) {
+function beginSessionRun(state) {
   const targetSessionId = state.sessionIdRef.current;
-  if (state.generating || !targetSessionId) return;
+  if (state.generating || !targetSessionId) return null;
   state.prepareNewRun();
-  const messages = state.messageListRef.current?.messagesRef?.current ?? [];
+  return { targetSessionId, messages: state.messageListRef.current?.messagesRef?.current ?? [] };
+}
+
+function regenerateSessionMessage(assistantMessageId, state) {
+  const run = beginSessionRun(state);
+  if (!run) return;
+  const { targetSessionId, messages } = run;
   const index = messages.findIndex((message) => message.id === assistantMessageId);
   if (index <= 0) return;
   regenerateSessionFrom(messages[index - 1].id, (previous) => {
@@ -114,10 +120,9 @@ function regenerateSessionMessage(assistantMessageId, state) {
 }
 
 function retryLastSessionMessage(state) {
-  const targetSessionId = state.sessionIdRef.current;
-  if (state.generating || !targetSessionId) return;
-  state.prepareNewRun();
-  const messages = state.messageListRef.current?.messagesRef?.current ?? [];
+  const run = beginSessionRun(state);
+  if (!run) return;
+  const { targetSessionId, messages } = run;
   let lastIndex = -1;
   for (let i = messages.length - 1; i >= 0; i -= 1) {
     if (messages[i].role === 'assistant') {
@@ -130,10 +135,9 @@ function retryLastSessionMessage(state) {
 }
 
 function retrySessionAfterError(state) {
-  const targetSessionId = state.sessionIdRef.current;
-  if (state.generating || !targetSessionId) return;
-  state.prepareNewRun();
-  const messages = state.messageListRef.current?.messagesRef?.current ?? [];
+  const run = beginSessionRun(state);
+  if (!run) return;
+  const { targetSessionId, messages } = run;
   let end = messages.length;
   while (end > 0 && messages[end - 1].role === 'assistant') end -= 1;
   const trimmed = messages.slice(0, end);
@@ -143,10 +147,9 @@ function retrySessionAfterError(state) {
 }
 
 function continueSessionGeneration(state) {
-  const targetSessionId = state.sessionIdRef.current;
-  if (state.generating || !targetSessionId) return;
-  state.prepareNewRun();
-  const messages = state.messageListRef.current?.messagesRef?.current ?? [];
+  const run = beginSessionRun(state);
+  if (!run) return;
+  const { targetSessionId, messages } = run;
   const lastAssistant = [...messages].reverse().find((message) => message.role === 'assistant');
   if (!lastAssistant) return;
 
@@ -351,7 +354,6 @@ function createActionStates({ api, mode, session, generation, messages, view }) 
 
 export function createSessionStreamActions(getRuntime) {
   const withRuntime = (handler) => (...args) => handler(args, createActionStates(getRuntime()));
-  const withoutArgs = (handler) => () => handler(createActionStates(getRuntime()));
   return {
     handleSessionDelete: withRuntime(([deletedId, remaining], state) => {
       const activeSessionId = state.sessionDelete.sessionIdRef.current;
@@ -367,13 +369,13 @@ export function createSessionStreamActions(getRuntime) {
     handleStop: () => stopSessionGeneration(createActionStates(getRuntime()).stop),
     handleEditMessage: withRuntime(([messageId, newContent], state) => editSessionUserMessage(messageId, newContent, state.editUser)),
     handleRegenerateMessage: withRuntime(([messageId], state) => regenerateSessionMessage(messageId, state.regenerate)),
-    handleRetryLast: withoutArgs((state) => retryLastSessionMessage(state.retry)),
-    handleRetryAfterError: withoutArgs((state) => retrySessionAfterError(state.retry)),
-    handleContinue: withoutArgs((state) => continueSessionGeneration(state.continue)),
-    handleImpersonate: withoutArgs((state) => impersonateSessionUser(state.impersonate)),
+    handleRetryLast: withRuntime((_, state) => retryLastSessionMessage(state.retry)),
+    handleRetryAfterError: withRuntime((_, state) => retrySessionAfterError(state.retry)),
+    handleContinue: withRuntime((_, state) => continueSessionGeneration(state.continue)),
+    handleImpersonate: withRuntime((_, state) => impersonateSessionUser(state.impersonate)),
     handleEditAssistantMessage: withRuntime(([messageId, newContent], state) => editSessionAssistantMessage(messageId, newContent, state.editAssistant)),
     handleDeleteMessage: withRuntime(([messageId], state) => deleteSessionMessage(messageId, state.deleteMessage)),
-    handleRetitle: withoutArgs((state) => retitleSession(state.retitleSessionId, state.retitle)),
+    handleRetitle: withRuntime((_, state) => retitleSession(state.retitleSessionId, state.retitle)),
     selectOption: withRuntime(([text, index], state) => {
       state.selectOption.selectedOptionIndexRef.current = index;
       return sendSessionMessage(text, [], state.send);
