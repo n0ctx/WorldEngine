@@ -248,6 +248,21 @@ test('applyProposal world-card delete', async () => {
   await assert.rejects(() => applyProposal({ type: 'world-card', operation: 'delete' }), /需要 entityId/);
 });
 
+test('applyProposal world-card create 校验附带操作后再建世界', async () => {
+  const worldCount = () => sandbox.db.prepare('SELECT COUNT(*) AS count FROM worlds').get().count;
+  const before = worldCount();
+  const invalidCreates = [
+    { entryOps: [{ op: 'update', id: 'existing-entry' }] },
+    { stateFieldOps: [{ op: 'update', target: 'world', id: 'existing-field' }] },
+  ];
+
+  for (const operations of invalidCreates) {
+    const proposal = normalizeProposal({ type: 'world-card', operation: 'create', changes: { name: 'should-not-exist' }, ...operations });
+    await assert.rejects(() => applyProposal(proposal), /只支持 op:create/);
+    assert.equal(worldCount(), before);
+  }
+});
+
 test('applyProposal world-card update with entryOps update / delete', async () => {
   const w = insertWorld(sandbox.db, { name: 'np-upd-world' });
   // 先建一条 entry

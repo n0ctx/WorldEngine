@@ -3,12 +3,6 @@
   "limit": 30,
   "functions": {
     "assistant/client/AssistantPanel.jsx#AssistantPanel": 98,
-    "assistant/server/normalize-proposal.js#(匿名)~11": 57,
-    "assistant/server/normalize-proposal.js#(匿名)~16": 82,
-    "assistant/server/normalize-proposal.js#applyProposal": 106,
-    "assistant/server/normalize-proposal.js#normalizeEntryOps": 59,
-    "assistant/server/normalize-proposal.js#normalizeProposal": 52,
-    "assistant/server/normalize-proposal.js#normalizeStateFieldOps": 87,
     "assistant/server/workspace/index.js#createWorkspace": 65,
     "frontend/src/components/chat/InputBox.jsx#InputBox": 63,
     "frontend/src/components/chat/MessageItem.jsx#MessageItem": 63,

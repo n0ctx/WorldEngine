@@ -5,7 +5,7 @@
  *   - normalizeProposal: 校验并归一化原始 LLM 提案
  *   - applyProposal: 把已归一化的提案落库（创建/更新/删除）
  *
- * 该模块从 routes.js 中抽出，行为与抽出前完全一致。
+ * 校验并归一化模型提案，再按资源类型执行对应写入。
  */
 
 import { createWorld, updateWorld, deleteWorld } from '../../backend/services/worlds.js';
@@ -95,213 +95,238 @@ async function applyProposal(proposal, worldRefId = null) {
   log.info(`apply START  ${formatMeta({ type, operation, entityId: entityId ?? null, worldRefId: worldRefId ?? null })}`);
 
   switch (type) {
-    case 'world-card': {
-      if (operation === 'create') {
-        const safeChanges = pickAllowed(changes, ['name', 'description', 'temperature', 'max_tokens']);
-        const newWorld = createWorld({
-          name: safeChanges.name || '新世界',
-          description: safeChanges.description ?? '',
-          temperature: safeChanges.temperature ?? null,
-          max_tokens: safeChanges.max_tokens ?? null,
-        });
-        for (const op of (Array.isArray(proposal.entryOps) ? proposal.entryOps : [])) {
-          // create 世界时只能附带 create 条目；混入 update/delete 是对一张刚建出来、还没有旧条目的卡的无效操作。
-          // 旧实现静默忽略（不报错不落库），属"静默丢字段"。这里显式报错让子代理改用 world-card update。
-          if (op.op !== 'create') {
-            throw new Error(`world-card create 的 entryOps 只支持 op:create（收到 "${op.op}"）；要改/删已有条目请改用 world-card update`);
-          }
-          const entry = createWorldPromptEntry(newWorld.id, op);
-          if (op.trigger_type === 'state' && Array.isArray(op.conditions) && op.conditions.length > 0) {
-            replaceEntryConditions(entry.id, op.conditions);
-          }
-        }
-        for (const op of (Array.isArray(proposal.stateFieldOps) ? proposal.stateFieldOps : [])) {
-          if (op.op !== 'create') {
-            throw new Error(`world-card create 的 stateFieldOps 只支持 op:create（收到 "${op.op}"）；要改/删已有字段请改用 world-card update`);
-          }
-          applyStateFieldCreate(op, newWorld.id);
-        }
-        return newWorld;
-      }
-      if (operation === 'delete') {
-        if (!entityId) throw new Error('world-card delete 需要 entityId');
-        await deleteWorld(entityId);
-        return { deleted: entityId };
-      }
-      // update
-      if (!entityId) throw new Error('world-card 提案缺少 entityId');
-      const safeChanges = pickAllowed(changes, ['name', 'description', 'temperature', 'max_tokens']);
-      let updated = null;
-      if (Object.keys(safeChanges).length > 0) updated = await updateWorld(entityId, safeChanges);
-      const worldOps = proposal.entryOps?.length ? proposal.entryOps : newEntries.map((e) => ({ op: 'create', ...e }));
-      const createdEntryIds = [];
-      for (const op of worldOps) {
-        if (op.op === 'create') {
-          const entry = createWorldPromptEntry(entityId, op);
-          createdEntryIds.push(entry.id);
-          // 以「落库后条目的实际 trigger_type」为准，而不是本次 op 是否声明 state，
-          // 避免 op 省略/由后端归一 trigger_type 时条件写不进去。
-          if (Array.isArray(op.conditions) && op.conditions.length > 0 && entry?.trigger_type === 'state') {
-            replaceEntryConditions(entry.id, op.conditions);
-          }
-        } else if (op.op === 'update' && op.id) {
-          const updatedEntry = updateWorldPromptEntry(op.id, pickAllowed(op, ['title', 'description', 'content', 'keywords', 'keyword_scope', 'keyword_logic', 'active_turns', 'condition_logic', 'trigger_type', 'token']));
-          // 已是 state 的条目只改触发条件时，op 常省略 trigger_type；
-          // 据更新后条目的实际类型判断，确保「只改 conditions」也真正落库。
-          if (Array.isArray(op.conditions) && updatedEntry?.trigger_type === 'state') {
-            replaceEntryConditions(op.id, op.conditions);
-          }
-        } else if (op.op === 'delete' && op.id) deleteWorldPromptEntry(op.id);
-      }
-      for (const op of (Array.isArray(proposal.stateFieldOps) ? proposal.stateFieldOps : [])) {
-        if (op.op === 'create') applyStateFieldCreate(op, entityId);
-        else if (op.op === 'update' && op.id) await applyStateFieldUpdate(op);
-        else if (op.op === 'delete' && op.id) await applyStateFieldDelete(op);
-      }
-      return { world: updated, createdEntryIds };
-    }
-
-    case 'character-card': {
-      if (operation === 'create') {
-        const worldId = changes.world_id ?? worldRefId ?? entityId;
-        if (!worldId) throw new Error('character-card create 需要 worldId（entityId、changes.world_id 或上下文 worldId）');
-        // 先全量校验 stateValueOps，再建卡 + 填值；任一值不过则整体拒绝、不建卡（item 3）
-        preValidateStateValueOps(proposal.stateValueOps, { worldId });
-        const safeChanges = pickAllowed(changes, ['name', 'description', 'system_prompt', 'post_prompt', 'first_message']);
-        const newChar = createCharacter({
-          world_id: worldId,
-          name: safeChanges.name || '新角色',
-          description: safeChanges.description || '',
-          system_prompt: safeChanges.system_prompt || '',
-          post_prompt: safeChanges.post_prompt || '',
-          first_message: safeChanges.first_message || '',
-        });
-        for (const op of (Array.isArray(proposal.stateValueOps) ? proposal.stateValueOps : [])) {
-          applyStateValueOp(op, { characterId: newChar.id, worldId });
-        }
-        return newChar;
-      }
-      if (operation === 'delete') {
-        if (!entityId) throw new Error('character-card delete 需要 entityId');
-        await deleteCharacter(entityId);
-        return { deleted: entityId };
-      }
-      // update
-      if (!entityId) throw new Error('character-card 提案缺少 entityId');
-      // 先全量校验 stateValueOps，再改名 + 填值；避免"改名成功但填值失败"留中间态（item 3）
-      preValidateStateValueOps(proposal.stateValueOps, { characterId: entityId });
-      const safeChanges = pickAllowed(changes, ['name', 'description', 'system_prompt', 'post_prompt', 'first_message']);
-      let updated = null;
-      if (Object.keys(safeChanges).length > 0) updated = await updateCharacter(entityId, safeChanges);
-      for (const op of (Array.isArray(proposal.stateValueOps) ? proposal.stateValueOps : [])) {
-        applyStateValueOp(op, { characterId: entityId });
-      }
-      return updated;
-    }
-
-    case 'persona-card': {
-      if (operation === 'create') {
-        const worldId = changes.world_id ?? entityId;
-        if (!worldId) throw new Error('persona-card create 需要 worldId（entityId 或 changes.world_id）');
-        // 先全量校验 stateValueOps，再建卡 + 填值（item 3）
-        preValidateStateValueOps(proposal.stateValueOps, { worldId });
-        const safeChanges = pickAllowed(changes, ['name', 'description', 'system_prompt']);
-        const newPersona = createPersonaDb(worldId, {
-          name: safeChanges.name || '新玩家',
-          description: safeChanges.description || '',
-          system_prompt: safeChanges.system_prompt || '',
-        });
-        // 新建 persona 立即设为 active，后续 stateValueOps 写入其独立状态值行
-    setActivePersona(worldId, newPersona.id);
-    for (const op of (Array.isArray(proposal.stateValueOps) ? proposal.stateValueOps : [])) {
-      applyStateValueOp(op, { personaId: newPersona.id, worldId });
-    }
-    return newPersona;
-  }
-      // update
-      // 先全量校验 stateValueOps（item 3）：在改名之前解析出 worldId 用于字段校验，
-      // 任一值不过则整体拒绝、不改名、不填值。
-      if (Array.isArray(proposal.stateValueOps) && proposal.stateValueOps.length > 0) {
-        let preWorldId = proposal.personaId
-          ? (getPersonaById(proposal.personaId)?.world_id ?? null)
-          : entityId;
-        if (!preWorldId) throw new Error('persona-card 提案缺少 worldId（entityId）或 personaId');
-        preValidateStateValueOps(proposal.stateValueOps, { worldId: preWorldId });
-      }
-      const safeChanges = pickAllowed(changes, ['name', 'description', 'system_prompt']);
-      let updated;
-      if (proposal.personaId) {
-        // 直接按 personaId 更新指定玩家卡
-        updated = await updatePersonaByIdService(proposal.personaId, safeChanges);
-      } else {
-        // 兼容旧接口：按 worldId 更新激活玩家卡
-        const worldId = entityId;
-        if (!worldId) throw new Error('persona-card 提案缺少 worldId（entityId）或 personaId');
-        updated = await updatePersona(worldId, safeChanges);
-      }
-    const resolvedWorldId = updated?.world_id ?? entityId;
-    for (const op of (Array.isArray(proposal.stateValueOps) ? proposal.stateValueOps : [])) {
-      applyStateValueOp(op, { personaId: updated?.id ?? proposal.personaId ?? null, worldId: resolvedWorldId });
-    }
-    return updated;
-  }
-
-    case 'global-config': {
-      const safeChanges = deepOmit(changes, ['api_key', 'llm.api_key', 'embedding.api_key']);
-      let updated = null;
-      if (Object.keys(safeChanges).length > 0) updated = updateConfig(safeChanges);
-      return updated;
-    }
-
-    case 'css-snippet': {
-      if (operation === 'delete') {
-        if (!entityId) throw new Error('css-snippet delete 需要 entityId');
-        deleteCustomCssSnippet(entityId);
-        return { deleted: entityId };
-      }
-      if (operation === 'update') {
-        if (!entityId) throw new Error('css-snippet update 需要 entityId');
-        return updateCustomCssSnippet(entityId, pickAllowed(changes, ['name', 'content', 'mode', 'enabled']));
-      }
-      return createCustomCssSnippet({
-        name: changes.name || '写卡助手生成',
-        content: changes.content || '',
-        mode: changes.mode || 'chat',
-        enabled: changes.enabled ?? 1,
-      });
-    }
-
-    case 'theme': {
-      if (!entityId) throw new Error('theme 提案缺少 entityId');
-      return applyAssistantThemeOp({ id: entityId, operation, changes });
-    }
-
-    case 'regex-rule': {
-      if (operation === 'delete') {
-        if (!entityId) throw new Error('regex-rule delete 需要 entityId');
-        deleteRegexRule(entityId);
-        return { deleted: entityId };
-      }
-      if (operation === 'update') {
-        if (!entityId) throw new Error('regex-rule update 需要 entityId');
-        return updateRegexRule(entityId, pickAllowed(changes, ['name', 'pattern', 'replacement', 'flags', 'scope', 'world_id', 'mode', 'enabled']));
-      }
-      const scope = VALID_REGEX_SCOPES.has(changes.scope) ? changes.scope : 'display_only';
-      return createRegexRule({
-        name: changes.name || '写卡助手生成',
-        enabled: changes.enabled ?? 1,
-        pattern: changes.pattern || '',
-        replacement: changes.replacement ?? '',
-        flags: changes.flags || 'g',
-        scope,
-        world_id: changes.world_id ?? null,
-        mode: changes.mode || 'chat',
-      });
-    }
+    case 'world-card':
+      if (operation === 'create') return createWorldProposal(proposal, changes);
+      if (operation === 'delete') return deleteWorldProposal(entityId);
+      return updateWorldProposal(proposal, { entityId, changes, newEntries });
+    case 'character-card':
+      if (operation === 'create') return createCharacterProposal(proposal, { entityId, changes, worldRefId });
+      if (operation === 'delete') return deleteCharacterProposal(entityId);
+      return updateCharacterProposal(proposal, { entityId, changes });
+    case 'persona-card':
+      if (operation === 'create') return createPersonaProposal(proposal, { entityId, changes });
+      return updatePersonaProposal(proposal, { entityId, changes });
+    case 'global-config': return applyGlobalConfigProposal(changes);
+    case 'css-snippet': return applyCssSnippetProposal({ operation, entityId, changes });
+    case 'theme': return applyThemeProposal({ operation, entityId, changes });
+    case 'regex-rule': return applyRegexRuleProposal({ operation, entityId, changes });
 
     default:
       throw new Error(`未知的提案类型：${type}`);
   }
+}
+
+function createWorldProposal(proposal, changes) {
+  const entryOps = Array.isArray(proposal.entryOps) ? proposal.entryOps : [];
+  const stateFieldOps = Array.isArray(proposal.stateFieldOps) ? proposal.stateFieldOps : [];
+  assertWorldCreateOps(entryOps, stateFieldOps);
+
+  const safeChanges = pickAllowed(changes, ['name', 'description', 'temperature', 'max_tokens']);
+  const newWorld = createWorld({
+    name: safeChanges.name || '新世界',
+    description: safeChanges.description ?? '',
+    temperature: safeChanges.temperature ?? null,
+    max_tokens: safeChanges.max_tokens ?? null,
+  });
+  for (const op of entryOps) {
+    const entry = createWorldPromptEntry(newWorld.id, op);
+    if (op.trigger_type === 'state' && Array.isArray(op.conditions) && op.conditions.length > 0) {
+      replaceEntryConditions(entry.id, op.conditions);
+    }
+  }
+  for (const op of stateFieldOps) applyStateFieldCreate(op, newWorld.id);
+  return newWorld;
+}
+
+function assertWorldCreateOps(entryOps, stateFieldOps) {
+  for (const op of entryOps) {
+    if (op.op !== 'create') {
+      throw new Error(`world-card create 的 entryOps 只支持 op:create（收到 "${op.op}"）；要改/删已有条目请改用 world-card update`);
+    }
+  }
+  for (const op of stateFieldOps) {
+    if (op.op !== 'create') {
+      throw new Error(`world-card create 的 stateFieldOps 只支持 op:create（收到 "${op.op}"）；要改/删已有字段请改用 world-card update`);
+    }
+  }
+}
+
+async function deleteWorldProposal(entityId) {
+  if (!entityId) throw new Error('world-card delete 需要 entityId');
+  await deleteWorld(entityId);
+  return { deleted: entityId };
+}
+
+async function updateWorldProposal(proposal, { entityId, changes, newEntries }) {
+  if (!entityId) throw new Error('world-card 提案缺少 entityId');
+  const safeChanges = pickAllowed(changes, ['name', 'description', 'temperature', 'max_tokens']);
+  const updated = Object.keys(safeChanges).length > 0 ? await updateWorld(entityId, safeChanges) : null;
+  const worldOps = proposal.entryOps?.length ? proposal.entryOps : newEntries.map((entry) => ({ op: 'create', ...entry }));
+  const createdEntryIds = applyWorldEntryOps(worldOps, entityId);
+  await applyWorldStateFieldOps(proposal.stateFieldOps, entityId);
+  return { world: updated, createdEntryIds };
+}
+
+function applyWorldEntryOps(ops, worldId) {
+  const createdEntryIds = [];
+  for (const op of ops) {
+    const createdEntryId = applyWorldEntryOp(op, worldId);
+    if (createdEntryId) createdEntryIds.push(createdEntryId);
+  }
+  return createdEntryIds;
+}
+
+function applyWorldEntryOp(op, worldId) {
+  if (op.op === 'create') {
+    const entry = createWorldPromptEntry(worldId, op);
+    if (Array.isArray(op.conditions) && op.conditions.length > 0 && entry?.trigger_type === 'state') {
+      replaceEntryConditions(entry.id, op.conditions);
+    }
+    return entry.id;
+  }
+  if (op.op === 'update' && op.id) {
+    const updatedEntry = updateWorldPromptEntry(op.id, pickAllowed(op, ['title', 'description', 'content', 'keywords', 'keyword_scope', 'keyword_logic', 'active_turns', 'condition_logic', 'trigger_type', 'token']));
+    if (Array.isArray(op.conditions) && updatedEntry?.trigger_type === 'state') {
+      replaceEntryConditions(op.id, op.conditions);
+    }
+  } else if (op.op === 'delete' && op.id) {
+    deleteWorldPromptEntry(op.id);
+  }
+  return null;
+}
+
+async function applyWorldStateFieldOps(rawOps, worldId) {
+  for (const op of (Array.isArray(rawOps) ? rawOps : [])) {
+    if (op.op === 'create') applyStateFieldCreate(op, worldId);
+    else if (op.op === 'update' && op.id) await applyStateFieldUpdate(op);
+    else if (op.op === 'delete' && op.id) await applyStateFieldDelete(op);
+  }
+}
+
+function createCharacterProposal(proposal, { entityId, changes, worldRefId }) {
+  const worldId = changes.world_id ?? worldRefId ?? entityId;
+  if (!worldId) throw new Error('character-card create 需要 worldId（entityId、changes.world_id 或上下文 worldId）');
+  preValidateStateValueOps(proposal.stateValueOps, { worldId });
+  const safeChanges = pickAllowed(changes, ['name', 'description', 'system_prompt', 'post_prompt', 'first_message']);
+  const character = createCharacter({
+    world_id: worldId,
+    name: safeChanges.name || '新角色',
+    description: safeChanges.description || '',
+    system_prompt: safeChanges.system_prompt || '',
+    post_prompt: safeChanges.post_prompt || '',
+    first_message: safeChanges.first_message || '',
+  });
+  for (const op of (Array.isArray(proposal.stateValueOps) ? proposal.stateValueOps : [])) {
+    applyStateValueOp(op, { characterId: character.id, worldId });
+  }
+  return character;
+}
+
+async function deleteCharacterProposal(entityId) {
+  if (!entityId) throw new Error('character-card delete 需要 entityId');
+  await deleteCharacter(entityId);
+  return { deleted: entityId };
+}
+
+async function updateCharacterProposal(proposal, { entityId, changes }) {
+  if (!entityId) throw new Error('character-card 提案缺少 entityId');
+  preValidateStateValueOps(proposal.stateValueOps, { characterId: entityId });
+  const safeChanges = pickAllowed(changes, ['name', 'description', 'system_prompt', 'post_prompt', 'first_message']);
+  const updated = Object.keys(safeChanges).length > 0 ? await updateCharacter(entityId, safeChanges) : null;
+  for (const op of (Array.isArray(proposal.stateValueOps) ? proposal.stateValueOps : [])) {
+    applyStateValueOp(op, { characterId: entityId });
+  }
+  return updated;
+}
+
+function createPersonaProposal(proposal, { entityId, changes }) {
+  const worldId = changes.world_id ?? entityId;
+  if (!worldId) throw new Error('persona-card create 需要 worldId（entityId 或 changes.world_id）');
+  preValidateStateValueOps(proposal.stateValueOps, { worldId });
+  const safeChanges = pickAllowed(changes, ['name', 'description', 'system_prompt']);
+  const persona = createPersonaDb(worldId, {
+    name: safeChanges.name || '新玩家',
+    description: safeChanges.description || '',
+    system_prompt: safeChanges.system_prompt || '',
+  });
+  setActivePersona(worldId, persona.id);
+  for (const op of (Array.isArray(proposal.stateValueOps) ? proposal.stateValueOps : [])) {
+    applyStateValueOp(op, { personaId: persona.id, worldId });
+  }
+  return persona;
+}
+
+async function updatePersonaProposal(proposal, { entityId, changes }) {
+  const stateValueOps = proposal.stateValueOps;
+  if (Array.isArray(stateValueOps) && stateValueOps.length > 0) {
+    const worldId = proposal.personaId ? (getPersonaById(proposal.personaId)?.world_id ?? null) : entityId;
+    if (!worldId) throw new Error('persona-card 提案缺少 worldId（entityId）或 personaId');
+    preValidateStateValueOps(stateValueOps, { worldId });
+  }
+  const safeChanges = pickAllowed(changes, ['name', 'description', 'system_prompt']);
+  let updated;
+  if (proposal.personaId) {
+    updated = await updatePersonaByIdService(proposal.personaId, safeChanges);
+  } else {
+    if (!entityId) throw new Error('persona-card 提案缺少 worldId（entityId）或 personaId');
+    updated = await updatePersona(entityId, safeChanges);
+  }
+  const worldId = updated?.world_id ?? entityId;
+  for (const op of (Array.isArray(stateValueOps) ? stateValueOps : [])) {
+    applyStateValueOp(op, { personaId: updated?.id ?? proposal.personaId ?? null, worldId });
+  }
+  return updated;
+}
+
+function applyGlobalConfigProposal(changes) {
+  const safeChanges = deepOmit(changes, ['api_key', 'llm.api_key', 'embedding.api_key']);
+  return Object.keys(safeChanges).length > 0 ? updateConfig(safeChanges) : null;
+}
+
+function applyCssSnippetProposal({ operation, entityId, changes }) {
+  if (operation === 'delete') {
+    if (!entityId) throw new Error('css-snippet delete 需要 entityId');
+    deleteCustomCssSnippet(entityId);
+    return { deleted: entityId };
+  }
+  if (operation === 'update') {
+    if (!entityId) throw new Error('css-snippet update 需要 entityId');
+    return updateCustomCssSnippet(entityId, pickAllowed(changes, ['name', 'content', 'mode', 'enabled']));
+  }
+  return createCustomCssSnippet({
+    name: changes.name || '写卡助手生成',
+    content: changes.content || '',
+    mode: changes.mode || 'chat',
+    enabled: changes.enabled ?? 1,
+  });
+}
+
+function applyThemeProposal({ operation, entityId, changes }) {
+  if (!entityId) throw new Error('theme 提案缺少 entityId');
+  return applyAssistantThemeOp({ id: entityId, operation, changes });
+}
+
+function applyRegexRuleProposal({ operation, entityId, changes }) {
+  if (operation === 'delete') {
+    if (!entityId) throw new Error('regex-rule delete 需要 entityId');
+    deleteRegexRule(entityId);
+    return { deleted: entityId };
+  }
+  if (operation === 'update') {
+    if (!entityId) throw new Error('regex-rule update 需要 entityId');
+    return updateRegexRule(entityId, pickAllowed(changes, ['name', 'pattern', 'replacement', 'flags', 'scope', 'world_id', 'mode', 'enabled']));
+  }
+  const scope = VALID_REGEX_SCOPES.has(changes.scope) ? changes.scope : 'display_only';
+  return createRegexRule({
+    name: changes.name || '写卡助手生成',
+    enabled: changes.enabled ?? 1,
+    pattern: changes.pattern || '',
+    replacement: changes.replacement ?? '',
+    flags: changes.flags || 'g',
+    scope,
+    world_id: changes.world_id ?? null,
+    mode: changes.mode || 'chat',
+  });
 }
 
 // ─── 工具函数 ─────────────────────────────────────────────────────
@@ -468,102 +493,114 @@ function normalizeProposal(raw, locked = {}) {
     operation,
     explanation: normalizeString(raw?.explanation) || getDefaultExplanation(type, operation),
   };
-
-  if (type === 'world-card' || type === 'character-card' || type === 'persona-card' ||
-      (type === 'css-snippet' && operation !== 'create') ||
-      (type === 'regex-rule' && operation !== 'create') ||
-      type === 'theme') {
-    proposal.entityId = normalizeEntityId(locked.entityId ?? raw?.entityId);
-  }
-  if (type === 'theme') {
-    if (!proposal.entityId) throw new Error('提案格式错误：theme 必须提供 entityId（主题 id）');
-    try {
-      assertThemeId(proposal.entityId);
-    } catch (err) {
-      throw new Error(`提案格式错误：${err.message}`);
-    }
-  }
+  normalizeProposalIdentity(proposal, raw, locked);
 
   const changes = raw?.changes && typeof raw.changes === 'object' && !Array.isArray(raw.changes) ? raw.changes : {};
+  normalizeProposalContent(proposal, raw, changes);
+  normalizeProposalMetadata(proposal, raw);
+  assertProposalHasChanges(proposal);
+  return proposal;
+}
 
-  switch (type) {
-    case 'world-card': {
-      proposal.changes = normalizeWorldChanges(changes);
-      proposal.stateFieldOps = normalizeStateFieldOps(raw?.stateFieldOps, type);
-      proposal.stateValueOps = normalizeStateValueOps(raw?.stateValueOps, type);
-      const entryWarnings = [];
-      proposal.entryOps = normalizeEntryOps(raw?.entryOps, {
-        allowTriggerType: true,
-        conditionContext: buildWorldConditionContext(proposal.entityId, proposal.stateFieldOps),
-        warnings: entryWarnings,
-      });
-      const disallowedKeys = Object.keys(changes).filter(
-        (k) => !['name', 'description', 'temperature', 'max_tokens'].includes(k),
-      );
-      if (disallowedKeys.length > 0) {
-        proposal.explanation += `（注意：世界卡不支持 ${disallowedKeys.join(', ')} 字段，相关内容请通过条目管理）`;
-      }
-      if (entryWarnings.length > 0) {
-        proposal.explanation += `\n⚠️ 条目警告：${entryWarnings.join('；')}`;
-      }
+function normalizeProposalIdentity(proposal, raw, locked) {
+  const { type, operation } = proposal;
+  const requiresEntityId = ['world-card', 'character-card', 'persona-card', 'theme'].includes(type)
+    || (['css-snippet', 'regex-rule'].includes(type) && operation !== 'create');
+  if (!requiresEntityId) return;
+  proposal.entityId = normalizeEntityId(locked.entityId ?? raw?.entityId);
+  if (type !== 'theme') return;
+  if (!proposal.entityId) throw new Error('提案格式错误：theme 必须提供 entityId（主题 id）');
+  try {
+    assertThemeId(proposal.entityId);
+  } catch (err) {
+    throw new Error(`提案格式错误：${err.message}`);
+  }
+}
+
+function normalizeProposalContent(proposal, raw, changes) {
+  switch (proposal.type) {
+    case 'world-card':
+      normalizeWorldProposalContent(proposal, raw, changes);
       break;
-    }
     case 'character-card':
       proposal.changes = normalizeCharacterChanges(changes);
-      proposal.stateFieldOps = normalizeStateFieldOps(raw?.stateFieldOps, type);
-      proposal.stateValueOps = normalizeStateValueOps(raw?.stateValueOps, type);
+      normalizeCardStateOps(proposal, raw);
       break;
     case 'persona-card':
       proposal.changes = normalizePersonaChanges(changes);
-      proposal.stateFieldOps = normalizeStateFieldOps(raw?.stateFieldOps, type);
-      proposal.stateValueOps = normalizeStateValueOps(raw?.stateValueOps, type);
+      normalizeCardStateOps(proposal, raw);
       break;
     case 'global-config':
       proposal.changes = deepOmit(normalizeObject(changes), ['api_key', 'llm.api_key', 'embedding.api_key']);
       break;
     case 'css-snippet':
-      if (operation === 'delete') {
-        proposal.changes = {};
-      } else if (operation === 'update') {
-        proposal.changes = pickAllowed(changes, ['name', 'content', 'mode', 'enabled']);
-      } else {
-        proposal.changes = normalizeCssSnippetChanges(changes);
-      }
+      proposal.changes = normalizeCssProposalChanges(changes, proposal.operation);
       break;
     case 'regex-rule':
-      if (operation === 'delete') {
-        proposal.changes = {};
-      } else if (operation === 'update') {
-        proposal.changes = pickAllowed(changes, ['name', 'pattern', 'replacement', 'flags', 'scope', 'world_id', 'mode', 'enabled']);
-      } else {
-        proposal.changes = normalizeRegexRuleChanges(changes);
-      }
+      proposal.changes = normalizeRegexProposalChanges(changes, proposal.operation);
       break;
     case 'theme':
-      if (operation === 'delete') {
-        proposal.changes = {};
-      } else {
-        proposal.changes = normalizeThemeChanges(changes, operation);
-      }
+      proposal.changes = proposal.operation === 'delete' ? {} : normalizeThemeChanges(changes, proposal.operation);
       break;
-    default: break;
+    default:
+      break;
   }
+}
 
+function normalizeWorldProposalContent(proposal, raw, changes) {
+  proposal.changes = normalizeWorldChanges(changes);
+  proposal.stateFieldOps = normalizeStateFieldOps(raw?.stateFieldOps, proposal.type);
+  proposal.stateValueOps = normalizeStateValueOps(raw?.stateValueOps, proposal.type);
+  const warnings = [];
+  proposal.entryOps = normalizeEntryOps(raw?.entryOps, {
+    allowTriggerType: true,
+    conditionContext: buildWorldConditionContext(proposal.entityId, proposal.stateFieldOps),
+    warnings,
+  });
+  appendWorldProposalWarnings(proposal, changes, warnings);
+}
+
+function appendWorldProposalWarnings(proposal, changes, entryWarnings) {
+  const allowedKeys = ['name', 'description', 'temperature', 'max_tokens'];
+  const disallowedKeys = Object.keys(changes).filter((key) => !allowedKeys.includes(key));
+  if (disallowedKeys.length > 0) {
+    proposal.explanation += `（注意：世界卡不支持 ${disallowedKeys.join(', ')} 字段，相关内容请通过条目管理）`;
+  }
+  if (entryWarnings.length > 0) proposal.explanation += `\n⚠️ 条目警告：${entryWarnings.join('；')}`;
+}
+
+function normalizeCardStateOps(proposal, raw) {
+  proposal.stateFieldOps = normalizeStateFieldOps(raw?.stateFieldOps, proposal.type);
+  proposal.stateValueOps = normalizeStateValueOps(raw?.stateValueOps, proposal.type);
+}
+
+function normalizeCssProposalChanges(changes, operation) {
+  if (operation === 'delete') return {};
+  if (operation === 'update') return pickAllowed(changes, ['name', 'content', 'mode', 'enabled']);
+  return normalizeCssSnippetChanges(changes);
+}
+
+function normalizeRegexProposalChanges(changes, operation) {
+  if (operation === 'delete') return {};
+  if (operation === 'update') return pickAllowed(changes, ['name', 'pattern', 'replacement', 'flags', 'scope', 'world_id', 'mode', 'enabled']);
+  return normalizeRegexRuleChanges(changes);
+}
+
+function normalizeProposalMetadata(proposal, raw) {
   if (typeof raw?.worldRef === 'string' && raw.worldRef.trim()) proposal.worldRef = raw.worldRef.trim();
   if (typeof raw?.taskId === 'string' && raw.taskId.trim()) proposal.taskId = raw.taskId.trim();
+}
 
-  // 空内容检测：非 delete 操作必须至少有一项变更
-  if (operation !== 'delete') {
-    const hasChanges = Object.keys(proposal.changes || {}).length > 0;
-    const hasEntryOps = Array.isArray(proposal.entryOps) && proposal.entryOps.length > 0;
-    const hasStateFieldOps = Array.isArray(proposal.stateFieldOps) && proposal.stateFieldOps.length > 0;
-    const hasStateValueOps = Array.isArray(proposal.stateValueOps) && proposal.stateValueOps.length > 0;
-    if (!hasChanges && !hasEntryOps && !hasStateFieldOps && !hasStateValueOps) {
-      throw new Error('提案格式错误：提案内容为空，未包含任何变更');
-    }
-  }
+function assertProposalHasChanges(proposal) {
+  if (proposal.operation === 'delete' || hasProposalChanges(proposal)) return;
+  throw new Error('提案格式错误：提案内容为空，未包含任何变更');
+}
 
-  return proposal;
+function hasProposalChanges(proposal) {
+  return Object.keys(proposal.changes || {}).length > 0
+    || (Array.isArray(proposal.entryOps) && proposal.entryOps.length > 0)
+    || (Array.isArray(proposal.stateFieldOps) && proposal.stateFieldOps.length > 0)
+    || (Array.isArray(proposal.stateValueOps) && proposal.stateValueOps.length > 0);
 }
 
 function normalizeWorldChanges(changes) {
@@ -831,90 +868,109 @@ function normalizeConditionOperator(rawOperator, field, idx, condIdx) {
 function normalizeEntryOps(rawOps, { includeMode = false, allowTriggerType = false, conditionContext = null, warnings = null } = {}) {
   if (rawOps == null) return [];
   if (!Array.isArray(rawOps)) throw new Error('提案格式错误：entryOps 必须是数组');
-  return rawOps.map((raw, idx) => {
-    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) throw new Error(`提案格式错误：entryOps[${idx}] 必须是对象`);
-    const op = normalizeString(raw.op);
-    if (!['create', 'update', 'delete'].includes(op)) throw new Error(`提案格式错误：entryOps[${idx}].op 非法`);
-    if (op === 'delete') {
-      const id = normalizeEntityId(raw.id);
-      if (!id) throw new Error(`提案格式错误：entryOps[${idx}].id 缺失`);
-      return { op, id };
-    }
-    const normalized = { op };
+  const options = { includeMode, allowTriggerType, conditionContext, warnings };
+  return rawOps.map((raw, idx) => normalizeEntryOp(raw, idx, options));
+}
+
+function normalizeEntryOp(raw, idx, options) {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) throw new Error(`提案格式错误：entryOps[${idx}] 必须是对象`);
+  const op = normalizeString(raw.op);
+  if (!['create', 'update', 'delete'].includes(op)) throw new Error(`提案格式错误：entryOps[${idx}].op 非法`);
+  if (op === 'delete') return normalizeEntryDelete(raw, idx, op);
+
+  const normalized = { op };
+  if (op === 'update') {
     const id = normalizeEntityId(raw.id);
-    if (op === 'update') {
-      if (!id) throw new Error(`提案格式错误：entryOps[${idx}].id 缺失`);
-      normalized.id = id;
-    }
-    if ('title' in raw) normalized.title = String(raw.title ?? '');
-    if ('description' in raw) normalized.description = String(raw.description ?? '');
-    if ('content' in raw) normalized.content = String(raw.content ?? '');
-    if ('keywords' in raw) normalized.keywords = normalizeStringArrayOrNull(raw.keywords);
-    if ('keyword_scope' in raw) {
-      // 助手侧宽容回退：归一化为 'user' / 'assistant' / 'user,assistant'，空值回退默认
-      const items = Array.isArray(raw.keyword_scope)
-        ? raw.keyword_scope
-        : typeof raw.keyword_scope === 'string'
-          ? raw.keyword_scope.split(',')
-          : [];
-      const filtered = items
-        .map((s) => String(s).trim().toLowerCase())
-        .filter((v) => v === 'user' || v === 'assistant');
-      const unique = [...new Set(filtered)];
-      normalized.keyword_scope = unique.length > 0 ? unique.join(',') : 'user,assistant';
-    }
-    if ('keyword_logic' in raw) {
-      normalized.keyword_logic = raw.keyword_logic === 'AND' ? 'AND' : 'OR';
-    }
-    if ('condition_logic' in raw) {
-      normalized.condition_logic = raw.condition_logic === 'OR' ? 'OR' : 'AND';
-    }
-    if ('active_turns' in raw) {
-      const t = parseInt(raw.active_turns, 10);
-      normalized.active_turns = Number.isFinite(t) && t >= 0 ? t : 1;
-    }
-    if ('token' in raw) {
-      const t = parseInt(raw.token, 10);
-      normalized.token = Number.isFinite(t) && t >= 1 ? t : 1;
-    }
-    if (includeMode) normalized.mode = normalizeMode(raw.mode);
-    if (allowTriggerType && 'trigger_type' in raw) {
-      const tt = normalizeString(raw.trigger_type);
-      if (tt && VALID_TRIGGER_TYPES.has(tt)) normalized.trigger_type = tt;
-    }
-    if (allowTriggerType && normalized.trigger_type === 'keyword') {
-      const kws = normalized.keywords;
-      if (!kws || kws.length === 0) {
-        warnings?.push(`条目「${normalized.title || idx}」类型为 keyword 但 keywords 为空，该条目永远不会触发；请添加关键词或改为 llm/always 类型`);
-      }
-    }
-    // 已是 state 的条目，update 时子代理常只回传 conditions、不再带 trigger_type。
-    // 此处不能再按本次 op 是否声明 trigger_type==='state' 来决定是否保留 conditions，
-    // 否则会把"只改触发条件"的改动在归一化阶段就静默丢掉（apply 层据此也不写库）。
-    // 仅当本次 op 显式把类型切到非 state 时才丢弃 conditions（切走即应清空条件）。
-    const keepConditions = allowTriggerType
-      && Array.isArray(raw.conditions)
-      && (normalized.trigger_type === 'state' || normalized.trigger_type === undefined);
-    if (keepConditions) {
-      normalized.conditions = raw.conditions
-        .filter((c) => c && typeof c === 'object' && c.target_field && c.operator && 'value' in c)
-        .map((c, condIdx) => {
-          const { targetField, field, unresolved } = resolveConditionField(c.target_field, conditionContext);
-          if (unresolved) {
-            warnings?.push(`条目「${normalized.title || idx}」的条件引用了未知字段「${c.target_field}」，请确认字段标签正确（格式：世界/玩家/角色.字段标签）`);
-          }
-          return {
-            target_field: targetField,
-            operator: normalizeConditionOperator(c.operator, field, idx, condIdx),
-            value: String(c.value ?? ''),
-          };
-        });
-    }
-    if (allowTriggerType && normalized.trigger_type === 'state' && (!normalized.conditions || normalized.conditions.length === 0)) {
-      warnings?.push(`条目「${normalized.title || idx}」类型为 state 但 conditions 为空，该条目永远不会触发；请添加至少一个条件`);
-    }
-    return normalized;
-  });
+    if (!id) throw new Error(`提案格式错误：entryOps[${idx}].id 缺失`);
+    normalized.id = id;
+  }
+  normalizeEntryText(raw, normalized);
+  normalizeEntryKeywords(raw, normalized);
+  normalizeEntrySettings(raw, normalized, options.includeMode);
+  normalizeEntryTrigger(raw, normalized, idx, options);
+  normalizeEntryConditions(raw, normalized, idx, options);
+  return normalized;
+}
+
+function normalizeEntryDelete(raw, idx, op) {
+  const id = normalizeEntityId(raw.id);
+  if (!id) throw new Error(`提案格式错误：entryOps[${idx}].id 缺失`);
+  return { op, id };
+}
+
+function normalizeEntryText(raw, normalized) {
+  if ('title' in raw) normalized.title = String(raw.title ?? '');
+  if ('description' in raw) normalized.description = String(raw.description ?? '');
+  if ('content' in raw) normalized.content = String(raw.content ?? '');
+}
+
+function normalizeEntryKeywords(raw, normalized) {
+  if ('keywords' in raw) normalized.keywords = normalizeStringArrayOrNull(raw.keywords);
+  if ('keyword_scope' in raw) normalized.keyword_scope = normalizeKeywordScope(raw.keyword_scope);
+  if ('keyword_logic' in raw) normalized.keyword_logic = raw.keyword_logic === 'AND' ? 'AND' : 'OR';
+}
+
+function normalizeKeywordScope(value) {
+  const items = Array.isArray(value) ? value : typeof value === 'string' ? value.split(',') : [];
+  const filtered = items
+    .map((item) => String(item).trim().toLowerCase())
+    .filter((item) => item === 'user' || item === 'assistant');
+  const unique = [...new Set(filtered)];
+  return unique.length > 0 ? unique.join(',') : 'user,assistant';
+}
+
+function normalizeEntrySettings(raw, normalized, includeMode) {
+  if ('condition_logic' in raw) normalized.condition_logic = raw.condition_logic === 'OR' ? 'OR' : 'AND';
+  if ('active_turns' in raw) {
+    const turns = parseInt(raw.active_turns, 10);
+    normalized.active_turns = Number.isFinite(turns) && turns >= 0 ? turns : 1;
+  }
+  if ('token' in raw) {
+    const token = parseInt(raw.token, 10);
+    normalized.token = Number.isFinite(token) && token >= 1 ? token : 1;
+  }
+  if (includeMode) normalized.mode = normalizeMode(raw.mode);
+}
+
+function normalizeEntryTrigger(raw, normalized, idx, { allowTriggerType, warnings }) {
+  if (allowTriggerType && 'trigger_type' in raw) {
+    const triggerType = normalizeString(raw.trigger_type);
+    if (triggerType && VALID_TRIGGER_TYPES.has(triggerType)) normalized.trigger_type = triggerType;
+  }
+  if (allowTriggerType && normalized.trigger_type === 'keyword' && (!normalized.keywords || normalized.keywords.length === 0)) {
+    warnings?.push(`条目「${normalized.title || idx}」类型为 keyword 但 keywords 为空，该条目永远不会触发；请添加关键词或改为 llm/always 类型`);
+  }
+}
+
+function normalizeEntryConditions(raw, normalized, idx, { allowTriggerType, conditionContext, warnings }) {
+  const keepConditions = allowTriggerType
+    && Array.isArray(raw.conditions)
+    && (normalized.trigger_type === 'state' || normalized.trigger_type === undefined);
+  if (keepConditions) {
+    normalized.conditions = raw.conditions
+      .filter(isUsableEntryCondition)
+      .map((condition, conditionIndex) => normalizeEntryCondition(condition, idx, conditionIndex, normalized, conditionContext, warnings));
+  }
+  if (allowTriggerType && normalized.trigger_type === 'state' && (!normalized.conditions || normalized.conditions.length === 0)) {
+    warnings?.push(`条目「${normalized.title || idx}」类型为 state 但 conditions 为空，该条目永远不会触发；请添加至少一个条件`);
+  }
+}
+
+function isUsableEntryCondition(condition) {
+  return condition && typeof condition === 'object'
+    && condition.target_field && condition.operator && 'value' in condition;
+}
+
+function normalizeEntryCondition(condition, idx, conditionIndex, normalized, conditionContext, warnings) {
+  const { targetField, field, unresolved } = resolveConditionField(condition.target_field, conditionContext);
+  if (unresolved) {
+    warnings?.push(`条目「${normalized.title || idx}」的条件引用了未知字段「${condition.target_field}」，请确认字段标签正确（格式：世界/玩家/角色.字段标签）`);
+  }
+  return {
+    target_field: targetField,
+    operator: normalizeConditionOperator(condition.operator, field, idx, conditionIndex),
+    value: String(condition.value ?? ''),
+  };
 }
 
 function normalizeStateFieldOps(rawOps, type) {
@@ -924,115 +980,113 @@ function normalizeStateFieldOps(rawOps, type) {
   if (allowedTargets && allowedTargets.size === 0 && rawOps.length > 0) {
     throw new Error(`提案格式错误：${type} 不支持 stateFieldOps；状态字段的创建、修改、删除只能在 world-card 中进行`);
   }
-  return rawOps.map((raw, idx) => {
-    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) throw new Error(`提案格式错误：stateFieldOps[${idx}] 必须是对象`);
-    const op = normalizeString(raw.op);
-    if (!['create', 'update', 'delete'].includes(op)) throw new Error(`提案格式错误：stateFieldOps[${idx}].op 非法`);
-    const target = normalizeString(raw.target);
-    if (!target || !allowedTargets.has(target)) throw new Error(`提案格式错误：stateFieldOps[${idx}].target 非法`);
-    if (op === 'delete') {
-      const id = normalizeEntityId(raw.id);
-      if (!id) throw new Error(`提案格式错误：stateFieldOps[${idx}].id 缺失`);
-      return { op, target, id };
+  return rawOps.map((raw, idx) => normalizeStateFieldOp(raw, idx, allowedTargets));
+}
+
+function normalizeStateFieldOp(raw, idx, allowedTargets) {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) throw new Error(`提案格式错误：stateFieldOps[${idx}] 必须是对象`);
+  const op = normalizeString(raw.op);
+  if (!['create', 'update', 'delete'].includes(op)) throw new Error(`提案格式错误：stateFieldOps[${idx}].op 非法`);
+  const target = normalizeString(raw.target);
+  if (!target || !allowedTargets.has(target)) throw new Error(`提案格式错误：stateFieldOps[${idx}].target 非法`);
+  if (op === 'delete') return normalizeStateFieldDelete(raw, idx, op, target);
+  if (op === 'update') return normalizeStateFieldUpdate(raw, idx, op, target);
+  return normalizeStateFieldCreate(raw, idx, op, target);
+}
+
+function normalizeStateFieldDelete(raw, idx, op, target) {
+  const id = normalizeEntityId(raw.id);
+  if (!id) throw new Error(`提案格式错误：stateFieldOps[${idx}].id 缺失`);
+  return { op, target, id };
+}
+
+function normalizeStateFieldUpdate(raw, idx, op, target) {
+  const id = normalizeEntityId(raw.id);
+  if (!id) throw new Error(`提案格式错误：stateFieldOps[${idx}].id 缺失`);
+  const data = pickAllowed(raw, STATE_FIELD_KEYS);
+  const normalized = { op, target, id };
+  if ('type' in data && VALID_STATE_TYPES.has(data.type)) normalized.type = data.type;
+  normalizeStateFieldCommonProperties(data, normalized, false);
+  normalizeStateFieldConstraints(data, normalized, idx);
+  normalizeNearbyEnabled(data, normalized, target, idx);
+  // 仅在本次 update 显式带上 type 时校验类型相关约束；缺省时留给后续业务层。
+  if ('type' in data) validateStateFieldType(normalized, data.type, idx, 'default_value' in data, 'update');
+  return normalized;
+}
+
+function normalizeStateFieldCreate(raw, idx, op, target) {
+  let fieldKey = normalizeString(raw.field_key);
+  if (fieldKey && target === 'persona' && !fieldKey.endsWith('_user')) fieldKey += '_user';
+  else if (fieldKey && target === 'character' && !fieldKey.endsWith('_char')) fieldKey += '_char';
+  const label = normalizeString(raw.label);
+  const fieldType = normalizeString(raw.type);
+  if (!fieldKey) throw new Error(`提案格式错误：stateFieldOps[${idx}].field_key 缺失`);
+  if (!label) throw new Error(`提案格式错误：stateFieldOps[${idx}].label 缺失`);
+  if (!VALID_STATE_TYPES.has(fieldType)) throw new Error(`提案格式错误：stateFieldOps[${idx}].type 非法`);
+  const normalized = { op, target, field_key: fieldKey, label, type: fieldType };
+  normalizeStateFieldCommonProperties(raw, normalized, true);
+  normalizeStateFieldConstraints(raw, normalized, idx);
+  normalizeNearbyEnabled(raw, normalized, target, idx);
+  validateStateFieldType(normalized, fieldType, idx, true, 'create');
+  return normalized;
+}
+
+function normalizeStateFieldCommonProperties(data, normalized, includeDefaults) {
+  if (!includeDefaults && 'label' in data) normalized.label = String(data.label ?? '');
+  if (includeDefaults || 'description' in data) normalized.description = String(data.description ?? '');
+  if (includeDefaults || 'default_value' in data) normalized.default_value = data.default_value == null ? null : String(data.default_value);
+  if (includeDefaults || 'update_mode' in data) {
+    if (VALID_UPDATE_MODES.has(data.update_mode)) normalized.update_mode = data.update_mode;
+    else if (includeDefaults) normalized.update_mode = 'manual';
+  }
+  if (includeDefaults || 'update_instruction' in data) normalized.update_instruction = String(data.update_instruction ?? '');
+  if (includeDefaults || 'allow_empty' in data) normalized.allow_empty = normalizeEnabled(data.allow_empty);
+}
+
+function normalizeStateFieldConstraints(data, normalized, idx) {
+  if ('enum_options' in data) normalized.enum_options = normalizeStringArrayOrNull(data.enum_options);
+  if ('min_value' in data) normalized.min_value = normalizeNumberOrNull(data.min_value);
+  if ('max_value' in data) normalized.max_value = normalizeNumberOrNull(data.max_value);
+  if ('prefix' in data) normalized.prefix = String(data.prefix ?? '');
+  if ('table_columns' in data) normalized.table_columns = normalizeTableColumns(data.table_columns, idx);
+}
+
+function normalizeNearbyEnabled(data, normalized, target, idx) {
+  if (!('nearby_enabled' in data)) return;
+  if (target !== 'character') {
+    throw new Error(`提案格式错误：stateFieldOps[${idx}].nearby_enabled 仅 target='character' 时允许使用`);
+  }
+  normalized.nearby_enabled = data.nearby_enabled ? 1 : 0;
+}
+
+function validateStateFieldType(normalized, fieldType, idx, validateDefaultValue, operation) {
+  if (fieldType === 'datetime') {
+    if (operation === 'update' && normalized.table_columns) {
+      throw new Error(`提案格式错误：stateFieldOps[${idx}].table_columns 仅 type='table' 时允许使用`);
     }
-    if (op === 'update') {
-      const id = normalizeEntityId(raw.id);
-      if (!id) throw new Error(`提案格式错误：stateFieldOps[${idx}].id 缺失`);
-      const normalized = { op, target, id };
-      const data = pickAllowed(raw, STATE_FIELD_KEYS);
-      if ('type' in data && VALID_STATE_TYPES.has(data.type)) normalized.type = data.type;
-      if ('label' in data) normalized.label = String(data.label ?? '');
-      if ('description' in data) normalized.description = String(data.description ?? '');
-      if ('default_value' in data) normalized.default_value = data.default_value == null ? null : String(data.default_value);
-      // 非法 update_mode 不要落成 undefined（key 已固化会把列写脏/清空）；只在合法时赋值，否则不带这个 key。
-      if ('update_mode' in data && VALID_UPDATE_MODES.has(data.update_mode)) normalized.update_mode = data.update_mode;
-      if ('update_instruction' in data) normalized.update_instruction = String(data.update_instruction ?? '');
-      if ('enum_options' in data) normalized.enum_options = normalizeStringArrayOrNull(data.enum_options);
-      if ('min_value' in data) normalized.min_value = normalizeNumberOrNull(data.min_value);
-      if ('max_value' in data) normalized.max_value = normalizeNumberOrNull(data.max_value);
-      if ('allow_empty' in data) normalized.allow_empty = normalizeEnabled(data.allow_empty);
-      if ('prefix' in data) normalized.prefix = String(data.prefix ?? '');
-      if ('table_columns' in data) normalized.table_columns = normalizeTableColumns(data.table_columns, idx);
-      if ('nearby_enabled' in data) {
-        if (target !== 'character') {
-          throw new Error(`提案格式错误：stateFieldOps[${idx}].nearby_enabled 仅 target='character' 时允许使用`);
-        }
-        normalized.nearby_enabled = data.nearby_enabled ? 1 : 0;
-      }
-      // 仅在本次 update 显式带上 type 时校验类型相关约束；type 缺省时无法判定原字段类型，留给后续业务层
-      if ('type' in data) {
-        const isDatetime = data.type === 'datetime';
-        const isTable = data.type === 'table';
-        if (!isDatetime && normalized.prefix && normalized.prefix.trim()) {
-          throw new Error(`提案格式错误：stateFieldOps[${idx}].prefix 仅 datetime 类型字段允许使用`);
-        }
-        if (isDatetime && 'default_value' in data) {
-          assertDatetimeDefaultValue(normalized.default_value, idx);
-        }
-        if (isTable) {
-          if (!Array.isArray(normalized.table_columns) || normalized.table_columns.length === 0) {
-            throw new Error(`提案格式错误：stateFieldOps[${idx}].table_columns 必须是非空数组（type='table' 时）`);
-          }
-          if (normalized.enum_options || normalized.min_value != null || normalized.max_value != null || (normalized.prefix && normalized.prefix.trim())) {
-            throw new Error(`提案格式错误：stateFieldOps[${idx}] type='table' 时禁止填写 enum_options / min_value / max_value / prefix`);
-          }
-          if ('default_value' in data) assertTableDefaultValue(normalized.default_value, normalized.table_columns, idx);
-        } else if (normalized.table_columns) {
-          throw new Error(`提案格式错误：stateFieldOps[${idx}].table_columns 仅 type='table' 时允许使用`);
-        }
-      }
-      return normalized;
-    }
-    let fieldKey = normalizeString(raw.field_key);
-    if (fieldKey) {
-      if (target === 'persona' && !fieldKey.endsWith('_user')) fieldKey += '_user';
-      else if (target === 'character' && !fieldKey.endsWith('_char')) fieldKey += '_char';
-    }
-    const label = normalizeString(raw.label);
-    const fieldType = normalizeString(raw.type);
-    if (!fieldKey) throw new Error(`提案格式错误：stateFieldOps[${idx}].field_key 缺失`);
-    if (!label) throw new Error(`提案格式错误：stateFieldOps[${idx}].label 缺失`);
-    if (!VALID_STATE_TYPES.has(fieldType)) throw new Error(`提案格式错误：stateFieldOps[${idx}].type 非法`);
-    const normalized = {
-      op, target,
-      field_key: fieldKey, label, type: fieldType,
-      description: String(raw.description ?? ''),
-      default_value: raw.default_value == null ? null : String(raw.default_value),
-      update_mode: VALID_UPDATE_MODES.has(raw.update_mode) ? raw.update_mode : 'manual',
-      update_instruction: String(raw.update_instruction ?? ''),
-      allow_empty: normalizeEnabled(raw.allow_empty),
-    };
-    if ('enum_options' in raw) normalized.enum_options = normalizeStringArrayOrNull(raw.enum_options);
-    if ('min_value' in raw) normalized.min_value = normalizeNumberOrNull(raw.min_value);
-    if ('max_value' in raw) normalized.max_value = normalizeNumberOrNull(raw.max_value);
-    if ('prefix' in raw) normalized.prefix = String(raw.prefix ?? '');
-    if ('table_columns' in raw) normalized.table_columns = normalizeTableColumns(raw.table_columns, idx);
-    if ('nearby_enabled' in raw) {
-      if (target !== 'character') {
-        throw new Error(`提案格式错误：stateFieldOps[${idx}].nearby_enabled 仅 target='character' 时允许使用`);
-      }
-      normalized.nearby_enabled = raw.nearby_enabled ? 1 : 0;
-    }
-    if (fieldType === 'datetime') {
-      assertDatetimeDefaultValue(normalized.default_value, idx);
-    } else if (fieldType === 'table') {
-      if (!Array.isArray(normalized.table_columns) || normalized.table_columns.length === 0) {
-        throw new Error(`提案格式错误：stateFieldOps[${idx}].table_columns 必须是非空数组（type='table' 时）`);
-      }
-      if (normalized.enum_options || normalized.min_value != null || normalized.max_value != null || (normalized.prefix && normalized.prefix.trim())) {
-        throw new Error(`提案格式错误：stateFieldOps[${idx}] type='table' 时禁止填写 enum_options / min_value / max_value / prefix`);
-      }
-      assertTableDefaultValue(normalized.default_value, normalized.table_columns, idx);
-    } else {
-      if (normalized.prefix && normalized.prefix.trim()) {
-        throw new Error(`提案格式错误：stateFieldOps[${idx}].prefix 仅 datetime 类型字段允许使用`);
-      }
-      if (normalized.table_columns) {
-        throw new Error(`提案格式错误：stateFieldOps[${idx}].table_columns 仅 type='table' 时允许使用`);
-      }
-    }
-    return normalized;
-  });
+    if (validateDefaultValue) assertDatetimeDefaultValue(normalized.default_value, idx);
+    return;
+  }
+  if (fieldType === 'table') {
+    validateTableField(normalized, idx, validateDefaultValue);
+    return;
+  }
+  if (normalized.prefix && normalized.prefix.trim()) {
+    throw new Error(`提案格式错误：stateFieldOps[${idx}].prefix 仅 datetime 类型字段允许使用`);
+  }
+  if (normalized.table_columns) {
+    throw new Error(`提案格式错误：stateFieldOps[${idx}].table_columns 仅 type='table' 时允许使用`);
+  }
+}
+
+function validateTableField(normalized, idx, validateDefaultValue) {
+  if (!Array.isArray(normalized.table_columns) || normalized.table_columns.length === 0) {
+    throw new Error(`提案格式错误：stateFieldOps[${idx}].table_columns 必须是非空数组（type='table' 时）`);
+  }
+  if (normalized.enum_options || normalized.min_value != null || normalized.max_value != null || (normalized.prefix && normalized.prefix.trim())) {
+    throw new Error(`提案格式错误：stateFieldOps[${idx}] type='table' 时禁止填写 enum_options / min_value / max_value / prefix`);
+  }
+  if (validateDefaultValue) assertTableDefaultValue(normalized.default_value, normalized.table_columns, idx);
 }
 
 function normalizeTableColumns(value, idx) {
