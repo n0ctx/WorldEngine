@@ -27,7 +27,7 @@ import {
   deleteNearbyBySessionId,
   createNearbyCharacter,
 } from '../db/queries/session-nearby-characters.js';
-import { upsertNearbyStateValue, getNearbyStateValuesBySessionId } from '../db/queries/session-nearby-character-state-values.js';
+import { upsertNearbyStateValue, getStateValuesByNearbyIds } from '../db/queries/session-nearby-character-state-values.js';
 
 function withoutNullValues(valueMap) {
   return Object.fromEntries(Object.entries(valueMap).filter(([, v]) => v != null));
@@ -66,10 +66,11 @@ export function captureStateSnapshot(sessionId, worldId, characterIds) {
 export function captureFullSnapshot(sessionId, worldId, characterIds, includeNearby) {
   const snapshot = captureStateSnapshot(sessionId, worldId, characterIds);
   if (includeNearby) {
-    const valuesByNearby = getNearbyStateValuesBySessionId(sessionId);
-    snapshot.nearby = listNearbyBySessionId(sessionId).map((r) => {
+    const rows = listNearbyBySessionId(sessionId);
+    const valuesByNearby = getStateValuesByNearbyIds(rows.map((r) => r.id));
+    snapshot.nearby = rows.map((r) => {
       const state = {};
-      for (const s of valuesByNearby.get(r.id) ?? []) {
+      for (const s of valuesByNearby.get(r.id)) {
         if (s.runtime_value_json != null) state[s.field_key] = s.runtime_value_json;
       }
       return { id: r.id, name: r.name, persona: r.persona, is_saved: r.is_saved, state };

@@ -19,7 +19,7 @@ import {
 } from '../db/queries/session-nearby-characters.js';
 import {
   upsertNearbyStateValue,
-  getNearbyStateValuesBySessionId,
+  getStateValuesByNearbyIds,
 } from '../db/queries/session-nearby-character-state-values.js';
 import { getCharacterStateFieldsByWorldId } from '../db/queries/character-state-fields.js';
 import { getAllCharacterStateValues } from '../db/queries/character-state-values.js';
@@ -157,9 +157,9 @@ export function listNearby(sessionId) {
   const session = ensureWritingSession(sessionId);
   const fields = getNearbyEnabledFields(session.world_id);
   const rows = listNearbyBySessionId(sessionId);
-  const valuesByNearby = getNearbyStateValuesBySessionId(sessionId);
+  const valuesByNearby = getStateValuesByNearbyIds(rows.map((row) => row.id));
   return rows.map((row) => {
-    const values = valuesByNearby.get(row.id) ?? [];
+    const values = valuesByNearby.get(row.id);
     const valueMap = new Map(values.map((v) => [v.field_key, v.runtime_value_json]));
     const stateUpdatedAt = values.reduce((max, v) => (v.updated_at > max ? v.updated_at : max), 0);
     return buildNearbyRow(row, fields, valueMap, stateUpdatedAt);

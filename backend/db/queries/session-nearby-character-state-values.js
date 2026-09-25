@@ -39,21 +39,20 @@ export function getStateValuesByNearbyId(nearbyId) {
 }
 
 /**
- * 一次取出某会话全部 nearby 角色的状态值，按 nearby_id 分组；每组内按 field_key 排序。
- * @returns {Map<string, object[]>}
+ * 一次取出多个 nearby 角色的状态值，返回 Map<nearby_id, 行数组>；每组内按 field_key 排序，
+ * 没有任何值的 nearby 也会得到空数组。
+ * @param {string[]} nearbyIds
  */
-export function getNearbyStateValuesBySessionId(sessionId) {
+export function getStateValuesByNearbyIds(nearbyIds) {
+  const grouped = new Map(nearbyIds.map((id) => [id, []]));
+  if (nearbyIds.length === 0) return grouped;
+  const placeholders = nearbyIds.map(() => '?').join(', ');
   const rows = db.prepare(
-    `SELECT v.* FROM session_nearby_character_state_values v
-     JOIN session_nearby_characters n ON n.id = v.nearby_id
-     WHERE n.session_id = ?
-     ORDER BY v.nearby_id, v.field_key`,
-  ).all(sessionId);
-  const grouped = new Map();
-  for (const row of rows) {
-    if (!grouped.has(row.nearby_id)) grouped.set(row.nearby_id, []);
-    grouped.get(row.nearby_id).push(row);
-  }
+    `SELECT * FROM session_nearby_character_state_values
+     WHERE nearby_id IN (${placeholders})
+     ORDER BY nearby_id, field_key`,
+  ).all(...nearbyIds);
+  for (const row of rows) grouped.get(row.nearby_id).push(row);
   return grouped;
 }
 

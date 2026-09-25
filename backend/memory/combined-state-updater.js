@@ -36,7 +36,7 @@ import {
   updateNearbyName,
 } from '../db/queries/session-nearby-characters.js';
 import {
-  getNearbyStateValuesBySessionId,
+  getStateValuesByNearbyIds,
   upsertNearbyStateValue,
 } from '../db/queries/session-nearby-character-state-values.js';
 import { buildNearbyPromptSection } from '../prompts/nearby-prompt.js';
@@ -510,10 +510,10 @@ function buildNearbyContext(sessionId, charWorldId, personaId) {
   const nearbyEnabledFields = getCharacterStateFieldsByWorldId(charWorldId)
     .filter((f) => Number(f.nearby_enabled) === 1);
   const rows = listNearbyBySessionId(sessionId);
-  const valuesByNearby = getNearbyStateValuesBySessionId(sessionId);
+  const valuesByNearby = getStateValuesByNearbyIds(rows.map((row) => row.id));
   const nearbyPool = rows.map((row) => {
     const state = {};
-    for (const value of valuesByNearby.get(row.id) ?? []) {
+    for (const value of valuesByNearby.get(row.id)) {
       if (value.runtime_value_json == null) continue;
       try { state[value.field_key] = JSON.parse(value.runtime_value_json); }
       catch { state[value.field_key] = value.runtime_value_json; }
@@ -621,7 +621,7 @@ export async function updateAllStates(worldId, characterIds, sessionId) {
     ? buildNearbyContext(sessionId, charWorldId, session?.persona_id)
     : null;
   if (nearbyContext) {
-    // TODO(token): nearby pool 每轮由 listNearbyBySessionId + getNearbyStateValuesBySessionId 重建，
+    // TODO(token): nearby pool 每轮由 listNearbyBySessionId + getStateValuesByNearbyIds 重建，
     //   且 buildNearbyPromptSection 把「指令」与「逐轮变化的池数据」揉在一起，无法切出稳定前缀。
     //   后续可考虑：把 nearby 的「字段定义/输出格式说明」抽进 schema 前缀，仅把池数据留在动态段；
     //   并对 pool 做会话级缓存 + 失效（saved/transient 变更时 invalidate）。当前保守只放进动态段，不缓存。
