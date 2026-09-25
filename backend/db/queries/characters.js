@@ -133,3 +133,15 @@ export function getSessionIdsByWorldId(worldId) {
     WHERE c.world_id = ?
   `).all(worldId).map((r) => r.id);
 }
+
+/**
+ * 获取所有世界下的会话 id（JOIN characters / worlds）
+ * @returns {string[]}
+ */
+export function getAllWorldSessionIds() {
+  return db.prepare(`
+    SELECT s.id FROM sessions s
+    JOIN characters c ON s.character_id = c.id
+    JOIN worlds w ON c.world_id = w.id
+  `).all().map((r) => r.id);
+}

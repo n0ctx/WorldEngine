@@ -11,6 +11,21 @@ export function listConditionsByEntry(entryId) {
 }
 
 /**
+ * 一次取出多个条目的条件，返回 Map<entry_id, 条件数组>；每组内保持 rowid 顺序。
+ * @param {string[]} entryIds
+ */
+export function listConditionsByEntryIds(entryIds) {
+  const grouped = new Map(entryIds.map((id) => [id, []]));
+  if (entryIds.length === 0) return grouped;
+  const placeholders = entryIds.map(() => '?').join(', ');
+  const rows = db.prepare(
+    `SELECT * FROM entry_conditions WHERE entry_id IN (${placeholders}) ORDER BY rowid ASC`,
+  ).all(...entryIds);
+  for (const row of rows) grouped.get(row.entry_id).push(row);
+  return grouped;
+}
+
+/**
  * 事务内替换条目的所有条件（先清空，再批量插入）
  * @param {string} entryId
  * @param {Array<{ target_field: string, operator: string, value: string }>} conditions

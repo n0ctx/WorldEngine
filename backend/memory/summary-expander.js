@@ -9,9 +9,8 @@
  *     → string  可读文本块，供注入 [13] 末尾
  */
 
-import { getSessionById } from '../db/queries/sessions.js';
-import { getTurnRecordById } from '../db/queries/turn-records.js';
-import { getMessagesBySessionId, getMessageById } from '../db/queries/messages.js';
+import { getTurnRecordsWithContentByIds } from '../db/queries/turn-records.js';
+import { getMessagesBySessionId } from '../db/queries/messages.js';
 import * as llm from '../llm/index.js';
 import { countTokens } from '../utils/token-counter.js';
 import {
@@ -108,16 +107,16 @@ export function renderExpandedTurnRecords(turnRecordIds, tokenBudget) {
   const sections = [];
   let usedTokens = 0;
 
+  const records = getTurnRecordsWithContentByIds(turnRecordIds);
   for (const rid of turnRecordIds) {
-    const record = getTurnRecordById(rid);
+    const record = records.get(rid);
     if (!record) continue;
 
-    const session = getSessionById(record.session_id);
     const dateStr = new Date(record.created_at).toISOString().slice(0, 10);
-    const titleStr = session?.title || '未命名会话';
+    const titleStr = record.session_title || '未命名会话';
 
-    const userContent = getMessageById(record.user_message_id)?.content ?? '';
-    const asstContent = getMessageById(record.asst_message_id)?.content ?? '';
+    const userContent = record.user_content ?? '';
+    const asstContent = record.asst_content ?? '';
     const originalText = [
       userContent ? `{{user}}：${userContent}` : '',
       asstContent ? `{{char}}：${asstContent}` : '',

@@ -8,8 +8,6 @@
     "hooks/examples/on-queue-task-event.example.js"
   ],
   "exports": [
-    "backend/db/queries/character-state-values.js#clearCharacterStateRuntimeValues",
-    "backend/db/queries/character-state-values.js#getCharacterStateValue",
     "backend/db/queries/world-state-values.js#clearWorldStateRuntimeValues",
     "backend/db/queries/world-state-values.js#getWorldStateValue",
     "backend/utils/logger.js#getLogMode",

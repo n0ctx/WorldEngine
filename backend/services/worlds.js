@@ -20,8 +20,8 @@ import { upsertPersona } from '../db/queries/personas.js';
 import { getPersonaStateFieldsByWorldId, createPersonaStateField } from '../db/queries/persona-state-fields.js';
 import { upsertPersonaStateValueByPersonaId } from '../db/queries/persona-state-values.js';
 import { createCharacterStateField } from '../db/queries/character-state-fields.js';
-import { getSessionIdsByWorldId } from '../db/queries/characters.js';
-import { deleteDailyEntriesBySessionId } from '../db/queries/daily-entries.js';
+import { getAllWorldSessionIds } from '../db/queries/characters.js';
+import { deleteDailyEntriesBySessionIds } from '../db/queries/daily-entries.js';
 import { deleteDiaryDir } from '../memory/diary-generator.js';
 import { createLogger, formatMeta } from '../utils/logger.js';
 import {
@@ -158,12 +158,7 @@ export async function deleteWorld(id) {
  * 在全局日记功能关闭时由用户确认后调用。
  */
 export function clearAllDiaryData() {
-  const worlds = dbGetAllWorlds();
-  for (const world of worlds) {
-    const sessionIds = getSessionIdsByWorldId(world.id);
-    for (const sessionId of sessionIds) {
-      deleteDailyEntriesBySessionId(sessionId);
-      deleteDiaryDir(sessionId);
-    }
-  }
+  const sessionIds = getAllWorldSessionIds();
+  deleteDailyEntriesBySessionIds(sessionIds);
+  for (const sessionId of sessionIds) deleteDiaryDir(sessionId);
 }

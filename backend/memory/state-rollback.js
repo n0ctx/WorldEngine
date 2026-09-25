@@ -7,19 +7,31 @@
  *     snapshot=null 时保留现状（首轮重生成场景：用户手动加的 nearby / state 是显式意图，不能清）
  */
 
-import db from '../db/index.js';
-import { upsertSessionWorldStateValue, clearSessionWorldStateValues } from '../db/queries/session-world-state-values.js';
-import { upsertSessionPersonaStateValue, clearSessionPersonaStateValues } from '../db/queries/session-persona-state-values.js';
+import {
+  upsertSessionWorldStateValue,
+  getSessionWorldStateValues,
+  clearSessionWorldStateValues,
+} from '../db/queries/session-world-state-values.js';
+import {
+  upsertSessionPersonaStateValue,
+  getSessionPersonaStateValues,
+  clearSessionPersonaStateValues,
+} from '../db/queries/session-persona-state-values.js';
 import {
   upsertSessionCharacterStateValue,
+  getSessionCharacterStateValuesByCharacterIds,
   clearSingleCharacterSessionStateValues,
 } from '../db/queries/session-character-state-values.js';
 import {
   listNearbyBySessionId,
-  deleteNearbyById,
+  deleteNearbyBySessionId,
   createNearbyCharacter,
 } from '../db/queries/session-nearby-characters.js';
-import { upsertNearbyStateValue, getStateValuesByNearbyId } from '../db/queries/session-nearby-character-state-values.js';
+import { upsertNearbyStateValue, getNearbyStateValuesBySessionId } from '../db/queries/session-nearby-character-state-values.js';
+
+function withoutNullValues(valueMap) {
+  return Object.fromEntries(Object.entries(valueMap).filter(([, v]) => v != null));
+}
 
 /**
  * 捕获当前会话的三层状态快照（从 session_*_state_values 表读取）
@@ -30,34 +42,13 @@ import { upsertNearbyStateValue, getStateValuesByNearbyId } from '../db/queries/
  * @returns {{ world: object, persona: object, character: object }}
  */
 export function captureStateSnapshot(sessionId, worldId, characterIds) {
-  const snapshot = { world: {}, persona: {}, character: {} };
-
-  // 世界状态
-  const worldRows = db.prepare(
-    'SELECT field_key, runtime_value_json FROM session_world_state_values WHERE session_id = ? AND world_id = ?',
-  ).all(sessionId, worldId);
-  for (const r of worldRows) {
-    if (r.runtime_value_json != null) snapshot.world[r.field_key] = r.runtime_value_json;
-  }
-
-  // 玩家状态
-  const personaRows = db.prepare(
-    'SELECT field_key, runtime_value_json FROM session_persona_state_values WHERE session_id = ? AND world_id = ?',
-  ).all(sessionId, worldId);
-  for (const r of personaRows) {
-    if (r.runtime_value_json != null) snapshot.persona[r.field_key] = r.runtime_value_json;
-  }
-
-  // 角色状态
-  for (const cid of characterIds) {
-    snapshot.character[cid] = {};
-    const charRows = db.prepare(
-      'SELECT field_key, runtime_value_json FROM session_character_state_values WHERE session_id = ? AND character_id = ?',
-    ).all(sessionId, cid);
-    for (const r of charRows) {
-      if (r.runtime_value_json != null) snapshot.character[cid][r.field_key] = r.runtime_value_json;
-    }
-  }
+  const charValues = getSessionCharacterStateValuesByCharacterIds(sessionId, characterIds);
+  const snapshot = {
+    world: withoutNullValues(getSessionWorldStateValues(sessionId, worldId)),
+    persona: withoutNullValues(getSessionPersonaStateValues(sessionId, worldId)),
+    character: {},
+  };
+  for (const cid of characterIds) snapshot.character[cid] = withoutNullValues(charValues[cid]);
 
   return snapshot;
 }
@@ -75,9 +66,10 @@ export function captureStateSnapshot(sessionId, worldId, characterIds) {
 export function captureFullSnapshot(sessionId, worldId, characterIds, includeNearby) {
   const snapshot = captureStateSnapshot(sessionId, worldId, characterIds);
   if (includeNearby) {
+    const valuesByNearby = getNearbyStateValuesBySessionId(sessionId);
     snapshot.nearby = listNearbyBySessionId(sessionId).map((r) => {
       const state = {};
-      for (const s of getStateValuesByNearbyId(r.id)) {
+      for (const s of valuesByNearby.get(r.id) ?? []) {
         if (s.runtime_value_json != null) state[s.field_key] = s.runtime_value_json;
       }
       return { id: r.id, name: r.name, persona: r.persona, is_saved: r.is_saved, state };
@@ -127,7 +119,7 @@ export function restoreStateFromSnapshot(sessionId, worldId, characterIds, snaps
 
   // nearby 层：先全删（CASCADE 清掉 state values），再按 snapshot.nearby 重建。
   // snapshot.nearby 缺失/非数组（旧记录） → 仅清空（向下兼容）。
-  for (const r of listNearbyBySessionId(sessionId)) deleteNearbyById(r.id);
+  deleteNearbyBySessionId(sessionId);
   const nearbyArr = Array.isArray(snapshot.nearby) ? snapshot.nearby : [];
   for (const n of nearbyArr) {
     if (!n || typeof n.name !== 'string' || !n.name) continue;

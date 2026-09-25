@@ -94,3 +94,24 @@ test('CASCADE：删 nearby 同步删 state values', async () => {
   deleteNearbyById(nearbyId);
   assert.equal(getStateValuesByNearbyId(nearbyId).length, 0);
 });
+
+test('getNearbyStateValuesBySessionId：按 nearby 分组，只返回本会话的值', async () => {
+  const sessionId = makeSession('grouped');
+  const otherSessionId = makeSession('grouped-other');
+  const { createNearbyCharacter } = await freshImport('backend/db/queries/session-nearby-characters.js');
+  const { upsertNearbyStateValue, getNearbyStateValuesBySessionId } =
+    await freshImport('backend/db/queries/session-nearby-character-state-values.js');
+
+  const a = createNearbyCharacter({ sessionId, name: 'A' });
+  const b = createNearbyCharacter({ sessionId, name: 'B' });
+  const other = createNearbyCharacter({ sessionId: otherSessionId, name: 'C' });
+  upsertNearbyStateValue({ sessionId, nearbyId: a, fieldKey: 'mood', valueJson: '"开心"' });
+  upsertNearbyStateValue({ sessionId, nearbyId: a, fieldKey: 'age', valueJson: '18' });
+  upsertNearbyStateValue({ sessionId, nearbyId: b, fieldKey: 'mood', valueJson: '"难过"' });
+  upsertNearbyStateValue({ sessionId: otherSessionId, nearbyId: other, fieldKey: 'mood', valueJson: '"平静"' });
+
+  const grouped = getNearbyStateValuesBySessionId(sessionId);
+  assert.deepEqual([...grouped.keys()].sort(), [a, b].sort());
+  assert.deepEqual(grouped.get(a).map((r) => r.field_key), ['age', 'mood']);
+  assert.equal(grouped.get(b)[0].runtime_value_json, '"难过"');
+});

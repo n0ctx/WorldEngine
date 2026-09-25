@@ -19,7 +19,7 @@ import {
   getSessionPersonaStateValues,
   getSingleCharacterSessionStateValues,
 } from '../db/queries/session-state-values.js';
-import { listConditionsByEntry } from '../db/queries/entry-conditions.js';
+import { listConditionsByEntryIds } from '../db/queries/entry-conditions.js';
 import { getKeywordActiveState, setKeywordActiveState } from '../db/queries/session-active-entries.js';
 import * as llm from '../llm/index.js';
 import {
@@ -381,8 +381,9 @@ function matchStateEntries(sessionId, worldId, entries) {
         : new Map(),
     );
 
+  const conditionsByEntry = listConditionsByEntryIds(entries.map((entry) => entry.id));
   for (const entry of entries) {
-    const conditions = listConditionsByEntry(entry.id);
+    const conditions = conditionsByEntry.get(entry.id);
     if (conditions.length === 0) continue;
     if (isWriting && conditions.some((condition) => condition.target_field.startsWith('角色.'))) continue;
     const check = entry.condition_logic === 'OR' ? 'some' : 'every';

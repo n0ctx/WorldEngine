@@ -78,6 +78,10 @@ export function deleteNearbyById(id) {
   db.prepare(`DELETE FROM session_nearby_characters WHERE id = ?`).run(id);
 }
 
+export function deleteNearbyBySessionId(sessionId) {
+  db.prepare(`DELETE FROM session_nearby_characters WHERE session_id = ?`).run(sessionId);
+}
+
 /**
  * 删除 sessionId 下所有 transient（is_saved=0）且 id 不在 keepIds 中的行。
  * keepIds 为空数组时也安全（不会保留任何 transient）。

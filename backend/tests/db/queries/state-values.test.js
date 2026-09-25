@@ -5,9 +5,12 @@ import { createTestSandbox, freshImport } from '../../helpers/test-env.js';
 import {
   insertCharacter,
   insertCharacterStateField,
+  insertCharacterStateValue,
   insertPersona,
   insertPersonaStateField,
   insertWorld,
+  insertSession,
+  insertSessionCharacterStateValue,
   insertWorldStateField,
 } from '../../helpers/fixtures.js';
 
@@ -112,3 +115,30 @@ for (const suite of valueSuites) {
     assert.equal(withFields[0].effective_value_json, created.default_value_json);
   });
 }
+
+test('多角色批量查询按角色分组，没有值的角色得到空结果', async () => {
+  const world = insertWorld(sandbox.db, { name: '值世界-批量' });
+  const first = insertCharacter(sandbox.db, world.id, { name: '批量-甲' });
+  const second = insertCharacter(sandbox.db, world.id, { name: '批量-乙' });
+  const empty = insertCharacter(sandbox.db, world.id, { name: '批量-空' });
+  const session = insertSession(sandbox.db, { character_id: first.id, world_id: world.id });
+  insertCharacterStateValue(sandbox.db, first.id, { field_key: 'mood', default_value_json: '"平静"' });
+  insertCharacterStateValue(sandbox.db, first.id, { field_key: 'hp', default_value_json: '100' });
+  insertCharacterStateValue(sandbox.db, second.id, { field_key: 'hp', default_value_json: '50' });
+  insertSessionCharacterStateValue(sandbox.db, session.id, first.id, { field_key: 'hp', runtime_value_json: '80' });
+  const { getCharacterStateValuesByCharacterIds } = await freshImport('backend/db/queries/character-state-values.js');
+  const { getSessionCharacterStateValuesByCharacterIds } =
+    await freshImport('backend/db/queries/session-character-state-values.js');
+
+  const ids = [first.id, second.id, empty.id];
+  const defaults = getCharacterStateValuesByCharacterIds(ids);
+  assert.deepEqual(defaults[first.id].map((r) => r.field_key), ['hp', 'mood']);
+  assert.deepEqual(defaults[second.id].map((r) => r.default_value_json), ['50']);
+  assert.deepEqual(defaults[empty.id], []);
+
+  assert.deepEqual(getSessionCharacterStateValuesByCharacterIds(session.id, ids), {
+    [first.id]: { hp: '80' },
+    [second.id]: {},
+    [empty.id]: {},
+  });
+});

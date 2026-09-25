@@ -56,6 +56,43 @@ export function getTurnRecordById(id) {
 }
 
 /**
+ * 一次取出多条 turn record，附带所属会话的 title / created_at（session_title / session_created_at），
+ * 返回 Map<id, row>；查不到的 id 不在结果里。
+ * @param {string[]} ids
+ */
+export function getTurnRecordsWithSessionByIds(ids) {
+  if (ids.length === 0) return new Map();
+  const placeholders = ids.map(() => '?').join(', ');
+  const rows = db.prepare(
+    `SELECT tr.*, s.title AS session_title, s.created_at AS session_created_at
+     FROM turn_records tr
+     LEFT JOIN sessions s ON s.id = tr.session_id
+     WHERE tr.id IN (${placeholders})`,
+  ).all(...ids);
+  return new Map(rows.map((row) => [row.id, row]));
+}
+
+/**
+ * 一次取出多条 turn record 及其原文：会话标题（session_title）与该轮 user / assistant 消息正文
+ * （user_content / asst_content），返回 Map<id, row>；查不到的 id 不在结果里。
+ * @param {string[]} ids
+ */
+export function getTurnRecordsWithContentByIds(ids) {
+  if (ids.length === 0) return new Map();
+  const placeholders = ids.map(() => '?').join(', ');
+  const rows = db.prepare(
+    `SELECT tr.id, tr.round_index, tr.created_at, s.title AS session_title,
+            mu.content AS user_content, ma.content AS asst_content
+     FROM turn_records tr
+     LEFT JOIN sessions s ON s.id = tr.session_id
+     LEFT JOIN messages mu ON mu.id = tr.user_message_id
+     LEFT JOIN messages ma ON ma.id = tr.asst_message_id
+     WHERE tr.id IN (${placeholders})`,
+  ).all(...ids);
+  return new Map(rows.map((row) => [row.id, row]));
+}
+
+/**
  * 获取某会话最近 limit 条 turn records，按 round_index 升序返回
  *
  * @param {string} sessionId

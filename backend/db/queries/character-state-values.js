@@ -81,6 +81,23 @@ export function getAllCharacterStateValues(characterId) {
 }
 
 /**
+ * 一次取出多个角色的状态值，返回 { character_id → 行数组 }；每组内按 field_key 排序，
+ * 没有任何值的角色也会得到空数组。
+ * @param {string[]} characterIds
+ */
+export function getCharacterStateValuesByCharacterIds(characterIds) {
+  const result = Object.fromEntries(characterIds.map((id) => [id, []]));
+  if (characterIds.length === 0) return result;
+  const placeholders = characterIds.map(() => '?').join(', ');
+  const rows = db.prepare(
+    `SELECT * FROM character_state_values WHERE character_id IN (${placeholders})
+     ORDER BY character_id, field_key ASC`,
+  ).all(...characterIds);
+  for (const r of rows) result[r.character_id].push(r);
+  return result;
+}
+
+/**
  * 删除单个角色状态值（字段删除时调用）
  */
 export function deleteCharacterStateValue(characterId, fieldKey) {

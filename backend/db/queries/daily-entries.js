@@ -6,7 +6,7 @@
  *   getDailyEntriesBySessionId(sessionId) → entries[]（按 date_str ASC）
  *   getDailyEntriesAfterRound(sessionId, roundIndex) → entries[]
  *   deleteDailyEntriesAfterRound(sessionId, roundIndex) → void
- *   deleteDailyEntriesBySessionId(sessionId) → void
+ *   deleteDailyEntriesBySessionIds(sessionIds) → void
  *   getSessionIdsByWorldId(worldId) — 已在 characters.js，此处不重复
  */
 
@@ -67,8 +67,11 @@ export function deleteDailyEntriesAfterRound(sessionId, roundIndex) {
 }
 
 /**
- * 删除某会话的所有日记条目
+ * 删除多个会话的所有日记条目
+ * @param {string[]} sessionIds
  */
-export function deleteDailyEntriesBySessionId(sessionId) {
-  db.prepare('DELETE FROM daily_entries WHERE session_id = ?').run(sessionId);
+export function deleteDailyEntriesBySessionIds(sessionIds) {
+  if (sessionIds.length === 0) return;
+  const placeholders = sessionIds.map(() => '?').join(', ');
+  db.prepare(`DELETE FROM daily_entries WHERE session_id IN (${placeholders})`).run(...sessionIds);
 }

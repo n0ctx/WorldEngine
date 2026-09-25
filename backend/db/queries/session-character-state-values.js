@@ -33,6 +33,23 @@ export function getSessionCharacterStateValues(sessionId, characterId) {
 }
 
 /**
+ * 一次取出某会话下多个角色的运行时状态值，返回 { character_id → { field_key → runtime_value_json } }；
+ * 没有任何值的角色也会得到空对象。
+ * @param {string[]} characterIds
+ */
+export function getSessionCharacterStateValuesByCharacterIds(sessionId, characterIds) {
+  const result = Object.fromEntries(characterIds.map((id) => [id, {}]));
+  if (characterIds.length === 0) return result;
+  const placeholders = characterIds.map(() => '?').join(', ');
+  const rows = db.prepare(
+    `SELECT character_id, field_key, runtime_value_json FROM session_character_state_values
+     WHERE session_id = ? AND character_id IN (${placeholders})`,
+  ).all(sessionId, ...characterIds);
+  for (const r of rows) result[r.character_id][r.field_key] = r.runtime_value_json;
+  return result;
+}
+
+/**
  * 清空某会话的所有角色运行时状态（消息回滚时调用）
  */
 export function clearSessionCharacterStateValues(sessionId) {

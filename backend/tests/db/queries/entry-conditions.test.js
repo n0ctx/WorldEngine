@@ -62,3 +62,22 @@ test('entry 删除时 entry_conditions 级联删除', async () => {
   sandbox.db.prepare('DELETE FROM world_prompt_entries WHERE id = ?').run(entry.id);
   assert.equal(listConditionsByEntry(entry.id).length, 0, '级联删除后条件应为空');
 });
+
+test('listConditionsByEntryIds 按条目分组并保持插入顺序，无条件的条目得到空数组', async () => {
+  const world = insertWorld(sandbox.db, { name: '状态条目世界-批量' });
+  const first = insertWorldEntry(sandbox.db, world.id, { title: '批量-1', trigger_type: 'state' });
+  const second = insertWorldEntry(sandbox.db, world.id, { title: '批量-2', trigger_type: 'state' });
+  const empty = insertWorldEntry(sandbox.db, world.id, { title: '批量-空', trigger_type: 'state' });
+  const { listConditionsByEntryIds, replaceEntryConditions } = await freshImport('backend/db/queries/entry-conditions.js');
+
+  replaceEntryConditions(first.id, [
+    { target_field: '世界.体力', operator: '<', value: '30' },
+    { target_field: '玩家.心情', operator: '等于', value: '痛苦' },
+  ]);
+  replaceEntryConditions(second.id, [{ target_field: '世界.戒严', operator: '!=', value: '1' }]);
+
+  const grouped = listConditionsByEntryIds([first.id, second.id, empty.id]);
+  assert.deepEqual(grouped.get(first.id).map((c) => c.target_field), ['世界.体力', '玩家.心情']);
+  assert.deepEqual(grouped.get(second.id).map((c) => c.target_field), ['世界.戒严']);
+  assert.deepEqual(grouped.get(empty.id), []);
+});

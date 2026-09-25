@@ -15,7 +15,7 @@
 
 import db from '../db/index.js';
 import { getCharacterById } from '../db/queries/characters.js';
-import { getTurnRecordById } from '../db/queries/turn-records.js';
+import { getTurnRecordsWithSessionByIds } from '../db/queries/turn-records.js';
 import { getStateValuesByNearbyId } from '../db/queries/session-nearby-character-state-values.js';
 import { applyTemplateVars } from '../utils/template-vars.js';
 import { embed } from '../llm/embedding.js';
@@ -356,13 +356,11 @@ export async function searchRecalledSummaries(worldId, sessionId) {
   let totalTokens = 0;
   let ref = 1;
 
+  const records = getTurnRecordsWithSessionByIds(hits.map((hit) => hit.turn_record_id));
   for (const hit of hits) {
     if (recentIds.has(hit.turn_record_id)) continue;
-    const record = getTurnRecordById(hit.turn_record_id);
+    const record = records.get(hit.turn_record_id);
     if (!record?.summary) continue;
-
-    // 通过 session 拿 title 和 created_at
-    const sessionRow = db.prepare('SELECT title, created_at FROM sessions WHERE id = ?').get(record.session_id);
 
     const lineTokens = countTokens(record.summary);
     if (totalTokens + lineTokens > MEMORY_RECALL_MAX_TOKENS) break;
@@ -371,9 +369,9 @@ export async function searchRecalledSummaries(worldId, sessionId) {
       ref,
       turn_record_id: record.id,
       session_id: record.session_id,
-      session_title: sessionRow?.title || '未命名会话',
+      session_title: record.session_title || '未命名会话',
       round_index: record.round_index,
-      created_at: sessionRow?.created_at ?? record.created_at,
+      created_at: record.session_created_at ?? record.created_at,
       content: record.summary,
       scene: record.scene || '',
       cast: parseCastJson(record.cast_json),

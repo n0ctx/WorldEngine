@@ -25,9 +25,7 @@ import {
 } from '../utils/constants.js';
 import { renderBackendPrompt } from '../prompts/prompt-loader.js';
 import { getOrCreatePersona } from '../services/personas.js';
-import { captureStateSnapshot } from './state-rollback.js';
-import { listNearbyBySessionId } from '../db/queries/session-nearby-characters.js';
-import { getStateValuesByNearbyId } from '../db/queries/session-nearby-character-state-values.js';
+import { captureFullSnapshot } from './state-rollback.js';
 import { resolveAuxScope } from '../utils/aux-scope.js';
 import { getConfig } from '../services/config.js';
 import { appendMemoryLines, readMemoryFile } from '../services/long-term-memory.js';
@@ -232,19 +230,7 @@ async function generateTurnSummary({ sessionId, sid, userName, characterName, us
 
 function captureTurnSnapshot(sessionId, worldId, characterId, isWriting) {
   if (!worldId) return null;
-
-  const snapshot = captureStateSnapshot(sessionId, worldId, characterId ? [characterId] : []);
-  if (!snapshot || !isWriting) return snapshot;
-
-  const nearbyRows = listNearbyBySessionId(sessionId);
-  snapshot.nearby = nearbyRows.map((r) => {
-    const state = {};
-    for (const s of getStateValuesByNearbyId(r.id)) {
-      if (s.runtime_value_json != null) state[s.field_key] = s.runtime_value_json;
-    }
-    return { id: r.id, name: r.name, persona: r.persona, is_saved: r.is_saved, state };
-  });
-  return snapshot;
+  return captureFullSnapshot(sessionId, worldId, characterId ? [characterId] : [], isWriting);
 }
 
 async function persistTurnRecordSnapshots(record, sessionId, sid, ltmEnabled, memoryLines) {

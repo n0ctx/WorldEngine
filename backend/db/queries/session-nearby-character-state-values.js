@@ -38,6 +38,25 @@ export function getStateValuesByNearbyId(nearbyId) {
   ).all(nearbyId);
 }
 
+/**
+ * 一次取出某会话全部 nearby 角色的状态值，按 nearby_id 分组；每组内按 field_key 排序。
+ * @returns {Map<string, object[]>}
+ */
+export function getNearbyStateValuesBySessionId(sessionId) {
+  const rows = db.prepare(
+    `SELECT v.* FROM session_nearby_character_state_values v
+     JOIN session_nearby_characters n ON n.id = v.nearby_id
+     WHERE n.session_id = ?
+     ORDER BY v.nearby_id, v.field_key`,
+  ).all(sessionId);
+  const grouped = new Map();
+  for (const row of rows) {
+    if (!grouped.has(row.nearby_id)) grouped.set(row.nearby_id, []);
+    grouped.get(row.nearby_id).push(row);
+  }
+  return grouped;
+}
+
 export function deleteStateValuesByNearbyId(nearbyId) {
   db.prepare(
     `DELETE FROM session_nearby_character_state_values WHERE nearby_id = ?`,
