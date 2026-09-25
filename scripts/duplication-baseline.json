@@ -257,13 +257,6 @@
         "backend/db/queries/session-nearby-character-state-values.js:47-49"
       ]
     },
-    "91903d62d2402c6e": {
-      "tokens": 51,
-      "locations": [
-        "backend/routes/sessions.js:145-154",
-        "backend/routes/sessions.js:196-205"
-      ]
-    },
     "94eaad8bb6c71c85": {
       "tokens": 47,
       "locations": [
@@ -289,7 +282,7 @@
       "tokens": 41,
       "locations": [
         "backend/routes/session-state-values.js:48-51",
-        "backend/routes/sessions.js:161-166"
+        "backend/routes/sessions.js:139-144"
       ]
     },
     "9af638e3a6a3ea2e": {
@@ -406,13 +399,6 @@
       "locations": [
         "frontend/src/components/chat/MessageItem.jsx:218-221",
         "frontend/src/components/writing/WritingMessageItem.jsx:139-142"
-      ]
-    },
-    "e164d80584419bbc": {
-      "tokens": 73,
-      "locations": [
-        "backend/routes/sessions.js:136-140",
-        "backend/routes/sessions.js:183-187"
       ]
     },
     "e66cd5b9b5ea6961": {

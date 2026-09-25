@@ -16,11 +16,9 @@ import {
   deleteMessagesAfter,
 } from '../services/sessions.js';
 import { getCharacterById } from '../services/characters.js';
-import { deleteTurnRecordsAfterRound, getLatestTurnRecord, getLatestTurnRecordWithSnapshot } from '../db/queries/turn-records.js';
-import { restoreStateFromSnapshot } from '../memory/state-rollback.js';
-import { restoreLtmFromTurnRecord } from '../services/long-term-memory.js';
-import { restoreTablesFromTurnRecord } from '../services/table-memory.js';
-import { clearPending, waitForQueueIdle } from '../utils/async-queue.js';
+import { chatMode } from '../app/modes/chat-mode.js';
+import { writingMode } from '../app/modes/writing-mode.js';
+import { rollbackSession } from '../app/shared/rollback/rollback-session.js';
 import { ALL_MESSAGES_LIMIT } from '../utils/constants.js';
 import { assertExists } from '../utils/route-helpers.js';
 import { createLogger, formatMeta } from '../utils/logger.js';
@@ -28,6 +26,11 @@ import { runHook } from '../hooks/hook-registry.js';
 
 const router = Router();
 const log = createLogger('sessions', 'cyan');
+
+/** 编辑 / 删除消息的接口两种模式共用，按会话自身的 mode 决定回滚时怎么解析世界与角色 */
+function modeOfSession(session) {
+  return session?.mode === 'writing' ? writingMode : chatMode;
+}
 
 // GET /api/characters/:characterId/sessions — 获取某角色下的会话列表
 router.get('/characters/:characterId/sessions', (req, res) => {
@@ -123,35 +126,10 @@ router.put('/messages/:id', async (req, res) => {
     return res.status(400).json({ error: 'content 为必填项' });
   }
 
-  const editSessionId = msg.session_id;
-  // 编辑用户消息通常会紧接重新生成；先等本 session 队列空闲，
-  // 避免旧后台任务在截断和状态回滚之后写回旧状态。
-  await waitForQueueIdle(editSessionId);
-
-  const updated = await updateMessageAndDeleteAfter(req.params.id, content);
-
-  // 只清理可丢弃的待处理任务，p2/p3 已通过队列屏障等待完成。
-  clearPending(editSessionId, 4);
-  const editSession = getSessionById(editSessionId);
-  const editRemaining = getMessagesBySessionId(editSessionId, ALL_MESSAGES_LIMIT, 0);
-  const editR = editRemaining.filter((m) => m.role === 'user').length;
-  deleteTurnRecordsAfterRound(editSessionId, editR - 1);
-  restoreLtmFromTurnRecord(editSessionId, editR === 0 ? null : getLatestTurnRecord(editSessionId));
-  restoreTablesFromTurnRecord(editSessionId, editR === 0 ? null : getLatestTurnRecord(editSessionId));
-
-  const editCharId = editSession?.character_id;
-  const editChar = editCharId ? getCharacterById(editCharId) : null;
-  const editWorldId = editChar?.world_id ?? editSession?.world_id ?? null;
-  if (editWorldId) {
-    // 写作模式没有固定角色身份，editCharIds 留空即可（nearby 状态由专属表回滚）
-    const editCharIds = editCharId ? [editCharId] : [];
-    // 必须用带 snapshot 的最近 turn record；否则 snapshot=null 走到 state-rollback 降级分支会无差别清空 nearby
-    const editLastRecord = getLatestTurnRecordWithSnapshot(editSessionId);
-    restoreStateFromSnapshot(
-      editSessionId, editWorldId, editCharIds,
-      editLastRecord?.state_snapshot ? JSON.parse(editLastRecord.state_snapshot) : null,
-    );
-  }
+  let updated;
+  await rollbackSession(modeOfSession(getSessionById(msg.session_id)), msg.session_id, async () => {
+    updated = await updateMessageAndDeleteAfter(req.params.id, content);
+  });
 
   res.json(updated);
 });
@@ -169,40 +147,11 @@ router.delete('/sessions/:sessionId/messages/:messageId', async (req, res) => {
     return res.status(404).json({ error: '消息不存在' });
   }
 
-  // 与 regenerate / 编辑用户消息一致：先等同 session 已入队任务（p2 状态更新、p3 turn-record/长期记忆抽取）跑完，
-  // 否则截断完成后旧任务仍可能写回旧轮次的状态/turn_record/长期记忆，覆盖刚还原的快照。
-  await waitForQueueIdle(sessionId);
-
-  // 删除该消息之后的所有消息（含 cleanup hooks）
-  await deleteMessagesAfter(messageId);
-  // 删除该消息自身
-  await deleteMessage(messageId);
-  await runHook('message:deleted', { id: messageId, sessionId });
-
-  // 计算剩余 user 消息数 R，删除 round_index > R-1 的 turn records
-  const remaining = getMessagesBySessionId(sessionId, ALL_MESSAGES_LIMIT, 0);
-  const R = remaining.filter((m) => m.role === 'user').length;
-  deleteTurnRecordsAfterRound(sessionId, R - 1);
-  restoreLtmFromTurnRecord(sessionId, R === 0 ? null : getLatestTurnRecord(sessionId));
-  restoreTablesFromTurnRecord(sessionId, R === 0 ? null : getLatestTurnRecord(sessionId));
-
-  // 清空所有待处理任务，防止旧轮次状态更新（prio 2）覆盖即将恢复的快照
-  clearPending(sessionId, 2);
-
-  // 状态回滚：恢复到最近保留的 turn record 快照（无快照时清空回 default）
-  const characterId = session.character_id;
-  const character = characterId ? getCharacterById(characterId) : null;
-  const worldId = character?.world_id ?? session.world_id ?? null;
-  if (worldId) {
-    // 写作模式无固定角色，characterIds 留空（nearby 状态由专属表回滚）
-    const characterIds = characterId ? [characterId] : [];
-    // 必须用带 snapshot 的最近 turn record；否则 snapshot=null 走到 state-rollback 降级分支会无差别清空 nearby
-    const lastRecord = getLatestTurnRecordWithSnapshot(sessionId);
-    restoreStateFromSnapshot(
-      sessionId, worldId, characterIds,
-      lastRecord?.state_snapshot ? JSON.parse(lastRecord.state_snapshot) : null,
-    );
-  }
+  await rollbackSession(modeOfSession(session), sessionId, async () => {
+    await deleteMessagesAfter(messageId);
+    await deleteMessage(messageId);
+    await runHook('message:deleted', { id: messageId, sessionId });
+  });
 
   res.json({ success: true });
 });

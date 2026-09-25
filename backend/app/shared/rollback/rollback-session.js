@@ -14,31 +14,33 @@ import { restoreLtmFromTurnRecord } from '../../../services/long-term-memory.js'
 import { restoreTablesFromTurnRecord } from '../../../services/table-memory.js';
 
 /**
- * 回滚一个会话到 afterMessageId 之后的状态：截断消息与轮次记录，
- * 还原长期记忆 / 表格记忆 / 日记 / 状态快照。
+ * 回滚一个会话：等队列空闲后执行 truncateMessages 截断消息，再按剩余轮次截断轮次记录，
+ * 还原长期记忆 / 表格记忆 / 日记 / 状态快照。重生成、编辑消息、删除消息只在截断方式上不同。
  *
  * 模式差异只剩「世界与角色怎么解析」，由 mode.resolveScope 吃掉。
  */
-export async function rollbackSession(mode, sessionId, afterMessageId) {
+export async function rollbackSession(mode, sessionId, truncateMessages) {
   const log = mode.log;
   const sid = sessionId.slice(0, 8);
 
   await waitForQueueIdle(sessionId);
-  await mode.session.deleteMessagesAfter(afterMessageId);
+  await truncateMessages();
 
+  // 只保留已完成的轮次：末尾是用户消息（重生成 / 编辑）时该轮待重做，末尾是 AI 回复（删除消息后）时各轮都完整
   const remaining = mode.session.getMessages(sessionId, ALL_MESSAGES_LIMIT, 0);
   const roundCount = remaining.filter((message) => message.role === 'user').length;
+  const keptRounds = remaining.at(-1)?.role === 'assistant' ? roundCount : Math.max(0, roundCount - 1);
 
-  deleteTurnRecordsAfterRound(sessionId, roundCount - 1);
-  log.info(`TURN-RECORD TRUNCATE  ${formatMeta({ session: sid, keepUntilRound: Math.max(0, roundCount - 1) })}`);
+  deleteTurnRecordsAfterRound(sessionId, keptRounds);
+  log.info(`TURN-RECORD TRUNCATE  ${formatMeta({ session: sid, keepUntilRound: keptRounds })}`);
 
-  restoreLtmFromTurnRecord(sessionId, roundCount === 0 ? null : getLatestTurnRecord(sessionId));
-  restoreTablesFromTurnRecord(sessionId, roundCount === 0 ? null : getLatestTurnRecord(sessionId));
+  restoreLtmFromTurnRecord(sessionId, keptRounds === 0 ? null : getLatestTurnRecord(sessionId));
+  restoreTablesFromTurnRecord(sessionId, keptRounds === 0 ? null : getLatestTurnRecord(sessionId));
 
-  for (const entry of getDailyEntriesAfterRound(sessionId, roundCount)) {
+  for (const entry of getDailyEntriesAfterRound(sessionId, keptRounds + 1)) {
     deleteDiaryFile(sessionId, entry.date_str);
   }
-  deleteDailyEntriesAfterRound(sessionId, roundCount);
+  deleteDailyEntriesAfterRound(sessionId, keptRounds + 1);
 
   clearPending(sessionId, 4);
   log.info(`QUEUE CLEAR  ${formatMeta({ session: sid, threshold: 4 })}`);
