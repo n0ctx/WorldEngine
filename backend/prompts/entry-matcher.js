@@ -275,6 +275,124 @@ function mergeStateMaps(...maps) {
   return merged;
 }
 
+function groupEntriesByTriggerType(entries) {
+  const groups = { always: [], keyword: [], llm: [], state: [] };
+  for (const entry of entries) {
+    const type = entry.trigger_type || 'always';
+    groups[Object.hasOwn(groups, type) ? type : 'always'].push(entry);
+  }
+  return groups;
+}
+
+function getMatchContext(messages) {
+  // 只取两类消息各自最近一条；关键词 TTL 的轮数仍按全部 user 消息计算。
+  let lastUser;
+  let lastAsst;
+  for (let i = messages.length - 1; i >= 0 && (!lastUser || !lastAsst); i -= 1) {
+    const message = messages[i];
+    if (!lastUser && message.role === 'user') lastUser = message;
+    if (!lastAsst && message.role === 'assistant') lastAsst = message;
+  }
+
+  return {
+    contextLines: [
+      lastAsst ? `AI：${lastAsst.content}` : '',
+      lastUser ? `用户：${lastUser.content}` : '',
+    ].filter(Boolean).join('\n'),
+    userScanText: (lastUser?.content || '').toLowerCase(),
+    asstScanText: (lastAsst?.content || '').toLowerCase(),
+    currentRound: messages.reduce((count, message) => count + (message.role === 'user' ? 1 : 0), 0),
+  };
+}
+
+function matchKeywordEntries(sessionId, entries, context) {
+  const triggered = new Set();
+  if (entries.length === 0) return triggered;
+  const freshHits = new Set();
+  for (const entry of entries) {
+    if (matchByKeywords(entry, context.userScanText, context.asstScanText)) {
+      freshHits.add(entry.id);
+    }
+  }
+
+  const entryById = new Map(entries.map((entry) => [entry.id, entry]));
+  const prevState = getKeywordActiveState(sessionId);
+  const nextState = {};
+
+  // 只携带仍存在且未过期的旧命中；历史回退到激活点前时丢弃记录。
+  for (const [entryId, record] of Object.entries(prevState)) {
+    if (!entryById.has(entryId)) continue;
+    const ttl = Number(record?.ttl);
+    const round = Number(record?.round);
+    if (!Number.isFinite(round) || round > context.currentRound) continue;
+    const stillActive = ttl === 0
+      || (Number.isFinite(ttl) && ttl > 0 && context.currentRound - round < ttl);
+    if (!stillActive) continue;
+    triggered.add(entryId);
+    nextState[entryId] = { round, ttl };
+  }
+
+  for (const id of freshHits) {
+    triggered.add(id);
+    const ttl = Number(entryById.get(id)?.active_turns ?? 1);
+    nextState[id] = {
+      round: context.currentRound,
+      ttl: Number.isFinite(ttl) && ttl >= 0 ? ttl : 1,
+    };
+  }
+
+  if (JSON.stringify(prevState) !== JSON.stringify(nextState)) {
+    try {
+      setKeywordActiveState(sessionId, nextState);
+    } catch (err) {
+      log.warn(`持久化 keyword_active_state 失败: ${err.message}`);
+    }
+  }
+  return triggered;
+}
+
+async function matchLlmEntries(sessionId, entries, context, alreadyTriggered) {
+  const entriesWithDesc = entries.filter((entry) => entry.description && entry.description.trim());
+  const triggered = entriesWithDesc.length > 0 && context.contextLines
+    ? await tryLlmMatch(entriesWithDesc, context.contextLines, sessionId)
+    : new Set();
+
+  for (const entry of entries) {
+    if (triggered.has(entry.id) || alreadyTriggered.has(entry.id)) continue;
+    if (matchByKeywords(entry, context.userScanText, context.asstScanText)) triggered.add(entry.id);
+  }
+  return triggered;
+}
+
+function matchStateEntries(sessionId, worldId, entries) {
+  const triggered = new Set();
+  if (!worldId || entries.length === 0) return triggered;
+
+  const session = getSessionById(sessionId);
+  const sharedMap = buildSharedStateMap(worldId, sessionId);
+  const isWriting = session?.mode === 'writing';
+  // 写作模式没有固定角色身份，角色条件无法评估。
+  const stateMap = isWriting
+    ? sharedMap
+    : mergeStateMaps(
+      sharedMap,
+      session?.character_id
+        ? buildCharacterStateMap(worldId, sessionId, session.character_id)
+        : new Map(),
+    );
+
+  for (const entry of entries) {
+    const conditions = listConditionsByEntry(entry.id);
+    if (conditions.length === 0) continue;
+    if (isWriting && conditions.some((condition) => condition.target_field.startsWith('角色.'))) continue;
+    const check = entry.condition_logic === 'OR' ? 'some' : 'every';
+    if (conditions[check]((condition) => evaluateCondition(condition, stateMap))) {
+      triggered.add(entry.id);
+    }
+  }
+  return triggered;
+}
+
 /**
  * 判断哪些 Prompt 条目需要注入正文（触发）
  *
@@ -286,150 +404,11 @@ export async function matchEntries(sessionId, entries, worldId = null) {
   if (!entries || entries.length === 0) return new Set();
 
   const allMessages = getMessagesBySessionId(sessionId, ALL_MESSAGES_LIMIT, 0);
-
-  const lastUser = [...allMessages].reverse().find((m) => m.role === 'user');
-  const lastAsst = [...allMessages].reverse().find((m) => m.role === 'assistant');
-  const contextLines = [
-    lastAsst ? `AI：${lastAsst.content}` : '',
-    lastUser ? `用户：${lastUser.content}` : '',
-  ].filter(Boolean).join('\n');
-
-  // 关键词只扫最新一条 user / assistant 消息（"本轮"内容）。跨轮持续完全交给 active_turns / TTL，
-  // 避免旧消息留在窗口里被反复当作 fresh hit、不断刷新 round 导致 active_turns=1 失效。
-  const userScanText = (lastUser?.content || '').toLowerCase();
-  const asstScanText = (lastAsst?.content || '').toLowerCase();
-
-  const triggered = new Set();
-
-  // 按 trigger_type 分流：无 trigger_type 视为 'always'
-  const alwaysEntries = [];
-  const keywordEntries = [];
-  const llmEntries = [];
-  const stateEntries = [];
-
-  for (const entry of entries) {
-    const type = entry.trigger_type || 'always';
-    if (type === 'always') {
-      alwaysEntries.push(entry);
-    } else if (type === 'keyword') {
-      keywordEntries.push(entry);
-    } else if (type === 'llm') {
-      llmEntries.push(entry);
-    } else if (type === 'state') {
-      stateEntries.push(entry);
-    } else {
-      // 未知类型降级为 always
-      alwaysEntries.push(entry);
-    }
-  }
-
-  // always：直接触发，不走匹配
-  for (const entry of alwaysEntries) {
-    triggered.add(entry.id);
-  }
-
-  // keyword：先用本轮关键词扫描得到本轮新命中；再叠加跨轮"生效轮数"内仍存活的旧命中；
-  // 最后把本轮命中刷新写回 sessions.keyword_active_state，并清理已过期 / 不再存在的条目。
-  if (keywordEntries.length > 0) {
-    const freshHits = new Set();
-    for (const entry of keywordEntries) {
-      if (matchByKeywords(entry, userScanText, asstScanText)) {
-        freshHits.add(entry.id);
-      }
-    }
-
-    // currentRound：以 session 内 user 消息总数为单调计数（regenerate 不增、edit 后会回退，符合直觉）
-    const currentRound = allMessages.reduce((c, m) => c + (m.role === 'user' ? 1 : 0), 0);
-
-    const prevState = getKeywordActiveState(sessionId);
-    const entryById = new Map(keywordEntries.map((e) => [e.id, e]));
-    const nextState = {};
-
-    // 旧命中携带：仍在 TTL 内且条目仍存在 → 视为已激活
-    // 历史回退保护：当 record.round > currentRound 时，说明会话被删消息 / 编辑早期消息 / 清空，
-    // 触发它的消息已不存在；丢弃该记录，避免幽灵注入（尤其 active_turns=0 永久条目）。
-    for (const [entryId, record] of Object.entries(prevState)) {
-      if (!entryById.has(entryId)) continue; // 条目被删除：不携带
-      const ttl = Number(record?.ttl);
-      const round = Number(record?.round);
-      if (!Number.isFinite(round)) continue;
-      if (round > currentRound) continue; // 历史被回退到激活点之前：丢弃
-      const stillActive = ttl === 0 || (Number.isFinite(ttl) && ttl > 0 && currentRound - round < ttl);
-      if (stillActive) {
-        triggered.add(entryId);
-        nextState[entryId] = { round, ttl };
-      }
-    }
-
-    // 本轮新命中：刷新 round 与 ttl，覆盖旧记录
-    for (const id of freshHits) {
-      triggered.add(id);
-      const ttl = Number(entryById.get(id)?.active_turns ?? 1);
-      nextState[id] = { round: currentRound, ttl: Number.isFinite(ttl) && ttl >= 0 ? ttl : 1 };
-    }
-
-    // 持久化（只在有变化时写）
-    const changed = JSON.stringify(prevState) !== JSON.stringify(nextState);
-    if (changed) {
-      try { setKeywordActiveState(sessionId, nextState); }
-      catch (err) { log.warn(`持久化 keyword_active_state 失败: ${err.message}`); }
-    }
-  }
-
-  // llm：LLM pre-flight（仅处理有 description 的条目）+ 关键词兜底
-  if (llmEntries.length > 0) {
-    const llmEntriesWithDesc = llmEntries.filter((e) => e.description && e.description.trim());
-    const llmTriggered = llmEntriesWithDesc.length > 0 && contextLines
-      ? await tryLlmMatch(llmEntriesWithDesc, contextLines, sessionId)
-      : new Set();
-
-    for (const id of llmTriggered) {
-      triggered.add(id);
-    }
-
-    // 关键词兜底：对未触发的 llm 类型条目补充匹配
-    for (const entry of llmEntries) {
-      if (!triggered.has(entry.id) && matchByKeywords(entry, userScanText, asstScanText)) {
-        triggered.add(entry.id);
-      }
-    }
-  }
-
-  // state：实时评估状态条件（AND = 全部满足，OR = 任一满足）
-  if (stateEntries.length > 0 && worldId) {
-    const session = getSessionById(sessionId);
-    const sharedMap = buildSharedStateMap(worldId, sessionId);
-
-    if (session?.mode === 'writing') {
-      // writing 模式：没有固定角色身份，仅按 world+persona shared map 评估；
-      // 含「角色.*」条件的条目在写作模式下无法命中，跳过即可（Option C，nearby 池
-      // 由副 LLM 单独维护，不参与世界 prompt 条目触发）。
-      for (const entry of stateEntries) {
-        const conditions = listConditionsByEntry(entry.id);
-        if (conditions.length === 0) continue;
-        const hasCharCond = conditions.some((c) => c.target_field.startsWith('角色.'));
-        if (hasCharCond) continue;
-        const check = entry.condition_logic === 'OR' ? 'some' : 'every';
-        if (conditions[check]((c) => evaluateCondition(c, sharedMap))) {
-          triggered.add(entry.id);
-        }
-      }
-    } else {
-      // chat 模式：使用 world + persona + 当前角色状态
-      const charMap = session?.character_id
-        ? buildCharacterStateMap(worldId, sessionId, session.character_id)
-        : new Map();
-      const stateMap = mergeStateMaps(sharedMap, charMap);
-      for (const entry of stateEntries) {
-        const conditions = listConditionsByEntry(entry.id);
-        if (conditions.length === 0) continue;
-        const check = entry.condition_logic === 'OR' ? 'some' : 'every';
-        if (conditions[check]((c) => evaluateCondition(c, stateMap))) {
-          triggered.add(entry.id);
-        }
-      }
-    }
-  }
-
+  const context = getMatchContext(allMessages);
+  const groups = groupEntriesByTriggerType(entries);
+  const triggered = new Set(groups.always.map((entry) => entry.id));
+  for (const id of matchKeywordEntries(sessionId, groups.keyword, context)) triggered.add(id);
+  for (const id of await matchLlmEntries(sessionId, groups.llm, context, triggered)) triggered.add(id);
+  for (const id of matchStateEntries(sessionId, worldId, groups.state)) triggered.add(id);
   return triggered;
 }

@@ -162,6 +162,20 @@ test('trigger_type 缺失（null/undefined）视为 always 直接触发', async 
   assert.deepEqual([...matched], ['entry-no-type']);
 });
 
+test('未知 trigger_type（包括原型属性名）降级为 always', async () => {
+  const world = insertWorld(sandbox.db);
+  const character = insertCharacter(sandbox.db, world.id);
+  const session = insertSession(sandbox.db, { character_id: character.id });
+  resetMockEnv();
+
+  const { matchEntries } = await freshImport('backend/prompts/entry-matcher.js');
+  const matched = await matchEntries(session.id, [
+    { id: 'entry-unknown-type', trigger_type: 'constructor' },
+  ]);
+
+  assert.deepEqual([...matched], ['entry-unknown-type']);
+});
+
 test('trigger_type=llm LLM 失败时关键词兜底命中', async () => {
   const world = insertWorld(sandbox.db);
   const character = insertCharacter(sandbox.db, world.id);
