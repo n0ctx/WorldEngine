@@ -186,6 +186,12 @@ describe('ChatPage', () => {
     vi.useRealTimers();
   });
 
+  it('同步当前角色 ID 后不会重复请求角色信息', async () => {
+    renderChatPage();
+
+    await waitFor(() => expect(mocks.getCharacter).toHaveBeenCalledTimes(1));
+  });
+
   it('首次发送会自动建会话并调用 sendMessage', async () => {
     renderChatPage();
 

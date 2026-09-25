@@ -28,16 +28,89 @@ import { useMemoryIndicators } from '../../core/hooks/useMemoryIndicators.js';
 import { useChatStream } from './hooks/useChatStream.js';
 import { useMotion } from '../../core/hooks/useMotion.js';
 
+function useChatCharacter(characterId) {
+  const [loadedContext, setLoadedContext] = useState(null);
+  const character = loadedContext?.characterId === characterId ? loadedContext.character : null;
+  const persona = loadedContext?.characterId === characterId ? loadedContext.persona : null;
+
+  useEffect(() => {
+    if (!characterId) return;
+    let cancelled = false;
+
+    getCharacter(characterId).then((loadedCharacter) => {
+      if (cancelled) return;
+      setLoadedContext({ characterId, character: loadedCharacter, persona: null });
+      if (loadedCharacter.world_id) {
+        getPersona(loadedCharacter.world_id).then((loadedPersona) => {
+          if (!cancelled) {
+            setLoadedContext((current) => current?.characterId === characterId
+              ? { ...current, persona: loadedPersona }
+              : current);
+          }
+        }).catch((err) => {
+          log.error('chat.persona.load_failed', err, { toast: '加载玩家信息失败' });
+        });
+        syncDiaryTimeField(loadedCharacter.world_id).catch((err) => {
+          log.warn('chat.diary.sync_failed', err);
+        });
+      }
+    }).catch((err) => {
+      log.error('chat.character.load_failed', err, { toast: '加载角色信息失败' });
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [characterId]);
+
+  return { character, persona };
+}
+
+function useChatSessionContext({ characterId, currentSessionId, setCurrentCharacterId, setCurrentSession, clearActiveSession }) {
+  useEffect(() => {
+    if (!characterId) return;
+    const previousCharacterId = useStore.getState().currentCharacterId;
+    if (previousCharacterId && previousCharacterId !== characterId) clearActiveSession();
+    setCurrentCharacterId(characterId);
+  }, [characterId, clearActiveSession, setCurrentCharacterId]);
+
+  useEffect(() => {
+    if (!characterId) return;
+    if (!currentSessionId) {
+      setCurrentSession(null);
+      return;
+    }
+    if (useStore.getState().currentSessionId !== currentSessionId) return;
+
+    let cancelled = false;
+    getSession(currentSessionId)
+      .then((session) => {
+        if (cancelled) return;
+        if (session?.character_id === characterId) {
+          setCurrentSession(session);
+          return;
+        }
+        clearActiveSession();
+      })
+      .catch(() => {
+        if (!cancelled) clearActiveSession();
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [characterId, currentSessionId, clearActiveSession, setCurrentSession]);
+}
+
 export default function ChatPage() {
   const motionPrefs = useMotion();
   const { characterId } = useParams();
   const navigate = useNavigate();
 
   const { ltmEnabled, tableMemoryEnabled, chapterTurnSize, pageTurnSize } = usePageConfig();
-  const { currentSessionId, setCurrentSessionId, currentCharacterId, setCurrentCharacterId } = useStore();
+  const { currentSessionId, setCurrentSessionId, setCurrentCharacterId } = useStore();
 
-  const [character, setCharacter] = useState(null);
-  const [persona, setPersona] = useState(null);
+  const { character, persona } = useChatCharacter(characterId);
   const [ltmOpen, setLtmOpen] = useState(false);
   const [tmOpen, setTmOpen] = useState(false);
   const [pageInfo, setPageInfo] = useState({ totalPages: 1, currentPage: 0 });
@@ -91,62 +164,13 @@ export default function ChatPage() {
     handleMessagesLoaded,
   } = stream;
 
-  // 加载角色信息
-  useEffect(() => {
-    if (!characterId) return;
-    let cancelled = false;
-    const shouldResetSession = !!currentCharacterId && currentCharacterId !== characterId;
-
-    (async () => {
-      await Promise.resolve();
-      if (cancelled) return;
-      if (shouldResetSession) {
-        clearActiveSession();
-      }
-      setCurrentCharacterId(characterId);
-      setCharacter(null);
-      setPersona(null);
-      setCurrentSession((prev) => (shouldResetSession ? null : prev));
-
-      getCharacter(characterId).then((c) => {
-        if (cancelled) return;
-        setCharacter(c);
-        if (c.world_id) {
-          getPersona(c.world_id).then((p) => {
-            if (!cancelled) setPersona(p);
-          }).catch((err) => {
-            log.error('chat.persona.load_failed', err, { toast: '加载玩家信息失败' });
-          });
-          syncDiaryTimeField(c.world_id).catch((err) => {
-            log.warn('chat.diary.sync_failed', err);
-          });
-        }
-      }).catch((err) => {
-        log.error('chat.character.load_failed', err, { toast: '加载角色信息失败' });
-      });
-
-      if (!shouldResetSession && currentSessionId) {
-        getSession(currentSessionId)
-          .then((session) => {
-            if (cancelled) return;
-            if (session?.character_id === characterId) {
-              setCurrentSession(session);
-              return;
-            }
-            clearActiveSession();
-          })
-          .catch(() => {
-            if (!cancelled) clearActiveSession();
-          });
-      } else if (!currentSessionId) {
-        setCurrentSession(null);
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [characterId, clearActiveSession, currentCharacterId, currentSessionId, setCurrentCharacterId, setCurrentSession]);
+  useChatSessionContext({
+    characterId,
+    currentSessionId,
+    setCurrentCharacterId,
+    setCurrentSession,
+    clearActiveSession,
+  });
 
   // 启动时加载正则规则缓存
   useEffect(() => {
