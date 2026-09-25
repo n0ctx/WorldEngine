@@ -9,40 +9,11 @@
         "frontend/src/pages/WritingSpacePage/components/NearbyPanel.jsx:140-143"
       ]
     },
-    "023091ad8bd926c4": {
-      "tokens": 52,
-      "locations": [
-        "backend/routes/config.js:638-643",
-        "backend/routes/config.js:644-649"
-      ]
-    },
-    "059afd8113c81d61": {
-      "tokens": 48,
-      "locations": [
-        "backend/llm/providers/openai-compatible/index.js:142-143",
-        "backend/llm/providers/openai-compatible/index.js:226-227",
-        "backend/llm/providers/openai-compatible/index.js:291-292"
-      ]
-    },
     "05aa305f982abe5a": {
       "tokens": 75,
       "locations": [
-        "backend/llm/providers/anthropic/index.js:260-265",
-        "backend/llm/providers/gemini/index.js:231-236"
-      ]
-    },
-    "065e77e3f24364c2": {
-      "tokens": 82,
-      "locations": [
-        "backend/db/queries/custom-css-snippets.js:47-60",
-        "backend/db/queries/regex-rules.js:94-107"
-      ]
-    },
-    "068e6020325fe93c": {
-      "tokens": 134,
-      "locations": [
-        "backend/routes/session-state-values.js:65-75",
-        "backend/routes/session-state-values.js:81-91"
+        "backend/llm/providers/anthropic/index.js:234-239",
+        "backend/llm/providers/gemini/index.js:219-224"
       ]
     },
     "0751d7d73cb609e0": {
@@ -52,91 +23,11 @@
         "frontend/src/shells/book-spread/atmosphere/lightDust.js:60-64"
       ]
     },
-    "07b3f2dcfe5b1d86": {
-      "tokens": 108,
-      "locations": [
-        "backend/prompts/assembler.js:228-240",
-        "backend/prompts/assembler.js:438-450"
-      ]
-    },
-    "07f434ee2e8efb1e": {
-      "tokens": 76,
-      "locations": [
-        "backend/db/queries/character-state-values.js:23-36",
-        "backend/db/queries/persona-state-values.js:38-51",
-        "backend/db/queries/world-state-values.js:23-36"
-      ]
-    },
-    "098e0985bda1465e": {
-      "tokens": 64,
-      "locations": [
-        "backend/routes/characters.js:32-39",
-        "backend/routes/personas.js:45-52",
-        "backend/routes/personas.js:54-61",
-        "backend/routes/worlds.js:32-39"
-      ]
-    },
-    "09b675ef8825ea6a": {
-      "tokens": 60,
-      "locations": [
-        "backend/llm/providers/gemini/index.js:237-243",
-        "backend/llm/providers/gemini/index.js:280-286"
-      ]
-    },
-    "09cc4d407c8a7c2b": {
-      "tokens": 64,
-      "locations": [
-        "backend/routes/personas.js:161-166",
-        "backend/routes/personas.js:77-82"
-      ]
-    },
-    "0d06ba8c1673b9af": {
-      "tokens": 105,
-      "locations": [
-        "backend/routes/config.js:1106-1122",
-        "backend/routes/config.js:1127-1143",
-        "backend/routes/config.js:1148-1164"
-      ]
-    },
-    "0dc4a3911861d470": {
-      "tokens": 71,
-      "locations": [
-        "backend/routes/characters.js:32-41",
-        "backend/routes/personas.js:54-63",
-        "backend/routes/worlds.js:32-41"
-      ]
-    },
-    "0e6706b481592531": {
-      "tokens": 52,
-      "locations": [
-        "frontend/src/core/api/chat.js:63-67",
-        "frontend/src/core/api/chat.js:79-83",
-        "frontend/src/core/api/chat.js:94-98"
-      ]
-    },
-    "0e9c3e5740166538": {
-      "tokens": 54,
-      "locations": [
-        "frontend/src/components/settings/FeaturesConfigPanel.jsx:54-59",
-        "frontend/src/components/settings/FeaturesConfigPanel.jsx:55-60",
-        "frontend/src/components/settings/FeaturesConfigPanel.jsx:56-61",
-        "frontend/src/components/settings/FeaturesConfigPanel.jsx:57-62",
-        "frontend/src/components/settings/MemoryConfigPanel.jsx:36-41"
-      ]
-    },
     "0eed7e14aa44426f": {
       "tokens": 44,
       "locations": [
-        "backend/routes/config.js:983-988",
+        "backend/routes/config.js:962-967",
         "frontend/src/core/constants/settings.js:160-165"
-      ]
-    },
-    "0f2ab69154508b3e": {
-      "tokens": 66,
-      "locations": [
-        "frontend/src/components/ui/ModelCombobox.jsx:46-54",
-        "frontend/src/components/ui/Select.jsx:38-46",
-        "frontend/src/shells/book-spread/chrome/TopBar.jsx:51-59"
       ]
     },
     "0f4a79e24e2de258": {
@@ -144,20 +35,6 @@
       "locations": [
         "frontend/src/pages/WorldEditPage.jsx:116-120",
         "frontend/src/pages/WorldsPage.jsx:145-149"
-      ]
-    },
-    "0f763f56ae66c74c": {
-      "tokens": 43,
-      "locations": [
-        "backend/services/state-values.js:166-172",
-        "backend/services/state-values.js:236-242"
-      ]
-    },
-    "0fdb42985c06a808": {
-      "tokens": 43,
-      "locations": [
-        "assistant/server/normalize-proposal.js:214-217",
-        "assistant/server/normalize-proposal.js:248-251"
       ]
     },
     "101d853520709fbe": {
@@ -178,69 +55,8 @@
     "15ac2b7d40b52e3d": {
       "tokens": 92,
       "locations": [
-        "frontend/src/components/chat/MessageItem.jsx:212-226",
-        "frontend/src/components/writing/WritingMessageItem.jsx:104-118"
-      ]
-    },
-    "178d3ecaae7a2533": {
-      "tokens": 40,
-      "locations": [
-        "backend/routes/config.js:620-625",
-        "backend/routes/config.js:626-631",
-        "backend/routes/config.js:632-637"
-      ]
-    },
-    "18e8c2e70e4e810a": {
-      "tokens": 87,
-      "locations": [
-        "frontend/src/pages/CharacterEditPage/index.jsx:126-131",
-        "frontend/src/pages/PersonaEditPage.jsx:171-176"
-      ]
-    },
-    "1db0ea58ee2460d2": {
-      "tokens": 45,
-      "locations": [
-        "frontend/src/core/api/character-state-values.js:22-25",
-        "frontend/src/core/api/character-state-values.js:5-8",
-        "frontend/src/core/api/request.js:14-17",
-        "frontend/src/core/api/themes.js:17-20",
-        "frontend/src/core/api/world-state-values.js:22-25",
-        "frontend/src/core/api/world-state-values.js:5-8"
-      ]
-    },
-    "1ea57bd55ff4f345": {
-      "tokens": 45,
-      "locations": [
-        "backend/routes/config.js:791-796",
-        "backend/routes/config.js:896-901"
-      ]
-    },
-    "20053d94c6ae7c2e": {
-      "tokens": 102,
-      "locations": [
-        "backend/services/character-state-fields.js:36-41",
-        "backend/services/world-state-fields.js:27-32"
-      ]
-    },
-    "22c6ca8e848b2f6b": {
-      "tokens": 48,
-      "locations": [
-        "backend/routes/personas.js:120-121",
-        "backend/routes/personas.js:131-132",
-        "backend/routes/personas.js:168-169",
-        "backend/routes/personas.js:179-180",
-        "backend/routes/personas.js:210-211",
-        "backend/routes/personas.js:84-85"
-      ]
-    },
-    "24f8d3774e2ad2ac": {
-      "tokens": 61,
-      "locations": [
-        "frontend/src/core/api/import-export.js:112-116",
-        "frontend/src/core/api/import-export.js:17-21",
-        "frontend/src/core/api/import-export.js:48-52",
-        "frontend/src/core/api/import-export.js:69-73",
-        "frontend/src/core/api/themes.js:47-51"
+        "frontend/src/components/chat/MessageItem.jsx:176-190",
+        "frontend/src/components/writing/WritingMessageItem.jsx:76-90"
       ]
     },
     "2719d59e5014da6d": {
@@ -250,47 +66,6 @@
         "frontend/src/components/ui/ProviderSafetyBanner.jsx:60-63"
       ]
     },
-    "288972f43ae0282f": {
-      "tokens": 71,
-      "locations": [
-        "backend/db/queries/messages.js:27-31",
-        "backend/db/queries/messages.js:84-88"
-      ]
-    },
-    "2969deb13c801b8e": {
-      "tokens": 52,
-      "locations": [
-        "backend/llm/index.js:202-207",
-        "backend/llm/index.js:318-323",
-        "backend/llm/index.js:406-411"
-      ]
-    },
-    "298b34019c568627": {
-      "tokens": 50,
-      "locations": [
-        "assistant/server/normalize-proposal.js:806-810",
-        "assistant/server/normalize-proposal.js:815-819"
-      ]
-    },
-    "29b36cf8bae2f1a9": {
-      "tokens": 53,
-      "locations": [
-        "backend/services/character-state-fields.js:39-41",
-        "backend/services/persona-state-fields.js:42-44",
-        "backend/services/persona-state-fields.js:44-46",
-        "backend/services/world-state-fields.js:30-32",
-        "frontend/src/core/api/character-state-fields.js:7-9",
-        "frontend/src/core/api/persona-state-fields.js:7-9",
-        "frontend/src/core/api/world-state-fields.js:7-9"
-      ]
-    },
-    "29ff33b9ad5288f2": {
-      "tokens": 49,
-      "locations": [
-        "frontend/src/components/chat/ChapterDivider.jsx:6-10",
-        "frontend/src/shells/book-spread/layout/PageFooter.jsx:1-5"
-      ]
-    },
     "2a4b98e5e9ab8e01": {
       "tokens": 57,
       "locations": [
@@ -298,151 +73,39 @@
         "backend/routes/config.js:291-297"
       ]
     },
-    "2b27b884c7232d44": {
-      "tokens": 94,
-      "locations": [
-        "backend/db/queries/messages.js:36-46",
-        "backend/db/queries/messages.js:59-69"
-      ]
-    },
-    "2ca0849c68c03612": {
-      "tokens": 68,
-      "locations": [
-        "backend/services/config.js:358-363",
-        "backend/services/config.js:364-369"
-      ]
-    },
-    "30a65672f4081e63": {
-      "tokens": 49,
-      "locations": [
-        "backend/db/queries/prompt-entries.js:7-12",
-        "backend/services/import-export.js:33-38"
-      ]
-    },
-    "319f7eaf267d77a5": {
-      "tokens": 70,
-      "locations": [
-        "backend/memory/chapter-title-generator.js:26-32",
-        "backend/memory/summarizer.js:26-32"
-      ]
-    },
-    "34d19b579fbc7fa3": {
-      "tokens": 170,
-      "locations": [
-        "backend/routes/state-fields.js:41-55",
-        "backend/routes/state-fields.js:87-101"
-      ]
-    },
-    "34ef6c7699ea20be": {
-      "tokens": 56,
-      "locations": [
-        "frontend/src/core/api/sse-post.js:20-25",
-        "frontend/src/core/api/stream-parser.js:33-38"
-      ]
-    },
     "3614cc176dc82f57": {
       "tokens": 62,
       "locations": [
-        "frontend/src/components/state/StatusSection.jsx:16-23",
-        "frontend/src/components/state/StatusSection.jsx:45-54"
-      ]
-    },
-    "3994b8411434a3e7": {
-      "tokens": 46,
-      "locations": [
-        "assistant/server/routes.js:154-155",
-        "assistant/server/routes.js:169-170"
-      ]
-    },
-    "3bfcb0263cea7c4a": {
-      "tokens": 144,
-      "locations": [
-        "backend/memory/saved-nearby-recall.js:77-88",
-        "backend/memory/summary-expander.js:77-90"
-      ]
-    },
-    "3d394b5f29dc1ff9": {
-      "tokens": 75,
-      "locations": [
-        "frontend/src/components/settings/FeaturesConfigPanel.jsx:312-318",
-        "frontend/src/components/settings/FeaturesConfigPanel.jsx:319-325",
-        "frontend/src/components/settings/FeaturesConfigPanel.jsx:63-69"
-      ]
-    },
-    "3e0cea6060f5aaa1": {
-      "tokens": 47,
-      "locations": [
-        "backend/routes/session-state-values.js:108-112",
-        "backend/routes/session-state-values.js:118-122",
-        "backend/routes/session-state-values.js:128-132"
-      ]
-    },
-    "3f1d544bdc39b97b": {
-      "tokens": 45,
-      "locations": [
-        "backend/prompts/assembler.js:216-221",
-        "backend/prompts/assembler.js:426-431"
+        "frontend/src/components/state/StatusSection.jsx:17-24",
+        "frontend/src/components/state/StatusSection.jsx:46-55"
       ]
     },
     "429d849f6f39cc43": {
       "tokens": 48,
       "locations": [
-        "frontend/src/components/chat/MessageItem.jsx:287-292",
-        "frontend/src/components/writing/WritingMessageItem.jsx:159-164"
+        "frontend/src/components/chat/MessageItem.jsx:250-255",
+        "frontend/src/components/writing/WritingMessageItem.jsx:131-136"
       ]
     },
     "4374904c90b956da": {
       "tokens": 62,
       "locations": [
-        "backend/routes/persona-state-values.js:35-39",
-        "backend/routes/persona-state-values.js:81-85"
-      ]
-    },
-    "43c0005d3a62d968": {
-      "tokens": 64,
-      "locations": [
-        "backend/routes/long-term-memory.js:17-21",
-        "backend/routes/long-term-memory.js:26-30"
-      ]
-    },
-    "43c18f98d12bf5bf": {
-      "tokens": 52,
-      "locations": [
-        "frontend/src/core/api/import-export.js:113-116",
-        "frontend/src/core/api/import-export.js:144-147",
-        "frontend/src/core/api/import-export.js:18-21",
-        "frontend/src/core/api/import-export.js:49-52",
-        "frontend/src/core/api/import-export.js:70-73",
-        "frontend/src/core/api/themes.js:48-51"
-      ]
-    },
-    "45a4ffdd1fb35dc1": {
-      "tokens": 53,
-      "locations": [
-        "backend/llm/providers/gemini/index.js:116-120",
-        "backend/llm/providers/gemini/index.js:200-204",
-        "backend/llm/providers/gemini/index.js:254-258"
+        "backend/routes/persona-state-values.js:36-40",
+        "backend/routes/persona-state-values.js:68-72"
       ]
     },
     "48700827ca3d34bb": {
       "tokens": 43,
       "locations": [
-        "backend/routes/characters.js:143-145",
-        "backend/routes/personas.js:95-97"
-      ]
-    },
-    "48b5f5cb13ee8329": {
-      "tokens": 43,
-      "locations": [
-        "backend/prompts/assembler.js:363-366",
-        "backend/prompts/assembler.js:460-462"
+        "backend/routes/characters.js:120-122",
+        "backend/routes/personas.js:63-65"
       ]
     },
     "49d44c86803242b5": {
       "tokens": 54,
       "locations": [
-        "backend/llm/providers/ollama/index.js:110-117",
-        "backend/llm/providers/openai-compatible/index.js:180-187"
+        "backend/llm/providers/ollama/index.js:113-120",
+        "backend/llm/providers/openai-compatible/index.js:185-192"
       ]
     },
     "4d73fc0bf7c5e50e": {
@@ -452,19 +115,11 @@
         "frontend/src/components/state/StateFieldEditorFields.jsx:228-232"
       ]
     },
-    "4e960dddda08a823": {
-      "tokens": 45,
-      "locations": [
-        "frontend/src/components/settings/DiaryConfigPanel.jsx:12-16",
-        "frontend/src/components/settings/FeaturesConfigPanel.jsx:52-56",
-        "frontend/src/components/settings/MemoryConfigPanel.jsx:35-39"
-      ]
-    },
     "4f6adf658660f0c5": {
       "tokens": 41,
       "locations": [
         "frontend/src/components/chat/ChapterDivider.jsx:64-66",
-        "frontend/src/components/session/WorldTimelinePanel.jsx:93-95"
+        "frontend/src/components/session/WorldTimelinePanel.jsx:91-93"
       ]
     },
     "505b3f576740ab5f": {
@@ -491,30 +146,22 @@
     "57bf6f365cf8f334": {
       "tokens": 42,
       "locations": [
-        "frontend/src/pages/CharactersPage.jsx:609-612",
-        "frontend/src/pages/CharactersPage.jsx:614-617"
+        "frontend/src/pages/CharactersPage.jsx:590-593",
+        "frontend/src/pages/CharactersPage.jsx:595-598"
       ]
     },
     "57f14edfd5b49ebe": {
       "tokens": 72,
       "locations": [
-        "backend/services/state-extract.js:180-188",
-        "backend/services/state-extract.js:213-221"
+        "backend/services/state-extract.js:161-169",
+        "backend/services/state-extract.js:194-202"
       ]
     },
     "5835560437ea07ee": {
       "tokens": 66,
       "locations": [
-        "frontend/src/pages/CharacterEditPage/index.jsx:42-47",
+        "frontend/src/pages/CharacterEditPage/index.jsx:43-48",
         "frontend/src/pages/WorldEditPage.jsx:56-61"
-      ]
-    },
-    "59dd5fcefc8fcbec": {
-      "tokens": 87,
-      "locations": [
-        "frontend/src/core/api/character-state-fields.js:5-9",
-        "frontend/src/core/api/persona-state-fields.js:5-9",
-        "frontend/src/core/api/world-state-fields.js:5-9"
       ]
     },
     "5c0a3249ee5d21d5": {
@@ -531,49 +178,12 @@
         "backend/db/schema.js:1054-1062"
       ]
     },
-    "5d83c8157b048045": {
-      "tokens": 283,
-      "locations": [
-        "frontend/src/components/chat/MessageItem.jsx:129-161",
-        "frontend/src/components/writing/WritingMessageItem.jsx:27-54"
-      ]
-    },
     "5f58aec9e99ce1a9": {
       "tokens": 41,
       "locations": [
         "backend/routes/writing.js:203-206",
         "backend/routes/writing.js:82-85",
         "backend/routes/writing.js:89-92"
-      ]
-    },
-    "64c27f3bf7fdae9e": {
-      "tokens": 48,
-      "locations": [
-        "backend/routes/world-state-values.js:43-44",
-        "backend/routes/world-state-values.js:59-60"
-      ]
-    },
-    "64f8fdfd4b2b9c8a": {
-      "tokens": 43,
-      "locations": [
-        "frontend/src/core/hooks/useSettingsAdditionalModelConfig.js:31-32",
-        "frontend/src/core/hooks/useSettingsAdditionalModelConfig.js:51-52",
-        "frontend/src/core/hooks/useSettingsAdditionalModelConfig.js:71-72"
-      ]
-    },
-    "66f96316dbb2d09b": {
-      "tokens": 51,
-      "locations": [
-        "backend/memory/combined-state-updater.js:125-128",
-        "backend/memory/combined-state-updater.js:337-340"
-      ]
-    },
-    "676c59c50e0e39cf": {
-      "tokens": 59,
-      "locations": [
-        "backend/routes/import-export.js:29-32",
-        "backend/routes/import-export.js:48-51",
-        "backend/routes/import-export.js:97-100"
       ]
     },
     "69cfc63422d4c8c3": {
@@ -586,8 +196,8 @@
     "6edb08cf7241ca11": {
       "tokens": 40,
       "locations": [
-        "backend/services/import-export.js:774-776",
-        "backend/services/import-export.js:783-785"
+        "backend/services/import-export.js:755-757",
+        "backend/services/import-export.js:764-766"
       ]
     },
     "70829e14b49c934b": {
@@ -604,28 +214,6 @@
         "frontend/src/core/utils/chapter-grouping.js:11-16"
       ]
     },
-    "752e17ad6561b138": {
-      "tokens": 101,
-      "locations": [
-        "backend/db/queries/character-state-values.js:23-38",
-        "backend/db/queries/world-state-values.js:23-38"
-      ]
-    },
-    "758c4cf587338ccc": {
-      "tokens": 48,
-      "locations": [
-        "backend/services/characters.js:41-48",
-        "backend/services/personas.js:43-50"
-      ]
-    },
-    "77831cd3e9a4d910": {
-      "tokens": 60,
-      "locations": [
-        "backend/memory/saved-nearby-recall.js:77-82",
-        "backend/memory/summary-expander.js:77-82",
-        "backend/prompts/entry-matcher.js:65-70"
-      ]
-    },
     "79f5fa016c8e29d5": {
       "tokens": 63,
       "locations": [
@@ -640,13 +228,6 @@
         "frontend/src/components/settings/ImportExportPanel.jsx:95-101"
       ]
     },
-    "7cd2d29a520f5492": {
-      "tokens": 54,
-      "locations": [
-        "backend/services/state-values.js:202-208",
-        "backend/services/state-values.js:219-225"
-      ]
-    },
     "7f5b5fd4bc6da876": {
       "tokens": 50,
       "locations": [
@@ -657,85 +238,23 @@
     "8196c6b1bd743732": {
       "tokens": 48,
       "locations": [
-        "frontend/src/pages/CharacterEditPage/index.jsx:47-49",
         "frontend/src/pages/CharacterEditPage/index.jsx:48-50",
-        "frontend/src/pages/PersonaEditPage.jsx:57-59"
-      ]
-    },
-    "831bbe6ab40c80fc": {
-      "tokens": 43,
-      "locations": [
-        "backend/llm/providers/gemini/index.js:116-118",
-        "backend/llm/providers/gemini/index.js:200-202",
-        "backend/llm/providers/gemini/index.js:254-256",
-        "backend/llm/providers/gemini/index.js:309-311"
-      ]
-    },
-    "8499a735dad7b878": {
-      "tokens": 74,
-      "locations": [
-        "frontend/src/components/ui/ModelCombobox.jsx:43-54",
-        "frontend/src/components/ui/Select.jsx:36-46"
-      ]
-    },
-    "85bb68afb7da7287": {
-      "tokens": 52,
-      "locations": [
-        "frontend/src/core/api/character-state-values.js:22-26",
-        "frontend/src/core/api/character-state-values.js:5-9",
-        "frontend/src/core/api/themes.js:17-21",
-        "frontend/src/core/api/world-state-values.js:22-26",
-        "frontend/src/core/api/world-state-values.js:5-9"
-      ]
-    },
-    "86908274a6582485": {
-      "tokens": 50,
-      "locations": [
-        "backend/prompts/assembler.js:200-205",
-        "backend/prompts/assembler.js:389-394"
-      ]
-    },
-    "88ac2acaac9ade31": {
-      "tokens": 49,
-      "locations": [
-        "backend/db/queries/messages.js:27-29",
-        "backend/db/queries/messages.js:316-318",
-        "backend/db/queries/messages.js:84-86"
+        "frontend/src/pages/CharacterEditPage/index.jsx:49-51",
+        "frontend/src/pages/PersonaEditPage.jsx:58-60"
       ]
     },
     "895f9cc511791b7a": {
       "tokens": 70,
       "locations": [
-        "frontend/src/pages/CharacterEditPage/index.jsx:45-48",
-        "frontend/src/pages/PersonaEditPage.jsx:56-59"
+        "frontend/src/pages/CharacterEditPage/index.jsx:46-49",
+        "frontend/src/pages/PersonaEditPage.jsx:57-60"
       ]
     },
-    "8b92a5f945ba6e40": {
-      "tokens": 61,
+    "8c6338f3b7c3e4de": {
+      "tokens": 52,
       "locations": [
-        "backend/db/queries/assistant-tasks.js:3-14",
-        "backend/db/queries/session-stream-tasks.js:3-14"
-      ]
-    },
-    "8bd0a4794402337c": {
-      "tokens": 84,
-      "locations": [
-        "backend/prompts/assembler.js:182-191",
-        "backend/prompts/assembler.js:376-385"
-      ]
-    },
-    "8c7d00ea24b4980f": {
-      "tokens": 72,
-      "locations": [
-        "backend/llm/providers/_shared/converters.js:12-18",
-        "backend/llm/providers/_shared/converters.js:91-97"
-      ]
-    },
-    "8cc6d67b90acee29": {
-      "tokens": 66,
-      "locations": [
-        "backend/llm/providers/ollama/index.js:146-150",
-        "backend/llm/providers/ollama/index.js:95-99"
+        "backend/db/queries/entry-conditions.js:18-20",
+        "backend/db/queries/session-nearby-character-state-values.js:47-49"
       ]
     },
     "91903d62d2402c6e": {
@@ -745,40 +264,11 @@
         "backend/routes/sessions.js:196-205"
       ]
     },
-    "942beb63e5c446ee": {
-      "tokens": 84,
-      "locations": [
-        "frontend/src/components/chat/MessageList.jsx:15-22",
-        "frontend/src/core/hooks/sessionStreamCallbacks.js:6-13"
-      ]
-    },
-    "94bb18d40cf338e6": {
-      "tokens": 88,
-      "locations": [
-        "backend/routes/state-fields.js:105-111",
-        "backend/routes/state-fields.js:60-66"
-      ]
-    },
     "94eaad8bb6c71c85": {
       "tokens": 47,
       "locations": [
-        "frontend/src/components/chat/MessageItem.jsx:197-202",
-        "frontend/src/components/writing/WritingMessageItem.jsx:86-91"
-      ]
-    },
-    "964644e01a772a27": {
-      "tokens": 44,
-      "locations": [
-        "backend/llm/providers/anthropic/index.js:132-133",
-        "backend/llm/providers/anthropic/index.js:246-247",
-        "backend/llm/providers/anthropic/index.js:309-310"
-      ]
-    },
-    "98c6c2a0454fd2bd": {
-      "tokens": 65,
-      "locations": [
-        "backend/routes/personas.js:201-205",
-        "backend/routes/personas.js:91-95"
+        "frontend/src/components/chat/MessageItem.jsx:161-166",
+        "frontend/src/components/writing/WritingMessageItem.jsx:58-63"
       ]
     },
     "993a4daa08ce0638": {
@@ -788,20 +278,18 @@
         "frontend/src/pages/WritingSpacePage/index.jsx:49-51"
       ]
     },
-    "99b423b7e549d7ed": {
-      "tokens": 44,
-      "locations": [
-        "backend/llm/providers/gemini/index.js:133-134",
-        "backend/llm/providers/gemini/index.js:217-218",
-        "backend/llm/providers/gemini/index.js:271-272",
-        "backend/llm/providers/gemini/index.js:322-323"
-      ]
-    },
     "99cf326a35a2b334": {
       "tokens": 93,
       "locations": [
-        "frontend/src/components/chat/MessageItem.jsx:425-439",
-        "frontend/src/components/writing/WritingMessageItem.jsx:277-291"
+        "frontend/src/components/chat/MessageItem.jsx:367-381",
+        "frontend/src/components/writing/WritingMessageItem.jsx:227-241"
+      ]
+    },
+    "99dec6c4a3d783f6": {
+      "tokens": 41,
+      "locations": [
+        "backend/routes/session-state-values.js:48-51",
+        "backend/routes/sessions.js:161-166"
       ]
     },
     "9af638e3a6a3ea2e": {
@@ -811,41 +299,11 @@
         "frontend/src/core/utils/template-vars.js:20-23"
       ]
     },
-    "9b022d7c24dcdb9e": {
-      "tokens": 63,
-      "locations": [
-        "frontend/src/components/settings/FeaturesConfigPanel.jsx:52-58",
-        "frontend/src/components/settings/MemoryConfigPanel.jsx:35-41"
-      ]
-    },
-    "9b8dcac67e07102e": {
-      "tokens": 52,
-      "locations": [
-        "frontend/src/core/api/characters.js:45-49",
-        "frontend/src/core/api/personas.js:100-104",
-        "frontend/src/core/api/personas.js:115-119",
-        "frontend/src/core/api/worlds.js:41-45"
-      ]
-    },
-    "9d5acbbfaea9b732": {
-      "tokens": 115,
-      "locations": [
-        "backend/db/queries/provider-safety-events.js:112-118",
-        "backend/db/queries/provider-safety-events.js:129-135"
-      ]
-    },
     "9da04639ad246588": {
       "tokens": 65,
       "locations": [
         "backend/services/state-values.js:94-98",
         "backend/utils/state-field-validate.js:20-24"
-      ]
-    },
-    "9f46f288376dfdd8": {
-      "tokens": 40,
-      "locations": [
-        "frontend/src/core/hooks/useSettingsAdditionalModelConfig.js:64-65",
-        "frontend/src/core/hooks/useSettingsAdditionalModelConfig.js:84-85"
       ]
     },
     "9fc4651f1834083b": {
@@ -855,61 +313,11 @@
         "frontend/src/core/utils/think-blocks.js:79-83"
       ]
     },
-    "a197a6b95eaa0cc7": {
-      "tokens": 114,
-      "locations": [
-        "backend/llm/providers/gemini/index.js:111-123",
-        "backend/llm/providers/gemini/index.js:195-207"
-      ]
-    },
-    "a423543411da0efb": {
-      "tokens": 160,
-      "locations": [
-        "backend/db/queries/persona-state-fields.js:65-86",
-        "backend/db/queries/world-state-fields.js:65-86"
-      ]
-    },
     "a661135b9b963308": {
       "tokens": 85,
       "locations": [
         "frontend/src/components/settings/ProviderSafetyPanel.jsx:126-130",
         "frontend/src/components/settings/ProviderSafetyPanel.jsx:132-136"
-      ]
-    },
-    "a743b8a29dbe3b8c": {
-      "tokens": 41,
-      "locations": [
-        "backend/db/queries/_state-fields-base.js:15-19",
-        "backend/services/import-export.js:116-120"
-      ]
-    },
-    "a89c0b93ca697afa": {
-      "tokens": 151,
-      "locations": [
-        "frontend/src/components/chat/MessageItem.jsx:300-313",
-        "frontend/src/components/writing/WritingMessageItem.jsx:179-192"
-      ]
-    },
-    "aa041b7ed3fa913d": {
-      "tokens": 68,
-      "locations": [
-        "backend/llm/providers/ollama/index.js:194-203",
-        "backend/llm/providers/openai-compatible/index.js:315-324"
-      ]
-    },
-    "aa38cf1fc7b29ff2": {
-      "tokens": 115,
-      "locations": [
-        "backend/llm/providers/anthropic/index.js:154-166",
-        "backend/llm/providers/anthropic/index.js:228-240"
-      ]
-    },
-    "aae448c5405c5545": {
-      "tokens": 139,
-      "locations": [
-        "backend/llm/providers/gemini/index.js:125-138",
-        "backend/llm/providers/gemini/index.js:209-222",
-        "backend/llm/providers/gemini/index.js:263-276"
       ]
     },
     "ab597ad2e610b08a": {
@@ -919,53 +327,11 @@
         "backend/llm/providers/mock/index.js:41-44"
       ]
     },
-    "ac9d9efa691d8984": {
-      "tokens": 183,
-      "locations": [
-        "frontend/src/core/hooks/useSettingsPrimaryModelConfig.js:17-35",
-        "frontend/src/core/hooks/useSettingsPrimaryModelConfig.js:37-55"
-      ]
-    },
     "aca58889bbddbd8d": {
       "tokens": 40,
       "locations": [
-        "assistant/server/normalize-proposal.js:1187-1191",
-        "assistant/server/normalize-proposal.js:1192-1196"
-      ]
-    },
-    "ad52605df50f7edd": {
-      "tokens": 74,
-      "locations": [
-        "frontend/src/core/api/character-state-values.js:1-10",
-        "frontend/src/core/api/world-state-values.js:1-10"
-      ]
-    },
-    "adb95cd64b26e707": {
-      "tokens": 115,
-      "locations": [
-        "backend/utils/session-summary-vector-store.js:20-40",
-        "backend/utils/turn-summary-vector-store.js:25-45"
-      ]
-    },
-    "adbbe4159b4f12dd": {
-      "tokens": 116,
-      "locations": [
-        "frontend/src/components/session/WorldTimelinePanel.jsx:295-313",
-        "frontend/src/pages/CharactersPage.jsx:495-513"
-      ]
-    },
-    "b0643b81f67300b5": {
-      "tokens": 57,
-      "locations": [
-        "frontend/src/core/api/provider-safety-events.js:28-32",
-        "frontend/src/core/api/provider-safety-events.js:37-41"
-      ]
-    },
-    "b258254a4b577c1e": {
-      "tokens": 95,
-      "locations": [
-        "backend/prompts/assembler.js:336-345",
-        "backend/prompts/assembler.js:612-621"
+        "assistant/server/normalize-proposal.js:1173-1177",
+        "assistant/server/normalize-proposal.js:1178-1182"
       ]
     },
     "b4366adfdb774e31": {
@@ -976,19 +342,12 @@
         "frontend/src/core/hooks/useSettingsPromptConfig.js:183-191"
       ]
     },
-    "b58410c580af9ffb": {
-      "tokens": 84,
-      "locations": [
-        "backend/services/cleanup-registrations.js:156-170",
-        "backend/services/cleanup-registrations.js:78-92"
-      ]
-    },
     "b5a826c4ce5233e5": {
       "tokens": 45,
       "locations": [
-        "backend/llm/providers/anthropic/index.js:316-318",
-        "backend/llm/providers/gemini/index.js:328-330",
-        "backend/llm/providers/openai-compatible/index.js:298-300"
+        "backend/llm/providers/anthropic/index.js:288-290",
+        "backend/llm/providers/gemini/index.js:270-272",
+        "backend/llm/providers/openai-compatible/index.js:285-287"
       ]
     },
     "b6ff40e41499f3e9": {
@@ -998,53 +357,18 @@
         "frontend/src/components/state/StateExtractPreviewModal.jsx:99-103"
       ]
     },
-    "b73b028d717872f4": {
-      "tokens": 42,
-      "locations": [
-        "backend/routes/import-export.js:71-72",
-        "backend/routes/import-export.js:86-87"
-      ]
-    },
-    "b75a6d66964b4b90": {
-      "tokens": 52,
-      "locations": [
-        "frontend/src/core/api/character-state-values.js:32-36",
-        "frontend/src/core/api/personas.js:38-42"
-      ]
-    },
-    "b8ead1cc64f3954d": {
-      "tokens": 89,
-      "locations": [
-        "backend/db/queries/characters.js:69-85",
-        "backend/db/queries/worlds.js:62-78"
-      ]
-    },
-    "bca69c224719367b": {
-      "tokens": 61,
-      "locations": [
-        "backend/llm/providers/anthropic/index.js:141-146",
-        "backend/llm/providers/anthropic/index.js:217-222"
-      ]
-    },
     "be7347cdea8165e1": {
       "tokens": 54,
       "locations": [
         "frontend/src/components/state/useEntryEditorData.js:38-45",
-        "frontend/src/pages/CharactersPage.jsx:415-422"
+        "frontend/src/pages/CharactersPage.jsx:414-421"
       ]
     },
-    "c0016aaa52100f06": {
-      "tokens": 68,
+    "c578aba74f9cc897": {
+      "tokens": 45,
       "locations": [
-        "backend/memory/state-rollback.js:79-83",
-        "backend/memory/turn-summarizer.js:241-245"
-      ]
-    },
-    "c1dd29cfb4b97cd4": {
-      "tokens": 44,
-      "locations": [
-        "backend/db/queries/session-state-values.js:54-59",
-        "backend/memory/recall.js:92-97"
+        "backend/routes/personas.js:125-130",
+        "backend/routes/personas.js:52-57"
       ]
     },
     "c7339eca66641044": {
@@ -1052,70 +376,6 @@
       "locations": [
         "backend/routes/writing.js:81-86",
         "backend/routes/writing.js:88-93"
-      ]
-    },
-    "c8cfca53bd59c00c": {
-      "tokens": 67,
-      "locations": [
-        "backend/llm/index.js:373-379",
-        "backend/llm/index.js:458-464"
-      ]
-    },
-    "c9d7e9eda2ad7388": {
-      "tokens": 51,
-      "locations": [
-        "backend/db/queries/characters.js:96-102",
-        "backend/db/queries/custom-css-snippets.js:77-83",
-        "backend/db/queries/personas.js:145-151",
-        "backend/db/queries/regex-rules.js:124-130",
-        "backend/db/queries/worlds.js:48-54"
-      ]
-    },
-    "cb8730ac8b503d9b": {
-      "tokens": 51,
-      "locations": [
-        "backend/db/queries/character-state-values.js:16-20",
-        "backend/db/queries/persona-state-values.js:31-35",
-        "backend/db/queries/world-state-values.js:16-20"
-      ]
-    },
-    "cde7f7fb8c8dfa47": {
-      "tokens": 48,
-      "locations": [
-        "backend/routes/persona-state-values.js:109-110",
-        "backend/routes/persona-state-values.js:51-52",
-        "backend/routes/persona-state-values.js:67-68",
-        "backend/routes/persona-state-values.js:94-95"
-      ]
-    },
-    "d251de28d6063082": {
-      "tokens": 68,
-      "locations": [
-        "backend/services/character-state-fields.js:38-41",
-        "backend/services/persona-state-fields.js:43-46",
-        "backend/services/world-state-fields.js:29-32"
-      ]
-    },
-    "d46b874806725ae9": {
-      "tokens": 50,
-      "locations": [
-        "backend/llm/raw-logger.js:18-21",
-        "backend/memory/diary-generator.js:37-40",
-        "backend/routes/characters.js:20-23",
-        "backend/routes/daily-entries.js:23-26",
-        "backend/routes/personas.js:21-24",
-        "backend/routes/worlds.js:20-23",
-        "backend/services/import-export.js:24-27",
-        "backend/services/long-term-memory.js:35-38",
-        "backend/services/table-memory.js:23-26",
-        "backend/utils/logger.js:26-29"
-      ]
-    },
-    "d6f2a0438e727a32": {
-      "tokens": 177,
-      "locations": [
-        "backend/utils/session-summary-vector-store.js:49-68",
-        "backend/utils/turn-summary-vector-store.js:79-98"
       ]
     },
     "d829b565ae0ceefd": {
@@ -1134,27 +394,6 @@
         "frontend/src/core/utils/next-prompt.js:57-63"
       ]
     },
-    "d9089a095c38521c": {
-      "tokens": 51,
-      "locations": [
-        "backend/llm/index.js:64-73",
-        "backend/llm/index.js:80-88"
-      ]
-    },
-    "d958b4d96d959984": {
-      "tokens": 48,
-      "locations": [
-        "backend/routes/character-state-values.js:45-46",
-        "backend/routes/character-state-values.js:61-62"
-      ]
-    },
-    "da52a6130fef81ce": {
-      "tokens": 82,
-      "locations": [
-        "frontend/src/components/settings/AuxLlmBlock.jsx:37-48",
-        "frontend/src/components/settings/MainLlmBlock.jsx:155-166"
-      ]
-    },
     "dbe9702377e96c60": {
       "tokens": 67,
       "locations": [
@@ -1162,28 +401,11 @@
         "backend/utils/turn-dialogue.js:88-98"
       ]
     },
-    "df44d18698af315d": {
-      "tokens": 52,
+    "dfc42a79ae6558f0": {
+      "tokens": 43,
       "locations": [
-        "frontend/src/core/api/character-state-values.js:41-45",
-        "frontend/src/core/api/persona-state-values.js:37-41",
-        "frontend/src/core/api/persona-state-values.js:46-50",
-        "frontend/src/core/api/world-state-values.js:31-35"
-      ]
-    },
-    "e0c6d710a25693f2": {
-      "tokens": 66,
-      "locations": [
-        "frontend/src/core/hooks/useSettingsAdditionalModelConfig.js:51-53",
-        "frontend/src/core/hooks/useSettingsAdditionalModelConfig.js:71-73"
-      ]
-    },
-    "e0c9e6adc287cf8f": {
-      "tokens": 78,
-      "locations": [
-        "backend/services/cleanup-registrations.js:117-131",
-        "backend/services/cleanup-registrations.js:136-150",
-        "backend/services/cleanup-registrations.js:98-112"
+        "frontend/src/components/chat/MessageItem.jsx:218-221",
+        "frontend/src/components/writing/WritingMessageItem.jsx:139-142"
       ]
     },
     "e164d80584419bbc": {
@@ -1193,50 +415,11 @@
         "backend/routes/sessions.js:183-187"
       ]
     },
-    "e21a8797813dc5a2": {
-      "tokens": 146,
-      "locations": [
-        "backend/llm/providers/openai-compatible/index.js:134-147",
-        "backend/llm/providers/openai-compatible/index.js:218-231"
-      ]
-    },
-    "e31ede05ff5b04a0": {
-      "tokens": 83,
-      "locations": [
-        "backend/prompts/assembler.js:246-255",
-        "backend/prompts/assembler.js:482-491"
-      ]
-    },
-    "e3a7ed1d1f461ff0": {
+    "e66cd5b9b5ea6961": {
       "tokens": 41,
       "locations": [
-        "backend/services/state-values.js:191-198",
-        "backend/services/state-values.js:259-266"
-      ]
-    },
-    "e84236a354495a35": {
-      "tokens": 48,
-      "locations": [
-        "frontend/src/components/chat/MessageItem.jsx:254-258",
-        "frontend/src/components/writing/WritingMessageItem.jsx:167-171"
-      ]
-    },
-    "ead0e65a5e4e91db": {
-      "tokens": 49,
-      "locations": [
-        "backend/routes/import-export.js:15-16",
-        "backend/routes/import-export.js:30-31",
-        "backend/routes/import-export.js:49-50",
-        "backend/routes/import-export.js:68-69",
-        "backend/routes/import-export.js:83-84",
-        "backend/routes/import-export.js:98-99"
-      ]
-    },
-    "ef18e4642da765e5": {
-      "tokens": 44,
-      "locations": [
-        "backend/services/config.js:520-526",
-        "backend/services/config.js:563-569"
+        "backend/llm/providers/_shared/converters.js:17-23",
+        "backend/llm/providers/_shared/converters.js:96-102"
       ]
     },
     "ef64952370384b4e": {
@@ -1246,19 +429,11 @@
         "frontend/src/core/utils/next-prompt.js:92-102"
       ]
     },
-    "eff61082c653d5fd": {
-      "tokens": 42,
+    "f1894470420479ca": {
+      "tokens": 45,
       "locations": [
-        "assistant/server/normalize-proposal.js:793-796",
-        "assistant/server/normalize-proposal.js:797-800"
-      ]
-    },
-    "f097d10c67cc1ad1": {
-      "tokens": 42,
-      "locations": [
-        "backend/db/queries/character-state-fields.js:111-114",
-        "backend/db/queries/persona-state-fields.js:105-108",
-        "backend/db/queries/world-state-fields.js:105-108"
+        "frontend/src/components/settings/FeaturesConfigPanel.jsx:68-72",
+        "frontend/src/components/settings/FeaturesConfigPanel.jsx:73-77"
       ]
     },
     "f4684b0c8b2784ee": {
@@ -1270,56 +445,11 @@
         "frontend/src/pages/WorldsPage.jsx:138-143"
       ]
     },
-    "f49e2e1b9b8c223b": {
-      "tokens": 58,
-      "locations": [
-        "backend/llm/providers/ollama/index.js:216-223",
-        "backend/llm/providers/openai-compatible/index.js:334-341"
-      ]
-    },
     "f8452af8b943fec7": {
       "tokens": 67,
       "locations": [
         "frontend/src/pages/ChatPage/index.jsx:117-124",
         "frontend/src/pages/WritingSpacePage/index.jsx:56-62"
-      ]
-    },
-    "fb27006abe48dc3e": {
-      "tokens": 91,
-      "locations": [
-        "backend/llm/providers/anthropic/index.js:132-136",
-        "backend/llm/providers/anthropic/index.js:246-250"
-      ]
-    },
-    "fb746621a23fac21": {
-      "tokens": 49,
-      "locations": [
-        "backend/routes/import-export.js:113-114",
-        "backend/routes/import-export.js:140-141",
-        "backend/routes/import-export.js:166-167",
-        "backend/routes/import-export.js:34-35",
-        "backend/routes/import-export.js:53-54"
-      ]
-    },
-    "fd5d89391f821afc": {
-      "tokens": 73,
-      "locations": [
-        "backend/services/nearby-card-maker.js:76-87",
-        "backend/services/state-extract.js:77-86"
-      ]
-    },
-    "fd7bb482d05f1782": {
-      "tokens": 62,
-      "locations": [
-        "assistant/server/normalize-proposal.js:613-621",
-        "assistant/server/normalize-proposal.js:626-634"
-      ]
-    },
-    "ffec3d879e71e715": {
-      "tokens": 105,
-      "locations": [
-        "backend/routes/persona-state-values.js:105-110",
-        "backend/routes/persona-state-values.js:90-95"
       ]
     }
   }
