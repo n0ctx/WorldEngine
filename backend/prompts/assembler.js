@@ -162,6 +162,102 @@ export const __testables = {
 
 // ─── 核心函数 ─────────────────────────────────────────────────────
 
+/** 写作模式没有单一角色，保留 {{char}} 交由上下文判断，避免统一替换成“叙述者”。 */
+function writingTemplateVars(world, persona) {
+  return (text) => applyTemplateVars(text, { user: persona?.name || '', char: null, world: world.name });
+}
+
+/** [2] 常驻 cached 条目 + [3] 玩家 System Prompt 追加到 cached 层；返回本世界启用的条目供 [8] 复用 */
+function pushCachedEntriesAndUserInfo(worldId, personaName, personaPrompt, tv, cachedSystemParts) {
+  const allWorldEntries = getAllWorldEntries(worldId).filter((e) => e.enabled !== 0);
+  const cachedEntries = renderCachedEntriesSection(allWorldEntries, tv);
+  if (cachedEntries.text) {
+    cachedSystemParts.push(cachedEntries.text);
+    log.debug(`│  [2] cached entries  count=${cachedEntries.count}`);
+  }
+  const userInfoSection = renderUserInfoSection(personaName, personaPrompt, tv);
+  if (userInfoSection) cachedSystemParts.push(userInfoSection);
+  return allWorldEntries;
+}
+
+/** [5] 世界状态 + [6] 玩家状态 */
+function pushSharedStateSections(worldId, sessionId, tv, dynamicSystemParts) {
+  const worldStateSection = renderWorldStateSection(worldId, sessionId, tv);
+  if (worldStateSection) dynamicSystemParts.push(worldStateSection);
+  const personaStateSection = renderUserStateSection(worldId, sessionId, tv);
+  if (personaStateSection) dynamicSystemParts.push(personaStateSection);
+}
+
+/** [8] 匹配动态条目并注入触发的条目，返回按注入顺序排好的触发条目 */
+async function pushTriggeredEntries(sessionId, worldId, allWorldEntries, tv, dynamicSystemParts) {
+  const worldEntries = selectDynamicWorldEntries(allWorldEntries);
+  const triggeredIds = await matchEntries(sessionId, worldEntries, worldId);
+  log.debug(`│  [8] entries  world=${worldEntries.length}  triggered=${triggeredIds.size}/${worldEntries.length}`);
+  const triggeredEntries = sortTriggeredEntries(worldEntries, triggeredIds);
+  const entriesSection = renderTriggeredEntriesSection(triggeredEntries, tv);
+  if (entriesSection) dynamicSystemParts.push(entriesSection);
+  return triggeredEntries;
+}
+
+/** [8.5] 长期记忆（会话级 md 文件）+ [8.6] 表格记忆，按 settings 里的开关注入 */
+function pushMemoryFileSections(sessionId, settings, tv, dynamicSystemParts) {
+  const ltmSection = renderLongTermMemorySection(sessionId, settings.long_term_memory_enabled, tv);
+  if (ltmSection) {
+    dynamicSystemParts.push(ltmSection.text);
+    log.debug(`│  [8.5] long-term memory injected  chars=${ltmSection.chars}`);
+  }
+  const tableSection = renderTableMemorySection(sessionId, settings.table_memory_enabled);
+  if (tableSection) {
+    dynamicSystemParts.push(tableSection.text);
+    log.debug(`│  [8.6] table memory injected  chars=${tableSection.chars}`);
+  }
+}
+
+/** [9] 召回摘要，并通知前端召回结束 */
+async function pushRecalledSummaries(worldId, sessionId, tv, dynamicSystemParts, onRecallEvent) {
+  const { recalled } = await searchRecalledSummaries(worldId, sessionId);
+  const recallHitCount = recalled.length;
+  const recalledSection = renderRecalledSummariesSection(recalled, tv);
+  if (recalledSection) dynamicSystemParts.push(recalledSection);
+  if (recallHitCount > 0) log.debug(`│  [9] recall  hits=${recallHitCount}`);
+  onRecallEvent?.('memory_recall_done', { hit: recallHitCount });
+  return { recalled, recallHitCount };
+}
+
+/** [10] 注入 AI 选中的展开原文，并通知前端展开结束 */
+function pushExpandedSection(expandIds, tv, dynamicSystemParts, onRecallEvent) {
+  if (expandIds.length === 0) {
+    onRecallEvent?.('memory_expand_done', { expanded: [] });
+    return;
+  }
+  const expanded = renderExpandedSection(expandIds, tv);
+  if (expanded.text) {
+    dynamicSystemParts.push(expanded.text);
+    log.debug(`│  [10] expand  ids=${expandIds.length}`);
+  }
+  onRecallEvent?.('memory_expand_done', { expanded: expanded.expandedText ? expandIds : [] });
+}
+
+/** [13+14] 当前用户消息 + 后置提示词合并为一条 user message；没有当前用户消息时单独发后置提示词 */
+function pushCurrentUserTurn(messages, uncompressedMessages, postParts, worldId, mode) {
+  const currentUserMsg = getCurrentUserMessage(uncompressedMessages);
+  if (currentUserMsg?.role === 'user') {
+    const content = applyRules(currentUserMsg.content, 'prompt_only', worldId, mode);
+    const formatted = formatMessageForLLM({ ...currentUserMsg, content });
+    if (postParts.length > 0) {
+      const postContent = postParts.join('\n\n');
+      if (Array.isArray(formatted.content)) {
+        formatted.content.push({ type: 'text', text: postContent });
+      } else {
+        formatted.content = [formatted.content, postContent].filter(Boolean).join('\n\n');
+      }
+    }
+    messages.push(formatted);
+  } else if (postParts.length > 0) {
+    messages.push({ role: 'user', content: postParts.join('\n\n') });
+  }
+}
+
 async function buildChatSystemPrompt(sessionId, character, world, config, options) {
   const { diaryInjection, onRecallEvent, continuation } = options;
   const persona = getOrCreatePersona(world.id);
@@ -179,16 +275,8 @@ async function buildChatSystemPrompt(sessionId, character, world, config, option
 
   // [2] 常驻 cached 条目（trigger_type=always 且 token=0）
   // 拼到 cachedSystemParts 末尾，按 sort_order ASC, created_at ASC 稳定排序，保证 prompt cache 命中。
-  const allWorldEntries = getAllWorldEntries(world.id).filter((e) => e.enabled !== 0);
-  const cachedEntries = renderCachedEntriesSection(allWorldEntries, tv);
-  if (cachedEntries.text) {
-    cachedSystemParts.push(cachedEntries.text);
-    log.debug(`│  [2] cached entries  count=${cachedEntries.count}`);
-  }
-
   // [3] 玩家 System Prompt
-  const userInfoSection = renderUserInfoSection(personaName, personaPrompt, tv);
-  if (userInfoSection) cachedSystemParts.push(userInfoSection);
+  const allWorldEntries = pushCachedEntriesAndUserInfo(world.id, personaName, personaPrompt, tv, cachedSystemParts);
 
   // [4] 角色 System Prompt
   if (character.system_prompt) {
@@ -196,63 +284,27 @@ async function buildChatSystemPrompt(sessionId, character, world, config, option
   }
 
   // ─── DYNAMIC LAYER (5-11) ───
-  // [5] 世界状态
-  const worldStateSection = renderWorldStateSection(world.id, sessionId, tv);
-  if (worldStateSection) dynamicSystemParts.push(worldStateSection);
-
-  // [6] 玩家状态
-  const personaStateSection = renderUserStateSection(world.id, sessionId, tv);
-  if (personaStateSection) dynamicSystemParts.push(personaStateSection);
+  // [5] 世界状态 / [6] 玩家状态
+  pushSharedStateSections(world.id, sessionId, tv, dynamicSystemParts);
 
   // [7] 角色状态
   const characterStateText = renderCharacterState(character.id, sessionId);
   if (characterStateText) dynamicSystemParts.push(`<char_state>\n${tv(characterStateText)}\n</char_state>`);
 
   // [8] 世界 State 条目（常驻 / 关键词 / AI 召回；token=0 的常驻条目已进 cached layer）
-  const worldEntries = selectDynamicWorldEntries(allWorldEntries);
-  const triggeredIds = await matchEntries(sessionId, worldEntries, world.id);
-  log.debug(`│  [8] entries  world=${worldEntries.length}  triggered=${triggeredIds.size}/${worldEntries.length}`);
+  const triggeredEntries = await pushTriggeredEntries(sessionId, world.id, allWorldEntries, tv, dynamicSystemParts);
 
-  const triggeredEntries = sortTriggeredEntries(worldEntries, triggeredIds);
-  const entriesSection = renderTriggeredEntriesSection(triggeredEntries, tv);
-  if (entriesSection) dynamicSystemParts.push(entriesSection);
-
-  // [8.5] 长期记忆（会话级 md 文件，开关启用时注入）
-  const ltmSection = renderLongTermMemorySection(sessionId, config.long_term_memory_enabled, tv);
-  if (ltmSection) {
-    dynamicSystemParts.push(ltmSection.text);
-    log.debug(`│  [8.5] long-term memory injected  chars=${ltmSection.chars}`);
-  }
-
-  // [8.6] 表格记忆
-  const tableSection = renderTableMemorySection(sessionId, config.table_memory_enabled);
-  if (tableSection) {
-    dynamicSystemParts.push(tableSection.text);
-    log.debug(`│  [8.6] table memory injected  chars=${tableSection.chars}`);
-  }
+  // [8.5] 长期记忆 / [8.6] 表格记忆
+  pushMemoryFileSections(sessionId, config, tv, dynamicSystemParts);
 
   // [9] 召回摘要（向量搜索历史 turn summaries，排除当前上下文窗口内的轮次）
-  const { recalled } = await searchRecalledSummaries(world.id, sessionId);
-  const recallHitCount = recalled.length;
-  const recalledSection = renderRecalledSummariesSection(recalled, tv);
-  if (recalledSection) dynamicSystemParts.push(recalledSection);
-  if (recallHitCount > 0) log.debug(`│  [9] recall  hits=${recallHitCount}`);
-  onRecallEvent?.('memory_recall_done', { hit: recallHitCount });
+  const { recalled, recallHitCount } = await pushRecalledSummaries(world.id, sessionId, tv, dynamicSystemParts, onRecallEvent);
 
   // [10] 记忆展开（由 AI 决定需要展开哪些原文）
   if (recallHitCount > 0 && config.memory_expansion_enabled !== false) {
     onRecallEvent?.('memory_expand_start', { candidates: buildExpandCandidates(recalled) });
     const expandIds = await decideExpansion({ sessionId, recalled });
-    if (expandIds.length > 0) {
-      const expanded = renderExpandedSection(expandIds, tv);
-      if (expanded.text) {
-        dynamicSystemParts.push(expanded.text);
-        log.debug(`│  [10] expand  ids=${expandIds.length}`);
-      }
-      onRecallEvent?.('memory_expand_done', { expanded: expanded.expandedText ? expandIds : [] });
-    } else {
-      onRecallEvent?.('memory_expand_done', { expanded: [] });
-    }
+    pushExpandedSection(expandIds, tv, dynamicSystemParts, onRecallEvent);
   }
 
   // [11] 日记注入（一次性，仅本轮生效）
@@ -330,22 +382,7 @@ export async function buildPrompt(sessionId, options = {}) {
   // 续写模式无"本轮新输入"，且后置提示词/suggestion 由 buildContinuationMessages 在续写指令里统一拼一次，
   // 这里整体跳过，避免重复注入与轮次错乱（prompt 自然以待续写的 assistant 收尾）。
   if (!continuation) {
-    const currentUserMsg = getCurrentUserMessage(uncompressedMessages);
-    if (currentUserMsg?.role === 'user') {
-      const content = applyRules(currentUserMsg.content, 'prompt_only', world.id, 'chat');
-      const formatted = formatMessageForLLM({ ...currentUserMsg, content });
-      if (postParts.length > 0) {
-        const postContent = postParts.join('\n\n');
-        if (Array.isArray(formatted.content)) {
-          formatted.content.push({ type: 'text', text: postContent });
-        } else {
-          formatted.content = [formatted.content, postContent].filter(Boolean).join('\n\n');
-        }
-      }
-      messages.push(formatted);
-    } else if (postParts.length > 0) {
-      messages.push({ role: 'user', content: postParts.join('\n\n') });
-    }
+    pushCurrentUserTurn(messages, uncompressedMessages, postParts, world.id, 'chat');
   }
 
   const temperature = world.temperature ?? config.llm.temperature;
@@ -361,8 +398,7 @@ async function buildWritingCoreSystemParts(sessionId, world, writing, persona, o
   const { onRecallEvent, skipWritingInstructions } = options;
   const personaName = persona?.name || '';
   const personaPrompt = persona?.system_prompt || '';
-  // 写作模式没有单一角色，保留 {{char}} 交由上下文判断，避免统一替换成“叙述者”。
-  const tv = (text) => applyTemplateVars(text, { user: personaName, char: null, world: world.name });
+  const tv = writingTemplateVars(world, persona);
   const cachedSystemParts = [];
   const dynamicSystemParts = [];
   // ─── CACHED LAYER (1, 2, 3) ───
@@ -373,25 +409,12 @@ async function buildWritingCoreSystemParts(sessionId, world, writing, persona, o
 
   // [2] 常驻 cached 条目（trigger_type=always 且 token=0）
   // 写作模式下 cached layer 含 [1][2][3]，cached 条目拼到其后；按 sort_order ASC, created_at ASC 稳定。
-  const allWorldEntries = getAllWorldEntries(world.id).filter((e) => e.enabled !== 0);
-  const cachedEntries = renderCachedEntriesSection(allWorldEntries, tv);
-  if (cachedEntries.text) {
-    cachedSystemParts.push(cachedEntries.text);
-    log.debug(`│  [2] cached entries  count=${cachedEntries.count}`);
-  }
-
   // [3] 玩家 System Prompt（写作模式下仅作背景参考，不是 AI 身份设定）
-  const userInfoSection = renderUserInfoSection(personaName, personaPrompt, tv);
-  if (userInfoSection) cachedSystemParts.push(userInfoSection);
+  const allWorldEntries = pushCachedEntriesAndUserInfo(world.id, personaName, personaPrompt, tv, cachedSystemParts);
 
   // ─── DYNAMIC LAYER (5-11；写作模式下 [4] 角色 system prompt 与 [7] 角色状态段不注入) ───
-  // [5] 世界状态
-  const worldStateSection = renderWorldStateSection(world.id, sessionId, tv);
-  if (worldStateSection) dynamicSystemParts.push(worldStateSection);
-
-  // [6] 玩家状态
-  const personaStateSection = renderUserStateSection(world.id, sessionId, tv);
-  if (personaStateSection) dynamicSystemParts.push(personaStateSection);
+  // [5] 世界状态 / [6] 玩家状态
+  pushSharedStateSections(world.id, sessionId, tv, dynamicSystemParts);
 
   // [7] 附近角色（写作模式专属，替代 chat 模式的 character_state）
   // - transient（is_saved=0）：完整 name + 底层人设 + state
@@ -421,33 +444,13 @@ async function buildWritingCoreSystemParts(sessionId, world, writing, persona, o
   }
 
   // [8] 世界 State 条目（常驻 / 关键词 / AI 召回；token=0 的常驻条目已进 cached layer）
-  const worldEntries = selectDynamicWorldEntries(allWorldEntries);
-  const triggeredIds = await matchEntries(sessionId, worldEntries, world.id);
-  const triggeredEntries = sortTriggeredEntries(worldEntries, triggeredIds);
-  const entriesSection = renderTriggeredEntriesSection(triggeredEntries, tv);
-  if (entriesSection) dynamicSystemParts.push(entriesSection);
+  const triggeredEntries = await pushTriggeredEntries(sessionId, world.id, allWorldEntries, tv, dynamicSystemParts);
 
-  // [8.5] 长期记忆（会话级 md 文件，开关启用时注入）
-  const writingLtm = renderLongTermMemorySection(sessionId, writing.long_term_memory_enabled, tv);
-  if (writingLtm) {
-    dynamicSystemParts.push(writingLtm.text);
-    log.debug(`│  [8.5] long-term memory injected (writing)  chars=${writingLtm.chars}`);
-  }
-
-  // [8.6] 表格记忆
-  const writingTableSection = renderTableMemorySection(sessionId, writing.table_memory_enabled);
-  if (writingTableSection) {
-    dynamicSystemParts.push(writingTableSection.text);
-    log.debug(`│  [8.6] table memory injected  chars=${writingTableSection.chars}`);
-  }
+  // [8.5] 长期记忆 / [8.6] 表格记忆
+  pushMemoryFileSections(sessionId, writing, tv, dynamicSystemParts);
 
   // [9] 召回摘要（向量搜索历史 turn summaries，排除当前上下文窗口内的轮次）
-  const { recalled } = await searchRecalledSummaries(world.id, sessionId);
-  const recallHitCount = recalled.length;
-  const recalledSection = renderRecalledSummariesSection(recalled, tv);
-  if (recalledSection) dynamicSystemParts.push(recalledSection);
-  if (recallHitCount > 0) log.debug(`│  [9] recall  hits=${recallHitCount}`);
-  onRecallEvent?.('memory_recall_done', { hit: recallHitCount });
+  const { recalled, recallHitCount } = await pushRecalledSummaries(world.id, sessionId, tv, dynamicSystemParts, onRecallEvent);
 
   const activatedEntries = selectActivatedEntries(triggeredEntries);
   const suggestionText = writing.suggestion_enabled ? tv(SUGGESTION_PROMPT) : null;
@@ -457,8 +460,7 @@ async function buildWritingCoreSystemParts(sessionId, world, writing, persona, o
 async function buildWritingMemorySections(sessionId, world, persona, core, options) {
   const { diaryInjection, onRecallEvent, writing } = options;
   const { recalled, recallHitCount, savedRows, nearbyFields } = core;
-  const personaName = persona?.name || '';
-  const tv = (text) => applyTemplateVars(text, { user: personaName, char: null, world: world.name });
+  const tv = writingTemplateVars(world, persona);
   const dynamicSections = [];
   // [10] 记忆展开 / [10.5] saved nearby preflight 召回
   // 两个 preflight LLM 判定彼此独立，并发触发以节省一个 aux RTT。
@@ -478,18 +480,7 @@ async function buildWritingMemorySections(sessionId, world, persona, core, optio
     needSavedJudge ? decideSavedNearbyRecall({ sessionId, savedRows }) : Promise.resolve([]),
   ]);
 
-  if (runExpand) {
-    if (expandIds.length > 0) {
-      const expanded = renderExpandedSection(expandIds, tv);
-      if (expanded.text) {
-        dynamicSections.push(expanded.text);
-        log.debug(`│  [10] expand  ids=${expandIds.length}`);
-      }
-      onRecallEvent?.('memory_expand_done', { expanded: expanded.expandedText ? expandIds : [] });
-    } else {
-      onRecallEvent?.('memory_expand_done', { expanded: [] });
-    }
-  }
+  if (runExpand) pushExpandedSection(expandIds, tv, dynamicSections, onRecallEvent);
 
   if (runSavedRecall) {
     const hitIds = needSavedJudge ? judgedSavedIds : savedRows.map((r) => r.id);
@@ -561,11 +552,7 @@ export async function buildWritingPrompt(sessionId, options = {}) {
 
   const persona = getOrCreatePersona(world.id);
   const personaName = persona?.name || '';
-  const tv = (text) => applyTemplateVars(text, {
-    user: personaName,
-    char: null,
-    world: world.name,
-  });
+  const tv = writingTemplateVars(world, persona);
 
   log.info(`┌─ buildWritingPrompt  session=${sid}  world="${world.name}"`);
 
@@ -606,22 +593,7 @@ export async function buildWritingPrompt(sessionId, options = {}) {
       if (writing.suggestion_enabled) postParts.push(tv(SUGGESTION_PROMPT));
     }
 
-    const currentUserMsg = getCurrentUserMessage(uncompressedMessages);
-    if (currentUserMsg?.role === 'user') {
-      const content = applyRules(currentUserMsg.content, 'prompt_only', world.id, 'writing');
-      const formatted = formatMessageForLLM({ ...currentUserMsg, content });
-      if (postParts.length > 0) {
-        const postContent = postParts.join('\n\n');
-        if (Array.isArray(formatted.content)) {
-          formatted.content.push({ type: 'text', text: postContent });
-        } else {
-          formatted.content = [formatted.content, postContent].filter(Boolean).join('\n\n');
-        }
-      }
-      messages.push(formatted);
-    } else if (postParts.length > 0) {
-      messages.push({ role: 'user', content: postParts.join('\n\n') });
-    }
+    pushCurrentUserTurn(messages, uncompressedMessages, postParts, world.id, 'writing');
   }
 
   const temperature = world.temperature ?? writing.temperature ?? config.llm.temperature;
