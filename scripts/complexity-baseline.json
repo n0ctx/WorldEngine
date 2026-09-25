@@ -17,7 +17,6 @@
     "backend/memory/combined-state-updater.js#applyNearbyResult": 39,
     "backend/memory/combined-state-updater.js#compressOverLimitFields": 45,
     "backend/memory/combined-state-updater.js#updateAllStates": 55,
-    "backend/memory/turn-summarizer.js#createTurnRecord": 39,
     "backend/prompts/assembler.js#buildPrompt": 37,
     "backend/prompts/assembler.js#buildWritingPrompt": 58,
     "backend/prompts/entry-matcher.js#matchEntries": 53,

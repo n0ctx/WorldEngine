@@ -97,38 +97,99 @@ export async function createTurnRecord(sessionId, { isUpdate = false } = {}) {
   const sid = sessionId.slice(0, 8);
   log.info(`START  ${formatMeta({ session: sid, isUpdate })}`);
 
-  const session = getSessionById(sessionId);
-  if (!session) { log.warn(`session not found  session=${sid}`); return; }
-
-  const character = session.character_id ? getCharacterById(session.character_id) : null;
-  const worldId = character?.world_id ?? session.world_id;
-  const persona = worldId ? getOrCreatePersona(worldId) : null;
-  const userName = persona?.name?.trim() || '玩家';
-  const characterName = character?.name?.trim() || '角色';
-
-  const allMsgs = getMessagesBySessionId(sessionId, ALL_MESSAGES_LIMIT, 0);
-  const round_index = isUpdate
-    ? (getLatestTurnRecord(sessionId)?.round_index ?? 1)
-    : countTurnRecords(sessionId) + 1;
-  const { userMsg, asstMsg } = getRoundMessagePair(allMsgs, round_index);
+  const context = getTurnContext(sessionId, isUpdate);
+  if (!context) { log.warn(`session not found  session=${sid}`); return; }
+  const {
+    session,
+    worldId,
+    userName,
+    characterName,
+    round_index,
+    userMsg,
+    asstMsg,
+  } = context;
 
   if (!userMsg || !asstMsg) {
     log.info(`SKIP  ${formatMeta({ session: sid, round: round_index, reason: 'missing-round-pair' })}`);
     return;
   }
 
-  // 模式感知：决定是否启用长期记忆抽取（chat: long_term_memory_enabled，writing: writing.long_term_memory_enabled）
-  const config = getConfig();
   const isWriting = session.mode === 'writing';
-  const ltmEnabled = isWriting
-    ? config.writing?.long_term_memory_enabled === true
-    : config.long_term_memory_enabled === true;
+  const ltmEnabled = isLongTermMemoryEnabled(session);
 
   // LLM 生成摘要（非流式，temp=0.3）
-  let summary;
-  let scene = '';
-  let cast = [];
-  let memoryLines = [];
+  const { summary, scene, cast, memoryLines } = await generateTurnSummary({
+    sessionId,
+    sid,
+    userName,
+    characterName,
+    userMsg,
+    asstMsg,
+    ltmEnabled,
+  });
+
+  if (!summary) {
+    log.warn(`SKIP  ${formatMeta({ session: sid, reason: 'empty-summary' })}`);
+    return;
+  }
+
+  // 写作模式即使没有 nearby 角色也要写入空层，回滚时才能清掉目标轮中已不存在的角色状态；chat 保持旧记录兼容。
+  const snapshot = captureTurnSnapshot(sessionId, worldId, session.character_id, isWriting);
+
+  // 写入 DB（upsert by session_id + round_index），存指针而非内容副本
+  const record = upsertTurnRecord({
+    session_id: sessionId,
+    round_index,
+    summary,
+    scene: scene || null,
+    cast_json: cast.length > 0 ? JSON.stringify(cast) : null,
+    user_message_id: userMsg.id,
+    asst_message_id: asstMsg.id,
+    state_snapshot: snapshot ? JSON.stringify(snapshot) : null,
+  });
+
+  log.info(`DONE  ${formatMeta({ session: sid, round: round_index, len: summary.length, recordId: record?.id ?? null })}`);
+
+  await persistTurnRecordSnapshots(record, sessionId, sid, ltmEnabled, memoryLines);
+
+  // 异步触发 embedding（不阻塞）
+  if (record && worldId) {
+    embedTurnRecord(record.id, sessionId, worldId).catch(err => log.warn('embed turn record 失败:', err.message));
+  }
+}
+
+function getTurnContext(sessionId, isUpdate) {
+  const session = getSessionById(sessionId);
+  if (!session) return null;
+
+  const character = session.character_id ? getCharacterById(session.character_id) : null;
+  const worldId = character?.world_id ?? session.world_id;
+  const persona = worldId ? getOrCreatePersona(worldId) : null;
+  const allMsgs = getMessagesBySessionId(sessionId, ALL_MESSAGES_LIMIT, 0);
+  const round_index = isUpdate
+    ? (getLatestTurnRecord(sessionId)?.round_index ?? 1)
+    : countTurnRecords(sessionId) + 1;
+  const { userMsg, asstMsg } = getRoundMessagePair(allMsgs, round_index);
+
+  return {
+    session,
+    worldId,
+    userName: persona?.name?.trim() || '玩家',
+    characterName: character?.name?.trim() || '角色',
+    round_index,
+    userMsg,
+    asstMsg,
+  };
+}
+
+function isLongTermMemoryEnabled(session) {
+  const config = getConfig();
+  if (session.mode === 'writing') return config.writing?.long_term_memory_enabled === true;
+  return config.long_term_memory_enabled === true;
+}
+
+/** 调用副模型生成摘要，失败时回退到本轮问答的前 100 字。 */
+async function generateTurnSummary({ sessionId, sid, userName, characterName, userMsg, asstMsg, ltmEnabled }) {
   try {
     const tplName = ltmEnabled ? 'memory-turn-summary-with-ltm.md' : 'memory-turn-summary.md';
     const vars = {
@@ -146,7 +207,6 @@ export async function createTurnRecord(sessionId, { isUpdate = false } = {}) {
       conversationId: sessionId,
       timeoutMs: LLM_BACKGROUND_TASK_TIMEOUT_MS,
     });
-    // 剥除 <think>...</think> 推理链
     const stripped = (raw || '')
       .replace(/<think>[\s\S]*?<\/think>\n*/g, '')
       .replace(/<think>[\s\S]*$/, '');
@@ -154,60 +214,41 @@ export async function createTurnRecord(sessionId, { isUpdate = false } = {}) {
       log.info(`LLM RAW  ${formatMeta({ session: sid, ltm: ltmEnabled })}\n${stripped}`);
     }
     const payload = parseSummaryPayload(stripped);
-    memoryLines = payload.memoryLines;
-    scene = payload.scene;
-    cast = payload.cast;
-    summary = payload.summary
+    const summary = payload.summary
       .replace(/^\s*\*{1,2}[^*\n]{0,20}[：:]\*{0,2}\s*/u, '')
       .trim();
-    log.info(`SUMMARY RAW  ${formatMeta({ session: sid, chars: summary.length, scene: scene || undefined, cast: cast.length || undefined, ltm: memoryLines.length, preview: shouldLogRaw('llm_raw') ? previewText(summary) : undefined })}`);
+    log.info(`SUMMARY RAW  ${formatMeta({ session: sid, chars: summary.length, scene: payload.scene || undefined, cast: payload.cast.length || undefined, ltm: payload.memoryLines.length, preview: shouldLogRaw('llm_raw') ? previewText(summary) : undefined })}`);
+    return { summary, scene: payload.scene, cast: payload.cast, memoryLines: payload.memoryLines };
   } catch (err) {
     log.warn(`SUMMARY FAIL  ${formatMeta({ session: sid, error: err.message })}`);
-    // 降级：用前 100 字作为摘要
-    summary = `${userName}：${userMsg.content} / ${characterName}：${asstMsg.content}`.slice(0, 100);
+    return {
+      summary: `${userName}：${userMsg.content} / ${characterName}：${asstMsg.content}`.slice(0, 100),
+      scene: '',
+      cast: [],
+      memoryLines: [],
+    };
   }
+}
 
-  if (!summary) {
-    log.warn(`SKIP  ${formatMeta({ session: sid, reason: 'empty-summary' })}`);
-    return;
-  }
+function captureTurnSnapshot(sessionId, worldId, characterId, isWriting) {
+  if (!worldId) return null;
 
-  // 捕获当前三层状态快照（优先级 2 状态更新已完成，此处拿到的是本轮最终状态）
-  // 写作模式没有固定角色身份，characterIds 留空；nearby 层快照由下方专属逻辑写入。
-  const characterIds = session.character_id ? [session.character_id] : [];
-  const snapshot = worldId ? captureStateSnapshot(sessionId, worldId, characterIds) : null;
+  const snapshot = captureStateSnapshot(sessionId, worldId, characterId ? [characterId] : []);
+  if (!snapshot || !isWriting) return snapshot;
 
-  // nearby 层快照：写作模式始终写入（即便为空），chat 模式不写（向下兼容）。
-  // 旧记录回滚时缺 nearby 字段→清空两张表（state-rollback 处理）。
-  if (snapshot && isWriting) {
-    const nearbyRows = listNearbyBySessionId(sessionId);
-    snapshot.nearby = nearbyRows.map((r) => {
-      const sv = getStateValuesByNearbyId(r.id);
-      const state = {};
-      for (const s of sv) {
-        if (s.runtime_value_json != null) state[s.field_key] = s.runtime_value_json;
-      }
-      return { id: r.id, name: r.name, persona: r.persona, is_saved: r.is_saved, state };
-    });
-  }
-
-  // 写入 DB（upsert by session_id + round_index），存指针而非内容副本
-  const record = upsertTurnRecord({
-    session_id: sessionId,
-    round_index,
-    summary,
-    scene: scene || null,
-    cast_json: cast.length > 0 ? JSON.stringify(cast) : null,
-    user_message_id: userMsg.id,
-    asst_message_id: asstMsg.id,
-    state_snapshot: snapshot ? JSON.stringify(snapshot) : null,
+  const nearbyRows = listNearbyBySessionId(sessionId);
+  snapshot.nearby = nearbyRows.map((r) => {
+    const state = {};
+    for (const s of getStateValuesByNearbyId(r.id)) {
+      if (s.runtime_value_json != null) state[s.field_key] = s.runtime_value_json;
+    }
+    return { id: r.id, name: r.name, persona: r.persona, is_saved: r.is_saved, state };
   });
+  return snapshot;
+}
 
-  log.info(`DONE  ${formatMeta({ session: sid, round: round_index, len: summary.length, recordId: record?.id ?? null })}`);
-
-  // 长期记忆条目落盘（在 turn-record 任务内串行执行；isUpdate 仍允许追加，
-  // 因为同一轮重写不应丢失之前已抽取的记忆——LLM 输出顺序保证不会重复）。
-  // 必须 await，以便随后把 memory.md 全文回填到本轮 turn record，作为回滚锚点。
+async function persistTurnRecordSnapshots(record, sessionId, sid, ltmEnabled, memoryLines) {
+  // isUpdate 也要追加记忆，重写同一轮时不能丢掉此前已经抽取的条目。
   if (ltmEnabled && memoryLines.length > 0) {
     try {
       await appendMemoryLines(sessionId, memoryLines);
@@ -216,29 +257,18 @@ export async function createTurnRecord(sessionId, { isUpdate = false } = {}) {
     }
   }
 
-  // 无论本轮是否抽取/启用 LTM，都把当前 memory.md 全文写入 turn record，
-  // 这样回滚到任意轮次都能精确还原长期记忆文件（包括"启用前为空"的轮次）。
-  if (record) {
-    try {
-      updateTurnRecordLtmSnapshot(record.id, readMemoryFile(sessionId));
-    } catch (err) {
-      log.warn(`LTM SNAPSHOT FAIL  ${formatMeta({ session: sid, error: err.message })}`);
-    }
+  if (!record) return;
+  // 每轮都回填完整 memory.md，才能把回滚目标精确还原到该轮的长期记忆状态。
+  try {
+    updateTurnRecordLtmSnapshot(record.id, readMemoryFile(sessionId));
+  } catch (err) {
+    log.warn(`LTM SNAPSHOT FAIL  ${formatMeta({ session: sid, error: err.message })}`);
   }
-
-  // 表格记忆快照：把当前 tables.json 全文写入本轮 turn record，回滚时精确还原。
-  // 依赖：本轮 table-memory postgen 任务（priority 2）已先于本任务（priority 3）完成。
-  if (record) {
-    try {
-      updateTurnRecordTableSnapshot(record.id, readTablesRaw(sessionId));
-    } catch (err) {
-      log.warn(`TABLE SNAPSHOT FAIL  ${formatMeta({ session: sid, error: err.message })}`);
-    }
-  }
-
-  // 异步触发 embedding（不阻塞）
-  if (record && worldId) {
-    embedTurnRecord(record.id, sessionId, worldId).catch(err => log.warn('embed turn record 失败:', err.message));
+  // tables.json 依赖 priority 2 的 table-memory 任务先写入；本任务是 priority 3。
+  try {
+    updateTurnRecordTableSnapshot(record.id, readTablesRaw(sessionId));
+  } catch (err) {
+    log.warn(`TABLE SNAPSHOT FAIL  ${formatMeta({ session: sid, error: err.message })}`);
   }
 }
 
