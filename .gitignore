@@ -45,4 +45,5 @@ frontend/coverage/
 
 # Local agent tooling
 /.grok/
+/.agents/
 /skills-lock.json
