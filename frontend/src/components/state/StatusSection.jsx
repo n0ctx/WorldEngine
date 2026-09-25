@@ -92,165 +92,126 @@ function Chevron({ open }) {
   );
 }
 
-/**
- * 状态字段内联编辑器
- * @param {{ row, onCommit, onCancel }} props
- *   onCommit(valueJson) — 保存
- *   onCancel() — 取消
- */
+function serializeEditorValue(type, value) {
+  if (type === 'boolean') return JSON.stringify(!!value);
+  if (type === 'number') {
+    const num = parseFloat(value);
+    return Number.isFinite(num) ? JSON.stringify(num) : null;
+  }
+  if (type === 'datetime') {
+    return value && ISO_DATETIME_RE.test(value) ? JSON.stringify(value) : null;
+  }
+  return value === '' ? null : JSON.stringify(String(value));
+}
+
+function InlineEditorChrome({ children, saving, saveError }) {
+  return (
+    <div
+      className={`we-status-inline-wrap${saving ? ' we-status-inline-wrap--saving' : ''}${saveError ? ' we-status-inline-wrap--error' : ''}`}
+      aria-busy={saving || undefined}
+    >
+      {children}
+      {saving && <span className="we-status-inline-pending" role="status">保存中…</span>}
+      {saveError && <span className="we-status-inline-error we-field-error">{saveError}</span>}
+    </div>
+  );
+}
+
+function StatusEditorReadValue({ row, templateCtx }) {
+  const type = row.field_type ?? row.type;
+  const display = parseValue(row.effective_value_json, type, row.prefix);
+  const valueClassName = `we-status-value${display == null ? ' we-status-null' : ''}${type === 'text' ? ' we-status-value--multiline' : ''}`;
+
+  if (type === 'list') {
+    const items = parseRawValue(row.effective_value_json, 'list');
+    if (items.length === 0) return <span className="we-status-value we-status-null">{EMPTY_STATUS_DISPLAY}</span>;
+    return (
+      <div className="we-status-tags">
+        {items.map((item, idx) => (
+          <span key={idx} className="we-status-tag">{applyTemplateVars(item, templateCtx)}</span>
+        ))}
+      </div>
+    );
+  }
+
+  return (
+    <span className={valueClassName}>
+      {display != null ? applyTemplateVars(String(display), templateCtx) : EMPTY_STATUS_DISPLAY}
+    </span>
+  );
+}
+
 function InlineEditor({ row, onCommit, onCancel, templateCtx, saving = false, saveError = null }) {
   const type = row.field_type ?? row.type;
   const rawInit = parseRawValue(row.effective_value_json, type);
   const [draft, setDraft] = useState(rawInit);
+  const readDisplay = <StatusEditorReadValue row={row} templateCtx={templateCtx} />;
+  const commit = (value) => onCommit(serializeEditorValue(type, value));
+  const editorProps = { draft, setDraft, commit, onCancel, readDisplay };
+  let editor;
+
+  if (type === 'boolean') {
+    editor = <BooleanInlineEditor {...editorProps} />;
+  } else if (type === 'enum') {
+    editor = <EnumInlineEditor row={row} {...editorProps} />;
+  } else if (type === 'datetime') {
+    editor = <DatetimeInlineEditor {...editorProps} />;
+  } else if (type === 'list') {
+    editor = <ListInlineEditor initial={rawInit} onCommit={onCommit} onCancel={onCancel} readDisplay={readDisplay} />;
+  } else if (type === 'text') {
+    editor = <TextInlineEditor {...editorProps} />;
+  } else {
+    editor = <BasicInlineEditor type={type} {...editorProps} />;
+  }
+
+  return <InlineEditorChrome saving={saving} saveError={saveError}>{editor}</InlineEditorChrome>;
+}
+
+function BooleanInlineEditor({ draft, setDraft, commit, readDisplay }) {
   const inputRef = useRef(null);
-  const boundaryRef = useRef(null);
 
   useEffect(() => { inputRef.current?.focus(); }, []);
 
-  useEffect(() => {
-    if (type !== 'enum' && type !== 'list') return undefined;
+  return (
+    <SeamlessEditableSurface
+      editing
+      trackValue={stringifyTrackValue(draft)}
+      className="we-status-inline-surface"
+      readClassName="we-status-inline-surface__read"
+      renderRead={() => readDisplay}
+      renderEditor={({ measureRef }) => (
+        <div ref={measureRef} className="we-status-inline-surface__editor we-status-inline-surface__editor--checkbox">
+          <input
+            ref={inputRef}
+            type="checkbox"
+            checked={!!draft}
+            onChange={(event) => { setDraft(event.target.checked); commit(event.target.checked); }}
+            onBlur={() => commit(draft)}
+            className="w-4 h-4"
+            style={{ accentColor: 'var(--we-color-gold)' }}
+          />
+          <span className="we-status-inline-surface__size-proxy" aria-hidden="true" />
+        </div>
+      )}
+    />
+  );
+}
 
+function EnumInlineEditor({ row, draft, setDraft, commit, onCancel, readDisplay }) {
+  const boundaryRef = useRef(null);
+  const options = parseEnumOptions(row.enum_options);
+
+  useEffect(() => {
     function handlePointerDown(event) {
-      if (!boundaryRef.current?.contains(event.target)) {
-        onCancel();
-      }
+      if (!boundaryRef.current?.contains(event.target)) onCancel();
     }
 
     document.addEventListener('mousedown', handlePointerDown);
     return () => document.removeEventListener('mousedown', handlePointerDown);
-  }, [onCancel, type]);
+  }, [onCancel]);
 
-  function commit(value) {
-    let valueJson;
-    if (type === 'boolean') {
-      valueJson = JSON.stringify(!!value);
-    } else if (type === 'number') {
-      const num = parseFloat(value);
-      valueJson = isFinite(num) ? JSON.stringify(num) : null;
-    } else if (type === 'list') {
-      const arr = String(value).split(/[,，、]/).map((s) => s.trim()).filter(Boolean);
-      valueJson = JSON.stringify(arr);
-    } else if (type === 'datetime') {
-      valueJson = value && ISO_DATETIME_RE.test(value) ? JSON.stringify(value) : null;
-    } else {
-      valueJson = value === '' ? null : JSON.stringify(String(value));
-    }
-    onCommit(valueJson);
-  }
-
-  // 统一包裹:保存中加 pending 视觉与禁用,保存失败在下方内联报错且保留编辑器
-  function wrap(node) {
-    return (
-      <div
-        className={`we-status-inline-wrap${saving ? ' we-status-inline-wrap--saving' : ''}${saveError ? ' we-status-inline-wrap--error' : ''}`}
-        aria-busy={saving || undefined}
-      >
-        {node}
-        {saving && <span className="we-status-inline-pending" role="status">保存中…</span>}
-        {saveError && <span className="we-status-inline-error we-field-error">{saveError}</span>}
-      </div>
-    );
-  }
-
-  function handleKey(e) {
-    if (isImeComposing(e)) return;
-    if (e.key === 'Enter') { e.preventDefault(); commit(draft); }
-    if (e.key === 'Escape') { onCancel(); }
-  }
-
-  function handleTextKey(e) {
-    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
-      e.preventDefault();
-      commit(draft);
-      return;
-    }
-    if (e.key === 'Escape') {
-      e.preventDefault();
-      onCancel();
-    }
-  }
-
-  const readDisplay = (() => {
-    const display = parseValue(row.effective_value_json, type, row.prefix);
-    const valueClassName = `we-status-value${display == null ? ' we-status-null' : ''}${type === 'text' ? ' we-status-value--multiline' : ''}`;
-    if (type === 'list') {
-      const arr = parseRawValue(row.effective_value_json, 'list');
-      if (arr.length === 0) return <span className="we-status-value we-status-null">{EMPTY_STATUS_DISPLAY}</span>;
-      return (
-        <div className="we-status-tags">
-          {arr.map((item, idx) => (
-            <span key={idx} className="we-status-tag">{applyTemplateVars(item, templateCtx)}</span>
-          ))}
-        </div>
-      );
-    }
-    return (
-      <span className={valueClassName}>
-        {display != null ? applyTemplateVars(String(display), templateCtx) : EMPTY_STATUS_DISPLAY}
-      </span>
-    );
-  })();
-
-  if (type === 'boolean') {
-    return wrap(
-      <SeamlessEditableSurface
-        editing
-        trackValue={stringifyTrackValue(draft)}
-        className="we-status-inline-surface"
-        readClassName="we-status-inline-surface__read"
-        renderRead={() => readDisplay}
-        renderEditor={({ measureRef }) => (
-          <div
-            ref={measureRef}
-            className="we-status-inline-surface__editor we-status-inline-surface__editor--checkbox"
-          >
-            <input
-              ref={inputRef}
-              type="checkbox"
-              checked={!!draft}
-              onChange={(e) => { setDraft(e.target.checked); commit(e.target.checked); }}
-              onBlur={() => commit(draft)}
-              className="w-4 h-4"
-              style={{ accentColor: 'var(--we-color-gold)' }}
-            />
-            <span className="we-status-inline-surface__size-proxy" aria-hidden="true" />
-          </div>
-        )}
-      />
-    );
-  }
-
-  if (type === 'enum') {
-    const options = parseEnumOptions(row.enum_options);
-    return wrap(
-      <div ref={boundaryRef}>
-        <SeamlessEditableSurface
-          editing
-          trackValue={stringifyTrackValue(draft)}
-          className="we-status-inline-surface"
-          readClassName="we-status-inline-surface__read"
-          renderRead={() => readDisplay}
-          renderEditor={({ measureRef }) => (
-            <div ref={measureRef} className="we-status-inline-surface__editor">
-              <Select
-                value={draft ?? ''}
-                onChange={(value) => {
-                  setDraft(value);
-                  commit(value);
-                }}
-                options={[{ value: '', label: '—' }, ...options.map((o) => ({ value: o, label: o }))]}
-                className="we-status-inline-select"
-              />
-            </div>
-          )}
-        />
-      </div>
-    );
-  }
-
-  if (type === 'datetime') {
-    const dtVal = typeof draft === 'string' && ISO_DATETIME_RE.test(draft) ? draft : '';
-    return wrap(
+  return (
+    <div ref={boundaryRef}>
       <SeamlessEditableSurface
         editing
         trackValue={stringifyTrackValue(draft)}
@@ -259,60 +220,99 @@ function InlineEditor({ row, onCommit, onCancel, templateCtx, saving = false, sa
         renderRead={() => readDisplay}
         renderEditor={({ measureRef }) => (
           <div ref={measureRef} className="we-status-inline-surface__editor">
-            <DatetimeSplitInput
-              value={dtVal}
-              autoFocus
-              widthPreset="compact"
-              onChange={(v) => setDraft(v)}
-              onBlur={() => commit(draft)}
-              onKeyDown={handleKey}
-              className="we-status-inline-input"
+            <Select
+              value={draft ?? ''}
+              onChange={(value) => { setDraft(value); commit(value); }}
+              options={[{ value: '', label: '—' }, ...options.map((option) => ({ value: option, label: option }))]}
+              className="we-status-inline-select"
             />
           </div>
         )}
       />
-    );
+    </div>
+  );
+}
+
+function DatetimeInlineEditor({ draft, setDraft, commit, onCancel, readDisplay }) {
+  const value = typeof draft === 'string' && ISO_DATETIME_RE.test(draft) ? draft : '';
+
+  function handleKey(event) {
+    if (isImeComposing(event)) return;
+    if (event.key === 'Enter') { event.preventDefault(); commit(draft); }
+    if (event.key === 'Escape') onCancel();
   }
 
-  if (type === 'list') {
-    return wrap(
-      <ListInlineEditor
-        initial={rawInit}
-        onCommit={onCommit}
-        onCancel={onCancel}
-        readDisplay={readDisplay}
-      />
-    );
-  }
-
-  if (type === 'text') {
-    return wrap(
-      <SeamlessEditableSurface
-        editing
-        trackValue={stringifyTrackValue(draft)}
-        className="we-status-inline-surface"
-        readClassName="we-status-inline-surface__read"
-        renderRead={() => readDisplay}
-        renderEditor={({ editorRef }) => (
-          <textarea
-            ref={editorRef}
-            value={String(draft ?? '')}
-            onChange={(e) => setDraft(e.target.value)}
+  return (
+    <SeamlessEditableSurface
+      editing
+      trackValue={stringifyTrackValue(draft)}
+      className="we-status-inline-surface"
+      readClassName="we-status-inline-surface__read"
+      renderRead={() => readDisplay}
+      renderEditor={({ measureRef }) => (
+        <div ref={measureRef} className="we-status-inline-surface__editor">
+          <DatetimeSplitInput
+            value={value}
+            autoFocus
+            widthPreset="compact"
+            onChange={(next) => setDraft(next)}
             onBlur={() => commit(draft)}
-            onKeyDown={handleTextKey}
-            className="we-seamless-edit__textarea we-input we-status-inline-input we-status-inline-textarea"
-            rows={1}
+            onKeyDown={handleKey}
+            className="we-status-inline-input"
           />
-        )}
-      />
-    );
+        </div>
+      )}
+    />
+  );
+}
+
+function TextInlineEditor({ draft, setDraft, commit, onCancel, readDisplay }) {
+  function handleKey(event) {
+    if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
+      event.preventDefault();
+      commit(draft);
+      return;
+    }
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      onCancel();
+    }
   }
 
-  const displayDraft = type === 'list'
-    ? (Array.isArray(draft) ? draft.join(', ') : String(draft ?? ''))
-    : String(draft ?? '');
+  return (
+    <SeamlessEditableSurface
+      editing
+      trackValue={stringifyTrackValue(draft)}
+      className="we-status-inline-surface"
+      readClassName="we-status-inline-surface__read"
+      renderRead={() => readDisplay}
+      renderEditor={({ editorRef }) => (
+        <textarea
+          ref={editorRef}
+          value={String(draft ?? '')}
+          onChange={(event) => setDraft(event.target.value)}
+          onBlur={() => commit(draft)}
+          onKeyDown={handleKey}
+          className="we-seamless-edit__textarea we-input we-status-inline-input we-status-inline-textarea"
+          rows={1}
+        />
+      )}
+    />
+  );
+}
 
-  return wrap(
+function BasicInlineEditor({ type, draft, setDraft, commit, onCancel, readDisplay }) {
+  const inputRef = useRef(null);
+
+  useEffect(() => { inputRef.current?.focus(); }, []);
+
+  function handleKey(event) {
+    if (isImeComposing(event)) return;
+    if (event.key === 'Enter') { event.preventDefault(); commit(draft); }
+    if (event.key === 'Escape') onCancel();
+  }
+
+  return (
     <SeamlessEditableSurface
       editing
       trackValue={stringifyTrackValue(draft)}
@@ -323,12 +323,12 @@ function InlineEditor({ row, onCommit, onCancel, templateCtx, saving = false, sa
         <input
           ref={inputRef}
           type={type === 'number' ? 'number' : 'text'}
-          value={displayDraft}
-          onChange={(e) => setDraft(e.target.value)}
+          value={String(draft ?? '')}
+          onChange={(event) => setDraft(event.target.value)}
           onBlur={() => commit(draft)}
           onKeyDown={handleKey}
           className="we-input we-status-inline-input"
-          placeholder={type === 'list' ? '逗号分隔' : ''}
+          placeholder=""
         />
       )}
     />
@@ -462,6 +462,136 @@ function isShortField(row) {
   return true;
 }
 
+function getStatusEditKey(row) {
+  return row.character_id ? `${row.character_id}:${row.field_key}` : row.field_key;
+}
+
+function StatusTableField({ row, index, fieldExtra, editable, onSave }) {
+  const columns = parseTableColumns(row.table_columns);
+  const values = parseTableValue(row.effective_value_json);
+
+  return (
+    <div
+      className={`we-status-field we-status-field--table${fieldExtra}`}
+      style={{ animationDelay: `${index * 45}ms` }}
+    >
+      <span className="we-status-key">{row.label}</span>
+      <StatusTable
+        columns={columns}
+        values={values}
+        editable={editable}
+        onCellCommit={(columnKey, number) => {
+          const next = { ...values };
+          if (number == null) delete next[columnKey]; else next[columnKey] = number;
+          const valueJson = Object.keys(next).length ? JSON.stringify(next) : null;
+          onSave?.(row.field_key, valueJson, row.character_id);
+        }}
+      />
+    </div>
+  );
+}
+
+function StatusValueDisplay({ row, type, editKey, editable, onSetEditingKey, templateCtx }) {
+  const editHandler = editable ? () => onSetEditingKey(editKey) : undefined;
+
+  if (type === 'list') {
+    const items = parseRawValue(row.effective_value_json, 'list');
+    if (items.length === 0) {
+      return (
+        <span
+          className={`we-status-value we-status-null${editable ? ' we-status-editable' : ''}`}
+          onClick={editHandler}
+        >
+          {EMPTY_STATUS_DISPLAY}
+        </span>
+      );
+    }
+    return (
+      <div
+        className={`we-status-tags${editable ? ' we-status-editable' : ''}`}
+        onClick={editHandler}
+        title={editable ? '点击编辑' : undefined}
+      >
+        {items.map((item, idx) => (
+          <span key={idx} className="we-status-tag">{applyTemplateVars(item, templateCtx)}</span>
+        ))}
+      </div>
+    );
+  }
+
+  const display = parseValue(row.effective_value_json, type, row.prefix);
+  const isNumber = type === 'number';
+  const max = row.max_value ?? row.max ?? null;
+  const valueClassName = `we-status-value${display == null ? ' we-status-null' : ''}${type === 'text' ? ' we-status-value--multiline' : ''}${isNumber ? ' we-status-value--number' : ''}${editable ? ' we-status-editable' : ''}`;
+  const numberDisplay = max != null
+    ? `${display} / ${max}${row.unit ? ' ' + row.unit : ''}`
+    : `${display}${row.unit ? ' ' + row.unit : ''}`;
+
+  return (
+    <span
+      className={valueClassName}
+      onClick={editHandler}
+      title={display != null && editable ? '点击编辑' : undefined}
+    >
+      {display != null ? (isNumber ? numberDisplay : applyTemplateVars(display, templateCtx)) : EMPTY_STATUS_DISPLAY}
+    </span>
+  );
+}
+
+function StatusField({
+  row,
+  index,
+  gridLayout,
+  editKey,
+  editingKey,
+  saving,
+  saveError,
+  templateCtx,
+  onSave,
+  onCommit,
+  onCancel,
+  onSetEditingKey,
+}) {
+  const type = row.field_type ?? row.type;
+  const editable = canEditRow(row, onSave);
+  const short = gridLayout && isShortField(row);
+  const fieldExtra = gridLayout ? (short ? ' we-status-field--short' : ' we-status-field--long') : '';
+
+  if (type === 'table') {
+    return <StatusTableField row={row} index={index} fieldExtra={fieldExtra} editable={editable} onSave={onSave} />;
+  }
+
+  const isEditing = editingKey === editKey;
+
+  return (
+    <div
+      className={`we-status-field${fieldExtra}${isEditing ? ' we-status-field--editing' : ''}`}
+      style={{ animationDelay: `${index * 45}ms` }}
+    >
+      <span className="we-status-key">{row.label}</span>
+      {isEditing ? (
+        <InlineEditor
+          row={row}
+          templateCtx={templateCtx}
+          saving={saving}
+          saveError={saveError}
+          onCommit={(valueJson) => onCommit(row, valueJson)}
+          onCancel={onCancel}
+        />
+      ) : (
+        <StatusValueDisplay
+          row={row}
+          type={type}
+          editKey={editKey}
+          editable={editable}
+          onSetEditingKey={onSetEditingKey}
+          templateCtx={templateCtx}
+        />
+      )}
+    </div>
+  );
+}
+
 export default function StatusSection({
   title,
   rows,
@@ -512,99 +642,24 @@ export default function StatusSection({
       {isEmpty && (emptyContent ?? <p className="we-section-empty">暂无数据</p>)}
       {!isLoading && !isEmpty && (
         <div className={`we-fields-list${gridLayout ? ' we-fields-list--grid' : ''}`}>
-          {rows?.map((row, i) => {
-            const type = row.field_type ?? row.type;
-            const editable = canEditRow(row, onSave);
-            const editKey = row.character_id ? `${row.character_id}:${row.field_key}` : row.field_key;
-
-            const short = gridLayout && isShortField(row);
-            const fieldExtra = gridLayout ? (short ? ' we-status-field--short' : ' we-status-field--long') : '';
-
-            if (type === 'table') {
-              const cols = parseTableColumns(row.table_columns);
-              const valObj = parseTableValue(row.effective_value_json);
-              return (
-                <div
-                  key={editKey}
-                  className={`we-status-field we-status-field--table${fieldExtra}`}
-                  style={{ animationDelay: `${i * 45}ms` }}
-                >
-                  <span className="we-status-key">{row.label}</span>
-                  <StatusTable
-                    columns={cols}
-                    values={valObj}
-                    editable={editable}
-                    onCellCommit={(colKey, num) => {
-                      const next = { ...valObj };
-                      if (num == null) delete next[colKey]; else next[colKey] = num;
-                      const valueJson = Object.keys(next).length ? JSON.stringify(next) : null;
-                      onSave?.(row.field_key, valueJson, row.character_id);
-                    }}
-                  />
-                </div>
-              );
-            }
-
-            const display = parseValue(row.effective_value_json, type, row.prefix);
-            const max = row.max_value ?? row.max ?? null;
-            const isNumber = type === 'number';
-            const isEditing = editingKey === editKey;
-
+          {rows?.map((row, index) => {
+            const editKey = getStatusEditKey(row);
             return (
-              <div
+              <StatusField
                 key={editKey}
-                className={`we-status-field${fieldExtra}${isEditing ? ' we-status-field--editing' : ''}`}
-                style={{ animationDelay: `${i * 45}ms` }}
-              >
-                <span className="we-status-key">{row.label}</span>
-                {isEditing ? (
-                    <InlineEditor
-                      row={row}
-                      templateCtx={templateCtx}
-                      saving={saving}
-                      saveError={saveError}
-                      onCommit={(vj) => handleCommit(row, vj)}
-                      onCancel={closeEditor}
-                    />
-                ) : type === 'list' ? (() => {
-                  const arr = parseRawValue(row.effective_value_json, 'list');
-                  if (arr.length === 0) {
-                    return (
-                      <span
-                        className={`we-status-value we-status-null${editable ? ' we-status-editable' : ''}`}
-                        onClick={editable ? () => setEditingKey(editKey) : undefined}
-                      >
-                        {EMPTY_STATUS_DISPLAY}
-                      </span>
-                    );
-                  }
-                  return (
-                    <div
-                      className={`we-status-tags${editable ? ' we-status-editable' : ''}`}
-                      onClick={editable ? () => setEditingKey(editKey) : undefined}
-                      title={editable ? '点击编辑' : undefined}
-                    >
-                      {arr.map((item, idx) => (
-                        <span key={idx} className="we-status-tag">{applyTemplateVars(item, templateCtx)}</span>
-                      ))}
-                    </div>
-                  );
-                })() : (
-                  <span
-                    className={`we-status-value${display == null ? ' we-status-null' : ''}${type === 'text' ? ' we-status-value--multiline' : ''}${isNumber ? ' we-status-value--number' : ''}${editable ? ' we-status-editable' : ''}`}
-                    onClick={editable ? () => setEditingKey(editKey) : undefined}
-                    title={display != null && editable ? '点击编辑' : undefined}
-                  >
-                    {display != null ? (
-                      isNumber
-                        ? (max != null
-                            ? `${display} / ${max}${row.unit ? ' ' + row.unit : ''}`
-                            : `${display}${row.unit ? ' ' + row.unit : ''}`)
-                        : applyTemplateVars(display, templateCtx)
-                    ) : EMPTY_STATUS_DISPLAY}
-                  </span>
-                )}
-              </div>
+                row={row}
+                index={index}
+                gridLayout={gridLayout}
+                editKey={editKey}
+                editingKey={editingKey}
+                saving={saving}
+                saveError={saveError}
+                templateCtx={templateCtx}
+                onSave={onSave}
+                onCommit={handleCommit}
+                onCancel={closeEditor}
+                onSetEditingKey={setEditingKey}
+              />
             );
           })}
         </div>

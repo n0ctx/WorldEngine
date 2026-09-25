@@ -79,6 +79,57 @@ describe('StatusSection', () => {
     expect(container.querySelector('.we-status-value--multiline')).not.toBeNull();
   });
 
+  it('number 字段保留最大值与单位展示，并按数字 JSON 保存', async () => {
+    const onSave = vi.fn();
+    render(
+      <StatusSection
+        headerless
+        rows={[{
+          field_key: 'health',
+          label: '生命值',
+          type: 'number',
+          update_mode: 'manual',
+          max_value: 10,
+          unit: '点',
+          effective_value_json: JSON.stringify(5),
+        }]}
+        onSave={onSave}
+      />
+    );
+
+    expect(screen.getByText('5 / 10 点')).toBeInTheDocument();
+    fireEvent.click(screen.getByText('5 / 10 点'));
+    const input = screen.getByDisplayValue('5');
+    fireEvent.change(input, { target: { value: '8.5' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
+
+    await waitFor(() => expect(onSave).toHaveBeenCalledWith('health', JSON.stringify(8.5), undefined));
+  });
+
+  it('保存失败时保留编辑器并显示错误', async () => {
+    const onSave = vi.fn().mockRejectedValue(new Error('网络中断'));
+    render(
+      <StatusSection
+        headerless
+        rows={[{
+          field_key: 'weather',
+          label: '天气',
+          type: 'text',
+          update_mode: 'manual',
+          effective_value_json: JSON.stringify('晴朗'),
+        }]}
+        onSave={onSave}
+      />
+    );
+
+    fireEvent.click(screen.getByText('晴朗'));
+    const editor = screen.getByDisplayValue('晴朗');
+    fireEvent.keyDown(editor, { key: 'Enter', ctrlKey: true });
+
+    expect(await screen.findByText('网络中断')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('晴朗')).toBeInTheDocument();
+  });
+
   it('可编辑空值字段不再显示点击编辑文案', () => {
     const { container } = render(
       <StatusSection
