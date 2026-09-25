@@ -58,8 +58,6 @@
     "frontend/src/components/writing/WritingMessageItem.jsx#WritingMessageItem": 55,
     "frontend/src/core/api/stream-parser.js#dispatchSSEEvent": 36,
     "frontend/src/core/api/stream-parser.js#parseSSEStream": 44,
-    "frontend/src/core/hooks/useSessionStream.js#makeCallbacks": 68,
-    "frontend/src/core/hooks/useSessionStream.js#useSessionStream": 193,
     "frontend/src/pages/CharacterEditPage/index.jsx#CharacterEditPage": 48,
     "frontend/src/pages/CharactersPage.jsx#CharactersPage": 54,
     "frontend/src/pages/ChatPage/index.jsx#ChatPage": 41,
