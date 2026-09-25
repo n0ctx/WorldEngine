@@ -363,5 +363,5 @@ test('applyProposal world-card 状态字段 UNIQUE 冲突时幂等跳过', async
   };
   await applyProposal(proposal);
   // 第二次 create 相同 field_key 不应抛
-  await applyProposal(proposal);
+  await assert.doesNotReject(applyProposal(proposal));
 });

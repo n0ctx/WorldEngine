@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "loopQueries": [
+    "backend/db/queries/character-state-fields.js#reorderCharacterStateFields#update.run",
+    "backend/db/queries/characters.js#reorderCharacters#stmt.run",
+    "backend/db/queries/custom-css-snippets.js#reorderCustomCssSnippets#stmt.run",
+    "backend/db/queries/entry-conditions.js#replaceEntryConditions#ins.run",
+    "backend/db/queries/persona-state-fields.js#reorderPersonaStateFields#update.run",
+    "backend/db/queries/personas.js#reorderPersonas#stmt.run",
+    "backend/db/queries/prompt-entries.js#reorderWorldEntries#stmt.run",
+    "backend/db/queries/regex-rules.js#reorderRegexRules#stmt.run",
+    "backend/db/queries/world-state-fields.js#reorderWorldStateFields#update.run",
+    "backend/db/queries/worlds.js#reorderWorlds#stmt.run",
+    "backend/db/schema.js#migrateBackfillWritingSessionPersonaId#insertPersona.run",
+    "backend/db/schema.js#migrateBackfillWritingSessionPersonaId#reassignSessions.run",
+    "backend/db/schema.js#migrateBackfillWritingSessionPersonaId#updateWorldActive.run",
+    "backend/db/schema.js#migrateDiaryTimeToIso#updField.run",
+    "backend/db/schema.js#migrateDiaryTimeToIso#updSession.run",
+    "backend/db/schema.js#migrateDiaryTimeToIso#updValue.run",
+    "backend/db/schema.js#migratePersonasBackfillSortOrder#upd.run",
+    "backend/db/schema.js#migrateWorldsBackfillSortOrder#upd.run",
+    "backend/memory/recall.js#searchRecalledSummaries#db.prepare",
+    "backend/memory/state-rollback.js#captureStateSnapshot#db.prepare",
+    "backend/services/import-export.js#importPersona#insertValue.run",
+    "backend/services/import-export.js#insertGlobalCssSnippets#insertCss.run",
+    "backend/services/import-export.js#insertGlobalRegexRules#insertRule.run",
+    "backend/services/import-export.js#insertImportedPersonas#insertPersona.run",
+    "backend/services/import-export.js#insertImportedPersonas#insertValue.run"
+  ],
+  "selectsWithoutFilter": []
+}

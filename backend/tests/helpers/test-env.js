@@ -199,6 +199,17 @@ export async function freshImportUncached(relativePath) {
   return import(`${pathToFileURL(absPath).href}?t=${Date.now()}-${Math.random().toString(16).slice(2)}`);
 }
 
+/**
+ * 轮询直到 predicate 为真；超时抛错。用来代替测试里的固定等待。
+ */
+export async function waitFor(predicate, { timeoutMs = 5000, intervalMs = 10 } = {}) {
+  const startedAt = Date.now();
+  while (!(await predicate())) {
+    if (Date.now() - startedAt > timeoutMs) throw new Error(`waitFor 超时（${timeoutMs}ms）`);
+    await new Promise((resolve) => setTimeout(resolve, intervalMs));
+  }
+}
+
 export function writeUploadFile(sandbox, relativePath, content) {
   const absPath = path.join(sandbox.uploadsDir, relativePath);
   fs.mkdirSync(path.dirname(absPath), { recursive: true });

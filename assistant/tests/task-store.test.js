@@ -138,8 +138,7 @@ test('endAllSse 在 res.end() 抛错时仍然继续', () => {
   const t = freshTask();
   const a = { write: () => {}, end: () => { throw new Error('boom'); }, writableEnded: false };
   taskStore.attachSse(t.id, a);
-  // 不抛
-  taskStore.endAllSse(t.id);
+  assert.doesNotThrow(() => taskStore.endAllSse(t.id));
 });
 
 test('deleteTask 移除 task 与订阅者集合', () => {

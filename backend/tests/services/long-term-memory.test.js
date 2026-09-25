@@ -128,5 +128,5 @@ test('restoreLtmFromTurnRecord：用 snapshot 覆盖写入', () => {
 });
 
 test('deleteMemoryDir 安全：目录不存在时不抛', () => {
-  ltm.deleteMemoryDir('non-existent-session-xyz');
+  assert.doesNotThrow(() => ltm.deleteMemoryDir('non-existent-session-xyz'));
 });

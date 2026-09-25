@@ -2,7 +2,7 @@ import test, { after } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { createRouteTestContext } from '../helpers/http.js';
-import { resetMockEnv } from '../helpers/test-env.js';
+import { resetMockEnv, waitFor } from '../helpers/test-env.js';
 import { enqueue } from '../../utils/async-queue.js';
 import { CHAPTER_MESSAGE_SIZE } from '../../utils/constants.js';
 import {
@@ -628,7 +628,7 @@ test('写作 generate 在客户端提前关闭时服务端继续完成并落库�
   const reader = response.body.getReader();
   await reader.read();
   await reader.cancel();
-  await new Promise((resolve) => setTimeout(resolve, 600));
+  await waitFor(() => activeStreams.size === 0);
 
   const rows = ctx.sandbox.db.prepare(
     'SELECT role, content FROM messages WHERE session_id = ? ORDER BY created_at ASC',
@@ -661,7 +661,7 @@ test('同一写作 session 的第二个 generate 会中断第一个流且不泄�
     body: JSON.stringify({ content: '第一条请求' }),
   }).then((response) => response.text());
 
-  await new Promise((resolve) => setTimeout(resolve, 80));
+  await waitFor(() => activeStreams.has(session.id));
 
   const secondPromise = fetch(url, {
     method: 'POST',

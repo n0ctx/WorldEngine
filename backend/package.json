@@ -9,8 +9,9 @@
     "start": "node server.js",
     "db:reset": "node db/reset.js",
     "lint": "eslint .",
-    "test": "node --test --test-isolation=process \"tests/**/*.test.js\"",
-    "test:coverage": "node --test --test-isolation=process --experimental-test-coverage --test-coverage-exclude=\"../assistant/**\" --test-coverage-exclude=\"tests/**\" \"tests/**/*.test.js\""
+    "test": "node --test --test-isolation=process \"tests/{*.test.js,!(e2e)/**/*.test.js}\"",
+    "test:coverage": "node --test --test-isolation=process --experimental-test-coverage --test-coverage-exclude=\"../assistant/**\" --test-coverage-exclude=\"tests/**\" \"tests/{*.test.js,!(e2e)/**/*.test.js}\"",
+    "test:e2e": "WE_E2E=1 node --test --test-isolation=process \"tests/e2e/*.test.js\""
   },
   "dependencies": {
     "better-sqlite3": "^12.9.0",

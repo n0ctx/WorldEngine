@@ -1,7 +1,7 @@
 import test, { after } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { createTestSandbox, freshImport, resetMockEnv } from '../helpers/test-env.js';
+import { createTestSandbox, freshImport, resetMockEnv, waitFor } from '../helpers/test-env.js';
 import { insertCharacter, insertMessage, insertSession, insertTurnRecord, insertWorld } from '../helpers/fixtures.js';
 import { enqueue } from '../../utils/async-queue.js';
 
@@ -321,7 +321,7 @@ test('POST /api/sessions/:sessionId/chat 在客户端提前关闭时服务端继
   const reader = response.body.getReader();
   await reader.read();
   await reader.cancel();
-  await new Promise((resolve) => setTimeout(resolve, 600));
+  await waitFor(() => activeStreams.size === 0);
 
   const rows = sandbox.db.prepare('SELECT role, content FROM messages WHERE session_id = ? ORDER BY created_at ASC').all(session.id);
   assert.deepEqual(rows.map((row) => row.role), ['user', 'assistant']);
@@ -576,7 +576,7 @@ test('同一 session 的第二个 /chat 会中断第一个流且不泄漏 active
     body: JSON.stringify({ content: '第一条请求' }),
   }).then((res) => res.text());
 
-  await new Promise((resolve) => setTimeout(resolve, 80));
+  await waitFor(() => activeStreams.has(session.id));
 
   const secondPromise = fetch(`http://127.0.0.1:${port}/api/sessions/${session.id}/chat`, {
     method: 'POST',
