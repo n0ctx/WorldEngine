@@ -10,7 +10,6 @@
     "assistant/server/normalize-proposal.js#normalizeProposal": 52,
     "assistant/server/normalize-proposal.js#normalizeStateFieldOps": 87,
     "assistant/server/workspace/index.js#createWorkspace": 65,
-    "backend/db/schema.js#initSchema": 86,
     "frontend/src/components/chat/InputBox.jsx#InputBox": 63,
     "frontend/src/components/chat/MessageItem.jsx#MessageItem": 63,
     "frontend/src/components/chat/MessageList.jsx#MessageList": 95,
