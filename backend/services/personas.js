@@ -11,7 +11,7 @@ import {
   countPersonasByWorldId,
 } from '../db/queries/personas.js';
 import { getWritingSessionIdsByPersonaId } from '../db/queries/sessions.js';
-import { unlinkUploadFile } from '../utils/file-cleanup.js';
+import { unlinkUploadFile, updateWithAvatarCleanup } from '../utils/file-cleanup.js';
 import { createLogger, formatMeta } from '../utils/logger.js';
 import { deleteWritingSession } from './writing-sessions.js';
 
@@ -40,14 +40,11 @@ export function createPersona(worldId, data) {
 
 /** 按 id 更新 persona，处理旧头像文件清理 */
 export async function updatePersonaByIdService(id, patch) {
-  let oldAvatarPath;
-  if ('avatar_path' in patch) {
-    oldAvatarPath = getPersonaById(id)?.avatar_path;
-  }
-  const persona = updatePersonaById(id, patch);
-  if (oldAvatarPath && oldAvatarPath !== patch.avatar_path) {
-    await unlinkUploadFile(oldAvatarPath);
-  }
+  const persona = await updateWithAvatarCleanup(
+    patch,
+    () => getPersonaById(id)?.avatar_path,
+    () => updatePersonaById(id, patch),
+  );
   if (persona) {
     log.info(`persona.update  ${formatMeta({ personaId: id, worldId: persona.world_id, fields: Object.keys(patch) })}`);
   }

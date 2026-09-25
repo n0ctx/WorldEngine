@@ -2,9 +2,9 @@
  * file-cleanup.js — 上传文件删除工具
  *
  * 对外暴露：
- *   UPLOADS_DIR                    — /data/uploads/ 的绝对路径
  *   unlinkUploadFile(relativePath) → Promise<void>
  *   unlinkUploadFiles(relativePaths) → Promise<void>
+ *   updateWithAvatarCleanup(patch, readAvatarPath, update) → Promise<更新结果>
  *
  * - relativePath 为 null / 空 → 直接 return（静默）
  * - 文件不存在（ENOENT）→ 静默忽略
@@ -13,15 +13,11 @@
 
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { createLogger, formatMeta } from './logger.js';
+import { UPLOADS_DIR } from './data-dir.js';
 
 const log = createLogger('file');
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const UPLOADS_DIR = process.env.WE_DATA_DIR
-  ? path.resolve(process.env.WE_DATA_DIR, 'uploads')
-  : path.resolve(__dirname, '..', '..', 'data', 'uploads');
 
 /**
  * 删除单个上传文件
@@ -49,4 +45,22 @@ export async function unlinkUploadFiles(relativePaths) {
   for (const p of relativePaths) {
     await unlinkUploadFile(p);
   }
+}
+
+/**
+ * 执行 update()；patch 改了 avatar_path 时，更新后删除旧头像文件
+ *
+ * @param {object} patch
+ * @param {() => string|null|undefined} readAvatarPath  读取更新前的 avatar_path
+ * @param {() => T} update
+ * @returns {Promise<T>}
+ * @template T
+ */
+export async function updateWithAvatarCleanup(patch, readAvatarPath, update) {
+  const oldAvatarPath = 'avatar_path' in patch ? readAvatarPath() : undefined;
+  const updated = update();
+  if (oldAvatarPath && oldAvatarPath !== patch.avatar_path) {
+    await unlinkUploadFile(oldAvatarPath);
+  }
+  return updated;
 }

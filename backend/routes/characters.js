@@ -1,7 +1,4 @@
 import { Router } from 'express';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
-import multer from 'multer';
 import {
   createCharacter,
   getCharacterById,
@@ -13,30 +10,13 @@ import {
 import { getWorldById } from '../services/worlds.js';
 import { assertExists } from '../utils/route-helpers.js';
 import { createCharacterFromNearby } from '../services/nearby-card-maker.js';
+import { createImageUpload, requireUploadedFile } from '../utils/image-upload.js';
 import { createLogger, formatMeta } from '../utils/logger.js';
 
 const log = createLogger('characters', 'cyan');
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const DATA_ROOT = process.env.WE_DATA_DIR
-  ? path.resolve(process.env.WE_DATA_DIR)
-  : path.resolve(__dirname, '..', '..', 'data');
 
-const avatarStorage = multer.diskStorage({
-  destination: path.join(DATA_ROOT, 'uploads', 'avatars'),
-  filename(req, file, cb) {
-    const ext = path.extname(file.originalname).toLowerCase() || '.jpg';
-    cb(null, `${req.params.id}${ext}`);
-  },
-});
-const upload = multer({
-  storage: avatarStorage,
-  limits: { fileSize: 10 * 1024 * 1024 },
-  fileFilter(req, file, cb) {
-    if (file.mimetype.startsWith('image/')) cb(null, true);
-    else cb(new Error('只接受图片文件'));
-  },
-});
+const upload = createImageUpload((req) => req.params.id);
 
 const router = Router();
 
@@ -135,10 +115,7 @@ router.delete('/characters/:id', async (req, res) => {
 router.post('/characters/:id/avatar', upload.single('avatar'), async (req, res) => {
   const existing = getCharacterById(req.params.id);
   if (!assertExists(res, existing, '角色不存在')) return;
-  if (!req.file) {
-    log.warn(`characters.bad_request ${formatMeta({ method: req.method, path: req.path, reason: 'no file received' })}`);
-    return res.status(400).json({ error: '未收到文件' });
-  }
+  if (!requireUploadedFile(req, res, { log, ns: 'characters' })) return;
   // 存储相对路径，如 avatars/abc123.png
   const relativePath = `avatars/${req.file.filename}`;
   const updated = await updateCharacter(req.params.id, { avatar_path: relativePath });

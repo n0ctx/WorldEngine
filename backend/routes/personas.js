@@ -1,7 +1,4 @@
 import { Router } from 'express';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
-import multer from 'multer';
 import {
   getOrCreatePersona,
   updatePersona,
@@ -14,51 +11,17 @@ import {
 } from '../services/personas.js';
 import { getPersonaById } from '../db/queries/personas.js';
 import { extractPersonaStateSuggestions } from '../services/state-extract.js';
+import { createImageUpload, requireUploadedFile } from '../utils/image-upload.js';
 import { createLogger, formatMeta } from '../utils/logger.js';
 
 const log = createLogger('personas', 'cyan');
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const DATA_ROOT = process.env.WE_DATA_DIR
-  ? path.resolve(process.env.WE_DATA_DIR)
-  : path.resolve(__dirname, '..', '..', 'data');
 
 // 按 worldId 上传头像（兼容旧接口）
-const avatarStorage = multer.diskStorage({
-  destination: path.join(DATA_ROOT, 'uploads', 'avatars'),
-  filename(req, file, cb) {
-    const ext = path.extname(file.originalname).toLowerCase() || '.jpg';
-    const persona = getOrCreatePersona(req.params.worldId);
-    cb(null, `persona-${persona.id}${ext}`);
-  },
-});
+const uploadByWorld = createImageUpload((req) => `persona-${getOrCreatePersona(req.params.worldId).id}`);
 
 // 按 personaId 上传头像（新接口）
-const avatarStorageById = multer.diskStorage({
-  destination: path.join(DATA_ROOT, 'uploads', 'avatars'),
-  filename(req, file, cb) {
-    const ext = path.extname(file.originalname).toLowerCase() || '.jpg';
-    cb(null, `persona-${req.params.personaId}${ext}`);
-  },
-});
-
-const uploadByWorld = multer({
-  storage: avatarStorage,
-  limits: { fileSize: 10 * 1024 * 1024 },
-  fileFilter(req, file, cb) {
-    if (file.mimetype.startsWith('image/')) cb(null, true);
-    else cb(new Error('只接受图片文件'));
-  },
-});
-
-const uploadById = multer({
-  storage: avatarStorageById,
-  limits: { fileSize: 10 * 1024 * 1024 },
-  fileFilter(req, file, cb) {
-    if (file.mimetype.startsWith('image/')) cb(null, true);
-    else cb(new Error('只接受图片文件'));
-  },
-});
+const uploadById = createImageUpload((req) => `persona-${req.params.personaId}`);
 
 const router = Router();
 
@@ -96,10 +59,7 @@ router.patch('/worlds/:worldId/persona', async (req, res) => {
 
 // POST /api/worlds/:worldId/persona/avatar — 上传 active persona 头像（旧接口）
 router.post('/worlds/:worldId/persona/avatar', uploadByWorld.single('avatar'), async (req, res) => {
-  if (!req.file) {
-    log.warn(`personas.bad_request ${formatMeta({ method: req.method, path: req.path, reason: 'no file received' })}`);
-    return res.status(400).json({ error: '未收到文件' });
-  }
+  if (!requireUploadedFile(req, res, { log, ns: 'personas' })) return;
   const relativePath = `avatars/${req.file.filename}`;
   const persona = await updatePersona(req.params.worldId, { avatar_path: relativePath });
   res.json({ avatar_path: persona.avatar_path });
@@ -197,10 +157,7 @@ router.post('/personas/:id/state-values/extract', async (req, res) => {
 
 // POST /api/personas/:personaId/avatar — 按 id 上传头像
 router.post('/personas/:personaId/avatar', uploadById.single('avatar'), async (req, res) => {
-  if (!req.file) {
-    log.warn(`personas.bad_request ${formatMeta({ method: req.method, path: req.path, reason: 'no file received' })}`);
-    return res.status(400).json({ error: '未收到文件' });
-  }
+  if (!requireUploadedFile(req, res, { log, ns: 'personas' })) return;
   const relativePath = `avatars/${req.file.filename}`;
   try {
     const persona = await updatePersonaByIdService(req.params.personaId, { avatar_path: relativePath });

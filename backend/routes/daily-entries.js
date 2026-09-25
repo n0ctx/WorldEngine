@@ -12,18 +12,14 @@
 import { Router } from 'express';
 import fs from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { getSessionById } from '../db/queries/sessions.js';
 import { getDailyEntriesBySessionId } from '../db/queries/daily-entries.js';
 import { assertExists } from '../utils/route-helpers.js';
 import { createLogger, formatMeta } from '../utils/logger.js';
+import { DATA_ROOT } from '../utils/data-dir.js';
 
 const router = Router();
 const log = createLogger('daily-entries', 'cyan');
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const DATA_DIR = process.env.WE_DATA_DIR
-  ? path.resolve(process.env.WE_DATA_DIR)
-  : path.resolve(__dirname, '..', '..', 'data');
 
 router.get('/:sessionId/daily-entries', (req, res) => {
   const { sessionId } = req.params;
@@ -46,7 +42,7 @@ router.get('/:sessionId/daily-entries/:dateStr', (req, res) => {
   const session = getSessionById(sessionId);
   if (!assertExists(res, session, '会话不存在')) return;
 
-  const filePath = path.join(DATA_DIR, 'daily', sessionId, `${dateStr}.md`);
+  const filePath = path.join(DATA_ROOT, 'daily', sessionId, `${dateStr}.md`);
   if (!fs.existsSync(filePath)) {
     log.warn(`daily-entries.not_found ${formatMeta({ method: req.method, path: req.path, id: `${sessionId}/${dateStr}` })}`);
     return res.status(404).json({ error: '日记文件不存在' });

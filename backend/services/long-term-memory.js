@@ -15,7 +15,6 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 
 import * as llm from '../llm/index.js';
 import { renderBackendPrompt } from '../prompts/prompt-loader.js';
@@ -29,16 +28,13 @@ import {
   LLM_BACKGROUND_TASK_TIMEOUT_MS,
 } from '../utils/constants.js';
 import { createLogger, formatMeta } from '../utils/logger.js';
+import { DATA_ROOT } from '../utils/data-dir.js';
 
 const log = createLogger('ltm');
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const DATA_DIR = process.env.WE_DATA_DIR
-  ? path.resolve(process.env.WE_DATA_DIR)
-  : path.resolve(__dirname, '..', '..', 'data');
 
 function memoryDir(sessionId) {
-  return path.join(DATA_DIR, 'long_term_memory', sessionId);
+  return path.join(DATA_ROOT, 'long_term_memory', sessionId);
 }
 
 function memoryPath(sessionId) {

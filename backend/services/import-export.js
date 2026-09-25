@@ -1,7 +1,6 @@
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import db from '../db/index.js';
 import { getConfig, updateConfig } from './config.js';
 import {
@@ -18,14 +17,11 @@ import {
   EXPORT_FORMAT_GLOBAL_SETTINGS,
   EXPORT_FORMAT_MIGRATION,
 } from './import-export-constants.js';
+import { UPLOADS_DIR } from '../utils/data-dir.js';
 
 const log = createLogger('svc', 'green');
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const DATA_ROOT = process.env.WE_DATA_DIR
-  ? path.resolve(process.env.WE_DATA_DIR)
-  : path.resolve(__dirname, '..', '..', 'data');
-const AVATARS_DIR = path.join(DATA_ROOT, 'uploads', 'avatars');
+const AVATARS_DIR = path.join(UPLOADS_DIR, 'avatars');
 
 // ─── 内部导入辅助函数 ─────────────────────────────────────────────────────────
 
@@ -102,7 +98,7 @@ function insertStateValues(stmt, entityId, entries, validKeySet, now) {
 
 function readExportImage(relativePath) {
   if (!relativePath) return {};
-  const imageFile = path.join(DATA_ROOT, 'uploads', relativePath);
+  const imageFile = path.join(UPLOADS_DIR, relativePath);
   if (!fs.existsSync(imageFile)) return {};
 
   const ext = path.extname(imageFile).toLowerCase().replace('.', '');

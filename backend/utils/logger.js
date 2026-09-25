@@ -20,15 +20,11 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { getRequestId } from './request-context.js';
+import { DATA_ROOT } from './data-dir.js';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const DATA_DIR = process.env.WE_DATA_DIR
-  ? path.resolve(process.env.WE_DATA_DIR)
-  : path.resolve(__dirname, '..', '..', 'data');
-const LOGS_DIR = path.join(DATA_DIR, 'logs');
-const CONFIG_PATH = process.env.WE_CONFIG_PATH || path.join(DATA_DIR, 'config.json');
+const LOGS_DIR = path.join(DATA_ROOT, 'logs');
+const CONFIG_PATH = process.env.WE_CONFIG_PATH || path.join(DATA_ROOT, 'config.json');
 
 const LEVEL_ORDER = { debug: 0, info: 1, warn: 2, error: 3 };
 const currentLevel = LEVEL_ORDER[process.env.LOG_LEVEL?.toLowerCase()] ?? LEVEL_ORDER.warn;

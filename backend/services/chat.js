@@ -1,6 +1,5 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 
 import * as llm from '../llm/index.js';
 import { updateMessageAttachments, updateMessageNextOptions } from '../db/queries/messages.js';
@@ -22,11 +21,9 @@ import {
 } from '../utils/turn-dialogue.js';
 import { renderBackendPrompt } from '../prompts/prompt-loader.js';
 import { runHook } from '../hooks/hook-registry.js';
+import { UPLOADS_DIR } from '../utils/data-dir.js';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const ATTACHMENTS_DIR = process.env.WE_DATA_DIR
-  ? path.resolve(process.env.WE_DATA_DIR, 'uploads', 'attachments')
-  : path.resolve(__dirname, '..', '..', 'data', 'uploads', 'attachments');
+const ATTACHMENTS_DIR = path.join(UPLOADS_DIR, 'attachments');
 const log = createLogger('chat-post');
 
 // ── 进行中的流式请求 ──

@@ -20,7 +20,6 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 
 import * as llm from '../llm/index.js';
 import { getSessionById } from '../db/queries/sessions.js';
@@ -31,13 +30,10 @@ import { LLM_TASK_TEMPERATURE, LLM_DIARY_MAX_TOKENS, DIARY_TIME_FIELD_KEY } from
 import { renderBackendPrompt } from '../prompts/prompt-loader.js';
 import { createLogger, formatMeta } from '../utils/logger.js';
 import { resolveAuxScope } from '../utils/aux-scope.js';
+import { DATA_ROOT } from '../utils/data-dir.js';
 
 const log = createLogger('diary');
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const DATA_DIR = process.env.WE_DATA_DIR
-  ? path.resolve(process.env.WE_DATA_DIR)
-  : path.resolve(__dirname, '..', '..', 'data');
 
 // ─── 日期解析 ─────────────────────────────────────────────────────
 
@@ -159,7 +155,7 @@ function collectPrevDayMessages(allRecords, prevDateStr, dateMode) {
  * 将日记内容写入 data/daily/{sessionId}/{dateStr}.md
  */
 function writeDiaryFile(sessionId, dateStr, content) {
-  const dir = path.join(DATA_DIR, 'daily', sessionId);
+  const dir = path.join(DATA_ROOT, 'daily', sessionId);
   fs.mkdirSync(dir, { recursive: true });
   fs.writeFileSync(path.join(dir, `${dateStr}.md`), content, 'utf-8');
 }
@@ -168,7 +164,7 @@ function writeDiaryFile(sessionId, dateStr, content) {
  * 删除 data/daily/{sessionId}/{dateStr}.md（文件不存在时静默跳过）
  */
 export function deleteDiaryFile(sessionId, dateStr) {
-  const filePath = path.join(DATA_DIR, 'daily', sessionId, `${dateStr}.md`);
+  const filePath = path.join(DATA_ROOT, 'daily', sessionId, `${dateStr}.md`);
   try { fs.unlinkSync(filePath); } catch {}
 }
 
@@ -176,7 +172,7 @@ export function deleteDiaryFile(sessionId, dateStr) {
  * 删除 data/daily/{sessionId}/ 整个目录（session 删除时调用）
  */
 export function deleteDiaryDir(sessionId) {
-  const dir = path.join(DATA_DIR, 'daily', sessionId);
+  const dir = path.join(DATA_ROOT, 'daily', sessionId);
   try { fs.rmSync(dir, { recursive: true, force: true }); } catch {}
 }
 

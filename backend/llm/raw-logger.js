@@ -12,14 +12,10 @@
 import { createHash } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { shouldLogRaw, createLogger } from '../utils/logger.js';
+import { DATA_ROOT } from '../utils/data-dir.js';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const DATA_DIR = process.env.WE_DATA_DIR
-  ? path.resolve(process.env.WE_DATA_DIR)
-  : path.resolve(__dirname, '..', '..', 'data');
-const RAW_LOG_DIR = path.join(DATA_DIR, 'logs', 'llm-raw');
+const RAW_LOG_DIR = path.join(DATA_ROOT, 'logs', 'llm-raw');
 
 const log = createLogger('llm-raw', 'blue');
 

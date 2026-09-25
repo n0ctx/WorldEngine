@@ -6,7 +6,6 @@
  */
 import fs from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 
 import * as llm from '../llm/index.js';
 import { getLatestTurnRecord, updateTurnRecordTableSnapshot } from '../db/queries/turn-records.js';
@@ -17,16 +16,13 @@ import { applyOps, renderTablesToMarkdown, clampField, dedupeActiveRows } from '
 import { createLogger, formatMeta } from '../utils/logger.js';
 import { emptyTables, renderSchemaGuide, resolveRowLimits, TABLE_KEYS, TABLE_SCHEMAS } from './table-memory-schema.js';
 import { getConfig } from './config.js';
+import { DATA_ROOT } from '../utils/data-dir.js';
 
 const log = createLogger('table-mem');
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const DATA_DIR = process.env.WE_DATA_DIR
-  ? path.resolve(process.env.WE_DATA_DIR)
-  : path.resolve(__dirname, '..', '..', 'data');
 
 function tablesDir(sessionId) {
-  return path.join(DATA_DIR, 'table_memory', sessionId);
+  return path.join(DATA_ROOT, 'table_memory', sessionId);
 }
 function tablesPath(sessionId) {
   return path.join(tablesDir(sessionId), 'tables.json');

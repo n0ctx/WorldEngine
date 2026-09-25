@@ -1,7 +1,5 @@
 import { Router } from 'express';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
-import multer from 'multer';
 import {
   createWorld,
   getWorldById,
@@ -13,30 +11,13 @@ import {
   reorderWorlds,
 } from '../services/worlds.js';
 import { assertExists } from '../utils/route-helpers.js';
+import { createImageUpload, requireUploadedFile } from '../utils/image-upload.js';
 import { createLogger, formatMeta } from '../utils/logger.js';
 
 const log = createLogger('worlds', 'cyan');
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const DATA_ROOT = process.env.WE_DATA_DIR
-  ? path.resolve(process.env.WE_DATA_DIR)
-  : path.resolve(__dirname, '..', '..', 'data');
 
-const coverStorage = multer.diskStorage({
-  destination: path.join(DATA_ROOT, 'uploads', 'avatars'),
-  filename(req, file, cb) {
-    const ext = path.extname(file.originalname).toLowerCase() || '.jpg';
-    cb(null, `world_${req.params.id}${ext}`);
-  },
-});
-const upload = multer({
-  storage: coverStorage,
-  limits: { fileSize: 10 * 1024 * 1024 },
-  fileFilter(req, file, cb) {
-    if (file.mimetype.startsWith('image/')) cb(null, true);
-    else cb(new Error('只接受图片文件'));
-  },
-});
+const upload = createImageUpload((req) => `world_${req.params.id}`);
 
 const router = Router();
 
@@ -101,10 +82,7 @@ router.post('/clear-all-diaries', (_req, res) => {
 router.post('/:id/cover', upload.single('cover'), async (req, res) => {
   const existing = getWorldById(req.params.id);
   if (!assertExists(res, existing, '世界不存在')) return;
-  if (!req.file) {
-    log.warn(`worlds.bad_request ${formatMeta({ method: req.method, path: req.path, reason: 'no file received' })}`);
-    return res.status(400).json({ error: '未收到图片文件' });
-  }
+  if (!requireUploadedFile(req, res, { log, ns: 'worlds', message: '未收到图片文件' })) return;
   const relativePath = `avatars/world_${req.params.id}${path.extname(req.file.originalname).toLowerCase() || '.jpg'}`;
   // 取色在前端用 canvas 完成（见 core/utils/extractAccentColor.js），随封面一并提交。
   // 仅当当前主色来源不是 'manual' 时才接受前端算出的自动主色，避免覆盖用户手工指定的值。

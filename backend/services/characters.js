@@ -7,7 +7,7 @@ import {
   reorderCharacters as dbReorderCharacters,
 } from '../db/queries/characters.js';
 import { runOnDelete } from '../utils/cleanup-hooks.js';
-import { unlinkUploadFile } from '../utils/file-cleanup.js';
+import { updateWithAvatarCleanup } from '../utils/file-cleanup.js';
 import { getCharacterStateFieldsByWorldId } from '../db/queries/character-state-fields.js';
 import { upsertCharacterStateValue } from '../db/queries/character-state-values.js';
 import { createLogger, formatMeta } from '../utils/logger.js';
@@ -38,14 +38,11 @@ export function getCharactersByWorldId(worldId) {
 }
 
 export async function updateCharacter(id, patch) {
-  let oldAvatarPath;
-  if ('avatar_path' in patch) {
-    oldAvatarPath = dbGetCharacterById(id)?.avatar_path;
-  }
-  const updated = dbUpdateCharacter(id, patch);
-  if (oldAvatarPath && oldAvatarPath !== patch.avatar_path) {
-    await unlinkUploadFile(oldAvatarPath);
-  }
+  const updated = await updateWithAvatarCleanup(
+    patch,
+    () => dbGetCharacterById(id)?.avatar_path,
+    () => dbUpdateCharacter(id, patch),
+  );
   if (updated) {
     log.info(`character.update  ${formatMeta({ characterId: id, worldId: updated.world_id, fields: Object.keys(patch) })}`);
   }

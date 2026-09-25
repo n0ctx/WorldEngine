@@ -47,15 +47,12 @@ import providerSafetyEventsRoutes from './routes/provider-safety-events.js';
 import { resolveUploadPath } from './services/state-values.js';
 import { createLogger, formatMeta, logBootBanner } from './utils/logger.js';
 import { requestIdMiddleware } from './middleware/request-id.js';
+import { DATA_ROOT, UPLOADS_DIR } from './utils/data-dir.js';
 
 const serverLog = createLogger('http', 'cyan');
 const MUTATING_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const DATA_ROOT = process.env.WE_DATA_DIR
-  ? path.resolve(process.env.WE_DATA_DIR)
-  : path.resolve(__dirname, '..', 'data');
-const UPLOADS_ROOT = path.join(DATA_ROOT, 'uploads');
 
 function isLocalAddress(address) {
   return address === '127.0.0.1' ||
@@ -146,7 +143,7 @@ export function createApp() {
     const relativePath = Array.isArray(req.params.path)
       ? req.params.path.join('/')
       : req.params.path;
-    const filePath = resolveUploadPath(relativePath, UPLOADS_ROOT);
+    const filePath = resolveUploadPath(relativePath, UPLOADS_DIR);
     if (!filePath || !fs.existsSync(filePath)) {
       res.status(404).json({ error: '文件不存在' });
       return;
