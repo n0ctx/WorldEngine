@@ -21,7 +21,7 @@ test('persona-card update honors explicit personaId instead of active persona', 
     default_value: '0',
   });
 
-  const { applyProposal } = await freshImport('assistant/server/normalize-proposal.js');
+  const { applyProposal } = await freshImport('assistant/server/apply-proposal.js');
   await applyProposal({
     type: 'persona-card',
     operation: 'update',

@@ -7,7 +7,11 @@ import os from 'node:os';
 // 用临时目录隔离 ASSISTANT_STATE_DIR，避免加载后端模块时改写真实 .temp/assistant/。
 const stateDir = fs.mkdtempSync(path.join(os.tmpdir(), 'we-routes-'));
 process.env.ASSISTANT_STATE_DIR = stateDir;
-const __testables = await import('../server/normalize-proposal.js');
+const __testables = {
+  ...await import('../server/normalize-proposal.js'),
+  ...await import('../server/proposal-state-ops.js'),
+  ...await import('../server/proposal-values.js'),
+};
 
 test.after(() => {
   try { fs.rmSync(stateDir, { recursive: true, force: true }); } catch { /* ignore */ }

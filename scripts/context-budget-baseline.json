@@ -316,15 +316,59 @@
       "largest_function_name": "runAgent",
       "sections": []
     },
+    "assistant/server/apply-proposal.js": {
+      "kind": "code",
+      "metrics": {
+        "file_tokens": 4771,
+        "largest_function": 36,
+        "function_class_count": 25,
+        "internal_dependencies": 18
+      },
+      "largest_function_name": "preValidateStateValueOps",
+      "sections": []
+    },
     "assistant/server/normalize-proposal.js": {
       "kind": "code",
       "metrics": {
-        "file_tokens": 14886,
-        "largest_function": 213,
-        "function_class_count": 59,
-        "internal_dependencies": 16
+        "file_tokens": 2689,
+        "largest_function": 29,
+        "function_class_count": 19,
+        "internal_dependencies": 4
       },
-      "largest_function_name": "applyProposal",
+      "largest_function_name": "normalizeProposalContent",
+      "sections": []
+    },
+    "assistant/server/proposal-entry-ops.js": {
+      "kind": "code",
+      "metrics": {
+        "file_tokens": 3365,
+        "largest_function": 72,
+        "function_class_count": 19,
+        "internal_dependencies": 4
+      },
+      "largest_function_name": "buildWorldConditionContext",
+      "sections": []
+    },
+    "assistant/server/proposal-state-ops.js": {
+      "kind": "code",
+      "metrics": {
+        "file_tokens": 3447,
+        "largest_function": 39,
+        "function_class_count": 14,
+        "internal_dependencies": 1
+      },
+      "largest_function_name": "normalizeTableColumns",
+      "sections": []
+    },
+    "assistant/server/proposal-values.js": {
+      "kind": "code",
+      "metrics": {
+        "file_tokens": 547,
+        "largest_function": 12,
+        "function_class_count": 10,
+        "internal_dependencies": 0
+      },
+      "largest_function_name": "deepOmit",
       "sections": []
     },
     "assistant/server/routes.js": {

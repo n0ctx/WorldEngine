@@ -2,7 +2,8 @@
 
 import { getConfig } from '../../../backend/services/config.js';
 
-import { normalizeProposal, applyProposal } from '../normalize-proposal.js';
+import { normalizeProposal } from '../normalize-proposal.js';
+import { applyProposal } from '../apply-proposal.js';
 import { fail, requireObjectKeys } from './common.js';
 
 const SECRET_KEYS = new Set(['api_key', 'provider_keys']);

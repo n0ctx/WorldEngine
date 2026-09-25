@@ -9,7 +9,8 @@ import { getCharacterStateValuesWithFields } from '../../../backend/db/queries/c
 import { getPersonaStateValuesWithFieldsByPersonaId } from '../../../backend/db/queries/persona-state-values.js';
 import { validateStateValue } from '../../../backend/services/state-values.js';
 
-import { normalizeProposal, applyProposal } from '../normalize-proposal.js';
+import { normalizeProposal } from '../normalize-proposal.js';
+import { applyProposal } from '../apply-proposal.js';
 import {
   compact, fail, parseStoredValue, pickKnown, requireObjectKeys, requireText,
 } from './common.js';

@@ -6,9 +6,9 @@
 import { getWorldEntryById, getAllWorldEntries } from '../../../backend/db/queries/prompt-entries.js';
 import { listConditionsByEntry } from '../../../backend/db/queries/entry-conditions.js';
 
-import {
-  normalizeProposal, applyProposal, buildWorldConditionContext, resolveConditionField,
-} from '../normalize-proposal.js';
+import { normalizeProposal } from '../normalize-proposal.js';
+import { applyProposal } from '../apply-proposal.js';
+import { buildWorldConditionContext, resolveConditionField } from '../proposal-entry-ops.js';
 import { compact, fail, pickKnown, requireObjectKeys, requireText } from './common.js';
 
 export const ENTRY_FIELDS = [

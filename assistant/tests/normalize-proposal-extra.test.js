@@ -8,8 +8,10 @@ import { insertWorld, insertCharacter, insertPersona } from '../../backend/tests
 const sandbox = createTestSandbox('assistant-normalize-proposal');
 sandbox.setEnv();
 
-const np = await freshImport('assistant/server/normalize-proposal.js');
-const { normalizeProposal, applyProposal, normalizeStateFieldOps, normalizeEntryOps } = np;
+const { normalizeProposal } = await freshImport('assistant/server/normalize-proposal.js');
+const { applyProposal } = await freshImport('assistant/server/apply-proposal.js');
+const { normalizeStateFieldOps } = await freshImport('assistant/server/proposal-state-ops.js');
+const { normalizeEntryOps } = await freshImport('assistant/server/proposal-entry-ops.js');
 
 after(() => sandbox.cleanup());
 

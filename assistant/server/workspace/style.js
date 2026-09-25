@@ -9,7 +9,8 @@ import { getCustomCssSnippetById, listCustomCssSnippets } from '../../../backend
 import { getRegexRuleById, listRegexRules } from '../../../backend/db/queries/regex-rules.js';
 import { getThemeSnapshot, listThemes } from '../../../backend/services/themes.js';
 
-import { normalizeProposal, applyProposal } from '../normalize-proposal.js';
+import { normalizeProposal } from '../normalize-proposal.js';
+import { applyProposal } from '../apply-proposal.js';
 import { compact, fail, pickKnown, requireObjectKeys, requireText } from './common.js';
 import { assertSnippetTokens, assertThemeCss } from './tokens.js';
 

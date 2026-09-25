@@ -4,7 +4,8 @@ import { getAllWorlds } from '../../../backend/db/queries/worlds.js';
 import { getWorldById } from '../../../backend/services/worlds.js';
 import { getAllWorldEntries } from '../../../backend/db/queries/prompt-entries.js';
 
-import { normalizeProposal, applyProposal } from '../normalize-proposal.js';
+import { normalizeProposal } from '../normalize-proposal.js';
+import { applyProposal } from '../apply-proposal.js';
 import { compact, fail, pickKnown, requireObjectKeys, requireText } from './common.js';
 import { listFieldRows, fieldRef } from './fields.js';
 import { listCharacters, listPersonaRefs } from './cards.js';

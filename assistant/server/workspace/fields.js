@@ -10,7 +10,8 @@ import { getPersonaStateFieldsByWorldId } from '../../../backend/services/person
 import { listCharacterStateFields } from '../../../backend/services/character-state-fields.js';
 import { validateStateValue } from '../../../backend/services/state-values.js';
 
-import { normalizeProposal, applyProposal } from '../normalize-proposal.js';
+import { normalizeProposal } from '../normalize-proposal.js';
+import { applyProposal } from '../apply-proposal.js';
 import {
   compact, fail, formatFieldDefault, parseStoredValue, pickKnown, requireObjectKeys, requireText,
 } from './common.js';
