@@ -50,7 +50,153 @@ export function createTurnHandlers({ mode, resolveSession, emitSse, logNs, guard
     return res.status(500).json({ error: err.message });
   };
 
-  /** 流式端点共用的 SSE 出入口 */
+  const streamHandlers = createStreamHandlers({
+    mode,
+    resolveSession,
+    emitSse,
+    logNs,
+    log,
+    badRequest,
+    guardStreamEndpoints,
+  });
+
+  return {
+    ...streamHandlers,
+
+    /** 代拟玩家发言：借用本会话上下文，剥掉尾部 user 后让模型替玩家说一句 */
+    impersonate: async (req, res) => {
+      const { sessionId } = req.params;
+      const session = resolveSession(req, res);
+      if (!session) return;
+
+      const { worldId, status, error } = mode.impersonate.resolveWorldId(req, session);
+      if (!worldId) {
+        if (status === 400) return badRequest(req, res, error);
+        log.warn(`${logNs}.not_found ${formatMeta({ method: req.method, path: req.path, reason: error })}`);
+        return res.status(status).json({ error });
+      }
+
+      const personaName = getOrCreatePersona(worldId)?.name || '用户';
+
+      try {
+        const { messages, overrides } = await buildTurnContext(
+          mode.id,
+          sessionId,
+          mode.impersonate.promptOptions(),
+        );
+
+        const prompt = [...messages];
+        while (prompt.length > 0 && prompt[prompt.length - 1].role === 'user') {
+          prompt.pop();
+        }
+        prompt.push({ role: 'user', content: renderBackendPrompt('chat-impersonate.md', { PERSONA_NAME: personaName }) });
+
+        log.info(
+          `POST /impersonate  ${formatMeta({
+            session: sessionId.slice(0, 8),
+            worldId: worldId.slice(0, 8),
+            msgs: prompt.length,
+          })}`
+        );
+
+        const raw = await llm.complete(prompt, {
+          temperature: overrides.temperature,
+          maxTokens: mode.impersonate.maxTokens(overrides),
+          model: overrides.model,
+          cacheableSystem: overrides.cacheableSystem,
+          // 只有显式传 thinking_level 才会覆盖配置；不传等于沿用该模式的 thinking_level
+          ...(mode.impersonate.disableThinking ? { thinking_level: null } : {}),
+          configScope: mode.llm.configScope,
+          callType: mode.llm.callType.impersonate,
+          conversationId: sessionId,
+        });
+        res.json({ content: stripThinkBlocksFromText(raw).trim() });
+      } catch (err) {
+        return unhandled(req, res, err);
+      }
+    },
+
+    /** 编辑 AI 回复：改内容并按需重跑状态更新与轮次记录 */
+    editAssistant: async (req, res) => {
+      const { sessionId } = req.params;
+      const { messageId, content } = req.body;
+
+      if (!messageId || !content || typeof content !== 'string') {
+        return badRequest(req, res, 'messageId and content are required');
+      }
+      if (!resolveSession(req, res)) return;
+
+      const trimmedContent = content.trim();
+      updateMessageContent(messageId, trimmedContent);
+      await runHook('message:edited', { id: messageId, sessionId, content: trimmedContent });
+
+      const allMessages = mode.session.getMessages(sessionId, ALL_MESSAGES_LIMIT, 0);
+      const lastAssistant = [...allMessages].reverse().find((message) => message.role === 'assistant');
+      if (lastAssistant?.id === messageId) {
+        const { worldId, characterIds } = mode.resolveScope(sessionId);
+        enqueue(sessionId, () => updateAllStates(worldId, characterIds, sessionId), 2, 'all-state')
+          .catch((err) => log.warn('后台任务失败:', err.message));
+      }
+
+      enqueue(sessionId, () => createTurnRecord(sessionId, { isUpdate: true }), 3, 'turn-record')
+        .catch((err) => log.warn('后台任务失败:', err.message));
+
+      res.json({ success: true });
+    },
+
+    /** 手动重命名会话：与 postgen 的自动起名走同一条副模型路径 */
+    retitle: async (req, res) => {
+      const { sessionId } = req.params;
+      if (!resolveSession(req, res)) return;
+
+      try {
+        await waitForQueueIdle(sessionId);
+        const title = await generateTitle(sessionId);
+        if (!title) return res.json({ title: null });
+        res.json({ title });
+      } catch (err) {
+        return unhandled(req, res, err);
+      }
+    },
+  };
+}
+
+function createContinueTurnHandler({ mode, resolveSession, logNs, log, streamIo }) {
+  return async (req, res) => {
+    const { sessionId } = req.params;
+    if (!resolveSession(req, res)) return;
+
+    const messages = mode.session.getMessages(sessionId, ALL_MESSAGES_LIMIT, 0);
+    const lastAssistantIndex = messages.map((message) => message.role).lastIndexOf('assistant');
+    if (lastAssistantIndex < 0) {
+      return res.status(400).json({ error: '当前会话没有 AI 回复可续写' });
+    }
+    const hasUserBeforeAssistant = messages
+      .slice(0, lastAssistantIndex)
+      .some((message) => message.role === 'user');
+    if (!hasUserBeforeAssistant) {
+      return res.status(400).json({ error: '当前会话没有可续写的用户-助手轮次' });
+    }
+
+    try {
+      await runTurnContinue({
+        mode,
+        sessionId,
+        ...streamIo(sessionId, res),
+        activeStreams,
+      });
+    } catch (err) {
+      if (err?.status) {
+        log.warn(`${logNs}.bad_request ${formatMeta({ method: req.method, path: req.path, reason: err.message })}`);
+        return res.status(err.status).json({ error: err.message });
+      }
+      throw err;
+    }
+  };
+}
+
+/** SSE 生成、续写及断线恢复端点共享的 handler。 */
+function createStreamHandlers({ mode, resolveSession, emitSse, logNs, log, badRequest, guardStreamEndpoints }) {
   const streamIo = (sessionId, res) => ({
     emitSse: (payload, options) => emitSse(sessionId, payload, options),
     attachSse: (task) => attachSessionStreamSse(sessionId, task.id, res),
@@ -157,37 +303,7 @@ export function createTurnHandlers({ mode, resolveSession, emitSse, logNs, guard
       });
     },
 
-    continueTurn: async (req, res) => {
-      const { sessionId } = req.params;
-      if (!resolveSession(req, res)) return;
-
-      const messages = mode.session.getMessages(sessionId, ALL_MESSAGES_LIMIT, 0);
-      const lastAssistantIndex = messages.map((message) => message.role).lastIndexOf('assistant');
-      if (lastAssistantIndex < 0) {
-        return res.status(400).json({ error: '当前会话没有 AI 回复可续写' });
-      }
-      const hasUserBeforeAssistant = messages
-        .slice(0, lastAssistantIndex)
-        .some((message) => message.role === 'user');
-      if (!hasUserBeforeAssistant) {
-        return res.status(400).json({ error: '当前会话没有可续写的用户-助手轮次' });
-      }
-
-      try {
-        await runTurnContinue({
-          mode,
-          sessionId,
-          ...streamIo(sessionId, res),
-          activeStreams,
-        });
-      } catch (err) {
-        if (err?.status) {
-          log.warn(`${logNs}.bad_request ${formatMeta({ method: req.method, path: req.path, reason: err.message })}`);
-          return res.status(err.status).json({ error: err.message });
-        }
-        throw err;
-      }
-    },
+    continueTurn: createContinueTurnHandler({ mode, resolveSession, logNs, log, streamIo }),
 
     recoverStream: (req, res) => {
       if (guardStreamEndpoints && !resolveSession(req, res)) return;
@@ -202,102 +318,6 @@ export function createTurnHandlers({ mode, resolveSession, emitSse, logNs, guard
       if (!task) return res.status(404).json({ error: 'stream task not found' });
       attachSessionStreamSse(sessionId, task.id, res);
       writeSessionStreamSse(res, { type: 'stream_snapshot', task: buildSessionStreamSnapshot(task) });
-    },
-
-    /** 代拟玩家发言：借用本会话上下文，剥掉尾部 user 后让模型替玩家说一句 */
-    impersonate: async (req, res) => {
-      const { sessionId } = req.params;
-      const session = resolveSession(req, res);
-      if (!session) return;
-
-      const { worldId, status, error } = mode.impersonate.resolveWorldId(req, session);
-      if (!worldId) {
-        if (status === 400) return badRequest(req, res, error);
-        log.warn(`${logNs}.not_found ${formatMeta({ method: req.method, path: req.path, reason: error })}`);
-        return res.status(status).json({ error });
-      }
-
-      const personaName = getOrCreatePersona(worldId)?.name || '用户';
-
-      try {
-        const { messages, overrides } = await buildTurnContext(
-          mode.id,
-          sessionId,
-          mode.impersonate.promptOptions(),
-        );
-
-        const prompt = [...messages];
-        while (prompt.length > 0 && prompt[prompt.length - 1].role === 'user') {
-          prompt.pop();
-        }
-        prompt.push({ role: 'user', content: renderBackendPrompt('chat-impersonate.md', { PERSONA_NAME: personaName }) });
-
-        log.info(
-          `POST /impersonate  ${formatMeta({
-            session: sessionId.slice(0, 8),
-            worldId: worldId.slice(0, 8),
-            msgs: prompt.length,
-          })}`
-        );
-
-        const raw = await llm.complete(prompt, {
-          temperature: overrides.temperature,
-          maxTokens: mode.impersonate.maxTokens(overrides),
-          model: overrides.model,
-          cacheableSystem: overrides.cacheableSystem,
-          // 只有显式传 thinking_level 才会覆盖配置；不传等于沿用该模式的 thinking_level
-          ...(mode.impersonate.disableThinking ? { thinking_level: null } : {}),
-          configScope: mode.llm.configScope,
-          callType: mode.llm.callType.impersonate,
-          conversationId: sessionId,
-        });
-        res.json({ content: stripThinkBlocksFromText(raw).trim() });
-      } catch (err) {
-        return unhandled(req, res, err);
-      }
-    },
-
-    /** 编辑 AI 回复：改内容并按需重跑状态更新与轮次记录 */
-    editAssistant: async (req, res) => {
-      const { sessionId } = req.params;
-      const { messageId, content } = req.body;
-
-      if (!messageId || !content || typeof content !== 'string') {
-        return badRequest(req, res, 'messageId and content are required');
-      }
-      if (!resolveSession(req, res)) return;
-
-      const trimmedContent = content.trim();
-      updateMessageContent(messageId, trimmedContent);
-      await runHook('message:edited', { id: messageId, sessionId, content: trimmedContent });
-
-      const allMessages = mode.session.getMessages(sessionId, ALL_MESSAGES_LIMIT, 0);
-      const lastAssistant = [...allMessages].reverse().find((message) => message.role === 'assistant');
-      if (lastAssistant?.id === messageId) {
-        const { worldId, characterIds } = mode.resolveScope(sessionId);
-        enqueue(sessionId, () => updateAllStates(worldId, characterIds, sessionId), 2, 'all-state')
-          .catch((err) => log.warn('后台任务失败:', err.message));
-      }
-
-      enqueue(sessionId, () => createTurnRecord(sessionId, { isUpdate: true }), 3, 'turn-record')
-        .catch((err) => log.warn('后台任务失败:', err.message));
-
-      res.json({ success: true });
-    },
-
-    /** 手动重命名会话：与 postgen 的自动起名走同一条副模型路径 */
-    retitle: async (req, res) => {
-      const { sessionId } = req.params;
-      if (!resolveSession(req, res)) return;
-
-      try {
-        await waitForQueueIdle(sessionId);
-        const title = await generateTitle(sessionId);
-        if (!title) return res.json({ title: null });
-        res.json({ title });
-      } catch (err) {
-        return unhandled(req, res, err);
-      }
     },
   };
 }
