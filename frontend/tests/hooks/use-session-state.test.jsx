@@ -49,6 +49,24 @@ describe('useSessionState', () => {
     expect(mocks.fetchDailyEntries).toHaveBeenCalledWith('session-1');
   });
 
+  it('首次加载时状态和日记分别更新，不等待另一个请求完成', async () => {
+    let resolveDiary;
+    mocks.fetchDailyEntries.mockReturnValueOnce(new Promise((resolve) => {
+      resolveDiary = resolve;
+    }));
+
+    const { result } = renderHook(() => useSessionState('session-1'));
+    await flushAsync();
+
+    expect(result.current.stateData).toEqual({ world: [{ field_key: 'weather' }], persona: [], character: [] });
+    expect(result.current.diaryEntries).toBeNull();
+
+    await act(async () => {
+      resolveDiary([{ date_str: '2026-04-22' }]);
+    });
+    expect(result.current.diaryEntries).toEqual([{ date_str: '2026-04-22' }]);
+  });
+
   it('tick 变化时会重新取数并在定时器结束后清除变更标记', async () => {
     const { result, rerender } = renderHook(
       ({ stateTick, diaryTick }) => useSessionState('session-1', stateTick, diaryTick),

@@ -4,6 +4,36 @@ import { fetchDailyEntries } from '../api/daily-entries.js';
 
 const EMPTY_STATE = { world: [], persona: [], character: [] };
 
+function loadInitialStateValues(sessionId, isCurrent, setStateData, setStateError) {
+  if (!sessionId) return;
+  fetchSessionStateValues(sessionId)
+    .then((data) => {
+      if (!isCurrent()) return;
+      setStateData(data);
+      setStateError(null);
+    })
+    .catch(() => {
+      if (!isCurrent()) return;
+      setStateData(EMPTY_STATE);
+      setStateError('状态加载失败');
+    });
+}
+
+function loadInitialDiaryEntries(sessionId, isCurrent, setDiaryEntries, setDiaryError) {
+  if (!sessionId) return;
+  fetchDailyEntries(sessionId)
+    .then((entries) => {
+      if (!isCurrent()) return;
+      setDiaryEntries(entries);
+      setDiaryError(null);
+    })
+    .catch(() => {
+      if (!isCurrent()) return;
+      setDiaryEntries([]);
+      setDiaryError('日记加载失败');
+    });
+}
+
 export function useSessionState(sessionId, stateTick = 0, diaryTick = stateTick, stateQueuedTick = stateTick, stateFailedTick = 0) {
   const [stateData, setStateData] = useState(null);
   const [diaryEntries, setDiaryEntries] = useState(null);
@@ -38,64 +68,24 @@ export function useSessionState(sessionId, stateTick = 0, diaryTick = stateTick,
   // sessionId 变化：重置所有 tick ref 并重新加载初始数据
   useEffect(() => {
     let cancelled = false;
-
-    if (!sessionId) {
-      clearTimeout(changedTimerRef.current);
-      stateTickRef.current = latestTicksRef.current.stateTick;
-      diaryTickRef.current = latestTicksRef.current.diaryTick;
-      stateQueuedTickRef.current = latestTicksRef.current.stateQueuedTick;
-      Promise.resolve().then(() => {
-        if (cancelled) return;
-        setStateData(EMPTY_STATE);
-        setDiaryEntries([]);
-        setStateError(null);
-        setDiaryError(null);
-        setIsUpdating(false);
-      });
-      return () => {
-        cancelled = true;
-      };
-    }
+    const isCurrent = () => !cancelled;
 
     clearTimeout(changedTimerRef.current);
     stateTickRef.current = latestTicksRef.current.stateTick;
     diaryTickRef.current = latestTicksRef.current.diaryTick;
     stateQueuedTickRef.current = latestTicksRef.current.stateQueuedTick;
     Promise.resolve().then(() => {
-      if (cancelled) return;
-      setStateData(null);
-      setDiaryEntries(null);
+      if (!isCurrent()) return;
+      const [nextState, nextDiary] = sessionId ? [null, null] : [EMPTY_STATE, []];
+      setStateData(nextState);
+      setDiaryEntries(nextDiary);
       setStateError(null);
       setDiaryError(null);
       setIsUpdating(false);
     });
 
-    fetchSessionStateValues(sessionId)
-      .then((data) => {
-        if (!cancelled) {
-          setStateData(data);
-          setStateError(null);
-        }
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setStateData(EMPTY_STATE);
-          setStateError('状态加载失败');
-        }
-      });
-    fetchDailyEntries(sessionId)
-      .then((entries) => {
-        if (!cancelled) {
-          setDiaryEntries(entries);
-          setDiaryError(null);
-        }
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setDiaryEntries([]);
-          setDiaryError('日记加载失败');
-        }
-      });
+    loadInitialStateValues(sessionId, isCurrent, setStateData, setStateError);
+    loadInitialDiaryEntries(sessionId, isCurrent, setDiaryEntries, setDiaryError);
 
     return () => {
       cancelled = true;
