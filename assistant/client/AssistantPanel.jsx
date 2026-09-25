@@ -35,6 +35,291 @@ function isRestartInterrupted(error) {
   return error === RECOVERABLE_TERMINAL_ERROR;
 }
 
+async function loadAssistantContext(currentWorldId, currentCharacterId) {
+  let context = { worldId: currentWorldId, characterId: currentCharacterId };
+  try {
+    const [world, character, config] = await Promise.all([
+      currentWorldId ? getWorld(currentWorldId).catch(() => null) : Promise.resolve(null),
+      currentCharacterId ? getCharacter(currentCharacterId).catch(() => null) : Promise.resolve(null),
+      getConfig().catch(() => null),
+    ]);
+    context = { ...context, world, character, config };
+  } catch {
+    // 上下文拉取失败不阻断
+  }
+  return context;
+}
+
+async function resumeAssistantTask({ nextTaskId, abortRef, setIsStreaming, ingestEvent }) {
+  if (!nextTaskId) return;
+  abortRef.current?.abort?.();
+  const ctrl = new AbortController();
+  abortRef.current = ctrl;
+  setIsStreaming(true);
+  try {
+    await resumeTask({ taskId: nextTaskId, onEvent: ingestEvent, signal: ctrl.signal });
+  } catch (err) {
+    if (err?.name !== 'AbortError') {
+      log.error('assistant.resume.resume_failed', err, {
+        toast: err?.message || '断点续传恢复失败',
+      });
+      ingestEvent({ type: SSE_EVENTS.TASK_FAILED, error: err?.message || '恢复订阅失败' });
+    }
+  } finally {
+    // 只对仍活跃的 ctrl 收回 isStreaming，避免覆盖下一轮 handleSend 已设置的 true
+    if (abortRef.current === ctrl) {
+      abortRef.current = null;
+      setIsStreaming(false);
+    }
+  }
+}
+
+async function recoverAssistantTask({ recovery, runtime }) {
+  const {
+    isOpen,
+    isStreaming,
+    taskId,
+    status,
+    isRestartRecoverable,
+    currentWorldId,
+    currentCharacterId,
+  } = recovery;
+  const { abortRef, recoveringRef, recoveryToastKeyRef, setIsStreaming } = runtime;
+  if (!isOpen || recoveringRef.current || isStreaming) return;
+  const shouldRecover = Boolean(taskId) || status === 'running' || isRestartRecoverable;
+  if (!shouldRecover) return;
+
+  recoveringRef.current = true;
+  try {
+    let task = null;
+    let recoveryMode = 'existing';
+    if (taskId) task = await fetchTask(taskId).catch(() => null);
+    if (!task) {
+      // 按当前世界 / 角色上下文严格匹配，避免跨上下文串台。
+      task = await recoverTask({
+        worldId: currentWorldId ?? null,
+        characterId: currentCharacterId ?? null,
+      }).catch(() => null);
+      recoveryMode = 'latest';
+    }
+    const store = useAssistantStore.getState();
+    if (!task) {
+      if (taskId) store.resetTask();
+      // 当前上下文无可恢复任务时，主动检查其它上下文是否还有未完成任务，给用户一个温和提示。
+      try {
+        const others = await listRecoverableTasks({
+          worldId: currentWorldId ?? null,
+          characterId: currentCharacterId ?? null,
+        });
+        if (others.length > 0) {
+          log.info('assistant.resume.other_context', null, {
+            toast: `其它世界 / 角色还有 ${others.length} 个未完成的写卡任务，切换上下文后可继续`,
+          });
+        }
+      } catch {
+        // 忽略列表查询失败
+      }
+      return;
+    }
+
+    store.replaceTaskSnapshot(task);
+    const toastKey = `${task.id}:${task.updatedAt ?? ''}:${task.status}:${task.error ?? ''}`;
+    const shouldAutoResume =
+      task.status === 'running' || (task.status === 'failed' && isRestartInterrupted(task.error));
+    if (shouldAutoResume && recoveryToastKeyRef.current !== toastKey) {
+      recoveryToastKeyRef.current = toastKey;
+      if (task.status === 'failed' && isRestartInterrupted(task.error)) {
+        log.warn('assistant.resume.interrupted', null, {
+          toast: '已恢复中断前快照，旧执行因服务重启已停止',
+        });
+      } else if (recoveryMode === 'latest') {
+        log.info('assistant.resume.latest', null, { toast: '已恢复最近的写卡助手任务' });
+      } else {
+        log.info('assistant.resume.reconnected', null, { toast: '写卡助手已恢复连接' });
+      }
+    }
+    if (shouldAutoResume) {
+      await resumeAssistantTask({
+        nextTaskId: task.id,
+        abortRef,
+        setIsStreaming,
+        ingestEvent: store.ingestEvent,
+      });
+    }
+  } finally {
+    recoveringRef.current = false;
+  }
+}
+
+function subscribeToRecoverySignals(runRecovery) {
+  const onVisible = () => {
+    if (document.visibilityState === 'visible') runRecovery();
+  };
+  const onFocus = () => runRecovery();
+  const onOnline = () => runRecovery();
+  document.addEventListener('visibilitychange', onVisible);
+  window.addEventListener('focus', onFocus);
+  window.addEventListener('online', onOnline);
+  return () => {
+    document.removeEventListener('visibilitychange', onVisible);
+    window.removeEventListener('focus', onFocus);
+    window.removeEventListener('online', onOnline);
+  };
+}
+
+async function stopAssistantTask(taskId, abortRef, setIsStreaming) {
+  abortRef.current?.abort?.();
+  setIsStreaming(false);
+  const { ingestEvent, replaceTaskSnapshot } = useAssistantStore.getState();
+  if (!taskId) {
+    ingestEvent({ type: SSE_EVENTS.TASK_CANCELLED, taskId });
+    return;
+  }
+  try {
+    await cancelTask(taskId);
+    const task = await fetchTask(taskId).catch(() => null);
+    const terminal = task && ['completed', 'failed', 'cancelled'].includes(task.status);
+    if (task && terminal) {
+      replaceTaskSnapshot(task);
+      return;
+    }
+  } catch {
+    // ignore：fall through to local fallback
+  }
+  ingestEvent({ type: SSE_EVENTS.TASK_CANCELLED, taskId });
+}
+
+async function sendAssistantMessage({
+  overrideText,
+  opts,
+  input,
+  taskId,
+  setInput,
+  abortRef,
+  setIsStreaming,
+  buildContext,
+}) {
+  const useOverride = typeof overrideText === 'string';
+  const text = (useOverride ? overrideText : input).trim();
+  if (!text) return;
+  // `/stop` 是用户主动终止当前任务的"命令式"输入，不真的发送给 LLM。
+  if (!useOverride && text === '/stop') {
+    setInput('');
+    await stopAssistantTask(taskId, abortRef, setIsStreaming);
+    return;
+  }
+  if (!useOverride) setInput('');
+  const messageId =
+    opts.messageId ??
+    `msg-${globalThis.crypto?.randomUUID?.().slice(0, 8) ?? Math.random().toString(36).slice(2, 10)}`;
+  const { pushUserMessage, beginUserTurn, ingestEvent } = useAssistantStore.getState();
+  if (!opts.skipPush) pushUserMessage(text, messageId);
+  if (taskId) beginUserTurn(taskId);
+  // 关键：abort + isStreaming 必须在任何 await 之前同步设置，避免恢复快照吞掉刚写入的 user 气泡。
+  abortRef.current?.abort?.();
+  const ctrl = new AbortController();
+  abortRef.current = ctrl;
+  setIsStreaming(true);
+  try {
+    const context = await buildContext();
+    await streamAgent({
+      taskId,
+      message: text,
+      messageId,
+      context,
+      onEvent: ingestEvent,
+      signal: ctrl.signal,
+    });
+  } catch (err) {
+    if (err?.name !== 'AbortError') {
+      ingestEvent({ type: SSE_EVENTS.TASK_FAILED, error: err?.message || '请求失败' });
+    }
+  } finally {
+    // 只对仍活跃的 ctrl 收回 isStreaming（见 resumeAssistantTask）
+    if (abortRef.current === ctrl) {
+      abortRef.current = null;
+      setIsStreaming(false);
+    }
+  }
+}
+
+async function editAssistantMessage({ taskId, msgId, newContent, abortRef, handleSend }) {
+  if (!taskId || !msgId) return;
+  // 截断会广播 messages_changed，必须先 abort 旧 SSE，避免旧快照吞掉替换后的 user 消息。
+  abortRef.current?.abort?.();
+  try {
+    await apiTruncateFrom(taskId, msgId);
+  } catch (err) {
+    log.warn('assistant.truncate_failed', err, { toast: err?.message || '截断失败' });
+    return;
+  }
+  // 复用原 messageId，保留气泡 DOM 和入场动画状态。
+  useAssistantStore.getState().replaceTailWithUser(msgId, newContent, msgId);
+  await handleSend(newContent, { skipPush: true, messageId: msgId });
+}
+
+async function deleteAssistantMessage(taskId, msgId) {
+  if (!taskId || !msgId) return;
+  // 局部删除失败只提示，不把整个任务推入 failed 终态。
+  try {
+    await apiDeleteMessage(taskId, msgId);
+  } catch (err) {
+    log.warn('assistant.delete_message_failed', err, { toast: err?.message || '删除失败' });
+    return;
+  }
+  useAssistantStore.getState().deleteMessage(msgId);
+}
+
+async function regenerateLastAssistantTurn({ taskId, handleSend, abortRef }) {
+  if (!taskId) return;
+  const msgs = useAssistantStore.getState().messages;
+  let lastUserMsg = null;
+  for (let i = msgs.length - 1; i >= 0; i--) {
+    if (msgs[i].role === 'user' && msgs[i].content) {
+      lastUserMsg = msgs[i];
+      break;
+    }
+  }
+  if (!lastUserMsg?.id || !lastUserMsg.content) return;
+  abortRef.current?.abort?.();
+  try {
+    await apiTruncateFrom(taskId, lastUserMsg.id);
+  } catch (err) {
+    log.warn('assistant.truncate_failed', err, { toast: err?.message || '截断失败' });
+    return;
+  }
+  useAssistantStore
+    .getState()
+    .replaceTailWithUser(lastUserMsg.id, lastUserMsg.content, lastUserMsg.id);
+  await handleSend(lastUserMsg.content, { skipPush: true, messageId: lastUserMsg.id });
+}
+
+async function regenerateAssistantTurn({ taskId, assistantMsgId, handleSend, abortRef }) {
+  if (!taskId || !assistantMsgId) return;
+  const source = findRegenerateSource(useAssistantStore.getState().messages, assistantMsgId);
+  const prev = source?.message;
+  if (!prev?.id || !prev.content) return;
+  // 截断到 user 消息（含），避免重发时保留旧 assistant 回复或重复追加 user。
+  abortRef.current?.abort?.();
+  try {
+    await apiTruncateFrom(taskId, prev.id);
+  } catch (err) {
+    log.warn('assistant.truncate_failed', err, { toast: err?.message || '截断失败' });
+    return;
+  }
+  // 单次 store 更新，沿用 user id，避免气泡卸载重挂造成闪烁。
+  useAssistantStore.getState().replaceTailWithUser(prev.id, prev.content, prev.id);
+  await handleSend(prev.content, { skipPush: true, messageId: prev.id });
+}
+
+function resetAssistantConversation({ taskId, status, abortRef, setIsStreaming }) {
+  // 必须先通知后端 cancel，避免旧工具循环在清空后继续落库。
+  if (taskId && status === 'running') cancelTask(taskId).catch(() => {});
+  abortRef.current?.abort?.();
+  setIsStreaming(false);
+  useAssistantStore.getState().reset();
+}
+
 export default function AssistantPanel() {
   const isOpen = useAssistantStore((s) => s.isOpen);
   const width = useAssistantStore((s) => s.width);
@@ -44,12 +329,6 @@ export default function AssistantPanel() {
   const status = useAssistantStore((s) => s.status);
   const messages = useAssistantStore((s) => s.messages);
   const error = useAssistantStore((s) => s.error);
-  const ingestEvent = useAssistantStore((s) => s.ingestEvent);
-  const pushUserMessage = useAssistantStore((s) => s.pushUserMessage);
-  const beginUserTurn = useAssistantStore((s) => s.beginUserTurn);
-  const reset = useAssistantStore((s) => s.reset);
-  const resetTask = useAssistantStore((s) => s.resetTask);
-  const replaceTaskSnapshot = useAssistantStore((s) => s.replaceTaskSnapshot);
 
   const currentWorldId = useStore((s) => s.currentWorldId);
   const currentCharacterId = useStore((s) => s.currentCharacterId);
@@ -66,7 +345,8 @@ export default function AssistantPanel() {
 
   // 页面刷新后任务态被清；store 不持久化任务字段，这里仅做防御
   useEffect(() => {
-    return () => abortRef.current?.abort?.();
+    const activeStreamRef = abortRef;
+    return () => activeStreamRef.current?.abort?.();
   }, []);
 
   // 打开时焦点进输入框，关闭后还给打开前的位置（通常是顶栏的助手按钮）
@@ -87,116 +367,29 @@ export default function AssistantPanel() {
 
   // 主界面刷新事件按 tool_call_completed 实时派发（见 useAssistantStore），不等 task_completed。
 
-  const buildContext = useCallback(async () => {
-    let context = { worldId: currentWorldId, characterId: currentCharacterId };
-    try {
-      const [world, character, config] = await Promise.all([
-        currentWorldId ? getWorld(currentWorldId).catch(() => null) : Promise.resolve(null),
-        currentCharacterId ? getCharacter(currentCharacterId).catch(() => null) : Promise.resolve(null),
-        getConfig().catch(() => null),
-      ]);
-      context = { ...context, world, character, config };
-    } catch {
-      // 上下文拉取失败不阻断
-    }
-    return context;
-  }, [currentWorldId, currentCharacterId]);
-
-  const openRecoveryStream = useCallback(
-    async (nextTaskId) => {
-      if (!nextTaskId) return;
-      abortRef.current?.abort?.();
-      const ctrl = new AbortController();
-      abortRef.current = ctrl;
-      setIsStreaming(true);
-      try {
-        await resumeTask({
-          taskId: nextTaskId,
-          onEvent: ingestEvent,
-          signal: ctrl.signal,
-        });
-      } catch (err) {
-        if (err?.name !== 'AbortError') {
-          log.error('assistant.resume.resume_failed', err, {
-            toast: err?.message || '断点续传恢复失败',
-          });
-          ingestEvent({ type: SSE_EVENTS.TASK_FAILED, error: err?.message || '恢复订阅失败' });
-        }
-      } finally {
-        // 只对仍活跃的 ctrl 收回 isStreaming，避免覆盖下一轮 handleSend 已设置的 true
-        if (abortRef.current === ctrl) {
-          abortRef.current = null;
-          setIsStreaming(false);
-        }
-      }
-    },
-    [ingestEvent],
+  const buildContext = useCallback(
+    () => loadAssistantContext(currentWorldId, currentCharacterId),
+    [currentWorldId, currentCharacterId],
   );
 
   // 通用的恢复入口：开面板时 / 依赖变化时 / 回到前台时都走这里。
   // 重入靠 recoveringRef + isStreaming 守门，可被外部事件（visibility/focus/online）反复触发。
-  const runRecovery = useCallback(async () => {
-    if (!isOpen || recoveringRef.current || isStreaming) return;
-    const shouldRecover = Boolean(taskId) || status === 'running' || isRestartRecoverable;
-    if (!shouldRecover) return;
-
-    recoveringRef.current = true;
-    try {
-      let task = null;
-      let recoveryMode = 'existing';
-      if (taskId) {
-        task = await fetchTask(taskId).catch(() => null);
-      }
-      if (!task) {
-        // 按当前世界 / 角色上下文严格匹配，避免跨上下文串台。
-        const recoverContext = {
-          worldId: currentWorldId ?? null,
-          characterId: currentCharacterId ?? null,
-        };
-        task = await recoverTask(recoverContext).catch(() => null);
-        recoveryMode = 'latest';
-      }
-      if (!task) {
-        if (taskId) resetTask();
-        // 当前上下文无可恢复任务时，主动检查其它上下文是否还有未完成任务，给用户一个温和提示。
-        try {
-          const others = await listRecoverableTasks({
-            worldId: currentWorldId ?? null,
-            characterId: currentCharacterId ?? null,
-          });
-          if (others.length > 0) {
-            log.info('assistant.resume.other_context', null, {
-              toast: `其它世界 / 角色还有 ${others.length} 个未完成的写卡任务，切换上下文后可继续`,
-            });
-          }
-        } catch {
-          // 忽略列表查询失败
-        }
-        return;
-      }
-      replaceTaskSnapshot(task);
-      const toastKey = `${task.id}:${task.updatedAt ?? ''}:${task.status}:${task.error ?? ''}`;
-      const shouldToastRecovery =
-        task.status === 'running' || (task.status === 'failed' && isRestartInterrupted(task.error));
-      if (shouldToastRecovery && recoveryToastKeyRef.current !== toastKey) {
-        recoveryToastKeyRef.current = toastKey;
-        if (task.status === 'failed' && isRestartInterrupted(task.error)) {
-          log.warn('assistant.resume.interrupted', null, {
-            toast: '已恢复中断前快照，旧执行因服务重启已停止',
-          });
-        } else if (recoveryMode === 'latest') {
-          log.info('assistant.resume.latest', null, { toast: '已恢复最近的写卡助手任务' });
-        } else {
-          log.info('assistant.resume.reconnected', null, { toast: '写卡助手已恢复连接' });
-        }
-      }
-      const shouldAutoResume =
-        task.status === 'running' || (task.status === 'failed' && isRestartInterrupted(task.error));
-      if (shouldAutoResume) await openRecoveryStream(task.id);
-    } finally {
-      recoveringRef.current = false;
-    }
-  }, [isOpen, isStreaming, taskId, status, isRestartRecoverable, replaceTaskSnapshot, openRecoveryStream, resetTask, currentWorldId, currentCharacterId]);
+  const runRecovery = useCallback(
+    () =>
+      recoverAssistantTask({
+        recovery: {
+          isOpen,
+          isStreaming,
+          taskId,
+          status,
+          isRestartRecoverable,
+          currentWorldId,
+          currentCharacterId,
+        },
+        runtime: { abortRef, recoveringRef, recoveryToastKeyRef, setIsStreaming },
+      }),
+    [isOpen, isStreaming, taskId, status, isRestartRecoverable, currentWorldId, currentCharacterId],
+  );
 
   // 依赖（isOpen / taskId / status / 上下文）变化时跑一次。
   useEffect(() => {
@@ -207,193 +400,47 @@ export default function AssistantPanel() {
   // 仅靠 useEffect 依赖不会再触发；这里补上"用户回来"的钩子，避免出现"看着开着但没反应"。
   useEffect(() => {
     if (!isOpen) return;
-    const onVisible = () => {
-      if (document.visibilityState === 'visible') runRecovery();
-    };
-    const onFocus = () => runRecovery();
-    const onOnline = () => runRecovery();
-    document.addEventListener('visibilitychange', onVisible);
-    window.addEventListener('focus', onFocus);
-    window.addEventListener('online', onOnline);
-    return () => {
-      document.removeEventListener('visibilitychange', onVisible);
-      window.removeEventListener('focus', onFocus);
-      window.removeEventListener('online', onOnline);
-    };
+    return subscribeToRecoverySignals(runRecovery);
   }, [isOpen, runRecovery]);
 
-  const handleStop = useCallback(async () => {
-    // 用户敲 `/stop` 或外部触发"请求取消"流程：
-    // 1) abort 本地 SSE 防止 delta 继续涌入，立即解锁 isStreaming
-    // 2) 调用 cancelTask 等后端确认；abort 后本地收不到 SSE，所以再 fetchTask 拿权威终态
-    // 3) 仅在后端确实没进入终态时本地注入 TASK_CANCELLED，避免覆盖刚到达的 TASK_COMPLETED
-    abortRef.current?.abort?.();
-    setIsStreaming(false);
-    if (!taskId) {
-      ingestEvent({ type: SSE_EVENTS.TASK_CANCELLED, taskId });
-      return;
-    }
-    try {
-      await cancelTask(taskId);
-      const task = await fetchTask(taskId).catch(() => null);
-      const terminal = task && (task.status === 'completed' || task.status === 'failed' || task.status === 'cancelled');
-      if (task && terminal) {
-        replaceTaskSnapshot(task);
-        return;
-      }
-    } catch {
-      // ignore：fall through to local fallback
-    }
-    ingestEvent({ type: SSE_EVENTS.TASK_CANCELLED, taskId });
-  }, [taskId, ingestEvent, replaceTaskSnapshot]);
-
   const handleSend = useCallback(
-    async (overrideText, opts = {}) => {
-      const useOverride = typeof overrideText === 'string';
-      const text = (useOverride ? overrideText : input).trim();
-      if (!text) return;
-      // `/stop` 是用户主动终止当前任务的"命令式"输入，不真的发送给 LLM。
-      // 走和原 handleStop 同样的取消路径，然后清空输入框直接返回。
-      if (!useOverride && text === '/stop') {
-        setInput('');
-        await handleStop();
-        return;
-      }
-      if (!useOverride) setInput('');
-      const messageId =
-        opts.messageId ??
-        `msg-${
-          globalThis.crypto?.randomUUID?.().slice(0, 8) ??
-          Math.random().toString(36).slice(2, 10)
-        }`;
-      if (!opts.skipPush) pushUserMessage(text, messageId);
-      if (taskId) beginUserTurn(taskId);
-      // 关键：abort + isStreaming 必须在任何 await 之前同步设置，
-      // 否则 beginUserTurn 触发的 recovery useEffect 在 buildContext() 期间看到
-      // isStreaming=false 而执行 replaceTaskSnapshot，把刚写入 store 的 user 气泡吞掉。
-      // React 18 会把 beginUserTurn(status:'running') 和 setIsStreaming(true) 批量合并，
-      // recovery effect 看到 isStreaming:true 直接跳过。
-      abortRef.current?.abort?.();
-      const ctrl = new AbortController();
-      abortRef.current = ctrl;
-      setIsStreaming(true);
-      try {
-        const context = await buildContext();
-        await streamAgent({
-          taskId,
-          message: text,
-          messageId,
-          context,
-          onEvent: ingestEvent,
-          signal: ctrl.signal,
-        });
-      } catch (err) {
-        if (err?.name !== 'AbortError') {
-          ingestEvent({ type: SSE_EVENTS.TASK_FAILED, error: err?.message || '请求失败' });
-        }
-      } finally {
-        // 只对仍活跃的 ctrl 收回 isStreaming（见 openRecoveryStream）
-        if (abortRef.current === ctrl) {
-          abortRef.current = null;
-          setIsStreaming(false);
-        }
-      }
-    },
-    [input, taskId, buildContext, ingestEvent, pushUserMessage, beginUserTurn, handleStop],
+    (overrideText, opts = {}) =>
+      sendAssistantMessage({
+        overrideText,
+        opts,
+        input,
+        taskId,
+        setInput,
+        abortRef,
+        setIsStreaming,
+        buildContext,
+      }),
+    [input, taskId, buildContext],
   );
 
   const handleEdit = useCallback(
-    async (msgId, newContent) => {
-      if (!taskId || !msgId) return;
-      // 先 abort 上一条仍挂着的 SSE：truncate 路由会广播 messages_changed
-      // 给所有已订阅 sseClients 的连接，旧 fetch 收到后会用服务端"已截断"的
-      // 消息数组覆盖本地 store，把刚 replaceTailWithUser 写入的新 user 消息吞掉
-      abortRef.current?.abort?.();
-      try {
-        await apiTruncateFrom(taskId, msgId);
-      } catch (err) {
-        log.warn('assistant.truncate_failed', err, { toast: err?.message || '截断失败' });
-        return;
-      }
-      // 复用原 messageId：让 React 以同 key 复用 user 气泡 DOM，避免
-      // unmount→remount 重新触发 we-bubble-in 入场动画导致的"页面刷新感"
-      useAssistantStore.getState().replaceTailWithUser(msgId, newContent, msgId);
-      await handleSend(newContent, { skipPush: true, messageId: msgId });
-    },
+    (msgId, newContent) =>
+      editAssistantMessage({ taskId, msgId, newContent, abortRef, handleSend }),
     [taskId, handleSend],
   );
 
-  const handleDelete = useCallback(
-    async (msgId) => {
-      if (!taskId || !msgId) return;
-      // 删除失败（如 400 任务运行中 / 404 消息不存在）只是局部操作失败，
-      // 不应把整个任务推入 failed 终态从而封禁输入框。仅 toast 提示并返回。
-      try {
-        await apiDeleteMessage(taskId, msgId);
-      } catch (err) {
-        log.warn('assistant.delete_message_failed', err, { toast: err?.message || '删除失败' });
-        return;
-      }
-      useAssistantStore.getState().deleteMessage(msgId);
-    },
-    [taskId],
-  );
+  const handleDelete = useCallback((msgId) => deleteAssistantMessage(taskId, msgId), [taskId]);
 
-  const handleRegenerateLastUser = useCallback(async () => {
-    if (!taskId) return;
-    const msgs = useAssistantStore.getState().messages;
-    let lastUserMsg = null;
-    for (let i = msgs.length - 1; i >= 0; i--) {
-      if (msgs[i].role === 'user' && msgs[i].content) { lastUserMsg = msgs[i]; break; }
-    }
-    if (!lastUserMsg?.id || !lastUserMsg.content) return;
-    abortRef.current?.abort?.();
-    try {
-      await apiTruncateFrom(taskId, lastUserMsg.id);
-    } catch (err) {
-      log.warn('assistant.truncate_failed', err, { toast: err?.message || '截断失败' });
-      return;
-    }
-    useAssistantStore.getState().replaceTailWithUser(lastUserMsg.id, lastUserMsg.content, lastUserMsg.id);
-    await handleSend(lastUserMsg.content, { skipPush: true, messageId: lastUserMsg.id });
-  }, [taskId, handleSend]);
+  const handleRegenerateLastUser = useCallback(
+    () => regenerateLastAssistantTurn({ taskId, handleSend, abortRef }),
+    [taskId, handleSend],
+  );
 
   const handleRegenerate = useCallback(
-    async (assistantMsgId) => {
-      if (!taskId || !assistantMsgId) return;
-      const msgs = useAssistantStore.getState().messages;
-      const source = findRegenerateSource(msgs, assistantMsgId);
-      const prev = source?.message;
-      if (!prev?.id || !prev.content) return;
-      // 先 abort 上一条仍挂着的 SSE（同 handleEdit 注释），否则 truncate 广播
-      // messages_changed 给旧 fetch，会把新 user 消息从本地 store 中吞掉
-      abortRef.current?.abort?.();
-      // 截断到 prev.id（含），既丢掉 assistant 又丢掉对应 user，避免后续重发造成重复
-      try {
-        await apiTruncateFrom(taskId, prev.id);
-      } catch (err) {
-        log.warn('assistant.truncate_failed', err, { toast: err?.message || '截断失败' });
-        return;
-      }
-      // 原子替换：单次 set 完成"丢尾 + push 新 user"，避免中间空帧引起页面闪烁。
-      // 复用 prev.id 作为新消息 id：React 以同 key 复用 user 气泡 DOM，
-      // 避免 unmount→remount 触发 we-bubble-in 入场动画造成的"页面刷新感"。
-      useAssistantStore.getState().replaceTailWithUser(prev.id, prev.content, prev.id);
-      await handleSend(prev.content, { skipPush: true, messageId: prev.id });
-    },
+    (assistantMsgId) =>
+      regenerateAssistantTurn({ taskId, assistantMsgId, handleSend, abortRef }),
     [taskId, handleSend],
   );
 
-  const handleReset = useCallback(() => {
-    // 必须先通知后端 cancel：仅 abort 本地 SSE 不会中断后端 runAgent 的工具循环，
-    // 残留循环会继续落库，造成"清空后旧任务仍在执行"的错觉
-    if (taskId && status === 'running') {
-      cancelTask(taskId).catch(() => {});
-    }
-    abortRef.current?.abort?.();
-    setIsStreaming(false);
-    reset();
-  }, [taskId, status, reset]);
+  const handleReset = useCallback(
+    () => resetAssistantConversation({ taskId, status, abortRef, setIsStreaming }),
+    [taskId, status],
+  );
 
   // 后端允许在 completed / failed / cancelled 等状态上继续开新一轮对话；
   // 前端不再用任务状态封锁用户输入。真正终止执行由"停止"与"清空"负责。

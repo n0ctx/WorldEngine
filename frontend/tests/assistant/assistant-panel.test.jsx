@@ -18,9 +18,12 @@ vi.mock('../../src/core/api/config.js', () => ({ getConfig: vi.fn() }));
 
 import AssistantPanel from '../../../assistant/client/AssistantPanel.jsx';
 import { useAssistantStore } from '../../../assistant/client/useAssistantStore.js';
+import { streamAgent } from '../../../assistant/client/api.js';
 
 describe('AssistantPanel 抽屉', () => {
   beforeEach(() => {
+    vi.clearAllMocks();
+    streamAgent.mockResolvedValue(undefined);
     act(() => useAssistantStore.setState({ isOpen: false, messages: [], taskId: null, status: 'idle', error: null }));
   });
 
@@ -45,5 +48,31 @@ describe('AssistantPanel 抽屉', () => {
 
     expect(useAssistantStore.getState().isOpen).toBe(false);
     expect(document.activeElement).toBe(trigger);
+  });
+
+  it('发送时先写入用户消息，再启动助手请求并清空输入框', async () => {
+    Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
+      configurable: true,
+      value: vi.fn(),
+    });
+    render(<AssistantPanel />);
+    act(() => useAssistantStore.getState().open());
+
+    const input = screen.getByLabelText('给写卡助手的消息');
+    fireEvent.change(input, { target: { value: '更新人物设定' } });
+    await act(async () => {
+      fireEvent.click(screen.getByLabelText('发送'));
+    });
+
+    expect(streamAgent).toHaveBeenCalledWith(expect.objectContaining({
+      taskId: null,
+      message: '更新人物设定',
+      messageId: expect.any(String),
+    }));
+    expect(useAssistantStore.getState().messages).toContainEqual(expect.objectContaining({
+      role: 'user',
+      content: '更新人物设定',
+    }));
+    expect(input).toHaveValue('');
   });
 });

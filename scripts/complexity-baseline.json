@@ -2,7 +2,6 @@
   "version": 1,
   "limit": 30,
   "functions": {
-    "assistant/client/AssistantPanel.jsx#AssistantPanel": 98,
     "frontend/src/components/chat/InputBox.jsx#InputBox": 63,
     "frontend/src/components/chat/MessageItem.jsx#MessageItem": 63,
     "frontend/src/components/chat/MessageList.jsx#MessageList": 95,
