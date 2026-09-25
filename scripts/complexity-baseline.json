@@ -15,7 +15,6 @@
     "backend/memory/combined-state-updater.js#applyNearbyResult": 39,
     "backend/memory/combined-state-updater.js#compressOverLimitFields": 45,
     "backend/memory/combined-state-updater.js#updateAllStates": 55,
-    "backend/utils/state-field-validate.js#validateValue": 53,
     "frontend/src/components/chat/InputBox.jsx#InputBox": 63,
     "frontend/src/components/chat/MessageItem.jsx#MessageItem": 63,
     "frontend/src/components/chat/MessageList.jsx#MessageList": 95,
