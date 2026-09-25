@@ -162,46 +162,15 @@ export const __testables = {
 
 // ─── 核心函数 ─────────────────────────────────────────────────────
 
-/**
- * 构建发送给 LLM 的完整 messages 数组
- *
- * 新的 prompt 组装顺序（为支持 Prompt Cache 分层）：
- *   Cached system [1, 2, 3, 4]：全局 + 常驻 cached 条目 + 玩家 + 角色
- *   Dynamic system [5-11]：世界状态 + 玩家状态 + 角色状态 + State 条目 + 召回摘要 + 展开原文 + 日记
- *   History [12]：历史 user/assistant 交替
- *   Bottom: [13] 后置提示词（system）→ [14] 当前用户消息（尾部 user）
- *
- * @param {string} sessionId
- * @param {object} [options]
- * @param {Function} [options.onRecallEvent]  (name: string, payload: object) => void
- * @returns {Promise<{ messages: Array, temperature: number, maxTokens: number, recallHitCount: number }>}
- */
-export async function buildPrompt(sessionId, options = {}) {
-  const { onRecallEvent, diaryInjection, continuation = false } = options;
-  const session = getSessionById(sessionId);
-  if (!session) throw new Error(`Session not found: ${sessionId}`);
-
-  const character = getCharacterById(session.character_id);
-  if (!character) throw new Error(`Character not found: ${session.character_id}`);
-
-  const world = getWorldById(character.world_id);
-  if (!world) throw new Error(`World not found: ${character.world_id}`);
-
-  const t0  = Date.now();
-  const sid = sessionId.slice(0, 8);
-  log.info(`┌─ buildPrompt  session=${sid}  char="${character.name}"  world="${world.name}"`);
-
-  const config = getConfig();
-  const cachedSystemParts = [];
-  const dynamicSystemParts = [];
-
+async function buildChatSystemPrompt(sessionId, character, world, config, options) {
+  const { diaryInjection, onRecallEvent, continuation } = options;
   const persona = getOrCreatePersona(world.id);
   const personaName = persona?.name || '';
   const personaPrompt = persona?.system_prompt || '';
-
   const ctx = { user: personaName, char: character.name, world: world.name };
-  const tv = (t) => applyTemplateVars(t, ctx);
-
+  const tv = (text) => applyTemplateVars(text, ctx);
+  const cachedSystemParts = [];
+  const dynamicSystemParts = [];
   // ─── CACHED LAYER (1, 2, 3, 4) ───
   // [1] 全局 System Prompt
   if (config.global_system_prompt) {
@@ -293,11 +262,57 @@ export async function buildPrompt(sessionId, options = {}) {
     log.debug('│  [11] diary injection applied');
   }
 
+  const { cachedContent, systemContent } = composeSystemContent(cachedSystemParts, dynamicSystemParts);
+  // 本轮激活的非常驻条目（trigger_type !== 'always'），供 SSE 透传给前端展示
+  const activatedEntries = selectActivatedEntries(triggeredEntries);
+  const suggestionText = config.suggestion_enabled ? tv(SUGGESTION_PROMPT) : null;
+  const postParts = continuation ? [] : [config.global_post_prompt, character.post_prompt].filter(Boolean).map(tv);
+  if (!continuation && !character.post_prompt) {
+    postParts.push(tv('（你正在扮演{{char}}，请严格保持角色名字和设定。）'));
+  }
+  if (!continuation && config.suggestion_enabled) postParts.push(tv(SUGGESTION_PROMPT));
+  return { cachedContent, systemContent, recallHitCount, activatedEntries, suggestionText, postParts };
+}
+
+/**
+ * 构建发送给 LLM 的完整 messages 数组
+ *
+ * 新的 prompt 组装顺序（为支持 Prompt Cache 分层）：
+ *   Cached system [1, 2, 3, 4]：全局 + 常驻 cached 条目 + 玩家 + 角色
+ *   Dynamic system [5-11]：世界状态 + 玩家状态 + 角色状态 + State 条目 + 召回摘要 + 展开原文 + 日记
+ *   History [12]：历史 user/assistant 交替
+ *   Bottom: [13] 后置提示词（system）→ [14] 当前用户消息（尾部 user）
+ *
+ * @param {string} sessionId
+ * @param {object} [options]
+ * @param {Function} [options.onRecallEvent]  (name: string, payload: object) => void
+ * @returns {Promise<{ messages: Array, temperature: number, maxTokens: number, recallHitCount: number }>}
+ */
+export async function buildPrompt(sessionId, options = {}) {
+  const { continuation = false } = options;
+  const session = getSessionById(sessionId);
+  if (!session) throw new Error(`Session not found: ${sessionId}`);
+
+  const character = getCharacterById(session.character_id);
+  if (!character) throw new Error(`Character not found: ${session.character_id}`);
+
+  const world = getWorldById(character.world_id);
+  if (!world) throw new Error(`World not found: ${character.world_id}`);
+
+  const t0  = Date.now();
+  const sid = sessionId.slice(0, 8);
+  log.info(`┌─ buildPrompt  session=${sid}  char="${character.name}"  world="${world.name}"`);
+
+  const config = getConfig();
+
+  const { cachedContent, systemContent, recallHitCount, activatedEntries, suggestionText, postParts } = await buildChatSystemPrompt(
+    sessionId, character, world, config, options,
+  );
+
   // ─── CONSTRUCT MESSAGES ───
   const messages = [];
 
   // [1-11] 合并为单条 system message：cached 前缀 + dynamic 后缀
-  const { cachedContent, systemContent } = composeSystemContent(cachedSystemParts, dynamicSystemParts);
   if (systemContent) messages.push({ role: 'system', content: systemContent });
 
   // [12] 历史消息：稳定使用原始消息窗口。
@@ -315,16 +330,6 @@ export async function buildPrompt(sessionId, options = {}) {
   // 续写模式无"本轮新输入"，且后置提示词/suggestion 由 buildContinuationMessages 在续写指令里统一拼一次，
   // 这里整体跳过，避免重复注入与轮次错乱（prompt 自然以待续写的 assistant 收尾）。
   if (!continuation) {
-    const postParts = [
-      config.global_post_prompt,
-      character.post_prompt,
-    ].filter(Boolean).map(tv);
-    // character.post_prompt 为空时自动注入角色名兜底，防止长对话后身份漂移
-    if (!character.post_prompt) {
-      postParts.push(tv('（你正在扮演{{char}}，请严格保持角色名字和设定。）'));
-    }
-    if (config.suggestion_enabled) postParts.push(tv(SUGGESTION_PROMPT));
-
     const currentUserMsg = getCurrentUserMessage(uncompressedMessages);
     if (currentUserMsg?.role === 'user') {
       const content = applyRules(currentUserMsg.content, 'prompt_only', world.id, 'chat');
@@ -347,63 +352,19 @@ export async function buildPrompt(sessionId, options = {}) {
   const baseMaxTokens = world.max_tokens ?? config.llm.max_tokens;
   const maxTokens = resolveMaxTokens(baseMaxTokens, config.suggestion_enabled);
 
-  const suggestionText = config.suggestion_enabled ? tv(SUGGESTION_PROMPT) : null;
-
-  // 本轮激活的非常驻条目（trigger_type !== 'always'），供 SSE 透传给前端展示
-  const activatedEntries = selectActivatedEntries(triggeredEntries);
 
   log.info(`└─ buildPrompt DONE  session=${sid}  msgs=${messages.length}  cached=${fmtK(cachedContent.length)}  +${Date.now() - t0}ms  temp=${temperature}  max=${maxTokens}`);
   return { messages, temperature, maxTokens, recallHitCount, cacheableSystem: cachedContent, suggestionText, activatedEntries };
 }
 
-/**
- * 写作版本：写作模式没有固定角色身份，[4] 角色 System Prompt 不注入；
- * 角色出场由叙事文本自行驱动，[7] 角色状态段由"附近角色池（nearby）"替代，
- * nearby 由副 LLM 维护状态，主写作模型据此沿用既定名字与状态。
- *
- * Cached layer: [1] 全局、[2] 常驻 cached 条目、[3] 玩家
- * Dynamic layer: [5] 世界状态 / [6] 玩家状态 / [7] 附近角色（nearby_characters）
- *                / [8] 世界条目 / [8.5] 长期记忆
- *                / [9] 召回摘要 / [10] 记忆展开 / [11] 日记
- * Bottom: [12] 历史消息，[13+14] 后置提示词 + 当前消息（合并为一条 user message）
- *
- * @param {string} sessionId
- * @param {object} [options]
- * @param {Function} [options.onRecallEvent]  (name: string, payload: object) => void
- * @returns {Promise<{ messages: Array, temperature: number, maxTokens: number, model: string|null, recallHitCount: number }>}
- */
-export async function buildWritingPrompt(sessionId, options = {}) {
-  const { onRecallEvent, diaryInjection, skipWritingInstructions, continuation = false } = options;
-  const session = getSessionById(sessionId);
-  if (!session) throw new Error(`Session not found: ${sessionId}`);
-
-  const world = getWorldById(session.world_id);
-  if (!world) throw new Error(`World not found: ${session.world_id}`);
-
-  const config = getConfig();
-  const writing = config.writing || {};
-  const cachedSystemParts = [];
-  const dynamicSystemParts = [];
-  const sid = sessionId.slice(0, 8);
-  const t0 = Date.now();
-
-  const persona = getOrCreatePersona(world.id);
+async function buildWritingCoreSystemParts(sessionId, world, writing, persona, options) {
+  const { onRecallEvent, skipWritingInstructions } = options;
   const personaName = persona?.name || '';
   const personaPrompt = persona?.system_prompt || '';
-
-  log.info(`┌─ buildWritingPrompt  session=${sid}  world="${world.name}"`);
-
-  // 写作模式没有单一"主角色"概念（writing_session_characters 表已废弃），
-  // 全局 / 世界条目 / 历史摘要里的 {{char}} 没有合适的统一替换值：
-  // 替换成"叙述者"会让所有 {{char}} 都被同化成同一标签（之前的 bug）；
-  // 这里改为保留 {{char}} 字面量交给 LLM 按上下文判断，nearby_characters 渲染
-  // 时另在 renderTransientNearby / renderSavedNearbyIndex / renderRecalledSavedNearby 内部按每个 nearby 名字单独替换。
-  const tv = (t) => applyTemplateVars(t, {
-    user: personaName,
-    char: null,
-    world: world.name,
-  });
-
+  // 写作模式没有单一角色，保留 {{char}} 交由上下文判断，避免统一替换成“叙述者”。
+  const tv = (text) => applyTemplateVars(text, { user: personaName, char: null, world: world.name });
+  const cachedSystemParts = [];
+  const dynamicSystemParts = [];
   // ─── CACHED LAYER (1, 2, 3) ───
   // [1] 全局 System Prompt（使用写作专属配置；impersonate 时跳过）
   if (writing.global_system_prompt && !skipWritingInstructions) {
@@ -488,6 +449,17 @@ export async function buildWritingPrompt(sessionId, options = {}) {
   if (recallHitCount > 0) log.debug(`│  [9] recall  hits=${recallHitCount}`);
   onRecallEvent?.('memory_recall_done', { hit: recallHitCount });
 
+  const activatedEntries = selectActivatedEntries(triggeredEntries);
+  const suggestionText = writing.suggestion_enabled ? tv(SUGGESTION_PROMPT) : null;
+  return { cachedSystemParts, dynamicSystemParts, savedRows, nearbyFields, recalled, recallHitCount, activatedEntries, suggestionText };
+}
+
+async function buildWritingMemorySections(sessionId, world, persona, core, options) {
+  const { diaryInjection, onRecallEvent, writing } = options;
+  const { recalled, recallHitCount, savedRows, nearbyFields } = core;
+  const personaName = persona?.name || '';
+  const tv = (text) => applyTemplateVars(text, { user: personaName, char: null, world: world.name });
+  const dynamicSections = [];
   // [10] 记忆展开 / [10.5] saved nearby preflight 召回
   // 两个 preflight LLM 判定彼此独立，并发触发以节省一个 aux RTT。
   // saved 池子小（N ≤ SAVED_RECALL_PREFLIGHT_MIN-1）时，judge 固定开销摊不开，
@@ -510,7 +482,7 @@ export async function buildWritingPrompt(sessionId, options = {}) {
     if (expandIds.length > 0) {
       const expanded = renderExpandedSection(expandIds, tv);
       if (expanded.text) {
-        dynamicSystemParts.push(expanded.text);
+        dynamicSections.push(expanded.text);
         log.debug(`│  [10] expand  ids=${expandIds.length}`);
       }
       onRecallEvent?.('memory_expand_done', { expanded: expanded.expandedText ? expandIds : [] });
@@ -524,7 +496,7 @@ export async function buildWritingPrompt(sessionId, options = {}) {
     if (hitIds.length > 0) {
       const recalledSavedText = renderRecalledSavedNearby(savedRows, nearbyFields, hitIds);
       if (recalledSavedText) {
-        dynamicSystemParts.push(
+        dynamicSections.push(
           `<recalled_characters>\n以下已保存角色与本轮相关，提供其当前完整状态以供叙事使用。\n${tv(recalledSavedText)}\n</recalled_characters>`,
         );
         log.debug(`│  [10.5] saved-recall  hits=${hitIds.length} (${needSavedJudge ? 'judge' : 'all-in'})`);
@@ -536,15 +508,75 @@ export async function buildWritingPrompt(sessionId, options = {}) {
   // [11] 日记注入（一次性，仅本轮生效）
   const diarySection = renderDiarySection(diaryInjection);
   if (diarySection) {
-    dynamicSystemParts.push(diarySection);
+    dynamicSections.push(diarySection);
     log.debug('│  [11] diary injection applied (writing)');
   }
+  return dynamicSections;
+}
+
+async function buildWritingSystemPrompt(sessionId, world, writing, persona, options) {
+  const core = await buildWritingCoreSystemParts(sessionId, world, writing, persona, options);
+  const memorySections = await buildWritingMemorySections(sessionId, world, persona, core, {
+    writing, diaryInjection: options.diaryInjection, onRecallEvent: options.onRecallEvent,
+  });
+  const dynamicSystemParts = core.dynamicSystemParts.concat(memorySections);
+  const { cachedContent, systemContent } = composeSystemContent(core.cachedSystemParts, dynamicSystemParts);
+  return {
+    cachedContent,
+    systemContent,
+    recallHitCount: core.recallHitCount,
+    activatedEntries: core.activatedEntries,
+    suggestionText: core.suggestionText,
+  };
+}
+
+/**
+ * 写作版本：写作模式没有固定角色身份，[4] 角色 System Prompt 不注入；
+ * 角色出场由叙事文本自行驱动，[7] 角色状态段由"附近角色池（nearby）"替代，
+ * nearby 由副 LLM 维护状态，主写作模型据此沿用既定名字与状态。
+ *
+ * Cached layer: [1] 全局、[2] 常驻 cached 条目、[3] 玩家
+ * Dynamic layer: [5] 世界状态 / [6] 玩家状态 / [7] 附近角色（nearby_characters）
+ *                / [8] 世界条目 / [8.5] 长期记忆
+ *                / [9] 召回摘要 / [10] 记忆展开 / [11] 日记
+ * Bottom: [12] 历史消息，[13+14] 后置提示词 + 当前消息（合并为一条 user message）
+ *
+ * @param {string} sessionId
+ * @param {object} [options]
+ * @param {Function} [options.onRecallEvent]  (name: string, payload: object) => void
+ * @returns {Promise<{ messages: Array, temperature: number, maxTokens: number, model: string|null, recallHitCount: number }>}
+ */
+export async function buildWritingPrompt(sessionId, options = {}) {
+  const { skipWritingInstructions, continuation = false } = options;
+  const session = getSessionById(sessionId);
+  if (!session) throw new Error(`Session not found: ${sessionId}`);
+
+  const world = getWorldById(session.world_id);
+  if (!world) throw new Error(`World not found: ${session.world_id}`);
+
+  const config = getConfig();
+  const writing = config.writing || {};
+  const sid = sessionId.slice(0, 8);
+  const t0 = Date.now();
+
+  const persona = getOrCreatePersona(world.id);
+  const personaName = persona?.name || '';
+  const tv = (text) => applyTemplateVars(text, {
+    user: personaName,
+    char: null,
+    world: world.name,
+  });
+
+  log.info(`┌─ buildWritingPrompt  session=${sid}  world="${world.name}"`);
+
+  const { cachedContent, systemContent, recallHitCount, activatedEntries, suggestionText } = await buildWritingSystemPrompt(
+    sessionId, world, writing, persona, options,
+  );
 
   // ─── CONSTRUCT MESSAGES ───
   const messages = [];
 
   // [1-11] 合并为单条 system message：cached 前缀 + dynamic 后缀
-  const { cachedContent, systemContent } = composeSystemContent(cachedSystemParts, dynamicSystemParts);
   if (systemContent) messages.push({ role: 'system', content: systemContent });
 
   // [12] 历史消息：稳定使用原始消息窗口；turn records 仅用于摘要/时间线。
@@ -596,10 +628,6 @@ export async function buildWritingPrompt(sessionId, options = {}) {
   const baseMaxTokens = world.max_tokens ?? writing.max_tokens ?? config.llm.max_tokens;
   const maxTokens = resolveMaxTokens(baseMaxTokens, writing.suggestion_enabled);
   const model = writing.model || null;
-
-  const suggestionText = writing.suggestion_enabled ? tv(SUGGESTION_PROMPT) : null;
-
-  const activatedEntries = selectActivatedEntries(triggeredEntries);
 
   log.info(`└─ buildWritingPrompt DONE  session=${sid}  msgs=${messages.length}  cached=${fmtK(cachedContent.length)}  +${Date.now() - t0}ms  temp=${temperature}  max=${maxTokens}`);
   return { messages, temperature, maxTokens, model, recallHitCount, cacheableSystem: cachedContent, suggestionText, activatedEntries };
