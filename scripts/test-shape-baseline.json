@@ -1,7 +1,6 @@
 {
   "version": 1,
   "heavySetup": {
-    "backend/tests/e2e/chat-playwright.test.js#chromium.launch": 2,
     "backend/tests/e2e/chat-playwright.test.js#listen": 2,
     "backend/tests/e2e/writing-playwright.test.js#listen": 2,
     "backend/tests/schema-init.test.js#initSchema": 2

@@ -17,6 +17,7 @@ sandbox.setEnv();
 let backendServer;
 let frontendServer;
 let frontendBaseUrl;
+let browser;
 
 async function getFreePort() {
   const server = createServer();
@@ -72,8 +73,14 @@ async function ensureFrontendServer(backendPort) {
   return frontendBaseUrl;
 }
 
+async function ensureBrowser() {
+  if (!browser) browser = await chromium.launch({ headless: true });
+  return browser;
+}
+
 after(async () => {
   resetMockEnv();
+  if (browser) await browser.close();
   if (frontendServer) await frontendServer.close();
   if (backendServer) {
     await new Promise((resolve, reject) => {
@@ -96,8 +103,7 @@ test('Playwright: 聊天页可以新建会话并完成一次真实收发', {
   const world = insertWorld(sandbox.db, { name: '浏览器世界' });
   const character = insertCharacter(sandbox.db, world.id, { name: '银雀' });
 
-  const browser = await chromium.launch({ headless: true });
-  const page = await browser.newPage();
+  const page = await (await ensureBrowser()).newPage();
   try {
     await page.goto(`${frontendUrl}/characters/${character.id}/chat`);
     // 两侧面板默认收起成窄轨，「新建会话」在左侧抽屉里，需先展开
@@ -115,7 +121,7 @@ test('Playwright: 聊天页可以新建会话并完成一次真实收发', {
     assert.equal(rows[0].content, '浏览器测试消息');
     assert.equal(rows[1].content, '来自浏览器的回复');
   } finally {
-    await browser.close();
+    await page.close();
   }
 });
 
@@ -132,8 +138,7 @@ test('Playwright: 写作页可以自动建会话并完成一次真实收发', {
   const world = insertWorld(sandbox.db, { name: '写作世界' });
   insertCharacter(sandbox.db, world.id, { name: '银雀' });
 
-  const browser = await chromium.launch({ headless: true });
-  const page = await browser.newPage();
+  const page = await (await ensureBrowser()).newPage();
   try {
     await page.goto(`${frontendUrl}/worlds/${world.id}/writing`);
     const input = page.getByPlaceholder('发送消息… (Shift+Enter 换行，/ 调出命令)');
@@ -155,6 +160,6 @@ test('Playwright: 写作页可以自动建会话并完成一次真实收发', {
     assert.equal(rows[0].content, '写作测试消息');
     assert.equal(rows[1].content, '写作回复');
   } finally {
-    await browser.close();
+    await page.close();
   }
 });
