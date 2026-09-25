@@ -26,6 +26,136 @@ import { useSessionState } from '../../core/hooks/useSessionState.js';
 import { useStateDiff } from '../../core/hooks/useStateDiff.js';
 import { log } from '../../core/utils/logger.js';
 
+function useWorldName(worldId) {
+  const [worldName, setWorldName] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!worldId) {
+      const timeoutId = setTimeout(() => {
+        if (!cancelled) setWorldName(null);
+      }, 0);
+      return () => {
+        cancelled = true;
+        clearTimeout(timeoutId);
+      };
+    }
+    getWorld(worldId).then((world) => {
+      if (!cancelled) setWorldName(world?.name ?? null);
+    }).catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [worldId]);
+
+  return worldName;
+}
+
+function useDiaryEnabled(diaryScope) {
+  const [diaryEnabled, setDiaryEnabled] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    const readEnabled = (config) => config?.diary?.[diaryScope]?.enabled !== false;
+    const load = () => {
+      getConfig().then((config) => {
+        if (!cancelled) setDiaryEnabled(readEnabled(config));
+      }).catch(() => {});
+    };
+    load();
+    const onConfigUpdated = (event) => {
+      const next = event?.detail;
+      if (next && typeof next === 'object' && next.diary) setDiaryEnabled(readEnabled(next));
+      else load();
+    };
+    window.addEventListener('we:global-config-updated', onConfigUpdated);
+    return () => {
+      cancelled = true;
+      window.removeEventListener('we:global-config-updated', onConfigUpdated);
+    };
+  }, [diaryScope]);
+
+  return diaryEnabled;
+}
+
+function StateLoadError({ message, onRetry }) {
+  return (
+    <div className="flex flex-col items-center gap-3 px-4 py-6 text-center">
+      <p className="text-sm text-[var(--we-color-text-danger)]">{message}</p>
+      <button
+        type="button"
+        className="we-panel-card-action we-panel-card-action--chip"
+        onClick={onRetry}
+      >
+        重试
+      </button>
+    </div>
+  );
+}
+
+function DiaryTab({
+  diary,
+  classNames,
+  diaryInteraction,
+}) {
+  const {
+    selectedEntry,
+    handleDiarySelect,
+    expanded,
+    setExpanded,
+  } = diaryInteraction;
+  const { entries, error, retry } = diary;
+  const { hasDiary, recentDiary, olderDiary, hasMore } = splitDiaryEntries(entries);
+  const renderEntry = (entry, index) => (
+    <DiaryEntry
+      key={entry.date_str}
+      entry={entry}
+      index={index}
+      selected={selectedEntry?.date_str === entry.date_str}
+      onSelect={handleDiarySelect}
+      className={classNames.diaryEntry}
+      style={classNames.diaryEntryStyle}
+    />
+  );
+
+  return (
+    <div className="we-panel-tab-body">
+      <PanelCard variant="headerless">
+        <div className="we-timeline we-timeline--in-card">
+          {entries === null && !error ? (
+            <div className="we-skel-stack" aria-busy="true">
+              {[85, 65, 90].map((width, index) => (
+                <div key={index} className="we-skel we-skel-line" style={{ '--skel-width': `${width}%` }} />
+              ))}
+            </div>
+          ) : error ? (
+            <StateLoadError message="日记加载失败" onRetry={retry} />
+          ) : !hasDiary ? (
+            <p className="we-section-empty">暂无日记</p>
+          ) : (
+            <div className="we-timeline-list">
+              {recentDiary.map((entry, index) => renderEntry(entry, index))}
+              {hasMore && (
+                <>
+                  {expanded && olderDiary.map((entry, index) => renderEntry(entry, DIARY_RECENT_LIMIT + index))}
+                  <button
+                    type="button"
+                    className={classNames.diaryMore}
+                    onClick={() => setExpanded((value) => !value)}
+                    aria-expanded={expanded}
+                  >
+                    {expanded ? '▲ 收起' : `▼ 展开更多（${olderDiary.length} 条）`}
+                  </button>
+                </>
+              )}
+            </div>
+          )}
+        </div>
+      </PanelCard>
+    </div>
+  );
+}
+
 /**
  * 会话状态面板的公共壳：世界区块 + 玩家区块 + 日记区块 + 整理中浮层。
  *
@@ -64,56 +194,22 @@ export default function SessionStatePanel({
 
   const [worldResetting, setWorldResetting] = useState(false);
   const [personaResetting, setPersonaResetting] = useState(false);
-  const [worldName, setWorldName] = useState(null);
-  const [diaryEnabled, setDiaryEnabled] = useState(true);
   const [diaryExpanded, setDiaryExpanded] = useState(false);
+  const worldName = useWorldName(worldId);
+  const diaryEnabled = useDiaryEnabled(diaryScope);
   const { selectedEntry, handleDiarySelect } = useDiarySelection(sessionId, onDiaryInject);
+  const diaryInteraction = {
+    selectedEntry,
+    handleDiarySelect,
+    expanded: diaryExpanded,
+    setExpanded: setDiaryExpanded,
+  };
 
   const templateCtx = useMemo(() => ({
     user: persona?.name ?? '',
     char: charName,
     world: worldName ?? '',
   }), [persona?.name, charName, worldName]);
-
-  useEffect(() => {
-    let cancelled = false;
-    if (!worldId) {
-      const timeoutId = setTimeout(() => {
-        if (!cancelled) setWorldName(null);
-      }, 0);
-      return () => {
-        cancelled = true;
-        clearTimeout(timeoutId);
-      };
-    }
-    getWorld(worldId).then((w) => {
-      if (!cancelled) setWorldName(w?.name ?? null);
-    }).catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, [worldId]);
-
-  useEffect(() => {
-    let cancelled = false;
-    const readEnabled = (cfg) => cfg?.diary?.[diaryScope]?.enabled !== false;
-    const load = () => {
-      getConfig().then((c) => {
-        if (!cancelled) setDiaryEnabled(readEnabled(c));
-      }).catch(() => {});
-    };
-    load();
-    const onConfigUpdated = (e) => {
-      const next = e?.detail;
-      if (next && typeof next === 'object' && next.diary) setDiaryEnabled(readEnabled(next));
-      else load();
-    };
-    window.addEventListener('we:global-config-updated', onConfigUpdated);
-    return () => {
-      cancelled = true;
-      window.removeEventListener('we:global-config-updated', onConfigUpdated);
-    };
-  }, [diaryScope]);
 
   async function handleResetWorld() {
     if (!sessionId || worldResetting) return;
@@ -152,18 +248,7 @@ export default function SessionStatePanel({
     }
   }
 
-  const renderLoadError = (message) => (
-    <div className="flex flex-col items-center gap-3 px-4 py-6 text-center">
-      <p className="text-sm text-[var(--we-color-text-danger)]">{message}</p>
-      <button
-        type="button"
-        className="we-panel-card-action we-panel-card-action--chip"
-        onClick={retryStateLoad}
-      >
-        重试
-      </button>
-    </div>
-  );
+  const renderLoadError = (message) => <StateLoadError message={message} onRetry={retryStateLoad} />;
 
   const worldTab = (
     <section className="we-state-block we-state-block--world">
@@ -204,55 +289,12 @@ export default function SessionStatePanel({
     </div>
   );
 
-  const { hasDiary, recentDiary, olderDiary, hasMore } = splitDiaryEntries(diaryEntries);
-
-  const renderDiaryEntry = (entry, index) => (
-    <DiaryEntry
-      key={entry.date_str}
-      entry={entry}
-      index={index}
-      selected={selectedEntry?.date_str === entry.date_str}
-      onSelect={handleDiarySelect}
-      className={classNames.diaryEntry}
-      style={classNames.diaryEntryStyle}
-    />
-  );
-
   const diaryTab = (
-    <div className="we-panel-tab-body">
-      <PanelCard variant="headerless">
-        <div className="we-timeline we-timeline--in-card">
-          {diaryEntries === null && !diaryError ? (
-            <div className="we-skel-stack" aria-busy="true">
-              {[85, 65, 90].map((w, i) => (
-                <div key={i} className="we-skel we-skel-line" style={{ '--skel-width': `${w}%` }} />
-              ))}
-            </div>
-          ) : diaryError ? (
-            renderLoadError('日记加载失败')
-          ) : !hasDiary ? (
-            <p className="we-section-empty">暂无日记</p>
-          ) : (
-            <div className="we-timeline-list">
-              {recentDiary.map((entry, i) => renderDiaryEntry(entry, i))}
-              {hasMore && (
-                <>
-                  {diaryExpanded && olderDiary.map((entry, i) => renderDiaryEntry(entry, DIARY_RECENT_LIMIT + i))}
-                  <button
-                    type="button"
-                    className={classNames.diaryMore}
-                    onClick={() => setDiaryExpanded((v) => !v)}
-                    aria-expanded={diaryExpanded}
-                  >
-                    {diaryExpanded ? '▲ 收起' : `▼ 展开更多（${olderDiary.length} 条）`}
-                  </button>
-                </>
-              )}
-            </div>
-          )}
-        </div>
-      </PanelCard>
-    </div>
+    <DiaryTab
+      diary={{ entries: diaryEntries, error: diaryError, retry: retryStateLoad }}
+      classNames={classNames}
+      diaryInteraction={diaryInteraction}
+    />
   );
 
   const sections = [
