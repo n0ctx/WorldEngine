@@ -33,8 +33,10 @@ const svc = createStateFieldService({
   },
 });
 
-export const createCharacterStateField = (worldId, data) => svc.create(worldId, data);
-export const listCharacterStateFields = (worldId) => svc.list(worldId);
-export const updateCharacterStateField = (id, patch) => svc.update(id, patch);
-export const deleteCharacterStateField = (id) => svc.remove(id);
-export const reorderCharacterStateFields = (worldId, orderedIds) => svc.reorder(worldId, orderedIds);
+export const {
+  create: createCharacterStateField,
+  list: listCharacterStateFields,
+  update: updateCharacterStateField,
+  remove: deleteCharacterStateField,
+  reorder: reorderCharacterStateFields,
+} = svc;

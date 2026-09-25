@@ -39,8 +39,10 @@ const svc = createStateFieldService({
   },
 });
 
-export const createPersonaStateField = (worldId, data) => svc.create(worldId, data);
-export const getPersonaStateFieldsByWorldId = (worldId) => svc.list(worldId);
-export const updatePersonaStateField = (id, patch) => svc.update(id, patch);
-export const deletePersonaStateField = (id) => svc.remove(id);
-export const reorderPersonaStateFields = (worldId, orderedIds) => svc.reorder(worldId, orderedIds);
+export const {
+  create: createPersonaStateField,
+  list: getPersonaStateFieldsByWorldId,
+  update: updatePersonaStateField,
+  remove: deletePersonaStateField,
+  reorder: reorderPersonaStateFields,
+} = svc;

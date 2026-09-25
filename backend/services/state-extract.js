@@ -164,6 +164,19 @@ async function callExtractLLM({ name, personaText, fields, callType }) {
   return parsed;
 }
 
+/** 角色 / 玩家卡共用：按正文推断各字段建议值，并附上当前默认值 */
+async function extractSuggestions(owner, fields, loadValueRows, callType) {
+  if (fields.length === 0) return [];
+
+  // 只有名字没有正文时无从推断，别浪费一次 LLM 调用
+  const personaText = buildPersonaText(owner);
+  if (!personaText) return [];
+
+  const valueMap = Object.fromEntries(loadValueRows().map((v) => [v.field_key, v]));
+  const suggestions = await callExtractLLM({ name: owner.name, personaText, fields, callType });
+  return buildResult(fields, valueMap, suggestions);
+}
+
 /**
  * 提取某角色在其所属世界下全部角色状态字段的建议值。
  * @param {string} characterId
@@ -177,24 +190,12 @@ export async function extractCharacterStateSuggestions(characterId) {
     throw err;
   }
 
-  const fields = getCharacterStateFieldsByWorldId(character.world_id);
-  if (fields.length === 0) return [];
-
-  // 只有名字没有正文时无从推断，别浪费一次 LLM 调用
-  const personaText = buildPersonaText(character);
-  if (!personaText) return [];
-
-  const valueRows = getAllCharacterStateValues(characterId);
-  const valueMap = Object.fromEntries(valueRows.map((v) => [v.field_key, v]));
-
-  const suggestions = await callExtractLLM({
-    name: character.name,
-    personaText,
-    fields,
-    callType: 'state_extract_character',
-  });
-
-  return buildResult(fields, valueMap, suggestions);
+  return extractSuggestions(
+    character,
+    getCharacterStateFieldsByWorldId(character.world_id),
+    () => getAllCharacterStateValues(characterId),
+    'state_extract_character',
+  );
 }
 
 /**
@@ -210,22 +211,11 @@ export async function extractPersonaStateSuggestions(personaId) {
     throw err;
   }
 
-  const fields = getPersonaStateFieldsByWorldId(persona.world_id);
-  if (fields.length === 0) return [];
-
   // persona 没有 post_prompt，只有 description / system_prompt 两段正文
-  const personaText = buildPersonaText(persona);
-  if (!personaText) return [];
-
-  const valueRows = getAllPersonaStateValuesByPersonaId(personaId);
-  const valueMap = Object.fromEntries(valueRows.map((v) => [v.field_key, v]));
-
-  const suggestions = await callExtractLLM({
-    name: persona.name,
-    personaText,
-    fields,
-    callType: 'state_extract_persona',
-  });
-
-  return buildResult(fields, valueMap, suggestions);
+  return extractSuggestions(
+    persona,
+    getPersonaStateFieldsByWorldId(persona.world_id),
+    () => getAllPersonaStateValuesByPersonaId(personaId),
+    'state_extract_persona',
+  );
 }

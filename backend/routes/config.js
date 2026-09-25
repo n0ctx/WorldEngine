@@ -513,6 +513,16 @@ async function fetchDynamicPricingMap(provider) {
   return new Map();
 }
 
+/** 取动态价格表；抓取失败时记 warn（按 logProvider 记录）并返回空表 */
+async function getDynamicPricingOrEmpty(pricingProvider, logProvider = pricingProvider) {
+  try {
+    return await getDynamicPricingMap(pricingProvider);
+  } catch (error) {
+    log.warn(`pricing.dynamic_fetch_failed ${formatMeta({ provider: logProvider, error: error.message })}`);
+    return new Map();
+  }
+}
+
 async function getDynamicPricingMap(provider) {
   if (!['gemini', 'grok', 'deepseek', 'kimi', 'qwen', 'siliconflow', 'anthropic', 'openai', 'glm', 'minimax'].includes(provider)) return new Map();
   const cached = pricingCache.get(provider);
@@ -617,35 +627,19 @@ router.put('/', (req, res) => {
     const patchPaths = collectPatchPaths(patch);
     // 顶层共享 provider_keys 必须通过专用端点写入，不允许从这里修改
     delete patch.provider_keys;
-    if (patch.llm) {
-      delete patch.llm.api_key;
-      delete patch.llm.provider_keys;
-      sanitizeBaseUrlPatch(patch.llm);
-      applyProviderModelLogic(patch.llm, current.llm);
-    }
-    if (patch.embedding) {
-      delete patch.embedding.api_key;
-      delete patch.embedding.provider_keys;
-      sanitizeBaseUrlPatch(patch.embedding);
-      applyProviderModelLogic(patch.embedding, current.embedding);
-    }
-    if (patch.aux_llm) {
-      delete patch.aux_llm.api_key;
-      delete patch.aux_llm.provider_keys;
-      sanitizeBaseUrlPatch(patch.aux_llm);
-      applyProviderModelLogic(patch.aux_llm, current.aux_llm);
-    }
-    if (patch.writing?.llm) {
-      delete patch.writing.llm.api_key;
-      delete patch.writing.llm.provider_keys;
-      sanitizeBaseUrlPatch(patch.writing.llm);
-      applyProviderModelLogic(patch.writing.llm, current.writing?.llm);
-    }
-    if (patch.writing?.aux_llm) {
-      delete patch.writing.aux_llm.api_key;
-      delete patch.writing.aux_llm.provider_keys;
-      sanitizeBaseUrlPatch(patch.writing.aux_llm);
-      applyProviderModelLogic(patch.writing.aux_llm, current.writing?.aux_llm);
+    const modelSections = [
+      [patch.llm, current.llm],
+      [patch.embedding, current.embedding],
+      [patch.aux_llm, current.aux_llm],
+      [patch.writing?.llm, current.writing?.llm],
+      [patch.writing?.aux_llm, current.writing?.aux_llm],
+    ];
+    for (const [section, currentSection] of modelSections) {
+      if (!section) continue;
+      delete section.api_key;
+      delete section.provider_keys;
+      sanitizeBaseUrlPatch(section);
+      applyProviderModelLogic(section, currentSection);
     }
 
     const updated = updateConfig(patch);
@@ -788,12 +782,7 @@ async function fetchOpenAICompatibleModels(base, apiKey, provider) {
   const url = `${base.replace(/\/+$/, '')}/models`;
   const headers = {};
   if (apiKey) headers.Authorization = `Bearer ${apiKey}`;
-  let dynamicPrices = new Map();
-  try {
-    dynamicPrices = await getDynamicPricingMap(provider);
-  } catch (error) {
-    log.warn(`pricing.dynamic_fetch_failed ${formatMeta({ provider, error: error.message })}`);
-  }
+  const dynamicPrices = await getDynamicPricingOrEmpty(provider);
   const resp = await fetch(url, { headers });
   if (!resp.ok) throw new Error(`API ${resp.status}`);
   const data = await resp.json();
@@ -879,12 +868,7 @@ async function fetchModels(provider, apiKey, baseUrl) {
       throw new Error(providerError || `API ${resp.status}`);
     }
     const data = await resp.json();
-    let dynamicPrices = new Map();
-    try {
-      dynamicPrices = await getDynamicPricingMap('anthropic');
-    } catch (error) {
-      log.warn(`pricing.dynamic_fetch_failed ${formatMeta({ provider, error: error.message })}`);
-    }
+    const dynamicPrices = await getDynamicPricingOrEmpty('anthropic', provider);
     return (data.data || []).map((m) => {
       const known = lookupPricingFromMap(dynamicPrices, m.id) || getFallbackPricing(m.id) || {};
       return { id: m.id, ...known };
@@ -893,12 +877,7 @@ async function fetchModels(provider, apiKey, baseUrl) {
 
   // Gemini — 原生接口（暂无价格）
   if (provider === 'gemini') {
-    let dynamicPrices = new Map();
-    try {
-      dynamicPrices = await getDynamicPricingMap(provider);
-    } catch (error) {
-      log.warn(`pricing.dynamic_fetch_failed ${formatMeta({ provider, error: error.message })}`);
-    }
+    const dynamicPrices = await getDynamicPricingOrEmpty(provider);
     const resp = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`,
     );
@@ -1090,78 +1069,41 @@ router.get('/test-embedding', async (_req, res) => {
   }
 });
 
+/** 用已解析的单个模型配置（含 api_key）发一次最小请求验证连通性 */
+function verifyModelConnection(modelConfig) {
+  return verifyLlmConnection({
+    provider_keys: { [modelConfig.provider]: modelConfig.api_key },
+    llm: {
+      provider: modelConfig.provider,
+      base_url: modelConfig.base_url || '',
+      model: modelConfig.model || '',
+      max_tokens: 8,
+      temperature: 0,
+    },
+  });
+}
+
+function connectionTestRoute(verify) {
+  return async (_req, res) => {
+    try {
+      await verify();
+      res.json({ success: true });
+    } catch (err) {
+      res.json({ success: false, error: err.message });
+    }
+  };
+}
+
 // GET /api/config/test-connection — 验证 LLM 连通性
-router.get('/test-connection', async (_req, res) => {
-  const config = getConfig();
-  try {
-    await verifyLlmConnection(config);
-    res.json({ success: true });
-  } catch (err) {
-    res.json({ success: false, error: err.message });
-  }
-});
+router.get('/test-connection', connectionTestRoute(() => verifyLlmConnection(getConfig())));
 
 // GET /api/config/writing/test-connection — 验证写作主模型 LLM 连通性
-router.get('/writing/test-connection', async (_req, res) => {
-  const writingConfig = getWritingLlmConfig();
-  try {
-    const testConfig = {
-      provider_keys: { [writingConfig.provider]: writingConfig.api_key },
-      llm: {
-        provider: writingConfig.provider,
-        base_url: writingConfig.base_url || '',
-        model: writingConfig.model || '',
-        max_tokens: 8,
-        temperature: 0,
-      },
-    };
-    await verifyLlmConnection(testConfig);
-    res.json({ success: true });
-  } catch (err) {
-    res.json({ success: false, error: err.message });
-  }
-});
+router.get('/writing/test-connection', connectionTestRoute(() => verifyModelConnection(getWritingLlmConfig())));
 
 // GET /api/config/writing-aux/test-connection — 验证写作副模型 LLM 连通性
-router.get('/writing-aux/test-connection', async (_req, res) => {
-  const auxConfig = getWritingAuxLlmConfig();
-  try {
-    const testConfig = {
-      provider_keys: { [auxConfig.provider]: auxConfig.api_key },
-      llm: {
-        provider: auxConfig.provider,
-        base_url: auxConfig.base_url || '',
-        model: auxConfig.model || '',
-        max_tokens: 8,
-        temperature: 0,
-      },
-    };
-    await verifyLlmConnection(testConfig);
-    res.json({ success: true });
-  } catch (err) {
-    res.json({ success: false, error: err.message });
-  }
-});
+router.get('/writing-aux/test-connection', connectionTestRoute(() => verifyModelConnection(getWritingAuxLlmConfig())));
 
 // GET /api/config/aux/test-connection — 验证副模型 LLM 连通性
-router.get('/aux/test-connection', async (_req, res) => {
-  const auxConfig = getAuxLlmConfig();
-  try {
-    const testConfig = {
-      provider_keys: { [auxConfig.provider]: auxConfig.api_key },
-      llm: {
-        provider: auxConfig.provider,
-        base_url: auxConfig.base_url || '',
-        model: auxConfig.model || '',
-        max_tokens: 8,
-        temperature: 0,
-      },
-    };
-    await verifyLlmConnection(testConfig);
-    res.json({ success: true });
-  } catch (err) {
-    res.json({ success: false, error: err.message });
-  }
-});
+router.get('/aux/test-connection', connectionTestRoute(() => verifyModelConnection(getAuxLlmConfig())));
 
 export default router;

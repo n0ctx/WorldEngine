@@ -43,6 +43,18 @@ function getProvider(providerName) {
 // 配置合并
 // ============================================================
 
+/** 副模型不暴露 temperature / max_tokens，沿用主模型的值；thinking_level 独立配置 */
+function auxCallLlm(auxConfig, mainLlm) {
+  return {
+    provider: auxConfig.provider,
+    base_url: auxConfig.base_url,
+    model: auxConfig.model,
+    temperature: mainLlm.temperature,
+    max_tokens: mainLlm.max_tokens,
+    thinking_level: auxConfig.thinking_level,
+  };
+}
+
 /**
  * 合并 config.llm / config.aux_llm / config.writing.llm / config.writing.aux_llm 与调用方 options，调用方优先
  *
@@ -61,15 +73,7 @@ function buildLLMConfig(options = {}) {
     if (!config.aux_llm?.provider) {
       log.warn('AUX_FALLBACK  aux_llm 未配置，回落到主模型。complete 调用与 stream 共享相同 endpoint，可能影响 prompt cache 命中。');
     }
-    llm = {
-      provider: auxConfig.provider,
-      base_url: auxConfig.base_url,
-      model: auxConfig.model,
-      // 副模型不暴露 temperature / max_tokens，使用主模型的值；thinking_level 独立配置
-      temperature: config.llm.temperature,
-      max_tokens: config.llm.max_tokens,
-      thinking_level: auxConfig.thinking_level,
-    };
+    llm = auxCallLlm(auxConfig, config.llm);
     api_key = auxConfig.api_key;
   } else if (options.configScope === 'writing-aux') {
     // 写作副模型：未配置时按 writing.aux_llm → aux_llm → llm 顺序回退
@@ -77,14 +81,7 @@ function buildLLMConfig(options = {}) {
     if (!config.writing?.aux_llm?.provider && !config.aux_llm?.provider) {
       log.warn('WRITING_AUX_FALLBACK  writing.aux_llm 与 aux_llm 均未配置，回落到对话主模型。');
     }
-    llm = {
-      provider: writingAuxConfig.provider,
-      base_url: writingAuxConfig.base_url,
-      model: writingAuxConfig.model,
-      temperature: config.llm.temperature,
-      max_tokens: config.llm.max_tokens,
-      thinking_level: writingAuxConfig.thinking_level,
-    };
+    llm = auxCallLlm(writingAuxConfig, config.llm);
     api_key = writingAuxConfig.api_key;
   } else if (options.configScope === 'writing') {
     const writingConfig = getWritingLlmConfig();
@@ -192,6 +189,27 @@ function buildTimedSignal(signal, timeoutMs) {
 // 对外接口
 // ============================================================
 
+/** chat / complete / completeWithTools 共用的调用准备 */
+function prepareCall(messages, options) {
+  const llmConfig = buildLLMConfig(options);
+  return {
+    llmConfig,
+    provider: getProvider(llmConfig.provider),
+    cacheStrategy: getPromptCacheStrategy(llmConfig.provider),
+    retry: getRetryPolicy(),
+    summary: summarizeMessages(messages),
+    startedAt: Date.now(),
+  };
+}
+
+function throwIfTimedOut(timeout, llmConfig, timeoutMs) {
+  if (!timeout.didTimeout()) return;
+  const timeoutErr = new Error(`LLM ${llmConfig.callType || 'request'} timed out after ${timeoutMs}ms`);
+  timeoutErr.status = 504;
+  timeoutErr.code = 'LLM_TIMEOUT';
+  throw wrapError(timeoutErr, llmConfig.provider);
+}
+
 /**
  * 流式对话生成，返回 AsyncGenerator<string>
  *
@@ -199,12 +217,7 @@ function buildTimedSignal(signal, timeoutMs) {
  * @param {object} options  { temperature?, maxTokens?, model?, signal? }
  */
 export async function* chat(messages, options = {}) {
-  const llmConfig = buildLLMConfig(options);
-  const provider = getProvider(llmConfig.provider);
-  const cacheStrategy = getPromptCacheStrategy(llmConfig.provider);
-  const retry = getRetryPolicy();
-  const summary = summarizeMessages(messages);
-  const startedAt = Date.now();
+  const { llmConfig, provider, cacheStrategy, retry, summary, startedAt } = prepareCall(messages, options);
 
   log.info(`CHAT START  ${formatMeta({
     callType: llmConfig.callType,
@@ -315,12 +328,7 @@ export async function completeWithTools(messages, tools, options = {}) {
 }
 
 export async function completeWithToolsDetailed(messages, tools, options = {}) {
-  const llmConfig = buildLLMConfig(options);
-  const provider = getProvider(llmConfig.provider);
-  const cacheStrategy = getPromptCacheStrategy(llmConfig.provider);
-  const retry = getRetryPolicy();
-  const summary = summarizeMessages(messages);
-  const startedAt = Date.now();
+  const { llmConfig, provider, cacheStrategy, retry, summary, startedAt } = prepareCall(messages, options);
 
   if (typeof provider.completeWithTools !== 'function') {
     log.info(`COMPLETE_TOOLS FALLBACK  ${formatMeta({ provider: llmConfig.provider, model: llmConfig.model || '', reason: 'provider-no-tool-use' })}`);
@@ -370,12 +378,7 @@ export async function completeWithToolsDetailed(messages, tools, options = {}) {
         })}`);
         return typeof result === 'string' ? { text: result, messages } : result;
       } catch (err) {
-        if (timeout.didTimeout()) {
-          const timeoutErr = new Error(`LLM ${llmConfig.callType || 'request'} timed out after ${timeoutMs}ms`);
-          timeoutErr.status = 504;
-          timeoutErr.code = 'LLM_TIMEOUT';
-          throw wrapError(timeoutErr, llmConfig.provider);
-        }
+        throwIfTimedOut(timeout, llmConfig, timeoutMs);
         if (err.name === 'AbortError') throw wrapError(err, llmConfig.provider);
         if (isToolLoopCancelledError(err) || isToolLoopControlSignal(err)) throw err;
         if (isNonRetryable(err)) throw wrapError(err, llmConfig.provider);
@@ -403,12 +406,7 @@ export async function completeWithToolsDetailed(messages, tools, options = {}) {
  * @returns {Promise<string>}
  */
 export async function complete(messages, options = {}) {
-  const llmConfig = buildLLMConfig(options);
-  const provider = getProvider(llmConfig.provider);
-  const cacheStrategy = getPromptCacheStrategy(llmConfig.provider);
-  const retry = getRetryPolicy();
-  const summary = summarizeMessages(messages);
-  const startedAt = Date.now();
+  const { llmConfig, provider, cacheStrategy, retry, summary, startedAt } = prepareCall(messages, options);
   const timeoutMs = resolveTimeoutMs(options.timeoutMs, llmConfig.provider);
 
   log.info(`COMPLETE START  ${formatMeta({
@@ -455,12 +453,7 @@ export async function complete(messages, options = {}) {
         }
         return result;
       } catch (err) {
-        if (timeout.didTimeout()) {
-          const timeoutErr = new Error(`LLM ${llmConfig.callType || 'request'} timed out after ${timeoutMs}ms`);
-          timeoutErr.status = 504;
-          timeoutErr.code = 'LLM_TIMEOUT';
-          throw wrapError(timeoutErr, llmConfig.provider);
-        }
+        throwIfTimedOut(timeout, llmConfig, timeoutMs);
         if (err.name === 'AbortError') throw wrapError(err, llmConfig.provider);
         if (isNonRetryable(err)) throw wrapError(err, llmConfig.provider);
 

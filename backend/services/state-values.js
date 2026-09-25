@@ -128,22 +128,41 @@ function normalizeStateValueJson(valueJson, field) {
   return validated === null ? null : JSON.stringify(validated);
 }
 
+function requireField(fields, fieldKey, target) {
+  const field = getFieldMap(fields).get(fieldKey);
+  if (!field) throw makeMissingFieldError(target, fieldKey, fields);
+  return field;
+}
+
+function requireWorld(worldId) {
+  if (!getWorldById(worldId)) throw new Error('世界不存在');
+}
+
+function requirePersonaInWorld(personaId, worldId) {
+  requireWorld(worldId);
+  const persona = getPersonaById(personaId);
+  if (!persona || persona.world_id !== worldId) throw new Error('persona 不属于该世界');
+}
+
+/** 清空每个字段已有的运行时值（不新建行、不刷新 updated_at） */
+function clearRuntimeValues(fields, upsert) {
+  for (const field of fields) {
+    upsert(field.field_key, { runtimeValueJson: null, touchUpdatedAt: false, skipCreate: true });
+  }
+}
+
+function defaultValuePatch(valueJson, field) {
+  return { defaultValueJson: normalizeStateValueJson(valueJson, field), touchUpdatedAt: false };
+}
+
 export function updateCharacterDefaultStateValueValidated(characterId, fieldKey, valueJson) {
   const character = getCharacterById(characterId);
   if (!character) {
     throw new Error('角色不存在');
   }
 
-  const fields = getCharacterStateFieldsByWorldId(character.world_id);
-  const field = getFieldMap(fields).get(fieldKey);
-  if (!field) {
-    throw makeMissingFieldError('character', fieldKey, fields);
-  }
-
-  return upsertCharacterStateValue(characterId, fieldKey, {
-    defaultValueJson: normalizeStateValueJson(valueJson, field),
-    touchUpdatedAt: false,
-  });
+  const field = requireField(getCharacterStateFieldsByWorldId(character.world_id), fieldKey, 'character');
+  return upsertCharacterStateValue(characterId, fieldKey, defaultValuePatch(valueJson, field));
 }
 
 export function resetCharacterStateValuesValidated(characterId) {
@@ -152,118 +171,53 @@ export function resetCharacterStateValuesValidated(characterId) {
     throw new Error('角色不存在');
   }
 
-  const fields = getCharacterStateFieldsByWorldId(character.world_id);
-  for (const field of fields) {
-    upsertCharacterStateValue(characterId, field.field_key, {
-      runtimeValueJson: null,
-      touchUpdatedAt: false,
-      skipCreate: true,
-    });
-  }
+  clearRuntimeValues(
+    getCharacterStateFieldsByWorldId(character.world_id),
+    (fieldKey, patch) => upsertCharacterStateValue(characterId, fieldKey, patch),
+  );
 }
 
 export function updatePersonaDefaultStateValueValidated(worldId, fieldKey, valueJson) {
-  const world = getWorldById(worldId);
-  if (!world) {
-    throw new Error('世界不存在');
-  }
-
-  const fields = getPersonaStateFieldsByWorldId(worldId);
-  const field = getFieldMap(fields).get(fieldKey);
-  if (!field) {
-    throw makeMissingFieldError('persona', fieldKey, fields);
-  }
-
-  return upsertPersonaStateValue(worldId, fieldKey, {
-    defaultValueJson: normalizeStateValueJson(valueJson, field),
-    touchUpdatedAt: false,
-  });
+  requireWorld(worldId);
+  const field = requireField(getPersonaStateFieldsByWorldId(worldId), fieldKey, 'persona');
+  return upsertPersonaStateValue(worldId, fieldKey, defaultValuePatch(valueJson, field));
 }
 
 export function resetPersonaStateValuesValidated(worldId) {
-  const world = getWorldById(worldId);
-  if (!world) {
-    throw new Error('世界不存在');
-  }
-
+  requireWorld(worldId);
   getOrCreatePersona(worldId);
-
-  const fields = getPersonaStateFieldsByWorldId(worldId);
-  for (const field of fields) {
-    upsertPersonaStateValue(worldId, field.field_key, {
-      runtimeValueJson: null,
-      touchUpdatedAt: false,
-      skipCreate: true,
-    });
-  }
+  clearRuntimeValues(
+    getPersonaStateFieldsByWorldId(worldId),
+    (fieldKey, patch) => upsertPersonaStateValue(worldId, fieldKey, patch),
+  );
 }
 
 export function updatePersonaDefaultStateValueByPersonaIdValidated(personaId, worldId, fieldKey, valueJson) {
-  const world = getWorldById(worldId);
-  if (!world) throw new Error('世界不存在');
-
-  const persona = getPersonaById(personaId);
-  if (!persona || persona.world_id !== worldId) throw new Error('persona 不属于该世界');
-
-  const fields = getPersonaStateFieldsByWorldId(worldId);
-  const field = getFieldMap(fields).get(fieldKey);
-  if (!field) throw makeMissingFieldError('persona', fieldKey, fields);
-
-  return upsertPersonaStateValueByPersonaId(personaId, worldId, fieldKey, {
-    defaultValueJson: normalizeStateValueJson(valueJson, field),
-    touchUpdatedAt: false,
-  });
+  requirePersonaInWorld(personaId, worldId);
+  const field = requireField(getPersonaStateFieldsByWorldId(worldId), fieldKey, 'persona');
+  return upsertPersonaStateValueByPersonaId(personaId, worldId, fieldKey, defaultValuePatch(valueJson, field));
 }
 
 export function resetPersonaStateValuesByPersonaIdValidated(personaId, worldId) {
-  const world = getWorldById(worldId);
-  if (!world) throw new Error('世界不存在');
-
-  const persona = getPersonaById(personaId);
-  if (!persona || persona.world_id !== worldId) throw new Error('persona 不属于该世界');
-
-  const fields = getPersonaStateFieldsByWorldId(worldId);
-  for (const field of fields) {
-    upsertPersonaStateValueByPersonaId(personaId, worldId, field.field_key, {
-      runtimeValueJson: null,
-      touchUpdatedAt: false,
-      skipCreate: true,
-    });
-  }
+  requirePersonaInWorld(personaId, worldId);
+  clearRuntimeValues(
+    getPersonaStateFieldsByWorldId(worldId),
+    (fieldKey, patch) => upsertPersonaStateValueByPersonaId(personaId, worldId, fieldKey, patch),
+  );
 }
 
 export function updateWorldDefaultStateValueValidated(worldId, fieldKey, valueJson) {
-  const world = getWorldById(worldId);
-  if (!world) {
-    throw new Error('世界不存在');
-  }
-
-  const fields = getWorldStateFieldsByWorldId(worldId);
-  const field = getFieldMap(fields).get(fieldKey);
-  if (!field) {
-    throw makeMissingFieldError('world', fieldKey, fields);
-  }
-
-  return upsertWorldStateValue(worldId, fieldKey, {
-    defaultValueJson: normalizeStateValueJson(valueJson, field),
-    touchUpdatedAt: false,
-  });
+  requireWorld(worldId);
+  const field = requireField(getWorldStateFieldsByWorldId(worldId), fieldKey, 'world');
+  return upsertWorldStateValue(worldId, fieldKey, defaultValuePatch(valueJson, field));
 }
 
 export function resetWorldStateValuesValidated(worldId) {
-  const world = getWorldById(worldId);
-  if (!world) {
-    throw new Error('世界不存在');
-  }
-
-  const fields = getWorldStateFieldsByWorldId(worldId);
-  for (const field of fields) {
-    upsertWorldStateValue(worldId, field.field_key, {
-      runtimeValueJson: null,
-      touchUpdatedAt: false,
-      skipCreate: true,
-    });
-  }
+  requireWorld(worldId);
+  clearRuntimeValues(
+    getWorldStateFieldsByWorldId(worldId),
+    (fieldKey, patch) => upsertWorldStateValue(worldId, fieldKey, patch),
+  );
 }
 
 export function resolveUploadPath(relativePath, uploadsDir) {

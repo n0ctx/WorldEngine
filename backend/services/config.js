@@ -355,17 +355,13 @@ function normalizeConfigSections(config) {
   if (!config.writing || typeof config.writing !== 'object') {
     config.writing = structuredClone(DEFAULT_WRITING);
   } else {
-    if (!config.writing.llm || typeof config.writing.llm !== 'object') {
-      config.writing.llm = structuredClone(DEFAULT_WRITING.llm);
-    }
-    if (!config.writing.llm.provider_models || typeof config.writing.llm.provider_models !== 'object') {
-      config.writing.llm.provider_models = {};
-    }
-    if (!config.writing.aux_llm || typeof config.writing.aux_llm !== 'object') {
-      config.writing.aux_llm = structuredClone(DEFAULT_WRITING.aux_llm);
-    }
-    if (!config.writing.aux_llm.provider_models || typeof config.writing.aux_llm.provider_models !== 'object') {
-      config.writing.aux_llm.provider_models = {};
+    for (const key of ['llm', 'aux_llm']) {
+      if (!config.writing[key] || typeof config.writing[key] !== 'object') {
+        config.writing[key] = structuredClone(DEFAULT_WRITING[key]);
+      }
+      if (!config.writing[key].provider_models || typeof config.writing[key].provider_models !== 'object') {
+        config.writing[key].provider_models = {};
+      }
     }
     config.writing = {
       ...DEFAULT_WRITING,
@@ -498,6 +494,18 @@ export function updateProviderKey(provider, key) {
   return current;
 }
 
+/** 把一个模型配置段转成调用用的 { provider, api_key, base_url, model[, thinking_level] } */
+function toEffectiveLlm(config, section, { withThinking = true } = {}) {
+  const effective = {
+    provider: section.provider,
+    api_key: config.provider_keys?.[section.provider] || '',
+    base_url: section.base_url,
+    model: section.model,
+  };
+  if (withThinking) effective.thinking_level = section.thinking_level ?? null;
+  return effective;
+}
+
 /**
  * 获取有效的副模型(aux_llm)配置
  * 若副模型未配置(provider=null)，则回退到主模型配置
@@ -507,23 +515,7 @@ export function getAuxLlmConfig() {
   const auxLlm = config.aux_llm;
 
   // 副模型未配置，回退主模型
-  if (!auxLlm.provider) {
-    return {
-      provider: config.llm.provider,
-      api_key: config.provider_keys?.[config.llm.provider] || '',
-      base_url: config.llm.base_url,
-      model: config.llm.model,
-      thinking_level: config.llm.thinking_level ?? null,
-    };
-  }
-
-  return {
-    provider: auxLlm.provider,
-    api_key: config.provider_keys?.[auxLlm.provider] || '',
-    base_url: auxLlm.base_url,
-    model: auxLlm.model,
-    thinking_level: auxLlm.thinking_level ?? null,
-  };
+  return toEffectiveLlm(config, auxLlm.provider ? auxLlm : config.llm);
 }
 
 /**
@@ -534,21 +526,7 @@ export function getWritingLlmConfig() {
   const config = getConfig();
   const writingLlm = config.writing?.llm ?? {};
 
-  if (!writingLlm.provider) {
-    return {
-      provider: config.llm.provider,
-      api_key: config.provider_keys?.[config.llm.provider] || '',
-      base_url: config.llm.base_url,
-      model: config.llm.model,
-    };
-  }
-
-  return {
-    provider: writingLlm.provider,
-    api_key: config.provider_keys?.[writingLlm.provider] || '',
-    base_url: writingLlm.base_url,
-    model: writingLlm.model,
-  };
+  return toEffectiveLlm(config, writingLlm.provider ? writingLlm : config.llm, { withThinking: false });
 }
 
 /**
@@ -559,15 +537,7 @@ export function getWritingAuxLlmConfig() {
   const config = getConfig();
   const writingAux = config.writing?.aux_llm ?? {};
 
-  if (writingAux.provider) {
-    return {
-      provider: writingAux.provider,
-      api_key: config.provider_keys?.[writingAux.provider] || '',
-      base_url: writingAux.base_url,
-      model: writingAux.model,
-      thinking_level: writingAux.thinking_level ?? null,
-    };
-  }
+  if (writingAux.provider) return toEffectiveLlm(config, writingAux);
 
   // 回退到对话副模型（getAuxLlmConfig 内部再次回退到对话主模型）
   return getAuxLlmConfig();
