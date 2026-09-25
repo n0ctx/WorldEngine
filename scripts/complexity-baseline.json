@@ -5,7 +5,6 @@
     "frontend/src/components/chat/InputBox.jsx#InputBox": 63,
     "frontend/src/components/chat/MessageItem.jsx#MessageItem": 63,
     "frontend/src/components/chat/MessageList.jsx#MessageList": 95,
-    "frontend/src/components/settings/MainLlmBlock.jsx#MainLlmBlock": 68,
     "frontend/src/components/state/EntryEditor.jsx#EntryEditor": 112,
     "frontend/src/components/state/SessionStatePanel.jsx#SessionStatePanel": 39,
     "frontend/src/components/state/StateFieldEditor.jsx#StateFieldEditor": 128,

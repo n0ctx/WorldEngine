@@ -15,72 +15,50 @@ import {
 } from '../../core/constants/settings';
 import { log } from '../../core/utils/logger.js';
 
-/**
- * 主模型(LLM)配置区块 —— 对话/写作模式共用
- *
- * 通过 `inheritFrom` 切换两套语义：
- *   - null（对话模式）：provider 必填；temperature 0.1–2.0 默认 0.8；max_tokens 默认 4096。
- *   - { label, model }（写作模式）：provider 留空回退；temperature 0 = 继承；max_tokens 留空继承。
- */
-export default function MainLlmBlock({
-  title = '主模型(LLM)',
+function getMainProviderDisplaySettings(provider, onThinkingLevelChange) {
+  const isLocal = provider && LOCAL_PROVIDERS.includes(provider);
+  const needsBaseUrl = provider && NEEDS_BASE_URL_PROVIDERS.has(provider);
+  const providerHint = provider ? (PROVIDER_HINTS[provider] || null) : null;
+  const thinkingOptions = onThinkingLevelChange ? getProviderThinkingOptions(provider) : [];
+  const isModelDrivenThinking = onThinkingLevelChange && thinkingOptions.length === 0
+    && (provider === 'kimi' || provider === 'minimax');
+
+  return { isLocal, needsBaseUrl, providerHint, thinkingOptions, isModelDrivenThinking };
+}
+
+function MainLlmProviderSettings({
   providers,
   config,
   onProviderChange,
   onBaseUrlChange,
   onModelChange,
   onThinkingLevelChange,
-  onTemperatureChange,
-  onMaxTokensChange,
   onApiKeySave,
   onApiKeySaved,
-  testConnection,
   loadModels,
-  inheritFrom = null,
+  inheritFrom,
 }) {
   const [apiKey, setApiKey] = useState('');
   const [apiKeySaved, setApiKeySaved] = useState(false);
-  const [testingConnection, setTestingConnection] = useState(false);
-  const [testResult, setTestResult] = useState(null);
-
-  const cfg = config || {};
   const inherit = !!inheritFrom;
   const inheritLabel = inheritFrom?.label ?? '主模型';
   const inheritModel = inheritFrom?.model ?? '';
-
-  const isLocal = cfg.provider && LOCAL_PROVIDERS.includes(cfg.provider);
-  const needsBaseUrl = cfg.provider && NEEDS_BASE_URL_PROVIDERS.has(cfg.provider);
-  const providerHint = cfg.provider ? (PROVIDER_HINTS[cfg.provider] || null) : null;
-  const thinkingOptions = onThinkingLevelChange ? getProviderThinkingOptions(cfg.provider) : [];
-  const isModelDrivenThinking = onThinkingLevelChange && thinkingOptions.length === 0
-    && (cfg.provider === 'kimi' || cfg.provider === 'minimax');
+  const { isLocal, needsBaseUrl, providerHint, thinkingOptions, isModelDrivenThinking } =
+    getMainProviderDisplaySettings(config.provider, onThinkingLevelChange);
 
   async function handleSaveKey() {
-    if (!cfg.provider) {
+    if (!config.provider) {
       log.error('settings.main_llm.no_provider', null, { toast: '请先选择 Provider 再保存密钥' });
       return;
     }
     try {
-      await onApiKeySave(cfg.provider, apiKey);
+      await onApiKeySave(config.provider, apiKey);
       setApiKey('');
       setApiKeySaved(true);
       onApiKeySaved?.();
       setTimeout(() => setApiKeySaved(false), 2000);
     } catch (e) {
       log.error('settings.main_llm.save_failed', e, { toast: `保存失败：${e.message}` });
-    }
-  }
-
-  async function handleTestConnection() {
-    setTestingConnection(true);
-    setTestResult(null);
-    try {
-      const result = await testConnection();
-      setTestResult(result.success ? { success: true } : { success: false, error: result.error });
-    } catch (e) {
-      setTestResult({ success: false, error: e.message });
-    } finally {
-      setTestingConnection(false);
     }
   }
 
@@ -91,28 +69,17 @@ export default function MainLlmBlock({
     ? `用于写作页生成；未配置则回退${inheritLabel}（${inheritModel || '未配置'}）。`
     : undefined;
 
-  const tempMin = inherit ? 0 : 0.1;
-  const tempDefault = inherit ? 0 : 0.8;
-  const tempValue = inherit
-    ? (cfg.temperature ?? 0)
-    : (cfg.temperature ?? tempDefault);
-  const tempDisplay = inherit
-    ? (cfg.temperature != null && cfg.temperature > 0 ? cfg.temperature.toFixed(1) : '继承')
-    : (cfg.temperature ?? tempDefault).toFixed(1);
-
   return (
-    <div className="we-settings-field-group">
-      <p className="we-settings-subsection-title">{title}</p>
-
+    <>
       <FormGroup label="Provider" hint={providerHintText} variant="settings">
         <Select
-          value={cfg.provider || ''}
+          value={config.provider || ''}
           onChange={onProviderChange}
           options={providerOptions}
         />
       </FormGroup>
 
-      {cfg.provider && !isLocal && (
+      {config.provider && !isLocal && (
         <FormGroup label="API Key" variant="settings">
           <div className="we-settings-inline-field-row">
             <Input
@@ -121,7 +88,7 @@ export default function MainLlmBlock({
               className="we-settings-inline-field-input"
               value={apiKey}
               onChange={(e) => setApiKey(e.target.value)}
-              placeholder={cfg.has_key ? '••••••••（已配置，输入新密钥可覆盖）' : '输入后单独保存，不随其他配置提交'}
+              placeholder={config.has_key ? '••••••••（已配置，输入新密钥可覆盖）' : '输入后单独保存，不随其他配置提交'}
             />
             <Button variant="default" onClick={handleSaveKey}>
               {apiKeySaved ? '已保存' : '保存密钥'}
@@ -154,18 +121,18 @@ export default function MainLlmBlock({
       {needsBaseUrl && (
         <FormGroup label="Base URL" variant="settings">
           <Input
-            value={cfg.base_url || ''}
+            value={config.base_url || ''}
             onChange={(e) => onBaseUrlChange(e.target.value)}
-            placeholder={DEFAULT_BASE_URLS[cfg.provider] ?? 'https://your-api-endpoint/v1'}
+            placeholder={DEFAULT_BASE_URLS[config.provider] ?? 'https://your-api-endpoint/v1'}
           />
         </FormGroup>
       )}
 
-      {cfg.provider && (
+      {config.provider && (
         <FormGroup label="模型" variant="settings">
           <ModelSelector
-            key={cfg.provider + (cfg.base_url || '') + (cfg.has_key ? '1' : '0')}
-            value={cfg.model || ''}
+            key={config.provider + (config.base_url || '') + (config.has_key ? '1' : '0')}
+            value={config.model || ''}
             onChange={onModelChange}
             loadModels={loadModels}
           />
@@ -179,8 +146,8 @@ export default function MainLlmBlock({
           variant="settings"
         >
           <Select
-            value={cfg.thinking_level || ''}
-            onChange={(v) => onThinkingLevelChange(v || null)}
+            value={config.thinking_level || ''}
+            onChange={(value) => onThinkingLevelChange(value || null)}
             options={[
               { value: '', label: '自动（模型默认）' },
               ...thinkingOptions,
@@ -194,25 +161,61 @@ export default function MainLlmBlock({
           <Input value="模型驱动" disabled readOnly />
         </FormGroup>
       )}
+    </>
+  );
+}
 
-      {cfg.provider && testConnection && (
-        <FormGroup label="连接测试" variant="settings">
-          <div className="we-settings-action-row we-settings-action-row--spaced">
-            <Button
-              variant="default"
-              onClick={handleTestConnection}
-              disabled={testingConnection}
-            >
-              {testingConnection ? '测试中…' : '测试连接'}
-            </Button>
-            {testResult?.success && <span className="we-settings-status-ok">连接成功</span>}
-            {testResult && !testResult.success && (
-              <span className="we-settings-status-error">{`连接失败：${testResult.error}`}</span>
-            )}
-          </div>
-        </FormGroup>
-      )}
+function MainLlmConnectionTest({ provider, testConnection }) {
+  const [testingConnection, setTestingConnection] = useState(false);
+  const [testResult, setTestResult] = useState(null);
 
+  async function handleTestConnection() {
+    setTestingConnection(true);
+    setTestResult(null);
+    try {
+      const result = await testConnection();
+      setTestResult(result.success ? { success: true } : { success: false, error: result.error });
+    } catch (e) {
+      setTestResult({ success: false, error: e.message });
+    } finally {
+      setTestingConnection(false);
+    }
+  }
+
+  if (!provider || !testConnection) return null;
+
+  return (
+    <FormGroup label="连接测试" variant="settings">
+      <div className="we-settings-action-row we-settings-action-row--spaced">
+        <Button
+          variant="default"
+          onClick={handleTestConnection}
+          disabled={testingConnection}
+        >
+          {testingConnection ? '测试中…' : '测试连接'}
+        </Button>
+        {testResult?.success && <span className="we-settings-status-ok">连接成功</span>}
+        {testResult && !testResult.success && (
+          <span className="we-settings-status-error">{`连接失败：${testResult.error}`}</span>
+        )}
+      </div>
+    </FormGroup>
+  );
+}
+
+function MainLlmGenerationSettings({ config, inheritFrom, onTemperatureChange, onMaxTokensChange }) {
+  const inherit = !!inheritFrom;
+  const tempMin = inherit ? 0 : 0.1;
+  const tempDefault = inherit ? 0 : 0.8;
+  const tempValue = inherit
+    ? (config.temperature ?? 0)
+    : (config.temperature ?? tempDefault);
+  const tempDisplay = inherit
+    ? (config.temperature != null && config.temperature > 0 ? config.temperature.toFixed(1) : '继承')
+    : (config.temperature ?? tempDefault).toFixed(1);
+
+  return (
+    <>
       {onTemperatureChange && (
         <div className="we-settings-inline-control-block">
           <div className="we-settings-range-head">
@@ -230,11 +233,11 @@ export default function MainLlmBlock({
             step="0.1"
             value={tempValue}
             onChange={(e) => {
-              const v = parseFloat(e.target.value);
+              const value = parseFloat(e.target.value);
               if (inherit) {
-                onTemperatureChange(v === 0 ? null : v);
+                onTemperatureChange(value === 0 ? null : value);
               } else {
-                onTemperatureChange(v);
+                onTemperatureChange(value);
               }
             }}
           />
@@ -250,7 +253,7 @@ export default function MainLlmBlock({
           <Input
             type="number"
             min="64" max="32000" step="64"
-            value={inherit ? (cfg.max_tokens ?? '') : (cfg.max_tokens ?? 4096)}
+            value={inherit ? (config.max_tokens ?? '') : (config.max_tokens ?? 4096)}
             placeholder={inherit ? '留空继承对话配置' : undefined}
             onChange={(e) => {
               const raw = e.target.value;
@@ -263,6 +266,57 @@ export default function MainLlmBlock({
           />
         </FormGroup>
       )}
+    </>
+  );
+}
+
+/**
+ * 主模型(LLM)配置区块 —— 对话/写作模式共用
+ *
+ * 通过 `inheritFrom` 切换两套语义：
+ *   - null（对话模式）：provider 必填；temperature 0.1–2.0 默认 0.8；max_tokens 默认 4096。
+ *   - { label, model }（写作模式）：provider 留空回退；temperature 0 = 继承；max_tokens 留空继承。
+ */
+export default function MainLlmBlock({
+  title = '主模型(LLM)',
+  providers,
+  config,
+  onProviderChange,
+  onBaseUrlChange,
+  onModelChange,
+  onThinkingLevelChange,
+  onTemperatureChange,
+  onMaxTokensChange,
+  onApiKeySave,
+  onApiKeySaved,
+  testConnection,
+  loadModels,
+  inheritFrom = null,
+}) {
+  const currentConfig = config || {};
+
+  return (
+    <div className="we-settings-field-group">
+      <p className="we-settings-subsection-title">{title}</p>
+      <MainLlmProviderSettings
+        providers={providers}
+        config={currentConfig}
+        onProviderChange={onProviderChange}
+        onBaseUrlChange={onBaseUrlChange}
+        onModelChange={onModelChange}
+        onThinkingLevelChange={onThinkingLevelChange}
+        onApiKeySave={onApiKeySave}
+        onApiKeySaved={onApiKeySaved}
+        loadModels={loadModels}
+        inheritFrom={inheritFrom}
+      />
+      <MainLlmConnectionTest provider={currentConfig.provider} testConnection={testConnection} />
+      <MainLlmGenerationSettings
+        config={currentConfig}
+        inheritFrom={inheritFrom}
+        onTemperatureChange={onTemperatureChange}
+        onMaxTokensChange={onMaxTokensChange}
+      />
     </div>
   );
 }
