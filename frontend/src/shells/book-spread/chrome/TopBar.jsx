@@ -14,33 +14,22 @@ import { useDanmakuBandStore } from '../../../core/state/danmakuBand.js';
 import { useDisplaySettingsStore } from '../../../core/state/displaySettings';
 import { extractIds, resolveTopbarPathname } from '../../../core/utils/worldScope.js';
 
-export default function TopBar() {
+function WorldSelector({ effectiveWorldId, isCurrentLevel }) {
   const navigate = useNavigate();
   const location = useLocation();
   const m = useMotion();
-  const topbarPathname = resolveTopbarPathname(location);
-  const { characterId, worldId } = extractIds(topbarPathname);
-  const currentWorldId = useStore((s) => s.currentWorldId);
   const setCurrentWorldId = useStore((s) => s.setCurrentWorldId);
   const setCurrentCharacterId = useStore((s) => s.setCurrentCharacterId);
   const setCurrentSessionId = useStore((s) => s.setCurrentSessionId);
-  const storyTitle = useCurrentStoryStore((s) => s.title);
-  const toggleAssistant = useAssistantPanel((s) => s.toggle);
-  const isAssistantOpen = useAssistantPanel((s) => s.isOpen);
-  const danmakuComments = useDanmakuBandStore((s) => s.comments);
-  const danmakuSpeed = useDisplaySettingsStore((s) => s.danmakuSpeed);
-
   const [worlds, setWorlds] = useState([]);
   const [worldsLoading, setWorldsLoading] = useState(false);
-  const [chatWorldId, setChatWorldId] = useState(null);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
 
   async function loadWorlds() {
     setWorldsLoading(true);
     try {
-      const data = await getWorlds();
-      setWorlds(data);
+      setWorlds(await getWorlds());
     } catch {
       setWorlds([]);
     } finally {
@@ -49,20 +38,124 @@ export default function TopBar() {
   }
 
   useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      loadWorlds();
-    }, 0);
+    const timeoutId = setTimeout(loadWorlds, 0);
     return () => clearTimeout(timeoutId);
   }, []);
 
   useEffect(() => {
-    if (dropdownOpen) {
-      const timeoutId = setTimeout(() => {
-        loadWorlds();
-      }, 0);
-      return () => clearTimeout(timeoutId);
-    }
+    if (!dropdownOpen) return undefined;
+    const timeoutId = setTimeout(loadWorlds, 0);
+    return () => clearTimeout(timeoutId);
   }, [dropdownOpen]);
+
+  useEffect(() => {
+    function closeOnOutsideClick(event) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setDropdownOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', closeOnOutsideClick);
+    return () => document.removeEventListener('mousedown', closeOnOutsideClick);
+  }, []);
+
+  useEffect(() => {
+    const timeoutId = setTimeout(() => setDropdownOpen(false), 0);
+    return () => clearTimeout(timeoutId);
+  }, [location.pathname]);
+
+  const currentWorld = worlds.find((world) => world.id === effectiveWorldId);
+
+  return (
+    <div ref={dropdownRef} className="we-topbar-world-wrap">
+      <button
+        className={`we-topbar-item${isCurrentLevel ? ' we-topbar-item--active' : ''}`}
+        onClick={() => setDropdownOpen((open) => !open)}
+        aria-label={currentWorld ? `切换世界，当前：${currentWorld.name}` : '选择世界'}
+        aria-expanded={dropdownOpen}
+        aria-haspopup="listbox"
+        aria-current={isCurrentLevel ? 'page' : undefined}
+      >
+        <span className="we-topbar-world-name">{currentWorld?.name ?? '选择世界'}</span>
+        <motion.span
+          className="we-topbar-caret"
+          animate={{ rotate: dropdownOpen ? 180 : 0 }}
+          transition={m.transition('quick')}
+          aria-hidden="true"
+        >
+          <Icon size={16} viewBox="0 0 10 10" strokeWidth="1.6"><polyline points="2,3.5 5,6.5 8,3.5" /></Icon>
+        </motion.span>
+      </button>
+
+      <AnimatePresence>
+        {dropdownOpen && (
+          <motion.div
+            className="we-topbar-dropdown"
+            variants={m.variant('overlayEnter')}
+            initial="hidden"
+            animate="visible"
+            exit="hidden"
+            transition={m.spring('overlay')}
+          >
+            {worldsLoading ? (
+              <div className="we-topbar-dropdown-empty">加载中…</div>
+            ) : worlds.length === 0 ? (
+              <div className="we-topbar-dropdown-empty">暂无世界记录</div>
+            ) : null}
+            {!worldsLoading && worlds.map((world) => (
+              <button
+                key={world.id}
+                className={`we-topbar-dropdown-item${world.id === effectiveWorldId ? ' we-topbar-dropdown-item--active' : ''}`}
+                onClick={() => {
+                  setDropdownOpen(false);
+                  setCurrentWorldId(world.id);
+                  setCurrentCharacterId(null);
+                  setCurrentSessionId(null);
+                  navigate(`/worlds/${world.id}`);
+                }}
+              >
+                {world.name}
+              </button>
+            ))}
+            {!worldsLoading && <div className="we-topbar-dropdown-divider" />}
+            <button
+              className="we-topbar-dropdown-list-btn"
+              onClick={() => { setDropdownOpen(false); navigate('/'); }}
+            >
+              前往世界列表
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+function getLeafLabel(pathname, worldId, storyTitle) {
+  const labels = {
+    [`/worlds/${worldId}/rules`]: '规则',
+    [`/worlds/${worldId}/edit`]: '编辑世界',
+    [`/worlds/${worldId}/writing`]: storyTitle || '写作',
+  };
+  return /^\/characters\/[\w-]+\/chat$/.test(pathname)
+    ? storyTitle || '对话'
+    : labels[pathname] ?? null;
+}
+
+export default function TopBar() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const m = useMotion();
+  const topbarPathname = resolveTopbarPathname(location);
+  const { characterId, worldId } = extractIds(topbarPathname);
+  const currentWorldId = useStore((s) => s.currentWorldId);
+  const setCurrentWorldId = useStore((s) => s.setCurrentWorldId);
+  const storyTitle = useCurrentStoryStore((s) => s.title);
+  const toggleAssistant = useAssistantPanel((s) => s.toggle);
+  const isAssistantOpen = useAssistantPanel((s) => s.isOpen);
+  const danmakuComments = useDanmakuBandStore((s) => s.comments);
+  const danmakuSpeed = useDisplaySettingsStore((s) => s.danmakuSpeed);
+
+  const [chatWorldId, setChatWorldId] = useState(null);
 
   useEffect(() => {
     if (worldId) {
@@ -74,71 +167,31 @@ export default function TopBar() {
     let cancelled = false;
 
     if (!characterId) {
-      const timeoutId = setTimeout(() => {
-        if (!cancelled) setChatWorldId(null);
-      }, 0);
-      return () => {
-        cancelled = true;
-        clearTimeout(timeoutId);
-      };
+      const timeoutId = setTimeout(() => setChatWorldId(null), 0);
+      return () => clearTimeout(timeoutId);
     }
 
     getCharacter(characterId)
+      .catch(() => null)
       .then((character) => {
-        if (!cancelled) {
-          const nextWorldId = character?.world_id ?? null;
-          setChatWorldId(nextWorldId);
-          if (nextWorldId) {
-            setCurrentWorldId(nextWorldId);
-          }
-        }
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setChatWorldId(null);
-        }
+        if (cancelled) return;
+        const nextWorldId = character?.world_id ?? null;
+        setChatWorldId(nextWorldId);
+        if (nextWorldId) setCurrentWorldId(nextWorldId);
       });
 
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [characterId, setCurrentWorldId]);
 
   const effectiveWorldId = worldId ?? chatWorldId ?? currentWorldId;
-
-  const currentWorld = worlds.find((w) => w.id === effectiveWorldId);
-
-  useEffect(() => {
-    function handler(e) {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
-        setDropdownOpen(false);
-      }
-    }
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, []);
-
-  useEffect(() => {
-    const timeoutId = setTimeout(() => setDropdownOpen(false), 0);
-    return () => clearTimeout(timeoutId);
-  }, [location.pathname]);
 
   const isWorldsList = topbarPathname === '/';
 
   // 面包屑第三级（叶子节点）：世界层之下的具体页面。
   // 只在能明确归类到某个已知页面时才显示；否则叶子留空，面包屑到「世界」这一级为止。
-  let leafLabel = null;
-  if (!isWorldsList && effectiveWorldId) {
-    if (topbarPathname === `/worlds/${effectiveWorldId}/rules`) {
-      leafLabel = '规则';
-    } else if (topbarPathname === `/worlds/${effectiveWorldId}/edit`) {
-      leafLabel = '编辑世界';
-    } else if (/^\/characters\/[\w-]+\/chat$/.test(topbarPathname)) {
-      leafLabel = storyTitle || '对话';
-    } else if (topbarPathname === `/worlds/${effectiveWorldId}/writing`) {
-      leafLabel = storyTitle || '写作';
-    }
-  }
+  const leafLabel = !isWorldsList && effectiveWorldId
+    ? getLeafLabel(topbarPathname, effectiveWorldId, storyTitle)
+    : null;
   // 世界层是最后一级时（世界主页本身），用高对比样式标出「当前位置」。
   const worldIsCurrentLevel = !isWorldsList && effectiveWorldId && !leafLabel;
 
@@ -164,71 +217,10 @@ export default function TopBar() {
         {!isWorldsList && effectiveWorldId && (
           <>
             <span className="we-topbar-sep" aria-hidden="true">/</span>
-            <div ref={dropdownRef} className="we-topbar-world-wrap">
-              <button
-                className={`we-topbar-item${worldIsCurrentLevel ? ' we-topbar-item--active' : ''}`}
-                onClick={() => setDropdownOpen((o) => !o)}
-                aria-label={currentWorld ? `切换世界，当前：${currentWorld.name}` : '选择世界'}
-                aria-expanded={dropdownOpen}
-                aria-haspopup="listbox"
-                aria-current={worldIsCurrentLevel ? 'page' : undefined}
-              >
-                <span className="we-topbar-world-name">{currentWorld?.name ?? '选择世界'}</span>
-                <motion.span
-                  className="we-topbar-caret"
-                  animate={{ rotate: dropdownOpen ? 180 : 0 }}
-                  transition={m.transition('quick')}
-                  aria-hidden="true"
-                >
-                  <Icon size={16} viewBox="0 0 10 10" strokeWidth="1.6"><polyline points="2,3.5 5,6.5 8,3.5" /></Icon>
-                </motion.span>
-              </button>
-
-              <AnimatePresence>
-                {dropdownOpen && (
-                  <motion.div
-                    className="we-topbar-dropdown"
-                    variants={m.variant('overlayEnter')}
-                    initial="hidden"
-                    animate="visible"
-                    exit="hidden"
-                    transition={m.spring('overlay')}
-                  >
-                    {worldsLoading ? (
-                      <div className="we-topbar-dropdown-empty">
-                        加载中…
-                      </div>
-                    ) : worlds.length === 0 ? (
-                      <div className="we-topbar-dropdown-empty">
-                        暂无世界记录
-                      </div>
-                    ) : null}
-                    {!worldsLoading && worlds.map((w) => (
-                      <button
-                        key={w.id}
-                        className={`we-topbar-dropdown-item${w.id === effectiveWorldId ? ' we-topbar-dropdown-item--active' : ''}`}
-                        onClick={() => {
-                          setDropdownOpen(false);
-                          setCurrentWorldId(w.id);
-                          setCurrentCharacterId(null);
-                          setCurrentSessionId(null);
-                          navigate(`/worlds/${w.id}`);
-                        }}
-                      >
-                        {w.name}
-                      </button>
-                    ))}
-                    {!worldsLoading && <div className="we-topbar-dropdown-divider" />}
-                    <button
-                      className="we-topbar-dropdown-list-btn"
-                      onClick={() => { setDropdownOpen(false); navigate('/'); }}
-                    >
-                      前往世界列表
-                    </button>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
+            <WorldSelector
+              effectiveWorldId={effectiveWorldId}
+              isCurrentLevel={worldIsCurrentLevel}
+            />
           </>
         )}
 
