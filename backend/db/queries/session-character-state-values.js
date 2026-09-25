@@ -23,16 +23,6 @@ export function upsertSessionCharacterStateValue(sessionId, characterId, fieldKe
 }
 
 /**
- * 获取某会话下某角色的所有运行时状态值，返回 { field_key → runtime_value_json } Map
- */
-export function getSessionCharacterStateValues(sessionId, characterId) {
-  const rows = db.prepare(
-    'SELECT field_key, runtime_value_json FROM session_character_state_values WHERE session_id = ? AND character_id = ?',
-  ).all(sessionId, characterId);
-  return Object.fromEntries(rows.map((r) => [r.field_key, r.runtime_value_json]));
-}
-
-/**
  * 一次取出某会话下多个角色的运行时状态值，返回 { character_id → { field_key → runtime_value_json } }；
  * 没有任何值的角色也会得到空对象。
  * @param {string[]} characterIds

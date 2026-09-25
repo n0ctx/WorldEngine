@@ -16,8 +16,7 @@ import {
   deleteMessagesAfter,
 } from '../services/sessions.js';
 import { getCharacterById } from '../services/characters.js';
-import { chatMode } from '../app/modes/chat-mode.js';
-import { writingMode } from '../app/modes/writing-mode.js';
+import { getModeForSession } from '../app/modes/index.js';
 import { rollbackSession } from '../app/shared/rollback/rollback-session.js';
 import { ALL_MESSAGES_LIMIT } from '../utils/constants.js';
 import { assertExists } from '../utils/route-helpers.js';
@@ -26,11 +25,6 @@ import { runHook } from '../hooks/hook-registry.js';
 
 const router = Router();
 const log = createLogger('sessions', 'cyan');
-
-/** 编辑 / 删除消息的接口两种模式共用，按会话自身的 mode 决定回滚时怎么解析世界与角色 */
-function modeOfSession(session) {
-  return session?.mode === 'writing' ? writingMode : chatMode;
-}
 
 // GET /api/characters/:characterId/sessions — 获取某角色下的会话列表
 router.get('/characters/:characterId/sessions', (req, res) => {
@@ -127,7 +121,7 @@ router.put('/messages/:id', async (req, res) => {
   }
 
   let updated;
-  await rollbackSession(modeOfSession(getSessionById(msg.session_id)), msg.session_id, async () => {
+  await rollbackSession(getModeForSession(msg.session_id), msg.session_id, async () => {
     updated = await updateMessageAndDeleteAfter(req.params.id, content);
   });
 
@@ -147,7 +141,7 @@ router.delete('/sessions/:sessionId/messages/:messageId', async (req, res) => {
     return res.status(404).json({ error: '消息不存在' });
   }
 
-  await rollbackSession(modeOfSession(session), sessionId, async () => {
+  await rollbackSession(getModeForSession(sessionId), sessionId, async () => {
     await deleteMessagesAfter(messageId);
     await deleteMessage(messageId);
     await runHook('message:deleted', { id: messageId, sessionId });

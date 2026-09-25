@@ -100,17 +100,6 @@ export function getPersonaStateValuesWithFields(worldId) {
 }
 
 /**
- * 删除单个玩家状态值（按当前激活 persona）
- */
-export function deletePersonaStateValue(worldId, fieldKey) {
-  const personaId = resolveActivePersonaId(worldId);
-  if (!personaId) return null;
-  return db.prepare(
-    'DELETE FROM persona_state_values WHERE persona_id = ? AND field_key = ?',
-  ).run(personaId, fieldKey);
-}
-
-/**
  * 联表查询：指定 persona 的状态字段定义 + 值，按 sort_order 升序
  * @param {string} personaId
  * @param {string} worldId
@@ -169,11 +158,3 @@ export function deletePersonaStateValuesByFieldKey(worldId, fieldKey) {
   ).run(worldId, fieldKey);
 }
 
-/**
- * 清空当前激活 persona 所有状态字段的运行时值（回滚状态时调用）
- */
-export function clearPersonaStateRuntimeValues(worldId) {
-  const personaId = resolveActivePersonaId(worldId);
-  if (!personaId) return;
-  db.prepare('UPDATE persona_state_values SET runtime_value_json = NULL WHERE persona_id = ?').run(personaId);
-}

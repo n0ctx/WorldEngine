@@ -9,15 +9,13 @@ import {
 import { createLogger, formatMeta } from '../utils/logger.js';
 import { RESTART_INTERRUPTED_ERROR } from '../../shared/runtime-constants.mjs';
 
-export { RESTART_INTERRUPTED_ERROR };
-
 const log = createLogger('stream-task', 'cyan');
 
 const tasks = new Map();
 const sseClients = new Map();
 
-export const ACTIVE_STREAM_TASK_STATUSES = new Set(['streaming', 'postprocessing']);
-export const TERMINAL_STREAM_TASK_STATUSES = new Set(['completed', 'failed', 'cancelled']);
+const ACTIVE_STREAM_TASK_STATUSES = new Set(['streaming', 'postprocessing']);
+const TERMINAL_STREAM_TASK_STATUSES = new Set(['completed', 'failed', 'cancelled']);
 
 function cloneTask(task) {
   return {
@@ -197,32 +195,6 @@ export function createSessionStreamTask({
   persist(task);
   tasks.set(sessionId, task);
   cancelProgressFlush(sessionId);
-  return task;
-}
-
-export function setSessionStreamTaskStatus(sessionId, status, { error } = {}) {
-  const task = tasks.get(sessionId);
-  if (!task) return null;
-  // 持久化失败时不能让内存与 DB 分裂：先快照旧字段，persist 抛错则回滚内存。
-  const prev = { status: task.status, error: task.error, updatedAt: task.updatedAt };
-  task.status = status;
-  if (error === undefined) {
-    // keep
-  } else if (error == null) {
-    delete task.error;
-  } else {
-    task.error = String(error);
-  }
-  touch(task);
-  try {
-    persist(task);
-  } catch (err) {
-    task.status = prev.status;
-    if (prev.error === undefined) delete task.error;
-    else task.error = prev.error;
-    task.updatedAt = prev.updatedAt;
-    throw err;
-  }
   return task;
 }
 

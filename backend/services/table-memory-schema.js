@@ -6,7 +6,7 @@
 export const FIELD_MAX_CHARS = 60;
 
 // 行数上限单值的合法范围：0 = 不限制；上限避免误填超大值
-export const ROW_LIMIT_MAX = 1000;
+const ROW_LIMIT_MAX = 1000;
 
 export const TABLE_SCHEMAS = {
   relations: { name: '关系表', columns: ['主体A', '主体B', '关系类型', '信任/敌意', '债务/承诺'],

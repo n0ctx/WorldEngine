@@ -35,10 +35,8 @@ const valueSuites = [
       return { worldId: world.id, lookupId: world.id, fieldKey: 'weather' };
     },
     upsertName: 'upsertWorldStateValue',
-    getName: null,
     getAllName: 'getAllWorldStateValues',
     withFieldsName: 'getWorldStateValuesWithFields',
-    clearRuntimeName: null,
   },
   {
     label: 'character',
@@ -57,10 +55,8 @@ const valueSuites = [
       return { worldId: world.id, lookupId: character.id, fieldKey: 'hp' };
     },
     upsertName: 'upsertCharacterStateValue',
-    getName: 'getCharacterStateValue',
     getAllName: 'getAllCharacterStateValues',
     withFieldsName: 'getCharacterStateValuesWithFields',
-    clearRuntimeName: 'clearCharacterStateRuntimeValues',
   },
   {
     label: 'persona',
@@ -79,10 +75,8 @@ const valueSuites = [
       return { worldId: world.id, lookupId: world.id, fieldKey: 'trust' };
     },
     upsertName: 'upsertPersonaStateValue',
-    getName: null,
     getAllName: 'getAllPersonaStateValues',
     withFieldsName: 'getPersonaStateValuesWithFields',
-    clearRuntimeName: 'clearPersonaStateRuntimeValues',
   },
 ];
 
@@ -94,7 +88,6 @@ for (const suite of valueSuites) {
     const upsert = mod[suite.upsertName];
     const getAll = mod[suite.getAllName];
     const getWithFields = mod[suite.withFieldsName];
-    const clearRuntime = mod[suite.clearRuntimeName];
 
     const created = upsert(owner.lookupId, owner.fieldKey, { defaultValueJson: owner.fieldKey === 'weather' ? '"阴"' : '80' });
     assert.equal(created.runtime_value_json, null);
@@ -105,15 +98,9 @@ for (const suite of valueSuites) {
     assert.equal(allRows.length, 1);
     assert.equal(allRows[0].runtime_value_json, updated.runtime_value_json);
 
-    let withFields = getWithFields(owner.lookupId);
+    const withFields = getWithFields(owner.lookupId);
     assert.equal(withFields[0].default_value_json, created.default_value_json);
     assert.equal(withFields[0].effective_value_json, updated.runtime_value_json);
-
-    if (!clearRuntime) return;
-    clearRuntime(owner.lookupId);
-    withFields = getWithFields(owner.lookupId);
-    assert.equal(withFields[0].runtime_value_json, null);
-    assert.equal(withFields[0].effective_value_json, created.default_value_json);
   });
 }
 

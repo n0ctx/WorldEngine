@@ -82,8 +82,7 @@ function makeLog(level) {
 
 let _maybeFlush = () => {};
 
-export function __setFlush(fn) { _maybeFlush = fn; }
-export function __getBuffer() { return _buffer; }
+function __setFlush(fn) { _maybeFlush = fn; }
 export function __resetLoggerForTest() {
   _buffer = [];
   _dedupe = new Map();

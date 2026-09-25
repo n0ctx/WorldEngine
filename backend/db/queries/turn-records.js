@@ -93,22 +93,6 @@ export function getTurnRecordsWithContentByIds(ids) {
 }
 
 /**
- * 获取某会话最近 limit 条 turn records，按 round_index 升序返回
- *
- * @param {string} sessionId
- * @param {number} limit
- * @returns {object[]}
- */
-export function getTurnRecordsBySessionId(sessionId, limit) {
-  const rows = db.prepare(`
-    SELECT * FROM (
-      SELECT * FROM turn_records WHERE session_id = ? ORDER BY round_index DESC LIMIT ?
-    ) ORDER BY round_index ASC
-  `).all(sessionId, limit);
-  return rows;
-}
-
-/**
  * 获取某会话最后一条 turn record（round_index 最大）
  *
  * @param {string} sessionId
@@ -160,15 +144,6 @@ export function updateTurnRecordTableSnapshot(id, snapshot) {
 }
 
 /**
- * 删除某会话 round_index 最大的那条 turn record（regenerate 用）
- */
-export function deleteLastTurnRecord(sessionId) {
-  const last = getLatestTurnRecord(sessionId);
-  if (!last) return;
-  db.prepare('DELETE FROM turn_records WHERE id = ?').run(last.id);
-}
-
-/**
  * 获取某会话 state_snapshot 不为 null 的最新一条 turn record
  * 用于回滚：跳过无快照的旧记录，找到最近的有效状态锚点
  *
@@ -190,9 +165,3 @@ export function deleteTurnRecordsAfterRound(sessionId, roundIndex) {
   ).run(sessionId, roundIndex);
 }
 
-/**
- * 删除某会话的所有 turn records（级联删除兜底，正常由 ON DELETE CASCADE 处理）
- */
-export function deleteTurnRecordsBySessionId(sessionId) {
-  db.prepare('DELETE FROM turn_records WHERE session_id = ?').run(sessionId);
-}

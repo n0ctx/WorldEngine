@@ -53,7 +53,7 @@ function formatToolLine(m) {
 }
 
 // 之前轮次里新建的世界仍然存在时，继续作为当前世界；否则用面板所在的世界。
-export function resolveWorkingWorldId(task) {
+function resolveWorkingWorldId(task) {
   const messages = Array.isArray(task.messages) ? task.messages : [];
   for (let i = messages.length - 1; i >= 0; i -= 1) {
     const m = messages[i];

@@ -160,6 +160,3 @@ export async function deleteAllMessagesBySessionId(sessionId) {
   return result;
 }
 
-export function updateMessageContent(id, content) {
-  return dbUpdateMessageContent(id, content);
-}

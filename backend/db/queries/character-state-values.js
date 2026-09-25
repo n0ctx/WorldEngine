@@ -14,15 +14,6 @@ export function upsertCharacterStateValue(characterId, fieldKey, patch = {}) {
 }
 
 /**
- * 获取单个角色状态值
- */
-export function getCharacterStateValue(characterId, fieldKey) {
-  return db.prepare(
-    'SELECT * FROM character_state_values WHERE character_id = ? AND field_key = ?',
-  ).get(characterId, fieldKey);
-}
-
-/**
  * 获取某角色的所有状态值
  */
 export function getAllCharacterStateValues(characterId) {
@@ -93,9 +84,3 @@ export function getCharacterStateValuesWithFields(characterId) {
   `).all(characterId, characterId);
 }
 
-/**
- * 清空某角色所有状态字段的运行时值（删除消息回滚状态时调用）
- */
-export function clearCharacterStateRuntimeValues(characterId) {
-  db.prepare('UPDATE character_state_values SET runtime_value_json = NULL WHERE character_id = ?').run(characterId);
-}

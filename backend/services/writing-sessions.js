@@ -56,10 +56,6 @@ export function createWritingSession(worldId) {
   return session;
 }
 
-export function getWritingSessionsByWorldId(worldId, personaId) {
-  return dbGetWritingSessionsByWorldId(worldId, personaId);
-}
-
 export function getActiveWritingSessionsByWorldId(worldId) {
   const personaId = resolveActivePersonaId(worldId);
   if (!personaId) return [];
@@ -91,9 +87,7 @@ export {
   touchSession as touchWritingSession,
   createMessage,
   getMessagesBySessionId,
-  getMessageById,
   deleteMessagesAfter,
-  deleteAllMessagesBySessionId as deleteAllMessages,
 } from './sessions.js';
 
 // ---------------------------------------------------------------------------
