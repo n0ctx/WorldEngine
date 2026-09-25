@@ -7,6 +7,17 @@ import FormGroup from '../ui/FormGroup';
 import { LOCAL_PROVIDERS, NEEDS_BASE_URL_PROVIDERS, DEFAULT_BASE_URLS, PROVIDER_HINTS, getProviderThinkingOptions } from '../../core/constants/settings';
 import { log } from '../../core/utils/logger.js';
 
+function getAuxProviderDisplaySettings(provider, onThinkingLevelChange) {
+  const isLocal = provider && LOCAL_PROVIDERS.includes(provider);
+  const needsBaseUrl = provider && NEEDS_BASE_URL_PROVIDERS.has(provider);
+  const providerHint = provider ? (PROVIDER_HINTS[provider] || null) : null;
+  const thinkingOptions = onThinkingLevelChange ? getProviderThinkingOptions(provider) : [];
+  const isModelDrivenThinking = onThinkingLevelChange && thinkingOptions.length === 0
+    && (provider === 'kimi' || provider === 'minimax');
+
+  return { isLocal, needsBaseUrl, providerHint, thinkingOptions, isModelDrivenThinking };
+}
+
 /**
  * 副模型(LLM)配置区块
  * 显示 provider / API Key / base_url / model / thinking_level / 测试连接按钮
@@ -47,12 +58,8 @@ export default function AuxLlmBlock({ providers, config, onProviderChange, onBas
     }
   }
 
-  const isLocal = config.provider && LOCAL_PROVIDERS.includes(config.provider);
-  const needsBaseUrl = config.provider && NEEDS_BASE_URL_PROVIDERS.has(config.provider);
-  const providerHint = config.provider ? (PROVIDER_HINTS[config.provider] || null) : null;
-  const thinkingOptions = onThinkingLevelChange ? getProviderThinkingOptions(config.provider) : [];
-  const isModelDrivenThinking = onThinkingLevelChange && thinkingOptions.length === 0
-    && (config.provider === 'kimi' || config.provider === 'minimax');
+  const { isLocal, needsBaseUrl, providerHint, thinkingOptions, isModelDrivenThinking } =
+    getAuxProviderDisplaySettings(config.provider, onThinkingLevelChange);
 
   return (
     <div className="we-settings-field-group">
