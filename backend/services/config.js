@@ -270,19 +270,8 @@ function mergeSectionKeys(section, sharedKeys) {
   return dirty;
 }
 
-/**
- * 读取当前配置，不存在则初始化默认配置并写入文件
- */
-export function getConfig() {
- if (!fs.existsSync(CONFIG_PATH)) {
- writeConfigFile(DEFAULT_CONFIG);
- return structuredClone(DEFAULT_CONFIG);
- }
-  const raw = fs.readFileSync(CONFIG_PATH, 'utf-8');
-  const config = JSON.parse(raw);
-
+function migrateConfig(config) {
   let dirty = false;
-
   // 迁移旧字段名 context_compress_rounds → context_history_rounds
   if ('context_compress_rounds' in config && !('context_history_rounds' in config)) {
     config.context_history_rounds = config.context_compress_rounds;
@@ -290,15 +279,19 @@ export function getConfig() {
     dirty = true;
   }
 
-  // 顶层共享 provider_keys 迁移：把 5 套独立 provider_keys 合并到顶层
+  // 把旧版各 section 的 key 收拢到顶层共享池
   if (!config.provider_keys || typeof config.provider_keys !== 'object' || Array.isArray(config.provider_keys)) {
     config.provider_keys = {};
     dirty = true;
   }
   for (const section of [config.llm, config.embedding, config.aux_llm, config.writing?.llm, config.writing?.aux_llm]) {
-    if (mergeSectionKeys(section, config.provider_keys)) dirty = true;
+    dirty = mergeSectionKeys(section, config.provider_keys) || dirty;
   }
+  return dirty;
+}
 
+function normalizeLogging(config) {
+  let dirty = false;
   if (!config.logging || typeof config.logging !== 'object' || Array.isArray(config.logging)) {
     config.logging = structuredClone(DEFAULT_LOGGING);
     dirty = true;
@@ -329,13 +322,6 @@ export function getConfig() {
     config.logging.prompt.enabled = true;
     dirty = true;
   }
-
-  // 弹幕配置兜底：旧 config.json 无此段时补默认，保证读取处永远拿到对象
-  if (!config.danmaku || typeof config.danmaku !== 'object' || Array.isArray(config.danmaku)) {
-    config.danmaku = structuredClone(DEFAULT_CONFIG.danmaku);
-    dirty = true;
-  }
-
   if (config.logging.mode !== 'metadata' && config.logging.mode !== 'raw') {
     config.logging.mode = DEFAULT_LOGGING.mode;
     dirty = true;
@@ -349,11 +335,11 @@ export function getConfig() {
     config.logging.max_preview_chars = Math.floor(previewChars);
     dirty = true;
   }
+  return dirty;
+}
 
-  if (dirty) {
-    writeConfigFile(config);
-  }
-
+function normalizeConfigSections(config) {
+  let dirty = false;
   if (!config.ui || typeof config.ui !== 'object') {
     config.ui = structuredClone(DEFAULT_UI);
     dirty = true;
@@ -428,19 +414,37 @@ export function getConfig() {
     config.assistant = { ...DEFAULT_ASSISTANT, ...config.assistant };
   }
 
-  // 表格行数上限：旧配置缺该字段时补齐默认（缺 key 补默认、非法清洗、未知丢弃）
-  {
-    const resolved = resolveRowLimits(config.table_memory_row_limits);
-    if (JSON.stringify(resolved) !== JSON.stringify(config.table_memory_row_limits)) {
-      config.table_memory_row_limits = resolved;
-      dirty = true;
-    }
+  // 弹幕配置兜底：旧 config.json 无此段时补默认，保证读取处永远拿到对象
+  if (!config.danmaku || typeof config.danmaku !== 'object' || Array.isArray(config.danmaku)) {
+    config.danmaku = structuredClone(DEFAULT_CONFIG.danmaku);
+    dirty = true;
   }
 
-  if (dirty) {
+  // 行数上限：缺失 key 补默认、非法清洗、未知 key 丢弃
+  const rowLimits = resolveRowLimits(config.table_memory_row_limits);
+  if (JSON.stringify(rowLimits) !== JSON.stringify(config.table_memory_row_limits)) {
+    config.table_memory_row_limits = rowLimits;
+    dirty = true;
+  }
+  return dirty;
+}
+
+/**
+ * 读取当前配置，不存在则初始化默认配置并写入文件
+ */
+export function getConfig() {
+  if (!fs.existsSync(CONFIG_PATH)) {
+    writeConfigFile(DEFAULT_CONFIG);
+    return structuredClone(DEFAULT_CONFIG);
+  }
+  const raw = fs.readFileSync(CONFIG_PATH, 'utf-8');
+  const config = JSON.parse(raw);
+  const migrationDirty = migrateConfig(config);
+  const loggingDirty = normalizeLogging(config);
+  const sectionsDirty = normalizeConfigSections(config);
+  if (migrationDirty || loggingDirty || sectionsDirty) {
     writeConfigFile(config);
   }
-
   return config;
 }
 
