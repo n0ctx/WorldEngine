@@ -6,6 +6,59 @@
  * @module backend/prompts/nearby-prompt
  */
 
+function formatNearbyField(field) {
+  let line = `  - ${field.field_key}（${field.label}，type=${field.type}）`;
+  if (field.description) line += `；${field.description}`;
+  if (field.type === 'enum' && Array.isArray(field.enum_options) && field.enum_options.length) {
+    line += `；可选值（必须从中选一个）：[${field.enum_options.join(' / ')}]`;
+  }
+  if (field.type === 'number') {
+    const lo = field.min_value != null ? field.min_value : '不限';
+    const hi = field.max_value != null ? field.max_value : '不限';
+    line += `；范围 ${lo}~${hi}`;
+    if (field.unit) line += `；单位 ${field.unit}（仅展示，写入纯数字）`;
+  }
+  if (field.type === 'list') line += '；返回字符串数组 ["..","..",..]，替换整个列表';
+  if (field.type === 'datetime') line += '；返回 ISO 局部时间 "YYYY-MM-DDTHH:mm"';
+  if (field.type === 'table' && Array.isArray(field.table_columns) && field.table_columns.length) {
+    const colDesc = field.table_columns.map((column) => {
+      const lo = column.min != null ? column.min : '不限';
+      const hi = column.max != null ? column.max : '不限';
+      return `${column.key}(${column.label ?? column.key},${lo}~${hi})`;
+    }).join(' / ');
+    line += `；返回 {列key:数值,...}，列：[${colDesc}]，仅数值`;
+  }
+  if (field.type === 'boolean') line += '；返回 true 或 false';
+  if (field.update_instruction) line += `\n    更新说明：${field.update_instruction}`;
+  return line;
+}
+
+// 判断某字段值是否「空」：缺失 / null / 空串 / 空数组 / 空对象。
+// 空字段需显式告知副 LLM 本轮补全，避免稀疏 patch 永远跳过未变化但仍为空的字段。
+function isEmptyNearbyValue(value) {
+  if (value === null || value === undefined || value === '') return true;
+  if (Array.isArray(value)) return value.length === 0;
+  if (typeof value === 'object') return Object.keys(value).length === 0;
+  return false;
+}
+
+function formatNearbyState(state) {
+  return state && Object.keys(state).length
+    ? Object.entries(state).map(([key, value]) => (
+      `${key}=${typeof value === 'string' ? value : JSON.stringify(value)}`
+    )).join(', ')
+    : '（无）';
+}
+
+function formatNearbyPoolEntry(person, fieldKeys) {
+  const stateStr = formatNearbyState(person.state);
+  const missing = fieldKeys.filter((key) => (
+    isEmptyNearbyValue(person.state ? person.state[key] : undefined)
+  ));
+  const missingStr = missing.length ? `｜待补全字段（本轮必须填）：[${missing.join(', ')}]` : '';
+  return `- [id=${person.id}] ${person.name}（${person.is_saved ? '持续追踪' : '临时'}）｜人设：${person.persona || '（无）'}｜上轮状态：{${stateStr}}${missingStr}`;
+}
+
 /**
  * 构建 nearby pool 段。
  *
@@ -18,54 +71,11 @@
  */
 export function buildNearbyPromptSection(pool, fields, opts = {}) {
   const playerName = typeof opts.playerName === 'string' ? opts.playerName.trim() : '';
-  const fieldKeys = fields.map((f) => f.field_key);
+  const fieldKeys = fields.map((field) => field.field_key);
   const fieldKeysCsv = fieldKeys.join(', ');
-
-  const fieldsDesc = fields.map((f) => {
-    let line = `  - ${f.field_key}（${f.label}，type=${f.type}）`;
-    if (f.description) line += `；${f.description}`;
-    if (f.type === 'enum' && Array.isArray(f.enum_options) && f.enum_options.length) {
-      line += `；可选值（必须从中选一个）：[${f.enum_options.join(' / ')}]`;
-    }
-    if (f.type === 'number') {
-      const lo = f.min_value != null ? f.min_value : '不限';
-      const hi = f.max_value != null ? f.max_value : '不限';
-      line += `；范围 ${lo}~${hi}`;
-      if (f.unit) line += `；单位 ${f.unit}（仅展示，写入纯数字）`;
-    }
-    if (f.type === 'list') line += '；返回字符串数组 ["..","..",..]，替换整个列表';
-    if (f.type === 'datetime') line += '；返回 ISO 局部时间 "YYYY-MM-DDTHH:mm"';
-    if (f.type === 'table' && Array.isArray(f.table_columns) && f.table_columns.length) {
-      const colDesc = f.table_columns.map((c) => {
-        const lo = c.min != null ? c.min : '不限';
-        const hi = c.max != null ? c.max : '不限';
-        return `${c.key}(${c.label ?? c.key},${lo}~${hi})`;
-      }).join(' / ');
-      line += `；返回 {列key:数值,...}，列：[${colDesc}]，仅数值`;
-    }
-    if (f.type === 'boolean') line += '；返回 true 或 false';
-    if (f.update_instruction) line += `\n    更新说明：${f.update_instruction}`;
-    return line;
-  }).join('\n');
-
-  // 判断某字段值是否「空」：缺失 / null / 空串 / 空数组 / 空对象。
-  // 空字段需显式告知副 LLM 本轮补全，避免稀疏 patch 永远跳过未变化但仍为空的字段。
-  const isEmptyValue = (v) => {
-    if (v === null || v === undefined || v === '') return true;
-    if (Array.isArray(v)) return v.length === 0;
-    if (typeof v === 'object') return Object.keys(v).length === 0;
-    return false;
-  };
-
+  const fieldsDesc = fields.map(formatNearbyField).join('\n');
   const poolDesc = pool.length
-    ? pool.map((p) => {
-      const stateStr = p.state && Object.keys(p.state).length
-        ? Object.entries(p.state).map(([k, v]) => `${k}=${typeof v === 'string' ? v : JSON.stringify(v)}`).join(', ')
-        : '（无）';
-      const missing = fieldKeys.filter((k) => isEmptyValue(p.state ? p.state[k] : undefined));
-      const missingStr = missing.length ? `｜待补全字段（本轮必须填）：[${missing.join(', ')}]` : '';
-      return `- [id=${p.id}] ${p.name}（${p.is_saved ? '持续追踪' : '临时'}）｜人设：${p.persona || '（无）'}｜上轮状态：{${stateStr}}${missingStr}`;
-    }).join('\n')
+    ? pool.map((person) => formatNearbyPoolEntry(person, fieldKeys)).join('\n')
     : '（空）';
 
   return [

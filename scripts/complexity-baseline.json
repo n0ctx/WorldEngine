@@ -21,7 +21,6 @@
     "backend/prompts/assembler.js#buildPrompt": 37,
     "backend/prompts/assembler.js#buildWritingPrompt": 58,
     "backend/prompts/entry-matcher.js#matchEntries": 53,
-    "backend/prompts/nearby-prompt.js#buildNearbyPromptSection": 34,
     "backend/services/config.js#getConfig": 58,
     "backend/services/import-export.js#(匿名)~11": 75,
     "backend/services/import-export.js#exportWorld": 36,
