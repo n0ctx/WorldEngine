@@ -1,15 +1,5 @@
 {
   "version": 1,
   "files": [],
-  "exports": [
-    "backend/db/queries/world-state-values.js#clearWorldStateRuntimeValues",
-    "backend/db/queries/world-state-values.js#getWorldStateValue",
-    "frontend/src/pages/layout/PageLayout.jsx#HeaderSlot",
-    "frontend/src/pages/layout/PageLayout.jsx#InspectorSlot",
-    "frontend/src/pages/layout/PageLayout.jsx#LeftSidebarSlot",
-    "frontend/src/pages/layout/PageLayout.jsx#MainContentSlot",
-    "frontend/src/pages/layout/PageLayout.jsx#OverlayLayer",
-    "frontend/src/pages/layout/PageLayout.jsx#RightSidebarSlot",
-    "frontend/src/pages/layout/PageLayout.jsx#TransitionContainer"
-  ]
+  "exports": []
 }

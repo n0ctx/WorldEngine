@@ -51,5 +51,5 @@ register the new shell in `frontend/src/core/router/selectShell.js`.
 - A shell MUST NOT import from `frontend/src/core/router/`.
 - A shell MAY import from `frontend/src/components/ui` and shared utilities.
 - A shell SHOULD render slots from `frontend/src/pages/layout/PageLayout`
-  (`HeaderSlot`, `MainContentSlot`, etc.) when a page describes layout
+  (`header`, `main`, etc.) when a page describes layout
   neutrally. Pages MUST NOT know which shell will render their slots.

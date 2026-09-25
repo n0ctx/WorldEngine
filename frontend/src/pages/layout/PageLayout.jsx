@@ -66,11 +66,3 @@ export default function PageLayout(slots) {
   if (typeof renderer === 'function') return renderer(slots);
   return <DefaultRenderer {...slots} />;
 }
-
-export const HeaderSlot = ({ children }) => children;
-export const MainContentSlot = ({ children }) => children;
-export const LeftSidebarSlot = ({ children }) => children;
-export const RightSidebarSlot = ({ children }) => children;
-export const InspectorSlot = ({ children }) => children;
-export const OverlayLayer = ({ children }) => children;
-export const TransitionContainer = ({ children }) => children;

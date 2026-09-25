@@ -36,9 +36,8 @@ A shell owns:
 - **Page frame** — the visual container that wraps every route.
 - **Transitions** — route-to-route motion treatment.
 - **Decorative layout** — shell-specific wrappers, ornaments, textures.
-- **Slot rendering** — how `pages/layout/PageLayout` slots (`HeaderSlot`,
-  `MainContentSlot`, `LeftSidebarSlot`, `RightSidebarSlot`, `InspectorSlot`,
-  `OverlayLayer`) are visually arranged. Pages declare slots neutrally; the
+- **Slot rendering** — how `pages/layout/PageLayout` slots (`header`, `left`,
+  `main`, `right`, `inspector`, `overlay`) are visually arranged. Pages declare slots neutrally; the
   shell decides whether they become a parchment two-page spread, a single-panel
   modern layout, etc.
 

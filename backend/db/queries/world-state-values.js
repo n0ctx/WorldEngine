@@ -14,15 +14,6 @@ export function upsertWorldStateValue(worldId, fieldKey, patch = {}) {
 }
 
 /**
- * 获取单个世界状态值
- */
-export function getWorldStateValue(worldId, fieldKey) {
-  return db.prepare(
-    'SELECT * FROM world_state_values WHERE world_id = ? AND field_key = ?',
-  ).get(worldId, fieldKey);
-}
-
-/**
  * 获取某世界的所有状态值
  */
 export function getAllWorldStateValues(worldId) {
@@ -74,11 +65,4 @@ export function getWorldStateValuesWithFields(worldId) {
     WHERE wsf.world_id = ?
     ORDER BY wsf.sort_order ASC
   `).all(worldId);
-}
-
-/**
- * 清空某世界所有状态字段的运行时值（删除消息回滚状态时调用）
- */
-export function clearWorldStateRuntimeValues(worldId) {
-  db.prepare('UPDATE world_state_values SET runtime_value_json = NULL WHERE world_id = ?').run(worldId);
 }

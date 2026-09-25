@@ -35,10 +35,10 @@ const valueSuites = [
       return { worldId: world.id, lookupId: world.id, fieldKey: 'weather' };
     },
     upsertName: 'upsertWorldStateValue',
-    getName: 'getWorldStateValue',
+    getName: null,
     getAllName: 'getAllWorldStateValues',
     withFieldsName: 'getWorldStateValuesWithFields',
-    clearRuntimeName: 'clearWorldStateRuntimeValues',
+    clearRuntimeName: null,
   },
   {
     label: 'character',
@@ -109,6 +109,7 @@ for (const suite of valueSuites) {
     assert.equal(withFields[0].default_value_json, created.default_value_json);
     assert.equal(withFields[0].effective_value_json, updated.runtime_value_json);
 
+    if (!clearRuntime) return;
     clearRuntime(owner.lookupId);
     withFields = getWithFields(owner.lookupId);
     assert.equal(withFields[0].runtime_value_json, null);
