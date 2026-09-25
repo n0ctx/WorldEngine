@@ -134,6 +134,44 @@ describe('useSettingsConfig', () => {
     expect(toasts).toContain('设置保存失败，本次修改未生效：网络错误');
   });
 
+  it('自动保存失败后保留未保存的提示词内容', async () => {
+    updateConfig.mockRejectedValueOnce(new Error('写入失败'));
+    const { result } = renderHook(() => useSettingsConfig());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    await act(async () => {
+      result.current.promptProps.setGlobalSystemPrompt('仍待保存的内容');
+    });
+    await act(async () => {
+      await expect(result.current.promptProps.onSave()).rejects.toThrow('写入失败');
+    });
+
+    expect(result.current.promptProps.globalSystemPrompt).toBe('仍待保存的内容');
+    expect(getConfig).toHaveBeenCalledTimes(1);
+  });
+
+  it('收到外部配置更新后重新加载各设置分区', async () => {
+    const { result } = renderHook(() => useSettingsConfig());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    getConfig.mockResolvedValueOnce({
+      global_system_prompt: '外部更新的提示词',
+      context_history_rounds: 15,
+      ui: { show_thinking: false },
+      diary: { chat: { enabled: false }, writing: { enabled: true } },
+    });
+
+    await act(async () => {
+      window.dispatchEvent(new Event('we:global-config-updated'));
+    });
+
+    await waitFor(() => {
+      expect(result.current.promptProps.globalSystemPrompt).toBe('外部更新的提示词');
+      expect(result.current.llmProps.showThinking).toBe(false);
+      expect(result.current.diaryProps.writingEnabled).toBe(true);
+    });
+    expect(getConfig).toHaveBeenCalledTimes(2);
+  });
+
   it('保存 general / writing general 时会发送结构化 patch', async () => {
     updateConfig.mockResolvedValue({});
     const { result } = renderHook(() => useSettingsConfig());

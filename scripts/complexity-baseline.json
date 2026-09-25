@@ -8,7 +8,6 @@
     "frontend/src/components/writing/WritingMessageItem.jsx#WritingMessageItem": 55,
     "frontend/src/core/hooks/useSessionStream.js#makeCallbacks": 68,
     "frontend/src/core/hooks/useSessionStream.js#useSessionStream": 193,
-    "frontend/src/core/hooks/useSettingsConfig.js#useSettingsConfig": 104,
     "frontend/src/pages/CharacterEditPage/index.jsx#CharacterEditPage": 48,
     "frontend/src/pages/CharactersPage.jsx#CharactersPage": 54,
     "frontend/src/pages/PersonaEditPage.jsx#PersonaEditPage": 47,
