@@ -100,6 +100,69 @@ function insertStateValues(stmt, entityId, entries, validKeySet, now) {
   }
 }
 
+function readExportImage(relativePath) {
+  if (!relativePath) return {};
+  const imageFile = path.join(DATA_ROOT, 'uploads', relativePath);
+  if (!fs.existsSync(imageFile)) return {};
+
+  const ext = path.extname(imageFile).toLowerCase().replace('.', '');
+  return {
+    avatarBase64: fs.readFileSync(imageFile).toString('base64'),
+    avatarMime: ext === 'jpg' ? 'image/jpeg' : `image/${ext}`,
+  };
+}
+
+function serializeExportStateField(field) {
+  return {
+    ...field,
+    enum_options: field.enum_options ? JSON.parse(field.enum_options) : null,
+    table_columns: field.table_columns ? JSON.parse(field.table_columns) : null,
+  };
+}
+
+function serializeWorldPromptEntry(entry) {
+  const { id, keywords, ...payload } = entry;
+  return {
+    ...payload,
+    keywords: keywords ? JSON.parse(keywords) : null,
+    ...(entry.trigger_type === 'state' ? { conditions: listConditionsByEntry(id) } : {}),
+  };
+}
+
+function exportWorldCharacter(character) {
+  const stateValues = db.prepare(
+    'SELECT field_key, default_value_json AS value_json FROM character_state_values WHERE character_id = ?',
+  ).all(character.id);
+  const { avatarBase64, avatarMime } = readExportImage(character.avatar_path);
+
+  return {
+    name: character.name,
+    description: character.description ?? '',
+    system_prompt: character.system_prompt,
+    post_prompt: character.post_prompt ?? '',
+    first_message: character.first_message,
+    avatar_path: character.avatar_path ?? null,
+    sort_order: character.sort_order,
+    ...(avatarBase64 ? { avatar_base64: avatarBase64, avatar_mime: avatarMime } : {}),
+    prompt_entries: [],
+    character_state_values: stateValues,
+  };
+}
+
+function exportWorldPersona(persona, activePersonaId, stateValuesStmt) {
+  const { avatarBase64, avatarMime } = readExportImage(persona.avatar_path);
+  return {
+    name: persona.name,
+    description: persona.description ?? '',
+    system_prompt: persona.system_prompt,
+    avatar_path: persona.avatar_path ?? null,
+    ...(avatarBase64 ? { avatar_base64: avatarBase64, avatar_mime: avatarMime } : {}),
+    is_active: persona.id === activePersonaId,
+    sort_order: persona.sort_order ?? 0,
+    persona_state_values: stateValuesStmt.all(persona.id),
+  };
+}
+
 /**
  * 在事务内导入单个角色（头像 + 角色行 + prompt_entries + state_values）。
  */
@@ -119,6 +182,198 @@ function importSingleCharacter(characterId, worldId, charData, validCharFieldKey
   insertStateValues(stmts.insertCharValue, characterId, charData.character_state_values, validCharFieldKeys, now);
 }
 
+function normalizeImportedPersonas(data) {
+  if (Array.isArray(data.personas)) return data.personas;
+  return [{
+    name: data.persona?.name ?? '',
+    description: data.persona?.description ?? '',
+    system_prompt: data.persona?.system_prompt ?? '',
+    avatar_path: data.persona?.avatar_path ?? null,
+    avatar_base64: data.persona?.avatar_base64,
+    avatar_mime: data.persona?.avatar_mime,
+    is_active: true,
+    persona_state_values: data.persona_state_values ?? [],
+  }];
+}
+
+function stateFieldKeySet(fields) {
+  const keys = new Set();
+  for (const field of fields) keys.add(field.field_key);
+  return keys;
+}
+
+function insertImportedWorldBase(data, worldId, now) {
+  const coverPath = saveAvatarFile(worldId, data.world.cover_base64, data.world.cover_mime);
+  // 新版卡携带 accent_color/accent_source；旧卡缺省落 NULL，前端导入时可能用 canvas 补算，这里按卡片值落库。
+  db.prepare(`
+    INSERT INTO worlds (id, name, description, temperature, max_tokens, cover_path, accent_color, accent_source, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(
+    worldId,
+    data.world.name,
+    data.world.description ?? '',
+    data.world.temperature ?? null,
+    data.world.max_tokens ?? null,
+    coverPath,
+    data.world.accent_color ?? null,
+    data.world.accent_source ?? null,
+    now,
+    now,
+  );
+}
+
+function insertImportedPromptEntries(worldId, entries, now) {
+  const insertEntry = db.prepare(`
+    INSERT INTO world_prompt_entries (id, world_id, title, description, content, keywords, keyword_scope, trigger_type, condition_logic, keyword_logic, active_turns, group_name, sort_order, token, enabled, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `);
+  const entryIds = insertPromptEntries(insertEntry, worldId, entries, now);
+
+  for (let i = 0; i < entries.length; i++) {
+    const entry = entries[i];
+    if (entry.trigger_type !== 'state' || !Array.isArray(entry.conditions) || entry.conditions.length === 0) continue;
+    replaceEntryConditions(entryIds[i], entry.conditions);
+  }
+}
+
+function insertImportedStateFields(stmt, worldId, fields, now) {
+  for (const field of fields) {
+    stmt.run(
+      crypto.randomUUID(),
+      worldId,
+      field.field_key,
+      field.label,
+      field.type,
+      field.description ?? '',
+      field.default_value ?? null,
+      field.update_mode ?? 'manual',
+      field.enum_options != null ? JSON.stringify(field.enum_options) : null,
+      field.min_value ?? null,
+      field.max_value ?? null,
+      field.allow_empty ?? 1,
+      field.update_instruction ?? '',
+      field.prefix ?? '',
+      field.unit ?? '',
+      field.table_columns != null ? JSON.stringify(field.table_columns) : null,
+      field.sort_order ?? 0,
+      now,
+      now,
+    );
+  }
+}
+
+function insertImportedPersonas(worldId, personas, personaFields, now) {
+  const insertPersona = db.prepare(`
+    INSERT INTO personas (id, world_id, name, description, system_prompt, avatar_path, sort_order, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `);
+  const insertValue = db.prepare(`
+    INSERT INTO persona_state_values (id, persona_id, world_id, field_key, default_value_json, runtime_value_json, updated_at)
+    VALUES (?, ?, ?, ?, ?, NULL, ?)
+  `);
+  const validFieldKeys = stateFieldKeySet(personaFields);
+  let activePersonaId = null;
+  let firstPersonaId = null;
+
+  for (let index = 0; index < personas.length; index++) {
+    const persona = personas[index];
+    const personaId = crypto.randomUUID();
+    if (firstPersonaId === null) firstPersonaId = personaId;
+    const avatarPath = saveAvatarFile(personaId, persona.avatar_base64, persona.avatar_mime);
+    insertPersona.run(
+      personaId,
+      worldId,
+      persona.name ?? '',
+      persona.description ?? '',
+      persona.system_prompt ?? '',
+      avatarPath,
+      persona.sort_order ?? index,
+      now,
+      now,
+    );
+
+    for (const value of (persona.persona_state_values ?? [])) {
+      if (!validFieldKeys.has(value.field_key)) continue;
+      insertValue.run(crypto.randomUUID(), personaId, worldId, value.field_key, value.value_json, now);
+    }
+    if (persona.is_active) activePersonaId = personaId;
+  }
+
+  return activePersonaId ?? firstPersonaId;
+}
+
+function insertImportedCharacters(worldId, characters, characterFields, now) {
+  const insertCharacter = db.prepare(`
+    INSERT INTO characters (id, world_id, name, description, system_prompt, post_prompt, first_message, avatar_path, sort_order, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `);
+  const insertValue = db.prepare(`
+    INSERT INTO character_state_values (id, character_id, field_key, default_value_json, runtime_value_json, updated_at)
+    VALUES (?, ?, ?, ?, NULL, ?)
+  `);
+  const stmts = { insertChar: insertCharacter, insertCharValue: insertValue };
+  const validFieldKeys = stateFieldKeySet(characterFields);
+  for (const character of characters) {
+    importSingleCharacter(crypto.randomUUID(), worldId, character, validFieldKeys, stmts, now);
+  }
+}
+
+function createImportedWorld(data) {
+  const now = Date.now();
+  const worldId = crypto.randomUUID();
+  insertImportedWorldBase(data, worldId, now);
+
+  const personas = normalizeImportedPersonas(data);
+  const promptEntries = data.prompt_entries ?? [];
+  insertImportedPromptEntries(worldId, promptEntries, now);
+
+  const worldFields = data.world_state_fields ?? [];
+  const insertWorldField = db.prepare(`
+    INSERT INTO world_state_fields (
+      id, world_id, field_key, label, type, description,
+      default_value, update_mode,
+      enum_options, min_value, max_value, allow_empty,
+      update_instruction, prefix, unit, table_columns, sort_order, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `);
+  insertImportedStateFields(insertWorldField, worldId, worldFields, now);
+
+  const characterFields = data.character_state_fields ?? [];
+  const insertCharacterField = db.prepare(`
+    INSERT INTO character_state_fields (
+      id, world_id, field_key, label, type, description,
+      default_value, update_mode,
+      enum_options, min_value, max_value, allow_empty,
+      update_instruction, prefix, unit, table_columns, sort_order, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `);
+  insertImportedStateFields(insertCharacterField, worldId, characterFields, now);
+
+  const insertWorldValue = db.prepare(`
+    INSERT INTO world_state_values (id, world_id, field_key, default_value_json, runtime_value_json, updated_at)
+    VALUES (?, ?, ?, ?, NULL, ?)
+  `);
+  const validWorldFieldKeys = stateFieldKeySet(worldFields);
+  insertStateValues(insertWorldValue, worldId, data.world_state_values, validWorldFieldKeys, now);
+
+  const personaFields = data.persona_state_fields ?? [];
+  const insertPersonaField = db.prepare(`
+    INSERT INTO persona_state_fields (
+      id, world_id, field_key, label, type, description,
+      default_value, update_mode,
+      enum_options, min_value, max_value, allow_empty,
+      update_instruction, prefix, unit, table_columns, sort_order, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `);
+  insertImportedStateFields(insertPersonaField, worldId, personaFields, now);
+
+  const activePersonaId = insertImportedPersonas(worldId, personas, personaFields, now);
+  db.prepare('UPDATE worlds SET active_persona_id = ? WHERE id = ?').run(activePersonaId, worldId);
+  insertImportedCharacters(worldId, data.characters ?? [], characterFields, now);
+
+  return db.prepare('SELECT * FROM worlds WHERE id = ?').get(worldId);
+}
+
 // ─── 导出角色卡 ──────────────────────────────────────────────────────────────
 
 export function exportCharacter(characterId) {
@@ -129,17 +384,7 @@ export function exportCharacter(characterId) {
     'SELECT field_key, default_value_json AS value_json FROM character_state_values WHERE character_id = ?',
   ).all(characterId);
 
-  // 读取头像（如果有）
-  let avatarBase64 = null;
-  let avatarMime = null;
-  if (character.avatar_path) {
-    const avatarFile = path.join(DATA_ROOT, 'uploads', character.avatar_path);
-    if (fs.existsSync(avatarFile)) {
-      const ext = path.extname(avatarFile).toLowerCase().replace('.', '');
-      avatarMime = ext === 'jpg' ? 'image/jpeg' : `image/${ext}`;
-      avatarBase64 = fs.readFileSync(avatarFile).toString('base64');
-    }
-  }
+  const { avatarBase64, avatarMime } = readExportImage(character.avatar_path);
 
   return {
     format: EXPORT_FORMAT_CHARACTER,
@@ -162,16 +407,7 @@ export function exportCharacter(characterId) {
 function buildPersonaExportPayload(persona) {
   if (!persona) throw new Error('玩家不存在');
 
-  let avatarBase64 = null;
-  let avatarMime = null;
-  if (persona.avatar_path) {
-    const avatarFile = path.join(DATA_ROOT, 'uploads', persona.avatar_path);
-    if (fs.existsSync(avatarFile)) {
-      const ext = path.extname(avatarFile).toLowerCase().replace('.', '');
-      avatarMime = ext === 'jpg' ? 'image/jpeg' : `image/${ext}`;
-      avatarBase64 = fs.readFileSync(avatarFile).toString('base64');
-    }
-  }
+  const { avatarBase64, avatarMime } = readExportImage(persona.avatar_path);
 
   return {
     format: EXPORT_FORMAT_PERSONA,
@@ -354,93 +590,30 @@ export function exportWorld(worldId) {
 
   const worldPromptEntries = db.prepare(
     'SELECT id, title, description, content, keywords, keyword_scope, trigger_type, condition_logic, keyword_logic, active_turns, group_name, sort_order, token, enabled FROM world_prompt_entries WHERE world_id = ? ORDER BY sort_order ASC',
-  ).all(worldId).map((e) => {
-    const entry = {
-      ...e,
-      keywords: e.keywords ? JSON.parse(e.keywords) : null,
-    };
-    if (entry.trigger_type === 'state') {
-      entry.conditions = listConditionsByEntry(entry.id);
-      delete entry.id;
-    } else {
-      delete entry.id;
-    }
-    return entry;
-  });
+  ).all(worldId).map(serializeWorldPromptEntry);
 
   const worldStateFields = db.prepare(
     'SELECT field_key, label, type, description, default_value, update_mode, enum_options, min_value, max_value, allow_empty, update_instruction, prefix, unit, table_columns, sort_order FROM world_state_fields WHERE world_id = ? ORDER BY sort_order ASC',
-  ).all(worldId).map((f) => ({
-    ...f,
-    enum_options: f.enum_options ? JSON.parse(f.enum_options) : null,
-    table_columns: f.table_columns ? JSON.parse(f.table_columns) : null,
-  }));
+  ).all(worldId).map(serializeExportStateField);
 
   const characterStateFields = db.prepare(
     'SELECT field_key, label, type, description, default_value, update_mode, enum_options, min_value, max_value, allow_empty, update_instruction, prefix, unit, table_columns, sort_order FROM character_state_fields WHERE world_id = ? ORDER BY sort_order ASC',
-  ).all(worldId).map((f) => ({
-    ...f,
-    enum_options: f.enum_options ? JSON.parse(f.enum_options) : null,
-    table_columns: f.table_columns ? JSON.parse(f.table_columns) : null,
-  }));
+  ).all(worldId).map(serializeExportStateField);
 
   const worldStateValues = db.prepare(
     'SELECT field_key, default_value_json AS value_json FROM world_state_values WHERE world_id = ?',
   ).all(worldId);
 
-  // 读取封面图
-  let coverBase64 = null;
-  let coverMime = null;
-  if (world.cover_path) {
-    const coverFile = path.join(DATA_ROOT, 'uploads', world.cover_path);
-    if (fs.existsSync(coverFile)) {
-      const ext = path.extname(coverFile).toLowerCase().replace('.', '');
-      coverMime = ext === 'jpg' ? 'image/jpeg' : `image/${ext}`;
-      coverBase64 = fs.readFileSync(coverFile).toString('base64');
-    }
-  }
+  const { avatarBase64: coverBase64, avatarMime: coverMime } = readExportImage(world.cover_path);
 
   // 导出角色（含 state_values）
   const characters = db.prepare(
     'SELECT * FROM characters WHERE world_id = ? ORDER BY sort_order ASC, created_at ASC',
-  ).all(worldId).map((character) => {
-    const stateValues = db.prepare(
-      'SELECT field_key, default_value_json AS value_json FROM character_state_values WHERE character_id = ?',
-    ).all(character.id);
-
-    // 读取头像
-    let avatarBase64 = null;
-    let avatarMime = null;
-    if (character.avatar_path) {
-      const avatarFile = path.join(DATA_ROOT, 'uploads', character.avatar_path);
-      if (fs.existsSync(avatarFile)) {
-        const ext = path.extname(avatarFile).toLowerCase().replace('.', '');
-        avatarMime = ext === 'jpg' ? 'image/jpeg' : `image/${ext}`;
-        avatarBase64 = fs.readFileSync(avatarFile).toString('base64');
-      }
-    }
-
-    return {
-      name: character.name,
-      description: character.description ?? '',
-      system_prompt: character.system_prompt,
-      post_prompt: character.post_prompt ?? '',
-      first_message: character.first_message,
-      avatar_path: character.avatar_path ?? null,
-      sort_order: character.sort_order,
-      ...(avatarBase64 ? { avatar_base64: avatarBase64, avatar_mime: avatarMime } : {}),
-      prompt_entries: [],
-      character_state_values: stateValues,
-    };
-  });
+  ).all(worldId).map(exportWorldCharacter);
 
   const personaStateFields = db.prepare(
     'SELECT field_key, label, type, description, default_value, update_mode, enum_options, min_value, max_value, allow_empty, update_instruction, prefix, unit, table_columns, sort_order FROM persona_state_fields WHERE world_id = ? ORDER BY sort_order ASC',
-  ).all(worldId).map((f) => ({
-    ...f,
-    enum_options: f.enum_options ? JSON.parse(f.enum_options) : null,
-    table_columns: f.table_columns ? JSON.parse(f.table_columns) : null,
-  }));
+  ).all(worldId).map(serializeExportStateField);
 
   const allPersonaRows = db.prepare(
     'SELECT id, name, description, system_prompt, avatar_path, sort_order FROM personas WHERE world_id = ? ORDER BY sort_order ASC, created_at ASC, id ASC',
@@ -451,27 +624,7 @@ export function exportWorld(worldId) {
     'SELECT field_key, default_value_json AS value_json FROM persona_state_values WHERE persona_id = ?',
   );
   const personas = allPersonaRows.map((p) => {
-    let avatarBase64 = null;
-    let avatarMime = null;
-    if (p.avatar_path) {
-      const avatarFile = path.join(DATA_ROOT, 'uploads', p.avatar_path);
-      if (fs.existsSync(avatarFile)) {
-        const ext = path.extname(avatarFile).toLowerCase().replace('.', '');
-        avatarMime = ext === 'jpg' ? 'image/jpeg' : `image/${ext}`;
-        avatarBase64 = fs.readFileSync(avatarFile).toString('base64');
-      }
-    }
-
-    return {
-      name: p.name,
-      description: p.description ?? '',
-      system_prompt: p.system_prompt,
-      avatar_path: p.avatar_path ?? null,
-      ...(avatarBase64 ? { avatar_base64: avatarBase64, avatar_mime: avatarMime } : {}),
-      is_active: p.id === resolvedActivePersonaId,
-      sort_order: p.sort_order ?? 0,
-      persona_state_values: getPersonaStateValuesStmt.all(p.id),
-    };
+    return exportWorldPersona(p, resolvedActivePersonaId, getPersonaStateValuesStmt);
   });
 
   return {
@@ -501,219 +654,7 @@ export function exportWorld(worldId) {
 export function importWorld(data) {
   validateWorldImportPayload(data);
 
-  const doImport = db.transaction(() => {
-    const now = Date.now();
-    const worldId = crypto.randomUUID();
-
-    // 处理封面图
-    const coverPath = saveAvatarFile(worldId, data.world.cover_base64, data.world.cover_mime);
-
-    // 插入世界
-    // accent_color / accent_source：随卡带走（新版导出会带上）；旧卡没有这两个字段则为 NULL，
-    // 前端在导入流程里会按需用 canvas 补算一次自动取色，这里只负责原样落库。
-    db.prepare(`
-      INSERT INTO worlds (id, name, description, temperature, max_tokens, cover_path, accent_color, accent_source, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(
-      worldId,
-      data.world.name,
-      data.world.description ?? '',
-      data.world.temperature ?? null,
-      data.world.max_tokens ?? null,
-      coverPath,
-      data.world.accent_color ?? null,
-      data.world.accent_source ?? null,
-      now, now,
-    );
-
-    // 规范化 personas：新格式用 personas 数组，旧格式用 persona + persona_state_values
-    const personaList = Array.isArray(data.personas)
-      ? data.personas
-      : [{
-          name: data.persona?.name ?? '',
-          description: data.persona?.description ?? '',
-          system_prompt: data.persona?.system_prompt ?? '',
-          avatar_path: data.persona?.avatar_path ?? null,
-          avatar_base64: data.persona?.avatar_base64,
-          avatar_mime: data.persona?.avatar_mime,
-          is_active: true,
-          persona_state_values: data.persona_state_values ?? [],
-        }];
-
-    const allPromptEntries = data.prompt_entries ?? [];
-
-    // 插入世界 prompt_entries
-    const insertWorldEntry = db.prepare(`
-      INSERT INTO world_prompt_entries (id, world_id, title, description, content, keywords, keyword_scope, trigger_type, condition_logic, keyword_logic, active_turns, group_name, sort_order, token, enabled, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `);
-    const entryIds = insertPromptEntries(insertWorldEntry, worldId, allPromptEntries, now);
-
-    // 插入 state 条目的 conditions
-    for (let i = 0; i < allPromptEntries.length; i++) {
-      const entry = allPromptEntries[i];
-      if (entry.trigger_type === 'state' && Array.isArray(entry.conditions) && entry.conditions.length > 0) {
-        replaceEntryConditions(entryIds[i], entry.conditions);
-      }
-    }
-
-    // 插入世界状态字段定义
-    const insertWorldField = db.prepare(`
-      INSERT INTO world_state_fields (
-        id, world_id, field_key, label, type, description,
-        default_value, update_mode,
-        enum_options, min_value, max_value, allow_empty,
-        update_instruction, prefix, unit, table_columns, sort_order, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `);
-    for (const field of (data.world_state_fields ?? [])) {
-      insertWorldField.run(
-        crypto.randomUUID(), worldId,
-        field.field_key, field.label, field.type,
-        field.description ?? '',
-        field.default_value ?? null,
-        field.update_mode ?? 'manual',
-        field.enum_options != null ? JSON.stringify(field.enum_options) : null,
-        field.min_value ?? null,
-        field.max_value ?? null,
-        field.allow_empty ?? 1,
-        field.update_instruction ?? '',
-        field.prefix ?? '',
-        field.unit ?? '',
-        field.table_columns != null ? JSON.stringify(field.table_columns) : null,
-        field.sort_order ?? 0,
-        now, now,
-      );
-    }
-
-    // 插入角色状态字段定义
-    const insertCharField = db.prepare(`
-      INSERT INTO character_state_fields (
-        id, world_id, field_key, label, type, description,
-        default_value, update_mode,
-        enum_options, min_value, max_value, allow_empty,
-        update_instruction, prefix, unit, table_columns, sort_order, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `);
-    for (const field of (data.character_state_fields ?? [])) {
-      insertCharField.run(
-        crypto.randomUUID(), worldId,
-        field.field_key, field.label, field.type,
-        field.description ?? '',
-        field.default_value ?? null,
-        field.update_mode ?? 'manual',
-        field.enum_options != null ? JSON.stringify(field.enum_options) : null,
-        field.min_value ?? null,
-        field.max_value ?? null,
-        field.allow_empty ?? 1,
-        field.update_instruction ?? '',
-        field.prefix ?? '',
-        field.unit ?? '',
-        field.table_columns != null ? JSON.stringify(field.table_columns) : null,
-        field.sort_order ?? 0,
-        now, now,
-      );
-    }
-
-    // 插入世界状态当前值
-    const insertWorldValue = db.prepare(`
-      INSERT INTO world_state_values (id, world_id, field_key, default_value_json, runtime_value_json, updated_at)
-      VALUES (?, ?, ?, ?, NULL, ?)
-    `);
-    const validWorldFieldKeys = new Set((data.world_state_fields ?? []).map((f) => f.field_key));
-    insertStateValues(insertWorldValue, worldId, data.world_state_values, validWorldFieldKeys, now);
-
-    // 插入玩家状态字段定义
-    const insertPersonaField = db.prepare(`
-      INSERT INTO persona_state_fields (
-        id, world_id, field_key, label, type, description,
-        default_value, update_mode,
-        enum_options, min_value, max_value, allow_empty,
-        update_instruction, prefix, unit, table_columns, sort_order, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `);
-    for (const field of (data.persona_state_fields ?? [])) {
-      insertPersonaField.run(
-        crypto.randomUUID(), worldId,
-        field.field_key, field.label, field.type,
-        field.description ?? '',
-        field.default_value ?? null,
-        field.update_mode ?? 'manual',
-        field.enum_options != null ? JSON.stringify(field.enum_options) : null,
-        field.min_value ?? null,
-        field.max_value ?? null,
-        field.allow_empty ?? 1,
-        field.update_instruction ?? '',
-        field.prefix ?? '',
-        field.unit ?? '',
-        field.table_columns != null ? JSON.stringify(field.table_columns) : null,
-        field.sort_order ?? 0,
-        now, now,
-      );
-    }
-
-    // 插入所有 personas 及其状态值，同时记录激活 persona id
-    const insertPersonaStmt = db.prepare(`
-      INSERT INTO personas (id, world_id, name, description, system_prompt, avatar_path, sort_order, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `);
-    const insertPersonaValue = db.prepare(`
-      INSERT INTO persona_state_values (id, persona_id, world_id, field_key, default_value_json, runtime_value_json, updated_at)
-      VALUES (?, ?, ?, ?, ?, NULL, ?)
-    `);
-    const validPersonaFieldKeys = new Set((data.persona_state_fields ?? []).map((f) => f.field_key));
-    let activePersonaId = null;
-    let firstPersonaId = null;
-    for (let i = 0; i < personaList.length; i++) {
-      const pData = personaList[i];
-      const pId = crypto.randomUUID();
-      if (firstPersonaId === null) firstPersonaId = pId;
-      const avatarPath = saveAvatarFile(pId, pData.avatar_base64, pData.avatar_mime);
-      insertPersonaStmt.run(
-        pId,
-        worldId,
-        pData.name ?? '',
-        pData.description ?? '',
-        pData.system_prompt ?? '',
-        avatarPath,
-        pData.sort_order ?? i,
-        now,
-        now,
-      );
-      for (const sv of (pData.persona_state_values ?? [])) {
-        if (!validPersonaFieldKeys.has(sv.field_key)) continue;
-        insertPersonaValue.run(crypto.randomUUID(), pId, worldId, sv.field_key, sv.value_json, now);
-      }
-      if (pData.is_active) activePersonaId = pId;
-    }
-    // 设置 active_persona_id（无 is_active 标记时用第一个）
-    db.prepare('UPDATE worlds SET active_persona_id = ? WHERE id = ?').run(
-      activePersonaId ?? firstPersonaId,
-      worldId,
-    );
-
-    // 获取合法的 character field_key 集合
-    const validCharFieldKeys = new Set((data.character_state_fields ?? []).map((f) => f.field_key));
-
-    // 插入角色
-    const insertCharacter = db.prepare(`
-      INSERT INTO characters (id, world_id, name, description, system_prompt, post_prompt, first_message, avatar_path, sort_order, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `);
-    const insertCharValue = db.prepare(`
-      INSERT INTO character_state_values (id, character_id, field_key, default_value_json, runtime_value_json, updated_at)
-      VALUES (?, ?, ?, ?, NULL, ?)
-    `);
-
-    const charStmts = { insertChar: insertCharacter, insertCharValue };
-    for (const charData of (data.characters ?? [])) {
-      importSingleCharacter(crypto.randomUUID(), worldId, charData, validCharFieldKeys, charStmts, now);
-    }
-
-    return db.prepare('SELECT * FROM worlds WHERE id = ?').get(worldId);
-  });
-
-  const created = doImport();
+  const created = db.transaction(() => createImportedWorld(data))();
   log.info(`world.import  ${formatMeta({
     worldId: created?.id,
     name: created?.name,
@@ -779,6 +720,100 @@ export function exportGlobalSettings(mode = 'chat') {
   };
 }
 
+function insertGlobalCssSnippets(snippets, mode, now) {
+  const insertCss = db.prepare(
+    `INSERT INTO custom_css_snippets (id, name, content, enabled, mode, sort_order, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+  );
+  for (const snippet of snippets) {
+    insertCss.run(
+      crypto.randomUUID(),
+      snippet.name ?? '',
+      snippet.content ?? '',
+      snippet.enabled ? 1 : 0,
+      mode,
+      snippet.sort_order ?? 0,
+      now,
+      now,
+    );
+  }
+}
+
+function insertGlobalRegexRules(rules, mode, now) {
+  const validScopes = new Set(['user_input', 'ai_output', 'display_only', 'prompt_only']);
+  const insertRule = db.prepare(`
+    INSERT INTO regex_rules
+    (id, world_id, name, pattern, replacement, scope, mode, enabled, sort_order, created_at, updated_at)
+    VALUES (?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `);
+  for (const rule of rules) {
+    if (rule.scope && !validScopes.has(rule.scope)) continue;
+    insertRule.run(
+      crypto.randomUUID(),
+      rule.name ?? '',
+      rule.pattern ?? '',
+      rule.replacement ?? '',
+      rule.scope ?? 'display_only',
+      mode,
+      rule.enabled ? 1 : 0,
+      rule.sort_order ?? 0,
+      now,
+      now,
+    );
+  }
+}
+
+function replaceGlobalSettingsRows(data, mode, now) {
+  db.prepare('DELETE FROM custom_css_snippets WHERE mode = ?').run(mode);
+  db.prepare('DELETE FROM regex_rules WHERE world_id IS NULL AND mode = ?').run(mode);
+  insertGlobalCssSnippets(data.custom_css_snippets ?? [], mode, now);
+  insertGlobalRegexRules(data.regex_rules ?? [], mode, now);
+}
+
+function buildChatConfigPatch(config) {
+  const patch = {};
+  if (typeof config.global_system_prompt === 'string') patch.global_system_prompt = config.global_system_prompt;
+  if (typeof config.global_post_prompt === 'string') patch.global_post_prompt = config.global_post_prompt;
+  if (typeof config.context_history_rounds === 'number') patch.context_history_rounds = config.context_history_rounds;
+  if (typeof config.memory_expansion_enabled === 'boolean') patch.memory_expansion_enabled = config.memory_expansion_enabled;
+  return patch;
+}
+
+function buildWritingConfigPatch(writing) {
+  const patch = {};
+  if (typeof writing.global_system_prompt === 'string') patch.global_system_prompt = writing.global_system_prompt;
+  if (typeof writing.global_post_prompt === 'string') patch.global_post_prompt = writing.global_post_prompt;
+  if (writing.context_history_rounds === null || typeof writing.context_history_rounds === 'number') {
+    patch.context_history_rounds = writing.context_history_rounds;
+  }
+  if (writing.llm && typeof writing.llm === 'object') {
+    const llmPatch = {};
+    if (writing.llm.provider === null || typeof writing.llm.provider === 'string') llmPatch.provider = writing.llm.provider;
+    if (writing.llm.provider_models && typeof writing.llm.provider_models === 'object' && !Array.isArray(writing.llm.provider_models)) {
+      llmPatch.provider_models = writing.llm.provider_models;
+    }
+    if (writing.llm.base_url === null || typeof writing.llm.base_url === 'string') llmPatch.base_url = writing.llm.base_url;
+    if (typeof writing.llm.model === 'string') llmPatch.model = writing.llm.model;
+    if (writing.llm.temperature === null || typeof writing.llm.temperature === 'number') llmPatch.temperature = writing.llm.temperature;
+    if (writing.llm.max_tokens === null || typeof writing.llm.max_tokens === 'number') llmPatch.max_tokens = writing.llm.max_tokens;
+    if (writing.llm.thinking_level === null || typeof writing.llm.thinking_level === 'string') llmPatch.thinking_level = writing.llm.thinking_level;
+    patch.llm = llmPatch;
+  }
+  return patch;
+}
+
+function applyGlobalSettingsConfig(data, mode) {
+  if (mode === 'chat' && data.config && typeof data.config === 'object') {
+    const patch = buildChatConfigPatch(data.config);
+    if (Object.keys(patch).length > 0) updateConfig(patch);
+  }
+
+  if (mode === 'writing' && data.writing && typeof data.writing === 'object') {
+    const writingPatch = buildWritingConfigPatch(data.writing);
+    if (Object.keys(writingPatch).length > 0) updateConfig({ writing: writingPatch });
+  }
+}
+
 // ─── 导入全局设置 ─────────────────────────────────────────────────────────────
 
 export function importGlobalSettings(data) {
@@ -788,80 +823,9 @@ export function importGlobalSettings(data) {
 
   // 兼容旧格式（无 mode 字段）：默认按 chat 处理
   const mode = data.mode === 'writing' ? 'writing' : 'chat';
-  const validScopes = new Set(['user_input', 'ai_output', 'display_only', 'prompt_only']);
   const now = Date.now();
-
-  const doImport = db.transaction(() => {
-    db.prepare('DELETE FROM custom_css_snippets WHERE mode = ?').run(mode);
-    db.prepare('DELETE FROM regex_rules WHERE world_id IS NULL AND mode = ?').run(mode);
-
-    const insertCss = db.prepare(
-      `INSERT INTO custom_css_snippets (id, name, content, enabled, mode, sort_order, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-    );
-    for (const snippet of (data.custom_css_snippets ?? [])) {
-      insertCss.run(
-        crypto.randomUUID(),
-        snippet.name ?? '',
-        snippet.content ?? '',
-        snippet.enabled ? 1 : 0,
-        mode,
-        snippet.sort_order ?? 0,
-        now, now,
-      );
-    }
-
-    const insertRule = db.prepare(
-      `INSERT INTO regex_rules
-       (id, world_id, name, pattern, replacement, scope, mode, enabled, sort_order, created_at, updated_at)
-       VALUES (?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    );
-    for (const rule of (data.regex_rules ?? [])) {
-      if (rule.scope && !validScopes.has(rule.scope)) continue;
-      insertRule.run(
-        crypto.randomUUID(),
-        rule.name ?? '',
-        rule.pattern ?? '',
-        rule.replacement ?? '',
-        rule.scope ?? 'display_only',
-        mode,
-        rule.enabled ? 1 : 0,
-        rule.sort_order ?? 0,
-        now, now,
-      );
-    }
-  });
-
-  doImport();
-
-  if (mode === 'chat' && data.config && typeof data.config === 'object') {
-    const patch = {};
-    if (typeof data.config.global_system_prompt === 'string') patch.global_system_prompt = data.config.global_system_prompt;
-    if (typeof data.config.global_post_prompt === 'string') patch.global_post_prompt = data.config.global_post_prompt;
-    if (typeof data.config.context_history_rounds === 'number') patch.context_history_rounds = data.config.context_history_rounds;
-    if (typeof data.config.memory_expansion_enabled === 'boolean') patch.memory_expansion_enabled = data.config.memory_expansion_enabled;
-    if (Object.keys(patch).length > 0) updateConfig(patch);
-  }
-
-  if (mode === 'writing' && data.writing && typeof data.writing === 'object') {
-    const writingPatch = {};
-    if (typeof data.writing.global_system_prompt === 'string') writingPatch.global_system_prompt = data.writing.global_system_prompt;
-    if (typeof data.writing.global_post_prompt === 'string') writingPatch.global_post_prompt = data.writing.global_post_prompt;
-    if (data.writing.context_history_rounds === null || typeof data.writing.context_history_rounds === 'number') {
-      writingPatch.context_history_rounds = data.writing.context_history_rounds;
-    }
-    if (data.writing.llm && typeof data.writing.llm === 'object') {
-      writingPatch.llm = {};
-      if (data.writing.llm.provider === null || typeof data.writing.llm.provider === 'string') writingPatch.llm.provider = data.writing.llm.provider;
-      if (data.writing.llm.provider_models && typeof data.writing.llm.provider_models === 'object' && !Array.isArray(data.writing.llm.provider_models)) writingPatch.llm.provider_models = data.writing.llm.provider_models;
-      if (data.writing.llm.base_url === null || typeof data.writing.llm.base_url === 'string') writingPatch.llm.base_url = data.writing.llm.base_url;
-      if (typeof data.writing.llm.model === 'string') writingPatch.llm.model = data.writing.llm.model;
-      if (data.writing.llm.temperature === null || typeof data.writing.llm.temperature === 'number') writingPatch.llm.temperature = data.writing.llm.temperature;
-      if (data.writing.llm.max_tokens === null || typeof data.writing.llm.max_tokens === 'number') writingPatch.llm.max_tokens = data.writing.llm.max_tokens;
-      if (data.writing.llm.thinking_level === null || typeof data.writing.llm.thinking_level === 'string') writingPatch.llm.thinking_level = data.writing.llm.thinking_level;
-    }
-    if (Object.keys(writingPatch).length > 0) updateConfig({ writing: writingPatch });
-  }
+  db.transaction(() => replaceGlobalSettingsRows(data, mode, now))();
+  applyGlobalSettingsConfig(data, mode);
 
   log.info(`global_settings.import  ${formatMeta({
     mode,

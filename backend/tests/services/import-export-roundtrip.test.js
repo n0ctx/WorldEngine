@@ -338,6 +338,95 @@ test('全局设置 round-trip 采用覆盖语义并保留导出内容等价', as
   assert.equal(writingRule.c, 1);
 });
 
+test('写作模式全局设置只更新有效的 writing 字段', () => {
+  const current = sandbox.readConfig();
+  const currentWriting = current.writing ?? {};
+  const currentLlm = currentWriting.llm ?? {};
+  sandbox.writeConfig({
+    ...current,
+    writing: {
+      ...currentWriting,
+      global_system_prompt: '旧写作系统提示',
+      global_post_prompt: '旧写作后置提示',
+      context_history_rounds: 12,
+      llm: { ...currentLlm, model: 'old-model' },
+    },
+  });
+
+  const payload = exportGlobalSettings('writing');
+  payload.writing = {
+    global_system_prompt: '新的写作系统提示',
+    global_post_prompt: '新的写作后置提示',
+    context_history_rounds: null,
+    llm: {
+      provider: 'openai',
+      provider_models: { openai: 'gpt-new' },
+      base_url: 'https://example.test/v1',
+      model: 'gpt-new',
+      temperature: 0.75,
+      max_tokens: 512,
+      thinking_level: 'high',
+    },
+  };
+  payload.custom_css_snippets = [];
+  payload.regex_rules = [];
+
+  importGlobalSettings(payload);
+
+  const imported = sandbox.readConfig();
+  assert.equal(imported.writing.global_system_prompt, '新的写作系统提示');
+  assert.equal(imported.writing.global_post_prompt, '新的写作后置提示');
+  assert.equal(imported.writing.context_history_rounds, null);
+  assert.deepEqual(imported.writing.llm.provider_models, { openai: 'gpt-new' });
+  assert.equal(imported.writing.llm.model, 'gpt-new');
+  assert.equal(imported.writing.llm.temperature, 0.75);
+  assert.equal(imported.writing.llm.max_tokens, 512);
+  assert.equal(imported.writing.llm.thinking_level, 'high');
+});
+
+test('旧版单玩家世界卡仍导入玩家状态值', () => {
+  const sourceWorld = insertWorld(sandbox.db, { name: '旧版格式源世界' });
+  const persona = insertPersona(sandbox.db, sourceWorld.id, { name: '旧卡玩家', system_prompt: '继续旅程' });
+  insertPersonaStateField(sandbox.db, sourceWorld.id, { field_key: 'stamina', label: '体力' });
+  insertPersonaStateValue(sandbox.db, sourceWorld.id, {
+    persona_id: persona.id,
+    field_key: 'stamina',
+    default_value_json: '7',
+  });
+
+  const payload = exportWorld(sourceWorld.id);
+  const [legacyPersona] = payload.personas;
+  delete payload.personas;
+  payload.persona = {
+    name: legacyPersona.name,
+    description: legacyPersona.description,
+    system_prompt: legacyPersona.system_prompt,
+    avatar_path: legacyPersona.avatar_path,
+  };
+  payload.persona_state_values = legacyPersona.persona_state_values;
+
+  const imported = importWorld(payload);
+  const reExported = exportWorld(imported.id);
+  assert.equal(reExported.personas.length, 1);
+  assert.equal(reExported.personas[0].is_active, true);
+  assert.deepEqual(reExported.personas[0].persona_state_values, [{ field_key: 'stamina', value_json: '7' }]);
+});
+
+test('世界卡数据库导入失败时回滚已插入的世界行', () => {
+  const sourceWorld = insertWorld(sandbox.db, { name: '回滚源世界' });
+  const payload = exportWorld(sourceWorld.id);
+  payload.world_state_fields = [
+    { field_key: 'duplicate', label: '重复字段一', type: 'text' },
+    { field_key: 'duplicate', label: '重复字段二', type: 'text' },
+  ];
+  const worldCountBefore = sandbox.db.prepare('SELECT COUNT(*) AS count FROM worlds').get().count;
+
+  assert.throws(() => importWorld(payload));
+
+  const worldCountAfter = sandbox.db.prepare('SELECT COUNT(*) AS count FROM worlds').get().count;
+  assert.equal(worldCountAfter, worldCountBefore);
+});
+
 test('导入世界卡不会被 createWorld 的默认状态字段种子污染', async () => {
   // 源世界不带任何状态字段定义（模拟一张"没有状态字段"的世界卡）
   const world = insertWorld(sandbox.db, { name: '无状态字段世界' });
