@@ -16,14 +16,6 @@
         "backend/routes/config.js:644-649"
       ]
     },
-    "03a78714280c0d77": {
-      "tokens": 84,
-      "locations": [
-        "frontend/src/core/router/AppRouter.jsx:44-49",
-        "frontend/src/shells/book-spread/chrome/TopBar.jsx:150-155",
-        "frontend/src/shells/book-spread/chrome/TopBar.jsx:151-156"
-      ]
-    },
     "059afd8113c81d61": {
       "tokens": 48,
       "locations": [
@@ -154,14 +146,6 @@
         "frontend/src/pages/WorldsPage.jsx:145-149"
       ]
     },
-    "0f7473f75f36284f": {
-      "tokens": 49,
-      "locations": [
-        "frontend/src/components/settings/CustomCssManager.jsx:37-40",
-        "frontend/src/components/settings/RegexRulesManager.jsx:26-29",
-        "frontend/src/components/state/StateFieldList.jsx:29-32"
-      ]
-    },
     "0f763f56ae66c74c": {
       "tokens": 43,
       "locations": [
@@ -204,13 +188,6 @@
         "backend/routes/config.js:620-625",
         "backend/routes/config.js:626-631",
         "backend/routes/config.js:632-637"
-      ]
-    },
-    "189251d251e73244": {
-      "tokens": 48,
-      "locations": [
-        "frontend/src/components/settings/ImportExportPanel.jsx:14-17",
-        "frontend/src/core/hooks/useSettingsPromptConfig.js:22-25"
       ]
     },
     "18e8c2e70e4e810a": {
@@ -490,13 +467,6 @@
         "frontend/src/components/session/WorldTimelinePanel.jsx:93-95"
       ]
     },
-    "502c947b750dc4f7": {
-      "tokens": 54,
-      "locations": [
-        "frontend/src/components/state/StatePanel.jsx:23-26",
-        "frontend/src/core/router/AppRouter.jsx:47-50"
-      ]
-    },
     "505b3f576740ab5f": {
       "tokens": 57,
       "locations": [
@@ -591,13 +561,6 @@
         "frontend/src/core/hooks/useSettingsAdditionalModelConfig.js:71-72"
       ]
     },
-    "659fc2fc47c0de5b": {
-      "tokens": 56,
-      "locations": [
-        "frontend/src/pages/CharactersPage.jsx:379-383",
-        "frontend/src/shells/book-spread/chrome/TopBar.jsx:19-23"
-      ]
-    },
     "66f96316dbb2d09b": {
       "tokens": 51,
       "locations": [
@@ -611,13 +574,6 @@
         "backend/routes/import-export.js:29-32",
         "backend/routes/import-export.js:48-51",
         "backend/routes/import-export.js:97-100"
-      ]
-    },
-    "69bc85640eff34bc": {
-      "tokens": 48,
-      "locations": [
-        "frontend/src/core/hooks/useSessionState.js:40-43",
-        "frontend/src/pages/CharactersPage.jsx:393-396"
       ]
     },
     "69cfc63422d4c8c3": {
@@ -670,14 +626,6 @@
         "backend/prompts/entry-matcher.js:65-70"
       ]
     },
-    "77d1fe35e0c9a137": {
-      "tokens": 42,
-      "locations": [
-        "frontend/src/pages/CharactersPage.jsx:379-382",
-        "frontend/src/pages/WorldsPage.jsx:84-87",
-        "frontend/src/shells/book-spread/chrome/TopBar.jsx:19-22"
-      ]
-    },
     "79f5fa016c8e29d5": {
       "tokens": 63,
       "locations": [
@@ -697,21 +645,6 @@
       "locations": [
         "backend/services/state-values.js:202-208",
         "backend/services/state-values.js:219-225"
-      ]
-    },
-    "7dece9cab25d3a0d": {
-      "tokens": 42,
-      "locations": [
-        "frontend/src/core/hooks/useSettingsDisplayConfig.js:17-22",
-        "frontend/src/core/hooks/useSettingsDisplayConfig.js:18-23",
-        "frontend/src/core/hooks/useSettingsDisplayConfig.js:19-24",
-        "frontend/src/core/hooks/useSettingsPromptConfig.js:40-45",
-        "frontend/src/core/hooks/useSettingsPromptConfig.js:49-54",
-        "frontend/src/core/hooks/useSettingsPromptConfig.js:50-55",
-        "frontend/src/core/hooks/useSettingsPromptConfig.js:51-56",
-        "frontend/src/core/hooks/useSettingsPromptConfig.js:52-57",
-        "frontend/src/core/hooks/useSettingsPromptConfig.js:53-58",
-        "frontend/src/pages/CharacterEditPage/index.jsx:83-88"
       ]
     },
     "7f5b5fd4bc6da876": {
@@ -760,19 +693,6 @@
       "locations": [
         "backend/prompts/assembler.js:200-205",
         "backend/prompts/assembler.js:389-394"
-      ]
-    },
-    "877fc1f800e2bfa2": {
-      "tokens": 56,
-      "locations": [
-        "frontend/src/core/router/AppRouter.jsx:44-47",
-        "frontend/src/core/router/AppRouter.jsx:45-48",
-        "frontend/src/core/router/AppRouter.jsx:46-49",
-        "frontend/src/shells/book-spread/chrome/TopBar.jsx:150-153",
-        "frontend/src/shells/book-spread/chrome/TopBar.jsx:151-154",
-        "frontend/src/shells/book-spread/chrome/TopBar.jsx:152-155",
-        "frontend/src/shells/book-spread/chrome/TopBar.jsx:153-156",
-        "frontend/src/shells/book-spread/layout/pageLayoutRenderer.jsx:30-33"
       ]
     },
     "88ac2acaac9ade31": {
@@ -984,26 +904,12 @@
         "backend/llm/providers/anthropic/index.js:228-240"
       ]
     },
-    "aaae32c889b43dc5": {
-      "tokens": 48,
-      "locations": [
-        "frontend/src/components/settings/ImportExportPanel.jsx:15-18",
-        "frontend/src/core/hooks/useMemoryIndicators.js:7-10"
-      ]
-    },
     "aae448c5405c5545": {
       "tokens": 139,
       "locations": [
         "backend/llm/providers/gemini/index.js:125-138",
         "backend/llm/providers/gemini/index.js:209-222",
         "backend/llm/providers/gemini/index.js:263-276"
-      ]
-    },
-    "ab3fd07828177eac": {
-      "tokens": 54,
-      "locations": [
-        "frontend/src/pages/CharactersPage.jsx:381-385",
-        "frontend/src/shells/book-spread/chrome/TopBar.jsx:154-158"
       ]
     },
     "ab597ad2e610b08a": {
@@ -1070,13 +976,6 @@
         "frontend/src/core/hooks/useSettingsPromptConfig.js:183-191"
       ]
     },
-    "b56f1cb02bebe54f": {
-      "tokens": 73,
-      "locations": [
-        "frontend/src/pages/CharactersPage.jsx:390-395",
-        "frontend/src/pages/WorldsPage.jsx:92-97"
-      ]
-    },
     "b58410c580af9ffb": {
       "tokens": 84,
       "locations": [
@@ -1120,15 +1019,6 @@
         "backend/db/queries/worlds.js:62-78"
       ]
     },
-    "b8fac81394c71e4a": {
-      "tokens": 56,
-      "locations": [
-        "frontend/src/core/hooks/useSettingsDisplayConfig.js:17-24",
-        "frontend/src/core/hooks/useSettingsPromptConfig.js:49-56",
-        "frontend/src/core/hooks/useSettingsPromptConfig.js:50-57",
-        "frontend/src/core/hooks/useSettingsPromptConfig.js:51-58"
-      ]
-    },
     "bca69c224719367b": {
       "tokens": 61,
       "locations": [
@@ -1157,14 +1047,6 @@
         "backend/memory/recall.js:92-97"
       ]
     },
-    "c71b256f4aa0c824": {
-      "tokens": 45,
-      "locations": [
-        "backend/server.js:169-173",
-        "backend/server.js:174-178",
-        "backend/server.js:175-179"
-      ]
-    },
     "c7339eca66641044": {
       "tokens": 57,
       "locations": [
@@ -1179,31 +1061,6 @@
         "backend/llm/index.js:458-464"
       ]
     },
-    "c9cd7c6f106060b0": {
-      "tokens": 42,
-      "locations": [
-        "frontend/src/components/chat/MessageItem.jsx:260-262",
-        "frontend/src/components/session/WorldTimelinePanel.jsx:210-212",
-        "frontend/src/components/state/StatePanel.jsx:23-25",
-        "frontend/src/components/writing/WritingMessageItem.jsx:148-150",
-        "frontend/src/core/hooks/usePageConfig.js:12-14",
-        "frontend/src/core/hooks/useSettingsDisplayConfig.js:11-13",
-        "frontend/src/core/router/AppRouter.jsx:44-46",
-        "frontend/src/core/router/AppRouter.jsx:45-47",
-        "frontend/src/core/router/AppRouter.jsx:46-48",
-        "frontend/src/core/router/AppRouter.jsx:47-49",
-        "frontend/src/pages/CharactersPage.jsx:381-383",
-        "frontend/src/pages/WritingSpacePage/index.jsx:33-35",
-        "frontend/src/shells/book-spread/chrome/TopBar.jsx:150-152",
-        "frontend/src/shells/book-spread/chrome/TopBar.jsx:151-153",
-        "frontend/src/shells/book-spread/chrome/TopBar.jsx:152-154",
-        "frontend/src/shells/book-spread/chrome/TopBar.jsx:153-155",
-        "frontend/src/shells/book-spread/chrome/TopBar.jsx:154-156",
-        "frontend/src/shells/book-spread/chrome/TopBar.jsx:21-23",
-        "frontend/src/shells/book-spread/layout/pageLayoutRenderer.jsx:30-32",
-        "frontend/src/shells/book-spread/layout/pageLayoutRenderer.jsx:31-33"
-      ]
-    },
     "c9d7e9eda2ad7388": {
       "tokens": 51,
       "locations": [
@@ -1212,15 +1069,6 @@
         "backend/db/queries/personas.js:145-151",
         "backend/db/queries/regex-rules.js:124-130",
         "backend/db/queries/worlds.js:48-54"
-      ]
-    },
-    "ca3e69d2ba969128": {
-      "tokens": 49,
-      "locations": [
-        "frontend/src/components/session/WorldTimelinePanel.jsx:209-212",
-        "frontend/src/pages/CharactersPage.jsx:380-383",
-        "frontend/src/pages/WritingSpacePage/index.jsx:32-35",
-        "frontend/src/shells/book-spread/chrome/TopBar.jsx:20-23"
       ]
     },
     "cb8730ac8b503d9b": {
@@ -1371,13 +1219,6 @@
       "locations": [
         "frontend/src/components/chat/MessageItem.jsx:254-258",
         "frontend/src/components/writing/WritingMessageItem.jsx:167-171"
-      ]
-    },
-    "ea8c326c3ec71f69": {
-      "tokens": 48,
-      "locations": [
-        "frontend/src/components/settings/AuxLlmBlock.jsx:16-19",
-        "frontend/src/pages/PersonaEditPage.jsx:49-54"
       ]
     },
     "ead0e65a5e4e91db": {
