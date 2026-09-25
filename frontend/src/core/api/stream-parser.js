@@ -38,6 +38,65 @@ export async function subscribeSse(url, callbacks, signal) {
   await parseSSEStream(res, callbacks);
 }
 
+function dispatchProgressEvent(evt, callbacks) {
+  switch (evt.type) {
+    case 'memory_recall_start': callbacks.onMemoryRecallStart?.(); break;
+    case 'memory_recall_done': callbacks.onMemoryRecallDone?.(evt); break;
+    case 'memory_expand_start': callbacks.onMemoryExpandStart?.(evt); break;
+    case 'memory_expand_done': callbacks.onMemoryExpandDone?.(evt); break;
+    case 'saved_recall_done': callbacks.onSavedRecallDone?.(evt); break;
+    case 'state_queued': callbacks.onStateQueued?.(); break;
+    case 'state_updated': callbacks.onStateUpdated?.(); break;
+    case 'state_update_failed': callbacks.onStateUpdateFailed?.(evt); break;
+    case 'postprocess_failed': callbacks.onPostprocessFailed?.(evt); break;
+    case 'diary_updated': callbacks.onDiaryUpdated?.(); break;
+    case 'suggestion_fallback_started': callbacks.onSuggestionFallbackStarted?.(evt); break;
+    case 'suggestion_fallback_succeeded': callbacks.onSuggestionFallbackSucceeded?.(evt); break;
+    case 'suggestion_fallback_failed': callbacks.onSuggestionFallbackFailed?.(evt); break;
+    case 'state_rolled_back': callbacks.onStateRolledBack?.(); break;
+    default: return false;
+  }
+  return true;
+}
+
+function dispatchSessionEvent(evt, callbacks) {
+  switch (evt.type) {
+    case 'error': callbacks.onError?.(evt.error); break;
+    case 'title_updated': callbacks.onTitleUpdated?.(evt.title); break;
+    case 'user_saved': callbacks.onUserSaved?.(evt.id); break;
+    case 'chapter_title_updated': callbacks.onChapterTitleUpdated?.(evt.chapterIndex, evt.title); break;
+    case 'entries_activated': callbacks.onEntriesActivated?.(evt.entries ?? []); break;
+    case 'danmaku': callbacks.onDanmaku?.(evt.comments ?? []); break;
+    case 'stream_snapshot': callbacks.onStreamSnapshot?.(evt.task ?? null); break;
+    default: return false;
+  }
+  return true;
+}
+
+function dispatchSSEEvent(evt, callbacks) {
+  if (evt.delta !== undefined) {
+    callbacks.onDelta?.(evt.delta);
+    return;
+  }
+  if (evt.done) {
+    callbacks.onDone?.(evt.assistant ?? null, evt.options ?? [], evt.usage ?? null);
+    return;
+  }
+  if (evt.aborted) {
+    callbacks.onAborted?.(evt.assistant ?? null);
+    return;
+  }
+  if (dispatchProgressEvent(evt, callbacks) || dispatchSessionEvent(evt, callbacks)) return;
+
+  if (evt.type === 'provider_safety_signal') {
+    const signal = evt.signal ?? null;
+    publishProviderSafetySignal(signal);
+    callbacks.onProviderSafetySignal?.(signal);
+    return;
+  }
+  callbacks.onEvent?.(evt);
+}
+
 export async function parseSSEStream(response, callbacks) {
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
@@ -56,35 +115,7 @@ export async function parseSSEStream(response, callbacks) {
         if (!json) continue;
         try {
           const evt = JSON.parse(json);
-          if (evt.delta !== undefined) callbacks.onDelta?.(evt.delta);
-          else if (evt.done) callbacks.onDone?.(evt.assistant ?? null, evt.options ?? [], evt.usage ?? null);
-          else if (evt.aborted) callbacks.onAborted?.(evt.assistant ?? null);
-          else if (evt.type === 'error') callbacks.onError?.(evt.error);
-          else if (evt.type === 'title_updated') callbacks.onTitleUpdated?.(evt.title);
-          else if (evt.type === 'user_saved') callbacks.onUserSaved?.(evt.id);
-          else if (evt.type === 'memory_recall_start') callbacks.onMemoryRecallStart?.();
-          else if (evt.type === 'memory_recall_done') callbacks.onMemoryRecallDone?.(evt);
-          else if (evt.type === 'memory_expand_start') callbacks.onMemoryExpandStart?.(evt);
-          else if (evt.type === 'memory_expand_done') callbacks.onMemoryExpandDone?.(evt);
-          else if (evt.type === 'saved_recall_done') callbacks.onSavedRecallDone?.(evt);
-          else if (evt.type === 'chapter_title_updated') callbacks.onChapterTitleUpdated?.(evt.chapterIndex, evt.title);
-          else if (evt.type === 'state_queued') callbacks.onStateQueued?.();
-          else if (evt.type === 'state_updated') callbacks.onStateUpdated?.();
-          else if (evt.type === 'state_update_failed') callbacks.onStateUpdateFailed?.(evt);
-          else if (evt.type === 'postprocess_failed') callbacks.onPostprocessFailed?.(evt);
-          else if (evt.type === 'diary_updated') callbacks.onDiaryUpdated?.();
-          else if (evt.type === 'suggestion_fallback_started') callbacks.onSuggestionFallbackStarted?.(evt);
-          else if (evt.type === 'suggestion_fallback_succeeded') callbacks.onSuggestionFallbackSucceeded?.(evt);
-          else if (evt.type === 'suggestion_fallback_failed') callbacks.onSuggestionFallbackFailed?.(evt);
-          else if (evt.type === 'state_rolled_back') callbacks.onStateRolledBack?.();
-          else if (evt.type === 'entries_activated') callbacks.onEntriesActivated?.(evt.entries ?? []);
-          else if (evt.type === 'danmaku') callbacks.onDanmaku?.(evt.comments ?? []);
-          else if (evt.type === 'stream_snapshot') callbacks.onStreamSnapshot?.(evt.task ?? null);
-          else if (evt.type === 'provider_safety_signal') {
-            publishProviderSafetySignal(evt.signal ?? null);
-            callbacks.onProviderSafetySignal?.(evt.signal ?? null);
-          }
-          else callbacks.onEvent?.(evt);
+          dispatchSSEEvent(evt, callbacks);
         } catch (err) {
           log.warn('sse.malformed_event', {
             message: err?.message || 'Malformed SSE event',

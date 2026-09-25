@@ -42,7 +42,6 @@
     "frontend/src/components/state/StatusSection.jsx#InlineEditor": 45,
     "frontend/src/components/state/StatusSection.jsx#StatusSection": 58,
     "frontend/src/components/writing/WritingMessageItem.jsx#WritingMessageItem": 55,
-    "frontend/src/core/api/stream-parser.js#parseSSEStream": 43,
     "frontend/src/core/hooks/useSessionStream.js#makeCallbacks": 68,
     "frontend/src/core/hooks/useSessionStream.js#useSessionStream": 193,
     "frontend/src/core/hooks/useSettingsConfig.js#useSettingsConfig": 104,
