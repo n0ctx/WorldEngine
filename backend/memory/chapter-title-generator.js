@@ -6,7 +6,7 @@ import { upsertChapterTitle } from '../db/queries/chapter-titles.js';
 import { createLogger } from '../utils/logger.js';
 import { LLM_TASK_TEMPERATURE, LLM_CHAPTER_TITLE_MAX_TOKENS } from '../utils/constants.js';
 import { renderBackendPrompt } from '../prompts/prompt-loader.js';
-import { generateTitleWithRetry, stripThinkTags } from './title-generation.js';
+import { formatTitleDialogue, generateTitleWithRetry } from './title-generation.js';
 import { resolveAuxScope } from '../utils/aux-scope.js';
 
 const log = createLogger('chapter-title');
@@ -23,11 +23,7 @@ export async function generateChapterTitle(sessionId, chapterIndex, chapterMessa
   const sid = sessionId.slice(0, 8);
   log.debug(`generateChapterTitle START  session=${sid}  chapter=${chapterIndex}`);
 
-  const dialogue = chapterMessages
-    .filter((m) => m.role === 'user' || m.role === 'assistant')
-    .slice(0, 6)
-    .map((m) => `${m.role === 'user' ? '用户' : 'AI'}：${stripThinkTags(m.content)}`)
-    .join('\n');
+  const dialogue = formatTitleDialogue(chapterMessages);
 
   if (!dialogue) return null;
 

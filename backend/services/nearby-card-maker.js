@@ -22,6 +22,7 @@ import { createCharacter } from '../db/queries/characters.js';
 import { upsertCharacterStateValue } from '../db/queries/character-state-values.js';
 import { ALL_MESSAGES_LIMIT } from '../utils/constants.js';
 import { createLogger, formatMeta } from '../utils/logger.js';
+import { extractJsonObject } from '../utils/llm-json.js';
 
 const log = createLogger('svc', 'green');
 
@@ -66,26 +67,6 @@ function pickRecentMessages(sessionId, rounds) {
   return tail;
 }
 
-function tryParseJson(raw) {
-  if (typeof raw !== 'string' || !raw.trim()) return null;
-  // 剥离 reasoning 模型的 <think>…</think> 块，避免污染 JSON 提取
-  const stripped = raw
-    .replace(/<think>[\s\S]*?<\/think>/gi, '')
-    .replace(/<think>[\s\S]*$/gi, '')
-    .trim();
-  if (!stripped) return null;
-  // 兼容 ```json ... ``` 包裹
-  const codeBlock = stripped.match(/```(?:json)?\s*([\s\S]*?)```/);
-  const candidate = codeBlock ? codeBlock[1].trim() : stripped;
-  // 再退一步：抓第一个 {...}
-  const objMatch = candidate.match(/\{[\s\S]*\}/);
-  const source = objMatch ? objMatch[0] : candidate;
-  try {
-    return JSON.parse(source);
-  } catch {
-    return null;
-  }
-}
 
 /**
  * 用 LLM 给 nearby 生成角色卡草稿（不落库）。
@@ -116,7 +97,7 @@ export async function analyzeNearbyForCard(sessionId, nearbyId) {
     conversationId: sessionId,
   });
 
-  const parsed = tryParseJson(raw);
+  const parsed = extractJsonObject(raw);
   if (!parsed || typeof parsed !== 'object') {
     log.error(`nearby_card.analyze.failed  ${formatMeta({ sessionId, nearbyId, msg: 'LLM returned invalid JSON' })}`);
     throw new Error('LLM returned invalid JSON');

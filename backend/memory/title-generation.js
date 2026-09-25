@@ -7,6 +7,15 @@ export function stripThinkTags(text) {
   return (text || '').replace(/<think>[\s\S]*?<\/think>\n*/g, '').replace(/<think>[\s\S]*$/, '').trim();
 }
 
+/** 取前 6 条 user / assistant 消息，拼成「用户：… / AI：…」的对话文本，供标题生成 */
+export function formatTitleDialogue(messages) {
+  return messages
+    .filter((m) => m.role === 'user' || m.role === 'assistant')
+    .slice(0, 6)
+    .map((m) => `${m.role === 'user' ? '用户' : 'AI'}：${stripThinkTags(m.content)}`)
+    .join('\n');
+}
+
 function normalizeTitle(raw) {
   return stripThinkTags(raw)
     .replace(/["'"'「」『』《》【】]/g, '')

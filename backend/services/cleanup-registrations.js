@@ -72,99 +72,43 @@ registerOnDelete('world', async (wid) => {
   await unlinkUploadFile(getPersonaAvatarPathByWorldId(wid));
 });
 
+
+/** 按会话存放的资源：删会话时清一次；删角色 / 世界时对其下每个会话各清一次 */
+function registerSessionScopedCleanup(cleanup) {
+  registerOnDelete('session', async (sid) => {
+    cleanup(sid);
+  });
+  registerOnDelete('character', async (cid) => {
+    for (const sid of getSessionIdsByCharacterId(cid)) cleanup(sid);
+  });
+  registerOnDelete('world', async (wid) => {
+    for (const sid of getSessionIdsByWorldId(wid)) cleanup(sid);
+  });
+}
+
 // ── Session Summary 向量 ─────────────────────────────────────────
 // 写路径已废弃（summary-embedder.js 已删除），清理钩子保留以处理旧数据
 
-registerOnDelete('session', async (sid) => {
-  sessionSummaryVectorStore.deleteBySessionId(sid);
-});
-
-registerOnDelete('character', async (cid) => {
-  for (const sid of getSessionIdsByCharacterId(cid)) {
-    sessionSummaryVectorStore.deleteBySessionId(sid);
-  }
-});
-
-registerOnDelete('world', async (wid) => {
-  for (const sid of getSessionIdsByWorldId(wid)) {
-    sessionSummaryVectorStore.deleteBySessionId(sid);
-  }
-});
+registerSessionScopedCleanup((sid) => sessionSummaryVectorStore.deleteBySessionId(sid));
 
 // ── 日记文件目录 ─────────────────────────────────────────────────
 // 模块：diary-generator — 管理 data/daily/{sessionId}/ 目录
 // daily_entries 表由 ON DELETE CASCADE 自动清理；磁盘文件需手动删除
 
-registerOnDelete('session', async (sid) => {
-  deleteDiaryDir(sid);
-});
-
-registerOnDelete('character', async (cid) => {
-  for (const sid of getSessionIdsByCharacterId(cid)) {
-    deleteDiaryDir(sid);
-  }
-});
-
-registerOnDelete('world', async (wid) => {
-  for (const sid of getSessionIdsByWorldId(wid)) {
-    deleteDiaryDir(sid);
-  }
-});
+registerSessionScopedCleanup(deleteDiaryDir);
 
 // ── 长期记忆文件目录 ─────────────────────────────────────────────
 // 模块：long-term-memory — 管理 data/long_term_memory/{sessionId}/ 目录
 
-registerOnDelete('session', async (sid) => {
-  deleteLongTermMemoryDir(sid);
-});
-
-registerOnDelete('character', async (cid) => {
-  for (const sid of getSessionIdsByCharacterId(cid)) {
-    deleteLongTermMemoryDir(sid);
-  }
-});
-
-registerOnDelete('world', async (wid) => {
-  for (const sid of getSessionIdsByWorldId(wid)) {
-    deleteLongTermMemoryDir(sid);
-  }
-});
+registerSessionScopedCleanup(deleteLongTermMemoryDir);
 
 // ── 表格记忆文件目录 ─────────────────────────────────────────────
 // 模块：table-memory — 管理 data/table_memory/{sessionId}/ 目录
 
-registerOnDelete('session', async (sid) => {
-  deleteTableMemoryDir(sid);
-});
-
-registerOnDelete('character', async (cid) => {
-  for (const sid of getSessionIdsByCharacterId(cid)) {
-    deleteTableMemoryDir(sid);
-  }
-});
-
-registerOnDelete('world', async (wid) => {
-  for (const sid of getSessionIdsByWorldId(wid)) {
-    deleteTableMemoryDir(sid);
-  }
-});
+registerSessionScopedCleanup(deleteTableMemoryDir);
 
 // ── Turn Summary 向量 ────────────────────────────────────────────
 // 模块：turn-summarizer — 管理 data/vectors/turn_summaries.json
 // turn_records 表由 ON DELETE CASCADE 自动清理；向量文件需手动清理
 
-registerOnDelete('session', async (sid) => {
-  turnSummaryVectorStore.deleteBySessionId(sid);
-});
-
-registerOnDelete('character', async (cid) => {
-  for (const sid of getSessionIdsByCharacterId(cid)) {
-    turnSummaryVectorStore.deleteBySessionId(sid);
-  }
-});
-
-registerOnDelete('world', async (wid) => {
-  for (const sid of getSessionIdsByWorldId(wid)) {
-    turnSummaryVectorStore.deleteBySessionId(sid);
-  }
-});
+registerSessionScopedCleanup((sid) => turnSummaryVectorStore.deleteBySessionId(sid));

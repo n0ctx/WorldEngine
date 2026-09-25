@@ -20,6 +20,7 @@ import {
 import { createLogger } from '../utils/logger.js';
 import { renderBackendPrompt, loadBackendPrompt } from '../prompts/prompt-loader.js';
 import { resolveAuxScope } from '../utils/aux-scope.js';
+import { parseFencedJson, pickKnownIds } from '../utils/llm-json.js';
 
 const log = createLogger('memory-expand');
 
@@ -72,21 +73,9 @@ export async function decideExpansion({ sessionId, recalled }) {
       conversationId: sessionId,
     });
 
-    // 剥除 <think>...</think> 推理链，再去 ```json 包裹
-    const stripped = (raw || '')
-      .replace(/<think>[\s\S]*?<\/think>\n*/g, '')
-      .replace(/<think>[\s\S]*$/, '')
-      .trim();
-    const cleaned = stripped.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '').trim();
-    const parsed = JSON.parse(cleaned);
+    const parsed = parseFencedJson(raw);
 
-    if (!parsed || !Array.isArray(parsed.expand)) return [];
-
-    // 过滤掉不在 recalled 集合中的 id，去重
-    const validIds = new Set(recalled.map((r) => r.turn_record_id));
-    const result = [...new Set(parsed.expand.filter((id) => typeof id === 'string' && validIds.has(id)))];
-
-    return result.slice(0, recalled.length);
+    return pickKnownIds(parsed?.expand, recalled.map((r) => r.turn_record_id));
   } catch (err) {
     log.warn(`decideExpansion preflight 失败，降级为不展开: ${err.message}`);
     return [];

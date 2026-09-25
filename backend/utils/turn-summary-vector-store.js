@@ -9,40 +9,22 @@
  *     → [{ turn_record_id, session_id, score, is_same_session }, ...]
  */
 
-import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
   MEMORY_RECALL_SIMILARITY_THRESHOLD,
   MEMORY_RECALL_SAME_SESSION_THRESHOLD,
 } from './constants.js';
+import { cosineSimilarity, createJsonVectorStore } from './json-vector-store.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const STORE_PATH = process.env.WE_TURN_SUMMARY_STORE_PATH
   ? path.resolve(process.env.WE_TURN_SUMMARY_STORE_PATH)
   : path.resolve(__dirname, '..', '..', 'data', 'vectors', 'turn_summaries.json');
 
-const EMPTY_STORE = { version: 1, entries: [] };
-
-// ─── 文件 I/O ────────────────────────────────────────────────────
-
-function ensureDir() {
-  fs.mkdirSync(path.dirname(STORE_PATH), { recursive: true });
-}
-
-export function loadStore() {
-  if (!fs.existsSync(STORE_PATH)) return structuredClone(EMPTY_STORE);
-  try {
-    return JSON.parse(fs.readFileSync(STORE_PATH, 'utf-8'));
-  } catch {
-    return structuredClone(EMPTY_STORE);
-  }
-}
-
-function saveStore(store) {
-  ensureDir();
-  fs.writeFileSync(STORE_PATH, JSON.stringify(store), 'utf-8');
-}
+const store = createJsonVectorStore(STORE_PATH);
+const { saveStore } = store;
+export const { loadStore, deleteBySessionId } = store;
 
 // ─── 操作 ────────────────────────────────────────────────────────
 
@@ -73,29 +55,7 @@ export function upsertEntry(turnRecordId, sessionId, worldId, vector) {
   saveStore(store);
 }
 
-/**
- * 删除某 session 对应的所有向量条目，不存在时静默忽略
- */
-export function deleteBySessionId(sessionId) {
-  const store = loadStore();
-  const before = store.entries.length;
-  store.entries = store.entries.filter((e) => e.session_id !== sessionId);
-  if (store.entries.length !== before) saveStore(store);
-}
-
 // ─── 搜索 ────────────────────────────────────────────────────────
-
-function cosineSimilarity(a, b) {
-  if (a.length !== b.length) return null;
-  let dot = 0, normA = 0, normB = 0;
-  for (let i = 0; i < a.length; i++) {
-    dot += a[i] * b[i];
-    normA += a[i] * a[i];
-    normB += b[i] * b[i];
-  }
-  const denom = Math.sqrt(normA) * Math.sqrt(normB);
-  return denom === 0 ? 0 : dot / denom;
-}
 
 /**
  * 按余弦相似度搜索，限定世界，同 session / 跨 session 分别用不同阈值

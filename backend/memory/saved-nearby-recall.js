@@ -19,6 +19,7 @@ import { createLogger } from '../utils/logger.js';
 import { renderBackendPrompt, loadBackendPrompt } from '../prompts/prompt-loader.js';
 import { resolveAuxScope } from '../utils/aux-scope.js';
 import { applyTemplateVars } from '../utils/template-vars.js';
+import { parseFencedJson, pickKnownIds } from '../utils/llm-json.js';
 
 const log = createLogger('saved-nearby-recall');
 
@@ -74,18 +75,9 @@ export async function decideSavedNearbyRecall({ sessionId, savedRows }) {
       conversationId: sessionId,
     });
 
-    const stripped = (raw || '')
-      .replace(/<think>[\s\S]*?<\/think>\n*/g, '')
-      .replace(/<think>[\s\S]*$/, '')
-      .trim();
-    const cleaned = stripped.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '').trim();
-    const parsed = JSON.parse(cleaned);
+    const parsed = parseFencedJson(raw);
 
-    if (!parsed || !Array.isArray(parsed.recall)) return [];
-
-    const validIds = new Set(savedRows.map((r) => r.id));
-    const result = [...new Set(parsed.recall.filter((id) => typeof id === 'string' && validIds.has(id)))];
-    return result.slice(0, savedRows.length);
+    return pickKnownIds(parsed?.recall, savedRows.map((r) => r.id));
   } catch (err) {
     log.warn(`decideSavedNearbyRecall preflight 失败，降级为不召回: ${err.message}`);
     return [];

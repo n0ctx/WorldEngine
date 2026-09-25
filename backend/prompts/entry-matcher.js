@@ -29,6 +29,7 @@ import {
 import { createLogger } from '../utils/logger.js';
 import { renderBackendPrompt, loadBackendPrompt } from './prompt-loader.js';
 import { resolveAuxScope } from '../utils/aux-scope.js';
+import { parseFencedJson } from '../utils/llm-json.js';
 
 const log = createLogger('entry', 'magenta');
 
@@ -62,12 +63,7 @@ async function tryLlmMatch(entriesWithDesc, contextLines, sessionId) {
 
     const raw = await llm.complete(messages, { temperature: 0, maxTokens: PROMPT_ENTRY_LLM_MAX_TOKENS, configScope: resolveAuxScope(sessionId), callType: 'entry_match', conversationId: sessionId });
 
-    const stripped = (raw || '')
-      .replace(/<think>[\s\S]*?<\/think>\n*/g, '')
-      .replace(/<think>[\s\S]*$/, '')
-      .trim();
-    const cleaned = stripped.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '').trim();
-    const indices = JSON.parse(cleaned);
+    const indices = parseFencedJson(raw);
 
     if (Array.isArray(indices)) {
       for (const idx of indices) {

@@ -18,9 +18,9 @@ import { getPersonaStateFieldsByWorldId } from '../db/queries/persona-state-fiel
 import { getAllPersonaStateValuesByPersonaId } from '../db/queries/persona-state-values.js';
 import { validateValue } from '../utils/state-field-validate.js';
 import { renderBackendPrompt } from '../prompts/prompt-loader.js';
-import { stripThinkBlocksFromText } from '../utils/turn-dialogue.js';
 import { LLM_TASK_TEMPERATURE, LLM_STATE_UPDATE_MAX_TOKENS, STATE_TEXT_MAX_LENGTH, STATE_LIST_MAX_ITEMS } from '../utils/constants.js';
 import { createLogger, formatMeta, previewText } from '../utils/logger.js';
+import { extractJsonObject } from '../utils/llm-json.js';
 
 const log = createLogger('state-extract', 'cyan');
 
@@ -65,25 +65,6 @@ function buildFieldsSchemaText(fields) {
       return line;
     })
     .join('\n');
-}
-
-/**
- * 从 LLM 原始输出中解析 JSON 建议对象。剥离 <think> 块 + ```json 代码块包裹后提取首个 {...}。
- * @returns {object|null}
- */
-function parseSuggestionJson(raw) {
-  if (typeof raw !== 'string' || !raw.trim()) return null;
-  const stripped = stripThinkBlocksFromText(raw).trim();
-  if (!stripped) return null;
-  const codeBlock = stripped.match(/```(?:json)?\s*([\s\S]*?)```/);
-  const candidate = codeBlock ? codeBlock[1].trim() : stripped;
-  const objMatch = candidate.match(/\{[\s\S]*\}/);
-  const source = objMatch ? objMatch[0] : candidate;
-  try {
-    return JSON.parse(source);
-  } catch {
-    return null;
-  }
 }
 
 /**
@@ -154,7 +135,7 @@ async function callExtractLLM({ name, personaText, fields, callType }) {
     throw err;
   }
 
-  const parsed = parseSuggestionJson(raw);
+  const parsed = extractJsonObject(raw);
   if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
     log.warn(`PARSE FAIL  ${formatMeta({ name, preview: previewText(raw) })}`);
     const err = new Error('LLM 返回内容无法解析为 JSON');

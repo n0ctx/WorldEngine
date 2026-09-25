@@ -77,6 +77,17 @@ function stripThinkBlocks(text) {
 }
 
 /**
+ * 去掉思考块后优先取 ```json 代码块，再取第一个 {...}；右括号缺失（输出被截断）时取到末尾，交给 repairJsonIssues 补全
+ */
+function findJsonObjectText(raw) {
+  const cleaned = stripThinkBlocks(raw);
+  const codeBlock = cleaned.match(/```(?:json)?\s*([\s\S]*?)```/);
+  const jsonSource = codeBlock ? codeBlock[1].trim() : cleaned;
+  const match = jsonSource.match(/\{[\s\S]*\}/) || jsonSource.match(/\{[\s\S]*/);
+  return match ? match[0] : null;
+}
+
+/**
  * 修复常见 LLM JSON 输出问题（单遍状态机）：
  *  1. 补全截断括号（原 repairTruncatedJson 功能保留）
  *  2. 去除字符串外的尾部逗号（{"a":1,} 或 [1,2,]）
@@ -125,12 +136,8 @@ function repairJsonIssues(text) {
  */
 function extractJsonPatch(raw, sid) {
   try {
-    const cleaned = stripThinkBlocks(raw);
-    const codeBlock = cleaned.match(/```(?:json)?\s*([\s\S]*?)```/);
-    const jsonSource = codeBlock ? codeBlock[1].trim() : cleaned;
-    const match = jsonSource.match(/\{[\s\S]*\}/) || jsonSource.match(/\{[\s\S]*/);
-    if (!match) return null;
-    const jsonStr = match[0];
+    const jsonStr = findJsonObjectText(raw);
+    if (!jsonStr) return null;
     try {
       return JSON.parse(jsonStr);
     } catch {
@@ -337,13 +344,10 @@ function parseCompressedResponse(raw, sid) {
   let compressed = null;
   if (raw) {
     try {
-      const cleaned = stripThinkBlocks(raw);
-      const codeBlock = cleaned.match(/```(?:json)?\s*([\s\S]*?)```/);
-      const jsonSource = codeBlock ? codeBlock[1].trim() : cleaned;
-      const match = jsonSource.match(/\{[\s\S]*\}/) || jsonSource.match(/\{[\s\S]*/);
-      if (match) {
-        try { compressed = JSON.parse(match[0]); }
-        catch { compressed = JSON.parse(repairJsonIssues(match[0])); }
+      const jsonStr = findJsonObjectText(raw);
+      if (jsonStr) {
+        try { compressed = JSON.parse(jsonStr); }
+        catch { compressed = JSON.parse(repairJsonIssues(jsonStr)); }
       }
     } catch {
       log.warn(`COMPRESS PARSE FAIL  ${formatMeta({ session: sid, preview: previewText(raw) })}`);

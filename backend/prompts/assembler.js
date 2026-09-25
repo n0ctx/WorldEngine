@@ -224,6 +224,14 @@ async function pushRecalledSummaries(worldId, sessionId, tv, dynamicSystemParts,
   return { recalled, recallHitCount };
 }
 
+/** [8] 触发条目 → [8.5][8.6] 记忆文件 → [9] 召回摘要，chat / writing 共用这一段 */
+async function pushEntriesMemoryAndRecall(sessionId, worldId, allWorldEntries, settings, tv, dynamicSystemParts, onRecallEvent) {
+  const triggeredEntries = await pushTriggeredEntries(sessionId, worldId, allWorldEntries, tv, dynamicSystemParts);
+  pushMemoryFileSections(sessionId, settings, tv, dynamicSystemParts);
+  const { recalled, recallHitCount } = await pushRecalledSummaries(worldId, sessionId, tv, dynamicSystemParts, onRecallEvent);
+  return { triggeredEntries, recalled, recallHitCount };
+}
+
 /** [10] 注入 AI 选中的展开原文，并通知前端展开结束 */
 function pushExpandedSection(expandIds, tv, dynamicSystemParts, onRecallEvent) {
   if (expandIds.length === 0) {
@@ -292,13 +300,11 @@ async function buildChatSystemPrompt(sessionId, character, world, config, option
   if (characterStateText) dynamicSystemParts.push(`<char_state>\n${tv(characterStateText)}\n</char_state>`);
 
   // [8] 世界 State 条目（常驻 / 关键词 / AI 召回；token=0 的常驻条目已进 cached layer）
-  const triggeredEntries = await pushTriggeredEntries(sessionId, world.id, allWorldEntries, tv, dynamicSystemParts);
-
   // [8.5] 长期记忆 / [8.6] 表格记忆
-  pushMemoryFileSections(sessionId, config, tv, dynamicSystemParts);
-
   // [9] 召回摘要（向量搜索历史 turn summaries，排除当前上下文窗口内的轮次）
-  const { recalled, recallHitCount } = await pushRecalledSummaries(world.id, sessionId, tv, dynamicSystemParts, onRecallEvent);
+  const { triggeredEntries, recalled, recallHitCount } = await pushEntriesMemoryAndRecall(
+    sessionId, world.id, allWorldEntries, config, tv, dynamicSystemParts, onRecallEvent,
+  );
 
   // [10] 记忆展开（由 AI 决定需要展开哪些原文）
   if (recallHitCount > 0 && config.memory_expansion_enabled !== false) {
@@ -444,13 +450,11 @@ async function buildWritingCoreSystemParts(sessionId, world, writing, persona, o
   }
 
   // [8] 世界 State 条目（常驻 / 关键词 / AI 召回；token=0 的常驻条目已进 cached layer）
-  const triggeredEntries = await pushTriggeredEntries(sessionId, world.id, allWorldEntries, tv, dynamicSystemParts);
-
   // [8.5] 长期记忆 / [8.6] 表格记忆
-  pushMemoryFileSections(sessionId, writing, tv, dynamicSystemParts);
-
   // [9] 召回摘要（向量搜索历史 turn summaries，排除当前上下文窗口内的轮次）
-  const { recalled, recallHitCount } = await pushRecalledSummaries(world.id, sessionId, tv, dynamicSystemParts, onRecallEvent);
+  const { triggeredEntries, recalled, recallHitCount } = await pushEntriesMemoryAndRecall(
+    sessionId, world.id, allWorldEntries, writing, tv, dynamicSystemParts, onRecallEvent,
+  );
 
   const activatedEntries = selectActivatedEntries(triggeredEntries);
   const suggestionText = writing.suggestion_enabled ? tv(SUGGESTION_PROMPT) : null;

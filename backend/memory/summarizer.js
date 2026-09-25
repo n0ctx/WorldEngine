@@ -6,7 +6,7 @@ import { getMessagesBySessionId, updateSessionTitle } from '../services/sessions
 import { createLogger } from '../utils/logger.js';
 import { LLM_TASK_TEMPERATURE, LLM_TITLE_MAX_TOKENS } from '../utils/constants.js';
 import { renderBackendPrompt } from '../prompts/prompt-loader.js';
-import { generateTitleWithRetry, stripThinkTags } from './title-generation.js';
+import { formatTitleDialogue, generateTitleWithRetry } from './title-generation.js';
 import { resolveAuxScope } from '../utils/aux-scope.js';
 
 const log = createLogger('summarizer');
@@ -23,11 +23,7 @@ export async function generateTitle(sessionId) {
 
   // 只取前几条消息，够用于概括即可
   const messages = getMessagesBySessionId(sessionId, 10, 0);
-  const dialogue = messages
-    .filter((m) => m.role === 'user' || m.role === 'assistant')
-    .slice(0, 6)
-    .map((m) => `${m.role === 'user' ? '用户' : 'AI'}：${stripThinkTags(m.content)}`)
-    .join('\n');
+  const dialogue = formatTitleDialogue(messages);
 
   if (!dialogue) return null;
 
