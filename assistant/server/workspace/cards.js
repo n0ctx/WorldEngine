@@ -74,7 +74,7 @@ export function listPersonaRefs(worldId) {
 }
 
 // { 字段标签或 key: 原生值 } → 已校验的 stateValueOps。
-export function toStateValueOps(worldId, target, values) {
+function toStateValueOps(worldId, target, values) {
   if (!values || typeof values !== 'object' || Array.isArray(values)) fail('state 必须是 { 字段标签或 key: 值 } 对象');
   const fields = listFieldRows(worldId, target);
   const describe = () => fields.map((f) => `${f.label}（${f.field_key}，${f.type}）`).join('、') || '（无，请先创建字段）';

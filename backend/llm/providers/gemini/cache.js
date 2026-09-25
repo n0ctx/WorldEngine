@@ -125,5 +125,3 @@ export async function getOrCreateCache({ model, systemText, baseUrl, apiKey, sig
     throw err;
   }
 }
-
-export const __testables = { hashKey, normalizeModel, cache, negative };

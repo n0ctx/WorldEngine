@@ -41,7 +41,3 @@ export function getProviderSafetyStats(filters = {}) {
   const suffix = qs.toString();
   return request(`/api/provider-safety-events/stats${suffix ? `?${suffix}` : ''}`);
 }
-
-export function getProviderSafetyEvent(id) {
-  return request(`/api/provider-safety-events/${encodeURIComponent(id)}`);
-}

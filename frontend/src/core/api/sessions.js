@@ -18,13 +18,6 @@ export async function getLatestChatSession(worldId) {
   return res.json();
 }
 
-export async function getLatestSession(worldId) {
-  const res = await fetch(`${BASE}/worlds/${worldId}/latest-session`);
-  if (res.status === 404) return null;
-  if (!res.ok) throw new Error(`getLatestSession failed: ${res.status}`);
-  return res.json();
-}
-
 /** 获取某世界的故事线：chat + writing 会话混编，按更新时间倒序 */
 export async function getWorldTimeline(worldId, limit = 50) {
   const res = await fetch(`${BASE}/worlds/${worldId}/timeline?limit=${limit}`);

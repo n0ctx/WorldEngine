@@ -53,7 +53,7 @@ export function convertToAnthropicMessages(messages) {
   return { system: systemParts.join('\n\n') || undefined, messages: converted };
 }
 
-export function convertContentToAnthropic(content) {
+function convertContentToAnthropic(content) {
   if (typeof content === 'string') return content;
   return content.map((part) => {
     if (part.type === 'text') return { type: 'text', text: part.text };
@@ -143,7 +143,7 @@ export function convertToGeminiContents(messages) {
   return result;
 }
 
-export function convertContentToGemini(content) {
+function convertContentToGemini(content) {
   if (typeof content === 'string') return [{ text: content }];
   return content.map((part) => {
     if (part.type === 'text') return { text: part.text };

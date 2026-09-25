@@ -137,5 +137,3 @@ export function parseContinuationText(text, isStreaming = false) {
   const { display, options } = parseNextPromptStream(text, isStreaming);
   return { content: display, options };
 }
-
-export { OPEN_TAG, CLOSE_TAG, NEXT_OPEN, NEXT_CLOSE };

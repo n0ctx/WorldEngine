@@ -12,7 +12,7 @@ import { FIELD_TARGETS } from './refs.js';
 
 export const WORLD_FIELDS = ['name', 'description', 'temperature', 'max_tokens'];
 
-export function loadWorld(worldId) {
+function loadWorld(worldId) {
   const world = getWorldById(worldId);
   if (!world) fail(`世界 ${worldId} 不存在；read("worlds") 查看全部世界`);
   return world;

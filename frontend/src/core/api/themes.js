@@ -4,9 +4,6 @@ const BASE = '/api/themes';
 export const DEFAULT_THEME_ID = 'nocturne';
 
 let activeThemeId = DEFAULT_THEME_ID;
-export function getActiveThemeId() {
-  return activeThemeId;
-}
 
 export function listThemes() {
   return request(BASE);

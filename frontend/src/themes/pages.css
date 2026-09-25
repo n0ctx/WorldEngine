@@ -1071,31 +1071,6 @@
   background: var(--we-color-accent-bg);
 }
 
-.we-persona-section-label {
-  font-family: var(--we-font-prose);
-  font-size: var(--we-text-xs);
-  letter-spacing: 0.3em;
-  text-transform: uppercase;
-  color: var(--we-color-text-tertiary);
-  margin-bottom: var(--we-space-sm);
-}
-
-.we-persona-card-wrap {
-  background: var(--we-color-bg-canvas);
-  border: 1px solid var(--we-color-border-default);
-  border-radius: var(--we-radius-sm);
-  padding: var(--we-space-md) var(--we-space-lg);
-  position: relative;
-  margin-bottom: var(--we-space-xl);
-}
-
-.we-persona-empty-hint {
-  font-family: var(--we-font-prose);
-  font-size: var(--we-text-sm);
-  font-style: italic;
-  color: var(--we-color-text-tertiary);
-}
-
 .we-characters-empty {
   text-align: center;
   padding: var(--we-space-2xl) 0;
@@ -3109,49 +3084,6 @@
 .we-avatar-circle--md  { width: 48px; height: 48px; font-size: var(--we-text-base); }
 .we-avatar-circle--lg  { width: 64px; height: 64px; font-size: var(--we-text-xl); }
 
-/* ── PersonaCard 组件 ── */
-
-.we-persona-card-body {
-  display: flex;
-  align-items: center;
-  gap: var(--we-space-md);
-  padding-right: var(--we-space-2xl);
-}
-
-.we-persona-card-info {
-  display: flex;
-  flex-direction: column;
-  gap: var(--we-space-xxs);
-  min-width: 0;
-}
-
-.we-persona-card-name {
-  font-family: var(--we-font-prose);
-  font-size: var(--we-text-sm);
-  color: var(--we-color-text-primary);
-  margin: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.we-persona-card-desc {
-  font-family: var(--we-font-prose);
-  font-size: var(--we-text-xs);
-  color: var(--we-color-text-secondary);
-  margin: 0;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-.we-persona-card-edit-btn {
-  position: absolute;
-  top: var(--we-space-md);
-  right: var(--we-space-md);
-}
-
 /* ── CharactersPage 错误状态 ── */
 
 .we-characters-error {
@@ -4089,28 +4021,7 @@
   color: var(--we-color-accent);
 }
 
-/* — 页脚 + StatePanel 内分割线重置 + 状态变更 overlay ─ */
-/* ── 页脚（PageFooter）────────────────────────────────────────── */
-.we-page-footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 6px var(--we-space-lg) var(--we-space-sm); /* 6px: design exact */
-  font-family: var(--we-font-display);
-  font-style: italic;
-  font-size: var(--we-text-xs);
-  letter-spacing: var(--we-tracking-wide);
-  color: var(--we-color-text-tertiary);
-  opacity: 0.7;
-  margin-top: var(--we-space-md);
-  flex-shrink: 0;
-}
-.we-page-footer-fleuron {
-  color: var(--we-color-gold);
-  font-size: var(--we-text-control);
-  opacity: 0.65;
-}
-
+/* — StatePanel 内分割线重置 + 状态变更 overlay ─ */
 /* ── StatePanel 内取消所有模块间分割线 ─── */
 .we-state-panel .we-state-section + .we-state-section,
 .we-state-panel .we-timeline { border-top: none; }

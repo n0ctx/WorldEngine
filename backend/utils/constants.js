@@ -1,7 +1,5 @@
 import {
   CHAPTER_MESSAGE_SIZE as SHARED_CHAPTER_MESSAGE_SIZE,
-  CHAPTER_TURN_SIZE as SHARED_CHAPTER_TURN_SIZE,
-  PAGE_TURN_SIZE as SHARED_PAGE_TURN_SIZE,
 } from '../../shared/chapter-constants.mjs';
 
 export { resolveChapterMessageSize } from '../../shared/chapter-constants.mjs';
@@ -31,7 +29,6 @@ export const ASYNC_QUEUE_MAX_SIZE = 20;
 // ============================
 // 上下文与提示词
 // ============================
-export const CONTEXT_MIN_HISTORY_ROUNDS = 4;
 export const PROMPT_ENTRY_LLM_MAX_TOKENS = 300;  // LLM preflight：最大输出 token 数
 export const SUGGESTION_TOKEN_RESERVE = 200;     // 选项生成预留输出空间：标签20t+三条中文选项~100t+换行~10t≈130t，取200安全余量
 
@@ -39,7 +36,6 @@ export const SUGGESTION_TOKEN_RESERVE = 200;     // 选项生成预留输出空�
 // 记忆召回
 // ============================
 export const MEMORY_RECALL_MAX_SESSIONS = 5;
-export const MEMORY_RECALL_CONTEXT_WINDOW = 10;
 export const MEMORY_RECALL_MAX_TOKENS = 2048;
 export const MEMORY_RECALL_SIMILARITY_THRESHOLD = 0.75;       // 跨 session 阈值
 export const MEMORY_RECALL_SAME_SESSION_THRESHOLD = 0.6;     // 同 session 内阈值
@@ -51,7 +47,6 @@ export const TURN_SUMMARY_CAST_MAX = 4;
 // ============================
 export const MEMORY_EXPAND_MAX_TOKENS = 4096;
 export const MEMORY_EXPAND_DECISION_MAX_TOKENS = 200;
-export const MEMORY_EXPAND_PER_SESSION_MAX_ROUNDS = 30;
 
 // ============================
 // 世界时间线
@@ -67,8 +62,6 @@ export const DIARY_TIME_FIELD_KEY = 'diary_time';
 export const DIARY_TIME_UPDATE_INSTRUCTION = '每轮对话必须更新此字段。根据本轮内容判断时间流逝了多少（几分钟/几小时/几天均可），在当前运行时值基础上推进，不得重复上一轮的值。格式必须严格为 ISO 局部时间 YYYY-MM-DDTHH:mm（年份为正整数、可任意位数；月/日/时/分各 2 位，例：1000-03-15T14:30 或 238-04-20T00:00），不得省略任何部分，不得使用其他格式。';
 /** 日记时间字段的内置 description（用于 LLM 理解字段用途）*/
 export const DIARY_TIME_DESCRIPTION = '故事世界中当前的时间节点（世界内时间，非现实时间）';
-/** 日记面板默认展示条数（最近 N 条展开，其余折叠）*/
-export const DIARY_PANEL_RECENT_LIMIT = 5;
 /** 日记 LLM 生成最大 token 数 */
 export const LLM_DIARY_MAX_TOKENS = 2000;
 
@@ -137,12 +130,8 @@ export const LLM_THINKING_BUDGET_HIGH   = 16384;
 // ============================
 // 章节分组与翻页（前后端共享单一来源，互相解耦）
 // ============================
-/** 每章轮数（分章阈值的单一真源） */
-export const CHAPTER_TURN_SIZE = SHARED_CHAPTER_TURN_SIZE;
 /** 每 N 条消息触发新章节（= CHAPTER_TURN_SIZE * 2，含 user+assistant） */
 export const CHAPTER_MESSAGE_SIZE = SHARED_CHAPTER_MESSAGE_SIZE;
-/** Pager 每页轮数（仅翻页条使用，不影响分章） */
-export const PAGE_TURN_SIZE = SHARED_PAGE_TURN_SIZE;
 /** 章节标题生成最大 token 数 */
 export const LLM_CHAPTER_TITLE_MAX_TOKENS = 30;
 

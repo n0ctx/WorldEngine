@@ -6,7 +6,7 @@ import {
 } from '../../../utils/constants.js';
 
 /** qwen-style thinking_budget（enable_thinking + thinking_budget 数值） */
-export function resolveQwenBudget(thinking_level) {
+function resolveQwenBudget(thinking_level) {
   const MAP = {
     qwen_low:    LLM_THINKING_BUDGET_LOW,
     qwen_medium: LLM_THINKING_BUDGET_MEDIUM,

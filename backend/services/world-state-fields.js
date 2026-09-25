@@ -25,7 +25,6 @@ const svc = createStateFieldService({
 });
 
 export const createWorldStateField = (worldId, data) => svc.create(worldId, data);
-export const getWorldStateFieldById = (id) => svc.getById(id);
 export const listWorldStateFields = (worldId) => svc.list(worldId);
 export const updateWorldStateField = (id, patch) => svc.update(id, patch);
 export const deleteWorldStateField = (id) => svc.remove(id);

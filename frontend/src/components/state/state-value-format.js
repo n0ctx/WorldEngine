@@ -32,7 +32,7 @@ export function formatBooleanDisplay(v) {
 }
 
 /** list 值的中文展示：非数组或空数组 → null（由调用方决定 null 如何呈现） */
-export function formatListDisplay(v) {
+function formatListDisplay(v) {
   if (!Array.isArray(v) || v.length === 0) return null;
   return v.join('、');
 }

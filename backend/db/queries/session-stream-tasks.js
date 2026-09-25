@@ -89,7 +89,3 @@ export function getSessionStreamTask(sessionId) {
 export function listSessionStreamTasks() {
   return db.prepare('SELECT * FROM session_stream_tasks ORDER BY updated_at DESC').all().map(decodeRow);
 }
-
-export function deleteSessionStreamTask(sessionId) {
-  db.prepare('DELETE FROM session_stream_tasks WHERE session_id = ?').run(sessionId);
-}

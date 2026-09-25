@@ -60,10 +60,6 @@ export function deleteAssistantTask(id) {
   db.prepare('DELETE FROM assistant_tasks WHERE id = ?').run(id);
 }
 
-export function getAssistantTask(id) {
-  return decodeRow(db.prepare('SELECT * FROM assistant_tasks WHERE id = ?').get(id));
-}
-
 export function listAssistantTasks() {
   return db.prepare('SELECT * FROM assistant_tasks ORDER BY created_at ASC').all().map(decodeRow);
 }

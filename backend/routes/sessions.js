@@ -79,7 +79,7 @@ router.get('/sessions/:id', (req, res) => {
 router.get('/sessions/:id/messages', (req, res) => {
   const session = getSessionById(req.params.id);
   if (!assertExists(res, session, '会话不存在')) return;
-  // ALL_MESSAGES_LIMIT 现为 null（不分页），避免超长会话丢失最早历史；前端按 PAGE_TURN_SIZE 切片渲染
+  // ALL_MESSAGES_LIMIT 现为 null（不分页），避免超长会话丢失最早历史；前端按每页轮数切片渲染
   res.json(getMessagesBySessionId(req.params.id, ALL_MESSAGES_LIMIT, 0));
 });
 

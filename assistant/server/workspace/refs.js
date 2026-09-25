@@ -7,7 +7,7 @@
 
 import { fail } from './common.js';
 
-export const LIST_KINDS = ['worlds', 'entries', 'fields', 'characters', 'personas', 'css', 'regex', 'themes', 'docs'];
+const LIST_KINDS = ['worlds', 'entries', 'fields', 'characters', 'personas', 'css', 'regex', 'themes', 'docs'];
 const ITEM_KINDS = ['world', 'entry', 'field', 'character', 'persona', 'css', 'regex', 'theme', 'config', 'doc'];
 const ID_OPTIONAL = new Set(['world', 'persona', 'config']);
 const LIST_OF = {

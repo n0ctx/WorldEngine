@@ -14,9 +14,9 @@
  */
 import BookSpreadShell from '../../shells/book-spread/index.js';
 
-export const DEFAULT_SHELL_ID = 'book-spread';
+const DEFAULT_SHELL_ID = 'book-spread';
 
-export const SHELLS = Object.freeze({
+const SHELLS = Object.freeze({
   'book-spread': BookSpreadShell,
 });
 

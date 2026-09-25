@@ -13,8 +13,8 @@ import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 const espree = require('espree');
 
-export const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-export const BASELINE_VERSION = 1;
+const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const BASELINE_VERSION = 1;
 export const BASELINE_NOTE = '，基线外无新增';
 
 export const CODE_SUFFIXES = new Set(['.js', '.jsx', '.mjs', '.cjs']);
@@ -53,7 +53,7 @@ function walkDir(dir, relPrefix, accept, out) {
   }
 }
 
-export function parseCode(text, { tokens = false } = {}) {
+function parseCode(text, { tokens = false } = {}) {
   for (const sourceType of ['module', 'script']) {
     try {
       return espree.parse(text, {

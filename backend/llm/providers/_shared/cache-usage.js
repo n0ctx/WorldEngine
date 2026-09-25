@@ -102,11 +102,3 @@ export function recordTokenUsage(usageRef, usage, provider) {
     usageRef.prompt_tokens = usageRef.prompt_tokens - cacheRead;
   }
 }
-
-export const __testables = {
-  ANTHROPIC_EXPLICIT_PROVIDERS,
-  OPENAI_PREFIX_PROVIDERS,
-  DEEPSEEK_PREFIX_PROVIDERS,
-  GEMINI_IMPLICIT_PROVIDERS,
-  firstNumber,
-};

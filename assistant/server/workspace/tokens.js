@@ -17,7 +17,7 @@ function stripComments(css) {
   return css.replace(/\/\*[\s\S]*?\*\//g, '');
 }
 
-export function loadTokens() {
+function loadTokens() {
   if (cached) return cached;
   cached = new Map();
   for (const rel of SOURCE_DIRS) {

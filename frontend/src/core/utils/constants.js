@@ -3,7 +3,6 @@
 export {
   CHAPTER_MESSAGE_SIZE,
   CHAPTER_TURN_SIZE,
-  PAGE_TURN_SIZE,
   resolveChapterMessageSize,
 } from '../../../../shared/chapter-constants.mjs';
 

@@ -7,7 +7,7 @@ export function stripThinkTags(text) {
   return (text || '').replace(/<think>[\s\S]*?<\/think>\n*/g, '').replace(/<think>[\s\S]*$/, '').trim();
 }
 
-export function normalizeTitle(raw) {
+function normalizeTitle(raw) {
   return stripThinkTags(raw)
     .replace(/["'"'「」『』《》【】]/g, '')
     .replace(/[，。！？；：,.!?;:]+$/g, '')

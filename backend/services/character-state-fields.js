@@ -34,7 +34,6 @@ const svc = createStateFieldService({
 });
 
 export const createCharacterStateField = (worldId, data) => svc.create(worldId, data);
-export const getCharacterStateFieldById = (id) => svc.getById(id);
 export const listCharacterStateFields = (worldId) => svc.list(worldId);
 export const updateCharacterStateField = (id, patch) => svc.update(id, patch);
 export const deleteCharacterStateField = (id) => svc.remove(id);

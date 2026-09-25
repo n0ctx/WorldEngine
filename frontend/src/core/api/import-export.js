@@ -132,7 +132,7 @@ export function importGlobalSettings(data) {
 /**
  * 全量迁移导出，返回 JSON 数据对象
  */
-export function exportMigration() {
+function exportMigration() {
   return request(`${BASE}/migration/export`);
 }
 

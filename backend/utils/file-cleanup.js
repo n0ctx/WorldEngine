@@ -19,7 +19,7 @@ import { createLogger, formatMeta } from './logger.js';
 const log = createLogger('file');
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-export const UPLOADS_DIR = process.env.WE_DATA_DIR
+const UPLOADS_DIR = process.env.WE_DATA_DIR
   ? path.resolve(process.env.WE_DATA_DIR, 'uploads')
   : path.resolve(__dirname, '..', '..', 'data', 'uploads');
 

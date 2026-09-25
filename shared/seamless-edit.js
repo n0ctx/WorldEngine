@@ -1,6 +1,6 @@
 import { useCallback, useLayoutEffect, useState } from 'react';
 
-export function autoSizeTextarea(element) {
+function autoSizeTextarea(element) {
   if (!element || element.tagName !== 'TEXTAREA') return 0;
   element.style.height = '0px';
   const nextHeight = element.scrollHeight;

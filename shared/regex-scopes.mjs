@@ -34,6 +34,3 @@ export const REGEX_SCOPE_HINTS = {
   display_only: '前端渲染时，不改存库',
   prompt_only: '后端历史消息组装时，仅影响 LLM 副本',
 };
-
-/** 校验用集合 */
-export const VALID_REGEX_SCOPES = new Set(REGEX_SCOPES);

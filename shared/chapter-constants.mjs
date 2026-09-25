@@ -1,8 +1,7 @@
-// 写作章节分组规则与翻页规则：前后端共用，避免边界漂移
-// 两者解耦：CHAPTER_TURN_SIZE 决定 prose 模式按多少轮切一章；PAGE_TURN_SIZE 仅用于翻页条切片。
+// 写作章节分组规则：前后端共用，避免边界漂移
+// CHAPTER_TURN_SIZE 决定 prose 模式按多少轮切一章。
 // 当前为默认值；用户可在「设置 → 功能配置」覆盖（chat / writing 各一份）。
 export const CHAPTER_TURN_SIZE = 20;
-export const PAGE_TURN_SIZE = 50;
 export const CHAPTER_MESSAGE_SIZE = CHAPTER_TURN_SIZE * 2;
 
 /**

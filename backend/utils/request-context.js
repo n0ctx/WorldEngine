@@ -9,7 +9,3 @@ export function runWithContext(ctx, fn) {
 export function getRequestId() {
   return _als.getStore()?.requestId;
 }
-
-export function getContext() {
-  return _als.getStore() ?? {};
-}

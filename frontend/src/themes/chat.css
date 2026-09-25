@@ -975,40 +975,6 @@
   transform: scaleX(1);
 }
 
-/* ── FleuronLine (lightweight scene divider) ───────────── */
-
-.we-chapter-divider {
-  display: flex;
-  align-items: center;
-  gap: var(--we-space-sm);
-  margin: var(--we-space-lg) 0;
-  opacity: 0;
-  transition: opacity var(--we-duration-extended) var(--we-easing-ink);
-}
-
-.we-fleuron--visible {
-  opacity: 1;
-}
-
-.we-fleuron-line {
-  flex: 1;
-  height: 1px;
-  background: var(--we-color-border-default);
-  transform: scaleX(0);
-  transform-origin: center;
-  transition: transform var(--we-duration-extended) var(--we-easing-ink) 0.05s;
-}
-
-.we-fleuron--visible .we-fleuron-line {
-  transform: scaleX(1);
-}
-
-.we-fleuron-symbol {
-  color: var(--we-color-bg-muted);
-  font-size: var(--we-text-body);
-  flex-shrink: 0;
-}
-
 /* ── Writing space: prose & annotation ────────────────── */
 
 .we-writing-prose {
@@ -2464,40 +2430,6 @@
   height: 1px;
   background: color-mix(in srgb, var(--we-base-gold-600) 70%, transparent);
   display: block;
-}
-
-/* ── 场景分隔线（FleuronLine）──────────────────────────────────── */
-.we-chapter-divider {
-  display: flex;
-  align-items: center;
-  gap: var(--we-space-sm);
-  margin: 20px 0; /* design exact */
-  opacity: 0;
-  clip-path: inset(0 50% 0 50%);
-}
-.we-chapter-divider.we-fleuron--visible {
-  animation: we-fleuron-draw var(--we-duration-extended) var(--we-easing-page) both;
-}
-@keyframes we-fleuron-draw {
-  from { opacity: 0; clip-path: inset(0 50% 0 50%); }
-  to   { opacity: 1; clip-path: inset(0 0 0 0);      }
-}
-.we-fleuron-line {
-  flex: 1;
-  height: 1px;
-  background: var(--we-color-border-default);
-  display: block;
-  box-shadow:
-    0 1px 0 color-mix(in srgb, var(--we-base-white) 32%, transparent),
-    0 -0.5px 0 color-mix(in srgb, var(--we-base-ink-900) 8%, transparent);
-}
-/* 场景分隔线：以 muted 色保留低对比装饰；与 .we-chapter-fleuron 的金色对比强弱区分章节/场景层级 */
-.we-fleuron-symbol {
-  font-family: var(--we-font-display);
-  font-size: var(--we-text-body);
-  color: var(--we-color-bg-muted);
-  line-height: var(--we-leading-flush);
-  flex-shrink: 0;
 }
 
 /* ============================================================

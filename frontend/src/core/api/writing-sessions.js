@@ -21,22 +21,6 @@ export async function deleteWritingSession(worldId, sessionId) {
   return res.json();
 }
 
-// ─── 消息 ─────────────────────────────────────────────────────────────
-
-export async function listMessages(worldId, sessionId) {
-  const res = await fetch(`/api/worlds/${worldId}/writing-sessions/${sessionId}/messages`);
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return res.json();
-}
-
-// ─── 世界角色列表 ──────────────────────────────────────────────────────
-
-export async function listWorldCharacters(worldId) {
-  const res = await fetch(`/api/worlds/${worldId}/characters`);
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return res.json();
-}
-
 // ─── 生成 ─────────────────────────────────────────────────────────────
 
 /**

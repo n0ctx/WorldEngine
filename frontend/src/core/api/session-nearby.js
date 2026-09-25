@@ -17,7 +17,7 @@ export function addSavedNearbyFromCharacter(worldId, sessionId, characterId) {
   });
 }
 
-export function patchNearby(worldId, sessionId, nearbyId, body) {
+function patchNearby(worldId, sessionId, nearbyId, body) {
   return request(`${nearbyBase(worldId, sessionId)}/${nearbyId}`, {
     method: 'PATCH',
     body: JSON.stringify(body),
@@ -30,10 +30,6 @@ export function setNearbySaved(worldId, sessionId, nearbyId, isSaved) {
 
 export function patchNearbyPersona(worldId, sessionId, nearbyId, persona) {
   return patchNearby(worldId, sessionId, nearbyId, { persona });
-}
-
-export function patchNearbyName(worldId, sessionId, nearbyId, name) {
-  return patchNearby(worldId, sessionId, nearbyId, { name });
 }
 
 export function patchNearbyState(worldId, sessionId, nearbyId, fieldKey, valueJson) {
