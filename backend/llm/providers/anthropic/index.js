@@ -93,6 +93,49 @@ function markLastMessageCacheable(messages) {
   }
 }
 
+async function processAnthropicMetadataEvent(event, data, config, lastUsage) {
+  try {
+    const parsed = JSON.parse(data);
+    if (event === 'message_start') {
+      const usage = parsed.message?.usage;
+      if (usage) {
+        lastUsage = { ...(lastUsage || {}), ...usage };
+        if (config.usageRef) recordTokenUsage(config.usageRef, usage, config.provider);
+      }
+    } else if (event === 'message_delta') {
+      const usage = parsed.usage;
+      if (usage?.output_tokens != null) {
+        lastUsage = { ...(lastUsage || {}), ...usage };
+        if (config.usageRef) recordTokenUsage(config.usageRef, usage, config.provider);
+      }
+      const signal = extractAnthropicSignal(
+        parsed,
+        buildContextFromConfig(config, { phase: 'stream_stop', stream: true }),
+      );
+      if (signal) await emitProviderSignal(config, signal);
+    } else {
+      const signal = extractAnthropicSignal(
+        parsed,
+        buildContextFromConfig(config, { phase: 'stream_chunk', stream: true }),
+      );
+      if (signal) await emitProviderSignal(config, signal);
+    }
+  } catch (err) {
+    if (event !== 'error') {
+      log.error('provider.parse_error', formatMeta({ provider: 'anthropic', msg: err.message }));
+    }
+  }
+  return lastUsage;
+}
+
+async function throwAnthropicStreamHttpError(resp, config) {
+  const text = await resp.text().catch(() => '');
+  log.error('provider.http_error', formatMeta({ provider: 'anthropic', status: resp.status, msg: text }));
+  const errSignal = extractProviderErrorSignal(text, buildContextFromConfig(config, { phase: 'request_error' }));
+  if (errSignal) await emitProviderSignal(config, errSignal);
+  throw apiError(`Anthropic API error: ${resp.status} ${text}`, resp.status);
+}
+
 export async function* streamAnthropic(messages, config) {
   log.debug('provider.request', formatMeta({ provider: 'anthropic', model: config.model, msgs: messages.length, mode: 'stream' }));
   const baseUrl = getBaseUrl(config);
@@ -126,44 +169,15 @@ export async function* streamAnthropic(messages, config) {
   const resp = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body), signal: config.signal });
 
   if (!resp.ok) {
-    const text = await resp.text().catch(() => '');
-    log.error('provider.http_error', formatMeta({ provider: 'anthropic', status: resp.status, msg: text }));
-    const errSignal = extractProviderErrorSignal(text, buildContextFromConfig(config, { phase: 'request_error' }));
-    if (errSignal) await emitProviderSignal(config, errSignal);
-    throw apiError(`Anthropic API error: ${resp.status} ${text}`, resp.status);
+    await throwAnthropicStreamHttpError(resp, config);
   }
 
-  // 跟踪当前是否在 thinking block 中(extended thinking 专用)
   let inThinkingBlock = false;
   let lastUsage = null;
 
   for await (const { event, data } of parseSSE(resp.body)) {
-    if (event === 'message_start') {
-      try {
-        const parsed = JSON.parse(data);
-        const u = parsed.message?.usage;
-        if (u) {
-          lastUsage = { ...(lastUsage || {}), ...u };
-          if (config.usageRef) recordTokenUsage(config.usageRef, u, config.provider);
-        }
-      } catch (err) { log.error('provider.parse_error', formatMeta({ provider: 'anthropic', msg: err.message })); }
-    } else if (event === 'message_delta') {
-      try {
-        const parsed = JSON.parse(data);
-        const u = parsed.usage;
-        if (u?.output_tokens != null) {
-          lastUsage = { ...(lastUsage || {}), ...u };
-          if (config.usageRef) recordTokenUsage(config.usageRef, u, config.provider);
-        }
-        const sig = extractAnthropicSignal(parsed, buildContextFromConfig(config, { phase: 'stream_stop', stream: true }));
-        if (sig) await emitProviderSignal(config, sig);
-      } catch (err) { log.error('provider.parse_error', formatMeta({ provider: 'anthropic', msg: err.message })); }
-    } else if (event === 'error') {
-      try {
-        const parsed = JSON.parse(data);
-        const sig = extractAnthropicSignal(parsed, buildContextFromConfig(config, { phase: 'stream_chunk', stream: true }));
-        if (sig) await emitProviderSignal(config, sig);
-      } catch { /* skip */ }
+    if (event === 'message_start' || event === 'message_delta' || event === 'error') {
+      lastUsage = await processAnthropicMetadataEvent(event, data, config, lastUsage);
     } else if (event === 'content_block_start') {
       try {
         const parsed = JSON.parse(data);
