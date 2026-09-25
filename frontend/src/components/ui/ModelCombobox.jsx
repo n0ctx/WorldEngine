@@ -12,6 +12,23 @@ function formatPrice(p) {
   return String(Math.round(p));
 }
 
+function OptionPrice({ option }) {
+  const inp = typeof option === 'object' ? formatPrice(option.inputPrice) : null;
+  const out = typeof option === 'object' ? formatPrice(option.outputPrice) : null;
+  const cwr = typeof option === 'object' ? formatPrice(option.cacheWritePrice) : null;
+  const crd = typeof option === 'object' ? formatPrice(option.cacheReadPrice) : null;
+  const hasPrice = inp != null || out != null;
+
+  if (!hasPrice) return null;
+  return (
+    <span className="we-combobox-price">
+      {inp != null ? `↑${inp}` : ''}{inp != null && out != null ? ' ' : ''}{out != null ? `↓${out}` : ''}
+      {cwr != null ? ` 写${cwr}` : ''}{crd != null ? ` 读${crd}` : ''}
+      {' '}<span className="we-combobox-price-unit">/1M</span>
+    </span>
+  );
+}
+
 export default function ModelCombobox({
   value = '',
   onChange,
@@ -126,11 +143,6 @@ export default function ModelCombobox({
         <ul className="we-combobox-dropdown">
           {filtered.map((option) => {
             const id = optionId(option);
-            const inp  = typeof option === 'object' ? formatPrice(option.inputPrice)      : null;
-            const out  = typeof option === 'object' ? formatPrice(option.outputPrice)     : null;
-            const cwr  = typeof option === 'object' ? formatPrice(option.cacheWritePrice) : null;
-            const crd  = typeof option === 'object' ? formatPrice(option.cacheReadPrice)  : null;
-            const hasPrice = inp != null || out != null;
             return (
               <li
                 key={id}
@@ -138,13 +150,7 @@ export default function ModelCombobox({
                 className={`we-combobox-option${id === value ? ' we-combobox-option--selected' : ''}`}
               >
                 <span className="we-combobox-option-id">{id}</span>
-                {hasPrice && (
-                  <span className="we-combobox-price">
-                    {inp != null ? `↑${inp}` : ''}{inp != null && out != null ? ' ' : ''}{out != null ? `↓${out}` : ''}
-                    {cwr != null ? ` 写${cwr}` : ''}{crd != null ? ` 读${crd}` : ''}
-                    {' '}<span className="we-combobox-price-unit">/1M</span>
-                  </span>
-                )}
+                <OptionPrice option={option} />
               </li>
             );
           })}

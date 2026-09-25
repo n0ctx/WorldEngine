@@ -41,7 +41,6 @@
     "frontend/src/components/state/StatusSection.jsx#(匿名)~41": 32,
     "frontend/src/components/state/StatusSection.jsx#InlineEditor": 45,
     "frontend/src/components/state/StatusSection.jsx#StatusSection": 58,
-    "frontend/src/components/ui/ModelCombobox.jsx#ModelCombobox": 34,
     "frontend/src/components/writing/WritingMessageItem.jsx#WritingMessageItem": 55,
     "frontend/src/core/api/stream-parser.js#parseSSEStream": 43,
     "frontend/src/core/hooks/useSessionState.js#useSessionState": 35,
