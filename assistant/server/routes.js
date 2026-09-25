@@ -140,6 +140,12 @@ router.post('/agent/:taskId/cancel', async (req, res) => {
   res.json({ ok: true });
 });
 
+/** 消息列表被改动后：推送给订阅方，并把新列表返回给调用方 */
+function sendMessagesChanged(res, task) {
+  taskStore.emit(task.id, { type: SSE_EVENTS.MESSAGES_CHANGED, taskId: task.id, messages: task.messages });
+  res.json({ ok: true, messages: task.messages });
+}
+
 router.post('/agent/:taskId/truncate', async (req, res) => {
   const task = taskStore.getTask(req.params.taskId);
   if (!task) return res.status(404).json({ error: 'not found' });
@@ -151,8 +157,7 @@ router.post('/agent/:taskId/truncate', async (req, res) => {
   const dropped = taskStore.truncateFrom(task.id, messageId);
   if (dropped < 0) return res.status(404).json({ error: 'message not found' });
   log.info(`/agent/truncate  ${formatMeta({ taskId: task.id, messageId, dropped })}`);
-  taskStore.emit(task.id, { type: SSE_EVENTS.MESSAGES_CHANGED, taskId: task.id, messages: task.messages });
-  res.json({ ok: true, messages: task.messages });
+  sendMessagesChanged(res, task);
 });
 
 router.post('/agent/:taskId/delete', (req, res) => {
@@ -166,8 +171,7 @@ router.post('/agent/:taskId/delete', (req, res) => {
   const ok = taskStore.deleteMessage(task.id, messageId);
   if (!ok) return res.status(404).json({ error: 'message not found' });
   log.info(`/agent/delete  ${formatMeta({ taskId: task.id, messageId })}`);
-  taskStore.emit(task.id, { type: SSE_EVENTS.MESSAGES_CHANGED, taskId: task.id, messages: task.messages });
-  res.json({ ok: true, messages: task.messages });
+  sendMessagesChanged(res, task);
 });
 
 router.get('/agent/recover', (req, res) => {

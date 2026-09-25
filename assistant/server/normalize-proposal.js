@@ -211,9 +211,7 @@ function createCharacterProposal(proposal, { entityId, changes, worldRefId }) {
     post_prompt: safeChanges.post_prompt || '',
     first_message: safeChanges.first_message || '',
   });
-  for (const op of (Array.isArray(proposal.stateValueOps) ? proposal.stateValueOps : [])) {
-    applyStateValueOp(op, { characterId: character.id, worldId });
-  }
+  applyStateValueOps(proposal.stateValueOps, { characterId: character.id, worldId });
   return character;
 }
 
@@ -228,9 +226,7 @@ async function updateCharacterProposal(proposal, { entityId, changes }) {
   preValidateStateValueOps(proposal.stateValueOps, { characterId: entityId });
   const safeChanges = pickAllowed(changes, ['name', 'description', 'system_prompt', 'post_prompt', 'first_message']);
   const updated = Object.keys(safeChanges).length > 0 ? await updateCharacter(entityId, safeChanges) : null;
-  for (const op of (Array.isArray(proposal.stateValueOps) ? proposal.stateValueOps : [])) {
-    applyStateValueOp(op, { characterId: entityId });
-  }
+  applyStateValueOps(proposal.stateValueOps, { characterId: entityId });
   return updated;
 }
 
@@ -245,9 +241,7 @@ function createPersonaProposal(proposal, { entityId, changes }) {
     system_prompt: safeChanges.system_prompt || '',
   });
   setActivePersona(worldId, persona.id);
-  for (const op of (Array.isArray(proposal.stateValueOps) ? proposal.stateValueOps : [])) {
-    applyStateValueOp(op, { personaId: persona.id, worldId });
-  }
+  applyStateValueOps(proposal.stateValueOps, { personaId: persona.id, worldId });
   return persona;
 }
 
@@ -267,9 +261,7 @@ async function updatePersonaProposal(proposal, { entityId, changes }) {
     updated = await updatePersona(entityId, safeChanges);
   }
   const worldId = updated?.world_id ?? entityId;
-  for (const op of (Array.isArray(stateValueOps) ? stateValueOps : [])) {
-    applyStateValueOp(op, { personaId: updated?.id ?? proposal.personaId ?? null, worldId });
-  }
+  applyStateValueOps(stateValueOps, { personaId: updated?.id ?? proposal.personaId ?? null, worldId });
   return updated;
 }
 
@@ -408,6 +400,10 @@ function preValidateStateValueOps(ops, refs) {
     // 整体拒绝：抛错前不会有任何 changes / 值被写入（调用方在写 changes 之前先调本函数）。
     throw new Error(`提案校验失败，未做任何改动（validate-all-then-apply）：\n- ${failures.join('\n- ')}`);
   }
+}
+
+function applyStateValueOps(ops, refs) {
+  for (const op of (Array.isArray(ops) ? ops : [])) applyStateValueOp(op, refs);
 }
 
 function applyStateValueOp(op, refs = {}) {
@@ -608,30 +604,22 @@ function normalizeWorldChanges(changes) {
   return normalized;
 }
 
-function normalizeCharacterChanges(changes) {
-  const picked = pickAllowed(changes, ['name', 'description', 'system_prompt', 'post_prompt', 'first_message', 'world_id']);
+/** 角色卡 / 玩家卡：world_id 规范成实体 id，其余白名单字段一律转字符串 */
+function normalizeCardChanges(changes, allowed) {
+  const picked = pickAllowed(changes, [...allowed, 'world_id']);
   const normalized = {};
   for (const key of Object.keys(picked)) {
-    if (key === 'world_id') {
-      normalized[key] = normalizeEntityId(picked[key]);
-    } else {
-      normalized[key] = String(picked[key] ?? '');
-    }
+    normalized[key] = key === 'world_id' ? normalizeEntityId(picked[key]) : String(picked[key] ?? '');
   }
   return normalized;
 }
 
+function normalizeCharacterChanges(changes) {
+  return normalizeCardChanges(changes, ['name', 'description', 'system_prompt', 'post_prompt', 'first_message']);
+}
+
 function normalizePersonaChanges(changes) {
-  const picked = pickAllowed(changes, ['name', 'description', 'system_prompt', 'world_id']);
-  const normalized = {};
-  for (const key of Object.keys(picked)) {
-    if (key === 'world_id') {
-      normalized[key] = normalizeEntityId(picked[key]);
-    } else {
-      normalized[key] = String(picked[key] ?? '');
-    }
-  }
-  return normalized;
+  return normalizeCardChanges(changes, ['name', 'description', 'system_prompt']);
 }
 
 function normalizeCssSnippetChanges(changes) {
@@ -785,19 +773,17 @@ function buildWorldConditionContext(worldId, stateFieldOps = []) {
   return { byScopedLabel, byScopedFieldKey, byFieldKey, byLabel };
 }
 
+function resolvedField(field) {
+  return { targetField: `${field.scopeLabel}.${field.label}`, field };
+}
+
 function resolveConditionField(rawTargetField, context) {
   const input = String(rawTargetField ?? '').trim();
   if (!input) return { targetField: null, field: null };
   if (!context) return { targetField: input, field: null };
 
-  if (context.byScopedLabel.has(input)) {
-    const field = context.byScopedLabel.get(input);
-    return { targetField: `${field.scopeLabel}.${field.label}`, field };
-  }
-  if (context.byScopedFieldKey.has(input)) {
-    const field = context.byScopedFieldKey.get(input);
-    return { targetField: `${field.scopeLabel}.${field.label}`, field };
-  }
+  const scoped = context.byScopedLabel.get(input) ?? context.byScopedFieldKey.get(input);
+  if (scoped) return resolvedField(scoped);
 
   if (input.includes('.')) {
     return { targetField: input, field: null, unresolved: true };
@@ -806,7 +792,7 @@ function resolveConditionField(rawTargetField, context) {
   const byKeyMatches = context.byFieldKey.get(input) || [];
   if (byKeyMatches.length === 1) {
     const field = byKeyMatches[0];
-    return { targetField: `${field.scopeLabel}.${field.label}`, field };
+    return resolvedField(field);
   }
   if (byKeyMatches.length > 1) {
     throw new Error(`提案格式错误：state 条件 target_field "${input}" 存在多个同名 field_key，请改为 世界.xxx / 玩家.xxx / 角色.xxx`);
@@ -815,7 +801,7 @@ function resolveConditionField(rawTargetField, context) {
   const byLabelMatches = context.byLabel.get(input) || [];
   if (byLabelMatches.length === 1) {
     const field = byLabelMatches[0];
-    return { targetField: `${field.scopeLabel}.${field.label}`, field };
+    return resolvedField(field);
   }
   if (byLabelMatches.length > 1) {
     throw new Error(`提案格式错误：state 条件 target_field "${input}" 存在多个同名标签，请改为 世界.xxx / 玩家.xxx / 角色.xxx`);
