@@ -23,17 +23,21 @@ export function createMessage(data) {
  */
 export function getMessageById(id) {
   const row = db.prepare('SELECT * FROM messages WHERE id = ?').get(id);
-  if (row) {
-    row.attachments = row.attachments ? JSON.parse(row.attachments) : null;
-    row.token_usage = row.token_usage ? JSON.parse(row.token_usage) : null;
-    row.next_options = parseNextOptions(row.next_options);
-    row.activated_entries = parseActivatedEntries(row.activated_entries);
-    row.danmaku = parseDanmaku(row.danmaku);
-  }
+  if (row) hydrateMessageRow(row);
   return row;
 }
 
-function parseNextOptions(raw) {
+/** 把消息行里以 JSON 字符串存储的列就地解析为对象 / 数组 */
+function hydrateMessageRow(row) {
+  row.attachments = row.attachments ? JSON.parse(row.attachments) : null;
+  row.token_usage = row.token_usage ? JSON.parse(row.token_usage) : null;
+  row.next_options = parseTrimmedStrings(row.next_options);
+  row.activated_entries = parseActivatedEntries(row.activated_entries);
+  row.danmaku = parseTrimmedStrings(row.danmaku);
+}
+
+/** next_options / danmaku：JSON 字符串数组，去掉空白项；为空或非法时返回 null */
+function parseTrimmedStrings(raw) {
   if (!raw) return null;
   try {
     const arr = JSON.parse(raw);
@@ -56,18 +60,6 @@ function parseActivatedEntries(raw) {
   }
 }
 
-function parseDanmaku(raw) {
-  if (!raw) return null;
-  try {
-    const arr = JSON.parse(raw);
-    if (!Array.isArray(arr)) return null;
-    const cleaned = arr.filter((v) => typeof v === 'string' && v.trim()).map((v) => v.trim());
-    return cleaned.length > 0 ? cleaned : null;
-  } catch {
-    return null;
-  }
-}
-
 /**
  * 获取某会话下的消息，按 created_at 升序，支持分页，attachments 自动 JSON.parse
  */
@@ -80,13 +72,7 @@ export function getMessagesBySessionId(sessionId, limit = 50, offset = 0) {
         'SELECT * FROM messages WHERE session_id = ? ORDER BY created_at ASC, rowid ASC LIMIT ? OFFSET ?',
       ).all(sessionId, limit, offset);
 
-  for (const row of rows) {
-    row.attachments = row.attachments ? JSON.parse(row.attachments) : null;
-    row.token_usage = row.token_usage ? JSON.parse(row.token_usage) : null;
-    row.next_options = parseNextOptions(row.next_options);
-    row.activated_entries = parseActivatedEntries(row.activated_entries);
-    row.danmaku = parseDanmaku(row.danmaku);
-  }
+  for (const row of rows) hydrateMessageRow(row);
   return rows;
 }
 
@@ -313,9 +299,7 @@ export function getUncompressedMessagesBySessionId(sessionId, limit = null, offs
     `).all(sessionId);
   for (const row of rows) {
     delete row.__rowid;
-    row.attachments = row.attachments ? JSON.parse(row.attachments) : null;
-    row.token_usage = row.token_usage ? JSON.parse(row.token_usage) : null;
-    row.next_options = parseNextOptions(row.next_options);
+    hydrateMessageRow(row);
   }
   return rows;
 }

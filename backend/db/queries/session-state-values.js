@@ -6,6 +6,7 @@
  *
  * 对外接口：
  *   getSessionWorldStateValues(sessionId, worldId)      → Array
+ *   resolveSessionPersonaId(sessionId, worldId)         → personaId | null
  *   getSessionPersonaStateValues(sessionId, worldId)    → Array
  *   getSessionCharacterStateValues(sessionId, worldId, characterIds) → Array
  *   getSingleCharacterSessionStateValues(sessionId, characterId, worldId) → Array
@@ -44,19 +45,24 @@ export function getSessionWorldStateValues(sessionId, worldId) {
 }
 
 /**
+ * 会话使用的 persona：writing session 自带 persona_id；chat session / 无 persona_id 时回退世界级
+ * active_persona_id，仍为空再回退到最早创建的 persona。都没有时返回 null。
+ */
+export function resolveSessionPersonaId(sessionId, worldId) {
+  const sessionRow = sessionId ? db.prepare('SELECT persona_id FROM sessions WHERE id = ?').get(sessionId) : null;
+  if (sessionRow?.persona_id) return sessionRow.persona_id;
+  const worldRow = db.prepare('SELECT active_persona_id FROM worlds WHERE id = ?').get(worldId);
+  return worldRow?.active_persona_id
+    ?? db.prepare('SELECT id FROM personas WHERE world_id = ? ORDER BY created_at ASC, id ASC LIMIT 1').get(worldId)?.id
+    ?? null;
+}
+
+/**
  * 获取玩家级有效状态值（含会话运行时覆盖）
  * 按该世界的激活 persona 过滤 persona_state_values，避免多 persona 数据泄漏。
  */
 export function getSessionPersonaStateValues(sessionId, worldId) {
-  // writing session 自带 persona_id；chat session / 无 persona_id 时回退世界级 active
-  const sessionRow = db.prepare('SELECT persona_id FROM sessions WHERE id = ?').get(sessionId);
-  let personaId = sessionRow?.persona_id ?? null;
-  if (!personaId) {
-    const worldRow = db.prepare('SELECT active_persona_id FROM worlds WHERE id = ?').get(worldId);
-    personaId = worldRow?.active_persona_id
-      ?? db.prepare('SELECT id FROM personas WHERE world_id = ? ORDER BY created_at ASC, id ASC LIMIT 1').get(worldId)?.id
-      ?? null;
-  }
+  const personaId = resolveSessionPersonaId(sessionId, worldId);
 
   return db.prepare(`
     SELECT

@@ -1,6 +1,6 @@
 import crypto from 'node:crypto';
 import db from '../index.js';
-import { parseRow, parseAll } from './_state-fields-base.js';
+import { parseRow, parseAll, updateStateFieldRow, reorderStateFieldRows } from './_state-fields-base.js';
 
 /**
  * 创建世界状态字段，sort_order 默认取同 world 最大值 + 1
@@ -62,30 +62,7 @@ export function getWorldStateFieldsByWorldId(worldId) {
  * 部分更新字段定义
  */
 export function updateWorldStateField(id, patch) {
-  const allowed = [
-    'field_key', 'label', 'type', 'description', 'default_value',
-    'update_mode', 'enum_options',
-    'min_value', 'max_value', 'allow_empty', 'update_instruction', 'prefix', 'unit', 'table_columns', 'sort_order',
-  ];
-  const sets = [];
-  const values = [];
-
-  for (const field of allowed) {
-    if (!(field in patch)) continue;
-    sets.push(`${field} = ?`);
-    if (field === 'enum_options' || field === 'table_columns') {
-      values.push(patch[field] != null ? JSON.stringify(patch[field]) : null);
-    } else {
-      values.push(patch[field]);
-    }
-  }
-
-  if (sets.length === 0) return getWorldStateFieldById(id);
-
-  sets.push('updated_at = ?');
-  values.push(Date.now(), id);
-  db.prepare(`UPDATE world_state_fields SET ${sets.join(', ')} WHERE id = ?`).run(...values);
-  return getWorldStateFieldById(id);
+  return updateStateFieldRow('world_state_fields', id, patch);
 }
 
 /**
@@ -99,11 +76,5 @@ export function deleteWorldStateField(id) {
  * 批量重排序：orderedIds[0] 的 sort_order = 0，依次递增
  */
 export function reorderWorldStateFields(worldId, orderedIds) {
-  const update = db.prepare(
-    'UPDATE world_state_fields SET sort_order = ? WHERE id = ? AND world_id = ?',
-  );
-  const tx = db.transaction((ids) => {
-    ids.forEach((id, i) => update.run(i, id, worldId));
-  });
-  tx(orderedIds);
+  reorderStateFieldRows('world_state_fields', worldId, orderedIds);
 }

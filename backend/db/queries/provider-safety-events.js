@@ -108,7 +108,8 @@ const FILTERABLE = {
   mode: 'mode',
 };
 
-export function listProviderSafetyEvents(filters = {}) {
+/** 由等值过滤列与时间范围拼出 WHERE；cursor 仅列表分页使用 */
+function buildFilterWhere(filters, { withCursor = false } = {}) {
   const where = [];
   const params = [];
   for (const [key, col] of Object.entries(FILTERABLE)) {
@@ -116,9 +117,12 @@ export function listProviderSafetyEvents(filters = {}) {
   }
   if (filters.since) { where.push('created_at >= ?'); params.push(String(filters.since)); }
   if (filters.until) { where.push('created_at <= ?'); params.push(String(filters.until)); }
-  if (filters.cursor) { where.push('created_at < ?'); params.push(String(filters.cursor)); }
+  if (withCursor && filters.cursor) { where.push('created_at < ?'); params.push(String(filters.cursor)); }
+  return { whereSql: where.length ? `WHERE ${where.join(' AND ')}` : '', params };
+}
 
-  const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
+export function listProviderSafetyEvents(filters = {}) {
+  const { whereSql, params } = buildFilterWhere(filters, { withCursor: true });
   const limit = Math.min(Math.max(Number(filters.limit) || 50, 1), 500);
   const sql = `SELECT * FROM provider_safety_events ${whereSql} ORDER BY created_at DESC LIMIT ?`;
   const rows = db.prepare(sql).all(...params, limit);
@@ -126,14 +130,7 @@ export function listProviderSafetyEvents(filters = {}) {
 }
 
 export function getProviderSafetyStats(filters = {}) {
-  const where = [];
-  const params = [];
-  for (const [key, col] of Object.entries(FILTERABLE)) {
-    if (filters[key]) { where.push(`${col} = ?`); params.push(String(filters[key])); }
-  }
-  if (filters.since) { where.push('created_at >= ?'); params.push(String(filters.since)); }
-  if (filters.until) { where.push('created_at <= ?'); params.push(String(filters.until)); }
-  const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
+  const { whereSql, params } = buildFilterWhere(filters);
 
   const total = db.prepare(`SELECT COUNT(*) AS c FROM provider_safety_events ${whereSql}`).get(...params).c;
   const byProvider = Object.fromEntries(

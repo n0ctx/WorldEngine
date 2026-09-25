@@ -1,5 +1,6 @@
 import crypto from 'node:crypto';
 import db from '../index.js';
+import { updateRowFields, reorderRows } from './_update-helpers.js';
 
 /**
  * 创建世界，返回新记录
@@ -44,41 +45,14 @@ export function getAllWorlds() {
  * 批量更新世界排序（传入 [{id, sort_order}, ...] 数组）
  */
 export function reorderWorlds(items) {
-  const stmt = db.prepare('UPDATE worlds SET sort_order = ?, updated_at = ? WHERE id = ?');
-  const now = Date.now();
-  const update = db.transaction(() => {
-    for (const item of items) {
-      stmt.run(item.sort_order, now, item.id);
-    }
-  });
-  update();
+  reorderRows('worlds', items);
 }
 
 /**
  * 部分更新世界字段，返回更新后的记录
  */
 export function updateWorld(id, patch) {
-  const allowedFields = ['name', 'description', 'temperature', 'max_tokens', 'cover_path', 'accent_color', 'accent_source', 'onboarding_dismissed'];
-  const sets = [];
-  const values = [];
-
-  for (const field of allowedFields) {
-    if (field in patch) {
-      sets.push(`${field} = ?`);
-      values.push(patch[field]);
-    }
-  }
-
-  if (sets.length === 0) {
-    return getWorldById(id);
-  }
-
-  sets.push('updated_at = ?');
-  values.push(Date.now());
-  values.push(id);
-
-  db.prepare(`UPDATE worlds SET ${sets.join(', ')} WHERE id = ?`).run(...values);
-  return getWorldById(id);
+  return updateRowFields('worlds', id, patch, ['name', 'description', 'temperature', 'max_tokens', 'cover_path', 'accent_color', 'accent_source', 'onboarding_dismissed']);
 }
 
 /**

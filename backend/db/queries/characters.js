@@ -1,5 +1,6 @@
 import crypto from 'node:crypto';
 import db from '../index.js';
+import { updateRowFields, reorderRows } from './_update-helpers.js';
 
 /**
  * 创建角色，sort_order 默认取当前 world 下最大值 + 1
@@ -53,41 +54,14 @@ export function getCharactersByWorldId(worldId) {
  * 部分更新角色字段
  */
 export function updateCharacter(id, patch) {
-  const allowedFields = ['name', 'description', 'system_prompt', 'post_prompt', 'first_message', 'avatar_path', 'sort_order'];
-  const sets = [];
-  const values = [];
-
-  for (const field of allowedFields) {
-    if (field in patch) {
-      sets.push(`${field} = ?`);
-      values.push(patch[field]);
-    }
-  }
-
-  if (sets.length === 0) {
-    return getCharacterById(id);
-  }
-
-  sets.push('updated_at = ?');
-  values.push(Date.now());
-  values.push(id);
-
-  db.prepare(`UPDATE characters SET ${sets.join(', ')} WHERE id = ?`).run(...values);
-  return getCharacterById(id);
+  return updateRowFields('characters', id, patch, ['name', 'description', 'system_prompt', 'post_prompt', 'first_message', 'avatar_path', 'sort_order']);
 }
 
 /**
  * 批量更新角色排序（传入 [{id, sort_order}, ...] 数组）
  */
 export function reorderCharacters(items) {
-  const stmt = db.prepare('UPDATE characters SET sort_order = ?, updated_at = ? WHERE id = ?');
-  const now = Date.now();
-  const update = db.transaction(() => {
-    for (const item of items) {
-      stmt.run(item.sort_order, now, item.id);
-    }
-  });
-  update();
+  reorderRows('characters', items);
 }
 
 /**

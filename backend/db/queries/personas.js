@@ -1,5 +1,6 @@
 import crypto from 'node:crypto';
 import db from '../index.js';
+import { reorderRows } from './_update-helpers.js';
 
 /**
  * 获取某世界下所有 persona，每条记录附带 is_active 布尔标记。
@@ -141,14 +142,7 @@ export function upsertPersona(worldId, data = {}) {
  * 批量更新玩家卡排序（传入 [{id, sort_order}, ...] 数组）
  */
 export function reorderPersonas(items) {
-  const stmt = db.prepare('UPDATE personas SET sort_order = ?, updated_at = ? WHERE id = ?');
-  const now = Date.now();
-  const update = db.transaction(() => {
-    for (const item of items) {
-      stmt.run(item.sort_order, now, item.id);
-    }
-  });
-  update();
+  reorderRows('personas', items);
 }
 
 /**

@@ -3,7 +3,7 @@ import db from '../index.js';
 
 // ─── 通用工具 ───────────────────────────────────────────────────
 
-function normalizeToken(value, triggerType) {
+export function normalizeToken(value, triggerType) {
   const n = parseInt(value, 10);
   if (!Number.isFinite(n)) return 1;
   if (triggerType === 'always') {

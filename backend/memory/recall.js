@@ -16,6 +16,7 @@
 import db from '../db/index.js';
 import { getCharacterById } from '../db/queries/characters.js';
 import { getTurnRecordsWithSessionByIds } from '../db/queries/turn-records.js';
+import { resolveSessionPersonaId } from '../db/queries/session-state-values.js';
 import { getStateValuesByNearbyId } from '../db/queries/session-nearby-character-state-values.js';
 import { applyTemplateVars } from '../utils/template-vars.js';
 import { embed } from '../llm/embedding.js';
@@ -82,19 +83,7 @@ export const __testables = {
  * @returns {string} 渲染结果，无状态字段时返回空字符串
  */
 export function renderPersonaState(worldId, sessionId) {
-  // writing session 自带 persona_id（与会话强绑定）；chat session 或无 session 时回退到世界级 active_persona_id；
-  // active 为 NULL 再回退到最早创建的 persona
-  let personaId = null;
-  if (sessionId) {
-    const sessionRow = db.prepare('SELECT persona_id FROM sessions WHERE id = ?').get(sessionId);
-    if (sessionRow?.persona_id) personaId = sessionRow.persona_id;
-  }
-  if (!personaId) {
-    const worldRow = db.prepare('SELECT active_persona_id FROM worlds WHERE id = ?').get(worldId);
-    personaId = worldRow?.active_persona_id ??
-      db.prepare('SELECT id FROM personas WHERE world_id = ? ORDER BY created_at ASC, id ASC LIMIT 1').get(worldId)?.id ??
-      null;
-  }
+  const personaId = resolveSessionPersonaId(sessionId, worldId);
 
   const rows = sessionId
     ? db.prepare(`

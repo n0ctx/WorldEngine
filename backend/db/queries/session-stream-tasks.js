@@ -1,17 +1,5 @@
 import db from '../index.js';
-
-function parseJson(raw, fallback) {
-  if (typeof raw !== 'string' || raw.length === 0) return fallback;
-  try {
-    return JSON.parse(raw);
-  } catch {
-    return fallback;
-  }
-}
-
-function encodeJson(value, fallback) {
-  return JSON.stringify(value ?? fallback);
-}
+import { encodeJson, parseJson } from './_json.js';
 
 function decodeRow(row) {
   if (!row) return null;

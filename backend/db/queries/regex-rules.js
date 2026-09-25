@@ -1,5 +1,6 @@
 import crypto from 'node:crypto';
 import db from '../index.js';
+import { updateRowFields, reorderRows } from './_update-helpers.js';
 
 /**
  * 创建正则规则，sort_order 默认取当前 MAX+1
@@ -90,23 +91,7 @@ export function getEnabledRulesForRuntime(scope, worldId, mode = 'chat') {
  * 部分更新，白名单：name / enabled / pattern / replacement / flags / scope / world_id / mode
  */
 export function updateRegexRule(id, patch) {
-  const allowed = ['name', 'enabled', 'pattern', 'replacement', 'flags', 'scope', 'world_id', 'mode'];
-  const sets = [];
-  const values = [];
-
-  for (const field of allowed) {
-    if (field in patch) {
-      sets.push(`${field} = ?`);
-      values.push(patch[field]);
-    }
-  }
-
-  if (sets.length === 0) return getRegexRuleById(id);
-
-  sets.push('updated_at = ?');
-  values.push(Date.now(), id);
-  db.prepare(`UPDATE regex_rules SET ${sets.join(', ')} WHERE id = ?`).run(...values);
-  return getRegexRuleById(id);
+  return updateRowFields('regex_rules', id, patch, ['name', 'enabled', 'pattern', 'replacement', 'flags', 'scope', 'world_id', 'mode']);
 }
 
 /**
@@ -120,12 +105,5 @@ export function deleteRegexRule(id) {
  * 批量重排序，传入 [{id, sort_order}, ...] 数组
  */
 export function reorderRegexRules(items) {
-  const stmt = db.prepare('UPDATE regex_rules SET sort_order = ?, updated_at = ? WHERE id = ?');
-  const now = Date.now();
-  const tx = db.transaction(() => {
-    for (const item of items) {
-      stmt.run(item.sort_order, now, item.id);
-    }
-  });
-  tx();
+  reorderRows('regex_rules', items);
 }

@@ -9,6 +9,8 @@ import {
   validateWorldImportPayload,
 } from './import-export-validation.js';
 import { listConditionsByEntry, replaceEntryConditions } from '../db/queries/entry-conditions.js';
+import { normalizeToken } from '../db/queries/prompt-entries.js';
+import { parseRow as parseStateFieldRow } from '../db/queries/_state-fields-base.js';
 import { createLogger, formatMeta } from '../utils/logger.js';
 import {
   EXPORT_FORMAT_CHARACTER,
@@ -24,15 +26,6 @@ const log = createLogger('svc', 'green');
 const AVATARS_DIR = path.join(UPLOADS_DIR, 'avatars');
 
 // ─── 内部导入辅助函数 ─────────────────────────────────────────────────────────
-
-function normalizeToken(value, triggerType = 'always') {
-  const n = parseInt(value, 10);
-  if (!Number.isFinite(n)) return 1;
-  if (triggerType === 'always') {
-    return n >= 0 ? n : 1;
-  }
-  return n >= 1 ? n : 1;
-}
 
 function normalizeActiveTurnsImport(value) {
   const n = parseInt(value, 10);
@@ -105,14 +98,6 @@ function readExportImage(relativePath) {
   return {
     avatarBase64: fs.readFileSync(imageFile).toString('base64'),
     avatarMime: ext === 'jpg' ? 'image/jpeg' : `image/${ext}`,
-  };
-}
-
-function serializeExportStateField(field) {
-  return {
-    ...field,
-    enum_options: field.enum_options ? JSON.parse(field.enum_options) : null,
-    table_columns: field.table_columns ? JSON.parse(field.table_columns) : null,
   };
 }
 
@@ -590,11 +575,11 @@ export function exportWorld(worldId) {
 
   const worldStateFields = db.prepare(
     'SELECT field_key, label, type, description, default_value, update_mode, enum_options, min_value, max_value, allow_empty, update_instruction, prefix, unit, table_columns, sort_order FROM world_state_fields WHERE world_id = ? ORDER BY sort_order ASC',
-  ).all(worldId).map(serializeExportStateField);
+  ).all(worldId).map(parseStateFieldRow);
 
   const characterStateFields = db.prepare(
     'SELECT field_key, label, type, description, default_value, update_mode, enum_options, min_value, max_value, allow_empty, update_instruction, prefix, unit, table_columns, sort_order FROM character_state_fields WHERE world_id = ? ORDER BY sort_order ASC',
-  ).all(worldId).map(serializeExportStateField);
+  ).all(worldId).map(parseStateFieldRow);
 
   const worldStateValues = db.prepare(
     'SELECT field_key, default_value_json AS value_json FROM world_state_values WHERE world_id = ?',
@@ -609,7 +594,7 @@ export function exportWorld(worldId) {
 
   const personaStateFields = db.prepare(
     'SELECT field_key, label, type, description, default_value, update_mode, enum_options, min_value, max_value, allow_empty, update_instruction, prefix, unit, table_columns, sort_order FROM persona_state_fields WHERE world_id = ? ORDER BY sort_order ASC',
-  ).all(worldId).map(serializeExportStateField);
+  ).all(worldId).map(parseStateFieldRow);
 
   const allPersonaRows = db.prepare(
     'SELECT id, name, description, system_prompt, avatar_path, sort_order FROM personas WHERE world_id = ? ORDER BY sort_order ASC, created_at ASC, id ASC',

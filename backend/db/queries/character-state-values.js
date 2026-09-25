@@ -1,5 +1,5 @@
-import crypto from 'node:crypto';
 import db from '../index.js';
+import { upsertStateValue } from './_state-values-base.js';
 
 // default_value_json / runtime_value_json 保持原始 JSON 字符串，调用方按字段 type 自行解析
 
@@ -10,56 +10,7 @@ import db from '../index.js';
  * @param {{ defaultValueJson?: string|null, runtimeValueJson?: string|null, touchUpdatedAt?: boolean, skipCreate?: boolean }} patch
  */
 export function upsertCharacterStateValue(characterId, fieldKey, patch = {}) {
-  const existing = db.prepare(
-    'SELECT id FROM character_state_values WHERE character_id = ? AND field_key = ?',
-  ).get(characterId, fieldKey);
-  const now = Date.now();
-  const hasDefault = Object.hasOwn(patch, 'defaultValueJson');
-  const hasRuntime = Object.hasOwn(patch, 'runtimeValueJson');
-  const touchUpdatedAt = patch.touchUpdatedAt ?? hasRuntime;
-  const skipCreate = patch.skipCreate ?? false;
-
-  if (existing) {
-    const sets = [];
-    const values = [];
-    if (hasDefault) {
-      sets.push('default_value_json = ?');
-      values.push(patch.defaultValueJson);
-    }
-    if (hasRuntime) {
-      sets.push('runtime_value_json = ?');
-      values.push(patch.runtimeValueJson);
-    }
-    if (touchUpdatedAt) {
-      sets.push('updated_at = ?');
-      values.push(now);
-    }
-    if (sets.length === 0) return getCharacterStateValue(characterId, fieldKey);
-    values.push(characterId, fieldKey);
-    db.prepare(
-      `UPDATE character_state_values SET ${sets.join(', ')} WHERE character_id = ? AND field_key = ?`,
-    ).run(...values);
-    return db.prepare(
-      'SELECT * FROM character_state_values WHERE character_id = ? AND field_key = ?',
-    ).get(characterId, fieldKey);
-  } else {
-    if (skipCreate) return null;
-    const id = crypto.randomUUID();
-    db.prepare(`
-      INSERT INTO character_state_values (
-        id, character_id, field_key, default_value_json, runtime_value_json, updated_at
-      )
-      VALUES (?, ?, ?, ?, ?, ?)
-    `).run(
-      id,
-      characterId,
-      fieldKey,
-      hasDefault ? patch.defaultValueJson : null,
-      hasRuntime ? patch.runtimeValueJson : null,
-      touchUpdatedAt ? now : 0,
-    );
-    return db.prepare('SELECT * FROM character_state_values WHERE id = ?').get(id);
-  }
+  return upsertStateValue('character_state_values', 'character_id', characterId, fieldKey, patch);
 }
 
 /**
