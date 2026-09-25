@@ -148,7 +148,7 @@ test('streamAnthropic emits a safety signal for HTTP error bodies', async () => 
       return true;
     });
     assert.equal(signals.length, 1);
-    assert.equal(signals[0].signalName, 'openai_safety_error');
+    assert.equal(signals[0].signalName, 'anthropic_safety_error');
     assert.equal(signals[0].provider, 'anthropic');
     assert.equal(signals[0].phase, 'request_error');
   } finally {

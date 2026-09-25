@@ -50,6 +50,23 @@ test('智谱: error.code=1301 → safety/zhipu_1301/high', () => {
   assert.deepEqual(s.contentFilter, [{ role: 'user', level: 1 }]);
 });
 
+test('Anthropic HTTP safety error keeps Anthropic signal naming', () => {
+  const s = extractProviderErrorSignal(
+    { type: 'error', error: { type: 'safety_error', message: 'request blocked by safety policy' } },
+    ctx({ provider: 'anthropic', phase: 'request_error' }),
+  );
+  assert.equal(s.signalName, 'anthropic_safety_error');
+  assert.equal(s.provider, 'anthropic');
+});
+
+test('OpenAI-compatible HTTP safety error keeps OpenAI-compatible signal naming', () => {
+  const s = extractProviderErrorSignal(
+    { error: { type: 'safety_error', message: 'request blocked by safety policy' } },
+    ctx({ provider: 'openai', phase: 'request_error' }),
+  );
+  assert.equal(s.signalName, 'openai_safety_error');
+});
+
 test('智谱: finish_reason=sensitive 流尾 chunk → safety/finish_reason_sensitive', () => {
   const s = extractOpenAICompatibleSignal(
     {

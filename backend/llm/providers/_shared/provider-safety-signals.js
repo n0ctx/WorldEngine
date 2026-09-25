@@ -69,35 +69,30 @@ function baseSignal(context, overrides = {}) {
  *
  * context 必填：provider, phase, stream, mode...
  */
-export function extractOpenAICompatibleSignal(payload, context) {
-  if (!payload || typeof payload !== 'object') return null;
+function extractZhipuErrorSignal(payload, context) {
+  const error = payload.error || null;
+  const errCode = error?.code != null ? String(error.code) : null;
+  if (errCode !== '1301') return null;
+  const contentFilter = payload.contentFilter ?? payload.content_filter ?? null;
+
+  return baseSignal(context, {
+    signalFamily: 'safety',
+    signalName: 'zhipu_1301',
+    severity: 'high',
+    action: 'request_blocked_by_provider',
+    providerErrorCode: errCode,
+    providerErrorType: error?.type,
+    providerErrorMessageHash: hashText(error?.message),
+    contentFilter: contentFilter || undefined,
+    rawFinishReason: payload.choices?.[0]?.finish_reason || undefined,
+  });
+}
+
+function extractOpenAICompatibleFinishSignal(payload, context) {
   const choice = payload.choices?.[0];
-  const delta = choice?.delta;
-  const message = choice?.message;
   const finishReason = choice?.finish_reason || null;
   const nativeFinishReason = choice?.native_finish_reason || null;
-  const refusal = delta?.refusal ?? message?.refusal ?? null;
   const contentFilter = payload.contentFilter ?? payload.content_filter ?? null;
-  const inputSensitive = payload.input_sensitive === true;
-  const outputSensitive = payload.output_sensitive === true;
-  const baseResp = payload.base_resp || payload.baseResp || null;
-  const error = payload.error || null;
-
-  // --- 智谱 1301 ---
-  const errCode = error?.code != null ? String(error.code) : null;
-  if (errCode === '1301') {
-    return baseSignal(context, {
-      signalFamily: 'safety',
-      signalName: 'zhipu_1301',
-      severity: 'high',
-      action: 'request_blocked_by_provider',
-      providerErrorCode: errCode,
-      providerErrorType: error?.type,
-      providerErrorMessageHash: hashText(error?.message),
-      contentFilter: contentFilter || undefined,
-      rawFinishReason: finishReason || undefined,
-    });
-  }
 
   // --- finish_reason ---
   if (finishReason === 'content_filter') {
@@ -135,6 +130,14 @@ export function extractOpenAICompatibleSignal(payload, context) {
     });
   }
 
+  return null;
+}
+
+function extractOpenAICompatibleRefusalSignal(payload, context) {
+  const choice = payload.choices?.[0];
+  const finishReason = choice?.finish_reason || null;
+  const refusal = choice?.delta?.refusal ?? choice?.message?.refusal ?? null;
+
   // --- refusal ---
   if (refusal != null && String(refusal).length > 0) {
     return baseSignal(context, {
@@ -146,6 +149,15 @@ export function extractOpenAICompatibleSignal(payload, context) {
       providerErrorMessageHash: hashText(String(refusal)),
     });
   }
+
+  return null;
+}
+
+function extractOpenAICompatibleMetadataSignal(payload, context) {
+  const inputSensitive = payload.input_sensitive === true;
+  const outputSensitive = payload.output_sensitive === true;
+  const contentFilter = payload.contentFilter ?? payload.content_filter ?? null;
+  const baseResp = payload.base_resp || payload.baseResp || null;
 
   // --- MiniMax sensitive flags ---
   if (inputSensitive || outputSensitive) {
@@ -191,6 +203,13 @@ export function extractOpenAICompatibleSignal(payload, context) {
     });
   }
 
+  return null;
+}
+
+function extractOpenAICompatibleErrorSignal(payload, context) {
+  const error = payload.error || null;
+  const errCode = error?.code != null ? String(error.code) : null;
+
   // --- error 中含安全关键字 ---
   if (error && (SAFETY_KEYWORDS.test(error.message || '') || SAFETY_KEYWORDS.test(error.type || '') || SAFETY_KEYWORDS.test(error.code || ''))) {
     return baseSignal(context, {
@@ -205,6 +224,17 @@ export function extractOpenAICompatibleSignal(payload, context) {
   }
 
   return null;
+}
+
+export function extractOpenAICompatibleSignal(payload, context) {
+  if (!payload || typeof payload !== 'object') return null;
+
+  return extractZhipuErrorSignal(payload, context)
+    || extractOpenAICompatibleFinishSignal(payload, context)
+    || extractOpenAICompatibleRefusalSignal(payload, context)
+    || extractOpenAICompatibleMetadataSignal(payload, context)
+    || extractOpenAICompatibleErrorSignal(payload, context)
+    || null;
 }
 
 // ============================================================
@@ -357,7 +387,12 @@ export function extractProviderErrorSignal(errorBody, context) {
   if (typeof errorBody === 'string') {
     try { parsed = JSON.parse(errorBody); } catch { parsed = { error: { message: errorBody } }; }
   }
-  // 先按 OpenAI-compatible 处理（覆盖 1301 / contentFilter / sensitive / error）
+  const providerAdapter = context?.adapter || detectAdapter(context?.provider);
+  if (providerAdapter === 'anthropic' && parsed?.type === 'error' && parsed.error) {
+    const anthropicSignal = extractAnthropicSignal(parsed, { ...context, phase: 'request_error' });
+    if (anthropicSignal) return anthropicSignal;
+  }
+  // Anthropic 的 error envelope 先保留其 provider signal 命名，再使用 OpenAI-compatible 兜底。
   const openaiSignal = extractOpenAICompatibleSignal(parsed, { ...context, phase: 'request_error' });
   if (openaiSignal) return openaiSignal;
   // 兜底：识别 Anthropic 风格 error
