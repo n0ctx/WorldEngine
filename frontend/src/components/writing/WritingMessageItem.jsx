@@ -8,7 +8,8 @@ import rehypeRaw from 'rehype-raw';
 import rehypeSanitize from 'rehype-sanitize';
 import { markdownSanitizeSchema } from '../../core/utils/markdown-sanitize.js';
 import { useDisplaySettingsStore } from '../../core/state/displaySettings.js';
-import { isImeComposing } from '../../core/utils/ime.js';
+import { useMessageEditing } from '../../core/hooks/useMessageEditing.js';
+import { formatTokens, calcCost, formatCost } from '../../core/utils/token-usage.js';
 import { applyRules } from '../../core/utils/regex-runner.js';
 import { stripNextPromptBlocks } from '../../core/utils/next-prompt.js';
 import { needsTrailingCaret, parseStreamingBlocks } from '../../core/utils/think-blocks.js';
@@ -23,35 +24,6 @@ const REMARK_PLUGINS_W = [remarkGfm];
 const REHYPE_PLUGINS_W = [rehypeRaw, [rehypeSanitize, markdownSanitizeSchema]];
 const THINK_REMARK_PLUGINS_W = [remarkGfm];
 const THINK_REHYPE_PLUGINS_W = [[rehypeSanitize, markdownSanitizeSchema]];
-
-function formatTokens(n) {
-  if (n == null || Number.isNaN(n)) return '-';
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 10_000) return `${(n / 1_000).toFixed(1)}K`;
-  if (n >= 1_000) return `${Math.round(n / 100) / 10}K`;
-  return n.toLocaleString();
-}
-
-function calcCost(usage, pricing) {
-  if (!pricing || (!pricing.inputPrice && !pricing.outputPrice)) return null;
-  const inp = ((usage.prompt_tokens ?? 0) * pricing.inputPrice) / 1_000_000;
-  const out = ((usage.completion_tokens ?? 0) * pricing.outputPrice) / 1_000_000;
-  const cacheRead = pricing.cacheReadPrice
-    ? ((usage.cache_read_tokens ?? 0) * pricing.cacheReadPrice) / 1_000_000
-    : 0;
-  const cacheWrite = pricing.cacheWritePrice
-    ? ((usage.cache_creation_tokens ?? 0) * pricing.cacheWritePrice) / 1_000_000
-    : 0;
-  return inp + out + cacheRead + cacheWrite;
-}
-
-function formatCost(usd) {
-  if (usd == null) return null;
-  if (usd < 0.000001) return '<$0.000001';
-  if (usd < 0.001) return `$${usd.toFixed(6)}`;
-  if (usd < 0.01) return `$${usd.toFixed(4)}`;
-  return `$${usd.toFixed(3)}`;
-}
 
 function ThinkBlock({ content, open = false, streaming = false, caret = false, interrupted = false }) {
   const autoCollapse = useDisplaySettingsStore((s) => s.autoCollapseThinking);
@@ -164,32 +136,10 @@ export default function WritingMessageItem({
   const trailingCaret = showCaret && isStreaming && needsTrailingCaret(blocks, showThinking);
   const content = displayContent;
 
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState('');
-
-  const [editingAI, setEditingAI] = useState(false);
-  const [aiDraft, setAiDraft] = useState('');
-
-  function startEdit() { setDraft(message.content); setEditing(true); }
-  function confirmEdit() {
-    const trimmed = draft.trim();
-    if (trimmed) onEdit?.(message.id, trimmed);
-    setEditing(false);
-  }
-  function cancelEdit() { setEditing(false); }
-  function handleKeyDown(e) {
-    if (isImeComposing(e)) return;
-    if (e.key === 'Escape') cancelEdit();
-    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); confirmEdit(); }
-  }
-
-  function startEditAI() { setAiDraft(message.content); setEditingAI(true); }
-  function confirmEditAI() {
-    if (aiDraft.trim() && aiDraft !== message.content) onEditAssistant?.(message.id, aiDraft.trim());
-    setEditingAI(false);
-  }
-  function cancelEditAI() { setEditingAI(false); }
-  function handleKeyDownAI(e) { if (e.key === 'Escape') cancelEditAI(); }
+  const {
+    editing, draft, setDraft, startEdit, confirmEdit, cancelEdit, handleKeyDown,
+    editingAI, aiDraft, setAiDraft, startEditAI, confirmEditAI, cancelEditAI, handleKeyDownAI,
+  } = useMessageEditing(message, { onEdit, onEditAssistant });
 
   if (!content && !isStreaming) return null;
 

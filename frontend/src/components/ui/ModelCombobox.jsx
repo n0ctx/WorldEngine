@@ -1,5 +1,6 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef } from 'react';
 import { isImeComposing } from '../../core/utils/ime.js';
+import { useClickOutside } from '../../core/hooks/useClickOutside.js';
 
 /** options 支持 string[] 或 { id, inputPrice?, outputPrice? }[] */
 function optionId(o) { return typeof o === 'string' ? o : o.id; }
@@ -42,16 +43,7 @@ export default function ModelCombobox({
   const [filtering, setFiltering] = useState(false);
   const containerRef = useRef(null);
 
-  // 点击外部关闭
-  useEffect(() => {
-    function handle(e) {
-      if (containerRef.current && !containerRef.current.contains(e.target)) {
-        setOpen(false);
-      }
-    }
-    document.addEventListener('mousedown', handle);
-    return () => document.removeEventListener('mousedown', handle);
-  }, []);
+  useClickOutside(containerRef, () => setOpen(false));
 
   // 只在用户主动输入时才过滤，初始打开时显示全部
   const filtered = filtering && inputValue.trim()

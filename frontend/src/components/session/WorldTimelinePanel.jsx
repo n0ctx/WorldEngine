@@ -20,20 +20,18 @@
  * 订阅对应的 bridge，把新会话 / 新标题合并进时间线，不用整表重新拉取。
  */
 import { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import Icon from '../ui/Icon.jsx';
 import { getWorldTimeline, renameSession, deleteSession } from '../../core/api/sessions.js';
 import { getCharactersByWorld } from '../../core/api/characters.js';
 import { deleteWritingSession } from '../../core/api/writing-sessions.js';
 import { chatSessionListBridge, writingSessionListBridge } from '../../core/utils/session-list-bridge.js';
-import useStore from '../../core/state/index.js';
-import { formatDateLiterary } from '../../core/utils/date-format.js';
 import { relativeTime } from '../../core/utils/time.js';
 import { log } from '../../core/utils/logger.js';
 import { isImeComposing } from '../../core/utils/ime.js';
 import { STAGGER } from '../../core/utils/motion.js';
 import { useMotion } from '../../core/hooks/useMotion.js';
+import { storylineTitle, useOpenStoryline } from '../../core/hooks/storyline.js';
 
 const MotionDiv = motion.div;
 const MotionSpan = motion.span;
@@ -206,10 +204,6 @@ export default function WorldTimelinePanel({
   onActiveSessionDeleted = null,
   onActiveSessionRenamed = null,
 }) {
-  const navigate = useNavigate();
-  const setCurrentCharacterId = useStore((s) => s.setCurrentCharacterId);
-  const setCurrentSessionId = useStore((s) => s.setCurrentSessionId);
-  const setCurrentWritingSessionId = useStore((s) => s.setCurrentWritingSessionId);
   const bridge = currentMode === 'writing' ? writingSessionListBridge : chatSessionListBridge;
 
   const [timeline, setTimeline] = useState([]);
@@ -292,25 +286,7 @@ export default function WorldTimelinePanel({
     }
   }
 
-  function storylineTitle(item) {
-    if (item.title) return item.title;
-    if (item.mode === 'chat') {
-      const c = charactersById[item.character_id];
-      return c ? `与 ${c.name} 的对话` : '对话';
-    }
-    return `${formatDateLiterary(item.created_at)}的写作`;
-  }
-
-  function handleItemClick(item) {
-    if (item.mode === 'writing') {
-      setCurrentWritingSessionId(item.id);
-      navigate(`/worlds/${worldId}/writing`);
-    } else {
-      setCurrentCharacterId(item.character_id);
-      setCurrentSessionId(item.id);
-      navigate(`/characters/${item.character_id}/chat`);
-    }
-  }
+  const handleItemClick = useOpenStoryline(worldId);
 
   return (
     <div className="we-session-list-panel">
@@ -338,7 +314,7 @@ export default function WorldTimelinePanel({
               <TimelineItem
                 key={`${item.mode}-${item.id}`}
                 item={item}
-                title={storylineTitle(item)}
+                title={storylineTitle(item, charactersById)}
                 index={index}
                 isActive={item.mode === currentMode && item.id === currentSessionId}
                 editable={item.mode === currentMode}

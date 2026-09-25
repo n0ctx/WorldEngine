@@ -25,9 +25,9 @@ import CharacterSeal from '../components/chat/CharacterSeal.jsx';
 import DragHandle from '../components/ui/DragHandle.jsx';
 import Icon from '../components/ui/Icon.jsx';
 import { relativeTime } from '../core/utils/time.js';
-import { formatDateLiterary } from '../core/utils/date-format.js';
 import { log } from '../core/utils/logger.js';
 import { useMotion } from '../core/hooks/useMotion.js';
+import { storylineTitle, useOpenStoryline } from '../core/hooks/storyline.js';
 import Folder from '../components/motion/Folder.jsx';
 import TaskList from '../components/motion/TaskList.jsx';
 
@@ -379,7 +379,6 @@ export default function CharactersPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const setCurrentCharacterId = useStore((s) => s.setCurrentCharacterId);
-  const setCurrentSessionId = useStore((s) => s.setCurrentSessionId);
   const setCurrentWritingSessionId = useStore((s) => s.setCurrentWritingSessionId);
 
   const [world, setWorld] = useState(null);
@@ -492,25 +491,7 @@ export default function CharactersPage() {
     }
   }
 
-  function storylineTitle(item) {
-    if (item.title) return item.title;
-    if (item.mode === 'chat') {
-      const c = charactersById[item.character_id];
-      return c ? `与 ${c.name} 的对话` : '对话';
-    }
-    return `${formatDateLiterary(item.created_at)}的写作`;
-  }
-
-  function handleStorylineClick(item) {
-    if (item.mode === 'writing') {
-      setCurrentWritingSessionId(item.id);
-      navigate(`/worlds/${worldId}/writing`);
-    } else {
-      setCurrentCharacterId(item.character_id);
-      setCurrentSessionId(item.id);
-      navigate(`/characters/${item.character_id}/chat`);
-    }
-  }
+  const handleStorylineClick = useOpenStoryline(worldId);
 
   async function handleCreateStoryline() {
     try {
@@ -670,7 +651,7 @@ export default function CharactersPage() {
               {continueItem && (
                 <ContinueCard
                   item={continueItem}
-                  title={storylineTitle(continueItem)}
+                  title={storylineTitle(continueItem, charactersById)}
                   onClick={() => handleStorylineClick(continueItem)}
                 />
               )}
@@ -680,7 +661,7 @@ export default function CharactersPage() {
                     <StorylineItem
                       key={item.id}
                       item={item}
-                      title={storylineTitle(item)}
+                      title={storylineTitle(item, charactersById)}
                       onClick={() => handleStorylineClick(item)}
                     />
                   ))}

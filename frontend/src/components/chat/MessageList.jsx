@@ -6,20 +6,12 @@ import OptionCard from './OptionCard.jsx';
 import { getMessages } from '../../core/api/sessions.js';
 import { groupMessagesIntoChapters } from '../../core/utils/chapter-grouping.js';
 import { parseStreamingBlocks } from '../../core/utils/think-blocks.js';
+import { areOptionsEqual } from '../../core/utils/next-prompt.js';
 import ChapterDivider from './ChapterDivider.jsx';
 import ProximityRail from '../motion/ProximityRail.jsx';
 import { log } from '../../core/utils/logger.js';
 
 const NOOP = () => {};
-
-function areOptionsEqual(a, b) {
-  if (a === b) return true;
-  if (!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length) return false;
-  for (let i = 0; i < a.length; i += 1) {
-    if (a[i] !== b[i]) return false;
-  }
-  return true;
-}
 
 /**
  * 历史冻结选项卡：已使用的选项（不可交互），支持折叠/展开。

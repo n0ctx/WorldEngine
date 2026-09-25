@@ -96,3 +96,36 @@ export function readDiarySettings(config) {
     diaryWritingDateMode: diary.writing?.date_mode ?? DIARY_DATE_MODE.VIRTUAL,
   };
 }
+
+function nestUnder(path, value) {
+  return path.reduceRight((inner, key) => ({ [key]: inner }), value);
+}
+
+/**
+ * 模型配置段（llm / embedding / aux_llm 等）的字段变更处理：
+ * 切换 provider 时写回后端并用返回的 base_url/model/has_key 刷新本地；has_key 只改本地；其余字段本地与后端同步写。
+ * @param {string[]} path 配置段在 config 中的路径，如 ['writing', 'aux_llm']
+ * @param {(provider: string) => object} providerPatch 切换 provider 时提交的补丁
+ * @param {'' | null} empty provider/base_url 缺省值
+ * @param {'' | null} [emptyModel] model 缺省值
+ */
+export function createModelSectionChangeHandler(patchConfig, setSection, { path, providerPatch, empty, emptyModel = empty }) {
+  return async function handleChange(field, value) {
+    if (field === 'provider') {
+      const updated = await patchConfig(nestUnder(path, providerPatch(value)), { reload: true });
+      const section = path.reduce((node, key) => node?.[key], updated);
+      setSection((previous) => ({
+        ...previous,
+        provider: value || empty,
+        base_url: section?.base_url ?? empty,
+        model: section?.model ?? emptyModel,
+        has_key: section?.has_key ?? false,
+      }));
+    } else if (field === 'has_key') {
+      setSection((previous) => ({ ...previous, has_key: value }));
+    } else {
+      setSection((previous) => ({ ...previous, [field]: value }));
+      await patchConfig(nestUnder(path, { [field]: value }));
+    }
+  };
+}

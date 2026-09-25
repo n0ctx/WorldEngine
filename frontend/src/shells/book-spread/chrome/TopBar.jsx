@@ -2,6 +2,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useMotion } from '../../../core/hooks/useMotion.js';
+import { useClickOutside } from '../../../core/hooks/useClickOutside.js';
 import Icon from '../../../components/ui/Icon.jsx';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { getWorlds } from '../../../core/api/worlds.js';
@@ -48,15 +49,7 @@ function WorldSelector({ effectiveWorldId, isCurrentLevel }) {
     return () => clearTimeout(timeoutId);
   }, [dropdownOpen]);
 
-  useEffect(() => {
-    function closeOnOutsideClick(event) {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-        setDropdownOpen(false);
-      }
-    }
-    document.addEventListener('mousedown', closeOnOutsideClick);
-    return () => document.removeEventListener('mousedown', closeOnOutsideClick);
-  }, []);
+  useClickOutside(dropdownRef, () => setDropdownOpen(false));
 
   useEffect(() => {
     const timeoutId = setTimeout(() => setDropdownOpen(false), 0);

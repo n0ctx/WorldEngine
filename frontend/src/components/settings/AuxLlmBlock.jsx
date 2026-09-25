@@ -4,6 +4,7 @@ import Select from '../ui/Select';
 import Button from '../ui/Button';
 import ModelSelector from './ModelSelector';
 import FormGroup from '../ui/FormGroup';
+import LlmConnectionTest from './LlmConnectionTest';
 import { DEFAULT_BASE_URLS, getProviderDisplaySettings } from '../../core/constants/settings';
 import { log } from '../../core/utils/logger.js';
 
@@ -15,8 +16,6 @@ import { log } from '../../core/utils/logger.js';
 export default function AuxLlmBlock({ providers, config, onProviderChange, onBaseUrlChange, onModelChange, onThinkingLevelChange, onApiKeySave, onApiKeySaved, testConnection, loadModels, fallbackHint = '未配置则回退主模型' }) {
   const [apiKey, setApiKey] = useState('');
   const [apiKeySaved, setApiKeySaved] = useState(false);
-  const [testingConnection, setTestingConnection] = useState(false);
-  const [testResult, setTestResult] = useState(null);
 
   async function handleSaveKey() {
     if (!config.provider) {
@@ -31,19 +30,6 @@ export default function AuxLlmBlock({ providers, config, onProviderChange, onBas
       setTimeout(() => setApiKeySaved(false), 2000);
     } catch (e) {
       log.error('settings.aux_llm.save_failed', e, { toast: `保存失败：${e.message}` });
-    }
-  }
-
-  async function handleTestConnection() {
-    setTestingConnection(true);
-    setTestResult(null);
-    try {
-      const result = await testConnection();
-      setTestResult(result.success ? { success: true } : { success: false, error: result.error });
-    } catch (e) {
-      setTestResult({ success: false, error: e.message });
-    } finally {
-      setTestingConnection(false);
     }
   }
 
@@ -138,23 +124,7 @@ export default function AuxLlmBlock({ providers, config, onProviderChange, onBas
         </FormGroup>
       )}
 
-      {config.provider && (
-        <FormGroup label="连接测试" variant="settings">
-          <div className="we-settings-action-row we-settings-action-row--spaced">
-            <Button
-              variant="default"
-              onClick={handleTestConnection}
-              disabled={testingConnection}
-            >
-              {testingConnection ? '测试中…' : '测试连接'}
-            </Button>
-            {testResult?.success && <span className="we-settings-status-ok">连接成功</span>}
-            {testResult && !testResult.success && (
-              <span className="we-settings-status-error">{`连接失败：${testResult.error}`}</span>
-            )}
-          </div>
-        </FormGroup>
-      )}
+      <LlmConnectionTest provider={config.provider} testConnection={testConnection} />
     </div>
   );
 }

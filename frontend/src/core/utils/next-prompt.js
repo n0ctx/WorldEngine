@@ -137,3 +137,13 @@ export function parseContinuationText(text, isStreaming = false) {
   const { display, options } = parseNextPromptStream(text, isStreaming);
   return { content: display, options };
 }
+
+/** 选项列表逐项全等（同一引用直接视为相等） */
+export function areOptionsEqual(a, b) {
+  if (a === b) return true;
+  if (!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i += 1) {
+    if (a[i] !== b[i]) return false;
+  }
+  return true;
+}

@@ -23,6 +23,7 @@ import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
 import StateValueField from '../components/state/StateValueField';
 import StateExtractPreviewModal from '../components/state/StateExtractPreviewModal';
+import { applyExtractedValues } from '../components/state/applyExtractedValues.js';
 import EditPageShell from './layout/EditPageShell';
 import FormGroup from '../components/ui/FormGroup';
 import AvatarUpload from '../components/ui/AvatarUpload';
@@ -160,20 +161,11 @@ export default function PersonaEditPage() {
 
   async function handleExtractConfirm(items) {
     if (!resolvedPersonaId) return;
-    const failed = [];
-    for (const item of items) {
-      try {
-        await updatePersonaStateValueByPersonaId(worldId, resolvedPersonaId, item.field_key, item.suggested_value_json);
-      } catch (err) {
-        failed.push({ item, err });
-      }
+    try {
+      await applyExtractedValues(items, (item) => updatePersonaStateValueByPersonaId(worldId, resolvedPersonaId, item.field_key, item.suggested_value_json));
+    } finally {
+      setReloadKey((k) => k + 1); // 部分失败时已成功写入的部分仍需刷新显示
     }
-    if (failed.length > 0) {
-      setReloadKey((k) => k + 1); // 已成功写入的部分仍需刷新显示
-      const okCount = items.length - failed.length;
-      throw new Error(`成功 ${okCount} 条，失败 ${failed.length} 条（${failed.map((f) => f.item.label).join('、')}）：${failed[0].err.message || '写入失败'}`);
-    }
-    setReloadKey((k) => k + 1);
   }
 
   async function handleFileChange(e) {

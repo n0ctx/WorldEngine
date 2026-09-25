@@ -14,6 +14,21 @@ const DANMAKU_SPEED_OPTIONS = [
   { value: 'fast', label: '快' },
 ];
 
+/**
+ * 对话/写作两套数字字段的输入框 props：写作侧留空表示继承对话配置（存为 null），失焦时保存
+ * chat / writing 各为 [当前值, 设置函数, 保存函数]
+ */
+function inheritableNumberInput(isChat, [chatValue, setChat, saveChat], [writingValue, setWriting, saveWriting]) {
+  if (isChat) {
+    return { value: chatValue, onChange: (event) => setChat(event.target.value), onBlur: () => saveChat(chatValue) };
+  }
+  return {
+    value: writingValue ?? '',
+    onChange: (event) => setWriting(event.target.value === '' ? null : event.target.value),
+    onBlur: () => saveWriting(writingValue),
+  };
+}
+
 function ToggleRow({ label, hint, checked, onChange, disabled = false }) {
   return (
     <div className={`we-settings-toggle-row${disabled ? ' we-settings-toggle-row--disabled' : ''}`}>
@@ -60,13 +75,11 @@ function MemorySettings({
   const onToggleDiary = isChat ? onToggleChatDiaryEnabled : onToggleWritingDiaryEnabled;
   const dateMode = isChat ? chatDateMode : writingDateMode;
   const onDateMode = isChat ? onChangeChatDateMode : onChangeWritingDateMode;
-  const currentContextRounds = isChat ? contextRounds : (writingContextRounds ?? '');
-  const onChangeContextRounds = isChat
-    ? (event) => setContextRounds(event.target.value)
-    : (event) => setWritingContextRounds(event.target.value === '' ? null : event.target.value);
-  const onBlurContextRounds = isChat
-    ? () => onSaveContextRounds(contextRounds)
-    : () => onSaveWritingContextRounds(writingContextRounds);
+  const contextRoundsInput = inheritableNumberInput(
+    isChat,
+    [contextRounds, setContextRounds, onSaveContextRounds],
+    [writingContextRounds, setWritingContextRounds, onSaveWritingContextRounds],
+  );
   const contextRoundsLabel = isChat ? '上下文保留轮次' : '写作上下文保留轮次';
 
   return (
@@ -85,10 +98,8 @@ function MemorySettings({
               min={0}
               className="we-settings-number-short"
               aria-label={contextRoundsLabel}
-              value={currentContextRounds}
+              {...contextRoundsInput}
               placeholder={isChat ? '' : '继承对话'}
-              onChange={onChangeContextRounds}
-              onBlur={onBlurContextRounds}
             />
             <span className="we-settings-inline-hint">
               {isChat ? '保留最近 N 轮，0 = 不限制' : '留空继承对话配置，0 = 不限制'}
@@ -309,20 +320,16 @@ function TurnSettings({
   writingPageTurnSize, setWritingPageTurnSize, onSaveWritingPageTurnSize,
 }) {
   const isChat = settingsMode === SETTINGS_MODE.CHAT;
-  const currentChapterTurnSize = isChat ? chapterTurnSize : (writingChapterTurnSize ?? '');
-  const onChangeChapterTurnSize = isChat
-    ? (event) => setChapterTurnSize(event.target.value)
-    : (event) => setWritingChapterTurnSize(event.target.value === '' ? null : event.target.value);
-  const onBlurChapterTurnSize = isChat
-    ? () => onSaveChapterTurnSize(chapterTurnSize)
-    : () => onSaveWritingChapterTurnSize(writingChapterTurnSize);
-  const currentPageTurnSize = isChat ? pageTurnSize : (writingPageTurnSize ?? '');
-  const onChangePageTurnSize = isChat
-    ? (event) => setPageTurnSize(event.target.value)
-    : (event) => setWritingPageTurnSize(event.target.value === '' ? null : event.target.value);
-  const onBlurPageTurnSize = isChat
-    ? () => onSavePageTurnSize(pageTurnSize)
-    : () => onSaveWritingPageTurnSize(writingPageTurnSize);
+  const chapterTurnSizeInput = inheritableNumberInput(
+    isChat,
+    [chapterTurnSize, setChapterTurnSize, onSaveChapterTurnSize],
+    [writingChapterTurnSize, setWritingChapterTurnSize, onSaveWritingChapterTurnSize],
+  );
+  const pageTurnSizeInput = inheritableNumberInput(
+    isChat,
+    [pageTurnSize, setPageTurnSize, onSavePageTurnSize],
+    [writingPageTurnSize, setWritingPageTurnSize, onSaveWritingPageTurnSize],
+  );
   const pageTurnSizeLabel = isChat ? '每页轮数' : '写作每页轮数';
 
   return (
@@ -344,9 +351,7 @@ function TurnSettings({
                   min={1}
                   className="we-settings-number-short"
                   aria-label="写作每章轮数"
-                  value={currentChapterTurnSize}
-                  onChange={onChangeChapterTurnSize}
-                  onBlur={onBlurChapterTurnSize}
+                  {...chapterTurnSizeInput}
                 />
                 <span className="we-settings-inline-hint">每 N 轮一章</span>
               </div>
@@ -372,10 +377,8 @@ function TurnSettings({
               min={1}
               className="we-settings-number-short"
               aria-label={pageTurnSizeLabel}
-              value={currentPageTurnSize}
+              {...pageTurnSizeInput}
               placeholder={isChat ? '' : '继承对话'}
-              onChange={onChangePageTurnSize}
-              onBlur={onBlurPageTurnSize}
             />
             <span className="we-settings-inline-hint">
               {isChat ? '每 N 轮一页' : '留空继承对话配置'}

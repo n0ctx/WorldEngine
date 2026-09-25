@@ -1,16 +1,7 @@
 import { buildPostgenToast } from '../api/postgen-error-toast.js';
 import { log } from '../utils/logger.js';
-import { parseContinuationText, parseNextPromptStream } from '../utils/next-prompt.js';
+import { areOptionsEqual, parseContinuationText, parseNextPromptStream } from '../utils/next-prompt.js';
 import { toDanmakuBand } from '../utils/danmaku.js';
-
-function areOptionsEqual(a, b) {
-  if (a === b) return true;
-  if (!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length) return false;
-  for (let i = 0; i < a.length; i += 1) {
-    if (a[i] !== b[i]) return false;
-  }
-  return true;
-}
 
 function handleDelta(isLive, isContinuation, text, options, delta) {
   if (!isLive()) return;

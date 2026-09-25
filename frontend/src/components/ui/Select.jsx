@@ -1,7 +1,8 @@
 // frontend/src/components/ui/Select.jsx
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { DURATION, EASE } from '../../core/utils/motion.js';
+import { useClickOutside } from '../../core/hooks/useClickOutside.js';
 
 const DROPDOWN_MAX_H = 192; // 12rem = 192px，与 CSS max-height 保持一致
 const DROPDOWN_MARGIN = 2;
@@ -35,15 +36,7 @@ export default function Select({
   const containerRef = useRef(null);
   const triggerRef = useRef(null);
 
-  useEffect(() => {
-    function handle(e) {
-      if (containerRef.current && !containerRef.current.contains(e.target)) {
-        setOpen(false);
-      }
-    }
-    document.addEventListener('mousedown', handle);
-    return () => document.removeEventListener('mousedown', handle);
-  }, []);
+  useClickOutside(containerRef, () => setOpen(false));
 
   const selected = options.find((o) => o.value === value);
 

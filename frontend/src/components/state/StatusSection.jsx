@@ -5,6 +5,7 @@ import DatetimeSplitInput from './DatetimeSplitInput.jsx';
 import StatusTable from './StatusTable.jsx';
 import { applyTemplateVars } from '../../core/utils/template-vars.js';
 import { isImeComposing } from '../../core/utils/ime.js';
+import { useClickOutside } from '../../core/hooks/useClickOutside.js';
 import SeamlessEditableSurface from '../../../../shared/SeamlessEditableSurface.jsx';
 import { ISO_DATETIME_RE, formatFieldValue } from './state-value-format.js';
 import { STATE_LIST_MAX_ITEMS, useStateListInput } from './useStateListInput.js';
@@ -201,14 +202,7 @@ function EnumInlineEditor({ row, draft, setDraft, commit, onCancel, readDisplay 
   const boundaryRef = useRef(null);
   const options = parseEnumOptions(row.enum_options);
 
-  useEffect(() => {
-    function handlePointerDown(event) {
-      if (!boundaryRef.current?.contains(event.target)) onCancel();
-    }
-
-    document.addEventListener('mousedown', handlePointerDown);
-    return () => document.removeEventListener('mousedown', handlePointerDown);
-  }, [onCancel]);
+  useClickOutside(boundaryRef, onCancel);
 
   return (
     <div ref={boundaryRef}>
@@ -346,16 +340,7 @@ function ListInlineEditor({ initial, onCommit, onCancel, readDisplay }) {
     inputRef.current?.focus();
   }, []);
 
-  useEffect(() => {
-    function handlePointerDown(event) {
-      if (!boundaryRef.current?.contains(event.target)) {
-        onCancel();
-      }
-    }
-
-    document.addEventListener('mousedown', handlePointerDown);
-    return () => document.removeEventListener('mousedown', handlePointerDown);
-  }, [onCancel]);
+  useClickOutside(boundaryRef, onCancel);
 
   const { input, setInput, addItem, removeItem, atMax } = useStateListInput(items, (next) => {
     setItems(next);

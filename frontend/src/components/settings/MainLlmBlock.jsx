@@ -6,6 +6,7 @@ import Range from '../ui/Range';
 import ModelSelector from './ModelSelector';
 import FormGroup from '../ui/FormGroup';
 import FieldLabel from '../ui/FieldLabel';
+import LlmConnectionTest from './LlmConnectionTest';
 import { DEFAULT_BASE_URLS, getProviderDisplaySettings } from '../../core/constants/settings';
 import { log } from '../../core/utils/logger.js';
 
@@ -148,44 +149,6 @@ function MainLlmProviderSettings({
   );
 }
 
-function MainLlmConnectionTest({ provider, testConnection }) {
-  const [testingConnection, setTestingConnection] = useState(false);
-  const [testResult, setTestResult] = useState(null);
-
-  async function handleTestConnection() {
-    setTestingConnection(true);
-    setTestResult(null);
-    try {
-      const result = await testConnection();
-      setTestResult(result.success ? { success: true } : { success: false, error: result.error });
-    } catch (e) {
-      setTestResult({ success: false, error: e.message });
-    } finally {
-      setTestingConnection(false);
-    }
-  }
-
-  if (!provider || !testConnection) return null;
-
-  return (
-    <FormGroup label="连接测试" variant="settings">
-      <div className="we-settings-action-row we-settings-action-row--spaced">
-        <Button
-          variant="default"
-          onClick={handleTestConnection}
-          disabled={testingConnection}
-        >
-          {testingConnection ? '测试中…' : '测试连接'}
-        </Button>
-        {testResult?.success && <span className="we-settings-status-ok">连接成功</span>}
-        {testResult && !testResult.success && (
-          <span className="we-settings-status-error">{`连接失败：${testResult.error}`}</span>
-        )}
-      </div>
-    </FormGroup>
-  );
-}
-
 function MainLlmGenerationSettings({ config, inheritFrom, onTemperatureChange, onMaxTokensChange }) {
   const inherit = !!inheritFrom;
   const tempMin = inherit ? 0 : 0.1;
@@ -293,7 +256,7 @@ export default function MainLlmBlock({
         loadModels={loadModels}
         inheritFrom={inheritFrom}
       />
-      <MainLlmConnectionTest provider={currentConfig.provider} testConnection={testConnection} />
+      <LlmConnectionTest provider={currentConfig.provider} testConnection={testConnection} />
       <MainLlmGenerationSettings
         config={currentConfig}
         inheritFrom={inheritFrom}

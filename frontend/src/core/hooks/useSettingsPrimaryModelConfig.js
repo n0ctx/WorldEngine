@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
 import { NEEDS_BASE_URL_PROVIDERS, LOCAL_PROVIDERS } from '../constants/settings.js';
-import { readMainModelSettings } from './settingsConfigState.js';
+import { createModelSectionChangeHandler, readMainModelSettings } from './settingsConfigState.js';
 
 export function useSettingsPrimaryModelConfig(patchConfig) {
   const [llm, setLlm] = useState({});
@@ -14,45 +14,16 @@ export function useSettingsPrimaryModelConfig(patchConfig) {
     setProxyUrl(settings.proxyUrl);
   }, []);
 
-  async function handleLlmChange(field, value) {
-    if (field === 'provider') {
-      const isLocal = LOCAL_PROVIDERS.includes(value);
-      const patch = isLocal ? { provider: value } : { provider: value, base_url: '' };
-      const updated = await patchConfig({ llm: patch }, { reload: true });
-      setLlm((previous) => ({
-        ...previous,
-        provider: value,
-        base_url: updated.llm?.base_url ?? '',
-        model: updated.llm?.model ?? '',
-        has_key: updated.llm?.has_key ?? false,
-      }));
-    } else if (field === 'has_key') {
-      setLlm((previous) => ({ ...previous, has_key: value }));
-    } else {
-      setLlm((previous) => ({ ...previous, [field]: value }));
-      await patchConfig({ llm: { [field]: value } });
-    }
-  }
-
-  async function handleEmbeddingChange(field, value) {
-    if (field === 'provider') {
-      const keepBaseUrl = NEEDS_BASE_URL_PROVIDERS.has(value);
-      const patch = keepBaseUrl ? { provider: value } : { provider: value, base_url: '' };
-      const updated = await patchConfig({ embedding: patch }, { reload: true });
-      setEmbedding((previous) => ({
-        ...previous,
-        provider: value,
-        base_url: updated.embedding?.base_url ?? '',
-        model: updated.embedding?.model ?? '',
-        has_key: updated.embedding?.has_key ?? false,
-      }));
-    } else if (field === 'has_key') {
-      setEmbedding((previous) => ({ ...previous, has_key: value }));
-    } else {
-      setEmbedding((previous) => ({ ...previous, [field]: value }));
-      await patchConfig({ embedding: { [field]: value } });
-    }
-  }
+  const handleLlmChange = createModelSectionChangeHandler(patchConfig, setLlm, {
+    path: ['llm'],
+    providerPatch: (value) => (LOCAL_PROVIDERS.includes(value) ? { provider: value } : { provider: value, base_url: '' }),
+    empty: '',
+  });
+  const handleEmbeddingChange = createModelSectionChangeHandler(patchConfig, setEmbedding, {
+    path: ['embedding'],
+    providerPatch: (value) => (NEEDS_BASE_URL_PROVIDERS.has(value) ? { provider: value } : { provider: value, base_url: '' }),
+    empty: '',
+  });
 
   async function handleProxyUrlSave(url) {
     setProxyUrl(url);

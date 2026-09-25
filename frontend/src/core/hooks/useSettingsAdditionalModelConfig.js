@@ -9,7 +9,13 @@ import {
   updateProviderKey,
 } from '../api/config.js';
 import { LOCAL_PROVIDERS } from '../constants/settings.js';
-import { readAuxiliaryModelSettings, readWritingModelSettings } from './settingsConfigState.js';
+import { createModelSectionChangeHandler, readAuxiliaryModelSettings, readWritingModelSettings } from './settingsConfigState.js';
+
+/** 可选模型段：清空 provider 表示回退，非本地 provider 同时清空 base_url */
+function optionalProviderPatch(value) {
+  if (!value) return { provider: null };
+  return LOCAL_PROVIDERS.includes(value) ? { provider: value } : { provider: value, base_url: '' };
+}
 
 export function useSettingsAdditionalModelConfig(patchConfig) {
   const [auxLlm, setAuxLlm] = useState({});
@@ -26,65 +32,15 @@ export function useSettingsAdditionalModelConfig(patchConfig) {
     setWritingLlm(writingSettings.writingLlm);
   }, []);
 
-  async function handleAuxLlmChange(field, value) {
-    if (field === 'provider') {
-      const isLocal = value && LOCAL_PROVIDERS.includes(value);
-      const patch = value ? (isLocal ? { provider: value } : { provider: value, base_url: '' }) : { provider: null };
-      const updated = await patchConfig({ aux_llm: patch }, { reload: true });
-      setAuxLlm((previous) => ({
-        ...previous,
-        provider: value || null,
-        base_url: updated.aux_llm?.base_url ?? null,
-        model: updated.aux_llm?.model ?? null,
-        has_key: updated.aux_llm?.has_key ?? false,
-      }));
-    } else if (field === 'has_key') {
-      setAuxLlm((previous) => ({ ...previous, has_key: value }));
-    } else {
-      setAuxLlm((previous) => ({ ...previous, [field]: value }));
-      await patchConfig({ aux_llm: { [field]: value } });
-    }
-  }
-
-  async function handleWritingAuxLlmChange(field, value) {
-    if (field === 'provider') {
-      const isLocal = value && LOCAL_PROVIDERS.includes(value);
-      const patch = value ? (isLocal ? { provider: value } : { provider: value, base_url: '' }) : { provider: null };
-      const updated = await patchConfig({ writing: { aux_llm: patch } }, { reload: true });
-      setWritingAuxLlm((previous) => ({
-        ...previous,
-        provider: value || null,
-        base_url: updated.writing?.aux_llm?.base_url ?? null,
-        model: updated.writing?.aux_llm?.model ?? null,
-        has_key: updated.writing?.aux_llm?.has_key ?? false,
-      }));
-    } else if (field === 'has_key') {
-      setWritingAuxLlm((previous) => ({ ...previous, has_key: value }));
-    } else {
-      setWritingAuxLlm((previous) => ({ ...previous, [field]: value }));
-      await patchConfig({ writing: { aux_llm: { [field]: value } } });
-    }
-  }
-
-  async function handleWritingLlmChange(field, value) {
-    if (field === 'provider') {
-      const isLocal = value && LOCAL_PROVIDERS.includes(value);
-      const patch = value ? (isLocal ? { provider: value } : { provider: value, base_url: '' }) : { provider: null };
-      const updated = await patchConfig({ writing: { llm: patch } }, { reload: true });
-      setWritingLlm((previous) => ({
-        ...previous,
-        provider: value || null,
-        base_url: updated.writing?.llm?.base_url ?? null,
-        model: updated.writing?.llm?.model ?? '',
-        has_key: updated.writing?.llm?.has_key ?? false,
-      }));
-    } else if (field === 'has_key') {
-      setWritingLlm((previous) => ({ ...previous, has_key: value }));
-    } else {
-      setWritingLlm((previous) => ({ ...previous, [field]: value }));
-      await patchConfig({ writing: { llm: { [field]: value } } });
-    }
-  }
+  const handleAuxLlmChange = createModelSectionChangeHandler(patchConfig, setAuxLlm, {
+    path: ['aux_llm'], providerPatch: optionalProviderPatch, empty: null,
+  });
+  const handleWritingAuxLlmChange = createModelSectionChangeHandler(patchConfig, setWritingAuxLlm, {
+    path: ['writing', 'aux_llm'], providerPatch: optionalProviderPatch, empty: null,
+  });
+  const handleWritingLlmChange = createModelSectionChangeHandler(patchConfig, setWritingLlm, {
+    path: ['writing', 'llm'], providerPatch: optionalProviderPatch, empty: null, emptyModel: '',
+  });
 
   async function handleAssistantModelSourceChange(value) {
     setAssistantModelSource(value);
