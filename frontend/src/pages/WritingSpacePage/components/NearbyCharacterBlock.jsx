@@ -40,6 +40,7 @@ export default function NearbyCharacterBlock({
       onChange?.();
     } catch (err) {
       log.error('nearby.state.update_failed', err, { toast: err?.message || '更新状态失败' });
+      throw err;
     }
   }
 
