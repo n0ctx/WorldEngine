@@ -13,6 +13,7 @@ import {
   updateWorldDefaultStateValueValidated,
 } from '../services/state-values.js';
 import { createLogger, formatMeta } from '../utils/logger.js';
+import { sendValidationError } from '../utils/route-helpers.js';
 
 const router = Router();
 const log = createLogger('world-state-values', 'cyan');
@@ -34,14 +35,7 @@ router.patch('/worlds/:worldId/state-values/:fieldKey', (req, res) => {
     updateWorldDefaultStateValueValidated(worldId, fieldKey, value_json);
     res.json({ success: true });
   } catch (err) {
-    if (err.message === '世界不存在') {
-      log.warn(`world-state-values.not_found ${formatMeta({ method: req.method, path: req.path, id: worldId })}`);
-      res.status(404).json({ error: err.message });
-      return;
-    }
-
-    log.warn(`world-state-values.bad_request ${formatMeta({ method: req.method, path: req.path, reason: err.message })}`);
-    res.status(400).json({ error: err.message });
+    sendValidationError(res, err, { log, ns: 'world-state-values', notFoundMessage: '世界不存在', id: worldId });
   }
 });
 
@@ -50,14 +44,7 @@ router.post('/worlds/:worldId/state-values/reset', (req, res) => {
     resetWorldStateValuesValidated(req.params.worldId);
     res.json(getWorldStateValuesWithFields(req.params.worldId));
   } catch (err) {
-    if (err.message === '世界不存在') {
-      log.warn(`world-state-values.not_found ${formatMeta({ method: req.method, path: req.path, id: req.params.worldId })}`);
-      res.status(404).json({ error: err.message });
-      return;
-    }
-
-    log.warn(`world-state-values.bad_request ${formatMeta({ method: req.method, path: req.path, reason: err.message })}`);
-    res.status(400).json({ error: err.message });
+    sendValidationError(res, err, { log, ns: 'world-state-values', notFoundMessage: '世界不存在', id: req.params.worldId });
   }
 });
 

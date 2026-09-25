@@ -62,6 +62,20 @@ const uploadById = multer({
 
 const router = Router();
 
+/** 只取请求体里出现过的可编辑字段 */
+function pickPersonaPatch(body = {}) {
+  const patch = {};
+  for (const key of ['name', 'description', 'system_prompt']) {
+    if (body?.[key] !== undefined) patch[key] = body[key];
+  }
+  return patch;
+}
+
+function sendBadRequest(req, res, err) {
+  log.warn(`personas.bad_request ${formatMeta({ method: req.method, path: req.path, reason: err.message })}`);
+  res.status(400).json({ error: err.message });
+}
+
 // ── 兼容旧接口（active persona by worldId）──────────────────────────────────
 
 // GET /api/worlds/:worldId/persona — 返回 active persona
@@ -73,16 +87,10 @@ router.get('/worlds/:worldId/persona', (req, res) => {
 // PATCH /api/worlds/:worldId/persona — 更新 active persona
 router.patch('/worlds/:worldId/persona', async (req, res) => {
   try {
-    const { name, description, system_prompt } = req.body;
-    const patch = {};
-    if (name !== undefined) patch.name = name;
-    if (description !== undefined) patch.description = description;
-    if (system_prompt !== undefined) patch.system_prompt = system_prompt;
-    const persona = await updatePersona(req.params.worldId, patch);
+    const persona = await updatePersona(req.params.worldId, pickPersonaPatch(req.body));
     res.json(persona);
   } catch (err) {
-    log.warn(`personas.bad_request ${formatMeta({ method: req.method, path: req.path, reason: err.message })}`);
-    res.status(400).json({ error: err.message });
+    sendBadRequest(req, res, err);
   }
 });
 
@@ -117,8 +125,7 @@ router.post('/worlds/:worldId/personas', (req, res) => {
     const persona = createPersona(req.params.worldId, { name, description, system_prompt });
     res.status(201).json(persona);
   } catch (err) {
-    log.warn(`personas.bad_request ${formatMeta({ method: req.method, path: req.path, reason: err.message })}`);
-    res.status(400).json({ error: err.message });
+    sendBadRequest(req, res, err);
   }
 });
 
@@ -128,8 +135,7 @@ router.patch('/worlds/:worldId/personas/:personaId/activate', (req, res) => {
     const personas = activatePersona(req.params.worldId, req.params.personaId);
     res.json(personas);
   } catch (err) {
-    log.warn(`personas.bad_request ${formatMeta({ method: req.method, path: req.path, reason: err.message })}`);
-    res.status(400).json({ error: err.message });
+    sendBadRequest(req, res, err);
   }
 });
 
@@ -157,16 +163,10 @@ router.get('/personas/:id', (req, res) => {
 // PATCH /api/personas/:id — 按 id 更新 persona
 router.patch('/personas/:id', async (req, res) => {
   try {
-    const { name, description, system_prompt } = req.body ?? {};
-    const patch = {};
-    if (name !== undefined) patch.name = name;
-    if (description !== undefined) patch.description = description;
-    if (system_prompt !== undefined) patch.system_prompt = system_prompt;
-    const persona = await updatePersonaByIdService(req.params.id, patch);
+    const persona = await updatePersonaByIdService(req.params.id, pickPersonaPatch(req.body));
     res.json(persona);
   } catch (err) {
-    log.warn(`personas.bad_request ${formatMeta({ method: req.method, path: req.path, reason: err.message })}`);
-    res.status(400).json({ error: err.message });
+    sendBadRequest(req, res, err);
   }
 });
 
@@ -176,8 +176,7 @@ router.delete('/personas/:id', async (req, res) => {
     await deletePersonaService(req.params.id);
     res.status(204).end();
   } catch (err) {
-    log.warn(`personas.bad_request ${formatMeta({ method: req.method, path: req.path, reason: err.message })}`);
-    res.status(400).json({ error: err.message });
+    sendBadRequest(req, res, err);
   }
 });
 
@@ -207,8 +206,7 @@ router.post('/personas/:personaId/avatar', uploadById.single('avatar'), async (r
     const persona = await updatePersonaByIdService(req.params.personaId, { avatar_path: relativePath });
     res.json({ avatar_path: persona.avatar_path });
   } catch (err) {
-    log.warn(`personas.bad_request ${formatMeta({ method: req.method, path: req.path, reason: err.message })}`);
-    res.status(400).json({ error: err.message });
+    sendBadRequest(req, res, err);
   }
 });
 

@@ -8,26 +8,19 @@
 import express from 'express';
 import { getSessionById } from '../db/queries/sessions.js';
 import { readMemoryFile, writeMemoryFile } from '../services/long-term-memory.js';
-import { createLogger, formatMeta } from '../utils/logger.js';
+import { assertExists } from '../utils/route-helpers.js';
 
 const router = express.Router();
-const log = createLogger('long-term-memory', 'cyan');
 
 router.get('/:sessionId/long-term-memory', (req, res) => {
   const { sessionId } = req.params;
-  if (!getSessionById(sessionId)) {
-    log.warn(`long-term-memory.not_found ${formatMeta({ method: req.method, path: req.path, id: sessionId })}`);
-    return res.status(404).json({ error: '会话不存在' });
-  }
+  if (!assertExists(res, getSessionById(sessionId), '会话不存在')) return;
   res.json({ content: readMemoryFile(sessionId) });
 });
 
 router.put('/:sessionId/long-term-memory', (req, res) => {
   const { sessionId } = req.params;
-  if (!getSessionById(sessionId)) {
-    log.warn(`long-term-memory.not_found ${formatMeta({ method: req.method, path: req.path, id: sessionId })}`);
-    return res.status(404).json({ error: '会话不存在' });
-  }
+  if (!assertExists(res, getSessionById(sessionId), '会话不存在')) return;
   const content = typeof req.body?.content === 'string' ? req.body.content : '';
   writeMemoryFile(sessionId, content);
   res.json({ content });

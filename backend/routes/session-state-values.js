@@ -38,6 +38,37 @@ import { createLogger, formatMeta } from '../utils/logger.js';
 const router = Router();
 const log = createLogger('session-state-values', 'cyan');
 
+function resolveSessionWorldId(session) {
+  return session.world_id ?? getCharacterById(session.character_id)?.world_id;
+}
+
+/** 世界 / 玩家两层的会话运行时值 PATCH：两者都按会话所属世界写入 */
+function patchWorldScopedValue(upsert) {
+  return (req, res) => {
+    const { sessionId, fieldKey } = req.params;
+    const session = getSessionById(sessionId);
+    if (!assertExists(res, session, '会话不存在')) return;
+    const worldId = resolveSessionWorldId(session);
+    if (!worldId) {
+      log.warn(`session-state-values.bad_request ${formatMeta({ method: req.method, path: req.path, reason: '无法确定 worldId' })}`);
+      return res.status(400).json({ error: '无法确定 worldId' });
+    }
+    const { value_json } = req.body;
+    upsert(sessionId, worldId, fieldKey, value_json ?? null);
+    res.json({ ok: true });
+  };
+}
+
+function clearSessionValues(clear) {
+  return (req, res) => {
+    const { sessionId } = req.params;
+    const session = getSessionById(sessionId);
+    if (!assertExists(res, session, '会话不存在')) return;
+    clear(sessionId);
+    res.json({ success: true });
+  };
+}
+
 // ── GET /api/sessions/:sessionId/state-values ─────────────────────
 
 router.get('/:sessionId/state-values', (req, res) => {
@@ -45,7 +76,7 @@ router.get('/:sessionId/state-values', (req, res) => {
   const session = getSessionById(sessionId);
   if (!assertExists(res, session, '会话不存在')) return;
 
-  const worldId = session.world_id ?? getCharacterById(session.character_id)?.world_id;
+  const worldId = resolveSessionWorldId(session);
   if (!worldId) return res.json({ world: [], persona: [], character: [] });
 
   // 写作模式没有固定角色身份（角色由 nearby 池单独管理），返回空 character 段；
@@ -61,35 +92,11 @@ router.get('/:sessionId/state-values', (req, res) => {
 
 // ── PATCH /api/sessions/:sessionId/world-state-values/:fieldKey ───
 
-router.patch('/:sessionId/world-state-values/:fieldKey', (req, res) => {
-  const { sessionId, fieldKey } = req.params;
-  const session = getSessionById(sessionId);
-  if (!assertExists(res, session, '会话不存在')) return;
-  const worldId = session.world_id ?? getCharacterById(session.character_id)?.world_id;
-  if (!worldId) {
-    log.warn(`session-state-values.bad_request ${formatMeta({ method: req.method, path: req.path, reason: '无法确定 worldId' })}`);
-    return res.status(400).json({ error: '无法确定 worldId' });
-  }
-  const { value_json } = req.body;
-  upsertSessionWorldStateValue(sessionId, worldId, fieldKey, value_json ?? null);
-  res.json({ ok: true });
-});
+router.patch('/:sessionId/world-state-values/:fieldKey', patchWorldScopedValue(upsertSessionWorldStateValue));
 
 // ── PATCH /api/sessions/:sessionId/persona-state-values/:fieldKey ─
 
-router.patch('/:sessionId/persona-state-values/:fieldKey', (req, res) => {
-  const { sessionId, fieldKey } = req.params;
-  const session = getSessionById(sessionId);
-  if (!assertExists(res, session, '会话不存在')) return;
-  const worldId = session.world_id ?? getCharacterById(session.character_id)?.world_id;
-  if (!worldId) {
-    log.warn(`session-state-values.bad_request ${formatMeta({ method: req.method, path: req.path, reason: '无法确定 worldId' })}`);
-    return res.status(400).json({ error: '无法确定 worldId' });
-  }
-  const { value_json } = req.body;
-  upsertSessionPersonaStateValue(sessionId, worldId, fieldKey, value_json ?? null);
-  res.json({ ok: true });
-});
+router.patch('/:sessionId/persona-state-values/:fieldKey', patchWorldScopedValue(upsertSessionPersonaStateValue));
 
 // ── PATCH /api/sessions/:sessionId/character-state-values/:characterId/:fieldKey
 
@@ -104,33 +111,15 @@ router.patch('/:sessionId/character-state-values/:characterId/:fieldKey', (req, 
 
 // ── DELETE /api/sessions/:sessionId/world-state-values ────────────
 
-router.delete('/:sessionId/world-state-values', (req, res) => {
-  const { sessionId } = req.params;
-  const session = getSessionById(sessionId);
-  if (!assertExists(res, session, '会话不存在')) return;
-  clearSessionWorldStateValues(sessionId);
-  res.json({ success: true });
-});
+router.delete('/:sessionId/world-state-values', clearSessionValues(clearSessionWorldStateValues));
 
 // ── DELETE /api/sessions/:sessionId/persona-state-values ──────────
 
-router.delete('/:sessionId/persona-state-values', (req, res) => {
-  const { sessionId } = req.params;
-  const session = getSessionById(sessionId);
-  if (!assertExists(res, session, '会话不存在')) return;
-  clearSessionPersonaStateValues(sessionId);
-  res.json({ success: true });
-});
+router.delete('/:sessionId/persona-state-values', clearSessionValues(clearSessionPersonaStateValues));
 
 // ── DELETE /api/sessions/:sessionId/character-state-values ────────
 
-router.delete('/:sessionId/character-state-values', (req, res) => {
-  const { sessionId } = req.params;
-  const session = getSessionById(sessionId);
-  if (!assertExists(res, session, '会话不存在')) return;
-  clearSessionCharacterStateValues(sessionId);
-  res.json({ success: true });
-});
+router.delete('/:sessionId/character-state-values', clearSessionValues(clearSessionCharacterStateValues));
 
 // ── GET /api/sessions/:sessionId/characters/:characterId/state-values ─
 

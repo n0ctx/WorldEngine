@@ -21,6 +21,7 @@ import {
   resetPersonaStateValuesByPersonaIdValidated,
 } from '../services/state-values.js';
 import { createLogger, formatMeta } from '../utils/logger.js';
+import { sendValidationError } from '../utils/route-helpers.js';
 
 const router = Router();
 const log = createLogger('persona-state-values', 'cyan');
@@ -42,14 +43,7 @@ router.patch('/worlds/:worldId/persona-state-values/:fieldKey', (req, res) => {
     updatePersonaDefaultStateValueValidated(worldId, fieldKey, value_json);
     res.json({ success: true });
   } catch (err) {
-    if (err.message === '世界不存在') {
-      log.warn(`persona-state-values.not_found ${formatMeta({ method: req.method, path: req.path, id: worldId })}`);
-      res.status(404).json({ error: err.message });
-      return;
-    }
-
-    log.warn(`persona-state-values.bad_request ${formatMeta({ method: req.method, path: req.path, reason: err.message })}`);
-    res.status(400).json({ error: err.message });
+    sendValidationError(res, err, { log, ns: 'persona-state-values', notFoundMessage: '世界不存在', id: worldId });
   }
 });
 
@@ -58,14 +52,7 @@ router.post('/worlds/:worldId/persona-state-values/reset', (req, res) => {
     resetPersonaStateValuesValidated(req.params.worldId);
     res.json(getPersonaStateValuesWithFields(req.params.worldId));
   } catch (err) {
-    if (err.message === '世界不存在') {
-      log.warn(`persona-state-values.not_found ${formatMeta({ method: req.method, path: req.path, id: req.params.worldId })}`);
-      res.status(404).json({ error: err.message });
-      return;
-    }
-
-    log.warn(`persona-state-values.bad_request ${formatMeta({ method: req.method, path: req.path, reason: err.message })}`);
-    res.status(400).json({ error: err.message });
+    sendValidationError(res, err, { log, ns: 'persona-state-values', notFoundMessage: '世界不存在', id: req.params.worldId });
   }
 });
 
@@ -87,12 +74,7 @@ router.patch('/worlds/:worldId/personas/:personaId/state-values/:fieldKey', (req
     updatePersonaDefaultStateValueByPersonaIdValidated(personaId, worldId, fieldKey, value_json);
     res.json({ success: true });
   } catch (err) {
-    if (err.message === '世界不存在') {
-      log.warn(`persona-state-values.not_found ${formatMeta({ method: req.method, path: req.path, id: worldId })}`);
-      return res.status(404).json({ error: err.message });
-    }
-    log.warn(`persona-state-values.bad_request ${formatMeta({ method: req.method, path: req.path, reason: err.message })}`);
-    res.status(400).json({ error: err.message });
+    sendValidationError(res, err, { log, ns: 'persona-state-values', notFoundMessage: '世界不存在', id: worldId });
   }
 });
 
@@ -102,12 +84,7 @@ router.post('/worlds/:worldId/personas/:personaId/state-values/reset', (req, res
     resetPersonaStateValuesByPersonaIdValidated(personaId, worldId);
     res.json(getPersonaStateValuesWithFieldsByPersonaId(personaId, worldId));
   } catch (err) {
-    if (err.message === '世界不存在') {
-      log.warn(`persona-state-values.not_found ${formatMeta({ method: req.method, path: req.path, id: worldId })}`);
-      return res.status(404).json({ error: err.message });
-    }
-    log.warn(`persona-state-values.bad_request ${formatMeta({ method: req.method, path: req.path, reason: err.message })}`);
-    res.status(400).json({ error: err.message });
+    sendValidationError(res, err, { log, ns: 'persona-state-values', notFoundMessage: '世界不存在', id: worldId });
   }
 });
 
