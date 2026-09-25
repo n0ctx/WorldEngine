@@ -19,7 +19,7 @@
  *   - 解析失败 → FAIL（parse_error）
  *
  * 用法：
- *   node scripts/check-context-budget.mjs [--baseline <path>] [--ignore <glob>]
+ *   node scripts/check-context-budget.mjs [--root <dir>] [--baseline <path>] [--ignore <glob>]
  *       [--update-baseline] [--detail <path>] [--details] [--top N]
  *
  * 退出码：0 通过（含仅 WARN）/ 1 存在 FAIL 或基线版本不兼容
@@ -34,7 +34,8 @@ const require = createRequire(import.meta.url);
 const espree = require('espree');
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const ROOT = path.resolve(__dirname, '..');
+// --root 可改为扫描别的目录（守卫自身的夹具测试用）
+let ROOT = path.resolve(__dirname, '..');
 const DEFAULT_BASELINE = path.join('scripts', 'context-budget-baseline.json');
 const ALGORITHM_VERSION = 1;
 
@@ -562,6 +563,7 @@ function parseArgs(argv) {
     else if (arg === '--baseline') args.baseline = argv[++i];
     else if (arg === '--ignore') args.ignores.push(argv[++i]);
     else if (arg === '--detail') args.detailFiles.add(argv[++i]);
+    else if (arg === '--root') ROOT = path.resolve(argv[++i]);
     else if (arg === '--top') {
       args.top = Number(argv[++i]);
       if (!Number.isInteger(args.top) || args.top < 1) {

@@ -3,13 +3,15 @@
  * 运行形态守卫：只看代码形状，不标注复杂度、不测耗时
  *
  * 扫描 frontend/src、backend、assistant/server、assistant/client/src 的正式代码（不含测试）。
- * 循环指 for / for-of / for-in / while / do-while 以及 forEach 回调。
+ * 循环指 for / for-of / for-in / while / do-while 以及 forEach 回调；逐项查询规则另把
+ * map / filter / reduce 等数组遍历回调也算作循环体。
  *
  * 直接失败（不进基线）：
  *   循环嵌套达到三层，且最内层循环体引用了外层循环变量。两层不报。
  *
  * 记入 scripts/perf-shape-baseline.json，新增算失败、消失算虚挂：
- *   - 循环体内调用 .prepare(，或对 prepare 出来的 Statement 调用 .get( / .all( / .run(
+ *   - 循环体内调用 .prepare(，或对 prepare 出来的 Statement 调用 .get( / .all( / .run(，
+ *     或调用从 backend/db/queries/ 导入的查询函数
  *     （一次查出再在内存里匹配不在循环里，不会被报）
  *   - backend/app、backend/routes、backend/services 里 SELECT 语句既没有 WHERE 也没有 LIMIT
  *     （backend/services/import-export.js 除外）
@@ -22,7 +24,7 @@
 
 import path from 'node:path';
 import {
-  baselineFailures, collectCodeFiles, compareSets, finish, isTestPath, loadBaseline,
+  BASELINE_NOTE, baselineFailures, collectCodeFiles, compareSets, finish, isTestPath, loadBaseline,
   parseArgs, parseFiles, patternNames, section, suffixDuplicates, walk, writeBaseline,
 } from './guard-common.mjs';
 
@@ -36,6 +38,8 @@ const MAX_LOOP_DEPTH = 3;
 const LOOP_STATEMENTS = new Set(['ForStatement', 'ForInStatement', 'ForOfStatement', 'WhileStatement', 'DoWhileStatement']);
 const FUNCTION_TYPES = new Set(['FunctionDeclaration', 'FunctionExpression', 'ArrowFunctionExpression']);
 const STATEMENT_METHODS = new Set(['get', 'all', 'run']);
+const ITERATION_METHODS = new Set(['map', 'flatMap', 'filter', 'reduce', 'some', 'every', 'find', 'findIndex']);
+const QUERY_DIR = 'backend/db/queries/';
 
 // ─── AST 小工具 ──────────────────────────────────────────────────────────────
 function* children(node) {
@@ -100,8 +104,27 @@ function statementNames(tree) {
   return names;
 }
 
+// 从 backend/db/queries/ 导入的本地名：names 是具名/默认导入，namespaces 是 import * as
+function queryImports(file) {
+  const names = new Set();
+  const namespaces = new Set();
+  for (const node of file.tree.body) {
+    if (node.type !== 'ImportDeclaration' || !node.source.value.startsWith('.')) continue;
+    const target = path.posix.join(path.posix.dirname(file.rel), node.source.value);
+    if (!target.startsWith(QUERY_DIR)) continue;
+    for (const spec of node.specifiers) {
+      (spec.type === 'ImportNamespaceSpecifier' ? namespaces : names).add(spec.local.name);
+    }
+  }
+  return { names, namespaces };
+}
+
 // ─── 规则 ────────────────────────────────────────────────────────────────────
-function loopQueryCall(node, stmtNames) {
+function loopQueryCall(node, { stmtNames, queries }) {
+  const { callee } = node;
+  if (callee.type === 'Identifier' && queries.names.has(callee.name)) return callee.name;
+  if (callee.type === 'MemberExpression' && !callee.computed && callee.object.type === 'Identifier'
+      && queries.namespaces.has(callee.object.name)) return `${callee.object.name}.${callee.property.name}`;
   if (isMethodCall(node, new Set(['prepare']))) {
     const obj = node.callee.object;
     return obj.type === 'Identifier' ? `${obj.name}.prepare` : '.prepare';
@@ -134,8 +157,8 @@ function checkDeepLoop(loopNode, body, outerLoops, ctx) {
 }
 
 function inspectNode(node, state, ctx) {
-  if (state.loops.length && node.type === 'CallExpression') {
-    const call = loopQueryCall(node, ctx.stmtNames);
+  if ((state.loops.length || state.perItem) && node.type === 'CallExpression') {
+    const call = loopQueryCall(node, ctx);
     if (call) ctx.found.loopQueries.push(`${ctx.file.rel}#${state.fn}#${call}`);
   }
   if (!ctx.sqlScope) return;
@@ -147,7 +170,13 @@ function visit(node, parent, state, ctx) {
   const next = FUNCTION_TYPES.has(node.type) ? { ...state, fn: functionName(node, parent) ?? state.fn } : state;
   inspectNode(node, next, ctx);
   const loop = loopOf(node);
+  const iterator = isMethodCall(node, ITERATION_METHODS) && FUNCTION_TYPES.has(node.arguments[0]?.type)
+    ? node.arguments[0] : null;
   for (const child of children(node)) {
+    if (child === iterator) {
+      visit(child, node, { ...next, perItem: true }, ctx);
+      continue;
+    }
     if (!loop || child !== loop.body) {
       visit(child, node, next, ctx);
       continue;
@@ -165,8 +194,8 @@ function collectPerfShape(root) {
   const found = { hard: [], loopQueries: [], selects: [] };
   for (const file of parsed) {
     const sqlScope = SQL_DIRS.some((dir) => file.rel.startsWith(dir)) && !SQL_EXEMPT.has(file.rel);
-    const ctx = { file, found, sqlScope, stmtNames: statementNames(file.tree) };
-    visit(file.tree, null, { loops: [], fn: '(顶层)' }, ctx);
+    const ctx = { file, found, sqlScope, stmtNames: statementNames(file.tree), queries: queryImports(file) };
+    visit(file.tree, null, { loops: [], perItem: false, fn: '(顶层)' }, ctx);
   }
   return {
     hard: found.hard,
@@ -208,7 +237,7 @@ function main() {
     script: SCRIPT, addedTitle: '这些 SELECT 既没有 WHERE 也没有 LIMIT，而且不在基线里；加条件或挪进 backend/db/queries',
   }));
 
-  finish('运行形态守卫', failures, summary);
+  finish('运行形态守卫', failures, summary, BASELINE_NOTE);
 }
 
 main();

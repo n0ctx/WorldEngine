@@ -6,6 +6,8 @@
  *
  * 直接失败（不进基线）：
  *   - 测试体里没有任何断言（assert / node:assert 导入的函数 / expect( / 测试对象的 .plan( / t.assert.*）
+ *   - 提交了 test.only / it.only / describe.only 或 { only: true }（会让同文件其余测试不跑）
+ *   - 只比较字面量的空断言：assert.ok(true)、assert.equal(1, 1)、expect(true).toBe(true)
  *   - 非端到端测试里出现 waitForTimeout，或 setTimeout / sleep 的延迟字面量 > MAX_DELAY_MS
  *   - playwright 出现在端到端目录 backend/tests/e2e 之外
  *   - backend/package.json 的 test / test:coverage 会扫到 tests/e2e
@@ -23,7 +25,7 @@
 import { existsSync, globSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
 import {
-  baselineFailures, collectCodeFiles, compareCounts, compareSets, countKeys, finish, loadBaseline,
+  BASELINE_NOTE, baselineFailures, collectCodeFiles, compareCounts, compareSets, countKeys, finish, loadBaseline,
   parseArgs, parseFiles, section, stringValue, suffixDuplicates, walk, writeBaseline,
 } from './guard-common.mjs';
 
@@ -40,6 +42,11 @@ const TEST_NAMES = new Set(['test', 'it']);
 const NON_TEST_MODIFIERS = new Set(['skip', 'todo', 'before', 'after', 'beforeEach', 'afterEach']);
 const SUITE_NAMES = new Set(['test', 'it', 'describe']);
 const ASSERT_MODULES = new Set(['assert', 'assert/strict', 'node:assert', 'node:assert/strict']);
+// 比较前两个参数的断言方法；ok 和直接调用 assert(x) 只看第一个参数
+const COMPARE_ASSERTS = new Set([
+  'equal', 'strictEqual', 'deepEqual', 'deepStrictEqual',
+  'notEqual', 'notStrictEqual', 'notDeepEqual', 'notDeepStrictEqual',
+]);
 const HEAVY_SETUP = ['listen', 'initSchema', 'chromium.launch'];
 const FUNCTION_TYPES = new Set(['FunctionExpression', 'ArrowFunctionExpression']);
 
@@ -105,7 +112,38 @@ function hasAssertion(fn, assertNames) {
   return false;
 }
 
+const isLiteral = (node) => node?.type === 'Literal'
+  || (node?.type === 'UnaryExpression' && node.argument.type === 'Literal');
+
+// assert.ok(true) / t.assert.equal(1, 1) / expect(true).toBe(true) 这类结果写死的断言
+function isTrivialAssertion(node, assertNames) {
+  const { callee } = node;
+  if (callee.type === 'MemberExpression' && callee.object.type === 'CallExpression'
+      && callee.object.callee.type === 'Identifier' && callee.object.callee.name === 'expect') {
+    return isLiteral(callee.object.arguments[0]) && node.arguments.every(isLiteral);
+  }
+  let method = null;
+  if (callee.type === 'Identifier' && assertNames.has(callee.name)) method = callee.name === 'assert' ? 'ok' : callee.name;
+  else if (callee.type === 'MemberExpression' && !callee.computed) {
+    const owner = callee.object;
+    const isAssertObject = (owner.type === 'Identifier' && owner.name === 'assert')
+      || (owner.type === 'MemberExpression' && !owner.computed && owner.property.name === 'assert');
+    if (isAssertObject) method = callee.property.name;
+  }
+  if (method === 'ok') return isLiteral(node.arguments[0]);
+  return COMPARE_ASSERTS.has(method) && isLiteral(node.arguments[0]) && isLiteral(node.arguments[1]);
+}
+
 // ─── 单文件检查 ──────────────────────────────────────────────────────────────
+function checkFocusAndTrivial(file, call, found) {
+  const where = `${file.rel}:${call.loc.start.line}`;
+  const info = testCall(call);
+  const onlyOption = info && call.arguments.some((a) => a.type === 'ObjectExpression' && a.properties.some(
+    (p) => p.type === 'Property' && (p.key.name ?? p.key.value) === 'only' && p.value.value === true));
+  if (info?.modifier === 'only' || onlyOption) found.hard.push(`${where} 提交了 ${info.root}.only，同文件其余测试会被跳过`);
+  if (isTrivialAssertion(call, found.assertNames)) found.hard.push(`${where} 断言只比较字面量，结果写死，等于没测`);
+}
+
 function checkAssertions(file, call, found) {
   const info = testCall(call);
   if (!info || !TEST_NAMES.has(info.root) || NON_TEST_MODIFIERS.has(info.modifier)) return;
@@ -158,6 +196,7 @@ function inspectFile(file, found) {
     checkPlaywright(file, node, found);
     if (node.type !== 'CallExpression') continue;
     checkAssertions(file, node, found);
+    checkFocusAndTrivial(file, node, found);
     checkDelays(file, node, found);
     recordShape(file, node, found);
   }
@@ -241,7 +280,7 @@ function main() {
     script: SCRIPT, addedTitle: '新增了永久跳过的测试；修好或删掉',
   }));
 
-  finish('测试形态守卫', failures, `${shape.fileCount} 个测试文件`);
+  finish('测试形态守卫', failures, `${shape.fileCount} 个测试文件`, BASELINE_NOTE);
 }
 
 main();

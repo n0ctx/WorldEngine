@@ -14,7 +14,7 @@
  * 专业工具不完全相同也没关系——它只用来和自己的历史比。
  *
  * 用法：
- *   node scripts/check-complexity.mjs [--baseline <path>] [--update-baseline] [--ignore <glob>]
+ *   node scripts/check-complexity.mjs [--root <dir>] [--baseline <path>] [--update-baseline] [--ignore <glob>]
  *
  * 退出码：0 通过 / 1 存在违规（新增超标、基线上涨、基线虚挂）
  */
@@ -28,7 +28,8 @@ const require = createRequire(import.meta.url);
 const espree = require('espree');
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const ROOT = path.resolve(__dirname, '..');
+// --root 可改为扫描别的目录（守卫自身的夹具测试用）
+let ROOT = path.resolve(__dirname, '..');
 const DEFAULT_BASELINE = path.join('scripts', 'complexity-baseline.json');
 const BASELINE_VERSION = 1;
 
@@ -180,6 +181,7 @@ function parseArgs(argv) {
     if (arg === '--update-baseline') args.updateBaseline = true;
     else if (arg === '--baseline') args.baseline = argv[++i];
     else if (arg === '--ignore') args.ignores.push(argv[++i]);
+    else if (arg === '--root') ROOT = path.resolve(argv[++i]);
     else {
       console.error(`✖ 未知参数: ${arg}`);
       process.exit(2);

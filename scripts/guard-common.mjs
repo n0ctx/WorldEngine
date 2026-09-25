@@ -15,6 +15,7 @@ const espree = require('espree');
 
 export const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 export const BASELINE_VERSION = 1;
+export const BASELINE_NOTE = '，基线外无新增';
 
 export const CODE_SUFFIXES = new Set(['.js', '.jsx', '.mjs', '.cjs']);
 const SKIP_DIRS = new Set([
@@ -125,7 +126,9 @@ export function parseArgs(argv, defaultBaseline) {
       process.exit(2);
     }
   }
-  args.baselinePath = path.isAbsolute(args.baseline) ? args.baseline : path.join(args.root, args.baseline);
+  if (args.baseline) {
+    args.baselinePath = path.isAbsolute(args.baseline) ? args.baseline : path.join(args.root, args.baseline);
+  }
   return args;
 }
 
@@ -186,13 +189,14 @@ export function countKeys(keys) {
   return counts;
 }
 
-export function finish(label, failures, summary) {
+// passNote 只在通过时附在摘要后面
+export function finish(label, failures, summary, passNote = '') {
   if (failures.length) {
     console.error(`\n✖ ${label}未通过（${summary}）\n`);
     for (const f of failures) console.error(`${f}\n`);
     process.exit(1);
   }
-  console.log(`✓ ${label}通过：${summary}，基线外无新增`);
+  console.log(`✓ ${label}通过：${summary}${passNote}`);
   process.exit(0);
 }
 

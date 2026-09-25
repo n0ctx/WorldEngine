@@ -1,13 +1,9 @@
-import test, { after } from 'node:test';
+import test from 'node:test';
 import assert from 'node:assert/strict';
-import { spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
-import os from 'node:os';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 
-const SCRIPT = path.join(path.dirname(fileURLToPath(import.meta.url)), 'check-duplication.mjs');
-const dirs = [];
+import { useGuardFixture } from './guard-fixture.mjs';
+
+const { makeRoot, write, run } = useGuardFixture('check-duplication.mjs');
 
 const block = (name) => `export function ${name}(items) {
   let total = 0;
@@ -19,26 +15,14 @@ const block = (name) => `export function ${name}(items) {
 }
 `;
 
-function write(root, rel, text) {
-  mkdirSync(path.dirname(path.join(root, rel)), { recursive: true });
-  writeFileSync(path.join(root, rel), text);
-}
-
-function run(root, ...args) {
-  return spawnSync(process.execPath, [SCRIPT, '--root', root, ...args], { encoding: 'utf8' });
-}
-
 function fixture() {
-  const root = mkdtempSync(path.join(os.tmpdir(), 'we-dup-'));
-  dirs.push(root);
+  const root = makeRoot();
   write(root, 'backend/a.js', block('sumA'));
   write(root, 'backend/b.js', block('sumB'));
   write(root, 'backend/tests/c.test.js', block('sumC'));
   assert.equal(run(root, '--update-baseline').status, 0);
   return root;
 }
-
-after(() => dirs.forEach((d) => rmSync(d, { recursive: true, force: true })));
 
 test('现状与基线一致时通过', () => {
   const result = run(fixture());

@@ -7,11 +7,10 @@
  *   2. export 了但没有任何其他文件引用的名字。
  * 函数内部没用到的变量交给 ESLint，这里不管。
  *
- * 引用：import / export from、require('…')、import('…') 的字符串字面量（含 React.lazy）。
- * 相对路径解析到实际文件（补 .js/.jsx/.mjs/.cjs，目录补 index）；import(变量) 不猜。
- * 测试文件里的引用算在用；测试文件本身和下列入口不报：
+ * 引用的认定见 import-graph.mjs。测试文件里的引用算在用；测试文件本身和下列入口不报：
  *   frontend/src/main.jsx、frontend/index.html 引用的脚本、backend/server.js、
- *   各 package.json 的 main / bin / scripts 里出现的仓库内文件、hooks/*.js（hook-loader 按目录加载）。
+ *   各 package.json 的 main / bin / scripts 里出现的仓库内文件、hooks/*.js（hook-loader 按目录加载）、
+ *   *.config.{js,mjs,cjs}（eslint / vite / vitest 按文件名约定加载）。
  *
  * 现状写进 scripts/dead-code-baseline.json：新增算失败，基线里已不存在的条目算虚挂。
  *
@@ -24,69 +23,17 @@
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import {
-  CODE_SUFFIXES, baselineFailures, collectCodeFiles, collectFiles, compareSets, finish, isTestPath,
-  loadBaseline, parseArgs, parseFiles, patternNames, stringValue, walk, writeBaseline,
+  BASELINE_NOTE, baselineFailures, collectCodeFiles, collectFiles, compareSets, finish, isTestPath,
+  loadBaseline, parseArgs, writeBaseline,
 } from './guard-common.mjs';
+import { ALL, buildImportGraph, resolveFile } from './import-graph.mjs';
 
 const SCRIPT = 'check-dead-code.mjs';
 const DEFAULT_BASELINE = path.join('scripts', 'dead-code-baseline.json');
 const ENTRY_FILES = ['frontend/src/main.jsx', 'backend/server.js'];
 const HTML_ENTRIES = ['frontend/index.html'];
 const HOOK_FILE_RE = /^hooks\/[^/]+\.js$/;
-const ALL = '*';
-
-// ─── 路径解析 ────────────────────────────────────────────────────────────────
-function resolveFile(fileSet, base) {
-  const clean = path.posix.normalize(base.replace(/[?#].*$/, ''));
-  if (clean.startsWith('../')) return null;
-  const suffixes = [...CODE_SUFFIXES];
-  const candidates = [clean, ...suffixes.map((s) => clean + s), ...suffixes.map((s) => `${clean}/index${s}`)];
-  return candidates.find((c) => fileSet.has(c)) ?? null;
-}
-
-function resolveSpecifier(fileSet, fromRel, spec) {
-  if (typeof spec !== 'string' || !spec.startsWith('.')) return null;
-  return resolveFile(fileSet, path.posix.join(path.posix.dirname(fromRel), spec));
-}
-
-// ─── 引用与导出 ──────────────────────────────────────────────────────────────
-const moduleName = (node) => node.name ?? node.value;
-
-function declarationNames(decl) {
-  if (decl.type === 'VariableDeclaration') return decl.declarations.flatMap((d) => patternNames(d.id));
-  return decl.id ? [decl.id.name] : [];
-}
-
-function importNames(node) {
-  return node.specifiers.map((s) => {
-    if (s.type === 'ImportDefaultSpecifier') return 'default';
-    if (s.type === 'ImportNamespaceSpecifier') return ALL;
-    return moduleName(s.imported);
-  });
-}
-
-// 返回 { refs: [[来源说明符, 名字[]]], exports: 名字[] }
-function moduleShape(tree) {
-  const refs = [];
-  const exports = [];
-  for (const [node] of walk(tree)) {
-    if (node.type === 'ImportDeclaration') refs.push([node.source.value, importNames(node)]);
-    else if (node.type === 'ExportNamedDeclaration') {
-      if (node.declaration) exports.push(...declarationNames(node.declaration));
-      exports.push(...node.specifiers.map((s) => moduleName(s.exported)));
-      if (node.source) refs.push([node.source.value, node.specifiers.map((s) => moduleName(s.local))]);
-    } else if (node.type === 'ExportAllDeclaration') {
-      refs.push([node.source.value, [ALL]]);
-      if (node.exported) exports.push(moduleName(node.exported));
-    } else if (node.type === 'ExportDefaultDeclaration') exports.push('default');
-    else if (node.type === 'ImportExpression') refs.push([stringValue(node.source), [ALL]]);
-    else if (node.type === 'CallExpression' && node.callee.type === 'Identifier'
-        && node.callee.name === 'require' && node.arguments.length === 1) {
-      refs.push([stringValue(node.arguments[0]), [ALL]]);
-    }
-  }
-  return { refs, exports };
-}
+const CONFIG_FILE_RE = /(^|\/)[^/]+\.config\.(js|mjs|cjs)$/;
 
 // ─── 入口 ────────────────────────────────────────────────────────────────────
 function packageEntries(root, fileSet) {
@@ -127,25 +74,18 @@ function collectEntries(root, rels, fileSet) {
     ...ENTRY_FILES.filter((rel) => fileSet.has(rel)),
     ...htmlEntries(root, fileSet),
     ...packageEntries(root, fileSet),
-    ...rels.filter((rel) => HOOK_FILE_RE.test(rel) || isTestPath(rel)),
+    ...rels.filter((rel) => HOOK_FILE_RE.test(rel) || CONFIG_FILE_RE.test(rel) || isTestPath(rel)),
   ]);
 }
 
 // ─── 汇总 ────────────────────────────────────────────────────────────────────
 function collectDeadCode(root) {
   const rels = collectCodeFiles(root);
-  const fileSet = new Set(rels);
-  const { parsed, parseFailures } = parseFiles(root, rels);
+  const { fileSet, parseFailures, modules } = buildImportGraph(root, rels);
   const referencedBy = new Map();
   const usedNames = new Map();
-  const exportsOf = new Map();
-
-  for (const { rel, tree } of parsed) {
-    const { refs, exports } = moduleShape(tree);
-    exportsOf.set(rel, [...new Set(exports)]);
-    for (const [spec, names] of refs) {
-      const target = resolveSpecifier(fileSet, rel, spec);
-      if (!target || target === rel) continue;
+  for (const [rel, { refs }] of modules) {
+    for (const { target, names } of refs) {
       if (!referencedBy.has(target)) referencedBy.set(target, new Set());
       referencedBy.get(target).add(rel);
       if (!usedNames.has(target)) usedNames.set(target, new Set());
@@ -156,7 +96,7 @@ function collectDeadCode(root) {
   const entries = collectEntries(root, rels, fileSet);
   const files = rels.filter((rel) => !entries.has(rel) && !referencedBy.has(rel));
   const exports = [];
-  for (const [rel, names] of exportsOf) {
+  for (const [rel, { exports: names }] of modules) {
     if (entries.has(rel) || !referencedBy.has(rel)) continue;
     const used = usedNames.get(rel);
     if (used.has(ALL)) continue;
@@ -195,7 +135,7 @@ function main() {
   }));
 
   finish('死代码守卫', failures,
-    `${fileCount} 个文件，无引用文件 ${files.length} 个、无引用导出 ${exports.length} 个`);
+    `${fileCount} 个文件，无引用文件 ${files.length} 个、无引用导出 ${exports.length} 个`, BASELINE_NOTE);
 }
 
 main();

@@ -1,26 +1,12 @@
-import test, { after } from 'node:test';
+import test from 'node:test';
 import assert from 'node:assert/strict';
-import { spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
-import os from 'node:os';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 
-const SCRIPT = path.join(path.dirname(fileURLToPath(import.meta.url)), 'check-dead-code.mjs');
-const dirs = [];
+import { useGuardFixture } from './guard-fixture.mjs';
 
-function write(root, rel, text) {
-  mkdirSync(path.dirname(path.join(root, rel)), { recursive: true });
-  writeFileSync(path.join(root, rel), text);
-}
-
-function run(root, ...args) {
-  return spawnSync(process.execPath, [SCRIPT, '--root', root, ...args], { encoding: 'utf8' });
-}
+const { makeRoot, write, run } = useGuardFixture('check-dead-code.mjs');
 
 function fixture() {
-  const root = mkdtempSync(path.join(os.tmpdir(), 'we-dead-'));
-  dirs.push(root);
+  const root = makeRoot();
   write(root, 'backend/server.js', "import { used } from './lib.js';\nconst page = await import('./pages/home');\nused(page);\n");
   write(root, 'backend/lib.js', 'export function used() {}\nexport const unused = 1;\n');
   write(root, 'backend/pages/home/index.js', 'export default 1;\n');
@@ -29,13 +15,14 @@ function fixture() {
   write(root, 'hooks/on-save.js', 'export default function hook() {}\n');
   write(root, 'tools/package.json', JSON.stringify({ scripts: { go: 'node ./run.mjs --fast' } }));
   write(root, 'tools/run.mjs', 'export const unusedInEntry = 1;\n');
+  write(root, 'frontend/vite.config.js', 'export default {};\n');
+  write(root, 'backend/modes.js', 'export const chatMode = 1;\n');
+  write(root, 'backend/tests/modes.test.js', "const { chatMode } = await freshImport('backend/modes.js');\n");
   assert.equal(run(root, '--update-baseline').status, 0);
   return root;
 }
 
-after(() => dirs.forEach((d) => rmSync(d, { recursive: true, force: true })));
-
-test('现状与基线一致时通过，入口与测试引用不报', () => {
+test('现状与基线一致时通过，入口、配置文件与测试引用（含 freshImport）不报', () => {
   const root = fixture();
   const result = run(root);
   assert.equal(result.status, 0, result.stderr);

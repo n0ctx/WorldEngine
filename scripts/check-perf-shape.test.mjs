@@ -1,22 +1,9 @@
-import test, { after } from 'node:test';
+import test from 'node:test';
 import assert from 'node:assert/strict';
-import { spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
-import os from 'node:os';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 
-const SCRIPT = path.join(path.dirname(fileURLToPath(import.meta.url)), 'check-perf-shape.mjs');
-const dirs = [];
+import { useGuardFixture } from './guard-fixture.mjs';
 
-function write(root, rel, text) {
-  mkdirSync(path.dirname(path.join(root, rel)), { recursive: true });
-  writeFileSync(path.join(root, rel), text);
-}
-
-function run(root, ...args) {
-  return spawnSync(process.execPath, [SCRIPT, '--root', root, ...args], { encoding: 'utf8' });
-}
+const { makeRoot, write, run } = useGuardFixture('check-perf-shape.mjs');
 
 const QUERIES = `export function reorder(db, ids) {
   const stmt = db.prepare('UPDATE t SET sort = ? WHERE id = ?');
@@ -28,8 +15,7 @@ const QUERIES = `export function reorder(db, ids) {
 `;
 
 function fixture() {
-  const root = mkdtempSync(path.join(os.tmpdir(), 'we-perf-'));
-  dirs.push(root);
+  const root = makeRoot();
   write(root, 'backend/db/queries/t.js', QUERIES);
   write(root, 'backend/routes/list.js', "export const sql = 'SELECT id FROM t';\n");
   write(root, 'backend/services/import-export.js', "export const sql = 'SELECT * FROM t';\n");
@@ -43,12 +29,25 @@ function fixture() {
   return root;
 }
 
-after(() => dirs.forEach((d) => rmSync(d, { recursive: true, force: true })));
-
 test('现状与基线一致时通过，两层循环与内存匹配不报', () => {
   const result = run(fixture());
   assert.equal(result.status, 0, result.stderr);
   assert.match(result.stdout, /循环内查询 1 处、无 WHERE\/LIMIT 的 SELECT 1 处/);
+});
+
+test('业务层在循环或数组遍历回调里调用查询层函数失败', () => {
+  const root = fixture();
+  write(root, 'backend/services/items.js', [
+    "import { getById } from '../db/queries/items.js';",
+    "import * as q from '../db/queries/tags.js';",
+    'export const load = (ids) => ids.map((id) => getById(id));',
+    'export function tags(ids) { for (const id of ids) q.listTags(id); }',
+    '',
+  ].join('\n'));
+  const result = run(root);
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /backend\/services\/items\.js#load#getById/);
+  assert.match(result.stderr, /backend\/services\/items\.js#tags#q\.listTags/);
 });
 
 test('三层循环引用外层变量、新增循环内查询、新增无条件 SELECT 都失败', () => {

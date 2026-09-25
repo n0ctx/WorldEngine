@@ -21,7 +21,7 @@
 import { createHash } from 'node:crypto';
 import path from 'node:path';
 import {
-  baselineFailures, collectCodeFiles, compareCounts, finish, isTestPath, loadBaseline,
+  BASELINE_NOTE, baselineFailures, collectCodeFiles, compareCounts, finish, isTestPath, loadBaseline,
   parseArgs, parseFiles, walk, writeBaseline,
 } from './guard-common.mjs';
 
@@ -212,7 +212,7 @@ function main() {
     addedTitle: `这些连续语句重复了（≥ ${MIN_TOKENS} token），而且不在基线里；抽成共用函数`,
   }));
 
-  finish('重复代码守卫', failures, `${fileCount} 个文件，重复 ${groupCount} 段（门槛 ${MIN_TOKENS} token）`);
+  finish('重复代码守卫', failures, `${fileCount} 个文件，重复 ${groupCount} 段（门槛 ${MIN_TOKENS} token）`, BASELINE_NOTE);
 }
 
 main();
