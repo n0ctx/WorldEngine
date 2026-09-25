@@ -1,5 +1,5 @@
 import { getBaseUrl } from '../_shared/base-urls.js';
-import { apiError, parseSSE } from '../_shared/fetch-utils.js';
+import { apiError, readHttpErrorText, parseSSE } from '../_shared/fetch-utils.js';
 import { resolveThinkingBudget } from '../_shared/thinking-budget.js';
 import { convertToGeminiContents } from '../_shared/converters.js';
 import { recordTokenUsage } from '../_shared/cache-usage.js';
@@ -91,51 +91,76 @@ function toGeminiTools(toolDefs) {
   return [{ functionDeclarations: toolDefs.map((t) => ({ name: t.function.name, description: t.function.description, parameters: t.function.parameters })) }];
 }
 
-export async function* streamGemini(messages, config) {
-  log.debug('provider.request', formatMeta({ provider: 'gemini', model: config.model, msgs: messages.length, mode: 'stream' }));
-  const baseUrl = getBaseUrl(config);
+function modelUrl(config, method) {
   const model = (config.model || 'gemini-pro').replace(/^models\//, '');
-  const url = `${baseUrl}/v1beta/models/${model}:streamGenerateContent?key=${config.api_key}&alt=sse`;
+  return `${getBaseUrl(config)}/v1beta/models/${model}:${method}?key=${config.api_key}`;
+}
 
-  let body = null;
+/** 请求体的 contents 部分：可用时走显式缓存，失败或不适用时按普通格式转换 */
+async function buildMessagesBody(messages, config, logTag) {
   if (shouldUseExplicitCache(config)) {
     try {
       const cached = await buildCachedRequestParts(messages, config);
-      if (cached) {
-        body = { contents: cached.contents, cachedContent: cached.cachedContent };
-      }
+      if (cached) return { contents: cached.contents, cachedContent: cached.cachedContent };
     } catch (err) {
-      cacheLog.warn(`STREAM FALLBACK  ${err.message}`);
+      cacheLog.warn(`${logTag} FALLBACK  ${err.message}`);
     }
   }
-  if (!body) {
-    const { contents, systemInstruction } = convertToGeminiContents(messages);
-    body = { contents };
-    if (systemInstruction) body.systemInstruction = systemInstruction;
+  const { contents, systemInstruction } = convertToGeminiContents(messages);
+  const body = { contents };
+  if (systemInstruction) body.systemInstruction = systemInstruction;
+  return body;
+}
+
+/**
+ * @param {'thoughts'|'budget'|null} thinking  thoughts：带思考预算并返回思考内容；budget：只设预算；null：不设
+ */
+function buildGenerationConfig(config, thinking) {
+  const generationConfig = {};
+  if (config.temperature != null) generationConfig.temperature = config.temperature;
+  if (config.max_tokens != null) generationConfig.maxOutputTokens = config.max_tokens;
+  const thinkingBudget = thinking ? resolveThinkingBudget(config.thinking_level) : null;
+  if (thinkingBudget != null) {
+    generationConfig.thinkingConfig = thinking === 'thoughts' ? { thinkingBudget, includeThoughts: true } : { thinkingBudget };
   }
-  body.generationConfig = {};
-  if (config.temperature != null) body.generationConfig.temperature = config.temperature;
-  if (config.max_tokens != null) body.generationConfig.maxOutputTokens = config.max_tokens;
+  return generationConfig;
+}
 
-  const thinkingBudget = resolveThinkingBudget(config.thinking_level);
-  if (thinkingBudget != null) body.generationConfig.thinkingConfig = { thinkingBudget, includeThoughts: true };
-
-  body.safetySettings = SAFETY_SETTINGS_OFF;
-  logRawRequest(body, config, config.callType || 'stream');
-  const resp = await fetch(url, {
+function postGemini(url, body, config) {
+  return fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
     signal: config.signal,
   });
+}
 
-  if (!resp.ok) {
-    const text = await resp.text().catch(() => '');
-    log.error('provider.http_error', formatMeta({ provider: 'gemini', status: resp.status, msg: text }));
-    const errSig = extractProviderErrorSignal(text, buildContextFromConfig(config, { phase: 'request_error' }));
-    if (errSig) await emitProviderSignal(config, errSig);
-    throw apiError(`Gemini API error: ${resp.status} ${text}`, resp.status);
+async function throwGeminiHttpError(resp, config) {
+  const text = await readHttpErrorText(resp, 'gemini');
+  const errSig = extractProviderErrorSignal(text, buildContextFromConfig(config, { phase: 'request_error' }));
+  if (errSig) await emitProviderSignal(config, errSig);
+  throw apiError(`Gemini API error: ${resp.status} ${text}`, resp.status);
+}
+
+/** 拼接响应里的文本 part；思考 part 包在 <think> 里 */
+function joinTextParts(data) {
+  const parts = data.candidates?.[0]?.content?.parts || [];
+  let result = '';
+  for (const part of parts) {
+    if (!part.text) continue;
+    result += part.thought ? `<think>${part.text}</think>\n` : part.text;
   }
+  return result;
+}
+
+export async function* streamGemini(messages, config) {
+  log.debug('provider.request', formatMeta({ provider: 'gemini', model: config.model, msgs: messages.length, mode: 'stream' }));
+  const body = await buildMessagesBody(messages, config, 'STREAM');
+  body.generationConfig = buildGenerationConfig(config, 'thoughts');
+  body.safetySettings = SAFETY_SETTINGS_OFF;
+  logRawRequest(body, config, config.callType || 'stream');
+  const resp = await postGemini(`${modelUrl(config, 'streamGenerateContent')}&alt=sse`, body, config);
+  if (!resp.ok) await throwGeminiHttpError(resp, config);
 
   let inThinking = false;
   let lastUsage = null;
@@ -177,49 +202,12 @@ export async function* streamGemini(messages, config) {
 
 export async function completeGemini(messages, config) {
   log.debug('provider.request', formatMeta({ provider: 'gemini', model: config.model, msgs: messages.length, mode: 'complete' }));
-  const baseUrl = getBaseUrl(config);
-  const model = (config.model || 'gemini-pro').replace(/^models\//, '');
-  const url = `${baseUrl}/v1beta/models/${model}:generateContent?key=${config.api_key}`;
-
-  let body = null;
-  if (shouldUseExplicitCache(config)) {
-    try {
-      const cached = await buildCachedRequestParts(messages, config);
-      if (cached) {
-        body = { contents: cached.contents, cachedContent: cached.cachedContent };
-      }
-    } catch (err) {
-      cacheLog.warn(`COMPLETE FALLBACK  ${err.message}`);
-    }
-  }
-  if (!body) {
-    const { contents, systemInstruction } = convertToGeminiContents(messages);
-    body = { contents };
-    if (systemInstruction) body.systemInstruction = systemInstruction;
-  }
-  body.generationConfig = {};
-  if (config.temperature != null) body.generationConfig.temperature = config.temperature;
-  if (config.max_tokens != null) body.generationConfig.maxOutputTokens = config.max_tokens;
-
-  const thinkingBudget = resolveThinkingBudget(config.thinking_level);
-  if (thinkingBudget != null) body.generationConfig.thinkingConfig = { thinkingBudget, includeThoughts: true };
-
+  const body = await buildMessagesBody(messages, config, 'COMPLETE');
+  body.generationConfig = buildGenerationConfig(config, 'thoughts');
   body.safetySettings = SAFETY_SETTINGS_OFF;
   logRawRequest(body, config, config.callType || 'complete');
-  const resp = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-    signal: config.signal,
-  });
-
-  if (!resp.ok) {
-    const text = await resp.text().catch(() => '');
-    log.error('provider.http_error', formatMeta({ provider: 'gemini', status: resp.status, msg: text }));
-    const errSig = extractProviderErrorSignal(text, buildContextFromConfig(config, { phase: 'request_error' }));
-    if (errSig) await emitProviderSignal(config, errSig);
-    throw apiError(`Gemini API error: ${resp.status} ${text}`, resp.status);
-  }
+  const resp = await postGemini(modelUrl(config, 'generateContent'), body, config);
+  if (!resp.ok) await throwGeminiHttpError(resp, config);
 
   let data;
   try {
@@ -234,56 +222,22 @@ export async function completeGemini(messages, config) {
     logGeminiUsage(config.model, data.usageMetadata);
     if (config.usageRef) recordTokenUsage(config.usageRef, data.usageMetadata, config.provider);
   }
-  const parts = data.candidates?.[0]?.content?.parts || [];
-  let result = '';
-  for (const part of parts) {
-    if (!part.text) continue;
-    result += part.thought ? `<think>${part.text}</think>\n` : part.text;
-  }
-  return result;
+  return joinTextParts(data);
 }
 
 // 内部 helper：直接用已转换的 nativeContents 调用 generateContent（跳过格式转换）
 async function completeGeminiFromNative(nativeContents, systemInstruction, config) {
-  const baseUrl = getBaseUrl(config);
-  const model = (config.model || 'gemini-pro').replace(/^models\//, '');
-  const url = `${baseUrl}/v1beta/models/${model}:generateContent?key=${config.api_key}`;
-
   const body = { contents: nativeContents };
   if (systemInstruction) body.systemInstruction = systemInstruction;
-  body.generationConfig = {};
-  if (config.temperature != null) body.generationConfig.temperature = config.temperature;
-  if (config.max_tokens != null) body.generationConfig.maxOutputTokens = config.max_tokens;
-
-  const thinkingBudget = resolveThinkingBudget(config.thinking_level);
-  if (thinkingBudget != null) body.generationConfig.thinkingConfig = { thinkingBudget };
-
+  body.generationConfig = buildGenerationConfig(config, 'budget');
   body.safetySettings = SAFETY_SETTINGS_OFF;
   logRawRequest(body, config, config.callType ? `${config.callType}:native` : 'complete-native');
-  const resp = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-    signal: config.signal,
-  });
-
-  if (!resp.ok) {
-    const text = await resp.text().catch(() => '');
-    log.error('provider.http_error', formatMeta({ provider: 'gemini', status: resp.status, msg: text }));
-    const errSig = extractProviderErrorSignal(text, buildContextFromConfig(config, { phase: 'request_error' }));
-    if (errSig) await emitProviderSignal(config, errSig);
-    throw apiError(`Gemini API error: ${resp.status} ${text}`, resp.status);
-  }
+  const resp = await postGemini(modelUrl(config, 'generateContent'), body, config);
+  if (!resp.ok) await throwGeminiHttpError(resp, config);
 
   const data = await resp.json();
   if (data.usageMetadata) logGeminiUsage(config.model, data.usageMetadata);
-  const parts = data.candidates?.[0]?.content?.parts || [];
-  let result = '';
-  for (const part of parts) {
-    if (!part.text) continue;
-    result += part.thought ? `<think>${part.text}</think>\n` : part.text;
-  }
-  return result;
+  return joinTextParts(data);
 }
 
 // Gemini 工具循环 4 原语适配器：保留原生 nativeContents 数组以避免
@@ -300,27 +254,15 @@ const geminiToolLoopProvider = {
   },
 
   async oneTurn(state, toolDefs, iter, config) {
-    const baseUrl = getBaseUrl(config);
-    const model = (config.model || 'gemini-pro').replace(/^models\//, '');
-    const url = `${baseUrl}/v1beta/models/${model}:generateContent?key=${config.api_key}`;
-
     const body = { contents: state.nativeContents, tools: toGeminiTools(toolDefs) };
     if (state.systemInstruction) body.systemInstruction = state.systemInstruction;
-    body.generationConfig = {};
-    if (config.temperature != null) body.generationConfig.temperature = config.temperature;
-    if (config.max_tokens != null) body.generationConfig.maxOutputTokens = config.max_tokens;
+    body.generationConfig = buildGenerationConfig(config, null);
     body.safetySettings = SAFETY_SETTINGS_OFF;
 
     logRawRequest(body, config, config.callType ? `${config.callType}:tools` : 'complete-tools');
-    const resp = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-      signal: config.signal,
-    });
+    const resp = await postGemini(modelUrl(config, 'generateContent'), body, config);
     if (!resp.ok) {
-      const text = await resp.text().catch(() => '');
-      log.error('provider.http_error', formatMeta({ provider: 'gemini', status: resp.status, msg: text }));
+      const text = await readHttpErrorText(resp, 'gemini');
       if (resp.status === 400 || resp.status === 422) return { kind: 'fallback' };
       throw apiError(`Gemini API error: ${resp.status} ${text}`, resp.status);
     }

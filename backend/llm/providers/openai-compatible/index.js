@@ -1,10 +1,11 @@
 import { getBaseUrl } from '../_shared/base-urls.js';
-import { apiError, parseSSE, extractProviderError } from '../_shared/fetch-utils.js';
+import { apiError, readHttpErrorText, parseSSE, extractProviderError } from '../_shared/fetch-utils.js';
 import { applyThinkingToOpenAICompatibleBody } from './thinking.js';
 import { recordTokenUsage } from '../_shared/cache-usage.js';
 import { logRawRequest } from '../../raw-logger.js';
 import { createLogger, formatMeta } from '../../../utils/logger.js';
 import { runToolLoop } from '../../tool-loop-control.js';
+import { appendOpenAIToolTurn, parseOpenAIToolCalls } from '../_shared/converters.js';
 import {
   extractOpenAICompatibleSignal,
   extractProviderErrorSignal,
@@ -105,6 +106,22 @@ function applyGlmCompatibilityOptions(body, config) {
   if (body.top_p == null) body.top_p = 0.95;
 }
 
+function postOpenAICompatible(url, body, config) {
+  return fetch(url, {
+    method: 'POST',
+    headers: buildOpenAICompatibleHeaders(config),
+    body: JSON.stringify(body),
+    signal: config.signal,
+  });
+}
+
+async function throwOpenAICompatibleHttpError(resp, config) {
+  const text = await readHttpErrorText(resp, config.provider || 'openai');
+  const errSignal = extractProviderErrorSignal(text, buildContextFromConfig(config, { phase: 'request_error' }));
+  if (errSignal) await emitProviderSignal(config, errSignal);
+  throw apiError(`${config.provider} API error: ${resp.status} ${text}`, resp.status);
+}
+
 export async function* streamOpenAICompatible(messages, config) {
   log.debug('provider.request', formatMeta({ provider: config.provider || 'openai', model: config.model, msgs: messages.length, mode: 'stream' }));
   const baseUrl = getBaseUrl(config);
@@ -131,20 +148,8 @@ export async function* streamOpenAICompatible(messages, config) {
   if (thinkingState !== 'enabled') body.temperature = config.temperature;
 
   logRawRequest(body, config, config.callType || 'stream');
-  const resp = await fetch(url, {
-    method: 'POST',
-    headers: buildOpenAICompatibleHeaders(config),
-    body: JSON.stringify(body),
-    signal: config.signal,
-  });
-
-  if (!resp.ok) {
-    const text = await resp.text().catch(() => '');
-    log.error('provider.http_error', formatMeta({ provider: config.provider || 'openai', status: resp.status, msg: text }));
-    const errSignal = extractProviderErrorSignal(text, buildContextFromConfig(config, { phase: 'request_error' }));
-    if (errSignal) await emitProviderSignal(config, errSignal);
-    throw apiError(`${config.provider} API error: ${resp.status} ${text}`, resp.status);
-  }
+  const resp = await postOpenAICompatible(url, body, config);
+  if (!resp.ok) await throwOpenAICompatibleHttpError(resp, config);
 
   const contentType = resp.headers.get('content-type') || '';
   if (contentType.includes('application/json')) {
@@ -215,20 +220,8 @@ export async function completeOpenAICompatible(messages, config) {
   if (thinkingState !== 'enabled') body.temperature = config.temperature;
 
   logRawRequest(body, config, config.callType || 'complete');
-  const resp = await fetch(url, {
-    method: 'POST',
-    headers: buildOpenAICompatibleHeaders(config),
-    body: JSON.stringify(body),
-    signal: config.signal,
-  });
-
-  if (!resp.ok) {
-    const text = await resp.text().catch(() => '');
-    log.error('provider.http_error', formatMeta({ provider: config.provider || 'openai', status: resp.status, msg: text }));
-    const errSignal = extractProviderErrorSignal(text, buildContextFromConfig(config, { phase: 'request_error' }));
-    if (errSignal) await emitProviderSignal(config, errSignal);
-    throw apiError(`${config.provider} API error: ${resp.status} ${text}`, resp.status);
-  }
+  const resp = await postOpenAICompatible(url, body, config);
+  if (!resp.ok) await throwOpenAICompatibleHttpError(resp, config);
 
   let data;
   try {
@@ -280,16 +273,10 @@ const openaiCompatibleToolLoopProvider = {
 
     logRawRequest(body, config, config.callType ? `${config.callType}:tools` : 'complete-tools');
 
-    const resp = await fetch(url, {
-      method: 'POST',
-      headers: buildOpenAICompatibleHeaders(config),
-      body: JSON.stringify(body),
-      signal: config.signal,
-    });
+    const resp = await postOpenAICompatible(url, body, config);
 
     if (!resp.ok) {
-      const text = await resp.text().catch(() => '');
-      log.error('provider.http_error', formatMeta({ provider: config.provider || 'openai', status: resp.status, msg: text }));
+      const text = await readHttpErrorText(resp, config.provider || 'openai');
       // 400/422 退到无工具补全
       if (resp.status === 400 || resp.status === 422) return { kind: 'fallback' };
       throw apiError(`${config.provider} API error: ${resp.status} ${text}`, resp.status);
@@ -312,16 +299,7 @@ const openaiCompatibleToolLoopProvider = {
     }
 
     // 工具调用: tool args JSON 字符串 → 对象, runToolLoop 内部以 fn(call.arguments) 调用 handler
-    const toolCalls = message.tool_calls.map((tc) => {
-      let parsedArgs;
-      try { parsedArgs = JSON.parse(tc.function?.arguments || '{}'); }
-      catch { parsedArgs = {}; }
-      return {
-        id: tc.id,
-        name: tc.function?.name,
-        arguments: parsedArgs,
-      };
-    });
+    const toolCalls = parseOpenAIToolCalls(message.tool_calls);
 
     // assistantBlock 保留 OpenAI 原生 tool_calls 结构 + reasoning_content 透传到下一轮
     const assistantBlock = { role: 'assistant', content: message.content || null, tool_calls: message.tool_calls };
@@ -330,16 +308,7 @@ const openaiCompatibleToolLoopProvider = {
     return { kind: 'tools', toolCalls, assistantBlock };
   },
 
-  appendToolTurn(state, turn, results) {
-    const toolMessages = turn.toolCalls.map((c, i) => ({
-      role: 'tool',
-      tool_call_id: c.id,
-      content: results[i],
-    }));
-    return {
-      messages: [...state.messages, turn.assistantBlock, ...toolMessages],
-    };
-  },
+  appendToolTurn: appendOpenAIToolTurn,
 
   completeNoTools(state, config) {
     return completeOpenAICompatible(state.messages, config);

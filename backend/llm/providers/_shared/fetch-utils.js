@@ -1,5 +1,9 @@
 // 跨 provider 共用的 fetch / SSE / 错误处理 / data URL 解析等纯工具。
 
+import { createLogger, formatMeta } from '../../../utils/logger.js';
+
+const log = createLogger('llm', 'magenta');
+
 /** 解析 data URL → { mimeType, data } */
 export function parseDataUrl(dataUrl) {
   const m = dataUrl.match(/^data:([^;]+);base64,(.+)$/s);
@@ -94,4 +98,11 @@ export function extractProviderError(data) {
   if (data.error?.message) return data.error.message;
   if (typeof data.message === 'string' && (data.code || data.status)) return data.message;
   return null;
+}
+
+/** 读取 HTTP 失败响应的正文并记 error 日志，返回正文 */
+export async function readHttpErrorText(resp, provider) {
+  const text = await resp.text().catch(() => '');
+  log.error('provider.http_error', formatMeta({ provider, status: resp.status, msg: text }));
+  return text;
 }

@@ -11,6 +11,7 @@ import {
 } from '../../../utils/constants.js';
 import { applyThinkingToOpenAICompatibleBody } from '../openai-compatible/thinking.js';
 import { runToolLoop } from '../../tool-loop-control.js';
+import { appendOpenAIToolTurn, parseOpenAIToolCalls } from '../_shared/converters.js';
 import { emitProviderSignal, buildContextFromConfig, hashText } from '../_shared/provider-safety-signals.js';
 import crypto from 'node:crypto';
 
@@ -81,6 +82,12 @@ async function* parseSSE(body) {
   }
 }
 
+async function throwLocalHttpError(resp, config) {
+  const body = await resp.text().catch(() => '');
+  await emitProviderSignal(config, makeLocalErrorSignal(config, resp.status, body, 'request_error'));
+  throw apiError(`${config.provider} API error: ${resp.status} ${body}`, resp.status);
+}
+
 export async function* streamChat(messages, config) {
   const baseUrl = getBaseUrl(config);
   const url = `${baseUrl}/v1/chat/completions`;
@@ -92,11 +99,7 @@ export async function* streamChat(messages, config) {
     signal: config.signal,
   });
 
-  if (!resp.ok) {
-    const body = await resp.text().catch(() => '');
-    await emitProviderSignal(config, makeLocalErrorSignal(config, resp.status, body, 'request_error'));
-    throw apiError(`${config.provider} API error: ${resp.status} ${body}`, resp.status);
-  }
+  if (!resp.ok) await throwLocalHttpError(resp, config);
 
   let inThinking = false;
   for await (const data of parseSSE(resp.body)) {
@@ -143,11 +146,7 @@ export async function complete(messages, config) {
     signal: config.signal,
   });
 
-  if (!resp.ok) {
-    const body = await resp.text().catch(() => '');
-    await emitProviderSignal(config, makeLocalErrorSignal(config, resp.status, body, 'request_error'));
-    throw apiError(`${config.provider} API error: ${resp.status} ${body}`, resp.status);
-  }
+  if (!resp.ok) await throwLocalHttpError(resp, config);
 
   const data = await resp.json();
   return withReasoning(data.choices?.[0]?.message);
@@ -191,16 +190,7 @@ const ollamaToolLoopProvider = {
       return { kind: 'text', text: withReasoning(message) };
     }
 
-    const toolCalls = message.tool_calls.map((tc) => {
-      let parsedArgs;
-      try { parsedArgs = JSON.parse(tc.function?.arguments || '{}'); }
-      catch { parsedArgs = {}; }
-      return {
-        id: tc.id,
-        name: tc.function?.name,
-        arguments: parsedArgs,
-      };
-    });
+    const toolCalls = parseOpenAIToolCalls(message.tool_calls);
 
     // assistantBlock 保留 OpenAI 原生格式,直接回写到 messages 数组
     const assistantBlock = {
@@ -212,16 +202,7 @@ const ollamaToolLoopProvider = {
     return { kind: 'tools', toolCalls, assistantBlock };
   },
 
-  appendToolTurn(state, turn, results) {
-    const toolMessages = turn.toolCalls.map((c, i) => ({
-      role: 'tool',
-      tool_call_id: c.id,
-      content: results[i],
-    }));
-    return {
-      messages: [...state.messages, turn.assistantBlock, ...toolMessages],
-    };
-  },
+  appendToolTurn: appendOpenAIToolTurn,
 
   completeNoTools(state, config) {
     return complete(state.messages, config);

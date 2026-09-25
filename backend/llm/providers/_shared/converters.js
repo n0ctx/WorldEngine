@@ -1,5 +1,10 @@
 import { parseDataUrl, safeParseJson } from './fetch-utils.js';
 
+/** 字符串 content 原样返回；part 数组拼接各 part 的文本 */
+function contentText(content) {
+  return typeof content === 'string' ? content : (content || []).map((p) => p.text || '').join('');
+}
+
 /**
  * 内部格式 → Anthropic Messages API 格式
  * system 消息提取到顶层，content 数组转 Anthropic block 格式
@@ -12,7 +17,7 @@ export function convertToAnthropicMessages(messages) {
     const msg = messages[i];
 
     if (msg.role === 'system') {
-      const text = typeof msg.content === 'string' ? msg.content : (msg.content || []).map((p) => p.text || '').join('');
+      const text = contentText(msg.content);
       if (text) systemParts.push(text);
       continue;
     }
@@ -91,7 +96,7 @@ export function convertToGeminiContents(messages) {
     const msg = messages[i];
 
     if (msg.role === 'system') {
-      const text = typeof msg.content === 'string' ? msg.content : (msg.content || []).map((p) => p.text || '').join('');
+      const text = contentText(msg.content);
       if (text) systemParts.push(text);
       continue;
     }
@@ -154,4 +159,25 @@ function convertContentToGemini(content) {
     }
     return { text: '' };
   });
+}
+
+/** OpenAI 格式的 tool_calls → 工具循环用的 { id, name, arguments }；arguments 解析失败时为 {} */
+export function parseOpenAIToolCalls(toolCalls) {
+  return toolCalls.map((tc) => ({
+    id: tc.id,
+    name: tc.function?.name,
+    arguments: safeParseJson(tc.function?.arguments || '{}'),
+  }));
+}
+
+/** 工具循环：按 OpenAI 格式把 assistant 块和各工具结果追加到消息列表 */
+export function appendOpenAIToolTurn(state, turn, results) {
+  const toolMessages = turn.toolCalls.map((c, i) => ({
+    role: 'tool',
+    tool_call_id: c.id,
+    content: results[i],
+  }));
+  return {
+    messages: [...state.messages, turn.assistantBlock, ...toolMessages],
+  };
 }

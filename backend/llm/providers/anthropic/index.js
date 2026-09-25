@@ -1,5 +1,5 @@
 import { getBaseUrl } from '../_shared/base-urls.js';
-import { apiError, parseSSE } from '../_shared/fetch-utils.js';
+import { apiError, readHttpErrorText, parseSSE } from '../_shared/fetch-utils.js';
 import { resolveThinkingBudget } from '../_shared/thinking-budget.js';
 import { convertToAnthropicMessages } from '../_shared/converters.js';
 import { recordTokenUsage } from '../_shared/cache-usage.js';
@@ -128,9 +128,49 @@ async function processAnthropicMetadataEvent(event, data, config, lastUsage) {
   return lastUsage;
 }
 
-async function throwAnthropicStreamHttpError(resp, config) {
-  const text = await resp.text().catch(() => '');
-  log.error('provider.http_error', formatMeta({ provider: 'anthropic', status: resp.status, msg: text }));
+function messagesUrl(config) {
+  return `${getBaseUrl(config)}/v1/messages`;
+}
+
+/** stream / complete 共用的请求体与请求头（含 thinking / Kimi reasoning_effort 与 beta 头） */
+function buildMessagesRequest(messages, config, { stream }) {
+  const { system, messages: converted } = convertToAnthropicMessages(messages);
+  const kimiEffort = resolveKimiCodingEffort(config.provider, config.thinking_level);
+  const budgetTokens = config.provider === 'kimi-coding' ? null : resolveThinkingBudget(config.thinking_level);
+  const body = {
+    model: config.model,
+    messages: converted,
+    max_tokens: config.max_tokens || 4096,
+  };
+  if (stream) body.stream = true;
+  // extended thinking 不兼容 temperature(必须为 1),有 thinking 时不传 temperature
+  if (!budgetTokens && !kimiEffort && config.temperature != null) body.temperature = config.temperature;
+  if (budgetTokens) body.thinking = { type: 'enabled', budget_tokens: budgetTokens };
+  if (kimiEffort) body.reasoning_effort = kimiEffort;
+  if (system) body.system = withCacheControl(system, config);
+
+  const betas = [ANTHROPIC_PROMPT_CACHING_BETA];
+  if (budgetTokens) betas.push('interleaved-thinking-2025-05-14');
+  const headers = {
+    'Content-Type': 'application/json',
+    'x-api-key': config.api_key,
+    'anthropic-version': ANTHROPIC_API_VERSION,
+    'anthropic-beta': betas.join(','),
+  };
+  return { body, headers };
+}
+
+/** stream / complete 共用：发出请求，HTTP 失败时抛错 */
+async function postMessages(messages, config, { stream }) {
+  const { body, headers } = buildMessagesRequest(messages, config, { stream });
+  logRawRequest(body, config, config.callType || (stream ? 'stream' : 'complete'));
+  const resp = await fetch(messagesUrl(config), { method: 'POST', headers, body: JSON.stringify(body), signal: config.signal });
+  if (!resp.ok) await throwAnthropicHttpError(resp, config);
+  return resp;
+}
+
+async function throwAnthropicHttpError(resp, config) {
+  const text = await readHttpErrorText(resp, 'anthropic');
   const errSignal = extractProviderErrorSignal(text, buildContextFromConfig(config, { phase: 'request_error' }));
   if (errSignal) await emitProviderSignal(config, errSignal);
   throw apiError(`Anthropic API error: ${resp.status} ${text}`, resp.status);
@@ -138,39 +178,7 @@ async function throwAnthropicStreamHttpError(resp, config) {
 
 export async function* streamAnthropic(messages, config) {
   log.debug('provider.request', formatMeta({ provider: 'anthropic', model: config.model, msgs: messages.length, mode: 'stream' }));
-  const baseUrl = getBaseUrl(config);
-  const url = `${baseUrl}/v1/messages`;
-  const { system, messages: converted } = convertToAnthropicMessages(messages);
-
-  const kimiEffort = resolveKimiCodingEffort(config.provider, config.thinking_level);
-  const budgetTokens = config.provider === 'kimi-coding' ? null : resolveThinkingBudget(config.thinking_level);
-  const body = {
-    model: config.model,
-    messages: converted,
-    max_tokens: config.max_tokens || 4096,
-    stream: true,
-  };
-  // extended thinking 不兼容 temperature(必须为 1),有 thinking 时不传 temperature
-  if (!budgetTokens && !kimiEffort && config.temperature != null) body.temperature = config.temperature;
-  if (budgetTokens) body.thinking = { type: 'enabled', budget_tokens: budgetTokens };
-  if (kimiEffort) body.reasoning_effort = kimiEffort;
-  if (system) body.system = withCacheControl(system, config);
-
-  const headers = {
-    'Content-Type': 'application/json',
-    'x-api-key': config.api_key,
-    'anthropic-version': ANTHROPIC_API_VERSION,
-  };
-  const betas = [ANTHROPIC_PROMPT_CACHING_BETA];
-  if (budgetTokens) betas.push('interleaved-thinking-2025-05-14');
-  headers['anthropic-beta'] = betas.join(',');
-
-  logRawRequest(body, config, config.callType || 'stream');
-  const resp = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body), signal: config.signal });
-
-  if (!resp.ok) {
-    await throwAnthropicStreamHttpError(resp, config);
-  }
+  const resp = await postMessages(messages, config, { stream: true });
 
   let inThinkingBlock = false;
   let lastUsage = null;
@@ -214,41 +222,7 @@ export async function* streamAnthropic(messages, config) {
 
 export async function completeAnthropic(messages, config) {
   log.debug('provider.request', formatMeta({ provider: 'anthropic', model: config.model, msgs: messages.length, mode: 'complete' }));
-  const baseUrl = getBaseUrl(config);
-  const url = `${baseUrl}/v1/messages`;
-  const { system, messages: converted } = convertToAnthropicMessages(messages);
-
-  const kimiEffort = resolveKimiCodingEffort(config.provider, config.thinking_level);
-  const budgetTokens = config.provider === 'kimi-coding' ? null : resolveThinkingBudget(config.thinking_level);
-  const body = {
-    model: config.model,
-    messages: converted,
-    max_tokens: config.max_tokens || 4096,
-  };
-  if (!budgetTokens && !kimiEffort && config.temperature != null) body.temperature = config.temperature;
-  if (budgetTokens) body.thinking = { type: 'enabled', budget_tokens: budgetTokens };
-  if (kimiEffort) body.reasoning_effort = kimiEffort;
-  if (system) body.system = withCacheControl(system, config);
-
-  const headers = {
-    'Content-Type': 'application/json',
-    'x-api-key': config.api_key,
-    'anthropic-version': ANTHROPIC_API_VERSION,
-  };
-  const betasC = [ANTHROPIC_PROMPT_CACHING_BETA];
-  if (budgetTokens) betasC.push('interleaved-thinking-2025-05-14');
-  headers['anthropic-beta'] = betasC.join(',');
-
-  logRawRequest(body, config, config.callType || 'complete');
-  const resp = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body), signal: config.signal });
-
-  if (!resp.ok) {
-    const text = await resp.text().catch(() => '');
-    log.error('provider.http_error', formatMeta({ provider: 'anthropic', status: resp.status, msg: text }));
-    const errSignal = extractProviderErrorSignal(text, buildContextFromConfig(config, { phase: 'request_error' }));
-    if (errSignal) await emitProviderSignal(config, errSignal);
-    throw apiError(`Anthropic API error: ${resp.status} ${text}`, resp.status);
-  }
+  const resp = await postMessages(messages, config, { stream: false });
 
   let data;
   try {
@@ -282,8 +256,7 @@ const anthropicToolLoopProvider = {
   },
 
   async oneTurn(state, toolDefs, _iter, config) {
-    const baseUrl = getBaseUrl(config);
-    const url = `${baseUrl}/v1/messages`;
+    const url = messagesUrl(config);
     const headers = {
       'Content-Type': 'application/json',
       'x-api-key': config.api_key,
@@ -306,8 +279,7 @@ const anthropicToolLoopProvider = {
     logRawRequest(body, config, config.callType ? `${config.callType}:tools` : 'complete-tools');
     const resp = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body), signal: config.signal });
     if (!resp.ok) {
-      const text = await resp.text().catch(() => '');
-      log.error('provider.http_error', formatMeta({ provider: 'anthropic', status: resp.status, msg: text }));
+      const text = await readHttpErrorText(resp, 'anthropic');
       // 400/422 退到无工具补全
       if (resp.status === 400 || resp.status === 422) return { kind: 'fallback' };
       throw apiError(`Anthropic API error: ${resp.status} ${text}`, resp.status);
