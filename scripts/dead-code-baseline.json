@@ -1,45 +1,15 @@
 {
   "version": 1,
-  "files": [
-    "desktop/src/preload.js",
-    "frontend/src/shells/template/index.js",
-    "hooks/examples/inject-post-gen-task.example.js",
-    "hooks/examples/on-message-saved.example.js",
-    "hooks/examples/on-queue-task-event.example.js"
-  ],
+  "files": [],
   "exports": [
     "backend/db/queries/world-state-values.js#clearWorldStateRuntimeValues",
     "backend/db/queries/world-state-values.js#getWorldStateValue",
-    "backend/utils/logger.js#getLogMode",
-    "backend/utils/logger.js#previewJson",
-    "frontend/src/components/index.js#AvatarCircle",
-    "frontend/src/components/index.js#Badge",
-    "frontend/src/components/index.js#Button",
-    "frontend/src/components/index.js#Card",
-    "frontend/src/components/index.js#FieldLabel",
-    "frontend/src/components/index.js#FormGroup",
-    "frontend/src/components/index.js#Icon",
-    "frontend/src/components/index.js#Input",
-    "frontend/src/components/index.js#MarkdownEditor",
-    "frontend/src/components/index.js#ModalShell",
-    "frontend/src/components/index.js#ModelCombobox",
-    "frontend/src/components/index.js#PanelCard",
-    "frontend/src/components/index.js#Range",
-    "frontend/src/components/index.js#SectionTabs",
-    "frontend/src/components/index.js#Select",
-    "frontend/src/components/index.js#SortableGrid",
-    "frontend/src/components/index.js#Textarea",
-    "frontend/src/components/index.js#ToastCard",
-    "frontend/src/components/index.js#ToggleSwitch",
-    "frontend/src/core/features/assistant/index.js#useAssistantStore",
     "frontend/src/pages/layout/PageLayout.jsx#HeaderSlot",
     "frontend/src/pages/layout/PageLayout.jsx#InspectorSlot",
     "frontend/src/pages/layout/PageLayout.jsx#LeftSidebarSlot",
     "frontend/src/pages/layout/PageLayout.jsx#MainContentSlot",
     "frontend/src/pages/layout/PageLayout.jsx#OverlayLayer",
     "frontend/src/pages/layout/PageLayout.jsx#RightSidebarSlot",
-    "frontend/src/pages/layout/PageLayout.jsx#TransitionContainer",
-    "frontend/src/shells/book-spread/index.js#AppShell",
-    "frontend/src/shells/book-spread/index.js#shellId"
+    "frontend/src/pages/layout/PageLayout.jsx#TransitionContainer"
   ]
 }

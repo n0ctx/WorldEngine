@@ -13,6 +13,7 @@
  * @param {{ user?: string, char?: string, world?: string }} ctx  替换上下文
  * @returns {string|null|undefined}
  */
+// guard-allow(duplication): backend/utils/template-vars.js 的前端镜像，替换规则必须逐字一致
 export function applyTemplateVars(text, ctx = {}) {
   if (text == null) return text;
   let out = typeof text === 'string' ? text : String(text);

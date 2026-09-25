@@ -36,3 +36,13 @@ test('历史超标文件相对基线明显增长失败', () => {
   assert.equal(result.status, 1);
   assert.match(result.stdout, /FAIL 文件[^\n]*\n- backend\/legacy\.js/);
 });
+
+test('内联回调不计入定义数，测试文件里 test / describe 的回调不算最大函数', () => {
+  const root = fixture();
+  write(root, 'backend/callbacks.js', `export function run(items) {\n${
+    Array.from({ length: 60 }, (_, i) => `  items.map((x) => x + ${i});`).join('\n')}\n}\n`);
+  write(root, 'backend/tests/long.test.js', `describe('suite', () => {\n${
+    Array.from({ length: 320 }, (_, i) => `  const v${i} = ${i};`).join('\n')}\n  it('ok', () => {});\n});\n`);
+  const result = run(root);
+  assert.equal(result.status, 0, result.stdout);
+});

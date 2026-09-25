@@ -136,13 +136,6 @@
         "frontend/src/core/hooks/useSettingsDiaryConfig.js:29-37"
       ]
     },
-    "53dd49676e0ff469": {
-      "tokens": 75,
-      "locations": [
-        "backend/db/schema.js:740-743",
-        "backend/db/schema.js:747-750"
-      ]
-    },
     "57bf6f365cf8f334": {
       "tokens": 42,
       "locations": [
@@ -171,13 +164,6 @@
         "backend/llm/providers/mock/index.js:113-118"
       ]
     },
-    "5c69fc1f8d25a2fd": {
-      "tokens": 54,
-      "locations": [
-        "backend/db/schema.js:1035-1043",
-        "backend/db/schema.js:1054-1062"
-      ]
-    },
     "5f58aec9e99ce1a9": {
       "tokens": 41,
       "locations": [
@@ -196,8 +182,8 @@
     "6edb08cf7241ca11": {
       "tokens": 40,
       "locations": [
-        "backend/services/import-export.js:755-757",
-        "backend/services/import-export.js:764-766"
+        "backend/services/import-export.js:756-758",
+        "backend/services/import-export.js:765-767"
       ]
     },
     "70829e14b49c934b": {
@@ -205,13 +191,6 @@
       "locations": [
         "frontend/src/components/state/StateFieldList.jsx:196-204",
         "frontend/src/components/ui/ConfirmModal.jsx:25-34"
-      ]
-    },
-    "74a7d3f6a9350f36": {
-      "tokens": 45,
-      "locations": [
-        "backend/utils/chapter-detector.js:17-22",
-        "frontend/src/core/utils/chapter-grouping.js:11-16"
       ]
     },
     "79f5fa016c8e29d5": {
@@ -283,13 +262,6 @@
       "locations": [
         "backend/routes/session-state-values.js:48-51",
         "backend/routes/sessions.js:139-144"
-      ]
-    },
-    "9af638e3a6a3ea2e": {
-      "tokens": 72,
-      "locations": [
-        "backend/utils/template-vars.js:21-24",
-        "frontend/src/core/utils/template-vars.js:20-23"
       ]
     },
     "9da04639ad246588": {
@@ -382,9 +354,7 @@
       "tokens": 56,
       "locations": [
         "backend/utils/turn-dialogue.js:49-55",
-        "backend/utils/turn-dialogue.js:92-98",
-        "frontend/src/core/utils/next-prompt.js:17-23",
-        "frontend/src/core/utils/next-prompt.js:57-63"
+        "backend/utils/turn-dialogue.js:92-98"
       ]
     },
     "dbe9702377e96c60": {
@@ -406,13 +376,6 @@
       "locations": [
         "backend/llm/providers/_shared/converters.js:17-23",
         "backend/llm/providers/_shared/converters.js:96-102"
-      ]
-    },
-    "ef64952370384b4e": {
-      "tokens": 100,
-      "locations": [
-        "backend/utils/turn-dialogue.js:128-138",
-        "frontend/src/core/utils/next-prompt.js:92-102"
       ]
     },
     "f1894470420479ca": {

@@ -210,6 +210,7 @@ function insertImportedPromptEntries(worldId, entries, now) {
   `);
   const entryIds = insertPromptEntries(insertEntry, worldId, entries, now);
 
+  // guard-allow(perf-shape): 导入时逐条目替换条件，只在导入世界卡时执行
   for (let i = 0; i < entries.length; i++) {
     const entry = entries[i];
     if (entry.trigger_type !== 'state' || !Array.isArray(entry.conditions) || entry.conditions.length === 0) continue;

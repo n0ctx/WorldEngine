@@ -9,6 +9,7 @@ const NEXT_CLOSE = '</next_prompt>';
 // 两种模式都返回 spans = [{ srcStart, length, dstStart }],供 parseNextPromptStream 把 cleaned
 // 偏移精确反推回原文偏移;避免老 findRawAnchor 对 prefix 再次 strip 与 full 的模式不一致(full=boolean
 // + prefix=stack)导致长度对不上、display 退回 raw 把 <next_prompt> 字面标签泄漏到聊天气泡的 bug。
+// guard-allow(duplication): backend/utils/turn-dialogue.js 的前端镜像，think 块剥除与偏移反推必须逐字一致
 function stackStrip(source, keepOpen = false) {
   const spans = [];
   let out = '';
@@ -49,6 +50,7 @@ function stackStrip(source, keepOpen = false) {
   return { stripped: out, spans };
 }
 
+// guard-allow(duplication): backend/utils/turn-dialogue.js 的前端镜像，think 块剥除与偏移反推必须逐字一致
 function booleanStrip(source) {
   const spans = [];
   let out = '';
@@ -89,6 +91,7 @@ function scanStrip(text, isStreaming = false) {
   return stackStrip(source) ?? booleanStrip(source);
 }
 
+// guard-allow(duplication): backend/utils/turn-dialogue.js 的前端镜像，think 块剥除与偏移反推必须逐字一致
 function mapStrippedToSrc(spans, dstIdx) {
   if (dstIdx < 0) return -1;
   for (const sp of spans) {

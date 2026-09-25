@@ -5,8 +5,8 @@
  * 移植自 casim 的 tools/context_budget.py，指标与阈值保持一致。
  * 代码文件（.js/.jsx/.mjs/.cjs）指标：
  *   file_tokens           文件 token 数（正则近似，CJK 单字 / 标识符 / 数字 / 符号各计 1）
- *   largest_function      最大函数行数（espree AST）
- *   function_class_count  文件内函数 + 类数量
+ *   largest_function      最大函数行数（espree AST）；测试文件里 test / describe 等的回调是测试用例，不算函数
+ *   function_class_count  文件内有名字的函数 + 类数量；内联回调（(x) => …）不是可独立导航的定义，不计
  *   internal_dependencies 仓内跨文件依赖数（相对路径 import/require 解析到实际文件）
  * 文档（.md/.txt）指标：
  *   document_tokens / document_loc           整篇 token 数 / 行数
@@ -37,7 +37,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // --root 可改为扫描别的目录（守卫自身的夹具测试用）
 let ROOT = path.resolve(__dirname, '..');
 const DEFAULT_BASELINE = path.join('scripts', 'context-budget-baseline.json');
-const ALGORITHM_VERSION = 1;
+const ALGORITHM_VERSION = 2;
 
 const CODE_SUFFIXES = new Set(['.js', '.jsx', '.mjs', '.cjs']);
 const DOC_SUFFIXES = new Set(['.md', '.txt']);
@@ -203,6 +203,19 @@ function functionName(node, parent) {
   return '(匿名)';
 }
 
+const TEST_FILE_RE = /(^|\/)(tests|__tests__)\/|\.(test|spec)\.[^./]+$/;
+const TEST_BLOCKS = new Set(['test', 'it', 'describe', 'before', 'after', 'beforeEach', 'afterEach', 'beforeAll', 'afterAll']);
+
+// test(...) / it.skip(...) / describe.each(...)(...) 的回调
+function isTestBlockCallback(node, parent) {
+  if (parent?.type !== 'CallExpression' || !parent.arguments.includes(node)) return false;
+  let callee = parent.callee;
+  while (callee.type === 'CallExpression' || callee.type === 'MemberExpression') {
+    callee = callee.type === 'CallExpression' ? callee.callee : callee.object;
+  }
+  return callee.type === 'Identifier' && TEST_BLOCKS.has(callee.name);
+}
+
 function parseCode(text, rel) {
   const errors = [];
   for (const sourceType of ['module', 'script']) {
@@ -247,14 +260,11 @@ function codeInfo(rel, fileSet) {
   const functions = [];
   let classCount = 0;
   const dependencies = new Set();
+  const isTestFile = TEST_FILE_RE.test(rel);
   for (const [node, parent] of walk(tree)) {
     if (FUNCTION_TYPES.has(node.type)) {
-      // MethodDefinition / Property 的函数值只计一次（在父节点处命名）
-      if ((parent?.type === 'MethodDefinition' || parent?.type === 'Property') && parent.value === node) {
-        functions.push({ name: functionName(node, parent), loc: node.loc.end.line - node.loc.start.line + 1 });
-        continue;
-      }
-      if (parent?.type === 'MethodDefinition') continue;
+      if (parent?.type === 'MethodDefinition' && parent.value !== node) continue;
+      if (isTestFile && isTestBlockCallback(node, parent)) continue;
       functions.push({ name: functionName(node, parent), loc: node.loc.end.line - node.loc.start.line + 1 });
     } else if (CLASS_TYPES.has(node.type)) {
       classCount += 1;
@@ -272,7 +282,7 @@ function codeInfo(rel, fileSet) {
 
   const largest = functions.reduce((a, b) => (b.loc > a.loc ? b : a), { name: null, loc: 0 });
   metrics.largest_function = largest.loc;
-  metrics.function_class_count = functions.length + classCount;
+  metrics.function_class_count = functions.filter((fn) => fn.name !== '(匿名)').length + classCount;
   metrics.internal_dependencies = dependencies.size;
   return {
     path: rel,

@@ -130,6 +130,7 @@ function importLegacySidecars() {
     return;
   }
   let imported = 0;
+  // guard-allow(perf-shape): 旧版 sidecar 一次性导入，导入后不再执行
   for (const row of rows) {
     const task = hydrateTask({
       ...row,

@@ -7,6 +7,7 @@ import { CHAPTER_MESSAGE_SIZE, resolveChapterMessageSize } from './constants.js'
  * @param {number} [chapterTurnSize]  每章轮数；省略时使用默认 CHAPTER_TURN_SIZE
  * @returns {Array<{chapterIndex: number, messages: Array}>}
  */
+// guard-allow(duplication): 与 backend/utils/chapter-detector.js 同一算法，前后端分章必须逐字一致
 export function groupMessagesIntoChapters(messages, chapterTurnSize) {
   if (!messages || messages.length === 0) return [];
   const threshold = chapterTurnSize == null ? CHAPTER_MESSAGE_SIZE : resolveChapterMessageSize(chapterTurnSize);

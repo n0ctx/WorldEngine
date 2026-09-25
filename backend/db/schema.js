@@ -664,6 +664,7 @@ function migrateWorldAppearanceSchema(db) {
  * 回填其世界的 active_persona_id；active 为 NULL 时回退到该世界最早创建的 persona。
  * 没有任何 persona 的世界保持 NULL（后续会被自然清理或拒绝写入）。
  */
+// guard-allow(perf-shape): 一次性数据迁移，由 internal_meta 标记保证只跑一次
 function migrateBackfillWritingSessionPersonaId(db) {
   const key = 'migration:writing_session_persona_id_backfill';
   if (db.prepare('SELECT value FROM internal_meta WHERE key = ?').get(key)?.value === '1') return;
@@ -727,6 +728,8 @@ function migrateBackfillWritingSessionPersonaId(db) {
  * "YYYY-MM-DDTHH:mm"（4 位年份补零）。无法解析的值置 NULL。
  * 同时把 world_state_fields.type 由 'text' 修正为 'datetime'。
  */
+// guard-allow(perf-shape): 一次性数据迁移，由 internal_meta 标记保证只跑一次
+// guard-allow(duplication): 已上线的迁移冻结不改，三张表的同形转换保持原样
 function migrateDiaryTimeToIso(db) {
   const key = 'migration:diary_time_to_iso_datetime';
   if (db.prepare('SELECT value FROM internal_meta WHERE key = ?').get(key)?.value === '1') return;
@@ -1043,6 +1046,7 @@ function migrateWorldsBackfillSortOrder(db) {
   tx();
 }
 
+// guard-allow(duplication): 已上线的迁移冻结不改，与 migrateWorldsBackfillSortOrder 同形
 function migratePersonasBackfillSortOrder(db) {
   const key = 'migration:personas_backfill_sort_order';
   const applied = db.prepare('SELECT value FROM internal_meta WHERE key = ?').get(key);

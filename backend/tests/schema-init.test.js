@@ -45,6 +45,7 @@ test('initSchema upgrades legacy sessions and recreates their indexes', () => {
   `);
 
   try {
+    // guard-allow(tests): 连续执行两次，验证 initSchema 重复执行不出错
     initSchema(db);
     initSchema(db);
 

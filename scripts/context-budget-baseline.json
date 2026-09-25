@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "token_algorithm": "regex-v1",
   "files": {
     "AGENTS.md": {
@@ -38,7 +38,7 @@
       "metrics": {
         "file_tokens": 1350,
         "largest_function": 41,
-        "function_class_count": 13,
+        "function_class_count": 10,
         "internal_dependencies": 1
       },
       "largest_function_name": "consumeSseResponse",
@@ -49,7 +49,7 @@
       "metrics": {
         "file_tokens": 5203,
         "largest_function": 459,
-        "function_class_count": 47,
+        "function_class_count": 17,
         "internal_dependencies": 13
       },
       "largest_function_name": "AssistantPanel",
@@ -60,7 +60,7 @@
       "metrics": {
         "file_tokens": 680,
         "largest_function": 78,
-        "function_class_count": 5,
+        "function_class_count": 4,
         "internal_dependencies": 0
       },
       "largest_function_name": "DragHandle",
@@ -93,7 +93,7 @@
       "metrics": {
         "file_tokens": 681,
         "largest_function": 55,
-        "function_class_count": 4,
+        "function_class_count": 2,
         "internal_dependencies": 1
       },
       "largest_function_name": "InputBox",
@@ -104,7 +104,7 @@
       "metrics": {
         "file_tokens": 744,
         "largest_function": 16,
-        "function_class_count": 4,
+        "function_class_count": 3,
         "internal_dependencies": 0
       },
       "largest_function_name": "findRegenerateSource",
@@ -115,7 +115,7 @@
       "metrics": {
         "file_tokens": 4085,
         "largest_function": 98,
-        "function_class_count": 44,
+        "function_class_count": 21,
         "internal_dependencies": 4
       },
       "largest_function_name": "MessageList",
@@ -126,7 +126,7 @@
       "metrics": {
         "file_tokens": 3687,
         "largest_function": 146,
-        "function_class_count": 51,
+        "function_class_count": 27,
         "internal_dependencies": 1
       },
       "largest_function_name": "(匿名)",
@@ -310,7 +310,7 @@
       "metrics": {
         "file_tokens": 3267,
         "largest_function": 71,
-        "function_class_count": 22,
+        "function_class_count": 17,
         "internal_dependencies": 11
       },
       "largest_function_name": "runAgent",
@@ -332,7 +332,7 @@
       "metrics": {
         "file_tokens": 2320,
         "largest_function": 81,
-        "function_class_count": 12,
+        "function_class_count": 5,
         "internal_dependencies": 4
       },
       "largest_function_name": "(匿名)",
@@ -365,7 +365,7 @@
       "metrics": {
         "file_tokens": 3696,
         "largest_function": 27,
-        "function_class_count": 38,
+        "function_class_count": 32,
         "internal_dependencies": 4
       },
       "largest_function_name": "importLegacySidecars",
@@ -376,7 +376,7 @@
       "metrics": {
         "file_tokens": 712,
         "largest_function": 40,
-        "function_class_count": 6,
+        "function_class_count": 3,
         "internal_dependencies": 2
       },
       "largest_function_name": "wrapToolEvents",
@@ -387,7 +387,7 @@
       "metrics": {
         "file_tokens": 1785,
         "largest_function": 75,
-        "function_class_count": 22,
+        "function_class_count": 7,
         "internal_dependencies": 8
       },
       "largest_function_name": "buildTools",
@@ -398,7 +398,7 @@
       "metrics": {
         "file_tokens": 2099,
         "largest_function": 19,
-        "function_class_count": 22,
+        "function_class_count": 16,
         "internal_dependencies": 9
       },
       "largest_function_name": "toStateValueOps",
@@ -409,7 +409,7 @@
       "metrics": {
         "file_tokens": 698,
         "largest_function": 12,
-        "function_class_count": 9,
+        "function_class_count": 8,
         "internal_dependencies": 0
       },
       "largest_function_name": "parseStoredValue",
@@ -431,7 +431,7 @@
       "metrics": {
         "file_tokens": 601,
         "largest_function": 10,
-        "function_class_count": 6,
+        "function_class_count": 4,
         "internal_dependencies": 2
       },
       "largest_function_name": "searchDocs",
@@ -442,7 +442,7 @@
       "metrics": {
         "file_tokens": 1808,
         "largest_function": 20,
-        "function_class_count": 15,
+        "function_class_count": 12,
         "internal_dependencies": 4
       },
       "largest_function_name": "updateEntry",
@@ -453,7 +453,7 @@
       "metrics": {
         "file_tokens": 2149,
         "largest_function": 31,
-        "function_class_count": 20,
+        "function_class_count": 12,
         "internal_dependencies": 7
       },
       "largest_function_name": "toFieldOp",
@@ -486,7 +486,7 @@
       "metrics": {
         "file_tokens": 2605,
         "largest_function": 27,
-        "function_class_count": 28,
+        "function_class_count": 24,
         "internal_dependencies": 6
       },
       "largest_function_name": "prepareRegex",
@@ -497,7 +497,7 @@
       "metrics": {
         "file_tokens": 1151,
         "largest_function": 18,
-        "function_class_count": 13,
+        "function_class_count": 6,
         "internal_dependencies": 1
       },
       "largest_function_name": "loadTokens",
@@ -508,7 +508,7 @@
       "metrics": {
         "file_tokens": 797,
         "largest_function": 18,
-        "function_class_count": 9,
+        "function_class_count": 6,
         "internal_dependencies": 8
       },
       "largest_function_name": "viewWorld",
@@ -518,8 +518,8 @@
       "kind": "code",
       "metrics": {
         "file_tokens": 1812,
-        "largest_function": 20,
-        "function_class_count": 13,
+        "largest_function": 1,
+        "function_class_count": 0,
         "internal_dependencies": 2
       },
       "largest_function_name": "(匿名)",
@@ -529,19 +529,19 @@
       "kind": "code",
       "metrics": {
         "file_tokens": 808,
-        "largest_function": 16,
-        "function_class_count": 4,
+        "largest_function": 0,
+        "function_class_count": 0,
         "internal_dependencies": 1
       },
-      "largest_function_name": "(匿名)",
+      "largest_function_name": null,
       "sections": []
     },
     "assistant/tests/normalize-proposal-extra.test.js": {
       "kind": "code",
       "metrics": {
         "file_tokens": 5155,
-        "largest_function": 84,
-        "function_class_count": 53,
+        "largest_function": 5,
+        "function_class_count": 1,
         "internal_dependencies": 2
       },
       "largest_function_name": "(匿名)",
@@ -551,8 +551,8 @@
       "kind": "code",
       "metrics": {
         "file_tokens": 4335,
-        "largest_function": 37,
-        "function_class_count": 40,
+        "largest_function": 17,
+        "function_class_count": 0,
         "internal_dependencies": 0
       },
       "largest_function_name": "(匿名)",
@@ -562,85 +562,85 @@
       "kind": "code",
       "metrics": {
         "file_tokens": 3635,
-        "largest_function": 37,
-        "function_class_count": 34,
+        "largest_function": 27,
+        "function_class_count": 3,
         "internal_dependencies": 1
       },
-      "largest_function_name": "(匿名)",
+      "largest_function_name": "postSSE",
       "sections": []
     },
     "assistant/tests/sse-events.test.js": {
       "kind": "code",
       "metrics": {
         "file_tokens": 308,
-        "largest_function": 14,
-        "function_class_count": 2,
+        "largest_function": 0,
+        "function_class_count": 0,
         "internal_dependencies": 1
       },
-      "largest_function_name": "(匿名)",
+      "largest_function_name": null,
       "sections": []
     },
     "assistant/tests/state-store.test.js": {
       "kind": "code",
       "metrics": {
         "file_tokens": 847,
-        "largest_function": 10,
-        "function_class_count": 12,
+        "largest_function": 5,
+        "function_class_count": 1,
         "internal_dependencies": 0
       },
-      "largest_function_name": "(匿名)",
+      "largest_function_name": "freshDir",
       "sections": []
     },
     "assistant/tests/task-store-hydrate.test.js": {
       "kind": "code",
       "metrics": {
         "file_tokens": 1163,
-        "largest_function": 13,
-        "function_class_count": 5,
+        "largest_function": 0,
+        "function_class_count": 0,
         "internal_dependencies": 1
       },
-      "largest_function_name": "(匿名)",
+      "largest_function_name": null,
       "sections": []
     },
     "assistant/tests/task-store.test.js": {
       "kind": "code",
       "metrics": {
         "file_tokens": 2650,
-        "largest_function": 21,
-        "function_class_count": 27,
+        "largest_function": 3,
+        "function_class_count": 10,
         "internal_dependencies": 1
       },
-      "largest_function_name": "(匿名)",
+      "largest_function_name": "freshTask",
       "sections": []
     },
     "assistant/tests/tools/adapter-cancel.test.js": {
       "kind": "code",
       "metrics": {
         "file_tokens": 917,
-        "largest_function": 26,
-        "function_class_count": 21,
+        "largest_function": 5,
+        "function_class_count": 7,
         "internal_dependencies": 2
       },
-      "largest_function_name": "(匿名)",
+      "largest_function_name": "execute",
       "sections": []
     },
     "assistant/tests/tools/adapter.test.js": {
       "kind": "code",
       "metrics": {
         "file_tokens": 1428,
-        "largest_function": 14,
-        "function_class_count": 32,
+        "largest_function": 5,
+        "function_class_count": 13,
         "internal_dependencies": 1
       },
-      "largest_function_name": "(匿名)",
+      "largest_function_name": "run",
       "sections": []
     },
     "assistant/tests/use-assistant-store.test.mjs": {
       "kind": "code",
       "metrics": {
         "file_tokens": 810,
-        "largest_function": 23,
-        "function_class_count": 5,
+        "largest_function": 1,
+        "function_class_count": 0,
         "internal_dependencies": 1
       },
       "largest_function_name": "(匿名)",
@@ -650,11 +650,11 @@
       "kind": "code",
       "metrics": {
         "file_tokens": 3659,
-        "largest_function": 25,
-        "function_class_count": 32,
+        "largest_function": 1,
+        "function_class_count": 1,
         "internal_dependencies": 2
       },
-      "largest_function_name": "(匿名)",
+      "largest_function_name": "refOf",
       "sections": []
     },
     "backend/app/modes/chat-mode.js": {
@@ -717,7 +717,7 @@
       "metrics": {
         "file_tokens": 3140,
         "largest_function": 264,
-        "function_class_count": 23,
+        "function_class_count": 16,
         "internal_dependencies": 19
       },
       "largest_function_name": "createTurnHandlers",
@@ -750,7 +750,7 @@
       "metrics": {
         "file_tokens": 757,
         "largest_function": 42,
-        "function_class_count": 2,
+        "function_class_count": 1,
         "internal_dependencies": 10
       },
       "largest_function_name": "rollbackSession",
@@ -794,7 +794,7 @@
       "metrics": {
         "file_tokens": 1293,
         "largest_function": 153,
-        "function_class_count": 11,
+        "function_class_count": 9,
         "internal_dependencies": 14
       },
       "largest_function_name": "runTurnContinue",
@@ -816,7 +816,7 @@
       "metrics": {
         "file_tokens": 1197,
         "largest_function": 164,
-        "function_class_count": 10,
+        "function_class_count": 8,
         "internal_dependencies": 12
       },
       "largest_function_name": "runTurnStream",
@@ -827,7 +827,7 @@
       "metrics": {
         "file_tokens": 610,
         "largest_function": 21,
-        "function_class_count": 8,
+        "function_class_count": 3,
         "internal_dependencies": 4
       },
       "largest_function_name": "resolveContinuationBase",
@@ -860,7 +860,7 @@
       "metrics": {
         "file_tokens": 527,
         "largest_function": 27,
-        "function_class_count": 8,
+        "function_class_count": 5,
         "internal_dependencies": 1
       },
       "largest_function_name": "upsertAssistantTask",
@@ -882,7 +882,7 @@
       "metrics": {
         "file_tokens": 981,
         "largest_function": 36,
-        "function_class_count": 8,
+        "function_class_count": 7,
         "internal_dependencies": 2
       },
       "largest_function_name": "createCharacterStateField",
@@ -904,7 +904,7 @@
       "metrics": {
         "file_tokens": 1114,
         "largest_function": 28,
-        "function_class_count": 14,
+        "function_class_count": 10,
         "internal_dependencies": 1
       },
       "largest_function_name": "createCharacter",
@@ -915,7 +915,7 @@
       "metrics": {
         "file_tokens": 682,
         "largest_function": 19,
-        "function_class_count": 7,
+        "function_class_count": 6,
         "internal_dependencies": 1
       },
       "largest_function_name": "updateCustomCssSnippet",
@@ -948,7 +948,7 @@
       "metrics": {
         "file_tokens": 3033,
         "largest_function": 26,
-        "function_class_count": 41,
+        "function_class_count": 27,
         "internal_dependencies": 1
       },
       "largest_function_name": "getUncompressedMessagesBySessionId",
@@ -959,7 +959,7 @@
       "metrics": {
         "file_tokens": 911,
         "largest_function": 34,
-        "function_class_count": 8,
+        "function_class_count": 6,
         "internal_dependencies": 2
       },
       "largest_function_name": "createPersonaStateField",
@@ -981,7 +981,7 @@
       "metrics": {
         "file_tokens": 1880,
         "largest_function": 17,
-        "function_class_count": 16,
+        "function_class_count": 12,
         "internal_dependencies": 1
       },
       "largest_function_name": "getAllPersonas",
@@ -992,7 +992,7 @@
       "metrics": {
         "file_tokens": 1802,
         "largest_function": 46,
-        "function_class_count": 21,
+        "function_class_count": 16,
         "internal_dependencies": 1
       },
       "largest_function_name": "updateWorldEntry",
@@ -1003,7 +1003,7 @@
       "metrics": {
         "file_tokens": 1604,
         "largest_function": 47,
-        "function_class_count": 11,
+        "function_class_count": 7,
         "internal_dependencies": 1
       },
       "largest_function_name": "insertProviderSafetyEvent",
@@ -1014,7 +1014,7 @@
       "metrics": {
         "file_tokens": 1036,
         "largest_function": 28,
-        "function_class_count": 8,
+        "function_class_count": 7,
         "internal_dependencies": 1
       },
       "largest_function_name": "listRegexRules",
@@ -1058,7 +1058,7 @@
       "metrics": {
         "file_tokens": 862,
         "largest_function": 15,
-        "function_class_count": 13,
+        "function_class_count": 12,
         "internal_dependencies": 1
       },
       "largest_function_name": "deleteTransientNotInIds",
@@ -1069,7 +1069,7 @@
       "metrics": {
         "file_tokens": 361,
         "largest_function": 17,
-        "function_class_count": 4,
+        "function_class_count": 3,
         "internal_dependencies": 1
       },
       "largest_function_name": "upsertSessionPersonaStateValue",
@@ -1091,7 +1091,7 @@
       "metrics": {
         "file_tokens": 673,
         "largest_function": 36,
-        "function_class_count": 8,
+        "function_class_count": 5,
         "internal_dependencies": 1
       },
       "largest_function_name": "upsertSessionStreamTask",
@@ -1102,7 +1102,7 @@
       "metrics": {
         "file_tokens": 359,
         "largest_function": 17,
-        "function_class_count": 4,
+        "function_class_count": 3,
         "internal_dependencies": 1
       },
       "largest_function_name": "upsertSessionWorldStateValue",
@@ -1113,7 +1113,7 @@
       "metrics": {
         "file_tokens": 1918,
         "largest_function": 44,
-        "function_class_count": 16,
+        "function_class_count": 14,
         "internal_dependencies": 2
       },
       "largest_function_name": "getSessionsByWorldId",
@@ -1135,7 +1135,7 @@
       "metrics": {
         "file_tokens": 909,
         "largest_function": 34,
-        "function_class_count": 8,
+        "function_class_count": 6,
         "internal_dependencies": 2
       },
       "largest_function_name": "createWorldStateField",
@@ -1157,7 +1157,7 @@
       "metrics": {
         "file_tokens": 678,
         "largest_function": 23,
-        "function_class_count": 7,
+        "function_class_count": 6,
         "internal_dependencies": 1
       },
       "largest_function_name": "updateWorld",
@@ -1179,7 +1179,7 @@
       "metrics": {
         "file_tokens": 11231,
         "largest_function": 201,
-        "function_class_count": 32,
+        "function_class_count": 31,
         "internal_dependencies": 0
       },
       "largest_function_name": "initSchema",
@@ -1212,7 +1212,7 @@
       "metrics": {
         "file_tokens": 1171,
         "largest_function": 30,
-        "function_class_count": 9,
+        "function_class_count": 5,
         "internal_dependencies": 3
       },
       "largest_function_name": "embedOpenAI",
@@ -1223,7 +1223,7 @@
       "metrics": {
         "file_tokens": 4733,
         "largest_function": 87,
-        "function_class_count": 22,
+        "function_class_count": 20,
         "internal_dependencies": 8
       },
       "largest_function_name": "buildLLMConfig",
@@ -1256,7 +1256,7 @@
       "metrics": {
         "file_tokens": 1507,
         "largest_function": 69,
-        "function_class_count": 8,
+        "function_class_count": 7,
         "internal_dependencies": 1
       },
       "largest_function_name": "convertToGeminiContents",
@@ -1311,7 +1311,7 @@
       "metrics": {
         "file_tokens": 4047,
         "largest_function": 104,
-        "function_class_count": 25,
+        "function_class_count": 20,
         "internal_dependencies": 10
       },
       "largest_function_name": "streamAnthropic",
@@ -1333,7 +1333,7 @@
       "metrics": {
         "file_tokens": 1343,
         "largest_function": 37,
-        "function_class_count": 8,
+        "function_class_count": 6,
         "internal_dependencies": 1
       },
       "largest_function_name": "getOrCreateCache",
@@ -1344,7 +1344,7 @@
       "metrics": {
         "file_tokens": 4073,
         "largest_function": 83,
-        "function_class_count": 28,
+        "function_class_count": 19,
         "internal_dependencies": 10
       },
       "largest_function_name": "streamGemini",
@@ -1355,7 +1355,7 @@
       "metrics": {
         "file_tokens": 1125,
         "largest_function": 29,
-        "function_class_count": 16,
+        "function_class_count": 14,
         "internal_dependencies": 0
       },
       "largest_function_name": "streamChat",
@@ -1366,7 +1366,7 @@
       "metrics": {
         "file_tokens": 1986,
         "largest_function": 44,
-        "function_class_count": 20,
+        "function_class_count": 15,
         "internal_dependencies": 4
       },
       "largest_function_name": "streamChat",
@@ -1377,7 +1377,7 @@
       "metrics": {
         "file_tokens": 3885,
         "largest_function": 92,
-        "function_class_count": 20,
+        "function_class_count": 15,
         "internal_dependencies": 8
       },
       "largest_function_name": "streamOpenAICompatible",
@@ -1399,7 +1399,7 @@
       "metrics": {
         "file_tokens": 3970,
         "largest_function": 131,
-        "function_class_count": 24,
+        "function_class_count": 12,
         "internal_dependencies": 1
       },
       "largest_function_name": "analyzeRequest",
@@ -1421,7 +1421,7 @@
       "metrics": {
         "file_tokens": 600,
         "largest_function": 42,
-        "function_class_count": 3,
+        "function_class_count": 1,
         "internal_dependencies": 6
       },
       "largest_function_name": "generateChapterTitle",
@@ -1432,7 +1432,7 @@
       "metrics": {
         "file_tokens": 11023,
         "largest_function": 276,
-        "function_class_count": 47,
+        "function_class_count": 30,
         "internal_dependencies": 25
       },
       "largest_function_name": "updateAllStates",
@@ -1443,7 +1443,7 @@
       "metrics": {
         "file_tokens": 2024,
         "largest_function": 30,
-        "function_class_count": 8,
+        "function_class_count": 5,
         "internal_dependencies": 11
       },
       "largest_function_name": "generateDanmaku",
@@ -1454,7 +1454,7 @@
       "metrics": {
         "file_tokens": 3256,
         "largest_function": 103,
-        "function_class_count": 18,
+        "function_class_count": 14,
         "internal_dependencies": 9
       },
       "largest_function_name": "checkAndGenerateDiary",
@@ -1465,7 +1465,7 @@
       "metrics": {
         "file_tokens": 4123,
         "largest_function": 86,
-        "function_class_count": 23,
+        "function_class_count": 12,
         "internal_dependencies": 10
       },
       "largest_function_name": "searchRecalledSummaries",
@@ -1476,7 +1476,7 @@
       "metrics": {
         "file_tokens": 1021,
         "largest_function": 65,
-        "function_class_count": 4,
+        "function_class_count": 1,
         "internal_dependencies": 7
       },
       "largest_function_name": "decideSavedNearbyRecall",
@@ -1498,7 +1498,7 @@
       "metrics": {
         "file_tokens": 573,
         "largest_function": 44,
-        "function_class_count": 3,
+        "function_class_count": 1,
         "internal_dependencies": 6
       },
       "largest_function_name": "generateTitle",
@@ -1509,7 +1509,7 @@
       "metrics": {
         "file_tokens": 1479,
         "largest_function": 62,
-        "function_class_count": 7,
+        "function_class_count": 2,
         "internal_dependencies": 9
       },
       "largest_function_name": "decideExpansion",
@@ -1531,7 +1531,7 @@
       "metrics": {
         "file_tokens": 3068,
         "largest_function": 148,
-        "function_class_count": 11,
+        "function_class_count": 9,
         "internal_dependencies": 18
       },
       "largest_function_name": "createTurnRecord",
@@ -1542,7 +1542,7 @@
       "metrics": {
         "file_tokens": 85,
         "largest_function": 5,
-        "function_class_count": 2,
+        "function_class_count": 1,
         "internal_dependencies": 1
       },
       "largest_function_name": "requestIdMiddleware",
@@ -1564,7 +1564,7 @@
       "metrics": {
         "file_tokens": 4454,
         "largest_function": 151,
-        "function_class_count": 25,
+        "function_class_count": 19,
         "internal_dependencies": 10
       },
       "largest_function_name": "matchEntries",
@@ -1575,7 +1575,7 @@
       "metrics": {
         "file_tokens": 496,
         "largest_function": 26,
-        "function_class_count": 4,
+        "function_class_count": 1,
         "internal_dependencies": 1
       },
       "largest_function_name": "buildNearbyCardAnalyzePrompt",
@@ -1586,7 +1586,7 @@
       "metrics": {
         "file_tokens": 2472,
         "largest_function": 92,
-        "function_class_count": 8,
+        "function_class_count": 5,
         "internal_dependencies": 0
       },
       "largest_function_name": "buildNearbyPromptSection",
@@ -1681,7 +1681,7 @@
       "metrics": {
         "file_tokens": 1814,
         "largest_function": 10,
-        "function_class_count": 25,
+        "function_class_count": 16,
         "internal_dependencies": 6
       },
       "largest_function_name": "renderCachedEntriesSection",
@@ -2025,7 +2025,7 @@
       "metrics": {
         "file_tokens": 930,
         "largest_function": 22,
-        "function_class_count": 4,
+        "function_class_count": 0,
         "internal_dependencies": 4
       },
       "largest_function_name": "(匿名)",
@@ -2036,7 +2036,7 @@
       "metrics": {
         "file_tokens": 1794,
         "largest_function": 34,
-        "function_class_count": 10,
+        "function_class_count": 0,
         "internal_dependencies": 5
       },
       "largest_function_name": "(匿名)",
@@ -2058,7 +2058,7 @@
       "metrics": {
         "file_tokens": 397,
         "largest_function": 14,
-        "function_class_count": 4,
+        "function_class_count": 1,
         "internal_dependencies": 2
       },
       "largest_function_name": "(匿名)",
@@ -2069,7 +2069,7 @@
       "metrics": {
         "file_tokens": 14576,
         "largest_function": 85,
-        "function_class_count": 60,
+        "function_class_count": 38,
         "internal_dependencies": 11
       },
       "largest_function_name": "fetchModels",
@@ -2080,7 +2080,7 @@
       "metrics": {
         "file_tokens": 716,
         "largest_function": 9,
-        "function_class_count": 6,
+        "function_class_count": 0,
         "internal_dependencies": 3
       },
       "largest_function_name": "(匿名)",
@@ -2091,7 +2091,7 @@
       "metrics": {
         "file_tokens": 606,
         "largest_function": 15,
-        "function_class_count": 3,
+        "function_class_count": 0,
         "internal_dependencies": 4
       },
       "largest_function_name": "(匿名)",
@@ -2102,7 +2102,7 @@
       "metrics": {
         "file_tokens": 2432,
         "largest_function": 17,
-        "function_class_count": 11,
+        "function_class_count": 4,
         "internal_dependencies": 2
       },
       "largest_function_name": "(匿名)",
@@ -2113,7 +2113,7 @@
       "metrics": {
         "file_tokens": 437,
         "largest_function": 10,
-        "function_class_count": 2,
+        "function_class_count": 0,
         "internal_dependencies": 3
       },
       "largest_function_name": "(匿名)",
@@ -2124,7 +2124,7 @@
       "metrics": {
         "file_tokens": 770,
         "largest_function": 17,
-        "function_class_count": 5,
+        "function_class_count": 0,
         "internal_dependencies": 3
       },
       "largest_function_name": "(匿名)",
@@ -2135,7 +2135,7 @@
       "metrics": {
         "file_tokens": 1391,
         "largest_function": 22,
-        "function_class_count": 6,
+        "function_class_count": 0,
         "internal_dependencies": 3
       },
       "largest_function_name": "(匿名)",
@@ -2146,7 +2146,7 @@
       "metrics": {
         "file_tokens": 2595,
         "largest_function": 14,
-        "function_class_count": 16,
+        "function_class_count": 2,
         "internal_dependencies": 4
       },
       "largest_function_name": "(匿名)",
@@ -2157,7 +2157,7 @@
       "metrics": {
         "file_tokens": 1538,
         "largest_function": 19,
-        "function_class_count": 8,
+        "function_class_count": 0,
         "internal_dependencies": 5
       },
       "largest_function_name": "(匿名)",
@@ -2168,7 +2168,7 @@
       "metrics": {
         "file_tokens": 281,
         "largest_function": 5,
-        "function_class_count": 3,
+        "function_class_count": 0,
         "internal_dependencies": 1
       },
       "largest_function_name": "(匿名)",
@@ -2179,7 +2179,7 @@
       "metrics": {
         "file_tokens": 980,
         "largest_function": 18,
-        "function_class_count": 6,
+        "function_class_count": 0,
         "internal_dependencies": 3
       },
       "largest_function_name": "(匿名)",
@@ -2190,7 +2190,7 @@
       "metrics": {
         "file_tokens": 1770,
         "largest_function": 18,
-        "function_class_count": 9,
+        "function_class_count": 3,
         "internal_dependencies": 8
       },
       "largest_function_name": "(匿名)",
@@ -2201,7 +2201,7 @@
       "metrics": {
         "file_tokens": 224,
         "largest_function": 9,
-        "function_class_count": 1,
+        "function_class_count": 0,
         "internal_dependencies": 4
       },
       "largest_function_name": "(匿名)",
@@ -2212,7 +2212,7 @@
       "metrics": {
         "file_tokens": 2657,
         "largest_function": 49,
-        "function_class_count": 14,
+        "function_class_count": 1,
         "internal_dependencies": 11
       },
       "largest_function_name": "(匿名)",
@@ -2223,7 +2223,7 @@
       "metrics": {
         "file_tokens": 1559,
         "largest_function": 17,
-        "function_class_count": 10,
+        "function_class_count": 1,
         "internal_dependencies": 4
       },
       "largest_function_name": "(匿名)",
@@ -2245,7 +2245,7 @@
       "metrics": {
         "file_tokens": 527,
         "largest_function": 14,
-        "function_class_count": 2,
+        "function_class_count": 0,
         "internal_dependencies": 5
       },
       "largest_function_name": "(匿名)",
@@ -2256,7 +2256,7 @@
       "metrics": {
         "file_tokens": 473,
         "largest_function": 9,
-        "function_class_count": 6,
+        "function_class_count": 0,
         "internal_dependencies": 1
       },
       "largest_function_name": "(匿名)",
@@ -2267,7 +2267,7 @@
       "metrics": {
         "file_tokens": 692,
         "largest_function": 22,
-        "function_class_count": 3,
+        "function_class_count": 0,
         "internal_dependencies": 3
       },
       "largest_function_name": "(匿名)",
@@ -2278,7 +2278,7 @@
       "metrics": {
         "file_tokens": 1510,
         "largest_function": 18,
-        "function_class_count": 11,
+        "function_class_count": 0,
         "internal_dependencies": 3
       },
       "largest_function_name": "(匿名)",
@@ -2289,7 +2289,7 @@
       "metrics": {
         "file_tokens": 2704,
         "largest_function": 37,
-        "function_class_count": 17,
+        "function_class_count": 2,
         "internal_dependencies": 15
       },
       "largest_function_name": "(匿名)",
@@ -2300,7 +2300,7 @@
       "metrics": {
         "file_tokens": 2380,
         "largest_function": 87,
-        "function_class_count": 11,
+        "function_class_count": 6,
         "internal_dependencies": 34
       },
       "largest_function_name": "createApp",
@@ -2333,7 +2333,7 @@
       "metrics": {
         "file_tokens": 398,
         "largest_function": 6,
-        "function_class_count": 9,
+        "function_class_count": 3,
         "internal_dependencies": 5
       },
       "largest_function_name": "onCreate",
@@ -2366,7 +2366,7 @@
       "metrics": {
         "file_tokens": 1643,
         "largest_function": 5,
-        "function_class_count": 22,
+        "function_class_count": 1,
         "internal_dependencies": 10
       },
       "largest_function_name": "(匿名)",
@@ -2443,7 +2443,7 @@
       "metrics": {
         "file_tokens": 1558,
         "largest_function": 44,
-        "function_class_count": 14,
+        "function_class_count": 8,
         "internal_dependencies": 5
       },
       "largest_function_name": "compressMemory",
@@ -2454,7 +2454,7 @@
       "metrics": {
         "file_tokens": 1706,
         "largest_function": 44,
-        "function_class_count": 8,
+        "function_class_count": 5,
         "internal_dependencies": 12
       },
       "largest_function_name": "createCharacterFromNearby",
@@ -2465,7 +2465,7 @@
       "metrics": {
         "file_tokens": 464,
         "largest_function": 7,
-        "function_class_count": 8,
+        "function_class_count": 3,
         "internal_dependencies": 5
       },
       "largest_function_name": "onCreate",
@@ -2476,7 +2476,7 @@
       "metrics": {
         "file_tokens": 887,
         "largest_function": 20,
-        "function_class_count": 9,
+        "function_class_count": 8,
         "internal_dependencies": 5
       },
       "largest_function_name": "deletePersonaService",
@@ -2520,7 +2520,7 @@
       "metrics": {
         "file_tokens": 3006,
         "largest_function": 48,
-        "function_class_count": 28,
+        "function_class_count": 24,
         "internal_dependencies": 3
       },
       "largest_function_name": "applyEvent",
@@ -2542,7 +2542,7 @@
       "metrics": {
         "file_tokens": 2525,
         "largest_function": 31,
-        "function_class_count": 10,
+        "function_class_count": 6,
         "internal_dependencies": 12
       },
       "largest_function_name": "callExtractLLM",
@@ -2564,7 +2564,7 @@
       "metrics": {
         "file_tokens": 2297,
         "largest_function": 77,
-        "function_class_count": 18,
+        "function_class_count": 8,
         "internal_dependencies": 1
       },
       "largest_function_name": "applyOps",
@@ -2575,7 +2575,7 @@
       "metrics": {
         "file_tokens": 1546,
         "largest_function": 10,
-        "function_class_count": 6,
+        "function_class_count": 4,
         "internal_dependencies": 0
       },
       "largest_function_name": "resolveRowLimits",
@@ -2586,7 +2586,7 @@
       "metrics": {
         "file_tokens": 2270,
         "largest_function": 48,
-        "function_class_count": 16,
+        "function_class_count": 14,
         "internal_dependencies": 9
       },
       "largest_function_name": "updateTableMemory",
@@ -2597,7 +2597,7 @@
       "metrics": {
         "file_tokens": 2754,
         "largest_function": 65,
-        "function_class_count": 25,
+        "function_class_count": 20,
         "internal_dependencies": 1
       },
       "largest_function_name": "applyAssistantThemeOp",
@@ -2608,7 +2608,7 @@
       "metrics": {
         "file_tokens": 328,
         "largest_function": 3,
-        "function_class_count": 9,
+        "function_class_count": 3,
         "internal_dependencies": 4
       },
       "largest_function_name": "onCreate",
@@ -2619,7 +2619,7 @@
       "metrics": {
         "file_tokens": 1507,
         "largest_function": 48,
-        "function_class_count": 10,
+        "function_class_count": 9,
         "internal_dependencies": 15
       },
       "largest_function_name": "ensureDiaryTimeField",
@@ -2630,7 +2630,7 @@
       "metrics": {
         "file_tokens": 2162,
         "largest_function": 34,
-        "function_class_count": 25,
+        "function_class_count": 18,
         "internal_dependencies": 13
       },
       "largest_function_name": "addSavedFromCharacter",
@@ -2640,19 +2640,19 @@
       "kind": "code",
       "metrics": {
         "file_tokens": 566,
-        "largest_function": 36,
-        "function_class_count": 2,
+        "largest_function": 0,
+        "function_class_count": 0,
         "internal_dependencies": 2
       },
-      "largest_function_name": "(匿名)",
+      "largest_function_name": null,
       "sections": []
     },
     "backend/tests/db/queries/entry-conditions.test.js": {
       "kind": "code",
       "metrics": {
         "file_tokens": 976,
-        "largest_function": 18,
-        "function_class_count": 5,
+        "largest_function": 1,
+        "function_class_count": 0,
         "internal_dependencies": 2
       },
       "largest_function_name": "(匿名)",
@@ -2662,8 +2662,8 @@
       "kind": "code",
       "metrics": {
         "file_tokens": 1506,
-        "largest_function": 36,
-        "function_class_count": 8,
+        "largest_function": 1,
+        "function_class_count": 0,
         "internal_dependencies": 2
       },
       "largest_function_name": "(匿名)",
@@ -2673,8 +2673,8 @@
       "kind": "code",
       "metrics": {
         "file_tokens": 1125,
-        "largest_function": 25,
-        "function_class_count": 7,
+        "largest_function": 1,
+        "function_class_count": 0,
         "internal_dependencies": 2
       },
       "largest_function_name": "(匿名)",
@@ -2684,30 +2684,30 @@
       "kind": "code",
       "metrics": {
         "file_tokens": 1194,
-        "largest_function": 17,
-        "function_class_count": 8,
+        "largest_function": 6,
+        "function_class_count": 1,
         "internal_dependencies": 2
       },
-      "largest_function_name": "(匿名)",
+      "largest_function_name": "makeSession",
       "sections": []
     },
     "backend/tests/db/queries/session-nearby-characters.test.js": {
       "kind": "code",
       "metrics": {
         "file_tokens": 1605,
-        "largest_function": 17,
-        "function_class_count": 16,
+        "largest_function": 6,
+        "function_class_count": 1,
         "internal_dependencies": 2
       },
-      "largest_function_name": "(匿名)",
+      "largest_function_name": "makeSession",
       "sections": []
     },
     "backend/tests/db/queries/state-fields.test.js": {
       "kind": "code",
       "metrics": {
         "file_tokens": 1160,
-        "largest_function": 37,
-        "function_class_count": 7,
+        "largest_function": 1,
+        "function_class_count": 0,
         "internal_dependencies": 2
       },
       "largest_function_name": "(匿名)",
@@ -2717,44 +2717,44 @@
       "kind": "code",
       "metrics": {
         "file_tokens": 947,
-        "largest_function": 27,
-        "function_class_count": 8,
+        "largest_function": 8,
+        "function_class_count": 6,
         "internal_dependencies": 2
       },
-      "largest_function_name": "(匿名)",
+      "largest_function_name": "createField",
       "sections": []
     },
     "backend/tests/db/queries/worlds.test.js": {
       "kind": "code",
       "metrics": {
         "file_tokens": 755,
-        "largest_function": 8,
-        "function_class_count": 7,
+        "largest_function": 0,
+        "function_class_count": 0,
         "internal_dependencies": 2
       },
-      "largest_function_name": "(匿名)",
+      "largest_function_name": null,
       "sections": []
     },
     "backend/tests/e2e/chat-playwright.test.js": {
       "kind": "code",
       "metrics": {
         "file_tokens": 1605,
-        "largest_function": 36,
-        "function_class_count": 16,
+        "largest_function": 18,
+        "function_class_count": 5,
         "internal_dependencies": 2
       },
-      "largest_function_name": "(匿名)",
+      "largest_function_name": "ensureFrontendServer",
       "sections": []
     },
     "backend/tests/e2e/writing-playwright.test.js": {
       "kind": "code",
       "metrics": {
         "file_tokens": 1194,
-        "largest_function": 50,
-        "function_class_count": 14,
+        "largest_function": 18,
+        "function_class_count": 4,
         "internal_dependencies": 2
       },
-      "largest_function_name": "(匿名)",
+      "largest_function_name": "ensureFrontendServer",
       "sections": []
     },
     "backend/tests/helpers/fixtures.js": {
@@ -2773,7 +2773,7 @@
       "metrics": {
         "file_tokens": 312,
         "largest_function": 32,
-        "function_class_count": 7,
+        "function_class_count": 4,
         "internal_dependencies": 1
       },
       "largest_function_name": "createRouteTestContext",
@@ -2795,7 +2795,7 @@
       "metrics": {
         "file_tokens": 627,
         "largest_function": 18,
-        "function_class_count": 6,
+        "function_class_count": 2,
         "internal_dependencies": 0
       },
       "largest_function_name": "captureBody",
@@ -2805,19 +2805,19 @@
       "kind": "code",
       "metrics": {
         "file_tokens": 726,
-        "largest_function": 26,
-        "function_class_count": 6,
+        "largest_function": 0,
+        "function_class_count": 0,
         "internal_dependencies": 2
       },
-      "largest_function_name": "(匿名)",
+      "largest_function_name": null,
       "sections": []
     },
     "backend/tests/llm/complete-with-tools-cancel.test.js": {
       "kind": "code",
       "metrics": {
         "file_tokens": 537,
-        "largest_function": 51,
-        "function_class_count": 5,
+        "largest_function": 7,
+        "function_class_count": 1,
         "internal_dependencies": 1
       },
       "largest_function_name": "(匿名)",
@@ -2827,19 +2827,19 @@
       "kind": "code",
       "metrics": {
         "file_tokens": 1343,
-        "largest_function": 21,
-        "function_class_count": 17,
+        "largest_function": 15,
+        "function_class_count": 9,
         "internal_dependencies": 1
       },
-      "largest_function_name": "(匿名)",
+      "largest_function_name": "mockFetchSequence",
       "sections": []
     },
     "backend/tests/llm/impersonate-thinking-level.test.js": {
       "kind": "code",
       "metrics": {
         "file_tokens": 537,
-        "largest_function": 27,
-        "function_class_count": 3,
+        "largest_function": 4,
+        "function_class_count": 1,
         "internal_dependencies": 1
       },
       "largest_function_name": "(匿名)",
@@ -2849,8 +2849,8 @@
       "kind": "code",
       "metrics": {
         "file_tokens": 1371,
-        "largest_function": 53,
-        "function_class_count": 11,
+        "largest_function": 4,
+        "function_class_count": 1,
         "internal_dependencies": 1
       },
       "largest_function_name": "(匿名)",
@@ -2860,8 +2860,8 @@
       "kind": "code",
       "metrics": {
         "file_tokens": 349,
-        "largest_function": 18,
-        "function_class_count": 2,
+        "largest_function": 4,
+        "function_class_count": 0,
         "internal_dependencies": 1
       },
       "largest_function_name": "(匿名)",
@@ -2871,85 +2871,85 @@
       "kind": "code",
       "metrics": {
         "file_tokens": 1591,
-        "largest_function": 19,
-        "function_class_count": 21,
+        "largest_function": 15,
+        "function_class_count": 10,
         "internal_dependencies": 2
       },
-      "largest_function_name": "(匿名)",
+      "largest_function_name": "mockFetchSequence",
       "sections": []
     },
     "backend/tests/llm/openai-compatible-headers.test.js": {
       "kind": "code",
       "metrics": {
         "file_tokens": 1166,
-        "largest_function": 17,
-        "function_class_count": 10,
+        "largest_function": 0,
+        "function_class_count": 0,
         "internal_dependencies": 1
       },
-      "largest_function_name": "(匿名)",
+      "largest_function_name": null,
       "sections": []
     },
     "backend/tests/llm/openai-compatible-tool-loop.test.js": {
       "kind": "code",
       "metrics": {
         "file_tokens": 2010,
-        "largest_function": 23,
-        "function_class_count": 26,
+        "largest_function": 21,
+        "function_class_count": 13,
         "internal_dependencies": 2
       },
-      "largest_function_name": "(匿名)",
+      "largest_function_name": "mockFetchSequence",
       "sections": []
     },
     "backend/tests/llm/provider-safety-signals.test.js": {
       "kind": "code",
       "metrics": {
         "file_tokens": 1284,
-        "largest_function": 15,
-        "function_class_count": 12,
+        "largest_function": 9,
+        "function_class_count": 1,
         "internal_dependencies": 1
       },
-      "largest_function_name": "(匿名)",
+      "largest_function_name": "ctx",
       "sections": []
     },
     "backend/tests/llm/providers-utils.test.js": {
       "kind": "code",
       "metrics": {
         "file_tokens": 1952,
-        "largest_function": 22,
-        "function_class_count": 21,
+        "largest_function": 5,
+        "function_class_count": 3,
         "internal_dependencies": 2
       },
-      "largest_function_name": "(匿名)",
+      "largest_function_name": "start",
       "sections": []
     },
     "backend/tests/llm/tool-loop-control.test.js": {
       "kind": "code",
       "metrics": {
         "file_tokens": 1928,
-        "largest_function": 36,
-        "function_class_count": 34,
+        "largest_function": 21,
+        "function_class_count": 17,
         "internal_dependencies": 1
       },
-      "largest_function_name": "(匿名)",
+      "largest_function_name": "fakeProvider",
       "sections": []
     },
     "backend/tests/memory/combined-state-updater-nearby.test.js": {
       "kind": "code",
       "metrics": {
         "file_tokens": 2732,
-        "largest_function": 33,
-        "function_class_count": 23,
+        "largest_function": 16,
+        "function_class_count": 7,
         "internal_dependencies": 2
       },
-      "largest_function_name": "(匿名)",
+      "largest_function_name": "bootstrap",
       "sections": []
     },
     "backend/tests/memory/combined-state-updater.test.js": {
       "kind": "code",
       "metrics": {
         "file_tokens": 1407,
-        "largest_function": 26,
-        "function_class_count": 6,
+        "largest_function": 1,
+        "function_class_count": 0,
         "internal_dependencies": 2
       },
       "largest_function_name": "(匿名)",
@@ -2959,52 +2959,52 @@
       "kind": "code",
       "metrics": {
         "file_tokens": 1850,
-        "largest_function": 23,
-        "function_class_count": 12,
+        "largest_function": 7,
+        "function_class_count": 1,
         "internal_dependencies": 2
       },
-      "largest_function_name": "(匿名)",
+      "largest_function_name": "seedTurn",
       "sections": []
     },
     "backend/tests/memory/diary-generator.test.js": {
       "kind": "code",
       "metrics": {
         "file_tokens": 4619,
-        "largest_function": 33,
-        "function_class_count": 22,
+        "largest_function": 13,
+        "function_class_count": 2,
         "internal_dependencies": 2
       },
-      "largest_function_name": "(匿名)",
+      "largest_function_name": "makeRound",
       "sections": []
     },
     "backend/tests/memory/recall.test.js": {
       "kind": "code",
       "metrics": {
         "file_tokens": 1621,
-        "largest_function": 42,
-        "function_class_count": 7,
+        "largest_function": 4,
+        "function_class_count": 2,
         "internal_dependencies": 2
       },
-      "largest_function_name": "(匿名)",
+      "largest_function_name": "fetch",
       "sections": []
     },
     "backend/tests/memory/saved-nearby-recall.test.js": {
       "kind": "code",
       "metrics": {
         "file_tokens": 896,
-        "largest_function": 18,
-        "function_class_count": 6,
+        "largest_function": 7,
+        "function_class_count": 1,
         "internal_dependencies": 2
       },
-      "largest_function_name": "(匿名)",
+      "largest_function_name": "setupSession",
       "sections": []
     },
     "backend/tests/memory/state-rollback.test.js": {
       "kind": "code",
       "metrics": {
         "file_tokens": 3303,
-        "largest_function": 61,
-        "function_class_count": 11,
+        "largest_function": 1,
+        "function_class_count": 0,
         "internal_dependencies": 2
       },
       "largest_function_name": "(匿名)",
@@ -3014,63 +3014,63 @@
       "kind": "code",
       "metrics": {
         "file_tokens": 1010,
-        "largest_function": 32,
-        "function_class_count": 4,
+        "largest_function": 0,
+        "function_class_count": 0,
         "internal_dependencies": 2
       },
-      "largest_function_name": "(匿名)",
+      "largest_function_name": null,
       "sections": []
     },
     "backend/tests/memory/title-generation.test.js": {
       "kind": "code",
       "metrics": {
         "file_tokens": 847,
-        "largest_function": 16,
-        "function_class_count": 5,
+        "largest_function": 0,
+        "function_class_count": 0,
         "internal_dependencies": 2
       },
-      "largest_function_name": "(匿名)",
+      "largest_function_name": null,
       "sections": []
     },
     "backend/tests/memory/turn-summarizer.test.js": {
       "kind": "code",
       "metrics": {
         "file_tokens": 516,
-        "largest_function": 16,
-        "function_class_count": 3,
+        "largest_function": 0,
+        "function_class_count": 0,
         "internal_dependencies": 1
       },
-      "largest_function_name": "(匿名)",
+      "largest_function_name": null,
       "sections": []
     },
     "backend/tests/prompts/assembler-golden.test.js": {
       "kind": "code",
       "metrics": {
         "file_tokens": 4310,
-        "largest_function": 182,
-        "function_class_count": 17,
+        "largest_function": 38,
+        "function_class_count": 13,
         "internal_dependencies": 2
       },
-      "largest_function_name": "(匿名)",
+      "largest_function_name": "buildWorld",
       "sections": []
     },
     "backend/tests/prompts/assembler-shape.test.js": {
       "kind": "code",
       "metrics": {
         "file_tokens": 3235,
-        "largest_function": 229,
-        "function_class_count": 21,
+        "largest_function": 18,
+        "function_class_count": 10,
         "internal_dependencies": 2
       },
-      "largest_function_name": "(匿名)",
+      "largest_function_name": "withEmbeddingFetch",
       "sections": []
     },
     "backend/tests/prompts/assembler.test.js": {
       "kind": "code",
       "metrics": {
         "file_tokens": 3868,
-        "largest_function": 58,
-        "function_class_count": 13,
+        "largest_function": 1,
+        "function_class_count": 1,
         "internal_dependencies": 2
       },
       "largest_function_name": "(匿名)",
@@ -3080,19 +3080,19 @@
       "kind": "code",
       "metrics": {
         "file_tokens": 5757,
-        "largest_function": 103,
-        "function_class_count": 25,
+        "largest_function": 4,
+        "function_class_count": 1,
         "internal_dependencies": 2
       },
-      "largest_function_name": "(匿名)",
+      "largest_function_name": "pushAssistantUserPair",
       "sections": []
     },
     "backend/tests/prompts/nearby-prompt.test.js": {
       "kind": "code",
       "metrics": {
         "file_tokens": 643,
-        "largest_function": 12,
-        "function_class_count": 7,
+        "largest_function": 1,
+        "function_class_count": 0,
         "internal_dependencies": 1
       },
       "largest_function_name": "(匿名)",
@@ -3102,30 +3102,30 @@
       "kind": "code",
       "metrics": {
         "file_tokens": 2753,
-        "largest_function": 34,
-        "function_class_count": 12,
+        "largest_function": 7,
+        "function_class_count": 1,
         "internal_dependencies": 3
       },
-      "largest_function_name": "(匿名)",
+      "largest_function_name": "postJson",
       "sections": []
     },
     "backend/tests/routes/chat.test.js": {
       "kind": "code",
       "metrics": {
         "file_tokens": 8384,
-        "largest_function": 49,
-        "function_class_count": 67,
+        "largest_function": 22,
+        "function_class_count": 3,
         "internal_dependencies": 3
       },
-      "largest_function_name": "(匿名)",
+      "largest_function_name": "readSseEvents",
       "sections": []
     },
     "backend/tests/routes/client-logs.test.js": {
       "kind": "code",
       "metrics": {
         "file_tokens": 875,
-        "largest_function": 38,
-        "function_class_count": 10,
+        "largest_function": 7,
+        "function_class_count": 1,
         "internal_dependencies": 0
       },
       "largest_function_name": "(匿名)",
@@ -3135,19 +3135,19 @@
       "kind": "code",
       "metrics": {
         "file_tokens": 5679,
-        "largest_function": 57,
-        "function_class_count": 28,
+        "largest_function": 29,
+        "function_class_count": 9,
         "internal_dependencies": 1
       },
-      "largest_function_name": "(匿名)",
+      "largest_function_name": "fetch",
       "sections": []
     },
     "backend/tests/routes/import-export.test.js": {
       "kind": "code",
       "metrics": {
         "file_tokens": 4483,
-        "largest_function": 54,
-        "function_class_count": 17,
+        "largest_function": 1,
+        "function_class_count": 0,
         "internal_dependencies": 2
       },
       "largest_function_name": "(匿名)",
@@ -3157,19 +3157,19 @@
       "kind": "code",
       "metrics": {
         "file_tokens": 4277,
-        "largest_function": 32,
-        "function_class_count": 16,
+        "largest_function": 0,
+        "function_class_count": 0,
         "internal_dependencies": 2
       },
-      "largest_function_name": "(匿名)",
+      "largest_function_name": null,
       "sections": []
     },
     "backend/tests/routes/regex-css-daily-timeline.test.js": {
       "kind": "code",
       "metrics": {
         "file_tokens": 3776,
-        "largest_function": 54,
-        "function_class_count": 11,
+        "largest_function": 1,
+        "function_class_count": 0,
         "internal_dependencies": 2
       },
       "largest_function_name": "(匿名)",
@@ -3179,63 +3179,63 @@
       "kind": "code",
       "metrics": {
         "file_tokens": 617,
-        "largest_function": 18,
-        "function_class_count": 2,
+        "largest_function": 11,
+        "function_class_count": 1,
         "internal_dependencies": 2
       },
-      "largest_function_name": "(匿名)",
+      "largest_function_name": "collectRoutes",
       "sections": []
     },
     "backend/tests/routes/session-state-values.test.js": {
       "kind": "code",
       "metrics": {
         "file_tokens": 2647,
-        "largest_function": 26,
-        "function_class_count": 10,
+        "largest_function": 0,
+        "function_class_count": 0,
         "internal_dependencies": 2
       },
-      "largest_function_name": "(匿名)",
+      "largest_function_name": null,
       "sections": []
     },
     "backend/tests/routes/sessions.test.js": {
       "kind": "code",
       "metrics": {
         "file_tokens": 5013,
-        "largest_function": 49,
-        "function_class_count": 19,
+        "largest_function": 0,
+        "function_class_count": 0,
         "internal_dependencies": 2
       },
-      "largest_function_name": "(匿名)",
+      "largest_function_name": null,
       "sections": []
     },
     "backend/tests/routes/state-extract.test.js": {
       "kind": "code",
       "metrics": {
         "file_tokens": 791,
-        "largest_function": 21,
-        "function_class_count": 3,
+        "largest_function": 0,
+        "function_class_count": 0,
         "internal_dependencies": 3
       },
-      "largest_function_name": "(匿名)",
+      "largest_function_name": null,
       "sections": []
     },
     "backend/tests/routes/state-fields-and-values.test.js": {
       "kind": "code",
       "metrics": {
         "file_tokens": 4186,
-        "largest_function": 57,
-        "function_class_count": 11,
+        "largest_function": 0,
+        "function_class_count": 0,
         "internal_dependencies": 2
       },
-      "largest_function_name": "(匿名)",
+      "largest_function_name": null,
       "sections": []
     },
     "backend/tests/routes/stream-helpers.test.js": {
       "kind": "code",
       "metrics": {
         "file_tokens": 992,
-        "largest_function": 18,
-        "function_class_count": 7,
+        "largest_function": 1,
+        "function_class_count": 0,
         "internal_dependencies": 1
       },
       "largest_function_name": "(匿名)",
@@ -3245,63 +3245,63 @@
       "kind": "code",
       "metrics": {
         "file_tokens": 2267,
-        "largest_function": 23,
-        "function_class_count": 12,
+        "largest_function": 7,
+        "function_class_count": 2,
         "internal_dependencies": 2
       },
-      "largest_function_name": "(匿名)",
+      "largest_function_name": "jsonInit",
       "sections": []
     },
     "backend/tests/routes/writing-extra.test.js": {
       "kind": "code",
       "metrics": {
         "file_tokens": 2189,
-        "largest_function": 34,
-        "function_class_count": 12,
+        "largest_function": 7,
+        "function_class_count": 2,
         "internal_dependencies": 3
       },
-      "largest_function_name": "(匿名)",
+      "largest_function_name": "postJson",
       "sections": []
     },
     "backend/tests/routes/writing-nearby.test.js": {
       "kind": "code",
       "metrics": {
         "file_tokens": 2329,
-        "largest_function": 29,
-        "function_class_count": 12,
+        "largest_function": 11,
+        "function_class_count": 2,
         "internal_dependencies": 3
       },
-      "largest_function_name": "(匿名)",
+      "largest_function_name": "setupWorldSessionAndField",
       "sections": []
     },
     "backend/tests/routes/writing.test.js": {
       "kind": "code",
       "metrics": {
         "file_tokens": 9794,
-        "largest_function": 50,
-        "function_class_count": 74,
+        "largest_function": 11,
+        "function_class_count": 1,
         "internal_dependencies": 5
       },
-      "largest_function_name": "(匿名)",
+      "largest_function_name": "parseSsePayloads",
       "sections": []
     },
     "backend/tests/server-hooks.test.js": {
       "kind": "code",
       "metrics": {
         "file_tokens": 1170,
-        "largest_function": 55,
-        "function_class_count": 2,
+        "largest_function": 0,
+        "function_class_count": 0,
         "internal_dependencies": 1
       },
-      "largest_function_name": "(匿名)",
+      "largest_function_name": null,
       "sections": []
     },
     "backend/tests/services/characters-personas-extra.test.js": {
       "kind": "code",
       "metrics": {
         "file_tokens": 2426,
-        "largest_function": 25,
-        "function_class_count": 20,
+        "largest_function": 1,
+        "function_class_count": 0,
         "internal_dependencies": 2
       },
       "largest_function_name": "(匿名)",
@@ -3311,19 +3311,19 @@
       "kind": "code",
       "metrics": {
         "file_tokens": 3435,
-        "largest_function": 35,
-        "function_class_count": 14,
+        "largest_function": 0,
+        "function_class_count": 0,
         "internal_dependencies": 2
       },
-      "largest_function_name": "(匿名)",
+      "largest_function_name": null,
       "sections": []
     },
     "backend/tests/services/client-log-ingest.test.js": {
       "kind": "code",
       "metrics": {
         "file_tokens": 789,
-        "largest_function": 45,
-        "function_class_count": 8,
+        "largest_function": 7,
+        "function_class_count": 0,
         "internal_dependencies": 0
       },
       "largest_function_name": "(匿名)",
@@ -3333,74 +3333,74 @@
       "kind": "code",
       "metrics": {
         "file_tokens": 3073,
-        "largest_function": 89,
-        "function_class_count": 12,
+        "largest_function": 22,
+        "function_class_count": 4,
         "internal_dependencies": 2
       },
-      "largest_function_name": "(匿名)",
+      "largest_function_name": "normalizeWorldPackage",
       "sections": []
     },
     "backend/tests/services/long-term-memory.test.js": {
       "kind": "code",
       "metrics": {
         "file_tokens": 1485,
-        "largest_function": 15,
-        "function_class_count": 19,
+        "largest_function": 3,
+        "function_class_count": 1,
         "internal_dependencies": 2
       },
-      "largest_function_name": "(匿名)",
+      "largest_function_name": "ltmFile",
       "sections": []
     },
     "backend/tests/services/nearby-card-maker.test.js": {
       "kind": "code",
       "metrics": {
         "file_tokens": 1923,
-        "largest_function": 63,
-        "function_class_count": 14,
+        "largest_function": 10,
+        "function_class_count": 2,
         "internal_dependencies": 2
       },
-      "largest_function_name": "(匿名)",
+      "largest_function_name": "makeWorldAndWritingSession",
       "sections": []
     },
     "backend/tests/services/nearby-characters.test.js": {
       "kind": "code",
       "metrics": {
         "file_tokens": 2341,
-        "largest_function": 41,
-        "function_class_count": 26,
+        "largest_function": 9,
+        "function_class_count": 2,
         "internal_dependencies": 2
       },
-      "largest_function_name": "(匿名)",
+      "largest_function_name": "makeWorldAndSession",
       "sections": []
     },
     "backend/tests/services/persona-state-fields.test.js": {
       "kind": "code",
       "metrics": {
         "file_tokens": 1192,
-        "largest_function": 20,
-        "function_class_count": 15,
+        "largest_function": 6,
+        "function_class_count": 1,
         "internal_dependencies": 2
       },
-      "largest_function_name": "(匿名)",
+      "largest_function_name": "setupWorld",
       "sections": []
     },
     "backend/tests/services/session-stream-task-store.test.js": {
       "kind": "code",
       "metrics": {
         "file_tokens": 1933,
-        "largest_function": 36,
-        "function_class_count": 13,
+        "largest_function": 6,
+        "function_class_count": 4,
         "internal_dependencies": 2
       },
-      "largest_function_name": "(匿名)",
+      "largest_function_name": "createChatSessionFixture",
       "sections": []
     },
     "backend/tests/services/sessions.test.js": {
       "kind": "code",
       "metrics": {
         "file_tokens": 1260,
-        "largest_function": 22,
-        "function_class_count": 6,
+        "largest_function": 1,
+        "function_class_count": 0,
         "internal_dependencies": 2
       },
       "largest_function_name": "(匿名)",
@@ -3410,8 +3410,8 @@
       "kind": "code",
       "metrics": {
         "file_tokens": 1936,
-        "largest_function": 34,
-        "function_class_count": 17,
+        "largest_function": 1,
+        "function_class_count": 0,
         "internal_dependencies": 2
       },
       "largest_function_name": "(匿名)",
@@ -3421,19 +3421,19 @@
       "kind": "code",
       "metrics": {
         "file_tokens": 2288,
-        "largest_function": 39,
-        "function_class_count": 28,
+        "largest_function": 4,
+        "function_class_count": 1,
         "internal_dependencies": 2
       },
-      "largest_function_name": "(匿名)",
+      "largest_function_name": "loadModule",
       "sections": []
     },
     "backend/tests/services/state-values.test.js": {
       "kind": "code",
       "metrics": {
         "file_tokens": 878,
-        "largest_function": 26,
-        "function_class_count": 7,
+        "largest_function": 1,
+        "function_class_count": 0,
         "internal_dependencies": 2
       },
       "largest_function_name": "(匿名)",
@@ -3443,8 +3443,8 @@
       "kind": "code",
       "metrics": {
         "file_tokens": 1292,
-        "largest_function": 23,
-        "function_class_count": 13,
+        "largest_function": 5,
+        "function_class_count": 0,
         "internal_dependencies": 1
       },
       "largest_function_name": "(匿名)",
@@ -3454,8 +3454,8 @@
       "kind": "code",
       "metrics": {
         "file_tokens": 1157,
-        "largest_function": 22,
-        "function_class_count": 8,
+        "largest_function": 1,
+        "function_class_count": 0,
         "internal_dependencies": 2
       },
       "largest_function_name": "(匿名)",
@@ -3465,8 +3465,8 @@
       "kind": "code",
       "metrics": {
         "file_tokens": 1684,
-        "largest_function": 54,
-        "function_class_count": 8,
+        "largest_function": 1,
+        "function_class_count": 0,
         "internal_dependencies": 2
       },
       "largest_function_name": "(匿名)",
@@ -3476,19 +3476,19 @@
       "kind": "code",
       "metrics": {
         "file_tokens": 2837,
-        "largest_function": 15,
-        "function_class_count": 18,
+        "largest_function": 4,
+        "function_class_count": 1,
         "internal_dependencies": 2
       },
-      "largest_function_name": "(匿名)",
+      "largest_function_name": "seedItems",
       "sections": []
     },
     "backend/tests/table-memory/io-rollback.test.js": {
       "kind": "code",
       "metrics": {
         "file_tokens": 1126,
-        "largest_function": 23,
-        "function_class_count": 8,
+        "largest_function": 1,
+        "function_class_count": 0,
         "internal_dependencies": 0
       },
       "largest_function_name": "(匿名)",
@@ -3498,41 +3498,41 @@
       "kind": "code",
       "metrics": {
         "file_tokens": 1236,
-        "largest_function": 31,
-        "function_class_count": 14,
+        "largest_function": 3,
+        "function_class_count": 4,
         "internal_dependencies": 1
       },
-      "largest_function_name": "(匿名)",
+      "largest_function_name": "chatTask",
       "sections": []
     },
     "backend/tests/table-memory/render.test.js": {
       "kind": "code",
       "metrics": {
         "file_tokens": 470,
-        "largest_function": 10,
-        "function_class_count": 4,
+        "largest_function": 0,
+        "function_class_count": 0,
         "internal_dependencies": 2
       },
-      "largest_function_name": "(匿名)",
+      "largest_function_name": null,
       "sections": []
     },
     "backend/tests/table-memory/rollback-wiring.test.js": {
       "kind": "code",
       "metrics": {
         "file_tokens": 216,
-        "largest_function": 6,
-        "function_class_count": 1,
+        "largest_function": 0,
+        "function_class_count": 0,
         "internal_dependencies": 0
       },
-      "largest_function_name": "(匿名)",
+      "largest_function_name": null,
       "sections": []
     },
     "backend/tests/table-memory/route.test.js": {
       "kind": "code",
       "metrics": {
         "file_tokens": 1284,
-        "largest_function": 57,
-        "function_class_count": 5,
+        "largest_function": 1,
+        "function_class_count": 0,
         "internal_dependencies": 4
       },
       "largest_function_name": "(匿名)",
@@ -3542,19 +3542,19 @@
       "kind": "code",
       "metrics": {
         "file_tokens": 289,
-        "largest_function": 9,
-        "function_class_count": 2,
+        "largest_function": 0,
+        "function_class_count": 0,
         "internal_dependencies": 1
       },
-      "largest_function_name": "(匿名)",
+      "largest_function_name": null,
       "sections": []
     },
     "backend/tests/table-memory/turn-record-snapshot.test.js": {
       "kind": "code",
       "metrics": {
         "file_tokens": 377,
-        "largest_function": 10,
-        "function_class_count": 2,
+        "largest_function": 1,
+        "function_class_count": 0,
         "internal_dependencies": 1
       },
       "largest_function_name": "(匿名)",
@@ -3564,19 +3564,19 @@
       "kind": "code",
       "metrics": {
         "file_tokens": 304,
-        "largest_function": 5,
-        "function_class_count": 3,
+        "largest_function": 0,
+        "function_class_count": 0,
         "internal_dependencies": 0
       },
-      "largest_function_name": "(匿名)",
+      "largest_function_name": null,
       "sections": []
     },
     "backend/tests/utils/async-queue.test.js": {
       "kind": "code",
       "metrics": {
         "file_tokens": 1256,
-        "largest_function": 29,
-        "function_class_count": 26,
+        "largest_function": 5,
+        "function_class_count": 0,
         "internal_dependencies": 1
       },
       "largest_function_name": "(匿名)",
@@ -3586,30 +3586,30 @@
       "kind": "code",
       "metrics": {
         "file_tokens": 2931,
-        "largest_function": 16,
-        "function_class_count": 32,
+        "largest_function": 9,
+        "function_class_count": 5,
         "internal_dependencies": 1
       },
-      "largest_function_name": "(匿名)",
+      "largest_function_name": "waitForLogMatch",
       "sections": []
     },
     "backend/tests/utils/network-safety-extra.test.js": {
       "kind": "code",
       "metrics": {
         "file_tokens": 1228,
-        "largest_function": 17,
-        "function_class_count": 16,
+        "largest_function": 3,
+        "function_class_count": 1,
         "internal_dependencies": 1
       },
-      "largest_function_name": "(匿名)",
+      "largest_function_name": "loadModule",
       "sections": []
     },
     "backend/tests/utils/network-safety.test.js": {
       "kind": "code",
       "metrics": {
         "file_tokens": 487,
-        "largest_function": 7,
-        "function_class_count": 8,
+        "largest_function": 1,
+        "function_class_count": 0,
         "internal_dependencies": 1
       },
       "largest_function_name": "(匿名)",
@@ -3619,30 +3619,30 @@
       "kind": "code",
       "metrics": {
         "file_tokens": 1441,
-        "largest_function": 33,
-        "function_class_count": 26,
+        "largest_function": 15,
+        "function_class_count": 17,
         "internal_dependencies": 1
       },
-      "largest_function_name": "(匿名)",
+      "largest_function_name": "makeCtx",
       "sections": []
     },
     "backend/tests/utils/regex-runner.test.js": {
       "kind": "code",
       "metrics": {
         "file_tokens": 619,
-        "largest_function": 21,
-        "function_class_count": 4,
+        "largest_function": 0,
+        "function_class_count": 0,
         "internal_dependencies": 2
       },
-      "largest_function_name": "(匿名)",
+      "largest_function_name": null,
       "sections": []
     },
     "backend/tests/utils/request-context.test.js": {
       "kind": "code",
       "metrics": {
         "file_tokens": 235,
-        "largest_function": 20,
-        "function_class_count": 7,
+        "largest_function": 6,
+        "function_class_count": 0,
         "internal_dependencies": 1
       },
       "largest_function_name": "(匿名)",
@@ -3652,19 +3652,19 @@
       "kind": "code",
       "metrics": {
         "file_tokens": 1311,
-        "largest_function": 14,
-        "function_class_count": 13,
+        "largest_function": 4,
+        "function_class_count": 2,
         "internal_dependencies": 1
       },
-      "largest_function_name": "(匿名)",
+      "largest_function_name": "writeRaw",
       "sections": []
     },
     "backend/tests/utils/state-field-validate.test.js": {
       "kind": "code",
       "metrics": {
         "file_tokens": 554,
-        "largest_function": 6,
-        "function_class_count": 4,
+        "largest_function": 1,
+        "function_class_count": 0,
         "internal_dependencies": 1
       },
       "largest_function_name": "(匿名)",
@@ -3674,33 +3674,33 @@
       "kind": "code",
       "metrics": {
         "file_tokens": 723,
-        "largest_function": 6,
-        "function_class_count": 9,
+        "largest_function": 0,
+        "function_class_count": 0,
         "internal_dependencies": 1
       },
-      "largest_function_name": "(匿名)",
+      "largest_function_name": null,
       "sections": []
     },
     "backend/tests/utils/token-counter.test.js": {
       "kind": "code",
       "metrics": {
         "file_tokens": 421,
-        "largest_function": 8,
-        "function_class_count": 6,
+        "largest_function": 0,
+        "function_class_count": 0,
         "internal_dependencies": 1
       },
-      "largest_function_name": "(匿名)",
+      "largest_function_name": null,
       "sections": []
     },
     "backend/tests/utils/turn-dialogue.test.js": {
       "kind": "code",
       "metrics": {
         "file_tokens": 2304,
-        "largest_function": 22,
-        "function_class_count": 21,
+        "largest_function": 0,
+        "function_class_count": 0,
         "internal_dependencies": 1
       },
-      "largest_function_name": "(匿名)",
+      "largest_function_name": null,
       "sections": []
     },
     "backend/utils/async-queue.js": {
@@ -3708,7 +3708,7 @@
       "metrics": {
         "file_tokens": 1418,
         "largest_function": 33,
-        "function_class_count": 11,
+        "function_class_count": 7,
         "internal_dependencies": 3
       },
       "largest_function_name": "drain",
@@ -3730,7 +3730,7 @@
       "metrics": {
         "file_tokens": 769,
         "largest_function": 27,
-        "function_class_count": 7,
+        "function_class_count": 3,
         "internal_dependencies": 1
       },
       "largest_function_name": "detectNewChapter",
@@ -3785,7 +3785,7 @@
       "metrics": {
         "file_tokens": 432,
         "largest_function": 36,
-        "function_class_count": 4,
+        "function_class_count": 1,
         "internal_dependencies": 2
       },
       "largest_function_name": "loadUserHooks",
@@ -3796,7 +3796,7 @@
       "metrics": {
         "file_tokens": 3747,
         "largest_function": 27,
-        "function_class_count": 35,
+        "function_class_count": 29,
         "internal_dependencies": 1
       },
       "largest_function_name": "write",
@@ -3807,7 +3807,7 @@
       "metrics": {
         "file_tokens": 645,
         "largest_function": 36,
-        "function_class_count": 5,
+        "function_class_count": 4,
         "internal_dependencies": 0
       },
       "largest_function_name": "validateModelFetchBaseUrl",
@@ -3818,7 +3818,7 @@
       "metrics": {
         "file_tokens": 1362,
         "largest_function": 58,
-        "function_class_count": 8,
+        "function_class_count": 2,
         "internal_dependencies": 4
       },
       "largest_function_name": "runPostGenTasks",
@@ -3851,7 +3851,7 @@
       "metrics": {
         "file_tokens": 74,
         "largest_function": 3,
-        "function_class_count": 3,
+        "function_class_count": 2,
         "internal_dependencies": 0
       },
       "largest_function_name": "runWithContext",
@@ -3873,7 +3873,7 @@
       "metrics": {
         "file_tokens": 983,
         "largest_function": 19,
-        "function_class_count": 8,
+        "function_class_count": 1,
         "internal_dependencies": 1
       },
       "largest_function_name": "search",
@@ -3895,7 +3895,7 @@
       "metrics": {
         "file_tokens": 265,
         "largest_function": 8,
-        "function_class_count": 3,
+        "function_class_count": 2,
         "internal_dependencies": 0
       },
       "largest_function_name": "trackStateUpdate",
@@ -3939,7 +3939,7 @@
       "metrics": {
         "file_tokens": 2145,
         "largest_function": 40,
-        "function_class_count": 16,
+        "function_class_count": 15,
         "internal_dependencies": 0
       },
       "largest_function_name": "stackScan",
@@ -3950,7 +3950,7 @@
       "metrics": {
         "file_tokens": 1239,
         "largest_function": 35,
-        "function_class_count": 10,
+        "function_class_count": 2,
         "internal_dependencies": 1
       },
       "largest_function_name": "search",
@@ -4293,7 +4293,7 @@
       "metrics": {
         "file_tokens": 2061,
         "largest_function": 65,
-        "function_class_count": 18,
+        "function_class_count": 8,
         "internal_dependencies": 0
       },
       "largest_function_name": "downloadFile",
@@ -4304,7 +4304,7 @@
       "metrics": {
         "file_tokens": 2382,
         "largest_function": 79,
-        "function_class_count": 26,
+        "function_class_count": 7,
         "internal_dependencies": 1
       },
       "largest_function_name": "startBackend",
@@ -4326,7 +4326,7 @@
       "metrics": {
         "file_tokens": 407,
         "largest_function": 34,
-        "function_class_count": 7,
+        "function_class_count": 3,
         "internal_dependencies": 0
       },
       "largest_function_name": "waitForPort",
@@ -5018,11 +5018,11 @@
       "kind": "code",
       "metrics": {
         "file_tokens": 501,
-        "largest_function": 36,
-        "function_class_count": 5,
+        "largest_function": 11,
+        "function_class_count": 1,
         "internal_dependencies": 1
       },
-      "largest_function_name": "(匿名)",
+      "largest_function_name": "renderInputBox",
       "sections": []
     },
     "frontend/src/components/chat/ActivatedEntriesRow.jsx": {
@@ -5030,7 +5030,7 @@
       "metrics": {
         "file_tokens": 692,
         "largest_function": 75,
-        "function_class_count": 9,
+        "function_class_count": 2,
         "internal_dependencies": 0
       },
       "largest_function_name": "ActivatedEntriesRow",
@@ -5041,7 +5041,7 @@
       "metrics": {
         "file_tokens": 1041,
         "largest_function": 117,
-        "function_class_count": 12,
+        "function_class_count": 7,
         "internal_dependencies": 2
       },
       "largest_function_name": "ChapterDivider",
@@ -5063,7 +5063,7 @@
       "metrics": {
         "file_tokens": 680,
         "largest_function": 32,
-        "function_class_count": 3,
+        "function_class_count": 1,
         "internal_dependencies": 0
       },
       "largest_function_name": "DanmakuLayer",
@@ -5074,7 +5074,7 @@
       "metrics": {
         "file_tokens": 3767,
         "largest_function": 440,
-        "function_class_count": 44,
+        "function_class_count": 16,
         "internal_dependencies": 6
       },
       "largest_function_name": "InputBox",
@@ -5096,7 +5096,7 @@
       "metrics": {
         "file_tokens": 4919,
         "largest_function": 303,
-        "function_class_count": 53,
+        "function_class_count": 11,
         "internal_dependencies": 14
       },
       "largest_function_name": "MessageItem",
@@ -5107,7 +5107,7 @@
       "metrics": {
         "file_tokens": 4517,
         "largest_function": 430,
-        "function_class_count": 54,
+        "function_class_count": 14,
         "internal_dependencies": 7
       },
       "largest_function_name": "MessageList",
@@ -5118,7 +5118,7 @@
       "metrics": {
         "file_tokens": 761,
         "largest_function": 73,
-        "function_class_count": 7,
+        "function_class_count": 2,
         "internal_dependencies": 1
       },
       "largest_function_name": "OptionCard",
@@ -5129,7 +5129,7 @@
       "metrics": {
         "file_tokens": 400,
         "largest_function": 38,
-        "function_class_count": 4,
+        "function_class_count": 2,
         "internal_dependencies": 0
       },
       "largest_function_name": "Pager",
@@ -5151,7 +5151,7 @@
       "metrics": {
         "file_tokens": 3069,
         "largest_function": 78,
-        "function_class_count": 37,
+        "function_class_count": 16,
         "internal_dependencies": 2
       },
       "largest_function_name": "StreamingMarkdown",
@@ -5172,11 +5172,11 @@
       "kind": "code",
       "metrics": {
         "file_tokens": 1254,
-        "largest_function": 69,
-        "function_class_count": 16,
+        "largest_function": 10,
+        "function_class_count": 1,
         "internal_dependencies": 0
       },
-      "largest_function_name": "(匿名)",
+      "largest_function_name": "makeTables",
       "sections": []
     },
     "frontend/src/components/session/LongTermMemoryModal.jsx": {
@@ -5184,7 +5184,7 @@
       "metrics": {
         "file_tokens": 883,
         "largest_function": 94,
-        "function_class_count": 10,
+        "function_class_count": 3,
         "internal_dependencies": 4
       },
       "largest_function_name": "LongTermMemoryModal",
@@ -5195,7 +5195,7 @@
       "metrics": {
         "file_tokens": 2613,
         "largest_function": 134,
-        "function_class_count": 34,
+        "function_class_count": 8,
         "internal_dependencies": 5
       },
       "largest_function_name": "TableMemoryModal",
@@ -5206,7 +5206,7 @@
       "metrics": {
         "file_tokens": 3686,
         "largest_function": 155,
-        "function_class_count": 46,
+        "function_class_count": 12,
         "internal_dependencies": 12
       },
       "largest_function_name": "WorldTimelinePanel",
@@ -5216,8 +5216,8 @@
       "kind": "code",
       "metrics": {
         "file_tokens": 890,
-        "largest_function": 60,
-        "function_class_count": 13,
+        "largest_function": 9,
+        "function_class_count": 0,
         "internal_dependencies": 0
       },
       "largest_function_name": "(匿名)",
@@ -5250,7 +5250,7 @@
       "metrics": {
         "file_tokens": 1622,
         "largest_function": 150,
-        "function_class_count": 9,
+        "function_class_count": 2,
         "internal_dependencies": 7
       },
       "largest_function_name": "AuxLlmBlock",
@@ -5261,7 +5261,7 @@
       "metrics": {
         "file_tokens": 2254,
         "largest_function": 130,
-        "function_class_count": 27,
+        "function_class_count": 9,
         "internal_dependencies": 12
       },
       "largest_function_name": "CustomCssManager",
@@ -5283,7 +5283,7 @@
       "metrics": {
         "file_tokens": 3264,
         "largest_function": 350,
-        "function_class_count": 26,
+        "function_class_count": 10,
         "internal_dependencies": 4
       },
       "largest_function_name": "FeaturesConfigPanel",
@@ -5294,7 +5294,7 @@
       "metrics": {
         "file_tokens": 2000,
         "largest_function": 195,
-        "function_class_count": 14,
+        "function_class_count": 7,
         "internal_dependencies": 7
       },
       "largest_function_name": "ImportExportPanel",
@@ -5305,7 +5305,7 @@
       "metrics": {
         "file_tokens": 1653,
         "largest_function": 167,
-        "function_class_count": 34,
+        "function_class_count": 2,
         "internal_dependencies": 9
       },
       "largest_function_name": "LlmConfigPanel",
@@ -5316,7 +5316,7 @@
       "metrics": {
         "file_tokens": 2231,
         "largest_function": 244,
-        "function_class_count": 11,
+        "function_class_count": 4,
         "internal_dependencies": 9
       },
       "largest_function_name": "MainLlmBlock",
@@ -5338,7 +5338,7 @@
       "metrics": {
         "file_tokens": 671,
         "largest_function": 60,
-        "function_class_count": 8,
+        "function_class_count": 2,
         "internal_dependencies": 3
       },
       "largest_function_name": "ModelSelector",
@@ -5349,7 +5349,7 @@
       "metrics": {
         "file_tokens": 187,
         "largest_function": 23,
-        "function_class_count": 3,
+        "function_class_count": 1,
         "internal_dependencies": 0
       },
       "largest_function_name": "ModeSwitch",
@@ -5371,7 +5371,7 @@
       "metrics": {
         "file_tokens": 1209,
         "largest_function": 113,
-        "function_class_count": 8,
+        "function_class_count": 2,
         "internal_dependencies": 7
       },
       "largest_function_name": "ProviderBlock",
@@ -5382,7 +5382,7 @@
       "metrics": {
         "file_tokens": 2808,
         "largest_function": 156,
-        "function_class_count": 30,
+        "function_class_count": 4,
         "internal_dependencies": 2
       },
       "largest_function_name": "ProviderSafetyPanel",
@@ -5393,7 +5393,7 @@
       "metrics": {
         "file_tokens": 2024,
         "largest_function": 185,
-        "function_class_count": 22,
+        "function_class_count": 5,
         "internal_dependencies": 5
       },
       "largest_function_name": "RegexRuleEditor",
@@ -5404,7 +5404,7 @@
       "metrics": {
         "file_tokens": 1860,
         "largest_function": 153,
-        "function_class_count": 32,
+        "function_class_count": 11,
         "internal_dependencies": 11
       },
       "largest_function_name": "RegexRulesManager",
@@ -5415,7 +5415,7 @@
       "metrics": {
         "file_tokens": 1652,
         "largest_function": 166,
-        "function_class_count": 19,
+        "function_class_count": 5,
         "internal_dependencies": 7
       },
       "largest_function_name": "ThemeManager",
@@ -5425,8 +5425,8 @@
       "kind": "code",
       "metrics": {
         "file_tokens": 657,
-        "largest_function": 19,
-        "function_class_count": 14,
+        "largest_function": 7,
+        "function_class_count": 1,
         "internal_dependencies": 0
       },
       "largest_function_name": "(匿名)",
@@ -5448,7 +5448,7 @@
       "metrics": {
         "file_tokens": 1790,
         "largest_function": 92,
-        "function_class_count": 15,
+        "function_class_count": 7,
         "internal_dependencies": 0
       },
       "largest_function_name": "DatetimeSplitInput",
@@ -5459,7 +5459,7 @@
       "metrics": {
         "file_tokens": 8050,
         "largest_function": 604,
-        "function_class_count": 98,
+        "function_class_count": 7,
         "internal_dependencies": 13
       },
       "largest_function_name": "EntryEditor",
@@ -5470,7 +5470,7 @@
       "metrics": {
         "file_tokens": 878,
         "largest_function": 38,
-        "function_class_count": 8,
+        "function_class_count": 6,
         "internal_dependencies": 0
       },
       "largest_function_name": "StateBusyOverlay",
@@ -5481,7 +5481,7 @@
       "metrics": {
         "file_tokens": 503,
         "largest_function": 25,
-        "function_class_count": 8,
+        "function_class_count": 4,
         "internal_dependencies": 2
       },
       "largest_function_name": "useDiarySelection",
@@ -5503,7 +5503,7 @@
       "metrics": {
         "file_tokens": 2477,
         "largest_function": 264,
-        "function_class_count": 30,
+        "function_class_count": 13,
         "internal_dependencies": 11
       },
       "largest_function_name": "SessionStatePanel",
@@ -5525,7 +5525,7 @@
       "metrics": {
         "file_tokens": 1563,
         "largest_function": 92,
-        "function_class_count": 7,
+        "function_class_count": 3,
         "internal_dependencies": 4
       },
       "largest_function_name": "StateChangeCard",
@@ -5536,7 +5536,7 @@
       "metrics": {
         "file_tokens": 2237,
         "largest_function": 166,
-        "function_class_count": 21,
+        "function_class_count": 6,
         "internal_dependencies": 1
       },
       "largest_function_name": "StateExtractPreviewModal",
@@ -5547,7 +5547,7 @@
       "metrics": {
         "file_tokens": 6328,
         "largest_function": 490,
-        "function_class_count": 57,
+        "function_class_count": 2,
         "internal_dependencies": 5
       },
       "largest_function_name": "StateFieldEditor",
@@ -5558,7 +5558,7 @@
       "metrics": {
         "file_tokens": 2338,
         "largest_function": 125,
-        "function_class_count": 29,
+        "function_class_count": 9,
         "internal_dependencies": 5
       },
       "largest_function_name": "StateFieldList",
@@ -5569,7 +5569,7 @@
       "metrics": {
         "file_tokens": 747,
         "largest_function": 60,
-        "function_class_count": 7,
+        "function_class_count": 2,
         "internal_dependencies": 7
       },
       "largest_function_name": "StatePanel",
@@ -5580,7 +5580,7 @@
       "metrics": {
         "file_tokens": 2232,
         "largest_function": 209,
-        "function_class_count": 32,
+        "function_class_count": 14,
         "internal_dependencies": 5
       },
       "largest_function_name": "StateValueFieldInner",
@@ -5591,7 +5591,7 @@
       "metrics": {
         "file_tokens": 5396,
         "largest_function": 236,
-        "function_class_count": 74,
+        "function_class_count": 31,
         "internal_dependencies": 8
       },
       "largest_function_name": "InlineEditor",
@@ -5602,7 +5602,7 @@
       "metrics": {
         "file_tokens": 1170,
         "largest_function": 60,
-        "function_class_count": 14,
+        "function_class_count": 3,
         "internal_dependencies": 2
       },
       "largest_function_name": "StatusTable",
@@ -5612,8 +5612,8 @@
       "kind": "code",
       "metrics": {
         "file_tokens": 841,
-        "largest_function": 43,
-        "function_class_count": 22,
+        "largest_function": 20,
+        "function_class_count": 6,
         "internal_dependencies": 0
       },
       "largest_function_name": "(匿名)",
@@ -5679,7 +5679,7 @@
       "metrics": {
         "file_tokens": 696,
         "largest_function": 71,
-        "function_class_count": 6,
+        "function_class_count": 2,
         "internal_dependencies": 2
       },
       "largest_function_name": "ConfirmModal",
@@ -5690,7 +5690,7 @@
       "metrics": {
         "file_tokens": 424,
         "largest_function": 32,
-        "function_class_count": 4,
+        "function_class_count": 1,
         "internal_dependencies": 2
       },
       "largest_function_name": "DialogShell",
@@ -5756,7 +5756,7 @@
       "metrics": {
         "file_tokens": 699,
         "largest_function": 71,
-        "function_class_count": 17,
+        "function_class_count": 2,
         "internal_dependencies": 1
       },
       "largest_function_name": "GlobalToast",
@@ -5789,7 +5789,7 @@
       "metrics": {
         "file_tokens": 309,
         "largest_function": 27,
-        "function_class_count": 2,
+        "function_class_count": 1,
         "internal_dependencies": 0
       },
       "largest_function_name": "MarkdownEditor",
@@ -5800,7 +5800,7 @@
       "metrics": {
         "file_tokens": 2572,
         "largest_function": 75,
-        "function_class_count": 25,
+        "function_class_count": 15,
         "internal_dependencies": 0
       },
       "largest_function_name": "MarkdownEditorInner",
@@ -5811,7 +5811,7 @@
       "metrics": {
         "file_tokens": 491,
         "largest_function": 34,
-        "function_class_count": 4,
+        "function_class_count": 1,
         "internal_dependencies": 2
       },
       "largest_function_name": "ModalShell",
@@ -5822,7 +5822,7 @@
       "metrics": {
         "file_tokens": 1332,
         "largest_function": 141,
-        "function_class_count": 16,
+        "function_class_count": 10,
         "internal_dependencies": 1
       },
       "largest_function_name": "ModelCombobox",
@@ -5844,7 +5844,7 @@
       "metrics": {
         "file_tokens": 1191,
         "largest_function": 86,
-        "function_class_count": 10,
+        "function_class_count": 2,
         "internal_dependencies": 1
       },
       "largest_function_name": "ProviderSafetyBanner",
@@ -5855,7 +5855,7 @@
       "metrics": {
         "file_tokens": 549,
         "largest_function": 25,
-        "function_class_count": 3,
+        "function_class_count": 2,
         "internal_dependencies": 0
       },
       "largest_function_name": "Range",
@@ -5877,7 +5877,7 @@
       "metrics": {
         "file_tokens": 1485,
         "largest_function": 126,
-        "function_class_count": 15,
+        "function_class_count": 8,
         "internal_dependencies": 2
       },
       "largest_function_name": "SectionTabs",
@@ -5888,7 +5888,7 @@
       "metrics": {
         "file_tokens": 1018,
         "largest_function": 105,
-        "function_class_count": 11,
+        "function_class_count": 4,
         "internal_dependencies": 1
       },
       "largest_function_name": "Select",
@@ -5899,7 +5899,7 @@
       "metrics": {
         "file_tokens": 1509,
         "largest_function": 89,
-        "function_class_count": 16,
+        "function_class_count": 8,
         "internal_dependencies": 0
       },
       "largest_function_name": "SortableGrid",
@@ -5910,7 +5910,7 @@
       "metrics": {
         "file_tokens": 493,
         "largest_function": 39,
-        "function_class_count": 7,
+        "function_class_count": 5,
         "internal_dependencies": 0
       },
       "largest_function_name": "SortableList",
@@ -5921,7 +5921,7 @@
       "metrics": {
         "file_tokens": 405,
         "largest_function": 35,
-        "function_class_count": 4,
+        "function_class_count": 2,
         "internal_dependencies": 0
       },
       "largest_function_name": "Textarea",
@@ -5943,7 +5943,7 @@
       "metrics": {
         "file_tokens": 120,
         "largest_function": 13,
-        "function_class_count": 2,
+        "function_class_count": 1,
         "internal_dependencies": 0
       },
       "largest_function_name": "ToggleSwitch",
@@ -5954,7 +5954,7 @@
       "metrics": {
         "file_tokens": 1157,
         "largest_function": 72,
-        "function_class_count": 6,
+        "function_class_count": 1,
         "internal_dependencies": 1
       },
       "largest_function_name": "WorldSceneArt",
@@ -5965,7 +5965,7 @@
       "metrics": {
         "file_tokens": 3517,
         "largest_function": 256,
-        "function_class_count": 41,
+        "function_class_count": 6,
         "internal_dependencies": 12
       },
       "largest_function_name": "WritingMessageItem",
@@ -5975,8 +5975,8 @@
       "kind": "code",
       "metrics": {
         "file_tokens": 820,
-        "largest_function": 43,
-        "function_class_count": 8,
+        "largest_function": 9,
+        "function_class_count": 1,
         "internal_dependencies": 1
       },
       "largest_function_name": "(匿名)",
@@ -5998,7 +5998,7 @@
       "metrics": {
         "file_tokens": 123,
         "largest_function": 1,
-        "function_class_count": 5,
+        "function_class_count": 0,
         "internal_dependencies": 1
       },
       "largest_function_name": "listCharacterStateFields",
@@ -6009,7 +6009,7 @@
       "metrics": {
         "file_tokens": 500,
         "largest_function": 12,
-        "function_class_count": 9,
+        "function_class_count": 4,
         "internal_dependencies": 0
       },
       "largest_function_name": "updateCharacterStateValue",
@@ -6020,7 +6020,7 @@
       "metrics": {
         "file_tokens": 382,
         "largest_function": 14,
-        "function_class_count": 9,
+        "function_class_count": 7,
         "internal_dependencies": 1
       },
       "largest_function_name": "uploadAvatar",
@@ -6031,7 +6031,7 @@
       "metrics": {
         "file_tokens": 908,
         "largest_function": 12,
-        "function_class_count": 14,
+        "function_class_count": 11,
         "internal_dependencies": 2
       },
       "largest_function_name": "editAssistantMessage",
@@ -6053,7 +6053,7 @@
       "metrics": {
         "file_tokens": 426,
         "largest_function": 11,
-        "function_class_count": 14,
+        "function_class_count": 13,
         "internal_dependencies": 1
       },
       "largest_function_name": "updateConfig",
@@ -6064,7 +6064,7 @@
       "metrics": {
         "file_tokens": 539,
         "largest_function": 20,
-        "function_class_count": 8,
+        "function_class_count": 6,
         "internal_dependencies": 1
       },
       "largest_function_name": "refreshCustomCss",
@@ -6108,7 +6108,7 @@
       "metrics": {
         "file_tokens": 123,
         "largest_function": 1,
-        "function_class_count": 5,
+        "function_class_count": 0,
         "internal_dependencies": 1
       },
       "largest_function_name": "listPersonaStateFields",
@@ -6119,7 +6119,7 @@
       "metrics": {
         "file_tokens": 587,
         "largest_function": 9,
-        "function_class_count": 8,
+        "function_class_count": 6,
         "internal_dependencies": 0
       },
       "largest_function_name": "updatePersonaStateValue",
@@ -6130,7 +6130,7 @@
       "metrics": {
         "file_tokens": 1243,
         "largest_function": 14,
-        "function_class_count": 17,
+        "function_class_count": 12,
         "internal_dependencies": 0
       },
       "largest_function_name": "uploadPersonaAvatar",
@@ -6163,7 +6163,7 @@
       "metrics": {
         "file_tokens": 442,
         "largest_function": 8,
-        "function_class_count": 6,
+        "function_class_count": 5,
         "internal_dependencies": 1
       },
       "largest_function_name": "listProviderSafetyEvents",
@@ -6196,7 +6196,7 @@
       "metrics": {
         "file_tokens": 462,
         "largest_function": 6,
-        "function_class_count": 11,
+        "function_class_count": 10,
         "internal_dependencies": 1
       },
       "largest_function_name": "addSavedNearbyFromCharacter",
@@ -6229,7 +6229,7 @@
       "metrics": {
         "file_tokens": 877,
         "largest_function": 9,
-        "function_class_count": 11,
+        "function_class_count": 10,
         "internal_dependencies": 0
       },
       "largest_function_name": "renameSession",
@@ -6240,7 +6240,7 @@
       "metrics": {
         "file_tokens": 549,
         "largest_function": 29,
-        "function_class_count": 8,
+        "function_class_count": 3,
         "internal_dependencies": 1
       },
       "largest_function_name": "streamPost",
@@ -6284,7 +6284,7 @@
       "metrics": {
         "file_tokens": 633,
         "largest_function": 20,
-        "function_class_count": 11,
+        "function_class_count": 8,
         "internal_dependencies": 1
       },
       "largest_function_name": "refreshThemeCss",
@@ -6295,7 +6295,7 @@
       "metrics": {
         "file_tokens": 251,
         "largest_function": 3,
-        "function_class_count": 7,
+        "function_class_count": 2,
         "internal_dependencies": 1
       },
       "largest_function_name": "syncDiaryTimeField",
@@ -6306,7 +6306,7 @@
       "metrics": {
         "file_tokens": 366,
         "largest_function": 12,
-        "function_class_count": 7,
+        "function_class_count": 3,
         "internal_dependencies": 0
       },
       "largest_function_name": "updateWorldStateValue",
@@ -6317,7 +6317,7 @@
       "metrics": {
         "file_tokens": 424,
         "largest_function": 15,
-        "function_class_count": 9,
+        "function_class_count": 7,
         "internal_dependencies": 1
       },
       "largest_function_name": "uploadWorldCover",
@@ -6328,7 +6328,7 @@
       "metrics": {
         "file_tokens": 1462,
         "largest_function": 12,
-        "function_class_count": 16,
+        "function_class_count": 13,
         "internal_dependencies": 2
       },
       "largest_function_name": "editWritingAssistantMessage",
@@ -6371,22 +6371,22 @@
       "kind": "code",
       "metrics": {
         "file_tokens": 487,
-        "largest_function": 27,
-        "function_class_count": 5,
+        "largest_function": 4,
+        "function_class_count": 1,
         "internal_dependencies": 1
       },
-      "largest_function_name": "(匿名)",
+      "largest_function_name": "toRgbSum",
       "sections": []
     },
     "frontend/src/core/features/worldAccent/__tests__/useWorldAccentVars.test.jsx": {
       "kind": "code",
       "metrics": {
         "file_tokens": 1301,
-        "largest_function": 90,
-        "function_class_count": 25,
+        "largest_function": 10,
+        "function_class_count": 4,
         "internal_dependencies": 2
       },
-      "largest_function_name": "(匿名)",
+      "largest_function_name": "Harness",
       "sections": []
     },
     "frontend/src/core/features/worldAccent/deriveAccentTokens.js": {
@@ -6405,7 +6405,7 @@
       "metrics": {
         "file_tokens": 1620,
         "largest_function": 54,
-        "function_class_count": 17,
+        "function_class_count": 6,
         "internal_dependencies": 5
       },
       "largest_function_name": "useWorldAccentVars",
@@ -6416,7 +6416,7 @@
       "metrics": {
         "file_tokens": 464,
         "largest_function": 24,
-        "function_class_count": 6,
+        "function_class_count": 2,
         "internal_dependencies": 1
       },
       "largest_function_name": "useEscapeKey",
@@ -6427,7 +6427,7 @@
       "metrics": {
         "file_tokens": 827,
         "largest_function": 93,
-        "function_class_count": 13,
+        "function_class_count": 1,
         "internal_dependencies": 0
       },
       "largest_function_name": "useMemoryIndicators",
@@ -6438,7 +6438,7 @@
       "metrics": {
         "file_tokens": 928,
         "largest_function": 39,
-        "function_class_count": 13,
+        "function_class_count": 12,
         "internal_dependencies": 1
       },
       "largest_function_name": "useMotion",
@@ -6449,7 +6449,7 @@
       "metrics": {
         "file_tokens": 471,
         "largest_function": 29,
-        "function_class_count": 8,
+        "function_class_count": 2,
         "internal_dependencies": 2
       },
       "largest_function_name": "usePageConfig",
@@ -6460,7 +6460,7 @@
       "metrics": {
         "file_tokens": 218,
         "largest_function": 23,
-        "function_class_count": 3,
+        "function_class_count": 1,
         "internal_dependencies": 0
       },
       "largest_function_name": "useSaveState",
@@ -6471,7 +6471,7 @@
       "metrics": {
         "file_tokens": 1496,
         "largest_function": 201,
-        "function_class_count": 26,
+        "function_class_count": 5,
         "internal_dependencies": 2
       },
       "largest_function_name": "useSessionState",
@@ -6482,7 +6482,7 @@
       "metrics": {
         "file_tokens": 8472,
         "largest_function": 857,
-        "function_class_count": 104,
+        "function_class_count": 8,
         "internal_dependencies": 7
       },
       "largest_function_name": "useSessionStream",
@@ -6493,7 +6493,7 @@
       "metrics": {
         "file_tokens": 4604,
         "largest_function": 525,
-        "function_class_count": 68,
+        "function_class_count": 2,
         "internal_dependencies": 5
       },
       "largest_function_name": "useSettingsConfig",
@@ -6504,7 +6504,7 @@
       "metrics": {
         "file_tokens": 881,
         "largest_function": 31,
-        "function_class_count": 4,
+        "function_class_count": 2,
         "internal_dependencies": 1
       },
       "largest_function_name": "useStateDiff",
@@ -6515,7 +6515,7 @@
       "metrics": {
         "file_tokens": 1868,
         "largest_function": 106,
-        "function_class_count": 29,
+        "function_class_count": 5,
         "internal_dependencies": 9
       },
       "largest_function_name": "AppRouter",
@@ -6548,7 +6548,7 @@
       "metrics": {
         "file_tokens": 62,
         "largest_function": 4,
-        "function_class_count": 2,
+        "function_class_count": 1,
         "internal_dependencies": 1
       },
       "largest_function_name": "(匿名)",
@@ -6559,7 +6559,7 @@
       "metrics": {
         "file_tokens": 185,
         "largest_function": 4,
-        "function_class_count": 2,
+        "function_class_count": 1,
         "internal_dependencies": 0
       },
       "largest_function_name": "(匿名)",
@@ -6570,7 +6570,7 @@
       "metrics": {
         "file_tokens": 153,
         "largest_function": 5,
-        "function_class_count": 3,
+        "function_class_count": 2,
         "internal_dependencies": 0
       },
       "largest_function_name": "(匿名)",
@@ -6581,7 +6581,7 @@
       "metrics": {
         "file_tokens": 190,
         "largest_function": 15,
-        "function_class_count": 7,
+        "function_class_count": 6,
         "internal_dependencies": 0
       },
       "largest_function_name": "(匿名)",
@@ -6592,7 +6592,7 @@
       "metrics": {
         "file_tokens": 313,
         "largest_function": 26,
-        "function_class_count": 12,
+        "function_class_count": 8,
         "internal_dependencies": 0
       },
       "largest_function_name": "(匿名)",
@@ -6603,7 +6603,7 @@
       "metrics": {
         "file_tokens": 215,
         "largest_function": 6,
-        "function_class_count": 5,
+        "function_class_count": 2,
         "internal_dependencies": 0
       },
       "largest_function_name": "(匿名)",
@@ -6613,55 +6613,55 @@
       "kind": "code",
       "metrics": {
         "file_tokens": 1039,
-        "largest_function": 26,
-        "function_class_count": 14,
+        "largest_function": 0,
+        "function_class_count": 0,
         "internal_dependencies": 1
       },
-      "largest_function_name": "(匿名)",
+      "largest_function_name": null,
       "sections": []
     },
     "frontend/src/core/utils/__tests__/extractAccentColor.test.js": {
       "kind": "code",
       "metrics": {
         "file_tokens": 2066,
-        "largest_function": 68,
-        "function_class_count": 19,
+        "largest_function": 10,
+        "function_class_count": 1,
         "internal_dependencies": 2
       },
-      "largest_function_name": "(匿名)",
+      "largest_function_name": "solidPixels",
       "sections": []
     },
     "frontend/src/core/utils/__tests__/logger.test.js": {
       "kind": "code",
       "metrics": {
         "file_tokens": 1297,
-        "largest_function": 48,
-        "function_class_count": 20,
+        "largest_function": 11,
+        "function_class_count": 8,
         "internal_dependencies": 0
       },
-      "largest_function_name": "(匿名)",
+      "largest_function_name": "makeStorageStub",
       "sections": []
     },
     "frontend/src/core/utils/__tests__/trigger-suggestion.test.js": {
       "kind": "code",
       "metrics": {
         "file_tokens": 1872,
-        "largest_function": 47,
-        "function_class_count": 24,
+        "largest_function": 0,
+        "function_class_count": 0,
         "internal_dependencies": 1
       },
-      "largest_function_name": "(匿名)",
+      "largest_function_name": null,
       "sections": []
     },
     "frontend/src/core/utils/__tests__/worldScope.test.js": {
       "kind": "code",
       "metrics": {
         "file_tokens": 557,
-        "largest_function": 33,
-        "function_class_count": 8,
+        "largest_function": 6,
+        "function_class_count": 1,
         "internal_dependencies": 1
       },
-      "largest_function_name": "(匿名)",
+      "largest_function_name": "loc",
       "sections": []
     },
     "frontend/src/core/utils/avatar.js": {
@@ -6691,7 +6691,7 @@
       "metrics": {
         "file_tokens": 1131,
         "largest_function": 25,
-        "function_class_count": 11,
+        "function_class_count": 10,
         "internal_dependencies": 0
       },
       "largest_function_name": "hslToRgb",
@@ -6735,7 +6735,7 @@
       "metrics": {
         "file_tokens": 2557,
         "largest_function": 47,
-        "function_class_count": 10,
+        "function_class_count": 9,
         "internal_dependencies": 1
       },
       "largest_function_name": "quantizeDominantColor",
@@ -6757,7 +6757,7 @@
       "metrics": {
         "file_tokens": 1461,
         "largest_function": 33,
-        "function_class_count": 24,
+        "function_class_count": 17,
         "internal_dependencies": 1
       },
       "largest_function_name": "doFlush",
@@ -6768,7 +6768,7 @@
       "metrics": {
         "file_tokens": 213,
         "largest_function": 4,
-        "function_class_count": 1,
+        "function_class_count": 0,
         "internal_dependencies": 0
       },
       "largest_function_name": "(匿名)",
@@ -6801,7 +6801,7 @@
       "metrics": {
         "file_tokens": 753,
         "largest_function": 28,
-        "function_class_count": 5,
+        "function_class_count": 3,
         "internal_dependencies": 1
       },
       "largest_function_name": "applyRules",
@@ -6856,7 +6856,7 @@
       "metrics": {
         "file_tokens": 163,
         "largest_function": 3,
-        "function_class_count": 4,
+        "function_class_count": 2,
         "internal_dependencies": 0
       },
       "largest_function_name": "pushToast",
@@ -6867,7 +6867,7 @@
       "metrics": {
         "file_tokens": 2414,
         "largest_function": 40,
-        "function_class_count": 13,
+        "function_class_count": 6,
         "internal_dependencies": 0
       },
       "largest_function_name": "suggestTrigger",
@@ -6878,7 +6878,7 @@
       "metrics": {
         "file_tokens": 2143,
         "largest_function": 52,
-        "function_class_count": 19,
+        "function_class_count": 13,
         "internal_dependencies": 0
       },
       "largest_function_name": "buildWorldScene",
@@ -6889,7 +6889,7 @@
       "metrics": {
         "file_tokens": 784,
         "largest_function": 8,
-        "function_class_count": 6,
+        "function_class_count": 3,
         "internal_dependencies": 0
       },
       "largest_function_name": "extractIds",
@@ -6910,8 +6910,8 @@
       "kind": "code",
       "metrics": {
         "file_tokens": 319,
-        "largest_function": 12,
-        "function_class_count": 6,
+        "largest_function": 3,
+        "function_class_count": 2,
         "internal_dependencies": 0
       },
       "largest_function_name": "(匿名)",
@@ -6922,7 +6922,7 @@
       "metrics": {
         "file_tokens": 643,
         "largest_function": 53,
-        "function_class_count": 7,
+        "function_class_count": 1,
         "internal_dependencies": 1
       },
       "largest_function_name": "SealStampAnimation",
@@ -6933,7 +6933,7 @@
       "metrics": {
         "file_tokens": 2946,
         "largest_function": 293,
-        "function_class_count": 30,
+        "function_class_count": 11,
         "internal_dependencies": 15
       },
       "largest_function_name": "CharacterEditPage",
@@ -6944,7 +6944,7 @@
       "metrics": {
         "file_tokens": 8520,
         "largest_function": 572,
-        "function_class_count": 73,
+        "function_class_count": 26,
         "internal_dependencies": 18
       },
       "largest_function_name": "CharactersPage",
@@ -6955,7 +6955,7 @@
       "metrics": {
         "file_tokens": 414,
         "largest_function": 31,
-        "function_class_count": 4,
+        "function_class_count": 1,
         "internal_dependencies": 5
       },
       "largest_function_name": "useChatStream",
@@ -6966,7 +6966,7 @@
       "metrics": {
         "file_tokens": 3009,
         "largest_function": 315,
-        "function_class_count": 32,
+        "function_class_count": 4,
         "internal_dependencies": 26
       },
       "largest_function_name": "ChatPage",
@@ -6977,7 +6977,7 @@
       "metrics": {
         "file_tokens": 836,
         "largest_function": 105,
-        "function_class_count": 8,
+        "function_class_count": 4,
         "internal_dependencies": 2
       },
       "largest_function_name": "EditPageShell",
@@ -6999,7 +6999,7 @@
       "metrics": {
         "file_tokens": 2825,
         "largest_function": 286,
-        "function_class_count": 36,
+        "function_class_count": 11,
         "internal_dependencies": 13
       },
       "largest_function_name": "PersonaEditPage",
@@ -7010,7 +7010,7 @@
       "metrics": {
         "file_tokens": 10619,
         "largest_function": 394,
-        "function_class_count": 132,
+        "function_class_count": 28,
         "internal_dependencies": 18
       },
       "largest_function_name": "RulesPage",
@@ -7021,7 +7021,7 @@
       "metrics": {
         "file_tokens": 2189,
         "largest_function": 226,
-        "function_class_count": 9,
+        "function_class_count": 6,
         "internal_dependencies": 14
       },
       "largest_function_name": "SettingsPage",
@@ -7032,7 +7032,7 @@
       "metrics": {
         "file_tokens": 3528,
         "largest_function": 356,
-        "function_class_count": 29,
+        "function_class_count": 9,
         "internal_dependencies": 16
       },
       "largest_function_name": "WorldEditPage",
@@ -7043,7 +7043,7 @@
       "metrics": {
         "file_tokens": 4878,
         "largest_function": 371,
-        "function_class_count": 55,
+        "function_class_count": 13,
         "internal_dependencies": 17
       },
       "largest_function_name": "WorldsPage",
@@ -7054,7 +7054,7 @@
       "metrics": {
         "file_tokens": 815,
         "largest_function": 67,
-        "function_class_count": 9,
+        "function_class_count": 2,
         "internal_dependencies": 5
       },
       "largest_function_name": "AddSavedNearbyModal",
@@ -7065,7 +7065,7 @@
       "metrics": {
         "file_tokens": 1641,
         "largest_function": 172,
-        "function_class_count": 11,
+        "function_class_count": 4,
         "internal_dependencies": 3
       },
       "largest_function_name": "MakeCardModal",
@@ -7076,7 +7076,7 @@
       "metrics": {
         "file_tokens": 929,
         "largest_function": 110,
-        "function_class_count": 8,
+        "function_class_count": 3,
         "internal_dependencies": 3
       },
       "largest_function_name": "NearbyCharacterBlock",
@@ -7087,7 +7087,7 @@
       "metrics": {
         "file_tokens": 4498,
         "largest_function": 359,
-        "function_class_count": 52,
+        "function_class_count": 14,
         "internal_dependencies": 9
       },
       "largest_function_name": "NearbyPanel",
@@ -7098,7 +7098,7 @@
       "metrics": {
         "file_tokens": 1389,
         "largest_function": 125,
-        "function_class_count": 33,
+        "function_class_count": 15,
         "internal_dependencies": 5
       },
       "largest_function_name": "useWritingStream",
@@ -7109,7 +7109,7 @@
       "metrics": {
         "file_tokens": 3588,
         "largest_function": 373,
-        "function_class_count": 47,
+        "function_class_count": 3,
         "internal_dependencies": 25
       },
       "largest_function_name": "WritingSpacePage",
@@ -7120,7 +7120,7 @@
       "metrics": {
         "file_tokens": 799,
         "largest_function": 36,
-        "function_class_count": 2,
+        "function_class_count": 1,
         "internal_dependencies": 8
       },
       "largest_function_name": "AppShell",
@@ -7131,7 +7131,7 @@
       "metrics": {
         "file_tokens": 1165,
         "largest_function": 88,
-        "function_class_count": 11,
+        "function_class_count": 8,
         "internal_dependencies": 3
       },
       "largest_function_name": "Canvas",
@@ -7142,7 +7142,7 @@
       "metrics": {
         "file_tokens": 1718,
         "largest_function": 45,
-        "function_class_count": 9,
+        "function_class_count": 8,
         "internal_dependencies": 0
       },
       "largest_function_name": "drawFrame",
@@ -7164,7 +7164,7 @@
       "metrics": {
         "file_tokens": 2941,
         "largest_function": 279,
-        "function_class_count": 38,
+        "function_class_count": 4,
         "internal_dependencies": 11
       },
       "largest_function_name": "TopBar",
@@ -7219,7 +7219,7 @@
       "metrics": {
         "file_tokens": 543,
         "largest_function": 47,
-        "function_class_count": 5,
+        "function_class_count": 1,
         "internal_dependencies": 6
       },
       "largest_function_name": "RenderPageLayout",
@@ -7263,7 +7263,7 @@
       "metrics": {
         "file_tokens": 1782,
         "largest_function": 81,
-        "function_class_count": 3,
+        "function_class_count": 2,
         "internal_dependencies": 3
       },
       "largest_function_name": "SideDrawer",
@@ -7389,261 +7389,261 @@
       "kind": "code",
       "metrics": {
         "file_tokens": 394,
-        "largest_function": 21,
-        "function_class_count": 8,
+        "largest_function": 1,
+        "function_class_count": 4,
         "internal_dependencies": 1
       },
-      "largest_function_name": "(匿名)",
+      "largest_function_name": "json",
       "sections": []
     },
     "frontend/tests/api/character-state-values.test.js": {
       "kind": "code",
       "metrics": {
         "file_tokens": 619,
-        "largest_function": 34,
-        "function_class_count": 10,
+        "largest_function": 1,
+        "function_class_count": 6,
         "internal_dependencies": 1
       },
-      "largest_function_name": "(匿名)",
+      "largest_function_name": "json",
       "sections": []
     },
     "frontend/tests/api/characters.test.js": {
       "kind": "code",
       "metrics": {
         "file_tokens": 634,
-        "largest_function": 43,
-        "function_class_count": 6,
+        "largest_function": 1,
+        "function_class_count": 2,
         "internal_dependencies": 1
       },
-      "largest_function_name": "(匿名)",
+      "largest_function_name": "json",
       "sections": []
     },
     "frontend/tests/api/chat.test.js": {
       "kind": "code",
       "metrics": {
         "file_tokens": 1771,
-        "largest_function": 137,
-        "function_class_count": 40,
+        "largest_function": 11,
+        "function_class_count": 23,
         "internal_dependencies": 1
       },
-      "largest_function_name": "(匿名)",
+      "largest_function_name": "createSseResponse",
       "sections": []
     },
     "frontend/tests/api/config.test.js": {
       "kind": "code",
       "metrics": {
         "file_tokens": 589,
-        "largest_function": 37,
-        "function_class_count": 4,
+        "largest_function": 1,
+        "function_class_count": 1,
         "internal_dependencies": 1
       },
-      "largest_function_name": "(匿名)",
+      "largest_function_name": "json",
       "sections": []
     },
     "frontend/tests/api/custom-css-snippets.test.js": {
       "kind": "code",
       "metrics": {
         "file_tokens": 608,
-        "largest_function": 41,
-        "function_class_count": 6,
+        "largest_function": 4,
+        "function_class_count": 2,
         "internal_dependencies": 1
       },
-      "largest_function_name": "(匿名)",
+      "largest_function_name": "json",
       "sections": []
     },
     "frontend/tests/api/daily-entries.test.js": {
       "kind": "code",
       "metrics": {
         "file_tokens": 368,
-        "largest_function": 22,
-        "function_class_count": 7,
+        "largest_function": 1,
+        "function_class_count": 3,
         "internal_dependencies": 1
       },
-      "largest_function_name": "(匿名)",
+      "largest_function_name": "json",
       "sections": []
     },
     "frontend/tests/api/import-export.test.js": {
       "kind": "code",
       "metrics": {
         "file_tokens": 939,
-        "largest_function": 71,
-        "function_class_count": 9,
+        "largest_function": 3,
+        "function_class_count": 3,
         "internal_dependencies": 1
       },
-      "largest_function_name": "(匿名)",
+      "largest_function_name": "readAsText",
       "sections": []
     },
     "frontend/tests/api/long-term-memory.test.js": {
       "kind": "code",
       "metrics": {
         "file_tokens": 439,
-        "largest_function": 30,
-        "function_class_count": 7,
+        "largest_function": 1,
+        "function_class_count": 2,
         "internal_dependencies": 1
       },
-      "largest_function_name": "(匿名)",
+      "largest_function_name": "json",
       "sections": []
     },
     "frontend/tests/api/persona-state-values.test.js": {
       "kind": "code",
       "metrics": {
         "file_tokens": 1156,
-        "largest_function": 67,
-        "function_class_count": 19,
+        "largest_function": 1,
+        "function_class_count": 12,
         "internal_dependencies": 1
       },
-      "largest_function_name": "(匿名)",
+      "largest_function_name": "json",
       "sections": []
     },
     "frontend/tests/api/personas.test.js": {
       "kind": "code",
       "metrics": {
         "file_tokens": 1212,
-        "largest_function": 58,
-        "function_class_count": 15,
+        "largest_function": 1,
+        "function_class_count": 11,
         "internal_dependencies": 1
       },
-      "largest_function_name": "(匿名)",
+      "largest_function_name": "json",
       "sections": []
     },
     "frontend/tests/api/prompt-entries.test.js": {
       "kind": "code",
       "metrics": {
         "file_tokens": 493,
-        "largest_function": 23,
-        "function_class_count": 4,
+        "largest_function": 1,
+        "function_class_count": 1,
         "internal_dependencies": 1
       },
-      "largest_function_name": "(匿名)",
+      "largest_function_name": "json",
       "sections": []
     },
     "frontend/tests/api/regex-rules.test.js": {
       "kind": "code",
       "metrics": {
         "file_tokens": 405,
-        "largest_function": 19,
-        "function_class_count": 4,
+        "largest_function": 1,
+        "function_class_count": 1,
         "internal_dependencies": 1
       },
-      "largest_function_name": "(匿名)",
+      "largest_function_name": "json",
       "sections": []
     },
     "frontend/tests/api/session-state-values.test.js": {
       "kind": "code",
       "metrics": {
         "file_tokens": 1239,
-        "largest_function": 72,
-        "function_class_count": 14,
+        "largest_function": 1,
+        "function_class_count": 6,
         "internal_dependencies": 1
       },
-      "largest_function_name": "(匿名)",
+      "largest_function_name": "json",
       "sections": []
     },
     "frontend/tests/api/session-timeline.test.js": {
       "kind": "code",
       "metrics": {
         "file_tokens": 295,
-        "largest_function": 20,
-        "function_class_count": 6,
+        "largest_function": 1,
+        "function_class_count": 2,
         "internal_dependencies": 1
       },
-      "largest_function_name": "(匿名)",
+      "largest_function_name": "json",
       "sections": []
     },
     "frontend/tests/api/sessions.test.js": {
       "kind": "code",
       "metrics": {
         "file_tokens": 718,
-        "largest_function": 46,
-        "function_class_count": 5,
+        "largest_function": 1,
+        "function_class_count": 1,
         "internal_dependencies": 1
       },
-      "largest_function_name": "(匿名)",
+      "largest_function_name": "json",
       "sections": []
     },
     "frontend/tests/api/state-fields-extra.test.js": {
       "kind": "code",
       "metrics": {
         "file_tokens": 617,
-        "largest_function": 33,
-        "function_class_count": 4,
+        "largest_function": 1,
+        "function_class_count": 1,
         "internal_dependencies": 3
       },
-      "largest_function_name": "(匿名)",
+      "largest_function_name": "json",
       "sections": []
     },
     "frontend/tests/api/stream-parser.test.js": {
       "kind": "code",
       "metrics": {
         "file_tokens": 2024,
-        "largest_function": 111,
-        "function_class_count": 23,
+        "largest_function": 17,
+        "function_class_count": 7,
         "internal_dependencies": 1
       },
-      "largest_function_name": "(匿名)",
+      "largest_function_name": "dispatch",
       "sections": []
     },
     "frontend/tests/api/world-state-fields.test.js": {
       "kind": "code",
       "metrics": {
         "file_tokens": 502,
-        "largest_function": 30,
-        "function_class_count": 4,
+        "largest_function": 1,
+        "function_class_count": 1,
         "internal_dependencies": 1
       },
-      "largest_function_name": "(匿名)",
+      "largest_function_name": "json",
       "sections": []
     },
     "frontend/tests/api/world-state-values.test.js": {
       "kind": "code",
       "metrics": {
         "file_tokens": 671,
-        "largest_function": 38,
-        "function_class_count": 12,
+        "largest_function": 1,
+        "function_class_count": 6,
         "internal_dependencies": 1
       },
-      "largest_function_name": "(匿名)",
+      "largest_function_name": "json",
       "sections": []
     },
     "frontend/tests/api/worlds.test.js": {
       "kind": "code",
       "metrics": {
         "file_tokens": 1028,
-        "largest_function": 63,
-        "function_class_count": 13,
+        "largest_function": 1,
+        "function_class_count": 6,
         "internal_dependencies": 1
       },
-      "largest_function_name": "(匿名)",
+      "largest_function_name": "json",
       "sections": []
     },
     "frontend/tests/api/writing-sessions.test.js": {
       "kind": "code",
       "metrics": {
         "file_tokens": 1178,
-        "largest_function": 103,
-        "function_class_count": 25,
+        "largest_function": 11,
+        "function_class_count": 14,
         "internal_dependencies": 1
       },
-      "largest_function_name": "(匿名)",
+      "largest_function_name": "createSseResponse",
       "sections": []
     },
     "frontend/tests/assistant/api.test.js": {
       "kind": "code",
       "metrics": {
         "file_tokens": 864,
-        "largest_function": 62,
-        "function_class_count": 15,
+        "largest_function": 11,
+        "function_class_count": 7,
         "internal_dependencies": 1
       },
-      "largest_function_name": "(匿名)",
+      "largest_function_name": "createSseResponse",
       "sections": []
     },
     "frontend/tests/assistant/assistant-panel.test.jsx": {
       "kind": "code",
       "metrics": {
         "file_tokens": 624,
-        "largest_function": 28,
-        "function_class_count": 12,
+        "largest_function": 10,
+        "function_class_count": 0,
         "internal_dependencies": 2
       },
       "largest_function_name": "(匿名)",
@@ -7653,52 +7653,52 @@
       "kind": "code",
       "metrics": {
         "file_tokens": 267,
-        "largest_function": 13,
-        "function_class_count": 3,
+        "largest_function": 0,
+        "function_class_count": 0,
         "internal_dependencies": 1
       },
-      "largest_function_name": "(匿名)",
+      "largest_function_name": null,
       "sections": []
     },
     "frontend/tests/components/chat/MessageItem.test.jsx": {
       "kind": "code",
       "metrics": {
         "file_tokens": 427,
-        "largest_function": 32,
-        "function_class_count": 6,
+        "largest_function": 1,
+        "function_class_count": 3,
         "internal_dependencies": 1
       },
-      "largest_function_name": "(匿名)",
+      "largest_function_name": "observe",
       "sections": []
     },
     "frontend/tests/components/chat/MessageList.test.jsx": {
       "kind": "code",
       "metrics": {
         "file_tokens": 3540,
-        "largest_function": 61,
-        "function_class_count": 75,
+        "largest_function": 8,
+        "function_class_count": 10,
         "internal_dependencies": 1
       },
-      "largest_function_name": "(匿名)",
+      "largest_function_name": "makeMessages",
       "sections": []
     },
     "frontend/tests/components/chat/StreamingMarkdown.test.jsx": {
       "kind": "code",
       "metrics": {
         "file_tokens": 2439,
-        "largest_function": 122,
-        "function_class_count": 39,
+        "largest_function": 15,
+        "function_class_count": 7,
         "internal_dependencies": 3
       },
-      "largest_function_name": "(匿名)",
+      "largest_function_name": "streamItem",
       "sections": []
     },
     "frontend/tests/components/input-box.test.jsx": {
       "kind": "code",
       "metrics": {
         "file_tokens": 1564,
-        "largest_function": 140,
-        "function_class_count": 21,
+        "largest_function": 5,
+        "function_class_count": 4,
         "internal_dependencies": 1
       },
       "largest_function_name": "(匿名)",
@@ -7708,8 +7708,8 @@
       "kind": "code",
       "metrics": {
         "file_tokens": 344,
-        "largest_function": 18,
-        "function_class_count": 5,
+        "largest_function": 4,
+        "function_class_count": 0,
         "internal_dependencies": 1
       },
       "largest_function_name": "(匿名)",
@@ -7719,8 +7719,8 @@
       "kind": "code",
       "metrics": {
         "file_tokens": 592,
-        "largest_function": 17,
-        "function_class_count": 13,
+        "largest_function": 7,
+        "function_class_count": 2,
         "internal_dependencies": 1
       },
       "largest_function_name": "(匿名)",
@@ -7730,8 +7730,8 @@
       "kind": "code",
       "metrics": {
         "file_tokens": 578,
-        "largest_function": 17,
-        "function_class_count": 11,
+        "largest_function": 7,
+        "function_class_count": 1,
         "internal_dependencies": 1
       },
       "largest_function_name": "(匿名)",
@@ -7741,8 +7741,8 @@
       "kind": "code",
       "metrics": {
         "file_tokens": 1917,
-        "largest_function": 83,
-        "function_class_count": 37,
+        "largest_function": 11,
+        "function_class_count": 12,
         "internal_dependencies": 1
       },
       "largest_function_name": "(匿名)",
@@ -7752,8 +7752,8 @@
       "kind": "code",
       "metrics": {
         "file_tokens": 3170,
-        "largest_function": 130,
-        "function_class_count": 65,
+        "largest_function": 13,
+        "function_class_count": 19,
         "internal_dependencies": 1
       },
       "largest_function_name": "(匿名)",
@@ -7763,8 +7763,8 @@
       "kind": "code",
       "metrics": {
         "file_tokens": 452,
-        "largest_function": 28,
-        "function_class_count": 8,
+        "largest_function": 5,
+        "function_class_count": 1,
         "internal_dependencies": 1
       },
       "largest_function_name": "(匿名)",
@@ -7774,8 +7774,8 @@
       "kind": "code",
       "metrics": {
         "file_tokens": 313,
-        "largest_function": 37,
-        "function_class_count": 4,
+        "largest_function": 3,
+        "function_class_count": 0,
         "internal_dependencies": 1
       },
       "largest_function_name": "(匿名)",
@@ -7785,22 +7785,22 @@
       "kind": "code",
       "metrics": {
         "file_tokens": 2327,
-        "largest_function": 278,
-        "function_class_count": 21,
+        "largest_function": 1,
+        "function_class_count": 3,
         "internal_dependencies": 1
       },
-      "largest_function_name": "(匿名)",
+      "largest_function_name": "observe",
       "sections": []
     },
     "frontend/tests/components/ui/Icon.test.jsx": {
       "kind": "code",
       "metrics": {
         "file_tokens": 507,
-        "largest_function": 8,
-        "function_class_count": 5,
+        "largest_function": 0,
+        "function_class_count": 0,
         "internal_dependencies": 1
       },
-      "largest_function_name": "(匿名)",
+      "largest_function_name": null,
       "sections": []
     },
     "frontend/tests/helpers/react.js": {
@@ -7818,19 +7818,19 @@
       "kind": "code",
       "metrics": {
         "file_tokens": 423,
-        "largest_function": 30,
-        "function_class_count": 4,
+        "largest_function": 4,
+        "function_class_count": 1,
         "internal_dependencies": 1
       },
-      "largest_function_name": "(匿名)",
+      "largest_function_name": "Layer",
       "sections": []
     },
     "frontend/tests/hooks/use-motion.test.jsx": {
       "kind": "code",
       "metrics": {
         "file_tokens": 1049,
-        "largest_function": 66,
-        "function_class_count": 16,
+        "largest_function": 3,
+        "function_class_count": 1,
         "internal_dependencies": 2
       },
       "largest_function_name": "(匿名)",
@@ -7840,19 +7840,19 @@
       "kind": "code",
       "metrics": {
         "file_tokens": 1585,
-        "largest_function": 126,
-        "function_class_count": 24,
+        "largest_function": 6,
+        "function_class_count": 3,
         "internal_dependencies": 1
       },
-      "largest_function_name": "(匿名)",
+      "largest_function_name": "flushAsync",
       "sections": []
     },
     "frontend/tests/hooks/use-settings-config.test.jsx": {
       "kind": "code",
       "metrics": {
         "file_tokens": 3223,
-        "largest_function": 257,
-        "function_class_count": 46,
+        "largest_function": 20,
+        "function_class_count": 3,
         "internal_dependencies": 2
       },
       "largest_function_name": "(匿名)",
@@ -7862,8 +7862,8 @@
       "kind": "code",
       "metrics": {
         "file_tokens": 1966,
-        "largest_function": 84,
-        "function_class_count": 46,
+        "largest_function": 12,
+        "function_class_count": 19,
         "internal_dependencies": 1
       },
       "largest_function_name": "(匿名)",
@@ -7873,8 +7873,8 @@
       "kind": "code",
       "metrics": {
         "file_tokens": 5581,
-        "largest_function": 316,
-        "function_class_count": 76,
+        "largest_function": 26,
+        "function_class_count": 25,
         "internal_dependencies": 1
       },
       "largest_function_name": "(匿名)",
@@ -7884,8 +7884,8 @@
       "kind": "code",
       "metrics": {
         "file_tokens": 8912,
-        "largest_function": 613,
-        "function_class_count": 163,
+        "largest_function": 37,
+        "function_class_count": 27,
         "internal_dependencies": 6
       },
       "largest_function_name": "(匿名)",
@@ -7895,8 +7895,8 @@
       "kind": "code",
       "metrics": {
         "file_tokens": 2120,
-        "largest_function": 97,
-        "function_class_count": 47,
+        "largest_function": 17,
+        "function_class_count": 21,
         "internal_dependencies": 1
       },
       "largest_function_name": "(匿名)",
@@ -7906,8 +7906,8 @@
       "kind": "code",
       "metrics": {
         "file_tokens": 3165,
-        "largest_function": 130,
-        "function_class_count": 54,
+        "largest_function": 14,
+        "function_class_count": 15,
         "internal_dependencies": 1
       },
       "largest_function_name": "(匿名)",
@@ -7917,8 +7917,8 @@
       "kind": "code",
       "metrics": {
         "file_tokens": 1402,
-        "largest_function": 76,
-        "function_class_count": 27,
+        "largest_function": 9,
+        "function_class_count": 11,
         "internal_dependencies": 1
       },
       "largest_function_name": "(匿名)",
@@ -7928,8 +7928,8 @@
       "kind": "code",
       "metrics": {
         "file_tokens": 2578,
-        "largest_function": 126,
-        "function_class_count": 50,
+        "largest_function": 12,
+        "function_class_count": 17,
         "internal_dependencies": 1
       },
       "largest_function_name": "(匿名)",
@@ -7939,8 +7939,8 @@
       "kind": "code",
       "metrics": {
         "file_tokens": 3602,
-        "largest_function": 220,
-        "function_class_count": 44,
+        "largest_function": 15,
+        "function_class_count": 15,
         "internal_dependencies": 1
       },
       "largest_function_name": "(匿名)",
@@ -7950,8 +7950,8 @@
       "kind": "code",
       "metrics": {
         "file_tokens": 5881,
-        "largest_function": 349,
-        "function_class_count": 119,
+        "largest_function": 38,
+        "function_class_count": 25,
         "internal_dependencies": 3
       },
       "largest_function_name": "(匿名)",
@@ -7983,52 +7983,52 @@
       "kind": "code",
       "metrics": {
         "file_tokens": 601,
-        "largest_function": 43,
-        "function_class_count": 16,
+        "largest_function": 4,
+        "function_class_count": 4,
         "internal_dependencies": 1
       },
-      "largest_function_name": "(匿名)",
+      "largest_function_name": "setHidden",
       "sections": []
     },
     "frontend/tests/store/app-mode.test.js": {
       "kind": "code",
       "metrics": {
         "file_tokens": 173,
-        "largest_function": 11,
-        "function_class_count": 3,
+        "largest_function": 0,
+        "function_class_count": 0,
         "internal_dependencies": 2
       },
-      "largest_function_name": "(匿名)",
+      "largest_function_name": null,
       "sections": []
     },
     "frontend/tests/store/index.test.js": {
       "kind": "code",
       "metrics": {
         "file_tokens": 243,
-        "largest_function": 22,
-        "function_class_count": 3,
+        "largest_function": 0,
+        "function_class_count": 0,
         "internal_dependencies": 1
       },
-      "largest_function_name": "(匿名)",
+      "largest_function_name": null,
       "sections": []
     },
     "frontend/tests/utils/avatar.test.js": {
       "kind": "code",
       "metrics": {
         "file_tokens": 295,
-        "largest_function": 14,
-        "function_class_count": 3,
+        "largest_function": 0,
+        "function_class_count": 0,
         "internal_dependencies": 1
       },
-      "largest_function_name": "(匿名)",
+      "largest_function_name": null,
       "sections": []
     },
     "frontend/tests/utils/chapter-grouping.test.js": {
       "kind": "code",
       "metrics": {
         "file_tokens": 745,
-        "largest_function": 53,
-        "function_class_count": 10,
+        "largest_function": 4,
+        "function_class_count": 0,
         "internal_dependencies": 2
       },
       "largest_function_name": "(匿名)",
@@ -8038,19 +8038,19 @@
       "kind": "code",
       "metrics": {
         "file_tokens": 609,
-        "largest_function": 38,
-        "function_class_count": 4,
+        "largest_function": 0,
+        "function_class_count": 0,
         "internal_dependencies": 1
       },
-      "largest_function_name": "(匿名)",
+      "largest_function_name": null,
       "sections": []
     },
     "frontend/tests/utils/regex-runner.test.js": {
       "kind": "code",
       "metrics": {
         "file_tokens": 944,
-        "largest_function": 46,
-        "function_class_count": 8,
+        "largest_function": 3,
+        "function_class_count": 0,
         "internal_dependencies": 2
       },
       "largest_function_name": "(匿名)",
@@ -8060,52 +8060,52 @@
       "kind": "code",
       "metrics": {
         "file_tokens": 185,
-        "largest_function": 18,
-        "function_class_count": 2,
+        "largest_function": 0,
+        "function_class_count": 0,
         "internal_dependencies": 1
       },
-      "largest_function_name": "(匿名)",
+      "largest_function_name": null,
       "sections": []
     },
     "frontend/tests/utils/think-blocks.test.js": {
       "kind": "code",
       "metrics": {
         "file_tokens": 2913,
-        "largest_function": 57,
-        "function_class_count": 33,
+        "largest_function": 0,
+        "function_class_count": 0,
         "internal_dependencies": 2
       },
-      "largest_function_name": "(匿名)",
+      "largest_function_name": null,
       "sections": []
     },
     "frontend/tests/utils/time.test.js": {
       "kind": "code",
       "metrics": {
         "file_tokens": 312,
-        "largest_function": 21,
-        "function_class_count": 4,
+        "largest_function": 0,
+        "function_class_count": 0,
         "internal_dependencies": 1
       },
-      "largest_function_name": "(匿名)",
+      "largest_function_name": null,
       "sections": []
     },
     "frontend/tests/utils/toast.test.js": {
       "kind": "code",
       "metrics": {
         "file_tokens": 207,
-        "largest_function": 17,
-        "function_class_count": 2,
+        "largest_function": 0,
+        "function_class_count": 0,
         "internal_dependencies": 1
       },
-      "largest_function_name": "(匿名)",
+      "largest_function_name": null,
       "sections": []
     },
     "frontend/tests/utils/world-scene.test.js": {
       "kind": "code",
       "metrics": {
         "file_tokens": 557,
-        "largest_function": 35,
-        "function_class_count": 8,
+        "largest_function": 1,
+        "function_class_count": 0,
         "internal_dependencies": 1
       },
       "largest_function_name": "(匿名)",
@@ -8116,7 +8116,7 @@
       "metrics": {
         "file_tokens": 502,
         "largest_function": 21,
-        "function_class_count": 4,
+        "function_class_count": 3,
         "internal_dependencies": 0
       },
       "largest_function_name": "themeHotReloadPlugin",
@@ -8138,7 +8138,7 @@
       "metrics": {
         "file_tokens": 397,
         "largest_function": 18,
-        "function_class_count": 3,
+        "function_class_count": 2,
         "internal_dependencies": 0
       },
       "largest_function_name": "register",
@@ -8149,7 +8149,7 @@
       "metrics": {
         "file_tokens": 389,
         "largest_function": 14,
-        "function_class_count": 4,
+        "function_class_count": 1,
         "internal_dependencies": 0
       },
       "largest_function_name": "register",
@@ -8160,7 +8160,7 @@
       "metrics": {
         "file_tokens": 317,
         "largest_function": 9,
-        "function_class_count": 3,
+        "function_class_count": 1,
         "internal_dependencies": 0
       },
       "largest_function_name": "register",
@@ -8377,7 +8377,7 @@
       "metrics": {
         "file_tokens": 3587,
         "largest_function": 85,
-        "function_class_count": 22,
+        "function_class_count": 18,
         "internal_dependencies": 0
       },
       "largest_function_name": "main",
@@ -8388,7 +8388,7 @@
       "metrics": {
         "file_tokens": 7707,
         "largest_function": 59,
-        "function_class_count": 49,
+        "function_class_count": 30,
         "internal_dependencies": 0
       },
       "largest_function_name": "render",
@@ -8399,7 +8399,7 @@
       "metrics": {
         "file_tokens": 1840,
         "largest_function": 18,
-        "function_class_count": 5,
+        "function_class_count": 2,
         "internal_dependencies": 0
       },
       "largest_function_name": "walk",
@@ -8410,7 +8410,7 @@
       "metrics": {
         "file_tokens": 1380,
         "largest_function": 5,
-        "function_class_count": 5,
+        "function_class_count": 3,
         "internal_dependencies": 0
       },
       "largest_function_name": "cssBezier",
@@ -8421,7 +8421,7 @@
       "metrics": {
         "file_tokens": 2646,
         "largest_function": 8,
-        "function_class_count": 12,
+        "function_class_count": 4,
         "internal_dependencies": 0
       },
       "largest_function_name": "extractDefined",
@@ -8443,7 +8443,7 @@
       "metrics": {
         "file_tokens": 609,
         "largest_function": 29,
-        "function_class_count": 4,
+        "function_class_count": 3,
         "internal_dependencies": 0
       },
       "largest_function_name": "syncPackageLock",
@@ -8487,7 +8487,7 @@
       "metrics": {
         "file_tokens": 717,
         "largest_function": 72,
-        "function_class_count": 10,
+        "function_class_count": 3,
         "internal_dependencies": 0
       },
       "largest_function_name": "useSeamlessEditLayout",

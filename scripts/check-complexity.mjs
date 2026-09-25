@@ -17,6 +17,9 @@
  * 一次，分数和没剪一样，不能靠搬家达标。被两处及以上调用，或导出给别的文件，
  * 才单独计分。
  *
+ * 匿名函数的 key 写成「外层函数名>调用名」，例如 matchEntries>filter（同名再加 ~2）。
+ * 这样前面多一个函数不会让后面所有匿名函数的 key 错位。
+ *
  * 用法：
  *   node scripts/check-complexity.mjs [--root <dir>] [--baseline <path>] [--update-baseline] [--ignore <glob>]
  *
@@ -124,12 +127,38 @@ function isExported(node, parent) {
   return parent?.type === 'ExportNamedDeclaration' || parent?.type === 'ExportDefaultDeclaration';
 }
 
+// 回调所在的调用名：items.filter(() => …) → filter，setTimeout(() => …) → setTimeout
+function callbackLabel(node, parent) {
+  if ((parent?.type === 'CallExpression' || parent?.type === 'NewExpression') && parent.arguments.includes(node)) {
+    const { callee } = parent;
+    if (callee.type === 'Identifier') return callee.name;
+    if (callee.type === 'MemberExpression' && !callee.computed) return callee.property.name;
+  }
+  return '(匿名)';
+}
+
+// 每个函数节点的名字；匿名函数挂在最近的外层函数名下
+function functionNames(tree) {
+  const names = new Map();
+  const parentOf = new Map();
+  for (const [node, parent] of walk(tree)) {
+    parentOf.set(node, parent);
+    if (!isFunctionRoot(node, parent)) continue;
+    let outer = parent;
+    while (outer && !names.has(outer)) outer = parentOf.get(outer);
+    const own = functionName(node, parent);
+    names.set(node, own !== '(匿名)' ? own : `${outer ? names.get(outer) : '(顶层)'}>${callbackLabel(node, parent)}`);
+  }
+  return names;
+}
+
 function fileScores(tree, rel) {
   const functions = [];
   const nameCounts = new Map();
+  const names = functionNames(tree);
   for (const [node, parent] of walk(tree)) {
     if (!isFunctionRoot(node, parent)) continue;
-    const name = functionName(node, parent);
+    const name = names.get(node);
     const occurrence = (nameCounts.get(name) || 0) + 1;
     nameCounts.set(name, occurrence);
     functions.push({
