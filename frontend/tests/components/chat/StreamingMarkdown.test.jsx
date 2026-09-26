@@ -12,6 +12,7 @@ vi.mock('framer-motion', async (importOriginal) => ({
 import MessageItem from '../../../src/components/chat/MessageItem.jsx';
 import WritingMessageItem from '../../../src/components/writing/WritingMessageItem.jsx';
 import { STREAM } from '../../../src/core/utils/motion.js';
+import { useDisplaySettingsStore } from '../../../src/core/state/displaySettings.js';
 
 class ResizeObserverMock {
   observe() {}
@@ -166,5 +167,23 @@ describe('流式书写', () => {
       <WritingMessageItem message={{ id: 'w-1', role: 'assistant', content: '' }} isStreaming />,
     );
     expect(container.querySelectorAll('.we-stream-caret')).toHaveLength(1);
+  });
+
+  it('写作页隐藏思考块时仍显示其中断标记', () => {
+    const showThinking = useDisplaySettingsStore.getState().showThinking;
+    useDisplaySettingsStore.setState({ showThinking: false });
+    try {
+      const { container } = render(
+        <WritingMessageItem
+          message={{ id: 'w-2', role: 'assistant', content: '<think>尚未完成的思考\n\n[已中断]' }}
+          isStreaming={false}
+        />,
+      );
+
+      expect(container.querySelector('[role="status"][aria-label="生成已中断"]')).not.toBeNull();
+      expect(container.textContent).not.toContain('尚未完成的思考');
+    } finally {
+      useDisplaySettingsStore.setState({ showThinking });
+    }
   });
 });

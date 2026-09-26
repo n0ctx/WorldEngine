@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useMemo } from 'react';
+import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import Icon from '../ui/Icon.jsx';
 import ReactMarkdown from 'react-markdown';
@@ -8,7 +8,6 @@ import rehypeSanitize from 'rehype-sanitize';
 import { markdownSanitizeSchema } from '../../core/utils/markdown-sanitize.js';
 import { applyRules } from '../../core/utils/regex-runner.js';
 import { stripNextPromptBlocks } from '../../core/utils/next-prompt.js';
-import { needsTrailingCaret, parseStreamingBlocks } from '../../core/utils/think-blocks.js';
 import { useDisplaySettingsStore } from '../../core/state/displaySettings.js';
 import { useMessageEditing } from '../../core/hooks/useMessageEditing.js';
 import { formatTokens, calcCost, formatCost } from '../../core/utils/token-usage.js';
@@ -21,6 +20,9 @@ import StreamingMarkdown, { StreamCaret } from './StreamingMarkdown.jsx';
 import { useMotion } from '../../core/hooks/useMotion.js';
 import { DURATION } from '../../core/utils/motion.js';
 import SeamlessEditableSurface from '../../../../shared/SeamlessEditableSurface.jsx';
+import MessageBlockList from '../message/MessageBlockList.jsx';
+import { useMessageBlocks } from '../message/useMessageBlocks.js';
+import { useCopyFeedback, useDeleteConfirmation } from '../message/useMessageActionState.js';
 
 const MotionDiv = motion.div;
 
@@ -158,12 +160,7 @@ function AttachmentThumbnail({ src }) {
 }
 
 function CopyButton({ getText }) {
-  const [copied, setCopied] = useState(false);
-  function copy() {
-    navigator.clipboard.writeText(getText());
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
-  }
+  const { copied, copy } = useCopyFeedback(getText);
   return (
     <button onClick={copy} aria-label={copied ? '已复制到剪贴板' : '复制消息内容'}>
       <Copy size={16} />
@@ -173,21 +170,7 @@ function CopyButton({ getText }) {
 }
 
 function DeleteButton({ onDelete }) {
-  const [confirming, setConfirming] = useState(false);
-  const timerRef = useRef(null);
-
-  function handleClick() {
-    if (confirming) {
-      clearTimeout(timerRef.current);
-      setConfirming(false);
-      onDelete();
-    } else {
-      setConfirming(true);
-      timerRef.current = setTimeout(() => setConfirming(false), 2000);
-    }
-  }
-
-  useEffect(() => () => clearTimeout(timerRef.current), []);
+  const { confirming, handleClick } = useDeleteConfirmation(onDelete);
 
   return (
     <button
@@ -246,13 +229,12 @@ export default function MessageItem({
   }
   displayContent = applyRules(displayContent, 'display_only', worldId ?? null);
 
-  // 统一解析为 blocks（流式和非流式共用）;中断标记挂到最后一个 block。
-  const blocks = useMemo(
-    () => parseStreamingBlocks(displayContent, { isStreaming }),
-    [displayContent, isStreaming],
+  const { blocks, trailingCaret } = useMessageBlocks(
+    displayContent,
+    showThinking,
+    showCaret,
+    isStreaming,
   );
-  const lastBlockIndex = blocks.length - 1;
-  const trailingCaret = showCaret && isStreaming && needsTrailingCaret(blocks, showThinking);
 
   if (isStreaming && !streamingText) {
     // 角色等玩家这句落定后再上台，同一时刻只有一个主运动
@@ -363,40 +345,18 @@ export default function MessageItem({
               readClassName="we-message-content"
               renderRead={() => (
                 <>
-                  {blocks.map((block, i) => {
-                    const isLast = i === lastBlockIndex;
-                    if (block.type === 'thinking') {
-                      // 关闭思考显示时,若消息正是在思考块里被中断的,仍要留住「已中断」标记
-                      if (!showThinking) return interrupted && isLast ? <InterruptedMark key={i} /> : null;
-                      return (
-                        <ThinkBlock
-                          key={i}
-                          content={block.content}
-                          open={isStreaming && block.open}
-                          streaming={isStreaming}
-                          caret={showCaret && isStreaming && isLast && block.open}
-                          interrupted={interrupted && isLast}
-                        />
-                      );
-                    }
-                    return (
-                      <div key={i}>
-                        {block.content && (
-                          <StreamingMarkdown
-                            streaming={isStreaming}
-                            caret={showCaret && isLast}
-                            remarkPlugins={REMARK_PLUGINS}
-                            rehypePlugins={REHYPE_PLUGINS}
-                            components={MD_COMPONENTS}
-                          >
-                            {block.content}
-                          </StreamingMarkdown>
-                        )}
-                        {interrupted && isLast && <InterruptedMark />}
-                      </div>
-                    );
-                  })}
-                  {trailingCaret && <div><StreamCaret /></div>}
+                  <MessageBlockList
+                    blocks={blocks}
+                    interrupted={interrupted}
+                    showThinking={showThinking}
+                    isStreaming={isStreaming}
+                    showCaret={showCaret}
+                    trailingCaret={trailingCaret}
+                    ThinkBlock={ThinkBlock}
+                    remarkPlugins={REMARK_PLUGINS}
+                    rehypePlugins={REHYPE_PLUGINS}
+                    components={MD_COMPONENTS}
+                  />
                 </>
               )}
               renderEditor={({ editorRef, syncLayout }) => (
