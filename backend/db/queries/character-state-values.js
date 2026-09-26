@@ -1,3 +1,4 @@
+import crypto from 'node:crypto';
 import db from '../index.js';
 import { upsertStateValue } from './_state-values-base.js';
 
@@ -11,6 +12,35 @@ import { upsertStateValue } from './_state-values-base.js';
  */
 export function upsertCharacterStateValue(characterId, fieldKey, patch = {}) {
   return upsertStateValue('character_state_values', 'character_id', characterId, fieldKey, patch);
+}
+
+/**
+ * 批量 upsert 角色默认状态值。复用单条预编译语句，并在同一事务内写入。
+ * @param {{ characterId: string, fieldKey: string, defaultValueJson: string|null }[]} values
+ */
+export function upsertCharacterStateValues(values) {
+  if (values.length === 0) return;
+  const upsert = db.prepare(`
+    INSERT INTO character_state_values
+      (id, character_id, field_key, default_value_json, runtime_value_json, updated_at)
+    VALUES (?, ?, ?, ?, NULL, 0)
+    ON CONFLICT(character_id, field_key)
+    DO UPDATE SET default_value_json = excluded.default_value_json
+  `);
+  db.transaction((entries) => {
+    for (const { characterId, fieldKey, defaultValueJson } of entries) {
+      upsert.run(crypto.randomUUID(), characterId, fieldKey, defaultValueJson);
+    }
+  })(values);
+}
+
+/** 删除某世界所有角色的指定状态值。 */
+export function deleteCharacterStateValuesByWorldIdAndFieldKey(worldId, fieldKey) {
+  return db.prepare(`
+    DELETE FROM character_state_values
+    WHERE field_key = ?
+      AND character_id IN (SELECT id FROM characters WHERE world_id = ?)
+  `).run(fieldKey, worldId);
 }
 
 /**
@@ -83,4 +113,3 @@ export function getCharacterStateValuesWithFields(characterId) {
     ORDER BY csf.sort_order ASC
   `).all(characterId, characterId);
 }
-

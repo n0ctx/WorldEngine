@@ -9,7 +9,7 @@ import {
 import { runOnDelete } from '../utils/cleanup-hooks.js';
 import { updateWithAvatarCleanup } from '../utils/file-cleanup.js';
 import { getCharacterStateFieldsByWorldId } from '../db/queries/character-state-fields.js';
-import { upsertCharacterStateValue } from '../db/queries/character-state-values.js';
+import { upsertCharacterStateValues } from '../db/queries/character-state-values.js';
 import { createLogger, formatMeta } from '../utils/logger.js';
 
 const log = createLogger('svc', 'green');
@@ -22,9 +22,11 @@ export function createCharacter(data) {
   const character = dbCreateCharacter(data);
   // 根据所属世界的 character_state_fields 初始化角色状态值
   const fields = getCharacterStateFieldsByWorldId(character.world_id);
-  for (const field of fields) {
-    upsertCharacterStateValue(character.id, field.field_key, { defaultValueJson: getInitialValueJson(field) });
-  }
+  upsertCharacterStateValues(fields.map((field) => ({
+    characterId: character.id,
+    fieldKey: field.field_key,
+    defaultValueJson: getInitialValueJson(field),
+  })));
   log.info(`character.create  ${formatMeta({ characterId: character.id, worldId: character.world_id, name: character.name })}`);
   return character;
 }

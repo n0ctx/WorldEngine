@@ -8,6 +8,7 @@ import {
   insertWorld,
   insertCharacter,
   insertCharacterStateField,
+  insertCharacterStateValue,
   insertPersona,
 } from '../helpers/fixtures.js';
 
@@ -42,6 +43,76 @@ test('createCharacter 会按世界已定义的 character_state_fields 初始化�
   assert.equal(rows.length, 2);
   assert.equal(rows[0].default_value_json, '100');
   assert.equal(rows[1].default_value_json, '平静');
+});
+
+test('createCharacter 可批量初始化大量角色状态字段', async () => {
+  const world = insertWorld(sandbox.db, { name: '角色-大量状态字段-世界' });
+  for (let index = 0; index < 180; index += 1) {
+    insertCharacterStateField(sandbox.db, world.id, {
+      field_key: `state_${index}`,
+      label: `状态 ${index}`,
+      type: 'text',
+      default_value: `default-${index}`,
+    });
+  }
+
+  const { createCharacter } = await freshImport('backend/services/characters.js');
+  const character = createCharacter({ world_id: world.id, name: '多状态角色' });
+  const rows = sandbox.db.prepare(`
+    SELECT field_key, default_value_json
+    FROM character_state_values
+    WHERE character_id = ?
+    ORDER BY field_key
+  `).all(character.id);
+
+  assert.equal(rows.length, 180);
+  assert.equal(rows[0].default_value_json, 'default-0');
+  assert.equal(rows.find((row) => row.field_key === 'state_179').default_value_json, 'default-179');
+});
+
+test('角色字段创建、改默认值和删除可批量处理大量角色并保留运行时值', async () => {
+  const world = insertWorld(sandbox.db, { name: '角色-字段批量-世界' });
+  const characters = [];
+  for (let index = 0; index < 180; index += 1) {
+    characters.push(insertCharacter(sandbox.db, world.id, { name: `角色 ${index}` }));
+  }
+  insertCharacterStateValue(sandbox.db, characters[0].id, {
+    field_key: 'focus',
+    default_value_json: 'old-default',
+    runtime_value_json: 'custom-runtime',
+  });
+
+  const { createCharacterStateField, updateCharacterStateField, deleteCharacterStateField } =
+    await freshImport('backend/services/character-state-fields.js');
+  const field = createCharacterStateField(world.id, {
+    field_key: 'focus', label: '专注', type: 'text', default_value: '10',
+  });
+
+  assert.equal(sandbox.db.prepare(`
+    SELECT COUNT(*) AS count FROM character_state_values WHERE field_key = ?
+  `).get('focus').count, 180);
+  let customized = sandbox.db.prepare(`
+    SELECT default_value_json, runtime_value_json
+    FROM character_state_values WHERE character_id = ? AND field_key = ?
+  `).get(characters[0].id, 'focus');
+  assert.deepEqual(customized, { default_value_json: '10', runtime_value_json: 'custom-runtime' });
+
+  updateCharacterStateField(field.id, { default_value: '20' });
+  assert.equal(sandbox.db.prepare(`
+    SELECT COUNT(*) AS count
+    FROM character_state_values
+    WHERE field_key = ? AND default_value_json <> ?
+  `).get('focus', '20').count, 0);
+  customized = sandbox.db.prepare(`
+    SELECT default_value_json, runtime_value_json
+    FROM character_state_values WHERE character_id = ? AND field_key = ?
+  `).get(characters[0].id, 'focus');
+  assert.deepEqual(customized, { default_value_json: '20', runtime_value_json: 'custom-runtime' });
+
+  deleteCharacterStateField(field.id);
+  assert.equal(sandbox.db.prepare(`
+    SELECT COUNT(*) AS count FROM character_state_values WHERE field_key = ?
+  `).get('focus').count, 0);
 });
 
 test('updateCharacter 在替换 avatar_path 时会清理旧头像文件', async () => {

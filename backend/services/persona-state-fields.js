@@ -7,7 +7,7 @@ import {
   reorderPersonaStateFields as dbReorder,
 } from '../db/queries/persona-state-fields.js';
 import {
-  upsertPersonaStateValueByPersonaId,
+  upsertPersonaStateValues,
   deletePersonaStateValuesByFieldKey,
   updatePersonaDefaultStateValuesIfNotCustomized,
 } from '../db/queries/persona-state-values.js';
@@ -23,9 +23,12 @@ const svc = createStateFieldService({
   onCreate(field, worldId) {
     const initialValue = getInitialValueJson(field);
     // 为该 world 所有 persona 各初始化一行状态值
-    for (const persona of getPersonasByWorldId(worldId)) {
-      upsertPersonaStateValueByPersonaId(persona.id, worldId, field.field_key, { defaultValueJson: initialValue });
-    }
+    upsertPersonaStateValues(getPersonasByWorldId(worldId).map(({ id }) => ({
+      personaId: id,
+      worldId,
+      fieldKey: field.field_key,
+      defaultValueJson: initialValue,
+    })));
   },
   onUpdateDefault({ field, oldField }) {
     const oldDefaultJson = oldField ? getInitialValueJson(oldField) : null;

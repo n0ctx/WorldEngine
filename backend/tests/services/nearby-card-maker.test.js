@@ -152,6 +152,58 @@ test('createCharacterFromNearby：落库；仅 nearby_enabled=1 字段写 defaul
   assert.ok(!row.system_prompt.includes('私下人设占位'));
 });
 
+test('createCharacterFromNearby：批量复制大量启用字段的当前值', async () => {
+  const { worldId, sessionId } = makeWorldAndWritingSession('create-many-state-values');
+  const stateCount = 180;
+  const fieldKeys = [];
+  for (let index = 0; index < stateCount; index += 1) {
+    const fieldKey = `nearby_state_${index}`;
+    const field = insertCharacterStateField(sandbox.db, worldId, {
+      field_key: fieldKey,
+      label: `状态 ${index}`,
+      type: 'text',
+      default_value: `default-${index}`,
+    });
+    setNearbyEnabled(sandbox.db, field.id, 1);
+    fieldKeys.push(fieldKey);
+  }
+
+  const seedCharacter = insertCharacter(sandbox.db, worldId, { name: '多状态种子' });
+  const { addSavedFromCharacter, patchNearbyState } =
+    await freshImport('backend/services/writing-sessions.js');
+  const nearbyId = addSavedFromCharacter(sessionId, seedCharacter.id);
+  for (let index = 0; index < fieldKeys.length; index += 1) {
+    patchNearbyState(sessionId, nearbyId, fieldKeys[index], JSON.stringify(`current-${index}`));
+  }
+
+  const { createCharacterFromNearby } =
+    await freshImport('backend/services/nearby-card-maker.js');
+  const characterId = createCharacterFromNearby({
+    worldId,
+    sessionId,
+    nearbyId,
+    name: '多状态新角色',
+  });
+  const values = sandbox.db.prepare(`
+    SELECT field_key, default_value_json, runtime_value_json
+    FROM character_state_values
+    WHERE character_id = ?
+    ORDER BY field_key
+  `).all(characterId);
+
+  assert.equal(values.length, stateCount);
+  assert.deepEqual(values[0], {
+    field_key: fieldKeys[0],
+    default_value_json: JSON.stringify('current-0'),
+    runtime_value_json: null,
+  });
+  assert.deepEqual(values.find((value) => value.field_key === fieldKeys[stateCount - 1]), {
+    field_key: fieldKeys[stateCount - 1],
+    default_value_json: JSON.stringify(`current-${stateCount - 1}`),
+    runtime_value_json: null,
+  });
+});
+
 test('createCharacterFromNearby：name 缺失 / nearby 不属于 session / session 不属于 world 抛错', async () => {
   const { worldId, sessionId } = makeWorldAndWritingSession('errors');
   const character = insertCharacter(sandbox.db, worldId, { name: 'A' });

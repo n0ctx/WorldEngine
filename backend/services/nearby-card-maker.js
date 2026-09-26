@@ -19,7 +19,7 @@ import { getCharacterStateFieldsByWorldId } from '../db/queries/character-state-
 import { getWritingSessionById } from '../db/queries/writing-sessions.js';
 import { getMessagesBySessionId } from '../db/queries/messages.js';
 import { createCharacter } from '../db/queries/characters.js';
-import { upsertCharacterStateValue } from '../db/queries/character-state-values.js';
+import { upsertCharacterStateValues } from '../db/queries/character-state-values.js';
 import { ALL_MESSAGES_LIMIT } from '../utils/constants.js';
 import { createLogger, formatMeta } from '../utils/logger.js';
 import { extractJsonObject } from '../utils/llm-json.js';
@@ -158,13 +158,13 @@ export function createCharacterFromNearby({
   const enabledKeys = new Set(fields.map((f) => f.field_key));
   const nearbyValues = getStateValuesByNearbyId(nearbyId);
 
-  for (const v of nearbyValues) {
-    if (!enabledKeys.has(v.field_key)) continue;
-    if (v.runtime_value_json == null) continue;
-    upsertCharacterStateValue(character.id, v.field_key, {
-      defaultValueJson: v.runtime_value_json,
-    });
-  }
+  upsertCharacterStateValues(nearbyValues
+    .filter((value) => enabledKeys.has(value.field_key) && value.runtime_value_json != null)
+    .map((value) => ({
+      characterId: character.id,
+      fieldKey: value.field_key,
+      defaultValueJson: value.runtime_value_json,
+    })));
 
   log.info(`nearby_card.create_character  ${formatMeta({ sessionId, worldId, nearbyId, characterId: character.id, name: trimmedName })}`);
   return character.id;

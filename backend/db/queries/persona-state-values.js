@@ -1,3 +1,4 @@
+import crypto from 'node:crypto';
 import db from '../index.js';
 import { upsertStateValue } from './_state-values-base.js';
 
@@ -26,6 +27,26 @@ function resolveActivePersonaId(worldId) {
  */
 export function upsertPersonaStateValueByPersonaId(personaId, worldId, fieldKey, patch = {}) {
   return upsertStateValue('persona_state_values', 'persona_id', personaId, fieldKey, patch, { world_id: worldId });
+}
+
+/**
+ * 批量 upsert 多张玩家卡的默认状态值，并在同一事务内完成写入。
+ * @param {{ personaId: string, worldId: string, fieldKey: string, defaultValueJson: string|null }[]} values
+ */
+export function upsertPersonaStateValues(values) {
+  if (values.length === 0) return;
+  const upsert = db.prepare(`
+    INSERT INTO persona_state_values
+      (id, persona_id, world_id, field_key, default_value_json, runtime_value_json, updated_at)
+    VALUES (?, ?, ?, ?, ?, NULL, 0)
+    ON CONFLICT(persona_id, field_key)
+    DO UPDATE SET default_value_json = excluded.default_value_json
+  `);
+  db.transaction((entries) => {
+    for (const { personaId, worldId, fieldKey, defaultValueJson } of entries) {
+      upsert.run(crypto.randomUUID(), personaId, worldId, fieldKey, defaultValueJson);
+    }
+  })(values);
 }
 
 /**
@@ -157,4 +178,3 @@ export function deletePersonaStateValuesByFieldKey(worldId, fieldKey) {
     'DELETE FROM persona_state_values WHERE world_id = ? AND field_key = ?',
   ).run(worldId, fieldKey);
 }
-
