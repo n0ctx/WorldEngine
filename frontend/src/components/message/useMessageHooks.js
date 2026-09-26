@@ -1,4 +1,14 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { needsTrailingCaret, parseStreamingBlocks } from '../../core/utils/think-blocks.js';
+
+export function useMessageBlocks(content, showThinking, showCaret, isStreaming) {
+  const blocks = useMemo(
+    () => parseStreamingBlocks(content, { isStreaming }),
+    [content, isStreaming],
+  );
+  const trailingCaret = showCaret && isStreaming && needsTrailingCaret(blocks, showThinking);
+  return { blocks, trailingCaret };
+}
 
 export function useCopyFeedback(getText) {
   const [copied, setCopied] = useState(false);

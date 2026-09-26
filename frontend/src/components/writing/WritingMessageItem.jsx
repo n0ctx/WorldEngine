@@ -17,8 +17,7 @@ import InterruptedMark from '../chat/InterruptedMark.jsx';
 import StreamingMarkdown, { StreamCaret } from '../chat/StreamingMarkdown.jsx';
 import SeamlessEditableSurface from '../../../../shared/SeamlessEditableSurface.jsx';
 import MessageBlockList from '../message/MessageBlockList.jsx';
-import { useMessageBlocks } from '../message/useMessageBlocks.js';
-import { useCopyFeedback, useDeleteConfirmation } from '../message/useMessageActionState.js';
+import { useCopyFeedback, useDeleteConfirmation, useMessageBlocks } from '../message/useMessageHooks.js';
 
 const MotionDiv = motion.div;
 
