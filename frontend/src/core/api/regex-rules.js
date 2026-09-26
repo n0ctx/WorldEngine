@@ -1,6 +1,8 @@
 import { request } from './request.js';
+import { createResourceCrud } from './resourceCrud.js';
 
 const BASE = '/api/regex-rules';
+const { create: createRegexRule, update: updateRegexRule, remove: deleteRegexRule, reorder: reorderRegexRules } = createResourceCrud(BASE);
 
 export function listRegexRules({ scope, worldId, mode } = {}) {
   const params = new URLSearchParams();
@@ -11,18 +13,4 @@ export function listRegexRules({ scope, worldId, mode } = {}) {
   return request(`${BASE}${query}`);
 }
 
-export function createRegexRule(data) {
-  return request(BASE, { method: 'POST', body: JSON.stringify(data) });
-}
-
-export function updateRegexRule(id, patch) {
-  return request(`${BASE}/${id}`, { method: 'PUT', body: JSON.stringify(patch) });
-}
-
-export function deleteRegexRule(id) {
-  return request(`${BASE}/${id}`, { method: 'DELETE' });
-}
-
-export function reorderRegexRules(items) {
-  return request(`${BASE}/reorder`, { method: 'PUT', body: JSON.stringify({ items }) });
-}
+export { createRegexRule, updateRegexRule, deleteRegexRule, reorderRegexRules };

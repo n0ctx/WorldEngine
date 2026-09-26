@@ -28,6 +28,7 @@ import EditPageShell from './layout/EditPageShell';
 import FormGroup from '../components/ui/FormGroup';
 import AvatarUpload from '../components/ui/AvatarUpload';
 import { log } from '../core/utils/logger.js';
+import { useCreateDraftIdentity } from '../core/hooks/useCreateDraftIdentity.js';
 
 function readCreateDraft() {
   try {
@@ -53,10 +54,7 @@ export default function PersonaEditPage() {
 
   // resolvedPersonaId: 加载完成后的实际 persona id（new 模式下为 null 直到创建成功）
   const [resolvedPersonaId, setResolvedPersonaId] = useState(null);
-  // 创建模式在首次渲染时同步恢复草稿：放进 effect 会晚于下方的草稿自动保存，被空表单先覆盖
-  const [draft] = useState(() => (isNew ? readCreateDraft() : {}));
-  const [name, setName] = useState(draft.name ?? '');
-  const [description, setDescription] = useState(draft.description ?? '');
+  const { draft, name, setName, description, setDescription } = useCreateDraftIdentity(isNew, readCreateDraft);
   const [systemPrompt, setSystemPrompt] = useState(draft.systemPrompt ?? '');
   const [reloadKey, setReloadKey] = useState(0);
   const [avatarPath, setAvatarPath] = useState(null);
@@ -133,7 +131,7 @@ export default function PersonaEditPage() {
     return () => {
       cancelled = true;
     };
-  }, [worldId, personaIdParam, isNew, reloadKey]);
+  }, [worldId, personaIdParam, isNew, reloadKey, setName, setDescription]);
 
   function retryLoad() {
     setLoadError('');

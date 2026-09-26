@@ -16,24 +16,25 @@ export function useSettingsDiaryConfig(patchConfig) {
     setDiaryWritingDateMode(settings.diaryWritingDateMode);
   }, []);
 
+  async function updateDiarySetting(section, key, value, setValue) {
+    setValue(value);
+    await patchConfig({ diary: { [section]: { [key]: value } } });
+  }
+
   async function handleToggleDiaryChatEnabled(enabled) {
-    setDiaryChatEnabled(enabled);
-    await patchConfig({ diary: { chat: { enabled } } });
+    await updateDiarySetting('chat', 'enabled', enabled, setDiaryChatEnabled);
   }
 
   async function handleChangeDiaryChatDateMode(mode) {
-    setDiaryChatDateMode(mode);
-    await patchConfig({ diary: { chat: { date_mode: mode } } });
+    await updateDiarySetting('chat', 'date_mode', mode, setDiaryChatDateMode);
   }
 
   async function handleToggleDiaryWritingEnabled(enabled) {
-    setDiaryWritingEnabled(enabled);
-    await patchConfig({ diary: { writing: { enabled } } });
+    await updateDiarySetting('writing', 'enabled', enabled, setDiaryWritingEnabled);
   }
 
   async function handleChangeDiaryWritingDateMode(mode) {
-    setDiaryWritingDateMode(mode);
-    await patchConfig({ diary: { writing: { date_mode: mode } } });
+    await updateDiarySetting('writing', 'date_mode', mode, setDiaryWritingDateMode);
   }
 
   return {

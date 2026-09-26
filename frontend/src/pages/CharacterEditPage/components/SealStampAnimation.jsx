@@ -4,6 +4,12 @@ import { DURATION, EASE } from '../../../core/utils/motion.js';
 
 const MotionDiv = motion.div;
 
+function showStamp(setShowing) {
+  setShowing(true);
+  const timer = setTimeout(() => setShowing(false), 1100);
+  return () => clearTimeout(timer);
+}
+
 // trigger: 数字，每次+1触发一次动画；或 visible: boolean（兼容两种用法）
 export default function SealStampAnimation({ visible, trigger, text = '成' }) {
   const [showing, setShowing] = useState(false);
@@ -12,19 +18,13 @@ export default function SealStampAnimation({ visible, trigger, text = '成' }) {
   // sealOut delay 0.65s + duration 0.38s = 1.03s，padding 至 1100ms
   useEffect(() => {
     if (!trigger) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- trigger starts a bounded stamp animation timer.
-    setShowing(true);
-    const t = setTimeout(() => setShowing(false), 1100);
-    return () => clearTimeout(t);
+    return showStamp(setShowing);
   }, [trigger]);
 
   // visible 模式：boolean 变为 true 时触发
   useEffect(() => {
     if (!visible) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- visible starts a bounded stamp animation timer.
-    setShowing(true);
-    const t = setTimeout(() => setShowing(false), 1100);
-    return () => clearTimeout(t);
+    return showStamp(setShowing);
   }, [visible]);
 
   return (

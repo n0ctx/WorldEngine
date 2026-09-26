@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { getWorld, updateWorld, createWorld, uploadWorldCover } from '../core/api/worlds';
+import { useWorldUpdateReload } from '../core/hooks/useWorldUpdateReload.js';
+import { useCreateDraftIdentity } from '../core/hooks/useCreateDraftIdentity.js';
 import { extractAccentColorFromFile, extractAccentColorFromImageSrc, FALLBACK_ACCENT_HEX } from '../core/utils/extractAccentColor.js';
 
 import StateFieldList from '../components/state/StateFieldList';
@@ -55,10 +57,7 @@ export default function WorldEditPage() {
   const [accentSource, setAccentSource] = useState('auto');
   const [accentSaving, setAccentSaving] = useState(false);
 
-  // 创建模式在首次渲染时同步恢复草稿：放进 effect 会晚于下方的草稿自动保存，被空表单先覆盖
-  const [draft] = useState(() => (isCreate ? readCreateDraft() : {}));
-  const [name, setName] = useState(draft.name ?? '');
-  const [description, setDescription] = useState(draft.description ?? '');
+  const { name, setName, description, setDescription } = useCreateDraftIdentity(isCreate, readCreateDraft);
   const [temperature, setTemperature] = useState('');
   const [maxTokens, setMaxTokens] = useState('');
   const [reloadKey, setReloadKey] = useState(0);
@@ -105,7 +104,7 @@ export default function WorldEditPage() {
       log.error('world_edit.load_failed', err);
       setLoadError(err.message || '世界加载失败');
     });
-  }, [worldId, reloadKey, isCreate]);
+  }, [worldId, reloadKey, isCreate, setName, setDescription]);
 
   function retryLoad() {
     setLoadError('');
@@ -113,11 +112,7 @@ export default function WorldEditPage() {
     setReloadKey((k) => k + 1);
   }
 
-  useEffect(() => {
-    const h = () => setReloadKey((k) => k + 1);
-    window.addEventListener('we:world-updated', h);
-    return () => window.removeEventListener('we:world-updated', h);
-  }, []);
+  useWorldUpdateReload(setReloadKey);
 
   async function handleSave() {
     if (!name.trim()) { setSaveError('名称为必填项'); return; }

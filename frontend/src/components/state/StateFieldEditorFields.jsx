@@ -2,7 +2,7 @@ import { useRef, useState } from 'react';
 import Select from '../ui/Select';
 import MarkdownEditor from '../ui/MarkdownEditor';
 import DatetimeSplitInput from './DatetimeSplitInput';
-import { isImeComposing } from '../../core/utils/ime.js';
+import { handleTagInputKeyDown } from '../../core/utils/tag-input.js';
 import { ISO_DATETIME_RE, updateStateFieldForm } from './stateFieldEditor.logic.js';
 
 const TYPE_OPTIONS = [
@@ -22,6 +22,7 @@ const UPDATE_MODE_OPTIONS = [
 
 const inputCls = 'we-input';
 const labelCls = 'we-dialog-label';
+
 const requiredMark = <span className="we-state-field-required">*</span>;
 
 export function StateFieldIdentityFields({ field, form, setForm }) {
@@ -171,13 +172,7 @@ function EnumOptionsEditor({ form, setForm }) {
         ))}
         <input ref={enumRef} className="we-tag-input-field"
           value={enumInput} onChange={(event) => setEnumInput(event.target.value)}
-          onKeyDown={(event) => {
-            if (isImeComposing(event)) return;
-            if (event.key === 'Enter') { event.preventDefault(); addEnum(enumInput); }
-            else if (event.key === 'Backspace' && enumInput === '' && form.enum_options.length) {
-              removeEnum(form.enum_options[form.enum_options.length - 1]);
-            }
-          }}
+          onKeyDown={(event) => handleTagInputKeyDown(event, enumInput, form.enum_options, addEnum, removeEnum)}
           onBlur={() => { if (enumInput.trim()) addEnum(enumInput); }}
           placeholder={form.enum_options.length === 0 ? '输入选项后按回车' : ''}
         />
@@ -224,13 +219,7 @@ function ListDefaultsEditor({ form, setForm }) {
         ))}
         <input ref={inputRef} className="we-tag-input-field"
           value={input} onChange={(event) => setInput(event.target.value)}
-          onKeyDown={(event) => {
-            if (isImeComposing(event)) return;
-            if (event.key === 'Enter') { event.preventDefault(); addDefault(input); }
-            else if (event.key === 'Backspace' && input === '' && form.list_defaults.length) {
-              removeDefault(form.list_defaults[form.list_defaults.length - 1]);
-            }
-          }}
+          onKeyDown={(event) => handleTagInputKeyDown(event, input, form.list_defaults, addDefault, removeDefault)}
           onBlur={() => { if (input.trim()) addDefault(input); }}
           placeholder={form.list_defaults.length === 0 ? '输入条目后按回车' : ''}
         />

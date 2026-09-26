@@ -11,6 +11,7 @@
  */
 import { useEffect, useState, useMemo } from 'react';
 import { subscribeProviderSafetySignals } from '../../core/api/provider-safety-events.js';
+import { providerSafetyMetaRows } from '../../core/utils/provider-safety.js';
 
 const SEVERITY_LABEL = {
   critical: '关键',
@@ -57,10 +58,7 @@ export default function ProviderSafetyBanner() {
       ['Severity', SEVERITY_LABEL[signal.severity] || signal.severity],
       ['Action', signal.action],
     ];
-    if (signal.rawFinishReason) rows.push(['finish_reason', signal.rawFinishReason]);
-    if (signal.nativeFinishReason) rows.push(['native_finish_reason', signal.nativeFinishReason]);
-    if (signal.stopReason) rows.push(['stop_reason', signal.stopReason]);
-    if (signal.providerErrorCode) rows.push(['error.code', signal.providerErrorCode]);
+    rows.push(...providerSafetyMetaRows(signal));
     return rows.filter(([, v]) => v != null && v !== '');
   }, [signal]);
 

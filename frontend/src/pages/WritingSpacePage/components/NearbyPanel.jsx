@@ -114,21 +114,23 @@ export default function NearbyPanel({
   const [makeCardOpen, setMakeCardOpen] = useState(false);
   const [removingNearby, setRemovingNearby] = useState(null);
 
+  const applyNearbyResponse = useCallback((isCurrent) => {
+    fetchNearby(worldId, sessionId)
+      .then((rows) => {
+        if (isCurrent()) { setNearby(Array.isArray(rows) ? rows : []); setNearbyError(null); }
+      })
+      .catch((err) => {
+        if (isCurrent()) { setNearby([]); setNearbyError(err?.message || '加载附近角色失败'); }
+      });
+  }, [worldId, sessionId]);
+
   const reloadNearby = useCallback(() => {
     if (!worldId || !sessionId) {
       setNearby([]);
       return;
     }
-    let cancelled = false;
-    fetchNearby(worldId, sessionId)
-      .then((rows) => {
-        if (!cancelled) { setNearby(Array.isArray(rows) ? rows : []); setNearbyError(null); }
-      })
-      .catch((err) => {
-        if (!cancelled) { setNearby([]); setNearbyError(err?.message || '加载附近角色失败'); }
-      });
-    return () => { cancelled = true; };
-  }, [worldId, sessionId]);
+    applyNearbyResponse(() => true);
+  }, [worldId, sessionId, applyNearbyResponse]);
 
   useEffect(() => {
     let cancelled = false;
@@ -137,11 +139,9 @@ export default function NearbyPanel({
       return () => { cancelled = true; };
     }
     Promise.resolve().then(() => { if (!cancelled) { setNearby(null); setNearbyError(null); } });
-    fetchNearby(worldId, sessionId)
-      .then((rows) => { if (!cancelled) { setNearby(Array.isArray(rows) ? rows : []); setNearbyError(null); } })
-      .catch((err) => { if (!cancelled) { setNearby([]); setNearbyError(err?.message || '加载附近角色失败'); } });
+    applyNearbyResponse(() => !cancelled);
     return () => { cancelled = true; };
-  }, [worldId, sessionId, stateTick, nearbyReloadToken]);
+  }, [worldId, sessionId, stateTick, nearbyReloadToken, applyNearbyResponse]);
 
   // 切换会话/世界时清空收起集合；同时把"已应用 tick"对齐到当前值，避免之前会话的 hits 在新会话触发误收起
   useEffect(() => {

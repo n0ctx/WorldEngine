@@ -28,7 +28,7 @@ import { deleteWritingSession } from '../../core/api/writing-sessions.js';
 import { chatSessionListBridge, writingSessionListBridge } from '../../core/utils/session-list-bridge.js';
 import { relativeTime } from '../../core/utils/time.js';
 import { log } from '../../core/utils/logger.js';
-import { isImeComposing } from '../../core/utils/ime.js';
+import { handleInlineRenameKeyDown } from '../../core/utils/inline-rename.js';
 import { STAGGER } from '../../core/utils/motion.js';
 import { useMotion } from '../../core/hooks/useMotion.js';
 import { storylineTitle, useOpenStoryline } from '../../core/hooks/storyline.js';
@@ -87,10 +87,7 @@ function TimelineItem({ item, title, index, isActive, editable, onClick, onRenam
 
   function handleEditKeyDown(e) {
     // 外层条目把 Enter/空格当作「打开会话」，编辑框的按键不能冒泡上去
-    e.stopPropagation();
-    if (isImeComposing(e)) return;
-    if (e.key === 'Enter') { e.preventDefault(); confirmEdit(); }
-    if (e.key === 'Escape') cancelEdit();
+    handleInlineRenameKeyDown(e, confirmEdit, cancelEdit, true);
   }
 
   return (

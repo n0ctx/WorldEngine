@@ -1,22 +1,12 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import {
-  getCharactersByWorld,
-  deleteCharacter,
-  reorderCharacters,
-} from '../core/api/characters';
+import { getCharactersByWorld, deleteCharacter, reorderCharacters } from '../core/api/characters';
 import { getWorld, updateWorld } from '../core/api/worlds';
+import { loadWorldContent } from '../core/data/loadWorldContent.js';
 import useStore from '../core/state/index';
 import { importCharacter, importPersona, readJsonFile } from '../core/api/import-export';
 import { listCharacterStateFields } from '../core/api/character-state-fields';
-import {
-  listPersonas,
-  activatePersona,
-  deletePersona,
-  reorderPersonas,
-} from '../core/api/personas';
-import { listWorldEntries } from '../core/api/prompt-entries';
-import { listWorldStateFields } from '../core/api/world-state-fields';
+import { listPersonas, activatePersona, deletePersona, reorderPersonas } from '../core/api/personas';
 import { getWorldTimeline } from '../core/api/sessions';
 import { createWritingSession } from '../core/api/writing-sessions';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -30,6 +20,11 @@ import { useMotion } from '../core/hooks/useMotion.js';
 import { storylineTitle, useOpenStoryline } from '../core/hooks/storyline.js';
 import Folder from '../components/motion/Folder.jsx';
 import TaskList from '../components/motion/TaskList.jsx';
+
+function saveItemOrder(items, reorder) {
+  const orderedItems = items.map((item, index) => ({ id: item.id, sort_order: index }));
+  return reorder(orderedItems);
+}
 
 // ── 拖动感知点击 hook ──────────────────────────────────────────────────────
 
@@ -411,19 +406,16 @@ export default function CharactersPage() {
     setLoading(true);
     setLoadError('');
     try {
-      const [w, chars, ps, ents, fields, tl] = await Promise.all([
+      const [w, content, tl] = await Promise.all([
         getWorld(worldId),
-        getCharactersByWorld(worldId),
-        listPersonas(worldId),
-        listWorldEntries(worldId),
-        listWorldStateFields(worldId),
+        loadWorldContent(worldId),
         getWorldTimeline(worldId),
       ]);
       setWorld(w);
-      setCharacters(chars);
-      setPersonas(ps);
-      setEntries(ents);
-      setStateFields(fields);
+      setCharacters(content.characters);
+      setPersonas(content.personas);
+      setEntries(content.worldEntries);
+      setStateFields(content.worldFields);
       setTimeline(tl);
     } catch (err) {
       setLoadError(err.message || '读取失败');
@@ -588,13 +580,11 @@ export default function CharactersPage() {
   }
 
   async function handleCharReorderEnd(finalChars) {
-    const items = finalChars.map((c, i) => ({ id: c.id, sort_order: i }));
-    await reorderCharacters(items);
+    await saveItemOrder(finalChars, reorderCharacters);
   }
 
   async function handlePersonaReorderEnd(finalPersonas) {
-    const items = finalPersonas.map((p, i) => ({ id: p.id, sort_order: i }));
-    await reorderPersonas(items);
+    await saveItemOrder(finalPersonas, reorderPersonas);
   }
 
   if (loadError) {

@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useParams, useNavigate } from 'react-router-dom';
 import useStore from '../../core/state/index.js';
@@ -14,7 +14,6 @@ import WorldTimelinePanel from '../../components/session/WorldTimelinePanel.jsx'
 import MessageList from '../../components/chat/MessageList.jsx';
 import SpeakerStage from '../../components/chat/SpeakerStage.jsx';
 import InputBox from '../../components/chat/InputBox.jsx';
-import { useDanmakuBandStore } from '../../core/state/danmakuBand.js';
 import ProviderSafetyBanner from '../../components/ui/ProviderSafetyBanner.jsx';
 import Pager from '../../components/chat/Pager.jsx';
 import PageLayout from '../layout/PageLayout.jsx';
@@ -24,7 +23,7 @@ import { loadRules } from '../../core/utils/regex-runner.js';
 import CharacterSeal from '../../components/chat/CharacterSeal.jsx';
 import { log } from '../../core/utils/logger.js';
 import { usePageConfig } from '../../core/hooks/usePageConfig.js';
-import { useMemoryIndicators } from '../../core/hooks/useMemoryIndicators.js';
+import { useConversationPageState } from '../../core/hooks/useConversationPageState.js';
 import { useChatStream } from './hooks/useChatStream.js';
 import { useMotion } from '../../core/hooks/useMotion.js';
 
@@ -111,17 +110,11 @@ export default function ChatPage() {
   const { currentSessionId, setCurrentSessionId, setCurrentCharacterId } = useStore();
 
   const { character, persona } = useChatCharacter(characterId);
-  const [ltmOpen, setLtmOpen] = useState(false);
-  const [tmOpen, setTmOpen] = useState(false);
-  const [pageInfo, setPageInfo] = useState({ totalPages: 1, currentPage: 0 });
-  const inputBoxRef = useRef(null);
-  const messageListRef = useRef(null);
-
-  const memory = useMemoryIndicators();
+  const {
+    ltmOpen, setLtmOpen, tmOpen, setTmOpen, pageInfo, setPageInfo,
+    inputBoxRef, messageListRef, memory,
+  } = useConversationPageState();
   const { memoryRecalling, memoryExpanding, memoryWriting, recallSummary } = memory;
-  // 弹幕带在全局 store（顶部栏 TopBar 渲染），由流 hook 写入；离开页面时清空
-  const clearDanmakuBand = useDanmakuBandStore((s) => s.clear);
-  useEffect(() => () => clearDanmakuBand(), [clearDanmakuBand]);
 
   const stream = useChatStream({
     character,

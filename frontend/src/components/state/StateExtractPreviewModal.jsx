@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { ISO_DATETIME_RE, formatBooleanDisplay, formatDatetimeChinese, parseLooseJson } from './state-value-format';
+import { toggleSetValue } from '../../core/utils/toggleSetValue.js';
 
 const EMPTY_DISPLAY = '（未设置）';
 
@@ -96,11 +97,7 @@ export default function StateExtractPreviewModal({ onExtract, onConfirm, onClose
   const selectedCount = selected.size;
 
   function toggle(fieldKey) {
-    setSelected((prev) => {
-      const next = new Set(prev);
-      if (next.has(fieldKey)) next.delete(fieldKey); else next.add(fieldKey);
-      return next;
-    });
+    toggleSetValue(setSelected, fieldKey);
   }
 
   function selectAll() {

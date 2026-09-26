@@ -1,4 +1,4 @@
-import { isImeComposing } from '../../core/utils/ime.js';
+import { handleTagInputKeyDown } from '../../core/utils/tag-input.js';
 
 export default function EntryEditorKeywordFields({
   keywords,
@@ -74,13 +74,7 @@ export default function EntryEditorKeywordFields({
           className="we-tag-input-field"
           value={keywordInput}
           onChange={(event) => setKeywordInput(event.target.value)}
-          onKeyDown={(event) => {
-            if (isImeComposing(event)) return;
-            if (event.key === 'Enter') { event.preventDefault(); addKeyword(keywordInput); }
-            else if (event.key === 'Backspace' && keywordInput === '' && keywords.length) {
-              removeKeyword(keywords[keywords.length - 1]);
-            }
-          }}
+          onKeyDown={(event) => handleTagInputKeyDown(event, keywordInput, keywords, addKeyword, removeKeyword)}
           onBlur={() => { if (keywordInput.trim()) addKeyword(keywordInput); }}
           placeholder={keywords.length === 0 ? '输入关键词后按回车' : ''}
           aria-label="输入触发关键词"

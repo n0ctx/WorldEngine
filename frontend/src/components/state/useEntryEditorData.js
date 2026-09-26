@@ -1,12 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
-import {
-  getEntryConditions, listWorldEntries,
-} from '../../core/api/prompt-entries';
-import { listWorldStateFields } from '../../core/api/world-state-fields';
+import { getEntryConditions } from '../../core/api/prompt-entries';
 import { listCharacterStateFields } from '../../core/api/character-state-fields';
 import { listPersonaStateFields } from '../../core/api/persona-state-fields';
-import { getCharactersByWorld } from '../../core/api/characters';
-import { listPersonas } from '../../core/api/personas';
+import { loadWorldContent } from '../../core/data/loadWorldContent.js';
 import { log } from '../../core/utils/logger.js';
 import { buildPrefillCondition, emptyCondition, parseTargetField } from './entryEditorRules.js';
 
@@ -35,15 +31,14 @@ export default function useEntryEditorData({ worldId, entry, isNew, prefillCondi
     let cancelled = false;
     (async () => {
       try {
-        const [characters, personas, worldFields, charFields, personaFields, worldEntries] = await Promise.all([
-          getCharactersByWorld(worldId),
-          listPersonas(worldId),
-          listWorldStateFields(worldId),
+        const [worldContent, charFields, personaFields] = await Promise.all([
+          loadWorldContent(worldId),
           listCharacterStateFields(worldId),
           listPersonaStateFields(worldId),
-          listWorldEntries(worldId),
         ]);
         if (cancelled) return;
+
+        const { characters, personas, worldFields, worldEntries } = worldContent;
 
         const labels = [...new Set([...worldFields, ...charFields, ...personaFields]
           .map((field) => field.label).filter(Boolean))];

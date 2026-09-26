@@ -79,6 +79,13 @@ export function useSettingsPromptConfig(patchConfig) {
     applyTurnSizeSettings(readTurnSizeSettings(config));
   }, [applyDanmakuSettings, applyMemorySettings, applyPromptSettings, applyTurnSizeSettings]);
 
+  async function updateEnabledSetting(setEnabled, enabled, key, isWriting = false) {
+    setEnabled(enabled);
+    await patchConfig(isWriting
+      ? { writing: { [key]: enabled } }
+      : { [key]: enabled });
+  }
+
   async function handleSaveGeneral() {
     await runSave(() => patchConfig({
       global_system_prompt: globalSystemPrompt,
@@ -134,18 +141,15 @@ export function useSettingsPromptConfig(patchConfig) {
   }
 
   async function handleToggleMemoryExpansion(enabled) {
-    setMemoryExpansionEnabled(enabled);
-    await patchConfig({ memory_expansion_enabled: enabled });
+    await updateEnabledSetting(setMemoryExpansionEnabled, enabled, 'memory_expansion_enabled');
   }
 
   async function handleToggleSuggestion(enabled) {
-    setSuggestionEnabled(enabled);
-    await patchConfig({ suggestion_enabled: enabled });
+    await updateEnabledSetting(setSuggestionEnabled, enabled, 'suggestion_enabled');
   }
 
   async function handleToggleWritingSuggestion(enabled) {
-    setWritingSuggestionEnabled(enabled);
-    await patchConfig({ writing: { suggestion_enabled: enabled } });
+    await updateEnabledSetting(setWritingSuggestionEnabled, enabled, 'suggestion_enabled', true);
   }
 
   async function handleToggleDanmaku(enabled) {
@@ -166,28 +170,23 @@ export function useSettingsPromptConfig(patchConfig) {
   }
 
   async function handleToggleWritingMemoryExpansion(enabled) {
-    setWritingMemoryExpansionEnabled(enabled);
-    await patchConfig({ writing: { memory_expansion_enabled: enabled } });
+    await updateEnabledSetting(setWritingMemoryExpansionEnabled, enabled, 'memory_expansion_enabled', true);
   }
 
   async function handleToggleLongTermMemory(enabled) {
-    setLongTermMemoryEnabled(enabled);
-    await patchConfig({ long_term_memory_enabled: enabled });
+    await updateEnabledSetting(setLongTermMemoryEnabled, enabled, 'long_term_memory_enabled');
   }
 
   async function handleToggleWritingLongTermMemory(enabled) {
-    setWritingLongTermMemoryEnabled(enabled);
-    await patchConfig({ writing: { long_term_memory_enabled: enabled } });
+    await updateEnabledSetting(setWritingLongTermMemoryEnabled, enabled, 'long_term_memory_enabled', true);
   }
 
   async function handleToggleTableMemory(enabled) {
-    setTableMemoryEnabled(enabled);
-    await patchConfig({ table_memory_enabled: enabled });
+    await updateEnabledSetting(setTableMemoryEnabled, enabled, 'table_memory_enabled');
   }
 
   async function handleToggleWritingTableMemory(enabled) {
-    setWritingTableMemoryEnabled(enabled);
-    await patchConfig({ writing: { table_memory_enabled: enabled } });
+    await updateEnabledSetting(setWritingTableMemoryEnabled, enabled, 'table_memory_enabled', true);
   }
 
   async function handleSaveTableMemoryRowLimit(key, value) {

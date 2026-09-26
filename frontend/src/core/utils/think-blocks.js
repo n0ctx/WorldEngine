@@ -6,6 +6,18 @@ export function matchThinkTags(source) {
   return source.matchAll(new RegExp(THINK_TAG_PATTERN, 'gi'));
 }
 
+function *scanThinkTags(source) {
+  let cursor = 0;
+  for (const match of matchThinkTags(source)) {
+    const token = match[0];
+    const isClose = Boolean(match[1]);
+    const index = match.index ?? 0;
+    yield { before: source.slice(cursor, index), token, isClose };
+    cursor = index + token.length;
+  }
+  yield { before: source.slice(cursor), token: null, isClose: false };
+}
+
 // 流式尾部可能停在还没收齐的半截标签上(`<`、`</th`、`<think` …)。
 // 本地模型把 think 标签当普通 content token 吐出时会被切开,不裁掉就会当正文闪现一帧。
 const PARTIAL_THINK_TAG_RE = /<\s*\/?\s*(?:t(?:h(?:i(?:n(?:k(?:i(?:n(?:g)?)?)?)?)?)?)?)?\s*$/i;
@@ -29,15 +41,11 @@ function pushThinking(blocks, content, open) {
 //     内部重复出现的 <think>/</think> 一律当纯文本,禁止外层 think 闭合前提前裂块。
 function stackParse(source, keepOpen = false) {
   const blocks = [];
-  let cursor = 0;
   let depth = 0;
   let current = '';
-  for (const match of matchThinkTags(source)) {
-    const token = match[0];
-    const isClose = Boolean(match[1]);
-    const index = match.index ?? 0;
-    current += source.slice(cursor, index);
-    cursor = index + token.length;
+  for (const { before, token, isClose } of scanThinkTags(source)) {
+    current += before;
+    if (!token) break;
     if (depth === 0) {
       if (isClose) { current += token; continue; }
       pushText(blocks, current);
@@ -55,7 +63,6 @@ function stackParse(source, keepOpen = false) {
     depth += 1;
     current += token;
   }
-  current += source.slice(cursor);
   if (depth > 0) {
     if (!keepOpen) return null;
     // 流式:外层 think 尚未闭合,整段(含内部 think 标签字面量)作为单个 open thinking 块。
@@ -74,13 +81,9 @@ function booleanParse(source) {
   const blocks = [];
   let inThink = false;
   let current = '';
-  let cursor = 0;
-  for (const match of matchThinkTags(source)) {
-    const token = match[0];
-    const isClose = Boolean(match[1]);
-    const index = match.index ?? 0;
-    current += source.slice(cursor, index);
-    cursor = index + token.length;
+  for (const { before, token, isClose } of scanThinkTags(source)) {
+    current += before;
+    if (!token) break;
     if (!inThink) {
       if (isClose) { current += token; continue; }
       pushText(blocks, current);
@@ -96,7 +99,6 @@ function booleanParse(source) {
     }
     current += token;
   }
-  current += source.slice(cursor);
   if (inThink) {
     pushThinking(blocks, current, true);
   } else {

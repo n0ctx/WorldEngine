@@ -47,14 +47,11 @@ function buildDecorations(view) {
       // Mark decorations – only on non-active lines
       if (active) return;
 
-      if (node.name === 'HeaderMark') {
+      if (node.name === 'HeaderMark' || node.name === 'QuoteMark') {
         const spaceEnd = state.doc.sliceString(node.to, node.to + 1) === ' ' ? node.to + 1 : node.to;
         markDecos.push(Decoration.mark({ class: 'cm-md-hide' }).range(node.from, spaceEnd));
       } else if (node.name === 'EmphasisMark') {
         markDecos.push(Decoration.mark({ class: 'cm-md-hide' }).range(node.from, node.to));
-      } else if (node.name === 'QuoteMark') {
-        const spaceEnd = state.doc.sliceString(node.to, node.to + 1) === ' ' ? node.to + 1 : node.to;
-        markDecos.push(Decoration.mark({ class: 'cm-md-hide' }).range(node.from, spaceEnd));
       } else if (node.name === 'CodeMark') {
         markDecos.push(Decoration.mark({ class: 'cm-md-hide' }).range(node.from, node.to));
       } else if (node.name === 'StrongEmphasis') {

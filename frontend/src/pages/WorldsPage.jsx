@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { motion, useMotionTemplate, useMotionValue, useSpring } from 'framer-motion';
 import { Download, Ellipsis, PencilLine, Plus, Trash2, Upload } from 'lucide-react';
 import { getWorlds, deleteWorld, reorderWorlds, updateWorld } from '../core/api/worlds';
+import { useWorldUpdateReload } from '../core/hooks/useWorldUpdateReload.js';
 import SortableGrid from '../components/ui/SortableGrid';
 import { getCharactersByWorld } from '../core/api/characters';
 import useStore from '../core/state/index';
@@ -142,11 +143,7 @@ export default function WorldsPage() {
     return () => clearTimeout(timeoutId);
   }, [reloadKey]);
 
-  useEffect(() => {
-    const h = () => setReloadKey((k) => k + 1);
-    window.addEventListener('we:world-updated', h);
-    return () => window.removeEventListener('we:world-updated', h);
-  }, []);
+  useWorldUpdateReload(setReloadKey);
 
   function handleEnterWorld(world) {
     setCurrentWorldId(world.id);

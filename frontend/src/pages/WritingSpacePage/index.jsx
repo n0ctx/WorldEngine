@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { syncDiaryTimeField } from '../../core/api/world-state-fields.js';
 import { useAppModeStore } from '../../core/state/appMode.js';
@@ -13,7 +13,6 @@ import PageLayout from '../layout/PageLayout.jsx';
 import NearbyPanel from './components/NearbyPanel.jsx';
 import MessageList from '../../components/chat/MessageList.jsx';
 import InputBox from '../../components/chat/InputBox.jsx';
-import { useDanmakuBandStore } from '../../core/state/danmakuBand.js';
 import Pager from '../../components/chat/Pager.jsx';
 import ProviderSafetyBanner from '../../components/ui/ProviderSafetyBanner.jsx';
 import WorldTimelinePanel from '../../components/session/WorldTimelinePanel.jsx';
@@ -24,7 +23,7 @@ import { AnimatePresence } from 'framer-motion';
 import { log } from '../../core/utils/logger.js';
 import { writingSessionListBridge } from '../../core/utils/session-list-bridge.js';
 import { usePageConfig } from '../../core/hooks/usePageConfig.js';
-import { useMemoryIndicators } from '../../core/hooks/useMemoryIndicators.js';
+import { useConversationPageState } from '../../core/hooks/useConversationPageState.js';
 import { useWritingStream } from './hooks/useWritingStream.js';
 
 export default function WritingSpacePage() {
@@ -46,20 +45,15 @@ export default function WritingSpacePage() {
   }, [setAppMode]);
 
   const [persona, setPersona] = useState(null);
-  const [ltmOpen, setLtmOpen] = useState(false);
-  const [tmOpen, setTmOpen] = useState(false);
-  const [pageInfo, setPageInfo] = useState({ totalPages: 1, currentPage: 0 });
+  const {
+    ltmOpen, setLtmOpen, tmOpen, setTmOpen, pageInfo, setPageInfo,
+    inputBoxRef, messageListRef, memory,
+  } = useConversationPageState();
   const [isInitializing, setIsInitializing] = useState(false);
   const [initError, setInitError] = useState(null);
   const [initRetryToken, setInitRetryToken] = useState(0);
 
-  const inputBoxRef = useRef(null);
-  const messageListRef = useRef(null);
-  const memory = useMemoryIndicators();
   const { memoryRecalling, memoryExpanding, memoryWriting, recallSummary } = memory;
-  // 弹幕带在全局 store（顶部栏 TopBar 渲染），由流 hook 写入；离开页面时清空
-  const clearDanmakuBand = useDanmakuBandStore((s) => s.clear);
-  useEffect(() => () => clearDanmakuBand(), [clearDanmakuBand]);
 
   const stream = useWritingStream({ worldId, messageListRef, inputBoxRef, memory });
   const {

@@ -27,6 +27,14 @@ export default function ImportExportPanel({ settingsMode, onImportSuccess }) {
     setMessage(null);
   }
 
+  async function refreshImportedData() {
+    await Promise.all([
+      refreshCustomCss(appMode),
+      loadRules(appMode).catch(() => {}),
+    ]);
+    invalidateCache();
+  }
+
   async function handleExport() {
     setExporting(true);
     setMessage(null);
@@ -53,11 +61,7 @@ export default function ImportExportPanel({ settingsMode, onImportSuccess }) {
     try {
       const data = await readJsonFile(file);
       const result = await importGlobalSettings(data);
-      await Promise.all([
-        refreshCustomCss(appMode),
-        loadRules(appMode).catch(() => {}),
-      ]);
-      invalidateCache();
+      await refreshImportedData();
       const label = result.mode === SETTINGS_MODE.WRITING ? '写作' : '对话';
       setMessage({ type: 'ok', text: `导入成功，已覆盖${label}全局设置` });
       onImportSuccess?.();
@@ -94,11 +98,7 @@ export default function ImportExportPanel({ settingsMode, onImportSuccess }) {
     try {
       const data = await readJsonFile(file);
       const result = await importMigration(data);
-      await Promise.all([
-        refreshCustomCss(appMode),
-        loadRules(appMode).catch(() => {}),
-      ]);
-      invalidateCache();
+      await refreshImportedData();
       const worldCount = result.worlds?.length ?? 0;
       setMigrationMessage({ type: 'ok', text: `迁移导入成功，已导入对话与写作全局设置，共创建 ${worldCount} 个世界` });
       onImportSuccess?.();

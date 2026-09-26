@@ -16,6 +16,7 @@ import EditPageShell from '../layout/EditPageShell';
 import FormGroup from '../../components/ui/FormGroup';
 import AvatarUpload from '../../components/ui/AvatarUpload';
 import { log } from '../../core/utils/logger.js';
+import { useCreateDraftIdentity } from '../../core/hooks/useCreateDraftIdentity.js';
 
 function readCreateDraft() {
   try {
@@ -42,10 +43,7 @@ export default function CharacterEditPage() {
   const [saveError, setSaveError] = useState('');
   const [avatarUploading, setAvatarUploading] = useState(false);
 
-  // 创建模式在首次渲染时同步恢复草稿：放进 effect 会晚于下方的草稿自动保存，被空表单先覆盖
-  const [draft] = useState(() => (isCreate ? readCreateDraft() : {}));
-  const [name, setName] = useState(draft.name ?? '');
-  const [description, setDescription] = useState(draft.description ?? '');
+  const { draft, name, setName, description, setDescription } = useCreateDraftIdentity(isCreate, readCreateDraft);
   const [systemPrompt, setSystemPrompt] = useState(draft.systemPrompt ?? '');
   const [postPrompt, setPostPrompt] = useState(draft.postPrompt ?? '');
   const [firstMessage, setFirstMessage] = useState(draft.firstMessage ?? '');
@@ -93,7 +91,7 @@ export default function CharacterEditPage() {
       log.error('character_edit.load_failed', err);
       setLoadError(err.message || '角色加载失败');
     });
-  }, [characterId, reloadKey, isCreate]);
+  }, [characterId, reloadKey, isCreate, setName, setDescription]);
 
   function retryLoad() {
     setLoadError('');

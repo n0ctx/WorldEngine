@@ -14,7 +14,7 @@ const EMPTY_STATUS_DISPLAY = '—';
 
 const parseValue = formatFieldValue;
 
-function parseTableColumns(raw) {
+function parseArray(raw) {
   if (raw == null) return [];
   if (Array.isArray(raw)) return raw;
   try {
@@ -40,17 +40,6 @@ function parseRawValue(effectiveValueJson, type) {
     return v ?? '';
   } catch {
     return effectiveValueJson ?? '';
-  }
-}
-
-function parseEnumOptions(raw) {
-  if (raw == null) return [];
-  if (Array.isArray(raw)) return raw;
-  try {
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
   }
 }
 
@@ -200,7 +189,7 @@ function BooleanInlineEditor({ draft, setDraft, commit, readDisplay }) {
 
 function EnumInlineEditor({ row, draft, setDraft, commit, onCancel, readDisplay }) {
   const boundaryRef = useRef(null);
-  const options = parseEnumOptions(row.enum_options);
+  const options = parseArray(row.enum_options);
 
   useClickOutside(boundaryRef, onCancel);
 
@@ -436,7 +425,7 @@ function getStatusEditKey(row) {
 }
 
 function StatusTableField({ row, index, fieldExtra, editable, onSave }) {
-  const columns = parseTableColumns(row.table_columns);
+  const columns = parseArray(row.table_columns);
   const values = parseTableValue(row.effective_value_json);
 
   return (

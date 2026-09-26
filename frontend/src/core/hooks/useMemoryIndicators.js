@@ -1,5 +1,11 @@
 import { useCallback, useRef, useState } from 'react';
 
+function stopIndicator(startRef, timerRef, setActive) {
+  const elapsed = Date.now() - (startRef.current ?? 0);
+  const delay = Math.max(0, 1500 - elapsed);
+  timerRef.current = setTimeout(() => setActive(false), delay);
+}
+
 // 记忆指示器状态机：召回 / 扩展 / 写入 三段动画 + recallSummary。对话页与写作页共用。
 // 每段保证至少展示 1500ms（从 start 时刻计），写入完成 2000ms 后清除 summary。
 // 流式回调只调用 start/stop（不读取布尔值），故 hook 暴露这些函数 + 状态值供页面消费。
@@ -25,9 +31,7 @@ export function useMemoryIndicators() {
     setMemoryRecalling(true);
   }, []);
   const stopMemoryRecalling = useCallback(() => {
-    const elapsed = Date.now() - (memoryRecallingStartRef.current ?? 0);
-    const delay = Math.max(0, 1500 - elapsed);
-    memoryRecallingTimerRef.current = setTimeout(() => setMemoryRecalling(false), delay);
+    stopIndicator(memoryRecallingStartRef, memoryRecallingTimerRef, setMemoryRecalling);
   }, []);
 
   const startMemoryExpanding = useCallback(() => {
@@ -36,9 +40,7 @@ export function useMemoryIndicators() {
     setMemoryExpanding(true);
   }, []);
   const stopMemoryExpanding = useCallback(() => {
-    const elapsed = Date.now() - (memoryExpandingStartRef.current ?? 0);
-    const delay = Math.max(0, 1500 - elapsed);
-    memoryExpandingTimerRef.current = setTimeout(() => setMemoryExpanding(false), delay);
+    stopIndicator(memoryExpandingStartRef, memoryExpandingTimerRef, setMemoryExpanding);
   }, []);
 
   const startMemoryWriting = useCallback((runId = null) => {

@@ -1,6 +1,8 @@
 import { request } from './request.js';
+import { createResourceCrud } from './resourceCrud.js';
 
 const BASE = '/api/custom-css-snippets';
+const { create: createSnippet, update: updateSnippet, remove: deleteSnippet, reorder: reorderSnippets } = createResourceCrud(BASE);
 
 export function listSnippets({ mode } = {}) {
   const params = new URLSearchParams();
@@ -9,21 +11,7 @@ export function listSnippets({ mode } = {}) {
   return request(`${BASE}${query}`);
 }
 
-export function createSnippet(data) {
-  return request(BASE, { method: 'POST', body: JSON.stringify(data) });
-}
-
-export function updateSnippet(id, patch) {
-  return request(`${BASE}/${id}`, { method: 'PUT', body: JSON.stringify(patch) });
-}
-
-export function deleteSnippet(id) {
-  return request(`${BASE}/${id}`, { method: 'DELETE' });
-}
-
-export function reorderSnippets(items) {
-  return request(`${BASE}/reorder`, { method: 'PUT', body: JSON.stringify({ items }) });
-}
+export { createSnippet, updateSnippet, deleteSnippet, reorderSnippets };
 
 /**
  * 拉取指定 mode 的启用片段，按 sort_order 拼接后写入 <style id="we-custom-css">

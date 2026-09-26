@@ -12,6 +12,8 @@ import {
 } from '../../core/api/provider-safety-events.js';
 import { log } from '../../core/utils/logger.js';
 import CodeBlock from '../motion/CodeBlock.jsx';
+import { toggleSetValue } from '../../core/utils/toggleSetValue.js';
+import { providerSafetyMetaRows } from '../../core/utils/provider-safety.js';
 
 const SEVERITY_OPTIONS = [
   { value: '', label: '全部严重度' },
@@ -31,11 +33,7 @@ function formatTime(iso) {
 }
 
 function MetaTable({ event }) {
-  const rows = [];
-  if (event.rawFinishReason) rows.push(['finish_reason', event.rawFinishReason]);
-  if (event.nativeFinishReason) rows.push(['native_finish_reason', event.nativeFinishReason]);
-  if (event.stopReason) rows.push(['stop_reason', event.stopReason]);
-  if (event.providerErrorCode) rows.push(['error.code', event.providerErrorCode]);
+  const rows = providerSafetyMetaRows(event);
   if (event.providerErrorType) rows.push(['error.type', event.providerErrorType]);
   if (event.chunkIndex != null) rows.push(['chunk_index', event.chunkIndex]);
   if (event.emittedCharsBeforeTrigger != null) rows.push(['emitted_chars_before_trigger', event.emittedCharsBeforeTrigger]);
@@ -123,24 +121,20 @@ export default function ProviderSafetyPanel() {
     return () => { cancelled = true; unsub(); };
   }, [reload]);
 
-  const providerOptions = useMemo(() => {
-    const set = new Set(events.map((e) => e.provider).filter(Boolean));
-    if (stats?.byProvider) Object.keys(stats.byProvider).forEach((p) => set.add(p));
-    return ['', ...Array.from(set)];
-  }, [events, stats]);
-
-  const signalOptions = useMemo(() => {
-    const set = new Set(events.map((e) => e.signalName).filter(Boolean));
-    if (stats?.bySignal) Object.keys(stats.bySignal).forEach((p) => set.add(p));
-    return ['', ...Array.from(set)];
+  const { providerOptions, signalOptions } = useMemo(() => {
+    const optionsFor = (eventKey, statsKey) => {
+      const values = new Set(events.map((event) => event[eventKey]).filter(Boolean));
+      if (stats?.[statsKey]) Object.keys(stats[statsKey]).forEach((value) => values.add(value));
+      return ['', ...Array.from(values)];
+    };
+    return {
+      providerOptions: optionsFor('provider', 'byProvider'),
+      signalOptions: optionsFor('signalName', 'bySignal'),
+    };
   }, [events, stats]);
 
   const toggleExpand = (id) => {
-    setExpanded((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id); else next.add(id);
-      return next;
-    });
+    toggleSetValue(setExpanded, id);
   };
 
   return (
