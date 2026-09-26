@@ -70,15 +70,6 @@ export function getCharacterStateValuesByCharacterIds(characterIds) {
 }
 
 /**
- * 删除单个角色状态值（字段删除时调用）
- */
-export function deleteCharacterStateValue(characterId, fieldKey) {
-  return db.prepare(
-    'DELETE FROM character_state_values WHERE character_id = ? AND field_key = ?',
-  ).run(characterId, fieldKey);
-}
-
-/**
  * 联表查询：角色状态字段定义 + 当前值，按 sort_order 升序
  * @param {string} characterId
  * @returns {{ field_key, label, type, sort_order, value_json }[]}
