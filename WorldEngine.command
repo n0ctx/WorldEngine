@@ -24,8 +24,8 @@ echo "  按 Ctrl+C 停止所有服务"
 echo "========================================="
 echo ""
 
-# 后台等待服务启动后自动打开浏览器
-(sleep 4 && open http://localhost:5173) &
+# 由 vite 在前端就绪后自动打开浏览器
+export WE_OPEN_BROWSER=1
 
 export LOG_LEVEL=debug
 npm run dev

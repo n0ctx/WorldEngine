@@ -35,8 +35,8 @@ if errorlevel 1 (
   exit /b 1
 )
 
-rem Open the browser once the servers have had time to start
-start "" /b cmd /c "timeout /t 4 >nul && start http://localhost:5173"
+rem Vite opens the browser itself once the dev server is ready
+set WE_OPEN_BROWSER=1
 
 set LOG_LEVEL=debug
 call npm run dev

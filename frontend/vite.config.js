@@ -41,6 +41,11 @@ export default defineConfig({
     dedupe: ['react', 'react-dom', 'zustand'],
   },
   server: {
+    // 启动脚本（WorldEngine.bat / .command）设 WE_OPEN_BROWSER=1，由 vite 在就绪后再开浏览器，
+    // 避免固定延时抢跑导致「拒绝连接」；手动 npm run dev 不弹浏览器。
+    open: process.env.WE_OPEN_BROWSER === '1',
+    // predev 已释放 5173；仍被占用时直接报错，不悄悄换端口
+    strictPort: true,
     proxy: {
       '/api': process.env.VITE_BACKEND_URL || 'http://localhost:3000',
     },
