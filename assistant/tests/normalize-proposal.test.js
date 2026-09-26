@@ -225,6 +225,7 @@ test('normalizeProposal 会从 world-card changes 中过滤 system_prompt 与 po
       system_prompt: '世界背景...',
       post_prompt: '格式提醒...',
       temperature: 0.9,
+      max_tokens: 128.5,
     },
     entryOps: [],
     stateFieldOps: [],
@@ -236,6 +237,7 @@ test('normalizeProposal 会从 world-card changes 中过滤 system_prompt 与 po
   assert.equal(proposal.changes.name, '新世界');
   assert.equal(proposal.changes.description, '蒸汽朋克世界观');
   assert.equal(proposal.changes.temperature, 0.9);
+  assert.equal(proposal.changes.max_tokens, null);
   assert.equal(proposal.changes.system_prompt, undefined);
   assert.equal(proposal.changes.post_prompt, undefined);
 });

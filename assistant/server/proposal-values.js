@@ -21,14 +21,15 @@ function normalizeEnabled(value) {
   return Number(value) === 0 ? 0 : 1;
 }
 function normalizeNumberOrNull(value) {
-  if (value == null || value === '') return null;
-  const num = Number(value);
-  return Number.isFinite(num) ? num : null;
+  return normalizeNumericOrNull(value, Number.isFinite);
 }
 function normalizeIntegerOrNull(value) {
+  return normalizeNumericOrNull(value, Number.isInteger);
+}
+function normalizeNumericOrNull(value, isValidNumber) {
   if (value == null || value === '') return null;
   const num = Number(value);
-  return Number.isInteger(num) ? num : null;
+  return isValidNumber(num) ? num : null;
 }
 
 function normalizeStringArrayOrNull(value) {
