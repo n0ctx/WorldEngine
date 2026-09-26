@@ -50,8 +50,7 @@
 
 ## 示例
 
-
-```unknown
+```
 create("character", {
   "name": "沈渡",
   "description": "被教会医院除名的行医人，独自游走于瘟疫边境",
