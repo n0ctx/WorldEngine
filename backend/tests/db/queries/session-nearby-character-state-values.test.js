@@ -51,6 +51,49 @@ test('upsertNearbyStateValue：同 key 覆盖，行数仍为 1', async () => {
   assert.equal(rows[0].runtime_value_json, '"难过"');
 });
 
+test('upsertNearbyStateValues：多字段写入只执行一条批量语句并保留已有行 ID', async () => {
+  const sessionId = makeSession('batch-upsert');
+  const { createNearbyCharacter } = await freshImport('backend/db/queries/session-nearby-characters.js');
+  const { upsertNearbyStateValue, upsertNearbyStateValues, getStateValuesByNearbyId } =
+    await freshImport('backend/db/queries/session-nearby-character-state-values.js');
+  const { default: db } = await freshImport('backend/db/index.js');
+  const nearbyId = createNearbyCharacter({ sessionId, name: '批量角色' });
+  upsertNearbyStateValue({ sessionId, nearbyId, fieldKey: 'field-0', valueJson: '0' });
+  const originalId = getStateValuesByNearbyId(nearbyId)[0].id;
+  const values = Array.from({ length: 30 }, (_, index) => ({
+    sessionId,
+    nearbyId,
+    fieldKey: `field-${index}`,
+    valueJson: JSON.stringify(index + 1),
+  }));
+
+  let executed = 0;
+  const prepare = db.prepare;
+  db.prepare = (sql) => {
+    const statement = prepare(sql);
+    if (sql.includes('session_nearby_character_state_values')) {
+      const run = statement.run;
+      statement.run = (...args) => {
+        executed++;
+        return run(...args);
+      };
+    }
+    return statement;
+  };
+  try {
+    upsertNearbyStateValues(values);
+  } finally {
+    db.prepare = prepare;
+  }
+
+  assert.equal(executed, 1);
+  const rows = getStateValuesByNearbyId(nearbyId);
+  assert.equal(rows.length, values.length);
+  const original = rows.find((row) => row.field_key === 'field-0');
+  assert.equal(original.id, originalId);
+  assert.equal(original.runtime_value_json, '1');
+});
+
 test('getStateValuesByNearbyId：按 field_key 排序', async () => {
   const sessionId = makeSession('order');
   const { createNearbyCharacter } = await freshImport('backend/db/queries/session-nearby-characters.js');

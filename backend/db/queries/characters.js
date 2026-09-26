@@ -42,6 +42,26 @@ export function getCharacterById(id) {
 }
 
 /**
+ * 按传入顺序批量获取角色；缺失 ID 会忽略，重复 ID 会保留。
+ * 分块以避免超过 SQLite 的绑定参数上限。
+ * @param {string[]} ids
+ */
+export function getCharactersByIds(ids) {
+  if (!Array.isArray(ids) || ids.length === 0) return [];
+
+  const uniqueIds = [...new Set(ids)];
+  const rowsById = new Map();
+  // guard-allow(perf-shape): 按 SQLite 参数上限分批查询，避免逐 ID 查询。
+  for (let offset = 0; offset < uniqueIds.length; offset += 900) {
+    const batch = uniqueIds.slice(offset, offset + 900);
+    const placeholders = batch.map(() => '?').join(', ');
+    const rows = db.prepare(`SELECT * FROM characters WHERE id IN (${placeholders})`).all(...batch);
+    for (const row of rows) rowsById.set(row.id, row);
+  }
+  return ids.map((id) => rowsById.get(id)).filter(Boolean);
+}
+
+/**
  * 获取某世界下所有角色，按 sort_order 升序，同值按 created_at 升序
  */
 export function getCharactersByWorldId(worldId) {

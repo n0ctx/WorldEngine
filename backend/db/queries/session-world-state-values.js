@@ -1,25 +1,29 @@
 import crypto from 'node:crypto';
 import db from '../index.js';
+import { writeSessionStateRows } from './session-state-batch.js';
 
 /**
  * Upsert 会话级世界状态运行时值
  */
 export function upsertSessionWorldStateValue(sessionId, worldId, fieldKey, runtimeValueJson) {
-  const now = Date.now();
-  const existing = db.prepare(
-    'SELECT id FROM session_world_state_values WHERE session_id = ? AND world_id = ? AND field_key = ?',
-  ).get(sessionId, worldId, fieldKey);
+  upsertSessionWorldStateValues(sessionId, worldId, [{ fieldKey, runtimeValueJson }]);
+}
 
-  if (existing) {
-    db.prepare(
-      'UPDATE session_world_state_values SET runtime_value_json = ?, updated_at = ? WHERE id = ?',
-    ).run(runtimeValueJson, now, existing.id);
-  } else {
-    db.prepare(`
-      INSERT INTO session_world_state_values (id, session_id, world_id, field_key, runtime_value_json, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `).run(crypto.randomUUID(), sessionId, worldId, fieldKey, runtimeValueJson, now);
-  }
+/** 批量写入会话世界状态。 */
+export function upsertSessionWorldStateValues(sessionId, worldId, values) {
+  if (values.length === 0) return;
+  const now = Date.now();
+  writeSessionStateRows({
+    table: 'session_world_state_values',
+    columns: ['id', 'session_id', 'world_id', 'field_key', 'runtime_value_json', 'updated_at'],
+    rows: values.map(({ fieldKey, runtimeValueJson }) => [
+      crypto.randomUUID(), sessionId, worldId, fieldKey, runtimeValueJson, now,
+    ]),
+    conflict: {
+      columns: ['session_id', 'world_id', 'field_key'],
+      updateColumns: ['runtime_value_json', 'updated_at'],
+    },
+  });
 }
 
 /**

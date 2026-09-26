@@ -7,24 +7,28 @@
 
 import * as llm from '../llm/index.js';
 import { getMessagesBySessionId } from '../services/sessions.js';
-import { getCharacterById } from '../db/queries/characters.js';
+import { getCharactersByIds } from '../db/queries/characters.js';
 import { getWorldById } from '../db/queries/worlds.js';
 
 import { getWorldStateFieldsByWorldId } from '../db/queries/world-state-fields.js';
 import { getAllWorldStateValues } from '../db/queries/world-state-values.js';
-import { upsertSessionWorldStateValue, getSessionWorldStateValues } from '../db/queries/session-world-state-values.js';
+import {
+  upsertSessionWorldStateValue,
+  upsertSessionWorldStateValues,
+  getSessionWorldStateValues,
+} from '../db/queries/session-world-state-values.js';
 
 import { getCharacterStateFieldsByWorldId } from '../db/queries/character-state-fields.js';
 import { getCharacterStateValuesByCharacterIds } from '../db/queries/character-state-values.js';
 import {
-  upsertSessionCharacterStateValue,
+  upsertSessionCharacterStateValues,
   getSessionCharacterStateValuesByCharacterIds,
 } from '../db/queries/session-character-state-values.js';
 
 import { getPersonaStateFieldsByWorldId } from '../db/queries/persona-state-fields.js';
 import { getPersonaById } from '../db/queries/personas.js';
 import { getAllPersonaStateValues, getAllPersonaStateValuesByPersonaId } from '../db/queries/persona-state-values.js';
-import { upsertSessionPersonaStateValue, getSessionPersonaStateValues } from '../db/queries/session-persona-state-values.js';
+import { upsertSessionPersonaStateValues, getSessionPersonaStateValues } from '../db/queries/session-persona-state-values.js';
 
 import {
   createNearbyCharacter,
@@ -37,7 +41,7 @@ import {
 } from '../db/queries/session-nearby-characters.js';
 import {
   getStateValuesByNearbyIds,
-  upsertNearbyStateValue,
+  upsertNearbyStateValues,
 } from '../db/queries/session-nearby-character-state-values.js';
 import { buildNearbyPromptSection } from '../prompts/nearby-prompt.js';
 
@@ -430,7 +434,7 @@ async function compressOverLimitFields(patch, entityFieldPairs, sid, sessionId) 
 
 function loadStateUpdateTargets(worldId, characterIds, world) {
   const worldActiveFields = world ? filterActive(getWorldStateFieldsByWorldId(worldId)) : [];
-  const characters = (characterIds || []).map((id) => getCharacterById(id)).filter(Boolean);
+  const characters = getCharactersByIds(characterIds || []);
   // 角色状态字段 schema 由 world_id 决定，取第一个有效角色的 world_id。
   const charWorldId = characters[0]?.world_id ?? worldId;
   const charSchemaFields = charWorldId ? filterActive(getCharacterStateFieldsByWorldId(charWorldId)) : [];
@@ -714,25 +718,31 @@ export async function updateAllStates(worldId, characterIds, sessionId) {
 
   // ── 写入各类状态（会话级） ──
   if (worldActiveFields.length > 0) {
+    const values = [];
     applyStatePatch(worldActiveFields, patch.world,
-      (key, json) => upsertSessionWorldStateValue(sessionId, worldId, key, json),
+      (fieldKey, runtimeValueJson) => values.push({ fieldKey, runtimeValueJson }),
       `world="${world.name}"`, worldValueMap
     );
+    upsertSessionWorldStateValues(sessionId, worldId, values);
   }
 
+  const characterValues = [];
   for (let i = 0; i < charactersWithFields.length; i++) {
     const char = charactersWithFields[i];
     applyStatePatch(charSchemaFields, patch[`char_${i}`],
-      (key, json) => upsertSessionCharacterStateValue(sessionId, char.id, key, json),
+      (fieldKey, runtimeValueJson) => characterValues.push({ characterId: char.id, fieldKey, runtimeValueJson }),
       `char="${char.name}"`, charValueMaps[i]
     );
   }
+  upsertSessionCharacterStateValues(sessionId, characterValues);
 
   if (personaActiveFields.length > 0) {
+    const values = [];
     applyStatePatch(personaActiveFields, patch.persona,
-      (key, json) => upsertSessionPersonaStateValue(sessionId, worldId, key, json),
+      (fieldKey, runtimeValueJson) => values.push({ fieldKey, runtimeValueJson }),
       `persona  world="${world?.name}"`, personaValueMap
     );
+    upsertSessionPersonaStateValues(sessionId, worldId, values);
   }
 
   // ── 写作模式：应用 nearby_characters 输出 ──
@@ -768,13 +778,15 @@ export async function updateAllStates(worldId, characterIds, sessionId) {
  */
 function applyNearbyState(targetId, stateObj, { sessionId, enabledKeys, fieldByKey }) {
   if (!stateObj || typeof stateObj !== 'object' || Array.isArray(stateObj)) return;
+  const values = [];
   for (const [key, raw] of Object.entries(stateObj)) {
     if (!enabledKeys.has(key)) continue;
     const validated = validateValue(raw, fieldByKey[key]);
     if (validated === undefined) continue;
     const valueJson = validated === null ? null : JSON.stringify(validated);
-    upsertNearbyStateValue({ sessionId, nearbyId: targetId, fieldKey: key, valueJson });
+    values.push({ sessionId, nearbyId: targetId, fieldKey: key, valueJson });
   }
+  upsertNearbyStateValues(values);
 }
 
 function applyNearbyPatch(targetId, item, context) {

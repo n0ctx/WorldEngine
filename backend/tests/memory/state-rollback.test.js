@@ -16,6 +16,38 @@ sandbox.setEnv();
 
 after(() => sandbox.cleanup());
 
+function countStateStatementExecutions(db, action) {
+  const tables = [
+    'session_world_state_values',
+    'session_persona_state_values',
+    'session_character_state_values',
+    'session_nearby_characters',
+    'session_nearby_character_state_values',
+  ];
+  let count = 0;
+  const prepare = db.prepare;
+  db.prepare = (sql) => {
+    const statement = prepare(sql);
+    if (tables.some((table) => sql.includes(table))) {
+      for (const method of ['run', 'get', 'all']) {
+        if (typeof statement[method] !== 'function') continue;
+        const execute = statement[method];
+        statement[method] = (...args) => {
+          count++;
+          return execute(...args);
+        };
+      }
+    }
+    return statement;
+  };
+  try {
+    action();
+  } finally {
+    db.prepare = prepare;
+  }
+  return count;
+}
+
 test('captureStateSnapshot 只捕获非空 runtime 值，并按角色拆分', async () => {
   const world = insertWorld(sandbox.db, { name: '回滚世界-快照' });
   const characterA = insertCharacter(sandbox.db, world.id, { name: '甲' });
@@ -199,6 +231,57 @@ test('restoreStateFromSnapshot 在 snapshot 缺 nearby 字段时清空 nearby（
     'SELECT COUNT(*) AS c FROM session_nearby_character_state_values WHERE session_id = ?',
   ).get(session.id).c;
   assert.equal(stateCount, 0);
+});
+
+test('restoreStateFromSnapshot：状态数增加时按表批量执行，并在任一表失败时整体回滚', async () => {
+  const world = insertWorld(sandbox.db, { name: '回滚世界-批量' });
+  const character = insertCharacter(sandbox.db, world.id, { name: '批量角色' });
+  const session = insertSession(sandbox.db, { character_id: character.id, world_id: world.id });
+  const { restoreStateFromSnapshot } = await freshImport('backend/memory/state-rollback.js');
+  const { default: db } = await freshImport('backend/db/index.js');
+  const makeSnapshot = (size) => ({
+    world: Object.fromEntries(Array.from({ length: size }, (_, index) => [`world-${index}`, String(index)])),
+    persona: Object.fromEntries(Array.from({ length: size }, (_, index) => [`persona-${index}`, String(index)])),
+    character: {
+      [character.id]: Object.fromEntries(Array.from({ length: size }, (_, index) => [`character-${index}`, String(index)])),
+    },
+    nearby: Array.from({ length: size }, (_, index) => ({
+      name: `附近角色${index}`,
+      persona: `记忆${index}`,
+      is_saved: index % 2,
+      state: { hp: String(index), mood: JSON.stringify(`心情${index}`) },
+    })),
+  });
+
+  const smallCount = countStateStatementExecutions(db, () =>
+    restoreStateFromSnapshot(session.id, world.id, [character.id], makeSnapshot(1)));
+  const largeCount = countStateStatementExecutions(db, () =>
+    restoreStateFromSnapshot(session.id, world.id, [character.id], makeSnapshot(30)));
+  assert.equal(smallCount, 9);
+  assert.equal(largeCount, smallCount);
+  assert.equal(sandbox.db.prepare('SELECT COUNT(*) AS c FROM session_world_state_values WHERE session_id = ?').get(session.id).c, 30);
+  assert.equal(sandbox.db.prepare('SELECT COUNT(*) AS c FROM session_persona_state_values WHERE session_id = ?').get(session.id).c, 30);
+  assert.equal(sandbox.db.prepare('SELECT COUNT(*) AS c FROM session_character_state_values WHERE session_id = ?').get(session.id).c, 30);
+  assert.equal(sandbox.db.prepare('SELECT COUNT(*) AS c FROM session_nearby_characters WHERE session_id = ?').get(session.id).c, 30);
+  assert.equal(sandbox.db.prepare('SELECT COUNT(*) AS c FROM session_nearby_character_state_values WHERE session_id = ?').get(session.id).c, 60);
+
+  const beforeWorld = sandbox.db.prepare(
+    'SELECT field_key, runtime_value_json FROM session_world_state_values WHERE session_id = ? ORDER BY field_key',
+  ).all(session.id);
+  const beforePersona = sandbox.db.prepare(
+    'SELECT field_key, runtime_value_json FROM session_persona_state_values WHERE session_id = ? ORDER BY field_key',
+  ).all(session.id);
+  assert.throws(() => restoreStateFromSnapshot(session.id, world.id, ['missing-character'], {
+    world: { replacement: '1' },
+    persona: { replacement: '2' },
+    character: { 'missing-character': { hp: '3' } },
+  }), /FOREIGN KEY constraint failed/);
+  assert.deepEqual(sandbox.db.prepare(
+    'SELECT field_key, runtime_value_json FROM session_world_state_values WHERE session_id = ? ORDER BY field_key',
+  ).all(session.id), beforeWorld);
+  assert.deepEqual(sandbox.db.prepare(
+    'SELECT field_key, runtime_value_json FROM session_persona_state_values WHERE session_id = ? ORDER BY field_key',
+  ).all(session.id), beforePersona);
 });
 
 test('setSessionStateBaselineIfAbsent 不可变：仅首次写入，后续调用不覆盖', async () => {

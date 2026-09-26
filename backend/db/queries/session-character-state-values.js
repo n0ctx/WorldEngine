@@ -1,25 +1,29 @@
 import crypto from 'node:crypto';
 import db from '../index.js';
+import { writeSessionStateRows } from './session-state-batch.js';
 
 /**
  * Upsert 会话级角色状态运行时值
  */
 export function upsertSessionCharacterStateValue(sessionId, characterId, fieldKey, runtimeValueJson) {
-  const now = Date.now();
-  const existing = db.prepare(
-    'SELECT id FROM session_character_state_values WHERE session_id = ? AND character_id = ? AND field_key = ?',
-  ).get(sessionId, characterId, fieldKey);
+  upsertSessionCharacterStateValues(sessionId, [{ characterId, fieldKey, runtimeValueJson }]);
+}
 
-  if (existing) {
-    db.prepare(
-      'UPDATE session_character_state_values SET runtime_value_json = ?, updated_at = ? WHERE id = ?',
-    ).run(runtimeValueJson, now, existing.id);
-  } else {
-    db.prepare(`
-      INSERT INTO session_character_state_values (id, session_id, character_id, field_key, runtime_value_json, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `).run(crypto.randomUUID(), sessionId, characterId, fieldKey, runtimeValueJson, now);
-  }
+/** 批量写入会话角色状态。 */
+export function upsertSessionCharacterStateValues(sessionId, values) {
+  if (values.length === 0) return;
+  const now = Date.now();
+  writeSessionStateRows({
+    table: 'session_character_state_values',
+    columns: ['id', 'session_id', 'character_id', 'field_key', 'runtime_value_json', 'updated_at'],
+    rows: values.map(({ characterId, fieldKey, runtimeValueJson }) => [
+      crypto.randomUUID(), sessionId, characterId, fieldKey, runtimeValueJson, now,
+    ]),
+    conflict: {
+      columns: ['session_id', 'character_id', 'field_key'],
+      updateColumns: ['runtime_value_json', 'updated_at'],
+    },
+  });
 }
 
 /**
@@ -53,4 +57,13 @@ export function clearSingleCharacterSessionStateValues(sessionId, characterId) {
   db.prepare(
     'DELETE FROM session_character_state_values WHERE session_id = ? AND character_id = ?',
   ).run(sessionId, characterId);
+}
+
+/** 一次清空指定角色的会话运行时状态。 */
+export function clearSessionCharacterStateValuesByCharacterIds(sessionId, characterIds) {
+  if (characterIds.length === 0) return;
+  const placeholders = characterIds.map(() => '?').join(', ');
+  db.prepare(
+    `DELETE FROM session_character_state_values WHERE session_id = ? AND character_id IN (${placeholders})`,
+  ).run(sessionId, ...characterIds);
 }

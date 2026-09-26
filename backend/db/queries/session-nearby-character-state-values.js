@@ -1,5 +1,6 @@
 import crypto from 'node:crypto';
 import db from '../index.js';
+import { writeSessionStateRows } from './session-state-batch.js';
 
 /**
  * 写入或覆盖 nearby 角色的某个状态字段值。
@@ -8,26 +9,30 @@ import db from '../index.js';
  * @returns {string} 行 id
  */
 export function upsertNearbyStateValue({ sessionId, nearbyId, fieldKey, valueJson }) {
-  const now = Date.now();
   const existing = db.prepare(
-    `SELECT id FROM session_nearby_character_state_values
-     WHERE nearby_id = ? AND field_key = ?`,
+    `SELECT id FROM session_nearby_character_state_values WHERE nearby_id = ? AND field_key = ?`,
   ).get(nearbyId, fieldKey);
-  if (existing) {
-    db.prepare(
-      `UPDATE session_nearby_character_state_values
-       SET runtime_value_json = ?, updated_at = ?
-       WHERE id = ?`,
-    ).run(valueJson, now, existing.id);
-    return existing.id;
-  }
-  const id = crypto.randomUUID();
-  db.prepare(`
-    INSERT INTO session_nearby_character_state_values
-      (id, session_id, nearby_id, field_key, runtime_value_json, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?)
-  `).run(id, sessionId, nearbyId, fieldKey, valueJson, now);
+  const id = existing?.id ?? crypto.randomUUID();
+  upsertNearbyStateValues([{ id, sessionId, nearbyId, fieldKey, valueJson }]);
   return id;
+}
+
+/** 批量写 nearby 状态。 */
+export function upsertNearbyStateValues(values) {
+  if (values.length === 0) return;
+  const now = Date.now();
+  const rows = values.map(({ id, sessionId, nearbyId, fieldKey, valueJson }) => [
+    id ?? crypto.randomUUID(), sessionId, nearbyId, fieldKey, valueJson, now,
+  ]);
+  writeSessionStateRows({
+    table: 'session_nearby_character_state_values',
+    columns: ['id', 'session_id', 'nearby_id', 'field_key', 'runtime_value_json', 'updated_at'],
+    rows,
+    conflict: {
+      columns: ['nearby_id', 'field_key'],
+      updateColumns: ['runtime_value_json', 'updated_at'],
+    },
+  });
 }
 
 export function getStateValuesByNearbyId(nearbyId) {

@@ -1,5 +1,6 @@
 import crypto from 'node:crypto';
 import db from '../index.js';
+import { writeSessionStateRows } from './session-state-batch.js';
 
 /**
  * 创建临时角色（nearby character）
@@ -14,6 +15,21 @@ export function createNearbyCharacter({ sessionId, name, persona = '', isSaved =
     VALUES (?, ?, ?, ?, ?, ?, ?)
   `).run(id, sessionId, name, persona, isSaved ? 1 : 0, now, now);
   return id;
+}
+
+/** 批量重建快照中的 nearby 行，返回与输入一一对应的新 ID。 */
+export function createNearbyCharacters(items) {
+  if (items.length === 0) return [];
+  const rows = items.map(({ sessionId, name, persona = '', isSaved = 0 }) => {
+    const now = Date.now();
+    return [crypto.randomUUID(), sessionId, name, persona, isSaved ? 1 : 0, now, now];
+  });
+  writeSessionStateRows({
+    table: 'session_nearby_characters',
+    columns: ['id', 'session_id', 'name', 'persona', 'is_saved', 'created_at', 'updated_at'],
+    rows,
+  });
+  return rows.map(([id]) => id);
 }
 
 export function getNearbyById(id) {

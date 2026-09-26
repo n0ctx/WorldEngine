@@ -8,26 +8,27 @@
  */
 
 import {
-  upsertSessionWorldStateValue,
+  upsertSessionWorldStateValues,
   getSessionWorldStateValues,
   clearSessionWorldStateValues,
 } from '../db/queries/session-world-state-values.js';
 import {
-  upsertSessionPersonaStateValue,
+  upsertSessionPersonaStateValues,
   getSessionPersonaStateValues,
   clearSessionPersonaStateValues,
 } from '../db/queries/session-persona-state-values.js';
 import {
-  upsertSessionCharacterStateValue,
+  upsertSessionCharacterStateValues,
   getSessionCharacterStateValuesByCharacterIds,
-  clearSingleCharacterSessionStateValues,
+  clearSessionCharacterStateValuesByCharacterIds,
 } from '../db/queries/session-character-state-values.js';
 import {
   listNearbyBySessionId,
   deleteNearbyBySessionId,
-  createNearbyCharacter,
+  createNearbyCharacters,
 } from '../db/queries/session-nearby-characters.js';
-import { upsertNearbyStateValue, getStateValuesByNearbyIds } from '../db/queries/session-nearby-character-state-values.js';
+import { upsertNearbyStateValues, getStateValuesByNearbyIds } from '../db/queries/session-nearby-character-state-values.js';
+import { withSessionStateTransaction } from '../db/queries/session-state-batch.js';
 
 function withoutNullValues(valueMap) {
   return Object.fromEntries(Object.entries(valueMap).filter(([, v]) => v != null));
@@ -95,44 +96,50 @@ export function restoreStateFromSnapshot(sessionId, worldId, characterIds, snaps
     return;
   }
 
-  // 世界状态：先清空，再写入快照值
-  clearSessionWorldStateValues(sessionId);
-  for (const [key, valueJson] of Object.entries(snapshot.world ?? {})) {
-    upsertSessionWorldStateValue(sessionId, worldId, key, valueJson);
-  }
+  withSessionStateTransaction(() => {
+    // 世界状态：先清空，再批量写入快照值。
+    clearSessionWorldStateValues(sessionId);
+    upsertSessionWorldStateValues(sessionId, worldId, Object.entries(snapshot.world ?? {}).map(([fieldKey, runtimeValueJson]) => ({
+      fieldKey,
+      runtimeValueJson,
+    })));
 
-  // 玩家状态：先清空，再写入快照值
-  clearSessionPersonaStateValues(sessionId);
-  for (const [key, valueJson] of Object.entries(snapshot.persona ?? {})) {
-    upsertSessionPersonaStateValue(sessionId, worldId, key, valueJson);
-  }
+    // 玩家状态：先清空，再批量写入快照值。
+    clearSessionPersonaStateValues(sessionId);
+    upsertSessionPersonaStateValues(sessionId, worldId, Object.entries(snapshot.persona ?? {}).map(([fieldKey, runtimeValueJson]) => ({
+      fieldKey,
+      runtimeValueJson,
+    })));
 
-  // 角色状态：按角色逐一清空并写入快照值
-  for (const cid of characterIds) {
-    clearSingleCharacterSessionStateValues(sessionId, cid);
-    const cs = snapshot.character?.[cid];
-    if (cs) {
-      for (const [key, valueJson] of Object.entries(cs)) {
-        upsertSessionCharacterStateValue(sessionId, cid, key, valueJson);
+    // 只替换本次会话中的角色状态，其他角色状态保持不变。
+    clearSessionCharacterStateValuesByCharacterIds(sessionId, characterIds);
+    const characterValues = [];
+    for (const characterId of characterIds) {
+      const state = snapshot.character?.[characterId];
+      if (!state) continue;
+      for (const [fieldKey, runtimeValueJson] of Object.entries(state)) {
+        characterValues.push({ characterId, fieldKey, runtimeValueJson });
       }
     }
-  }
+    upsertSessionCharacterStateValues(sessionId, characterValues);
 
-  // nearby 层：先全删（CASCADE 清掉 state values），再按 snapshot.nearby 重建。
-  // snapshot.nearby 缺失/非数组（旧记录） → 仅清空（向下兼容）。
-  deleteNearbyBySessionId(sessionId);
-  const nearbyArr = Array.isArray(snapshot.nearby) ? snapshot.nearby : [];
-  for (const n of nearbyArr) {
-    if (!n || typeof n.name !== 'string' || !n.name) continue;
-    const newId = createNearbyCharacter({
+    // 删除旧行以级联清理状态值，再按快照重建 nearby 并批量写入状态。
+    deleteNearbyBySessionId(sessionId);
+    const nearbyArr = Array.isArray(snapshot.nearby) ? snapshot.nearby : [];
+    const validNearby = nearbyArr.filter((nearby) => nearby && typeof nearby.name === 'string' && nearby.name);
+    const nearbyIds = createNearbyCharacters(validNearby.map((nearby) => ({
       sessionId,
-      name: n.name,
-      persona: n.persona ?? n.memory ?? '',
-      isSaved: n.is_saved ? 1 : 0,
-    });
-    const state = n.state ?? {};
-    for (const [k, v] of Object.entries(state)) {
-      upsertNearbyStateValue({ sessionId, nearbyId: newId, fieldKey: k, valueJson: v });
+      name: nearby.name,
+      persona: nearby.persona ?? nearby.memory ?? '',
+      isSaved: nearby.is_saved ? 1 : 0,
+    })));
+    const nearbyValues = [];
+    for (let index = 0; index < validNearby.length; index++) {
+      const state = validNearby[index].state ?? {};
+      for (const [fieldKey, valueJson] of Object.entries(state)) {
+        nearbyValues.push({ sessionId, nearbyId: nearbyIds[index], fieldKey, valueJson });
+      }
     }
-  }
+    upsertNearbyStateValues(nearbyValues);
+  });
 }
