@@ -17,6 +17,7 @@
  *   - 基线里已超标的历史文件：超 hard 只 WARN（historical_hard），
  *     但相对基线增长 ≥ MIN_GROWTH 且 >20% 时 FAIL（growth）
  *   - 解析失败 → FAIL（parse_error）
+ *   - 没有扫到任何文件 → FAIL，也不写基线
  *
  * 用法：
  *   node scripts/check-context-budget.mjs [--root <dir>] [--baseline <path>] [--ignore <glob>]
@@ -29,6 +30,7 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSy
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
+import { ROOT_SKIP_DIRS, withoutGitIgnored } from './guard-common.mjs';
 
 const require = createRequire(import.meta.url);
 const espree = require('espree');
@@ -69,9 +71,9 @@ const MIN_GROWTH = {
 // 目录名命中即整棵跳过；`.` 开头的目录（.git/.temp/.codegraph 等）一律跳过
 const SKIP_DIRS = new Set([
   'node_modules', 'dist', 'coverage', 'build', 'test-results',
-  'data', 'node-runtime', '__pycache__',
+  'node-runtime', '__pycache__',
 ]);
-const SKIP_GLOBS = ['docs/images'];
+const SKIP_GLOBS = ['docs/images', ...ROOT_SKIP_DIRS];
 
 const TOKEN_RE = /[\u3400-\u9fff]|[A-Za-z_][A-Za-z0-9_]*|[^\W\d_]+|\d+(?:\.\d+)?|[^\w\s]/gu;
 const HEADING_RE = /^(#{1,6})[ \t]+(.+?)\s*#*\s*$/;
@@ -349,9 +351,9 @@ function documentInfo(rel) {
 }
 
 function scanRepository(extraIgnores) {
-  const rels = [];
-  collectFiles(ROOT, '', extraIgnores, rels);
-  rels.sort();
+  const found = [];
+  collectFiles(ROOT, '', extraIgnores, found);
+  const rels = withoutGitIgnored(ROOT, found.sort());
   const fileSet = new Set(rels);
   return rels.map((rel) => {
     const ext = path.extname(rel).toLowerCase();
@@ -593,6 +595,10 @@ function main() {
   const baselinePath = path.isAbsolute(args.baseline) ? args.baseline : path.join(ROOT, args.baseline);
   try {
     const infos = scanRepository(args.ignores);
+    if (!infos.length) {
+      console.error('[context-budget] FAIL\n没有扫到任何文件，扫描范围可能失效');
+      process.exit(1);
+    }
     if (args.updateBaseline) {
       const errors = infos.filter((info) => info.parseError);
       if (errors.length) {

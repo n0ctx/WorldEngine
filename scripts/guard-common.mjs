@@ -2,7 +2,8 @@
  * 源码守卫公共部分：仓库遍历、espree 解析、命令行参数、基线读写、有意保留标记
  *
  * 供 check-duplication / check-dead-code / check-tests / check-perf-shape 使用，
- * 扫描规则与 check-complexity.mjs 一致：跳过依赖/产物/数据目录和点开头的目录。
+ * 扫描规则与 check-complexity.mjs / check-context-budget.mjs 一致：跳过依赖/产物/数据目录和点开头的目录，
+ * 并去掉被 .gitignore 忽略、只存在于本地的文件，让本地与干净检出的扫描范围相同。
  *
  * 有意保留标记：检测器分不清、但确实是有意为之的写法，在代码旁边写
  *   // guard-allow(<守卫名>): <理由>
@@ -10,6 +11,7 @@
  * 没写理由、守卫名写错、覆盖范围里已经没有违规的标记都算失败；每次运行都列出全部标记。
  */
 
+import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -24,8 +26,22 @@ export const BASELINE_NOTE = '，基线外无新增';
 
 export const CODE_SUFFIXES = new Set(['.js', '.jsx', '.mjs', '.cjs']);
 const SKIP_DIRS = new Set([
-  'node_modules', 'dist', 'coverage', 'build', 'test-results', 'data', 'node-runtime',
+  'node_modules', 'vendor', 'generated', 'dist', 'coverage', 'build', 'test-results', 'node-runtime',
 ]);
+// 只按仓库根路径排除：data/ 是运行时数据目录，内容多且大多被忽略，不必进入再过滤。
+// 源码里同名的目录（如 frontend/src/core/data/）照常扫描。
+export const ROOT_SKIP_DIRS = new Set(['data']);
+
+// 去掉被 .gitignore 忽略的文件。root 不是 git 仓库（夹具临时目录）时不过滤；git 调用失败时抛错，不静默放行。
+export function withoutGitIgnored(root, rels) {
+  if (rels.length === 0 || !existsSync(path.join(root, '.git'))) return rels;
+  const result = spawnSync('git', ['-C', root, 'check-ignore', '--stdin'], { input: rels.join('\n'), encoding: 'utf8' });
+  if (result.status !== 0 && result.status !== 1) {
+    throw new Error(`git check-ignore 失败：${result.stderr || result.error?.message}`);
+  }
+  const ignored = new Set(result.stdout.split('\n').filter(Boolean));
+  return rels.filter((rel) => !ignored.has(rel));
+}
 
 export function isTestPath(rel) {
   return /(^|\/)(tests|__tests__)\//.test(rel) || /\.(test|spec)\.[^./]+$/.test(rel);
@@ -38,7 +54,7 @@ export function collectFiles(root, relDir = '', accept = isCodeFile) {
   const out = [];
   const start = path.join(root, relDir);
   if (existsSync(start)) walkDir(start, relDir, accept, out);
-  return out.sort();
+  return withoutGitIgnored(root, out.sort());
 }
 
 export function collectCodeFiles(root, relDir = '') {
@@ -50,7 +66,7 @@ function walkDir(dir, relPrefix, accept, out) {
     if (entry.isSymbolicLink()) continue;
     const rel = relPrefix ? `${relPrefix}/${entry.name}` : entry.name;
     if (entry.isDirectory()) {
-      if (entry.name.startsWith('.') || SKIP_DIRS.has(entry.name)) continue;
+      if (entry.name.startsWith('.') || SKIP_DIRS.has(entry.name) || ROOT_SKIP_DIRS.has(rel)) continue;
       walkDir(path.join(dir, entry.name), rel, accept, out);
     } else if (entry.isFile() && accept(entry.name)) {
       out.push(rel);
@@ -199,6 +215,25 @@ export function countKeys(keys) {
 }
 
 // passNote 只在通过时附在摘要后面；allowed 是有意保留标记清单，通过与否都列出
+// detector health：扫描空转、解析不全、依赖图不完整、确定性的仓内引用解析不到，都说明这次扫描不可信。
+// 不可信时判失败，也不能用这次结果更新基线。moduleCount 只由依赖图类守卫传入。
+export function scanHealth({
+  fileCount, parsedFileCount, parseFailures, moduleCount, unresolvedStaticImports = [],
+  emptyMessage = '没有扫到任何文件，遍历逻辑可能坏了',
+}) {
+  const failures = [];
+  if (fileCount === 0) failures.push(emptyMessage);
+  if (parsedFileCount !== fileCount) failures.push(`解析覆盖不完整：计划 ${fileCount} 个文件，成功解析 ${parsedFileCount} 个`);
+  if (moduleCount !== undefined && moduleCount !== parsedFileCount) {
+    failures.push(`依赖图构建不完整：已解析 ${parsedFileCount} 个文件，仅构建 ${moduleCount} 个模块`);
+  }
+  for (const rel of parseFailures) failures.push(`解析失败：${rel}（espree 无法解析，请检查语法）`);
+  for (const ref of unresolvedStaticImports) {
+    failures.push(`无法解析仓内静态引用：${ref.source} -> ${ref.specifier}（目标 ${ref.target}）`);
+  }
+  return failures;
+}
+
 export function finish(label, failures, summary, passNote = '', allowed = []) {
   const listing = allowed.length ? `${section(`有意保留（guard-allow）${allowed.length} 处：`, allowed)}\n` : '';
   if (failures.length) {

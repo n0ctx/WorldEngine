@@ -11,6 +11,9 @@
  *   getSessionCharacterStateValues(sessionId, worldId, characterIds) → Array
  *   getSingleCharacterSessionStateValues(sessionId, characterId, worldId) → Array
  *   getCharacterStateValuesAfterReset(characterId, worldId) → Array
+ *   getPersonaStateDisplayRows(personaId, worldId, sessionId?) → Array<{ label, type, unit, effective_value_json }>
+ *   getWorldStateDisplayRows(worldId, sessionId?)                 → 同上
+ *   getCharacterStateDisplayRows(characterId, worldId, sessionId?) → 同上
  */
 
 import db from '../index.js';
@@ -185,4 +188,100 @@ export function getCharacterStateValuesAfterReset(characterId, worldId) {
     WHERE csf.world_id = ?
     ORDER BY csf.sort_order ASC
   `).all(characterId, worldId);
+}
+
+// ─── 记忆召回渲染用的状态行 ─────────────────────────────────────────────────
+// 传 sessionId 时优先取会话 runtime，否则取全局 runtime/default；排序附带 created_at 保证同序字段稳定。
+
+/** 玩家状态显示行 */
+export function getPersonaStateDisplayRows(personaId, worldId, sessionId) {
+  return sessionId
+    ? db.prepare(`
+        SELECT
+          psf.label,
+          psf.type,
+          psf.unit,
+          COALESCE(spsv.runtime_value_json, psv.default_value_json, psf.default_value) AS effective_value_json
+        FROM persona_state_fields psf
+        LEFT JOIN session_persona_state_values spsv
+          ON spsv.world_id = psf.world_id AND spsv.field_key = psf.field_key AND spsv.session_id = ?
+        LEFT JOIN persona_state_values psv
+          ON psv.persona_id = ? AND psv.field_key = psf.field_key
+        WHERE psf.world_id = ?
+        ORDER BY psf.sort_order ASC, psf.created_at ASC
+      `).all(sessionId, personaId, worldId)
+    : db.prepare(`
+        SELECT
+          psf.label,
+          psf.type,
+          psf.unit,
+          COALESCE(psv.runtime_value_json, psv.default_value_json, psf.default_value) AS effective_value_json
+        FROM persona_state_fields psf
+        LEFT JOIN persona_state_values psv
+          ON psv.persona_id = ? AND psv.field_key = psf.field_key
+        WHERE psf.world_id = ?
+        ORDER BY psf.sort_order ASC, psf.created_at ASC
+      `).all(personaId, worldId);
+}
+
+/** 世界状态显示行 */
+export function getWorldStateDisplayRows(worldId, sessionId) {
+  return sessionId
+    ? db.prepare(`
+        SELECT
+          wsf.label,
+          wsf.type,
+          wsf.unit,
+          COALESCE(swsv.runtime_value_json, wsv.default_value_json, wsf.default_value) AS effective_value_json
+        FROM world_state_fields wsf
+        LEFT JOIN session_world_state_values swsv
+          ON swsv.world_id = wsf.world_id AND swsv.field_key = wsf.field_key AND swsv.session_id = ?
+        LEFT JOIN world_state_values wsv
+          ON wsf.world_id = wsv.world_id AND wsf.field_key = wsv.field_key
+        WHERE wsf.world_id = ?
+        ORDER BY wsf.sort_order ASC, wsf.created_at ASC
+      `).all(sessionId, worldId)
+    : db.prepare(`
+        SELECT
+          wsf.label,
+          wsf.type,
+          wsf.unit,
+          COALESCE(wsv.runtime_value_json, wsv.default_value_json, wsf.default_value) AS effective_value_json
+        FROM world_state_fields wsf
+        LEFT JOIN world_state_values wsv
+          ON wsf.world_id = wsv.world_id AND wsf.field_key = wsv.field_key
+        WHERE wsf.world_id = ?
+        ORDER BY wsf.sort_order ASC, wsf.created_at ASC
+      `).all(worldId);
+}
+
+/** 角色状态显示行 */
+export function getCharacterStateDisplayRows(characterId, worldId, sessionId) {
+  return sessionId
+    ? db.prepare(`
+        SELECT
+          csf.label,
+          csf.type,
+          csf.unit,
+          COALESCE(scsv.runtime_value_json, csv.default_value_json, csf.default_value) AS effective_value_json
+        FROM character_state_fields csf
+        LEFT JOIN session_character_state_values scsv
+          ON scsv.character_id = ? AND scsv.field_key = csf.field_key AND scsv.session_id = ?
+        LEFT JOIN character_state_values csv
+          ON csf.field_key = csv.field_key AND csv.character_id = ?
+        WHERE csf.world_id = ?
+        ORDER BY csf.sort_order ASC, csf.created_at ASC
+      `).all(characterId, sessionId, characterId, worldId)
+    : db.prepare(`
+        SELECT
+          csf.label,
+          csf.type,
+          csf.unit,
+          COALESCE(csv.runtime_value_json, csv.default_value_json, csf.default_value) AS effective_value_json
+        FROM character_state_fields csf
+        LEFT JOIN character_state_values csv
+          ON csf.field_key = csv.field_key AND csv.character_id = ?
+        WHERE csf.world_id = ?
+        ORDER BY csf.sort_order ASC, csf.created_at ASC
+      `).all(characterId, worldId);
 }

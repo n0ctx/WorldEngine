@@ -55,6 +55,18 @@ export default defineConfig([
       ],
     },
   },
+  // 前端 fetch 只能经 src/core/api/；测试里 mock 全局 fetch 不受限
+  {
+    files: ['src/**/*.{js,jsx}'],
+    ignores: ['src/core/api/**', 'src/**/__tests__/**', 'src/**/*.test.{js,jsx}'],
+    rules: {
+      'no-restricted-globals': ['error', { name: 'fetch', message: '前端 fetch 只能经 src/core/api/，请调用对应的 api 模块。' }],
+      'no-restricted-properties': ['error',
+        { object: 'window', property: 'fetch', message: '前端 fetch 只能经 src/core/api/，请调用对应的 api 模块。' },
+        { object: 'globalThis', property: 'fetch', message: '前端 fetch 只能经 src/core/api/，请调用对应的 api 模块。' },
+      ],
+    },
+  },
   {
     files: ['vite.config.js', 'vitest.config.js'],
     languageOptions: {

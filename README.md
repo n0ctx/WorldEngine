@@ -153,6 +153,14 @@ npm run desktop:dist
 
 日志文件位于 `data/logs/worldengine-YYYY-MM-DD.log`，级别通过 `data/config.json` 的 `logging` 配置块控制。
 
+### 源码守卫
+
+`npm run lint` 包含 8 个源码守卫：体量、圈复杂度、重复代码、死代码、测试形态、运行形态、循环依赖、架构边界。改完代码后运行 `npm run check:guards`，它会跑完全部守卫再汇总结果，一个失败不会中断其余；单独运行用 `npm run check:<名字>`，守卫自身的测试是 `npm run test:guards`。
+
+- 现有问题记在 `scripts/*-baseline.json`，只许减少。新增违规要修掉。
+- 报「基线与现状对不上」说明问题已改善或已消失，用对应脚本的 `--update-baseline` 刷新基线，并和代码一起提交。
+- 检测器分不清的有意写法（前后端镜像、一次性迁移等），在代码上一行写 `// guard-allow(<守卫名>): <理由>`，规则见 `scripts/guard-common.mjs` 头部。
+
 ## 主题系统
 
 前端主题现在只接受正式语义 token 和基础色板 token。旧兼容别名已经移除，新主题或自定义 CSS 需要使用 `--we-color-*`、`--we-font-*`、`--we-page-canvas-*`、`--we-card-*`、`--we-panel-card-*` 等当前入口。

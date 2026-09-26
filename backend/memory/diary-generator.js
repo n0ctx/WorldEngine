@@ -25,7 +25,7 @@ import * as llm from '../llm/index.js';
 import { getSessionById } from '../db/queries/sessions.js';
 import { getAllTurnRecordsBySessionId } from '../db/queries/turn-records.js';
 import { upsertDailyEntry } from '../db/queries/daily-entries.js';
-import db from '../db/index.js';
+import { getMessageById } from '../db/queries/messages.js';
 import { LLM_TASK_TEMPERATURE, LLM_DIARY_MAX_TOKENS, DIARY_TIME_FIELD_KEY } from '../utils/constants.js';
 import { renderBackendPrompt } from '../prompts/prompt-loader.js';
 import { createLogger, formatMeta } from '../utils/logger.js';
@@ -112,8 +112,7 @@ function extractDiaryTimeFromSnapshot(snapshotJson) {
  */
 function getMessageContent(messageId) {
   if (!messageId) return null;
-  const row = db.prepare('SELECT content FROM messages WHERE id = ?').get(messageId);
-  return row?.content ?? null;
+  return getMessageById(messageId)?.content ?? null;
 }
 
 /**

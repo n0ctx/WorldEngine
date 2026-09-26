@@ -13,24 +13,61 @@
  *   mod['a']                                  → a
  *   mod[suite.createName]                     → 本文件里所有 `createName: '…'` 属性的字符串值
  * 模块对象被传给函数、展开、或下标取不到对应属性值时，按全部导出都用到处理。
+ * bare package specifier 按外部依赖处理；仓库若使用路径别名，落地前必须按仓库约定补充解析。
+ * 仓内本地包（frontend 以 file:../assistant/client 依赖的 @worldengine/assistant-client）按各 package.json
+ * 的 name 和 exports 解析到仓内文件；仓库没有其他路径别名。相对路径指向 node_modules/ 下的文件也按外部依赖处理。
+ * 目标不在本次扫描集合、但磁盘上存在的（.css 等资源、扫描范围外的仓内文件）不进依赖图，也不算解析失败。
  */
 
+import { existsSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
-import { CODE_SUFFIXES, parseFiles, patternNames, stringValue, walk } from './guard-common.mjs';
+import { CODE_SUFFIXES, collectFiles, parseFiles, patternNames, stringValue, walk } from './guard-common.mjs';
 
 export const ALL = '*';
 // backend/tests/helpers/test-env.js 里按仓库根相对路径动态加载模块的函数
 const ROOT_IMPORTERS = new Set(['freshImport', 'freshImportUncached']);
 
-export function resolveFile(fileSet, base) {
+function candidatePaths(base) {
   const clean = path.posix.normalize(base.replace(/[?#].*$/, ''));
-  if (clean.startsWith('../')) return null;
+  if (clean.startsWith('../')) return [];
   const suffixes = [...CODE_SUFFIXES];
-  const candidates = [clean, ...suffixes.map((s) => clean + s), ...suffixes.map((s) => `${clean}/index${s}`)];
-  return candidates.find((c) => fileSet.has(c)) ?? null;
+  return [clean, ...suffixes.map((s) => clean + s), ...suffixes.map((s) => `${clean}/index${s}`)];
+}
+
+export function resolveFile(fileSet, base) {
+  return candidatePaths(base).find((c) => fileSet.has(c)) ?? null;
 }
 
 const moduleName = (node) => node.name ?? node.value;
+
+function localPackages(root) {
+  const packages = new Map();
+  for (const rel of collectFiles(root, '', (name) => name === 'package.json')) {
+    const pkg = JSON.parse(readFileSync(path.join(root, rel), 'utf8'));
+    if (pkg.name) packages.set(pkg.name, { dir: path.posix.dirname(rel), exports: pkg.exports });
+  }
+  return packages;
+}
+
+// 本地包的 specifier 换成仓库根相对路径；不是本地包返回 null
+function packageBase(packages, specifier) {
+  if (typeof specifier !== 'string') return null;
+  for (const [name, { dir, exports }] of packages) {
+    if (specifier !== name && !specifier.startsWith(`${name}/`)) continue;
+    const subpath = `.${specifier.slice(name.length)}`;
+    const mapped = typeof exports === 'string' && subpath === '.' ? exports : exports?.[subpath];
+    return path.posix.join(dir, typeof mapped === 'string' ? mapped : subpath);
+  }
+  return null;
+}
+
+function outsideGraph(root, base) {
+  if (base.split('/').includes('node_modules')) return true;
+  return candidatePaths(base).some((c) => {
+    const abs = path.join(root, c);
+    return existsSync(abs) && statSync(abs).isFile();
+  });
+}
 
 function declarationNames(decl) {
   if (decl.type === 'VariableDeclaration') return decl.declarations.flatMap((d) => patternNames(d.id));
@@ -147,47 +184,73 @@ function rootImportTargets(tree, arg) {
 function moduleShape(rel, tree) {
   const refs = [];
   const exports = [];
-  const ref = (base, names, lazy = false) => refs.push({ base, names, lazy });
+  const ref = (base, names, lazy = false, specifier = base) => refs.push({ base, names, lazy, specifier });
   const exported = (node, names) => names.forEach((name) => exports.push({ name, line: node.loc.start.line }));
   const parents = parentMap(tree);
   for (const [node] of walk(tree)) {
-    if (node.type === 'ImportDeclaration') ref(relative(rel, node.source.value), importNames(node));
+    if (node.type === 'ImportDeclaration') {
+      const specifier = node.source.value;
+      ref(relative(rel, specifier), importNames(node), false, specifier);
+    }
     else if (node.type === 'ExportNamedDeclaration') {
       if (node.declaration) exported(node, declarationNames(node.declaration));
       exported(node, node.specifiers.map((s) => moduleName(s.exported)));
-      if (node.source) ref(relative(rel, node.source.value), node.specifiers.map((s) => moduleName(s.local)));
+      if (node.source) {
+        const specifier = node.source.value;
+        ref(relative(rel, specifier), node.specifiers.map((s) => moduleName(s.local)), false, specifier);
+      }
     } else if (node.type === 'ExportAllDeclaration') {
-      ref(relative(rel, node.source.value), [ALL]);
+      const specifier = node.source.value;
+      ref(relative(rel, specifier), [ALL], false, specifier);
       if (node.exported) exported(node, [moduleName(node.exported)]);
     } else if (node.type === 'ExportDefaultDeclaration') exported(node, ['default']);
     else if (node.type === 'ImportExpression') {
       const literal = stringValue(node.source);
       const names = loadedNames(tree, parents, node);
-      if (literal !== null) ref(relative(rel, literal), names, true);
-      else embeddedPaths(node.source).forEach((base) => ref(base, names, true));
+      if (literal !== null) ref(relative(rel, literal), names, true, literal);
+      else embeddedPaths(node.source).forEach((base) => ref(base, names, true, base));
     } else if (node.type === 'CallExpression' && node.callee.type === 'Identifier' && node.arguments.length === 1) {
-      if (node.callee.name === 'require') ref(relative(rel, stringValue(node.arguments[0])), [ALL]);
+      if (node.callee.name === 'require') {
+        const specifier = stringValue(node.arguments[0]);
+        ref(relative(rel, specifier), [ALL], false, specifier);
+      }
       else if (ROOT_IMPORTERS.has(node.callee.name)) {
         const names = loadedNames(tree, parents, node);
-        rootImportTargets(tree, node.arguments[0]).forEach((base) => ref(base, names, true));
+        rootImportTargets(tree, node.arguments[0]).forEach((base) => ref(base, names, true, base));
       }
     }
   }
   return { refs, exports };
 }
 
-// 返回 { fileSet, parsed, parseFailures, modules: Map<rel, { exports: [{ name, line }], refs: [{ target, names, lazy }] }> }
-export function buildImportGraph(root, rels) {
+// 返回已解析模块和 unresolvedStaticImports；后者列出无法解析的确定性仓内引用。
+// scan 可传入同一批文件的 parseFiles 结果，供已有 detector 复用解析结果。
+export function buildImportGraph(root, rels, scan = null) {
   const fileSet = new Set(rels);
-  const { parsed, parseFailures } = parseFiles(root, rels);
+  const { parsed, parseFailures } = scan ?? parseFiles(root, rels);
   const modules = new Map();
+  const unresolvedStaticImports = [];
+  const packages = localPackages(root);
   for (const { rel, tree } of parsed) {
     const { refs, exports } = moduleShape(rel, tree);
-    const resolved = refs
-      .map(({ base, names, lazy }) => ({ target: base && resolveFile(fileSet, base), names, lazy }))
-      .filter(({ target }) => target && target !== rel);
+    const resolved = [];
+    for (const ref of refs) {
+      const { names, lazy, specifier } = ref;
+      const base = ref.base ?? packageBase(packages, specifier);
+      const target = base && resolveFile(fileSet, base);
+      if (!target) {
+        if (base !== null && !outsideGraph(root, base)) unresolvedStaticImports.push({ source: rel, target: base, specifier, lazy });
+        continue;
+      }
+      if (target !== rel) resolved.push({ target, names, lazy });
+    }
     const seen = new Set();
     modules.set(rel, { exports: exports.filter((e) => !seen.has(e.name) && seen.add(e.name)), refs: resolved });
   }
-  return { fileSet, parsed, parseFailures, modules };
+  unresolvedStaticImports.sort((a, b) => {
+    const left = `${a.source}\0${a.target}\0${a.specifier}`;
+    const right = `${b.source}\0${b.target}\0${b.specifier}`;
+    return left < right ? -1 : left > right ? 1 : 0;
+  });
+  return { fileSet, parsed, parseFailures, modules, unresolvedStaticImports };
 }

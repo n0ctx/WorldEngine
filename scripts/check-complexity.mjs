@@ -30,6 +30,7 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
+import { ROOT_SKIP_DIRS, scanHealth, withoutGitIgnored } from './guard-common.mjs';
 
 const require = createRequire(import.meta.url);
 const espree = require('espree');
@@ -46,8 +47,8 @@ const MIN_FUNCTION_COUNT = 1500;
 
 const CODE_SUFFIXES = new Set(['.js', '.jsx', '.mjs', '.cjs']);
 const SKIP_DIRS = new Set([
-  'node_modules', 'dist', 'coverage', 'build', 'test-results',
-  'data', 'node-runtime', '__pycache__',
+  'node_modules', 'vendor', 'generated', 'dist', 'coverage', 'build', 'test-results',
+  'node-runtime', '__pycache__',
 ]);
 
 const FUNCTION_TYPES = new Set(['FunctionDeclaration', 'FunctionExpression', 'ArrowFunctionExpression']);
@@ -62,7 +63,7 @@ function collectFiles(dir, relPrefix, extraIgnores, out) {
     if (entry.isSymbolicLink()) continue;
     const rel = relPrefix ? `${relPrefix}/${entry.name}` : entry.name;
     if (entry.isDirectory()) {
-      if (entry.name.startsWith('.') || SKIP_DIRS.has(entry.name)) continue;
+      if (entry.name.startsWith('.') || SKIP_DIRS.has(entry.name) || ROOT_SKIP_DIRS.has(rel)) continue;
       if (extraIgnores.some((p) => matchGlob(rel, p))) continue;
       collectFiles(path.join(dir, entry.name), rel, extraIgnores, out);
     } else if (entry.isFile()) {
@@ -231,18 +232,20 @@ function parseCode(text) {
 
 // 返回 Map<key, score>，key 形如 `path#name`（同名函数追加 ~2 ~3 区分）
 function collectScores(extraIgnores) {
-  const rels = [];
-  collectFiles(ROOT, '', extraIgnores, rels);
-  rels.sort();
+  const found = [];
+  collectFiles(ROOT, '', extraIgnores, found);
+  const rels = withoutGitIgnored(ROOT, found.sort());
   const scores = new Map();
   const parseFailures = [];
+  let parsedFileCount = 0;
   for (const rel of rels) {
     const text = readFileSync(path.join(ROOT, rel), 'utf8');
     const tree = parseCode(text);
     if (!tree) { parseFailures.push(rel); continue; }
+    parsedFileCount += 1;
     for (const [key, score] of fileScores(tree, rel)) scores.set(key, score);
   }
-  return { scores, parseFailures, fileCount: rels.length };
+  return { scores, parseFailures, fileCount: rels.length, parsedFileCount };
 }
 
 // ─── 基线 ────────────────────────────────────────────────────────────────────
@@ -286,11 +289,22 @@ function main() {
   const args = parseArgs(process.argv.slice(2));
   const baselinePath = path.isAbsolute(args.baseline) ? args.baseline : path.join(ROOT, args.baseline);
 
-  let scores, parseFailures, fileCount;
+  let scores, parseFailures, fileCount, parsedFileCount;
   try {
-    ({ scores, parseFailures, fileCount } = collectScores(args.ignores));
+    ({ scores, parseFailures, fileCount, parsedFileCount } = collectScores(args.ignores));
   } catch (err) {
     console.error(`✖ 无法扫描仓库: ${err.message}`);
+    process.exit(1);
+  }
+
+  const failures = scanHealth({ fileCount, parsedFileCount, parseFailures });
+  if (scores.size < MIN_FUNCTION_COUNT) {
+    failures.push(`扫到的函数过少（${scores.size} < ${MIN_FUNCTION_COUNT}），遍历逻辑可能坏了`);
+  }
+
+  if (args.updateBaseline && failures.length) {
+    console.error(`✖ detector health 不通过（${parsedFileCount}/${fileCount} 个文件已解析，${scores.size} 个函数）`);
+    for (const failure of failures) console.error(`${failure}\n`);
     process.exit(1);
   }
 
@@ -298,7 +312,7 @@ function main() {
     writeBaseline(baselinePath, scores);
     const kept = [...scores.values()].filter((s) => s > LIMIT).length;
     console.log(`[complexity] 基线已更新\nFile: ${path.relative(ROOT, baselinePath)}\n`
-      + `函数: ${scores.size}（超标 ${kept} 个写入基线）`);
+      + `文件: ${parsedFileCount}/${fileCount} 已解析，函数: ${scores.size}（超标 ${kept} 个写入基线）`);
     process.exit(0);
   }
 
@@ -310,15 +324,6 @@ function main() {
     process.exit(1);
   }
   const baselineFns = baseline.functions || {};
-
-  const failures = [];
-
-  if (scores.size < MIN_FUNCTION_COUNT) {
-    failures.push(`扫到的函数过少（${scores.size} < ${MIN_FUNCTION_COUNT}），遍历逻辑可能坏了`);
-  }
-  for (const rel of parseFailures) {
-    failures.push(`解析失败：${rel}（espree 无法解析，请检查语法）`);
-  }
 
   // 1. 新增超标函数
   const newOffenders = [...scores.entries()]
@@ -358,13 +363,13 @@ function main() {
   }
 
   if (failures.length) {
-    console.error(`\n✖ 圈复杂度守卫未通过（扫描 ${fileCount} 个文件 / ${scores.size} 个函数，阈值 ${LIMIT}）\n`);
+    console.error(`\n✖ 圈复杂度守卫未通过（解析 ${parsedFileCount}/${fileCount} 个文件 / ${scores.size} 个函数，阈值 ${LIMIT}）\n`);
     for (const f of failures) console.error(`${f}\n`);
     process.exit(1);
   }
 
   const overCount = [...scores.values()].filter((s) => s > LIMIT).length;
-  console.log(`✓ 圈复杂度守卫通过：${fileCount} 个文件 / ${scores.size} 个函数，`
+  console.log(`✓ 圈复杂度守卫通过：解析 ${parsedFileCount}/${fileCount} 个文件 / ${scores.size} 个函数，`
     + `超标 ${overCount} 个均在基线内且未上涨（阈值 ${LIMIT}）`);
   process.exit(0);
 }

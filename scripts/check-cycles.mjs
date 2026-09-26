@@ -11,7 +11,7 @@
  * 退出码：0 通过 / 1 存在循环或解析失败
  */
 
-import { collectCodeFiles, finish, isTestPath, parseArgs, section } from './guard-common.mjs';
+import { collectCodeFiles, finish, isTestPath, parseArgs, scanHealth, section } from './guard-common.mjs';
 import { buildImportGraph } from './import-graph.mjs';
 
 // Tarjan 强连通分量：返回成员数 > 1 的分量（即循环），各分量内按路径排序
@@ -51,20 +51,22 @@ function findCycles(edges) {
 function main() {
   const args = parseArgs(process.argv.slice(2), null);
   const rels = collectCodeFiles(args.root).filter((rel) => !isTestPath(rel));
-  const { parseFailures, modules } = buildImportGraph(args.root, rels);
+  const { parsed, parseFailures, modules, unresolvedStaticImports } = buildImportGraph(args.root, rels);
   const edges = new Map([...modules].map(([rel, { refs }]) => [
     rel, [...new Set(refs.filter((r) => !r.lazy).map((r) => r.target))],
   ]));
   const cycles = findCycles(edges);
+  const edgeCount = [...edges.values()].reduce((sum, targets) => sum + targets.length, 0);
 
-  const failures = [];
-  if (rels.length === 0) failures.push('没有扫到任何文件，遍历逻辑可能坏了');
-  for (const rel of parseFailures) failures.push(`解析失败：${rel}（espree 无法解析，请检查语法）`);
+  const failures = scanHealth({
+    fileCount: rels.length, parsedFileCount: parsed.length, parseFailures, moduleCount: modules.size, unresolvedStaticImports,
+  });
   if (cycles.length) {
     failures.push(section('这些模块互相引用成环；把共用部分抽到下层模块，或改成 import() 按需加载：',
       cycles.map((c) => c.join(' ↔ '))));
   }
-  finish('循环依赖守卫', failures, `${rels.length} 个文件，循环 ${cycles.length} 组`);
+  finish('循环依赖守卫', failures,
+    `${parsed.length}/${rels.length} 个文件已解析，${modules.size} 个模块 / ${edgeCount} 条静态依赖边，循环 ${cycles.length} 组`);
 }
 
 main();

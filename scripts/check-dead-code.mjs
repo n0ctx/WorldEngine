@@ -27,7 +27,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import {
   BASELINE_NOTE, allowFailures, baselineFailures, collectAllowMarkers, collectCodeFiles, collectFiles, compareSets, finish, isTestPath,
-  loadBaseline, parseArgs, writeBaseline,
+  loadBaseline, parseArgs, scanHealth, writeBaseline,
 } from './guard-common.mjs';
 import { ALL, buildImportGraph, resolveFile } from './import-graph.mjs';
 
@@ -37,9 +37,8 @@ const ENTRY_FILES = ['frontend/src/main.jsx', 'backend/server.js'];
 const HTML_ENTRIES = ['frontend/index.html'];
 const HOOK_FILE_RE = /^hooks\/[^/]+\.js$/;
 const CONFIG_FILE_RE = /(^|\/)[^/]+\.config\.(js|mjs|cjs)$/;
-// 不经 import 加载的入口：Electron 按路径加载 preload；hook 示例与 shell 模板供复制，不被引用
+// 不经 import 加载的入口：hook 示例与 shell 模板供复制，不被引用
 const CONVENTION_ENTRIES = [
-  /^desktop\/src\/preload\.js$/,
   /^hooks\/examples\/[^/]+\.js$/,
   /^frontend\/src\/shells\/template\//,
 ];
@@ -97,12 +96,14 @@ function collectEntries(root, rels, fileSet) {
 // ─── 汇总 ────────────────────────────────────────────────────────────────────
 function collectDeadCode(root) {
   const rels = collectCodeFiles(root);
-  const { fileSet, parsed, parseFailures, modules } = buildImportGraph(root, rels);
+  const { fileSet, parsed, parseFailures, modules, unresolvedStaticImports } = buildImportGraph(root, rels);
   const allow = collectAllowMarkers(parsed, 'dead-code');
   const referencedBy = new Map();
   const usedNames = new Map();
+  const edges = new Set();
   for (const [rel, { refs }] of modules) {
     for (const { target, names } of refs) {
+      edges.add(`${rel} -> ${target}`);
       if (!referencedBy.has(target)) referencedBy.set(target, new Set());
       referencedBy.get(target).add(rel);
       if (!usedNames.has(target)) usedNames.set(target, new Set());
@@ -121,24 +122,33 @@ function collectDeadCode(root) {
       .filter(({ name, line }) => !used.has(name) && !allow.covers(rel, line))
       .map(({ name }) => `${rel}#${name}`));
   }
-  return { files, exports: exports.sort(), allow, parseFailures, fileCount: rels.length };
+  return {
+    files, exports: exports.sort(), allow, parseFailures, unresolvedStaticImports,
+    fileCount: rels.length, parsedFileCount: parsed.length, moduleCount: modules.size, edgeCount: edges.size,
+  };
 }
 
 // ─── CLI ─────────────────────────────────────────────────────────────────────
 function main() {
   const args = parseArgs(process.argv.slice(2), DEFAULT_BASELINE);
-  const { files, exports, allow, parseFailures, fileCount } = collectDeadCode(args.root);
+  const { files, exports, allow, parseFailures, unresolvedStaticImports, fileCount, parsedFileCount, moduleCount, edgeCount }
+    = collectDeadCode(args.root);
 
-  if (args.updateBaseline && !parseFailures.length) {
+  const summary = `解析 ${parsedFileCount}/${fileCount} 个文件，${moduleCount} 个模块 / ${edgeCount} 条引用边，`
+    + `无引用文件 ${files.length} 个、无引用导出 ${exports.length} 个`;
+  const healthFailures = scanHealth({ fileCount, parsedFileCount, parseFailures, moduleCount, unresolvedStaticImports });
+
+  if (args.updateBaseline && healthFailures.length) {
+    finish('死代码守卫', ['detector health 不通过', ...healthFailures], summary);
+  }
+  if (args.updateBaseline) {
     writeBaseline(args.baselinePath, { files, exports });
     console.log(`[dead-code] 基线已更新\nFile: ${path.relative(args.root, args.baselinePath)}\n`
-      + `文件: ${fileCount}（无引用文件 ${files.length} 个、无引用导出 ${exports.length} 个写入基线）`);
+      + `${summary} 写入基线`);
     process.exit(0);
   }
 
-  const failures = [];
-  if (fileCount === 0) failures.push('没有扫到任何文件，遍历逻辑可能坏了');
-  for (const rel of parseFailures) failures.push(`解析失败：${rel}（espree 无法解析，请检查语法）`);
+  const failures = [...healthFailures];
 
   let baseline;
   try {
@@ -154,8 +164,7 @@ function main() {
   }));
   failures.push(...allowFailures(allow));
 
-  finish('死代码守卫', failures,
-    `${fileCount} 个文件，无引用文件 ${files.length} 个、无引用导出 ${exports.length} 个`, BASELINE_NOTE, allow.listing());
+  finish('死代码守卫', failures, summary, BASELINE_NOTE, allow.listing());
 }
 
 main();

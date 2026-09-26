@@ -63,15 +63,6 @@ export default [
       'we-local/no-direct-db-prepare': 'error',
     },
   },
-  // import-export.js 的导入事务把 fs（头像写盘）/ JSON 解析 / crypto 与 SQL 深度交织在
-  // db.transaction(() => {...}) 内，无法整体下沉到 db/queries/ 而不大改文件结构。
-  // 暂以文件级豁免兜底，待后续专项重构。TODO(@n0ctx): 拆分 import-export 事务后移除本豁免。
-  {
-    files: ['services/import-export.js'],
-    rules: {
-      'we-local/no-direct-db-prepare': 'off',
-    },
-  },
   // utils/logger.js 解析 ANSI 转义需要匹配控制字符，必须豁免 no-control-regex
   {
     files: ['utils/logger.js'],

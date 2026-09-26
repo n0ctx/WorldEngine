@@ -1,5 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
+import { existsSync } from 'node:fs';
+import path from 'node:path';
 
 import { useGuardFixture } from './guard-fixture.mjs';
 
@@ -19,6 +22,27 @@ function fixture() {
 test('现状与基线一致时通过，历史超标只警告', () => {
   const result = run(fixture());
   assert.equal(result.status, 0, result.stdout);
+});
+
+test('没有扫到任何文件时失败，也不写基线', () => {
+  const root = makeRoot();
+  for (const args of [[], ['--update-baseline']]) {
+    const result = run(root, ...args);
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /没有扫到任何文件/);
+  }
+  assert.equal(existsSync(path.join(root, 'scripts/context-budget-baseline.json')), false);
+});
+
+test('被 .gitignore 忽略的本地文件不扫描', () => {
+  const root = fixture();
+  assert.equal(spawnSync('git', ['init', '-q', root]).status, 0);
+  write(root, '.gitignore', '/LOCAL.md\n/local/\n');
+  write(root, 'LOCAL.md', '# 本地笔记\n');
+  write(root, 'local/huge.js', functions(51));
+  const result = run(root);
+  assert.equal(result.status, 0, result.stdout);
+  assert.match(result.stdout, /共扫描 2 个文件/);
 });
 
 test('新文件超硬上限失败', () => {

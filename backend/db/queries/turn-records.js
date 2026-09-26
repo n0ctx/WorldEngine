@@ -19,6 +19,19 @@ export function getRecentTurnSummaries(sessionId, limit) {
 }
 
 /**
+ * 取会话最近 N 轮 turn record 的 id（round_index 降序）
+ *
+ * @param {string} sessionId
+ * @param {number} limit
+ * @returns {string[]}
+ */
+export function getRecentTurnRecordIds(sessionId, limit) {
+  return db.prepare('SELECT id FROM turn_records WHERE session_id = ? ORDER BY round_index DESC LIMIT ?')
+    .all(sessionId, limit)
+    .map((r) => r.id);
+}
+
+/**
  * 插入或更新 turn record（按 session_id + round_index UPSERT）
  *
  * @param {object} data - { session_id, round_index, summary, scene, cast_json, user_message_id, asst_message_id, state_snapshot }
