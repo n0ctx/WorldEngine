@@ -19,6 +19,7 @@ import {
 } from '../db/queries/session-nearby-characters.js';
 import {
   upsertNearbyStateValue,
+  upsertNearbyStateValues,
   getStateValuesByNearbyIds,
 } from '../db/queries/session-nearby-character-state-values.js';
 import { getCharacterStateFieldsByWorldId } from '../db/queries/character-state-fields.js';
@@ -181,16 +182,18 @@ export function addSavedFromCharacter(sessionId, characterId) {
   const fields = getNearbyEnabledFields(session.world_id);
   const enabledKeys = new Set(fields.map((f) => f.field_key));
   const charValues = getAllCharacterStateValues(characterId);
+  const nearbyStateValues = [];
   for (const v of charValues) {
     if (!enabledKeys.has(v.field_key)) continue;
     if (v.default_value_json == null) continue;
-    upsertNearbyStateValue({
+    nearbyStateValues.push({
       sessionId,
       nearbyId,
       fieldKey: v.field_key,
       valueJson: v.default_value_json,
     });
   }
+  upsertNearbyStateValues(nearbyStateValues);
   log.info(`nearby.add_from_character  ${formatMeta({ sessionId, characterId, nearbyId, name: character.name })}`);
   return nearbyId;
 }

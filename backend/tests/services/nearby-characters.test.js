@@ -72,6 +72,83 @@ test('addSavedFromCharacter：仅复制 nearby_enabled=1 字段的 default 值�
   assert.equal(mood.runtime_value_json, JSON.stringify('开心'));
 });
 
+test('addSavedFromCharacter：没有可复制的默认值时不写入 nearby 状态', async () => {
+  const { worldId, sessionId } = makeWorldAndSession('add-saved-empty');
+  const disabledField = insertCharacterStateField(sandbox.db, worldId, {
+    field_key: 'disabled', label: '未启用', type: 'text',
+  });
+  const emptyField = insertCharacterStateField(sandbox.db, worldId, {
+    field_key: 'empty', label: '空默认值', type: 'text',
+  });
+  setNearbyEnabled(sandbox.db, disabledField.id, 0);
+  setNearbyEnabled(sandbox.db, emptyField.id, 1);
+
+  const character = insertCharacter(sandbox.db, worldId, { name: '无状态角色' });
+  insertCharacterStateValue(sandbox.db, character.id, {
+    field_key: 'disabled', default_value_json: JSON.stringify('忽略'),
+  });
+  insertCharacterStateValue(sandbox.db, character.id, {
+    field_key: 'empty', default_value_json: null,
+  });
+
+  const { addSavedFromCharacter, listNearby } = await freshImport('backend/services/writing-sessions.js');
+  const nearbyId = addSavedFromCharacter(sessionId, character.id);
+
+  assert.ok(nearbyId);
+  assert.deepEqual(
+    sandbox.db.prepare(
+      'SELECT field_key FROM session_nearby_character_state_values WHERE nearby_id = ?',
+    ).all(nearbyId),
+    [],
+  );
+  assert.equal(listNearby(sessionId)[0].state[0].runtime_value_json, null);
+});
+
+test('addSavedFromCharacter：多个默认值通过一次批量写入并保留角色和字段语义', async () => {
+  const { worldId, sessionId } = makeWorldAndSession('add-saved-many');
+  const fields = ['mood', 'hp', 'place'].map((fieldKey) => {
+    const field = insertCharacterStateField(sandbox.db, worldId, {
+      field_key: fieldKey, label: fieldKey, type: 'text',
+    });
+    setNearbyEnabled(sandbox.db, field.id, 1);
+    return field;
+  });
+  const disabledField = insertCharacterStateField(sandbox.db, worldId, {
+    field_key: 'ignored', label: 'ignored', type: 'text',
+  });
+  setNearbyEnabled(sandbox.db, disabledField.id, 0);
+
+  const character = insertCharacter(sandbox.db, worldId, { name: '多状态角色' });
+  const defaults = new Map([
+    ['mood', JSON.stringify('冷静')],
+    ['hp', JSON.stringify(80)],
+    ['place', JSON.stringify('书房')],
+    ['ignored', JSON.stringify('忽略')],
+  ]);
+  for (const fieldKey of [...fields.map((field) => field.field_key), 'ignored']) {
+    insertCharacterStateValue(sandbox.db, character.id, {
+      field_key: fieldKey,
+      default_value_json: defaults.get(fieldKey),
+    });
+  }
+
+  const { addSavedFromCharacter, listNearby } = await freshImport('backend/services/writing-sessions.js');
+  const nearbyId = addSavedFromCharacter(sessionId, character.id);
+
+  assert.ok(nearbyId);
+  const row = listNearby(sessionId)[0];
+  assert.equal(row.id, nearbyId);
+  assert.equal(row.session_id, sessionId);
+  assert.equal(row.name, '多状态角色');
+  assert.deepEqual(Object.fromEntries(
+    row.state.map(({ field_key, runtime_value_json }) => [field_key, runtime_value_json]),
+  ), {
+    mood: JSON.stringify('冷静'),
+    hp: JSON.stringify(80),
+    place: JSON.stringify('书房'),
+  });
+});
+
 test('addSavedFromCharacter：name 已被占用时抛 NEARBY_NAME_CONFLICT', async () => {
   const { worldId, sessionId } = makeWorldAndSession('conflict');
   const character = insertCharacter(sandbox.db, worldId, { name: '重名君' });
