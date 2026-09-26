@@ -8,41 +8,27 @@ function parseJsonEnv(name, fallback) {
   }
 }
 
-function getResponseQueue(kind) {
-  return parseJsonEnv(kind === 'stream' ? 'MOCK_LLM_STREAM_QUEUE' : 'MOCK_LLM_COMPLETE_QUEUE', null);
-}
-
-function getToolCallQueue() {
-  return parseJsonEnv('MOCK_LLM_TOOL_CALLS_QUEUE', null);
-}
-
-function getActionQueue() {
-  return parseJsonEnv('MOCK_LLM_ACTION_QUEUE', null);
-}
-
-function takeQueued(kind) {
-  const envName = kind === 'stream' ? 'MOCK_LLM_STREAM_QUEUE' : 'MOCK_LLM_COMPLETE_QUEUE';
-  const queue = getResponseQueue(kind);
-  if (!Array.isArray(queue) || queue.length === 0) return null;
+function takeQueueItem(envName) {
+  const queue = parseJsonEnv(envName, null);
+  if (!Array.isArray(queue) || queue.length === 0) return undefined;
   const [next, ...rest] = queue;
   process.env[envName] = JSON.stringify(rest);
   return next;
 }
 
+function takeQueued(kind) {
+  const envName = kind === 'stream' ? 'MOCK_LLM_STREAM_QUEUE' : 'MOCK_LLM_COMPLETE_QUEUE';
+  return takeQueueItem(envName) ?? null;
+}
+
 function takeQueuedToolCalls() {
-  const queue = getToolCallQueue();
-  if (!Array.isArray(queue) || queue.length === 0) return null;
-  const [next, ...rest] = queue;
-  process.env.MOCK_LLM_TOOL_CALLS_QUEUE = JSON.stringify(rest);
-  return Array.isArray(next) ? next : [];
+  const next = takeQueueItem('MOCK_LLM_TOOL_CALLS_QUEUE');
+  return next === undefined ? null : Array.isArray(next) ? next : [];
 }
 
 function takeQueuedAction() {
-  const queue = getActionQueue();
-  if (!Array.isArray(queue) || queue.length === 0) return null;
-  const [next, ...rest] = queue;
-  process.env.MOCK_LLM_ACTION_QUEUE = JSON.stringify(rest);
-  return typeof next === 'string' ? next : JSON.stringify(next);
+  const next = takeQueueItem('MOCK_LLM_ACTION_QUEUE');
+  return next === undefined ? null : typeof next === 'string' ? next : JSON.stringify(next);
 }
 
 function getMockText(kind, opts = {}) {
@@ -89,6 +75,13 @@ function sleep(ms, signal) {
   });
 }
 
+function throwIfAborted(signal) {
+  if (!signal?.aborted) return;
+  const err = new Error('The operation was aborted');
+  err.name = 'AbortError';
+  throw err;
+}
+
 export async function* streamChat(_messages, llmConfig = {}) {
   maybeThrow('stream');
   const signal = llmConfig.signal;
@@ -99,11 +92,7 @@ export async function* streamChat(_messages, llmConfig = {}) {
     for (let i = 0; i < chunks.length; i++) {
       const delayMs = Number(delays?.[i] ?? 0);
       if (delayMs > 0) await sleep(delayMs, signal);
-      if (signal?.aborted) {
-        const err = new Error('The operation was aborted');
-        err.name = 'AbortError';
-        throw err;
-      }
+      throwIfAborted(signal);
       yield String(chunks[i]);
     }
     return;
@@ -111,11 +100,7 @@ export async function* streamChat(_messages, llmConfig = {}) {
   if (!text) return;
   const delayMs = Number(delays?.[0] ?? 0);
   if (delayMs > 0) await sleep(delayMs, signal);
-  if (signal?.aborted) {
-    const err = new Error('The operation was aborted');
-    err.name = 'AbortError';
-    throw err;
-  }
+  throwIfAborted(signal);
   yield text;
 }
 

@@ -13,6 +13,7 @@ import {
 } from '../db/queries/persona-state-values.js';
 import { getWorldStateFieldsByWorldId } from '../db/queries/world-state-fields.js';
 import { upsertWorldStateValue } from '../db/queries/world-state-values.js';
+import { parseListValue, validateNumberValue } from '../utils/state-field-validate.js';
 
 function getFieldMap(fields) {
   return new Map(fields.map((field) => [field.field_key, field]));
@@ -45,17 +46,6 @@ function parseValueJson(valueJson) {
 
 // datetime: 年份允许任意位正整数（参见 STATEVALUE-CHEATSHEET.md），月/日/时/分各 2 位
 const DATETIME_RE = /^\d+-\d{2}-\d{2}T\d{2}:\d{2}$/;
-
-function validateListStateValue(value, field) {
-  const items = typeof value === 'string'
-    ? value.split(/[,，、]/).map((item) => item.trim()).filter(Boolean)
-    : value;
-  if (!Array.isArray(items)) return undefined;
-
-  const validated = items.map(String).filter(Boolean);
-  if (validated.length === 0) return field.allow_empty ? [] : undefined;
-  return validated;
-}
 
 function validateTableStateValue(value, field) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined;
@@ -90,13 +80,8 @@ export function validateStateValue(value, field) {
   switch (field.type) {
     case 'text':
       return typeof value === 'string' ? value : undefined;
-    case 'number': {
-      const num = typeof value === 'number' ? value : Number(value);
-      if (!Number.isFinite(num)) return undefined;
-      if (field.min_value != null && num < field.min_value) return undefined;
-      if (field.max_value != null && num > field.max_value) return undefined;
-      return num;
-    }
+    case 'number':
+      return validateNumberValue(value, field);
     case 'boolean':
       if (typeof value === 'boolean') return value;
       if (value === 'true') return true;
@@ -109,7 +94,7 @@ export function validateStateValue(value, field) {
     case 'datetime':
       return typeof value === 'string' && DATETIME_RE.test(value) ? value : undefined;
     case 'list':
-      return validateListStateValue(value, field);
+      return parseListValue(value, field);
     case 'table':
       return validateTableStateValue(value, field);
     default:

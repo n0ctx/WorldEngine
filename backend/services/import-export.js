@@ -752,19 +752,22 @@ function replaceGlobalSettingsRows(data, mode, now) {
   insertGlobalRegexRules(data.regex_rules ?? [], mode, now);
 }
 
-function buildChatConfigPatch(config) {
+function buildPromptConfigPatch(config) {
   const patch = {};
   if (typeof config.global_system_prompt === 'string') patch.global_system_prompt = config.global_system_prompt;
   if (typeof config.global_post_prompt === 'string') patch.global_post_prompt = config.global_post_prompt;
+  return patch;
+}
+
+function buildChatConfigPatch(config) {
+  const patch = buildPromptConfigPatch(config);
   if (typeof config.context_history_rounds === 'number') patch.context_history_rounds = config.context_history_rounds;
   if (typeof config.memory_expansion_enabled === 'boolean') patch.memory_expansion_enabled = config.memory_expansion_enabled;
   return patch;
 }
 
 function buildWritingConfigPatch(writing) {
-  const patch = {};
-  if (typeof writing.global_system_prompt === 'string') patch.global_system_prompt = writing.global_system_prompt;
-  if (typeof writing.global_post_prompt === 'string') patch.global_post_prompt = writing.global_post_prompt;
+  const patch = buildPromptConfigPatch(writing);
   if (writing.context_history_rounds === null || typeof writing.context_history_rounds === 'number') {
     patch.context_history_rounds = writing.context_history_rounds;
   }

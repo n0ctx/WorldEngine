@@ -39,6 +39,14 @@ function sendBadRequest(req, res, err) {
   res.status(400).json({ error: err.message });
 }
 
+async function updateAndRespond(req, res, update) {
+  try {
+    res.json(await update());
+  } catch (err) {
+    sendBadRequest(req, res, err);
+  }
+}
+
 // ── 兼容旧接口（active persona by worldId）──────────────────────────────────
 
 // GET /api/worlds/:worldId/persona — 返回 active persona
@@ -49,12 +57,7 @@ router.get('/worlds/:worldId/persona', (req, res) => {
 
 // PATCH /api/worlds/:worldId/persona — 更新 active persona
 router.patch('/worlds/:worldId/persona', async (req, res) => {
-  try {
-    const persona = await updatePersona(req.params.worldId, pickPersonaPatch(req.body));
-    res.json(persona);
-  } catch (err) {
-    sendBadRequest(req, res, err);
-  }
+  await updateAndRespond(req, res, () => updatePersona(req.params.worldId, pickPersonaPatch(req.body)));
 });
 
 // POST /api/worlds/:worldId/persona/avatar — 上传 active persona 头像（旧接口）
@@ -122,12 +125,7 @@ router.get('/personas/:id', (req, res) => {
 
 // PATCH /api/personas/:id — 按 id 更新 persona
 router.patch('/personas/:id', async (req, res) => {
-  try {
-    const persona = await updatePersonaByIdService(req.params.id, pickPersonaPatch(req.body));
-    res.json(persona);
-  } catch (err) {
-    sendBadRequest(req, res, err);
-  }
+  await updateAndRespond(req, res, () => updatePersonaByIdService(req.params.id, pickPersonaPatch(req.body)));
 });
 
 // DELETE /api/personas/:id — 删除 persona

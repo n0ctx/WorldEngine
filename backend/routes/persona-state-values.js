@@ -26,6 +26,15 @@ import { sendValidationError } from '../utils/route-helpers.js';
 const router = Router();
 const log = createLogger('persona-state-values', 'cyan');
 
+function requireValueJson(req, res) {
+  const { value_json } = req.body;
+  if (value_json !== undefined) return value_json;
+  const reason = 'value_json 为必填项';
+  log.warn(`persona-state-values.bad_request ${formatMeta({ method: req.method, path: req.path, reason })}`);
+  res.status(400).json({ error: reason });
+  return undefined;
+}
+
 router.get('/worlds/:worldId/persona-state-values', (req, res) => {
   const rows = getPersonaStateValuesWithFields(req.params.worldId);
   res.json(rows);
@@ -33,11 +42,8 @@ router.get('/worlds/:worldId/persona-state-values', (req, res) => {
 
 router.patch('/worlds/:worldId/persona-state-values/:fieldKey', (req, res) => {
   const { worldId, fieldKey } = req.params;
-  const { value_json } = req.body;
-  if (value_json === undefined) {
-    log.warn(`persona-state-values.bad_request ${formatMeta({ method: req.method, path: req.path, reason: 'value_json 为必填项' })}`);
-    return res.status(400).json({ error: 'value_json 为必填项' });
-  }
+  const value_json = requireValueJson(req, res);
+  if (value_json === undefined) return;
 
   try {
     updatePersonaDefaultStateValueValidated(worldId, fieldKey, value_json);
@@ -65,11 +71,8 @@ router.get('/worlds/:worldId/personas/:personaId/state-values', (req, res) => {
 
 router.patch('/worlds/:worldId/personas/:personaId/state-values/:fieldKey', (req, res) => {
   const { worldId, personaId, fieldKey } = req.params;
-  const { value_json } = req.body;
-  if (value_json === undefined) {
-    log.warn(`persona-state-values.bad_request ${formatMeta({ method: req.method, path: req.path, reason: 'value_json 为必填项' })}`);
-    return res.status(400).json({ error: 'value_json 为必填项' });
-  }
+  const value_json = requireValueJson(req, res);
+  if (value_json === undefined) return;
   try {
     updatePersonaDefaultStateValueByPersonaIdValidated(personaId, worldId, fieldKey, value_json);
     res.json({ success: true });

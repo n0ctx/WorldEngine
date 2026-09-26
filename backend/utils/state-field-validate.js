@@ -1,13 +1,4 @@
-/**
- * state-field-validate.js — 状态字段值类型校验（共享实现）
- *
- * 从 backend/memory/combined-state-updater.js 提取，供状态更新（回合内 LLM patch）
- * 与状态提取（人设一次性推断建议值）两处复用，避免同一套类型规则出现两份实现。
- *
- * 注意：backend/services/state-values.js 里的 validateStateValue 是另一套独立实现，
- * 服务于"用户在字段管理界面手填 value_json"场景（table 列级越界直接拒绝整条、无
- * list 超限硬截断），语义与这里的"LLM 输出宽松校验"不同，不在此合并。
- */
+/** LLM 状态建议校验；字段管理服务复用这里的数值和列表基础规则。 */
 
 import { STATE_LIST_MAX_ITEMS } from './constants.js';
 import { createLogger, formatMeta, previewText } from './logger.js';
@@ -16,7 +7,7 @@ const log = createLogger('state-validate');
 
 const ISO_DATETIME_RE = /^\d+-\d{2}-\d{2}T\d{2}:\d{2}$/;
 
-function validateNumberValue(value, field) {
+export function validateNumberValue(value, field) {
   const num = typeof value === 'number' ? value : Number(value);
   if (!Number.isFinite(num)) return undefined;
   if (field.min_value != null && num < field.min_value) return undefined;
@@ -24,7 +15,7 @@ function validateNumberValue(value, field) {
   return num;
 }
 
-function validateListValue(value, field) {
+export function parseListValue(value, field) {
   const items = typeof value === 'string'
     ? value.split(/[,，、]/).map((item) => item.trim()).filter(Boolean)
     : value;
@@ -32,6 +23,12 @@ function validateListValue(value, field) {
 
   const normalized = items.map(String).filter(Boolean);
   if (normalized.length === 0) return field.allow_empty ? [] : undefined;
+  return normalized;
+}
+
+function validateListValue(value, field) {
+  const normalized = parseListValue(value, field);
+  if (normalized === undefined || normalized.length === 0) return normalized;
   if (normalized.length > STATE_LIST_MAX_ITEMS) {
     log.warn(`LIST HARD TRUNCATE  ${formatMeta({ field: field.field_key, from: normalized.length, to: STATE_LIST_MAX_ITEMS })}`);
     return normalized.slice(-STATE_LIST_MAX_ITEMS);

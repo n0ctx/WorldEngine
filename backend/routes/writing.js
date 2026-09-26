@@ -35,6 +35,14 @@ import { createTurnHandlers } from '../app/shared/http/create-turn-handlers.js';
 const router = Router();
 const log = createLogger('writing');
 
+function worldJsonHandler(read) {
+  return (req, res) => {
+    const { worldId } = req.params;
+    const world = getWorldById(worldId);
+    if (!assertExists(res, world, 'World not found')) return;
+    res.json(read(worldId));
+  };
+}
 
 function handleNearbyError(err, res) {
   if (err && err.code === 'NEARBY_NAME_CONFLICT') {
@@ -78,19 +86,9 @@ const handlers = createTurnHandlers({
   logNs: 'writing',
 });
 
-router.get('/:worldId/writing-sessions', (req, res) => {
-  const { worldId } = req.params;
-  const world = getWorldById(worldId);
-  if (!assertExists(res, world, 'World not found')) return;
-  res.json(getActiveWritingSessionsByWorldId(worldId));
-});
+router.get('/:worldId/writing-sessions', worldJsonHandler(getActiveWritingSessionsByWorldId));
 
-router.post('/:worldId/writing-sessions', (req, res) => {
-  const { worldId } = req.params;
-  const world = getWorldById(worldId);
-  if (!assertExists(res, world, 'World not found')) return;
-  res.json(createWritingSession(worldId));
-});
+router.post('/:worldId/writing-sessions', worldJsonHandler(createWritingSession));
 
 router.delete('/:worldId/writing-sessions/:sessionId', async (req, res) => {
  const { sessionId } = req.params;
@@ -199,12 +197,7 @@ router.delete('/:worldId/writing-sessions/:sessionId/nearby/:nearbyId', (req, re
   }
 });
 
-router.get('/:worldId/characters', (req, res) => {
-  const { worldId } = req.params;
-  const world = getWorldById(worldId);
-  if (!assertExists(res, world, 'World not found')) return;
-  res.json(getCharactersByWorldId(worldId));
-});
+router.get('/:worldId/characters', worldJsonHandler(getCharactersByWorldId));
 
 router.post('/:worldId/writing-sessions/:sessionId/generate', handlers.generate({
   requireContent: false,

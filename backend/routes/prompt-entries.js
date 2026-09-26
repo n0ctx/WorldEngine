@@ -10,6 +10,13 @@ import { createLogger, formatMeta } from '../utils/logger.js';
 const router = Router();
 const log = createLogger('prompt-entries', 'cyan');
 
+function respondToKeywordScopeError(req, res, err) {
+  if (!(err instanceof KeywordScopeEmptyError)) return false;
+  log.warn(`prompt-entries.bad_request ${formatMeta({ method: req.method, path: req.path, reason: err.message, code: err.code })}`);
+  res.status(400).json({ error: err.message, code: err.code });
+  return true;
+}
+
 // ─── world entries ───────────────────────────────────────────────
 
 // GET /api/worlds/:worldId/entries
@@ -28,10 +35,7 @@ router.post('/worlds/:worldId/entries', (req, res) => {
     const entry = createWorldPromptEntry(req.params.worldId, { title, description, content, keywords, keyword_scope, trigger_type, condition_logic, keyword_logic, active_turns, sort_order, token, group_name });
     res.status(201).json(entry);
   } catch (err) {
-    if (err instanceof KeywordScopeEmptyError) {
-      log.warn(`prompt-entries.bad_request ${formatMeta({ method: req.method, path: req.path, reason: err.message, code: err.code })}`);
-      return res.status(400).json({ error: err.message, code: err.code });
-    }
+    if (respondToKeywordScopeError(req, res, err)) return;
     throw err;
   }
 });
@@ -75,10 +79,7 @@ router.put('/world-entries/:id', (req, res) => {
   try {
     entry = updateWorldPromptEntry(req.params.id, req.body);
   } catch (err) {
-    if (err instanceof KeywordScopeEmptyError) {
-      log.warn(`prompt-entries.bad_request ${formatMeta({ method: req.method, path: req.path, reason: err.message, code: err.code })}`);
-      return res.status(400).json({ error: err.message, code: err.code });
-    }
+    if (respondToKeywordScopeError(req, res, err)) return;
     throw err;
   }
   if (!assertExists(res, entry, 'Entry not found')) return;

@@ -5,6 +5,13 @@ function contentText(content) {
   return typeof content === 'string' ? content : (content || []).map((p) => p.text || '').join('');
 }
 
+function collectSystemMessage(msg, systemParts) {
+  if (msg.role !== 'system') return false;
+  const text = contentText(msg.content);
+  if (text) systemParts.push(text);
+  return true;
+}
+
 /**
  * 内部格式 → Anthropic Messages API 格式
  * system 消息提取到顶层，content 数组转 Anthropic block 格式
@@ -16,11 +23,7 @@ export function convertToAnthropicMessages(messages) {
   for (let i = 0; i < messages.length; i++) {
     const msg = messages[i];
 
-    if (msg.role === 'system') {
-      const text = contentText(msg.content);
-      if (text) systemParts.push(text);
-      continue;
-    }
+    if (collectSystemMessage(msg, systemParts)) continue;
 
     // OpenAI-format tool call → Anthropic tool_use blocks
     if (msg.role === 'assistant' && Array.isArray(msg.tool_calls) && msg.tool_calls.length > 0) {
@@ -95,11 +98,7 @@ export function convertToGeminiContents(messages) {
   for (let i = 0; i < messages.length; i++) {
     const msg = messages[i];
 
-    if (msg.role === 'system') {
-      const text = contentText(msg.content);
-      if (text) systemParts.push(text);
-      continue;
-    }
+    if (collectSystemMessage(msg, systemParts)) continue;
 
     // OpenAI-format tool call → Gemini functionCall parts
     if (msg.role === 'assistant' && Array.isArray(msg.tool_calls) && msg.tool_calls.length > 0) {
