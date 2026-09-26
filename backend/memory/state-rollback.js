@@ -34,6 +34,13 @@ function withoutNullValues(valueMap) {
   return Object.fromEntries(Object.entries(valueMap).filter(([, v]) => v != null));
 }
 
+function toStateValueRows(valueMap) {
+  return Object.entries(valueMap ?? {}).map(([fieldKey, runtimeValueJson]) => ({
+    fieldKey,
+    runtimeValueJson,
+  }));
+}
+
 /**
  * 捕获当前会话的三层状态快照（从 session_*_state_values 表读取）
  *
@@ -99,17 +106,11 @@ export function restoreStateFromSnapshot(sessionId, worldId, characterIds, snaps
   withSessionStateTransaction(() => {
     // 世界状态：先清空，再批量写入快照值。
     clearSessionWorldStateValues(sessionId);
-    upsertSessionWorldStateValues(sessionId, worldId, Object.entries(snapshot.world ?? {}).map(([fieldKey, runtimeValueJson]) => ({
-      fieldKey,
-      runtimeValueJson,
-    })));
+    upsertSessionWorldStateValues(sessionId, worldId, toStateValueRows(snapshot.world));
 
     // 玩家状态：先清空，再批量写入快照值。
     clearSessionPersonaStateValues(sessionId);
-    upsertSessionPersonaStateValues(sessionId, worldId, Object.entries(snapshot.persona ?? {}).map(([fieldKey, runtimeValueJson]) => ({
-      fieldKey,
-      runtimeValueJson,
-    })));
+    upsertSessionPersonaStateValues(sessionId, worldId, toStateValueRows(snapshot.persona));
 
     // 只替换本次会话中的角色状态，其他角色状态保持不变。
     clearSessionCharacterStateValuesByCharacterIds(sessionId, characterIds);
