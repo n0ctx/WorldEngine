@@ -18,12 +18,12 @@
 ## CSS 片段
 
 - 所有启用的片段全局生效，没有按世界区分。chat 片段只放聊天界面的样式，写作界面的样式放 writing 片段。
-- 颜色、圆角、阴影用 `var(--we-color-*)` 等语义 token，不写裸 hex；不写渐变、发光、毛玻璃。
-- 常用类名：聊天 `.we-message-bubble-assistant` / `.we-message-bubble-user` / `.we-message-content` / `.we-think-block`；写作 `.we-writing-prose` / `.we-writing-think`；面板 `.we-panel-card`。不确定类名就不要凭猜测写深层选择器。
+- 颜色、圆角、阴影用 `var(--we-color-*)` 等语义 token，不写裸 hex。
+- 常用类名：聊天 `.we-message-bubble-assistant` / `.we-message-bubble-user` / `.we-message-content` / `.we-think-block`；写作 `.we-writing-prose` / `.we-writing-think`；面板 `.we-panel-card`。要改的元素不在这个列表里时，不猜类名写深层选择器，告诉用户目前没有可靠的类名可用。
 
 ## 正则规则
 
 - scope：只改显示效果用 `display_only`（不影响历史和模型）；只在发给模型前替换用 `prompt_only`；永久改写 AI 输出用 `ai_output`；改写用户输入用 `user_input`。
 - 包裹 `<think>` 这类纯展示需求用 `display_only`，不要用 `ai_output` 污染历史。
-- pattern 尽量窄，避免误伤正常文本；跨行匹配用 `[\s\S]*?`。
+- pattern 只匹配要改的那段，用固定标记锚定起止（如 `<think>` 和 `</think>`），不写能匹配整段正文的模式；跨行匹配用 `[\s\S]*?`。
 - 只对当前世界生效时设 `world_only: true`，否则全局生效。

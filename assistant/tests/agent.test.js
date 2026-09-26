@@ -87,6 +87,7 @@ test('buildSystemPrompt 附带参考文档清单与当前位置', async () => {
   const prompt = await buildSystemPrompt({ worldId: world.id, characterId: null });
   assert.match(prompt, /doc:world/);
   assert.match(prompt, /doc:world-setting — 世界设定写法/);
+  assert.match(prompt, /doc:prompt — 指令类文本写法/);
   assert.match(prompt, /doc:theme-tokens/);
   assert.match(prompt, new RegExp(`当前世界：world:${world.id}（雾港）`));
   const empty = await buildSystemPrompt({ worldId: null, characterId: null });
