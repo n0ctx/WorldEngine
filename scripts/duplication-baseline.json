@@ -2,13 +2,6 @@
   "version": 1,
   "minTokens": 40,
   "duplicates": {
-    "0006af89e2427457": {
-      "tokens": 87,
-      "locations": [
-        "frontend/src/pages/WritingSpacePage/components/NearbyPanel.jsx:123-130",
-        "frontend/src/pages/WritingSpacePage/components/NearbyPanel.jsx:140-143"
-      ]
-    },
     "05aa305f982abe5a": {
       "tokens": 75,
       "locations": [
@@ -30,42 +23,6 @@
         "frontend/src/core/constants/settings.js:160-165"
       ]
     },
-    "0f4a79e24e2de258": {
-      "tokens": 51,
-      "locations": [
-        "frontend/src/pages/WorldEditPage.jsx:116-120",
-        "frontend/src/pages/WorldsPage.jsx:145-149"
-      ]
-    },
-    "101d853520709fbe": {
-      "tokens": 81,
-      "locations": [
-        "backend/services/state-values.js:50-56",
-        "backend/utils/state-field-validate.js:28-34"
-      ]
-    },
-    "141bc4cf776eb99d": {
-      "tokens": 121,
-      "locations": [
-        "frontend/src/core/api/custom-css-snippets.js:12-26",
-        "frontend/src/core/api/regex-rules.js:14-28",
-        "frontend/src/core/api/worlds.js:13-27"
-      ]
-    },
-    "15ac2b7d40b52e3d": {
-      "tokens": 92,
-      "locations": [
-        "frontend/src/components/chat/MessageItem.jsx:176-190",
-        "frontend/src/components/writing/WritingMessageItem.jsx:76-90"
-      ]
-    },
-    "2719d59e5014da6d": {
-      "tokens": 76,
-      "locations": [
-        "frontend/src/components/settings/ProviderSafetyPanel.jsx:35-38",
-        "frontend/src/components/ui/ProviderSafetyBanner.jsx:60-63"
-      ]
-    },
     "2a4b98e5e9ab8e01": {
       "tokens": 57,
       "locations": [
@@ -73,32 +30,11 @@
         "backend/routes/config.js:291-297"
       ]
     },
-    "3614cc176dc82f57": {
-      "tokens": 62,
-      "locations": [
-        "frontend/src/components/state/StatusSection.jsx:17-24",
-        "frontend/src/components/state/StatusSection.jsx:46-55"
-      ]
-    },
-    "429d849f6f39cc43": {
-      "tokens": 48,
-      "locations": [
-        "frontend/src/components/chat/MessageItem.jsx:250-255",
-        "frontend/src/components/writing/WritingMessageItem.jsx:131-136"
-      ]
-    },
-    "4374904c90b956da": {
-      "tokens": 62,
-      "locations": [
-        "backend/routes/persona-state-values.js:36-40",
-        "backend/routes/persona-state-values.js:68-72"
-      ]
-    },
     "48700827ca3d34bb": {
       "tokens": 43,
       "locations": [
         "backend/routes/characters.js:120-122",
-        "backend/routes/personas.js:63-65"
+        "backend/routes/personas.js:66-68"
       ]
     },
     "49d44c86803242b5": {
@@ -108,84 +44,6 @@
         "backend/llm/providers/openai-compatible/index.js:185-192"
       ]
     },
-    "4d73fc0bf7c5e50e": {
-      "tokens": 67,
-      "locations": [
-        "frontend/src/components/state/StateFieldEditorFields.jsx:175-179",
-        "frontend/src/components/state/StateFieldEditorFields.jsx:228-232"
-      ]
-    },
-    "4f6adf658660f0c5": {
-      "tokens": 41,
-      "locations": [
-        "frontend/src/components/chat/ChapterDivider.jsx:64-66",
-        "frontend/src/components/session/WorldTimelinePanel.jsx:91-93"
-      ]
-    },
-    "505b3f576740ab5f": {
-      "tokens": 57,
-      "locations": [
-        "frontend/src/components/ui/MarkdownEditorInner.jsx:51-52",
-        "frontend/src/components/ui/MarkdownEditorInner.jsx:56-57"
-      ]
-    },
-    "52d6c647abbd5222": {
-      "tokens": 60,
-      "locations": [
-        "frontend/src/core/hooks/useSettingsDiaryConfig.js:19-27",
-        "frontend/src/core/hooks/useSettingsDiaryConfig.js:29-37"
-      ]
-    },
-    "57bf6f365cf8f334": {
-      "tokens": 42,
-      "locations": [
-        "frontend/src/pages/CharactersPage.jsx:590-593",
-        "frontend/src/pages/CharactersPage.jsx:595-598"
-      ]
-    },
-    "57f14edfd5b49ebe": {
-      "tokens": 72,
-      "locations": [
-        "backend/services/state-extract.js:161-169",
-        "backend/services/state-extract.js:194-202"
-      ]
-    },
-    "5835560437ea07ee": {
-      "tokens": 66,
-      "locations": [
-        "frontend/src/pages/CharacterEditPage/index.jsx:43-48",
-        "frontend/src/pages/WorldEditPage.jsx:56-61"
-      ]
-    },
-    "5c0a3249ee5d21d5": {
-      "tokens": 40,
-      "locations": [
-        "backend/llm/providers/mock/index.js:101-106",
-        "backend/llm/providers/mock/index.js:113-118"
-      ]
-    },
-    "5f58aec9e99ce1a9": {
-      "tokens": 41,
-      "locations": [
-        "backend/routes/writing.js:203-206",
-        "backend/routes/writing.js:82-85",
-        "backend/routes/writing.js:89-92"
-      ]
-    },
-    "69cfc63422d4c8c3": {
-      "tokens": 72,
-      "locations": [
-        "backend/routes/prompt-entries.js:31-35",
-        "backend/routes/prompt-entries.js:78-82"
-      ]
-    },
-    "6edb08cf7241ca11": {
-      "tokens": 40,
-      "locations": [
-        "backend/services/import-export.js:756-758",
-        "backend/services/import-export.js:765-767"
-      ]
-    },
     "70829e14b49c934b": {
       "tokens": 46,
       "locations": [
@@ -193,118 +51,18 @@
         "frontend/src/components/ui/ConfirmModal.jsx:25-34"
       ]
     },
-    "79f5fa016c8e29d5": {
-      "tokens": 63,
-      "locations": [
-        "frontend/src/core/hooks/useMemoryIndicators.js:27-31",
-        "frontend/src/core/hooks/useMemoryIndicators.js:38-42"
-      ]
-    },
-    "7c3f93a911bdc74b": {
-      "tokens": 50,
-      "locations": [
-        "frontend/src/components/settings/ImportExportPanel.jsx:54-60",
-        "frontend/src/components/settings/ImportExportPanel.jsx:95-101"
-      ]
-    },
-    "7f5b5fd4bc6da876": {
-      "tokens": 50,
-      "locations": [
-        "frontend/src/core/hooks/useSettingsPromptConfig.js:168-176",
-        "frontend/src/core/hooks/useSettingsPromptConfig.js:178-186"
-      ]
-    },
-    "8196c6b1bd743732": {
-      "tokens": 48,
-      "locations": [
-        "frontend/src/pages/CharacterEditPage/index.jsx:48-50",
-        "frontend/src/pages/CharacterEditPage/index.jsx:49-51",
-        "frontend/src/pages/PersonaEditPage.jsx:58-60"
-      ]
-    },
-    "895f9cc511791b7a": {
-      "tokens": 70,
-      "locations": [
-        "frontend/src/pages/CharacterEditPage/index.jsx:46-49",
-        "frontend/src/pages/PersonaEditPage.jsx:57-60"
-      ]
-    },
     "8c6338f3b7c3e4de": {
       "tokens": 52,
       "locations": [
         "backend/db/queries/entry-conditions.js:18-20",
-        "backend/db/queries/session-nearby-character-state-values.js:47-49"
-      ]
-    },
-    "94eaad8bb6c71c85": {
-      "tokens": 47,
-      "locations": [
-        "frontend/src/components/chat/MessageItem.jsx:161-166",
-        "frontend/src/components/writing/WritingMessageItem.jsx:58-63"
-      ]
-    },
-    "993a4daa08ce0638": {
-      "tokens": 44,
-      "locations": [
-        "frontend/src/pages/ChatPage/index.jsx:114-116",
-        "frontend/src/pages/WritingSpacePage/index.jsx:49-51"
-      ]
-    },
-    "99cf326a35a2b334": {
-      "tokens": 93,
-      "locations": [
-        "frontend/src/components/chat/MessageItem.jsx:367-381",
-        "frontend/src/components/writing/WritingMessageItem.jsx:227-241"
+        "backend/db/queries/session-nearby-character-state-values.js:52-54"
       ]
     },
     "99dec6c4a3d783f6": {
       "tokens": 41,
       "locations": [
         "backend/routes/session-state-values.js:48-51",
-        "backend/routes/sessions.js:139-144"
-      ]
-    },
-    "9da04639ad246588": {
-      "tokens": 65,
-      "locations": [
-        "backend/services/state-values.js:94-98",
-        "backend/utils/state-field-validate.js:20-24"
-      ]
-    },
-    "9fc4651f1834083b": {
-      "tokens": 47,
-      "locations": [
-        "frontend/src/core/utils/think-blocks.js:36-40",
-        "frontend/src/core/utils/think-blocks.js:79-83"
-      ]
-    },
-    "a661135b9b963308": {
-      "tokens": 85,
-      "locations": [
-        "frontend/src/components/settings/ProviderSafetyPanel.jsx:126-130",
-        "frontend/src/components/settings/ProviderSafetyPanel.jsx:132-136"
-      ]
-    },
-    "ab597ad2e610b08a": {
-      "tokens": 49,
-      "locations": [
-        "backend/llm/providers/mock/index.js:33-36",
-        "backend/llm/providers/mock/index.js:41-44"
-      ]
-    },
-    "aca58889bbddbd8d": {
-      "tokens": 40,
-      "locations": [
-        "assistant/server/normalize-proposal.js:1173-1177",
-        "assistant/server/normalize-proposal.js:1178-1182"
-      ]
-    },
-    "b4366adfdb774e31": {
-      "tokens": 50,
-      "locations": [
-        "frontend/src/core/hooks/useSettingsPromptConfig.js:141-149",
-        "frontend/src/core/hooks/useSettingsPromptConfig.js:173-181",
-        "frontend/src/core/hooks/useSettingsPromptConfig.js:183-191"
+        "backend/routes/sessions.js:133-138"
       ]
     },
     "b5a826c4ce5233e5": {
@@ -313,34 +71,6 @@
         "backend/llm/providers/anthropic/index.js:288-290",
         "backend/llm/providers/gemini/index.js:270-272",
         "backend/llm/providers/openai-compatible/index.js:285-287"
-      ]
-    },
-    "b6ff40e41499f3e9": {
-      "tokens": 46,
-      "locations": [
-        "frontend/src/components/settings/ProviderSafetyPanel.jsx:139-143",
-        "frontend/src/components/state/StateExtractPreviewModal.jsx:99-103"
-      ]
-    },
-    "be7347cdea8165e1": {
-      "tokens": 54,
-      "locations": [
-        "frontend/src/components/state/useEntryEditorData.js:38-45",
-        "frontend/src/pages/CharactersPage.jsx:414-421"
-      ]
-    },
-    "c578aba74f9cc897": {
-      "tokens": 45,
-      "locations": [
-        "backend/routes/personas.js:125-130",
-        "backend/routes/personas.js:52-57"
-      ]
-    },
-    "c7339eca66641044": {
-      "tokens": 57,
-      "locations": [
-        "backend/routes/writing.js:81-86",
-        "backend/routes/writing.js:88-93"
       ]
     },
     "d829b565ae0ceefd": {
@@ -367,15 +97,8 @@
     "dfc42a79ae6558f0": {
       "tokens": 43,
       "locations": [
-        "frontend/src/components/chat/MessageItem.jsx:218-221",
-        "frontend/src/components/writing/WritingMessageItem.jsx:139-142"
-      ]
-    },
-    "e66cd5b9b5ea6961": {
-      "tokens": 41,
-      "locations": [
-        "backend/llm/providers/_shared/converters.js:17-23",
-        "backend/llm/providers/_shared/converters.js:96-102"
+        "frontend/src/components/chat/MessageItem.jsx:201-204",
+        "frontend/src/components/writing/WritingMessageItem.jsx:122-125"
       ]
     },
     "f1894470420479ca": {
@@ -391,14 +114,7 @@
         "frontend/src/components/settings/CustomCssManager.jsx:52-57",
         "frontend/src/components/settings/ThemeManager.jsx:37-42",
         "frontend/src/components/state/StateFieldList.jsx:44-49",
-        "frontend/src/pages/WorldsPage.jsx:138-143"
-      ]
-    },
-    "f8452af8b943fec7": {
-      "tokens": 67,
-      "locations": [
-        "frontend/src/pages/ChatPage/index.jsx:117-124",
-        "frontend/src/pages/WritingSpacePage/index.jsx:56-62"
+        "frontend/src/pages/WorldsPage.jsx:139-144"
       ]
     }
   }
