@@ -62,8 +62,13 @@ export function clearSingleCharacterSessionStateValues(sessionId, characterId) {
 /** 一次清空指定角色的会话运行时状态。 */
 export function clearSessionCharacterStateValuesByCharacterIds(sessionId, characterIds) {
   if (characterIds.length === 0) return;
-  const placeholders = characterIds.map(() => '?').join(', ');
-  db.prepare(
-    `DELETE FROM session_character_state_values WHERE session_id = ? AND character_id IN (${placeholders})`,
-  ).run(sessionId, ...characterIds);
+  const idsPerStatement = 899;
+  // guard-allow(perf-shape): 每批留一个绑定参数给 sessionId，单条语句不超过 900 个参数。
+  for (let offset = 0; offset < characterIds.length; offset += idsPerStatement) {
+    const ids = characterIds.slice(offset, offset + idsPerStatement);
+    const placeholders = ids.map(() => '?').join(', ');
+    db.prepare(
+      `DELETE FROM session_character_state_values WHERE session_id = ? AND character_id IN (${placeholders})`,
+    ).run(sessionId, ...ids);
+  }
 }
