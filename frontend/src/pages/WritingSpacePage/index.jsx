@@ -1,224 +1,33 @@
-import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { syncDiaryTimeField } from '../../core/api/world-state-fields.js';
-import { useAppModeStore } from '../../core/state/appMode.js';
-import { SETTINGS_MODE } from '../../core/constants/settings';
-import { refreshCustomCss } from '../../core/api/custom-css-snippets.js';
-import { getPersona, getPersonaById } from '../../core/api/personas.js';
-import useStore from '../../core/state/index.js';
-import useCurrentStoryStore from '../../core/state/currentStory.js';
-import { listWritingSessions, createWritingSession } from '../../core/api/writing-sessions.js';
-import { getSession } from '../../core/api/sessions.js';
 import PageLayout from '../layout/PageLayout.jsx';
 import NearbyPanel from './components/NearbyPanel.jsx';
-import MessageList from '../../components/chat/MessageList.jsx';
-import InputBox from '../../components/chat/InputBox.jsx';
-import Pager from '../../components/chat/Pager.jsx';
-import ProviderSafetyBanner from '../../components/ui/ProviderSafetyBanner.jsx';
 import WorldTimelinePanel from '../../components/session/WorldTimelinePanel.jsx';
-import LongTermMemoryModal from '../../components/session/LongTermMemoryModal.jsx';
-import TableMemoryModal from '../../components/session/TableMemoryModal.jsx';
 import Icon from '../../components/ui/Icon.jsx';
-import { AnimatePresence } from 'framer-motion';
 import { log } from '../../core/utils/logger.js';
-import { writingSessionListBridge } from '../../core/utils/session-list-bridge.js';
 import { usePageConfig } from '../../core/hooks/usePageConfig.js';
 import { useConversationPageState } from '../../core/hooks/useConversationPageState.js';
 import { useWritingStream } from './hooks/useWritingStream.js';
+import WritingSpaceConversationPane from './components/WritingSpaceConversationPane.jsx';
+import { useWritingSpaceLifecycle, useWritingSpaceMode } from './hooks/useWritingSpaceLifecycle.js';
 
 export default function WritingSpacePage() {
   const { worldId } = useParams();
   const navigate = useNavigate();
-  const setAppMode = useAppModeStore((s) => s.setAppMode);
-  const currentWritingSessionId = useStore((s) => s.currentWritingSessionId);
-  const setCurrentWritingSessionId = useStore((s) => s.setCurrentWritingSessionId);
+  const config = usePageConfig('writing');
+  useWritingSpaceMode();
 
-  const { ltmEnabled, tableMemoryEnabled, chapterTurnSize, pageTurnSize } = usePageConfig('writing');
-
-  useEffect(() => {
-    setAppMode(SETTINGS_MODE.WRITING);
-    refreshCustomCss(SETTINGS_MODE.WRITING);
-    return () => {
-      setAppMode(SETTINGS_MODE.CHAT);
-      refreshCustomCss(SETTINGS_MODE.CHAT);
-    };
-  }, [setAppMode]);
-
-  const [persona, setPersona] = useState(null);
-  const {
-    ltmOpen, setLtmOpen, tmOpen, setTmOpen, pageInfo, setPageInfo,
-    inputBoxRef, messageListRef, memory,
-  } = useConversationPageState();
-  const [isInitializing, setIsInitializing] = useState(false);
-  const [initError, setInitError] = useState(null);
-  const [initRetryToken, setInitRetryToken] = useState(0);
+  const pageState = useConversationPageState();
+  const { inputBoxRef, messageListRef, memory } = pageState;
 
   const { memoryRecalling, memoryExpanding, memoryWriting, recallSummary } = memory;
 
   const stream = useWritingStream({ worldId, messageListRef, inputBoxRef, memory });
+  const lifecycle = useWritingSpaceLifecycle({ worldId, stream, log });
+  const { persona } = lifecycle;
   const {
-    currentSession,
-    setCurrentSession,
-    generating,
-    streamingText,
-    streamingKey,
-    continuingMessageId,
-    continuingText,
-    error,
-    currentOptions,
-    setCurrentOptions,
-    optionCollapsed,
-    setOptionCollapsed,
-    chapterTitles,
-    messageListKey,
-    setPendingDiaryInject,
-    impersonating,
-    stateTick,
-    diaryTick,
-    stateQueuedTick,
-    stateFailedTick,
-    savedRecallTick,
-    savedRecallHits,
-    clearOptionsState,
-    enterSession,
-    handleSessionCreate,
-    handleStop,
-    handleSend,
-    handleEditMessage,
-    handleRegenerateMessage,
-    handleRetryAfterError,
-    handleEditAssistantMessage,
-    handleDeleteMessage,
-    handleContinue,
-    handleImpersonate,
-    handleRetitle,
-    handleChapterEdit,
-    handleChapterRetitle,
-    selectOption,
-    handleMessagesLoaded,
+    currentSession, setCurrentSession, setPendingDiaryInject, stateTick, diaryTick,
+    stateQueuedTick, stateFailedTick, savedRecallTick, savedRecallHits,
   } = stream;
-
-  useEffect(() => {
-    if (!worldId) return;
-    const timeoutId = setTimeout(() => {
-      clearOptionsState();
-      // writing session 自带 persona_id；session 加载完成后再由专门 effect 同步 persona 头像
-      // 此处先按世界 active persona 兜底渲染，避免顶栏闪空
-      getPersona(worldId).then(setPersona).catch(() => {});
-      syncDiaryTimeField(worldId).catch(() => {});
-    }, 0);
-    return () => clearTimeout(timeoutId);
-    // clearOptionsState 为流 hook 内的命令式重置入口，跟随 worldId 触发即可，不需要进 deps
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [worldId]);
-
-  // session 切换时，按 session.persona_id 重新加载 persona 头像/名字
-  useEffect(() => {
-    const personaId = currentSession?.persona_id;
-    if (!personaId) return;
-    getPersonaById(personaId).then(setPersona).catch(() => {});
-  }, [currentSession?.persona_id]);
-
-  // 当前故事线标题同步给 TopBar 面包屑；离开页面清空，避免残留
-  const setStoryTitle = useCurrentStoryStore((s) => s.setStoryTitle);
-  useEffect(() => {
-    setStoryTitle(currentSession?.title || null);
-  }, [currentSession?.title, setStoryTitle]);
-  useEffect(() => () => setStoryTitle(null), [setStoryTitle]);
-
-  // 初始化：加载或自动创建第一个会话
-  // 若 currentWritingSessionId 给了目标 session（来自 TopBar「会话」入口），优先选它；
-  // 命中失败/无 hint 时落到 sessions[0]（列表已按 updated_at DESC 排序，即最新一条）。
-  useEffect(() => {
-    if (!worldId) return;
-    let cancelled = false;
-    Promise.resolve().then(() => {
-      if (cancelled) return;
-      setIsInitializing(true);
-      setInitError(null);
-    });
-    listWritingSessions(worldId).then((sessions) => {
-      if (cancelled) return;
-      const hintId = useStore.getState().currentWritingSessionId;
-      if (sessions.length === 0) {
-        createWritingSession(worldId).then((s) => {
-          if (cancelled) return;
-          writingSessionListBridge.addSession?.(s);
-          enterSession(s);
-          setIsInitializing(false);
-        }).catch((err) => {
-          if (cancelled) return;
-          log.error('writing.session.create_failed', err, { toast: err.message || '创建写作会话失败' });
-          setInitError('创建写作会话失败，请重试');
-          setIsInitializing(false);
-        });
-        return;
-      }
-      const target = (hintId && sessions.find((s) => s.id === hintId)) || sessions[0];
-      enterSession(target);
-      setIsInitializing(false);
-    }).catch((err) => {
-      if (cancelled) return;
-      log.error('writing.session.list_failed', err, { toast: err.message || '加载写作会话失败' });
-      setInitError('加载写作会话失败，请重试');
-      setIsInitializing(false);
-    });
-    return () => {
-      cancelled = true;
-    };
-    // enterSession is intentionally kept as the page-level imperative transition used by stream callbacks.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [worldId, initRetryToken]);
-
-  // 已在写作页时 TopBar 再次下发「会话」hint：切到目标 session 后清空 hint。
-  // 与 init 效应配合：若 hint 在 mount 时已被 init 消费命中，进入此效应后 ids 相同直接清 hint；
-  // 不一致（用户在另一会话编辑期间，目标 session 的 updated_at 已变成更新一条）则按 id 拉取并切换。
-  useEffect(() => {
-    if (!currentWritingSessionId) return;
-    if (!currentSession) return;
-    if (currentSession.id === currentWritingSessionId) {
-      setCurrentWritingSessionId(null);
-      return;
-    }
-    let cancelled = false;
-    getSession(currentWritingSessionId).then((s) => {
-      if (cancelled) return;
-      if (s && s.mode === 'writing') enterSession(s);
-    }).catch(() => {}).finally(() => {
-      if (!cancelled) setCurrentWritingSessionId(null);
-    });
-    return () => { cancelled = true; };
-    // enterSession 是 page 内命令式入口，跟 store setter 一样不需要进 deps
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentWritingSessionId, currentSession]);
-
-  // 新建写作会话：创建后通过 bridge 合并进左侧时间线，再进入该会话
-  async function handleCreateWritingSession() {
-    try {
-      const session = await createWritingSession(worldId);
-      writingSessionListBridge.addSession?.(session);
-      handleSessionCreate(session);
-    } catch (e) {
-      log.error('session.create_failed', e, { toast: e.message || '创建会话失败' });
-    }
-  }
-
-  // 内联删除的正是当前打开的写作会话：写作页不允许「无会话」态，落到剩余会话里最新一条，
-  // 一条都不剩就照 init 逻辑自动新建一条——与 useWritingStream 原 handleSessionDelete 的不变量一致。
-  async function handleActiveWritingSessionDeleted() {
-    try {
-      const sessions = await listWritingSessions(worldId);
-      if (sessions.length > 0) {
-        enterSession(sessions[0]);
-        return;
-      }
-      const s = await createWritingSession(worldId);
-      writingSessionListBridge.addSession?.(s);
-      enterSession(s);
-    } catch (err) {
-      log.error('writing.session.delete_recover_failed', err, { toast: '恢复写作会话失败' });
-    }
-  }
 
   return (
     <PageLayout
@@ -229,10 +38,10 @@ export default function WritingSpacePage() {
           worldId={worldId}
           currentMode="writing"
           currentSessionId={currentSession?.id}
-          onActiveSessionDeleted={handleActiveWritingSessionDeleted}
+          onActiveSessionDeleted={lifecycle.handleActiveWritingSessionDeleted}
           onActiveSessionRenamed={(title) => setCurrentSession((prev) => (prev ? { ...prev, title } : prev))}
           headerRight={(
-            <button onClick={handleCreateWritingSession} className="we-session-list-create" aria-label="新建会话">
+            <button onClick={lifecycle.handleCreateWritingSession} className="we-session-list-create" aria-label="新建会话">
               <Icon size={16} strokeWidth="2.5">
                 <line x1="12" y1="5" x2="12" y2="19" />
                 <line x1="5" y1="12" x2="19" y2="12" />
@@ -244,138 +53,14 @@ export default function WritingSpacePage() {
       )}
       recall={{ memoryRecalling, memoryExpanding, memoryWriting, recallSummary }}
       main={(
-        <div className="we-chat-center-pane flex-1 min-w-0 flex flex-col overflow-hidden relative">
-            <AnimatePresence>
-              {ltmEnabled && ltmOpen && currentSession && (
-                <LongTermMemoryModal
-                  key="ltm-modal"
-                  sessionId={currentSession.id}
-                  onClose={() => setLtmOpen(false)}
-                />
-              )}
-              {tableMemoryEnabled && tmOpen && currentSession && (
-                <TableMemoryModal
-                  key="tm-modal"
-                  sessionId={currentSession.id}
-                  onClose={() => setTmOpen(false)}
-                />
-              )}
-            </AnimatePresence>
-
-            <div className="we-chat-pane-nav">
-              <button
-                onClick={() => navigate(`/worlds/${worldId}`)}
-                className="we-chat-pane-back"
-              >
-                <Icon size={14}>
-                  <polyline points="15 18 9 12 15 6" />
-                </Icon>
-                返回世界
-              </button>
-            </div>
-
-            {isInitializing ? (
-              <div className="flex-1 flex items-center justify-center text-sm text-[var(--we-color-text-secondary)] opacity-60">
-                正在准备写作空间…
-              </div>
-            ) : initError ? (
-              <div className="flex-1 flex flex-col items-center justify-center gap-3 px-6 text-center">
-                <p className="text-sm text-[var(--we-color-text-danger)]">{initError}</p>
-                <button
-                  type="button"
-                  className="we-panel-card-action we-panel-card-action--chip"
-                  onClick={() => setInitRetryToken((token) => token + 1)}
-                >
-                  重试
-                </button>
-              </div>
-            ) : (
-              <MessageList
-                ref={messageListRef}
-                key={`${currentSession?.id}-${messageListKey}`}
-                sessionId={currentSession?.id}
-                character={null}
-                persona={persona}
-                worldId={worldId}
-                generating={generating}
-                streamingText={streamingText}
-                streamingKey={streamingKey}
-                continuingMessageId={continuingMessageId}
-                continuingText={continuingText}
-                onEditMessage={handleEditMessage}
-                onRegenerateMessage={handleRegenerateMessage}
-                onEditAssistantMessage={handleEditAssistantMessage}
-                onDeleteMessage={handleDeleteMessage}
-                prose
-                chapterTitles={chapterTitles}
-                onChapterEdit={handleChapterEdit}
-                onChapterRetitle={handleChapterRetitle}
-                options={currentOptions}
-                onSelectOption={selectOption}
-                onDismissOptions={() => setCurrentOptions([])}
-                optionCollapsed={optionCollapsed}
-                onOptionCollapsedChange={setOptionCollapsed}
-                onMessagesLoaded={handleMessagesLoaded}
-                chapterTurnSize={chapterTurnSize}
-                pageTurnSize={pageTurnSize}
-                onPageInfoChange={setPageInfo}
-              />
-            )}
-
-            {/* 错误气泡:生成失败时保留可见,显示部分内容并提供重试入口 */}
-            {error && !generating && (
-              <div className="we-writing-error-bar">
-                {error.partialContent && (
-                  <div className="we-writing-error-partial">{error.partialContent}</div>
-                )}
-                <div className="we-writing-error-row">
-                  <span className="we-writing-error-text we-field-error">
-                    生成失败：{error.errorMsg}
-                  </span>
-                  <button
-                    type="button"
-                    className="we-writing-error-retry"
-                    onClick={handleRetryAfterError}
-                  >
-                    <Icon size={16}>
-                      <polyline points="1 4 1 10 7 10" />
-                      <path d="M3.51 15a9 9 0 1 0 .49-4.98" />
-                    </Icon>
-                    重新生成
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* Provider 安全信号横幅 */}
-            <ProviderSafetyBanner />
-
-            {/* 输入区 */}
-            <InputBox
-              ref={inputBoxRef}
-              onSend={handleSend}
-              onStop={handleStop}
-              generating={generating}
-              impersonating={impersonating}
-              lastUserContent=""
-              worldId={worldId}
-              sessionId={currentSession?.id}
-              mode="writing"
-              onScrollToBottom={() => messageListRef.current?.scrollPageToBottom?.()}
-              onContinue={handleContinue}
-              onImpersonate={handleImpersonate}
-              onTitle={handleRetitle}
-              onLongTermMemory={ltmEnabled && currentSession ? () => setLtmOpen(true) : null}
-              onTableMemory={tableMemoryEnabled && currentSession ? () => setTmOpen(true) : null}
-              pagerSlot={(
-                <Pager
-                  totalPages={pageInfo.totalPages}
-                  currentPage={pageInfo.currentPage}
-                  onChange={(idx) => messageListRef.current?.setPage?.(idx)}
-                />
-              )}
-            />
-        </div>
+        <WritingSpaceConversationPane
+          worldId={worldId}
+          navigate={navigate}
+          config={config}
+          pageState={pageState}
+          lifecycle={lifecycle}
+          stream={stream}
+        />
       )}
       right={(
         <NearbyPanel
