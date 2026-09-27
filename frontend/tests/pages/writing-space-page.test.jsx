@@ -11,7 +11,11 @@ const mocks = vi.hoisted(() => {
     };
   }
 
-  const WritingSessionListMock = () => <div data-testid="session-list" />;
+  const WritingSessionListMock = ({ onActiveSessionDeleted }) => (
+    <div data-testid="session-list">
+      <button onClick={onActiveSessionDeleted}>delete-active-session</button>
+    </div>
+  );
   WritingSessionListMock.addSession = vi.fn();
   WritingSessionListMock.updateTitle = vi.fn();
 
@@ -213,6 +217,26 @@ describe('WritingSpacePage', () => {
 
     await waitFor(() => expect(mocks.listWritingSessions.mock.calls.length).toBeGreaterThanOrEqual(2));
     expect(await screen.findByTestId('message-list')).toHaveTextContent('ws-2');
+  });
+
+  it('删除当前写作会话后切到剩余会话，没有剩余会话时自动补建', async () => {
+    mocks.listWritingSessions
+      .mockResolvedValueOnce([{ id: 'ws-1', title: '章节一' }])
+      .mockResolvedValueOnce([{ id: 'ws-2', title: '章节二' }])
+      .mockResolvedValueOnce([]);
+    mocks.createWritingSession.mockResolvedValueOnce({ id: 'ws-3', title: null });
+
+    renderWritingSpacePage();
+
+    await waitFor(() => expect(screen.getByTestId('message-list')).toHaveTextContent('ws-1'));
+    fireEvent.click(screen.getByRole('button', { name: '展开会话列表' }));
+    await screen.findByTestId('session-list');
+    fireEvent.click(screen.getByText('delete-active-session'));
+    await waitFor(() => expect(screen.getByTestId('message-list')).toHaveTextContent('ws-2'));
+
+    fireEvent.click(screen.getByText('delete-active-session'));
+    await waitFor(() => expect(screen.getByTestId('message-list')).toHaveTextContent('ws-3'));
+    expect(mocks.createWritingSession).toHaveBeenCalledWith('world-1');
   });
 
   it('writing continue 在 onStreamEnd 前不会允许重复触发', async () => {
