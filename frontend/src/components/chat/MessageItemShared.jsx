@@ -68,7 +68,7 @@ export function MarkdownContent({ children }) {
   );
 }
 
-export function ThinkBlock({ content, open = false, streaming = false, caret = false, interrupted = false }) {
+function ThinkBlock({ content, open = false, streaming = false, caret = false, interrupted = false }) {
   const autoCollapse = useDisplaySettingsStore((s) => s.autoCollapseThinking);
   const [userToggled, setUserToggled] = useState(false);
   const [userExpanded, setUserExpanded] = useState(!autoCollapse);

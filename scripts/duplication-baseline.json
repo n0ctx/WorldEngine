@@ -97,7 +97,7 @@
     "dfc42a79ae6558f0": {
       "tokens": 43,
       "locations": [
-        "frontend/src/components/chat/MessageItem.jsx:201-204",
+        "frontend/src/components/chat/MessageItem.jsx:29-32",
         "frontend/src/components/writing/WritingMessageItem.jsx:122-125"
       ]
     },
@@ -113,8 +113,7 @@
       "locations": [
         "frontend/src/components/settings/CustomCssManager.jsx:52-57",
         "frontend/src/components/settings/ThemeManager.jsx:37-42",
-        "frontend/src/components/state/StateFieldList.jsx:44-49",
-        "frontend/src/pages/WorldsPage.jsx:139-144"
+        "frontend/src/components/state/StateFieldList.jsx:44-49"
       ]
     }
   }

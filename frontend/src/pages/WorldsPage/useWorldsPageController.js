@@ -46,9 +46,7 @@ export function useWorldsPageController() {
   }, []);
 
   useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      void loadWorlds();
-    }, 0);
+    const timeoutId = setTimeout(loadWorlds, 0);
     return () => clearTimeout(timeoutId);
   }, [loadWorlds, reloadKey]);
 
