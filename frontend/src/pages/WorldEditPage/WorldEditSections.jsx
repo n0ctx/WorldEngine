@@ -1,22 +1,22 @@
-import StateFieldList from '../components/state/StateFieldList';
-import AvatarUpload from '../components/ui/AvatarUpload';
-import Button from '../components/ui/Button';
-import FormGroup from '../components/ui/FormGroup';
-import Input from '../components/ui/Input';
-import SectionTabs from '../components/ui/SectionTabs.jsx';
-import ToggleSwitch from '../components/ui/ToggleSwitch';
+import StateFieldList from '../../components/state/StateFieldList';
+import AvatarUpload from '../../components/ui/AvatarUpload';
+import Button from '../../components/ui/Button';
+import FormGroup from '../../components/ui/FormGroup';
+import Input from '../../components/ui/Input';
+import SectionTabs from '../../components/ui/SectionTabs.jsx';
+import ToggleSwitch from '../../components/ui/ToggleSwitch';
 import {
   listWorldStateFields, createWorldStateField,
   updateWorldStateField, deleteWorldStateField, reorderWorldStateFields,
-} from '../core/api/world-state-fields';
+} from '../../core/api/world-state-fields';
 import {
   listCharacterStateFields, createCharacterStateField,
   updateCharacterStateField, deleteCharacterStateField, reorderCharacterStateFields,
-} from '../core/api/character-state-fields';
+} from '../../core/api/character-state-fields';
 import {
   listPersonaStateFields, createPersonaStateField,
   updatePersonaStateField, deletePersonaStateField, reorderPersonaStateFields,
-} from '../core/api/persona-state-fields';
+} from '../../core/api/persona-state-fields';
 
 export default function WorldEditSections({ isCreate, worldId, navigate, diaryChatDateMode, appearance, page }) {
   const sections = [

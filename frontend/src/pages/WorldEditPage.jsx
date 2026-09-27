@@ -2,7 +2,7 @@ import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import EditPageShell from './layout/EditPageShell';
 import useWorldAppearance from './WorldEditPage/useWorldAppearance.js';
 import useWorldEditPage from './WorldEditPage/useWorldEditPage.js';
-import WorldEditSections from './WorldEditSections.jsx';
+import WorldEditSections from './WorldEditPage/WorldEditSections.jsx';
 
 export default function WorldEditPage() {
   const { worldId } = useParams();
