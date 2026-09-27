@@ -1,105 +1,15 @@
-import { useEffect, useState } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
+import { useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import useStore from '../../core/state/index.js';
 import useCurrentStoryStore from '../../core/state/currentStory.js';
-import Icon from '../../components/ui/Icon.jsx';
-import LongTermMemoryModal from '../../components/session/LongTermMemoryModal.jsx';
-import TableMemoryModal from '../../components/session/TableMemoryModal.jsx';
-import { getCharacter } from '../../core/api/characters.js';
-import { getPersona } from '../../core/api/personas.js';
-import { getSession, createSession } from '../../core/api/sessions.js';
-import { chatSessionListBridge } from '../../core/utils/session-list-bridge.js';
-import WorldTimelinePanel from '../../components/session/WorldTimelinePanel.jsx';
-import MessageList from '../../components/chat/MessageList.jsx';
-import SpeakerStage from '../../components/chat/SpeakerStage.jsx';
-import InputBox from '../../components/chat/InputBox.jsx';
-import ProviderSafetyBanner from '../../components/ui/ProviderSafetyBanner.jsx';
-import Pager from '../../components/chat/Pager.jsx';
-import PageLayout from '../layout/PageLayout.jsx';
-import StatePanel from '../../components/state/StatePanel.jsx';
-import { syncDiaryTimeField } from '../../core/api/world-state-fields.js';
 import { loadRules } from '../../core/utils/regex-runner.js';
-import CharacterSeal from '../../components/chat/CharacterSeal.jsx';
-import { log } from '../../core/utils/logger.js';
 import { usePageConfig } from '../../core/hooks/usePageConfig.js';
 import { useConversationPageState } from '../../core/hooks/useConversationPageState.js';
 import { useChatStream } from './hooks/useChatStream.js';
+import { useChatPageCharacter, useChatPageSession } from './hooks/useChatPageSession.js';
 import { useMotion } from '../../core/hooks/useMotion.js';
-
-function useChatCharacter(characterId) {
-  const [loadedContext, setLoadedContext] = useState(null);
-  const character = loadedContext?.characterId === characterId ? loadedContext.character : null;
-  const persona = loadedContext?.characterId === characterId ? loadedContext.persona : null;
-
-  useEffect(() => {
-    if (!characterId) return;
-    let cancelled = false;
-
-    getCharacter(characterId).then((loadedCharacter) => {
-      if (cancelled) return;
-      setLoadedContext({ characterId, character: loadedCharacter, persona: null });
-      if (loadedCharacter.world_id) {
-        getPersona(loadedCharacter.world_id).then((loadedPersona) => {
-          if (!cancelled) {
-            setLoadedContext((current) => current?.characterId === characterId
-              ? { ...current, persona: loadedPersona }
-              : current);
-          }
-        }).catch((err) => {
-          log.error('chat.persona.load_failed', err, { toast: '加载玩家信息失败' });
-        });
-        syncDiaryTimeField(loadedCharacter.world_id).catch((err) => {
-          log.warn('chat.diary.sync_failed', err);
-        });
-      }
-    }).catch((err) => {
-      log.error('chat.character.load_failed', err, { toast: '加载角色信息失败' });
-    });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [characterId]);
-
-  return { character, persona };
-}
-
-function useChatSessionContext({ characterId, currentSessionId, setCurrentCharacterId, setCurrentSession, clearActiveSession }) {
-  useEffect(() => {
-    if (!characterId) return;
-    const previousCharacterId = useStore.getState().currentCharacterId;
-    if (previousCharacterId && previousCharacterId !== characterId) clearActiveSession();
-    setCurrentCharacterId(characterId);
-  }, [characterId, clearActiveSession, setCurrentCharacterId]);
-
-  useEffect(() => {
-    if (!characterId) return;
-    if (!currentSessionId) {
-      setCurrentSession(null);
-      return;
-    }
-    if (useStore.getState().currentSessionId !== currentSessionId) return;
-
-    let cancelled = false;
-    getSession(currentSessionId)
-      .then((session) => {
-        if (cancelled) return;
-        if (session?.character_id === characterId) {
-          setCurrentSession(session);
-          return;
-        }
-        clearActiveSession();
-      })
-      .catch(() => {
-        if (!cancelled) clearActiveSession();
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [characterId, currentSessionId, clearActiveSession, setCurrentSession]);
-}
+import ChatPageShell from './components/ChatPageShell.jsx';
+import ChatConversationPane from './components/ChatConversationPane.jsx';
 
 export default function ChatPage() {
   const motionPrefs = useMotion();
@@ -108,8 +18,7 @@ export default function ChatPage() {
 
   const { ltmEnabled, tableMemoryEnabled, chapterTurnSize, pageTurnSize } = usePageConfig();
   const { currentSessionId, setCurrentSessionId, setCurrentCharacterId } = useStore();
-
-  const { character, persona } = useChatCharacter(characterId);
+  const { character, persona } = useChatPageCharacter(characterId);
   const {
     ltmOpen, setLtmOpen, tmOpen, setTmOpen, pageInfo, setPageInfo,
     inputBoxRef, messageListRef, memory,
@@ -124,237 +33,51 @@ export default function ChatPage() {
     setCurrentSessionId,
     memory,
   });
-  const {
-    currentSession,
-    setCurrentSession,
-    clearActiveSession,
-    generating,
-    streamingText,
-    streamingKey,
-    continuingMessageId,
-    continuingText,
-    errorBubble,
-    currentOptions,
-    setCurrentOptions,
-    optionCollapsed,
-    setOptionCollapsed,
-    messageListKey,
-    setPendingDiaryInject,
-    impersonating,
-    handleSessionCreate,
-    handleSend,
-    handleStop,
-    handleEditMessage,
-    handleRegenerateMessage,
-    handleEditAssistantMessage,
-    handleDeleteMessage,
-    handleContinue,
-    handleImpersonate,
-    handleRetryLast,
-    handleRetryAfterError,
-    handleRetitle,
-    selectOption,
-    handleMessagesLoaded,
-  } = stream;
 
-  useChatSessionContext({
+  const { handleCreateChatSession } = useChatPageSession({
     characterId,
     currentSessionId,
+    character,
     setCurrentCharacterId,
-    setCurrentSession,
-    clearActiveSession,
+    setCurrentSession: stream.setCurrentSession,
+    clearActiveSession: stream.clearActiveSession,
+    handleSessionCreate: stream.handleSessionCreate,
   });
 
-  // 启动时加载正则规则缓存
   useEffect(() => {
     loadRules('chat').catch(() => {});
   }, []);
 
-  // 当前故事线标题同步给 TopBar 面包屑；离开页面清空，避免残留
   const setStoryTitle = useCurrentStoryStore((s) => s.setStoryTitle);
   useEffect(() => {
-    setStoryTitle(currentSession?.title || (character ? `与${character.name}的对话` : null));
-  }, [currentSession?.title, character, setStoryTitle]);
+    setStoryTitle(stream.currentSession?.title || (character ? `与${character.name}的对话` : null));
+  }, [stream.currentSession?.title, character, setStoryTitle]);
   useEffect(() => () => setStoryTitle(null), [setStoryTitle]);
 
-  // 新建对话会话：绑定当前角色，创建后通过 bridge 合并进左侧时间线，再进入该会话
-  async function handleCreateChatSession() {
-    if (!character) return;
-    try {
-      const session = await createSession(character.id);
-      chatSessionListBridge.addSession?.(session);
-      handleSessionCreate(session);
-    } catch (e) {
-      log.error('session.create_failed', e, { toast: e.message || '创建会话失败' });
-    }
-  }
-
   return (
-    <PageLayout
-      leftLabel="会话列表"
-      rightLabel="状态面板"
-      left={(
-        <WorldTimelinePanel
-          worldId={character?.world_id ?? null}
-          currentMode="chat"
-          currentSessionId={currentSessionId}
-          onActiveSessionDeleted={clearActiveSession}
-          onActiveSessionRenamed={(title) => setCurrentSession((prev) => (prev ? { ...prev, title } : prev))}
-          headerRight={(
-            <button onClick={handleCreateChatSession} className="we-session-list-create">
-              <Icon size={16} strokeWidth="2.5">
-                <line x1="12" y1="5" x2="12" y2="19" />
-                <line x1="5" y1="12" x2="19" y2="12" />
-              </Icon>
-              新建会话
-            </button>
-          )}
-        />
-      )}
-      recall={{ memoryRecalling, memoryExpanding, memoryWriting, recallSummary }}
+    <ChatPageShell
+      character={character}
+      persona={persona}
+      currentSessionId={currentSessionId}
+      clearActiveSession={stream.clearActiveSession}
+      setCurrentSession={stream.setCurrentSession}
+      onCreateSession={handleCreateChatSession}
+      memoryRecall={{ memoryRecalling, memoryExpanding, memoryWriting, recallSummary }}
+      onDiaryInject={stream.setPendingDiaryInject}
       main={(
-        <div className="we-main we-chat-center-pane flex-1 min-w-0 flex flex-col overflow-hidden">
-        <AnimatePresence>
-          {ltmEnabled && ltmOpen && currentSession && (
-            <LongTermMemoryModal
-              key="ltm-modal"
-              sessionId={currentSession.id}
-              onClose={() => setLtmOpen(false)}
-            />
-          )}
-          {tableMemoryEnabled && tmOpen && currentSession && (
-            <TableMemoryModal
-              key="tm-modal"
-              sessionId={currentSession.id}
-              onClose={() => setTmOpen(false)}
-            />
-          )}
-        </AnimatePresence>
-
-        <div className="we-chat-pane-nav">
-          <button
-            onClick={() => navigate(`/worlds/${character?.world_id}`)}
-            className="we-chat-pane-back"
-          >
-            <Icon size={14}>
-              <polyline points="15 18 9 12 15 6" />
-            </Icon>
-            返回世界
-          </button>
-        </div>
-
-        <SpeakerStage character={character} />
-
-        {/* 消息列表 */}
-        <MessageList
-          ref={messageListRef}
-          key={`${currentSessionId}-${messageListKey}`}
-          sessionId={currentSessionId}
-          sessionTitle={currentSession?.title || ''}
+        <ChatConversationPane
           character={character}
           persona={persona}
-          worldId={character?.world_id ?? null}
-          generating={generating}
-          streamingText={streamingText}
-          streamingKey={streamingKey}
-          onEditMessage={handleEditMessage}
-          onRegenerateMessage={handleRegenerateMessage}
-          onEditAssistantMessage={handleEditAssistantMessage}
-          onDeleteMessage={handleDeleteMessage}
-          continuingMessageId={continuingMessageId}
-          continuingText={continuingText}
-          options={currentOptions}
-          onSelectOption={selectOption}
-          onDismissOptions={() => setCurrentOptions([])}
-          optionCollapsed={optionCollapsed}
-          onOptionCollapsedChange={setOptionCollapsed}
-          onMessagesLoaded={handleMessagesLoaded}
-          chapterTurnSize={chapterTurnSize}
-          pageTurnSize={pageTurnSize}
-          onPageInfoChange={setPageInfo}
-        />
-
-        {/* 错误气泡：生成失败时保留可见，提供重试入口 */}
-        <AnimatePresence>
-        {errorBubble && !generating && (
-          <motion.div
-            key="error-bubble"
-            variants={motionPrefs.variant('messageEnter')}
-            initial="hidden"
-            animate="visible"
-            exit={{ opacity: 0, transition: motionPrefs.transition('retract') }}
-            transition={motionPrefs.spring('message')}
-            className="px-4 pb-2 shrink-0"
-          >
-            <div className="max-w-[800px] mx-auto">
-              <div className="flex items-start gap-3">
-                <CharacterSeal character={character} size={24} />
-                <div className="flex flex-col gap-1 max-w-[75%]">
-                  <span className="text-xs opacity-50">{character?.name}</span>
-                  {errorBubble.partialContent && (
-                    <div className="px-4 py-3 rounded-[var(--we-radius-lg)] rounded-tl-sm bg-[var(--we-color-bg-surface)] border border-[var(--we-color-border-default)] text-[var(--we-color-text-primary)] text-sm leading-relaxed whitespace-pre-wrap opacity-60">
-                      {errorBubble.partialContent}
-                    </div>
-                  )}
-                  <div className="flex items-center gap-2 mt-1">
-                    <span className="text-xs px-2 py-1 rounded-full bg-[var(--we-color-accent-bg)] text-[var(--we-color-text-danger)] border border-[var(--we-color-border-focus)]">
-                      生成失败：{errorBubble.errorMsg}
-                    </span>
-                    <button
-                      onClick={handleRetryAfterError}
-                      className="text-xs px-3 py-1 rounded-[var(--we-radius-lg)] border border-[var(--we-color-border-default)] hover:bg-[var(--we-color-bg-subtle)] transition-colors flex items-center gap-1 text-[var(--we-color-text-secondary)]"
-                    >
-                      <Icon size={16}>
-                        <polyline points="1 4 1 10 7 10" />
-                        <path d="M3.51 15a9 9 0 1 0 .49-4.98" />
-                      </Icon>
-                      重新生成
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </motion.div>
-        )}
-        </AnimatePresence>
-
-        {/* Provider 安全信号横幅（紧邻输入框上方，role=alert 自动朗读） */}
-        <ProviderSafetyBanner />
-
-        {/* 输入框 */}
-        <InputBox
-          ref={inputBoxRef}
-          onSend={handleSend}
-          onStop={handleStop}
-          generating={generating}
-          impersonating={impersonating}
-          onScrollToBottom={() => messageListRef.current?.scrollPageToBottom?.()}
-          onContinue={handleContinue}
-          onImpersonate={handleImpersonate}
-          onRetry={handleRetryLast}
-          onTitle={handleRetitle}
-          onLongTermMemory={ltmEnabled && currentSession ? () => setLtmOpen(true) : null}
-          onTableMemory={tableMemoryEnabled && currentSession ? () => setTmOpen(true) : null}
-          worldId={character?.world_id ?? null}
-          sessionId={currentSessionId}
-          mode="chat"
-          pagerSlot={(
-            <Pager
-              totalPages={pageInfo.totalPages}
-              currentPage={pageInfo.currentPage}
-              onChange={(idx) => messageListRef.current?.setPage?.(idx)}
-            />
-          )}
-        />
-        </div>
-      )}
-      right={(
-        <StatePanel
-          sessionId={currentSessionId}
-          character={character}
-          persona={persona}
-          worldId={character?.world_id ?? null}
-          onDiaryInject={setPendingDiaryInject}
+          currentSession={stream.currentSession}
+          currentSessionId={currentSessionId}
+          config={{ ltmEnabled, tableMemoryEnabled, chapterTurnSize, pageTurnSize }}
+          pageState={{
+            ltmOpen, setLtmOpen, tmOpen, setTmOpen, pageInfo, setPageInfo,
+            inputBoxRef, messageListRef,
+          }}
+          stream={stream}
+          motionPrefs={motionPrefs}
+          onBack={() => navigate(`/worlds/${character?.world_id}`)}
         />
       )}
     />
