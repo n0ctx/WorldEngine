@@ -79,7 +79,7 @@ test('applyNearbyResult: ref_id 命中 → 更新 name/persona/state', async () 
   const id = insertNearby(sandbox.db, { sessionId, name: 'Alice', persona: '旧记忆', isSaved: 0 });
   setNearbyState(sandbox.db, { sessionId, nearbyId: id, fieldKey: 'mood', valueJson: JSON.stringify('平静') });
 
-  const { applyNearbyResult } = await freshImport('backend/memory/combined-state-updater.js');
+  const { applyNearbyResult } = await freshImport('backend/memory/nearby-state-apply.js');
   applyNearbyResult({
     sessionId,
     worldId: null,
@@ -105,7 +105,7 @@ test('applyNearbyResult: ref_id=null + name 命中 → 等同更新', async () =
   const { sessionId, fields } = bootstrap('case2');
   const id = insertNearby(sandbox.db, { sessionId, name: 'Bob', persona: '', isSaved: 1 });
 
-  const { applyNearbyResult } = await freshImport('backend/memory/combined-state-updater.js');
+  const { applyNearbyResult } = await freshImport('backend/memory/nearby-state-apply.js');
   applyNearbyResult({
     sessionId,
     worldId: null,
@@ -127,7 +127,7 @@ test('applyNearbyResult: ref_id=null + name 命中 → 等同更新', async () =
 test('applyNearbyResult: ref_id=null + name 不在池 → 新建 transient', async () => {
   const { sessionId, fields } = bootstrap('case3');
 
-  const { applyNearbyResult } = await freshImport('backend/memory/combined-state-updater.js');
+  const { applyNearbyResult } = await freshImport('backend/memory/nearby-state-apply.js');
   applyNearbyResult({
     sessionId,
     worldId: null,
@@ -153,7 +153,7 @@ test('applyNearbyResult: 非法 ref_id 整条丢弃；不影响其他项；不�
   const savedId = insertNearby(sandbox.db, { sessionId, name: 'Saved', persona: '保留', isSaved: 1 });
   setNearbyState(sandbox.db, { sessionId, nearbyId: savedId, fieldKey: 'mood', valueJson: JSON.stringify('原状') });
 
-  const { applyNearbyResult } = await freshImport('backend/memory/combined-state-updater.js');
+  const { applyNearbyResult } = await freshImport('backend/memory/nearby-state-apply.js');
   applyNearbyResult({
     sessionId,
     worldId: null,
@@ -182,7 +182,7 @@ test('applyNearbyResult: 池里没回的 transient 删除，saved 保留', async
   const transientId = insertNearby(sandbox.db, { sessionId, name: 'Drop', persona: '上轮 transient', isSaved: 0 });
   setNearbyState(sandbox.db, { sessionId, nearbyId: transientId, fieldKey: 'mood', valueJson: JSON.stringify('旧') });
 
-  const { applyNearbyResult } = await freshImport('backend/memory/combined-state-updater.js');
+  const { applyNearbyResult } = await freshImport('backend/memory/nearby-state-apply.js');
   applyNearbyResult({
     sessionId,
     worldId: null,
@@ -225,7 +225,7 @@ test('applyNearbyResult: 未启用字段被 LLM 写入 → 跳过', async () => 
 
   const id = insertNearby(sandbox.db, { sessionId, name: 'Eve', persona: '', isSaved: 0 });
 
-  const { applyNearbyResult } = await freshImport('backend/memory/combined-state-updater.js');
+  const { applyNearbyResult } = await freshImport('backend/memory/nearby-state-apply.js');
   applyNearbyResult({
     sessionId,
     worldId,

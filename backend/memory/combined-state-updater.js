@@ -7,52 +7,23 @@
 
 import * as llm from '../llm/index.js';
 import { getMessagesBySessionId } from '../services/sessions.js';
-import { getCharactersByIds } from '../db/queries/characters.js';
 import { getWorldById } from '../db/queries/worlds.js';
 
-import { getWorldStateFieldsByWorldId } from '../db/queries/world-state-fields.js';
-import { getAllWorldStateValues } from '../db/queries/world-state-values.js';
-import {
-  upsertSessionWorldStateValue,
-  upsertSessionWorldStateValues,
-  getSessionWorldStateValues,
-} from '../db/queries/session-world-state-values.js';
+import { upsertSessionWorldStateValue, upsertSessionWorldStateValues } from '../db/queries/session-world-state-values.js';
+import { upsertSessionCharacterStateValues } from '../db/queries/session-character-state-values.js';
+import { upsertSessionPersonaStateValues } from '../db/queries/session-persona-state-values.js';
 
-import { getCharacterStateFieldsByWorldId } from '../db/queries/character-state-fields.js';
-import { getCharacterStateValuesByCharacterIds } from '../db/queries/character-state-values.js';
-import {
-  upsertSessionCharacterStateValues,
-  getSessionCharacterStateValuesByCharacterIds,
-} from '../db/queries/session-character-state-values.js';
-
-import { getPersonaStateFieldsByWorldId } from '../db/queries/persona-state-fields.js';
-import { getPersonaById } from '../db/queries/personas.js';
-import { getAllPersonaStateValues, getAllPersonaStateValuesByPersonaId } from '../db/queries/persona-state-values.js';
-import { upsertSessionPersonaStateValues, getSessionPersonaStateValues } from '../db/queries/session-persona-state-values.js';
-
-import {
-  createNearbyCharacter,
-  deleteTransientNotInIds,
-  touchNearbyRows,
-  getNearbyByName,
-  listNearbyBySessionId,
-  updateNearbyPersona,
-  updateNearbyName,
-} from '../db/queries/session-nearby-characters.js';
-import {
-  getStateValuesByNearbyIds,
-  upsertNearbyStateValues,
-} from '../db/queries/session-nearby-character-state-values.js';
-import { buildNearbyPromptSection } from '../prompts/nearby-prompt.js';
-
-import { ALL_MESSAGES_LIMIT, LLM_TASK_TEMPERATURE, LLM_STATE_UPDATE_MAX_TOKENS, LLM_STATE_COMPRESS_MAX_TOKENS, DIARY_TIME_FIELD_KEY, STATE_TEXT_MAX_LENGTH, STATE_TEXT_COMPRESS_TARGET, STATE_LIST_MAX_ITEMS, STATE_LIST_TRIM_TARGET, STATE_UPDATE_JSON_RETRY_MAX, LLM_BACKGROUND_TASK_TIMEOUT_MS } from '../utils/constants.js';
+import { ALL_MESSAGES_LIMIT, LLM_TASK_TEMPERATURE, LLM_STATE_UPDATE_MAX_TOKENS, DIARY_TIME_FIELD_KEY, STATE_UPDATE_JSON_RETRY_MAX, LLM_BACKGROUND_TASK_TIMEOUT_MS } from '../utils/constants.js';
 import { getSessionById, setSessionStateBaselineIfAbsent } from '../db/queries/sessions.js';
 import { captureFullSnapshot } from './state-rollback.js';
 import { createLogger, formatMeta, previewText, shouldLogRaw } from '../utils/logger.js';
 import { renderBackendPrompt } from '../prompts/prompt-loader.js';
 import { resolveAuxScope } from '../utils/aux-scope.js';
-import { stripThinkBlocksFromText } from '../utils/turn-dialogue.js';
 import { validateValue } from '../utils/state-field-validate.js';
+import { extractJsonPatch } from './state-update-json.js';
+import { compressOverLimitFields } from './state-update-compress.js';
+import { applyNearbyResult, buildNearbyContext, appendNearbyPromptSection } from './nearby-state-apply.js';
+import { loadStateUpdateTargets, buildEntityStateSections } from './state-update-context.js';
 
 const log = createLogger('all-state');
 
@@ -67,182 +38,6 @@ function formatRealTimeDiaryStr() {
 }
 
 // ── 辅助函数（模块级） ──────────────────────────────────────────────────────
-
-/**
- * 补全被截断的 JSON：通过括号栈追踪未闭合的 { 和 [，在末尾追加缺失的关闭符号。
- * 仅处理缺少关闭括号的情况（LLM 输出被 maxTokens 截断时最常见）。
- */
-// 部分 reasoning 模型即便已通过副模型配置关闭思考，仍可能在输出里夹带 <think>…</think>（或服务端故障重开思考）。
-// 思考块里包含大量 {/} 会污染贪婪 JSON 提取，解析前先剥离做 defense-in-depth。
-// 复用 turn-dialogue 的栈式剥除，避免非贪婪正则在 think 内回放字面 </think> 时提前闭合。
-function stripThinkBlocks(text) {
-  if (typeof text !== 'string') return text;
-  return stripThinkBlocksFromText(text).trim();
-}
-
-/**
- * 去掉思考块后优先取 ```json 代码块，再取第一个 {...}；右括号缺失（输出被截断）时取到末尾，交给 repairJsonIssues 补全
- */
-function findJsonObjectText(raw) {
-  const cleaned = stripThinkBlocks(raw);
-  const codeBlock = cleaned.match(/```(?:json)?\s*([\s\S]*?)```/);
-  const jsonSource = codeBlock ? codeBlock[1].trim() : cleaned;
-  const match = jsonSource.match(/\{[\s\S]*\}/) || jsonSource.match(/\{[\s\S]*/);
-  return match ? match[0] : null;
-}
-
-/**
- * 修复常见 LLM JSON 输出问题（单遍状态机）：
- *  1. 补全截断括号（原 repairTruncatedJson 功能保留）
- *  2. 去除字符串外的尾部逗号（{"a":1,} 或 [1,2,]）
- *  3. 去除字符串外的 JavaScript 单行注释（// ...）
- *
- * 进入 inString=true 后所有修复逻辑均跳过，不会破坏字符串内容。
- */
-function repairJsonIssues(text) {
-  const out = [];
-  const stack = [];
-  let inString = false;
-  let escape = false;
-
-  for (let i = 0; i < text.length; i++) {
-    const ch = text[i];
-    if (escape) { out.push(ch); escape = false; continue; }
-    if (ch === '\\' && inString) { out.push(ch); escape = true; continue; }
-    if (ch === '"') { out.push(ch); inString = !inString; continue; }
-    if (inString) { out.push(ch); continue; }
-
-    // 单行注释：跳过直到行尾
-    if (ch === '/' && i + 1 < text.length && text[i + 1] === '/') {
-      while (i < text.length && text[i] !== '\n') i++;
-      continue;
-    }
-    // 尾部逗号：下一个非空字符是 } 或 ] 时跳过
-    if (ch === ',') {
-      let j = i + 1;
-      while (j < text.length && (text[j] === ' ' || text[j] === '\t' || text[j] === '\n' || text[j] === '\r')) j++;
-      if (text[j] === '}' || text[j] === ']') continue;
-      out.push(ch);
-      continue;
-    }
-    if (ch === '{') { out.push(ch); stack.push('}'); continue; }
-    if (ch === '[') { out.push(ch); stack.push(']'); continue; }
-    if (ch === '}' || ch === ']') { out.push(ch); stack.pop(); continue; }
-    out.push(ch);
-  }
-  return out.join('') + stack.reverse().join('');
-}
-
-/**
- * 从 LLM 原始输出中提取并解析 JSON patch 对象。
- * 依次尝试：直接解析 → repairJsonIssues 修复后解析。
- * 成功返回 patch 对象；失败返回 null。
- */
-function extractJsonPatch(raw, sid) {
-  try {
-    const jsonStr = findJsonObjectText(raw);
-    if (!jsonStr) return null;
-    try {
-      return JSON.parse(jsonStr);
-    } catch {
-      const repaired = repairJsonIssues(jsonStr);
-      const result = JSON.parse(repaired);
-      log.info(`JSON REPAIRED  ${formatMeta({ session: sid, appended: repaired.length - jsonStr.length })}`);
-      return result;
-    }
-  } catch {
-    return null;
-  }
-}
-
-/**
- * 筛选本轮需要更新的活跃字段：状态字段触发机制已收敛为一维 update_mode。
- * update_mode='llm_auto' 的字段每轮参与自动状态更新。
- */
-function filterActive(fields) {
-  return fields.filter((f) => f.update_mode === 'llm_auto');
-}
-
-/**
- * 将 getAllXxxStateValues() 返回的行转换为 valueMap。
- * @param {object[]} values  含 field_key / default_value_json / runtime_value_json 的行
- * @returns {Record<string, {defaultValueJson, runtimeValueJson}>}
- */
-function buildValueMap(values) {
-  return Object.fromEntries(
-    values.map((v) => [v.field_key, {
-      defaultValueJson: v.default_value_json,
-      runtimeValueJson: v.runtime_value_json,
-    }])
-  );
-}
-
-/**
- * 将活跃字段列表渲染为「字段定义」文本段（schema 部分，逐字节稳定，不含任何运行时取值）。
- * 仅依赖字段定义本身（key/label/type/range/enum/description/update_instruction），
- * 因此同一会话各轮调用输出完全一致，可作为 prompt cache 稳定前缀。
- * @param {object[]} fields    活跃字段列表
- */
-function buildFieldsSchema(fields) {
-  return fields
-    .map((f) => {
-      let line = `- ${f.field_key}（${f.label}，类型：${f.type}）`;
-      if (f.description) line += `，说明：${f.description}`;
-      if (f.type === 'enum' && f.enum_options?.length)
-        line += `，可选值：[${f.enum_options.join(' / ')}]`;
-      if (f.type === 'number') {
-        const lo = f.min_value != null ? f.min_value : '不限';
-        const hi = f.max_value != null ? f.max_value : '不限';
-        line += `，范围：${lo} ~ ${hi}`;
-        if (f.unit) line += `，单位：${f.unit}（仅展示用途，写入值仍为纯数字）`;
-      }
-      if (f.type === 'list') line += `，请返回字符串数组（如 ["条目1","条目2"]），替换整个列表`;
-      if (f.type === 'datetime') line += `，请返回 ISO 局部时间字符串 "YYYY-MM-DDTHH:mm"（年份为正整数、可任意位数；月/日/时/分各 2 位，例 "1000-03-15T14:30" 或 "238-04-20T00:00"），不得使用其他格式`;
-      if (f.type === 'table' && Array.isArray(f.table_columns) && f.table_columns.length) {
-        const colDesc = f.table_columns.map((c) => {
-          const lo = c.min != null ? c.min : '不限';
-          const hi = c.max != null ? c.max : '不限';
-          return `${c.key}（${c.label ?? c.key}，${lo}~${hi}）`;
-        }).join(' / ');
-        line += `，请返回对象 {列key: 数值,...}，列：[${colDesc}]，仅数值类型`;
-      }
-      if (f.update_instruction) line += `\n  更新说明：${f.update_instruction}`;
-      return line;
-    })
-    .join('\n');
-}
-
-/**
- * 将活跃字段列表渲染为「当前取值」文本段（动态部分，逐轮变化）。
- * 只输出每个字段的默认值 / 当前运行时值，放在 messages 末尾，不进入 cache 前缀。
- * @param {object[]} fields    活跃字段列表
- * @param {object}   valueMap  buildValueMap 返回的映射
- */
-function buildFieldsValues(fields, valueMap) {
-  return fields
-    .map((f) => {
-      const cur = valueMap[f.field_key] ?? { defaultValueJson: f.default_value ?? null, runtimeValueJson: null };
-      // 只暴露「有效当前值」= 运行时值优先，回退默认值。不再单独展示默认值，
-      // 避免弱副模型把默认值当成「回退靶子」，每轮把已推进的运行值打回默认。
-      const effectiveJson = cur.runtimeValueJson ?? cur.defaultValueJson;
-      return `- ${f.field_key}：当前值：${formatValueForPrompt(effectiveJson, f)}`;
-    })
-    .join('\n');
-}
-
-/**
- * 合并全局默认值 Map 与会话级运行时值：defaultValueJson 来自全局，runtimeValueJson 优先取会话值。
- * @param {ReturnType<typeof buildValueMap>} globalMap  buildValueMap 返回的全局 Map
- * @param {Record<string, string|null>}      sessionMap getSessionXxxStateValues 返回的 { field_key → runtime_value_json }
- */
-function mergeSessionValues(globalMap, sessionMap) {
-  return Object.fromEntries(
-    Object.entries(globalMap).map(([key, v]) => [
-      key,
-      { defaultValueJson: v.defaultValueJson, runtimeValueJson: sessionMap[key] ?? v.runtimeValueJson },
-    ])
-  );
-}
 
 /**
  * 将 LLM 返回的 patch 对象写入会话状态（校验 + upsert）。
@@ -301,241 +96,7 @@ function applyStatePatch(activeFields, patchData, upsertFn, logLabel, valueMap =
   if (updated.length) log.info(`${logLabel}  updates: ${updated.join('  ')}`);
 }
 
-/**
- * 检查 patch 中 text/list 字段是否超限，超限时调用 LLM 压缩后就地修改 patch。
- * 必须在 applyStatePatch 之前调用，以便 validateValue 处理压缩后的值。
- */
-function collectOverLimitFields(entityFieldPairs) {
-  const overLengthText = [];
-  const overLengthList = [];
-
-  for (const { entityKey, fields, patchData, valueMap } of entityFieldPairs) {
-    const fieldMap = Object.fromEntries(fields.map((f) => [f.field_key, f]));
-    if (patchData) {
-      for (const [key, value] of Object.entries(patchData)) {
-        const field = fieldMap[key];
-        if (!field) continue;
-        if (field.type === 'text' && typeof value === 'string' && value.length > STATE_TEXT_MAX_LENGTH) {
-          overLengthText.push({ entityKey, fieldKey: key, value });
-        } else if (field.type === 'list' && Array.isArray(value) && value.length > STATE_LIST_MAX_ITEMS) {
-          overLengthList.push({ entityKey, fieldKey: key, value });
-        }
-      }
-    }
-    // 兜底：LLM 未在本轮 patch 中提及的字段，若现有运行时值已超限，也加入压缩队列；
-    // 否则一旦历史数据超过阈值，将永远无法被收敛回上限。
-    if (!valueMap) continue;
-    for (const field of fields) {
-      const key = field.field_key;
-      if (patchData && Object.prototype.hasOwnProperty.call(patchData, key)) continue;
-      const cur = valueMap[key];
-      const json = cur?.runtimeValueJson;
-      if (!json) continue;
-      let parsed;
-      try { parsed = JSON.parse(json); } catch { continue; }
-      if (field.type === 'text' && typeof parsed === 'string' && parsed.length > STATE_TEXT_MAX_LENGTH) {
-        overLengthText.push({ entityKey, fieldKey: key, value: parsed });
-      } else if (field.type === 'list' && Array.isArray(parsed) && parsed.length > STATE_LIST_MAX_ITEMS) {
-        overLengthList.push({ entityKey, fieldKey: key, value: parsed });
-      }
-    }
-  }
-
-  return { overLengthText, overLengthList };
-}
-
-function parseCompressedResponse(raw, sid) {
-  let compressed = null;
-  if (raw) {
-    try {
-      const jsonStr = findJsonObjectText(raw);
-      if (jsonStr) {
-        try { compressed = JSON.parse(jsonStr); }
-        catch { compressed = JSON.parse(repairJsonIssues(jsonStr)); }
-      }
-    } catch {
-      log.warn(`COMPRESS PARSE FAIL  ${formatMeta({ session: sid, preview: previewText(raw) })}`);
-    }
-  }
-  return compressed && typeof compressed === 'object' ? compressed : {};
-}
-
-function applyCompressedFields(patch, compressed, overLengthText, overLengthList, sid) {
-  // 确保 patch[entityKey] 是普通对象；若 LLM 返回畸形桶（字符串/数字/数组等），
-  // 直接覆盖为 {}，避免给非对象赋属性触发严格模式 TypeError 中断整个更新流程。
-  const ensureBucket = (entityKey) => {
-    const cur = patch[entityKey];
-    if (!cur || typeof cur !== 'object' || Array.isArray(cur)) patch[entityKey] = {};
-    return patch[entityKey];
-  };
-
-  for (const { entityKey, fieldKey } of overLengthText) {
-    const val = compressed?.[entityKey]?.[fieldKey];
-    if (typeof val === 'string' && val.length > 0) {
-      ensureBucket(entityKey)[fieldKey] = val;
-      log.info(`COMPRESS TEXT OK  ${formatMeta({ session: sid, field: `${entityKey}.${fieldKey}`, chars: val.length })}`);
-    }
-  }
-  for (const { entityKey, fieldKey, value: original } of overLengthList) {
-    const val = compressed?.[entityKey]?.[fieldKey];
-    if (Array.isArray(val) && val.length > 0 && val.length <= STATE_LIST_MAX_ITEMS) {
-      ensureBucket(entityKey)[fieldKey] = val;
-      log.info(`COMPRESS LIST OK  ${formatMeta({ session: sid, field: `${entityKey}.${fieldKey}`, items: val.length })}`);
-    } else {
-      // 兜底：LLM 未返回有效裁剪结果时，硬截取最近的 STATE_LIST_TRIM_TARGET 条，避免列表无限增长
-      const trimmed = original.slice(-STATE_LIST_TRIM_TARGET);
-      ensureBucket(entityKey)[fieldKey] = trimmed;
-      log.warn(`COMPRESS LIST FALLBACK  ${formatMeta({ session: sid, field: `${entityKey}.${fieldKey}`, from: original.length, to: trimmed.length })}`);
-    }
-  }
-}
-
-async function compressOverLimitFields(patch, entityFieldPairs, sid, sessionId) {
-  const { overLengthText, overLengthList } = collectOverLimitFields(entityFieldPairs);
-
-  if (overLengthText.length === 0 && overLengthList.length === 0) return;
-
-  log.info(`COMPRESS  ${formatMeta({ session: sid, text: overLengthText.length, list: overLengthList.length })}`);
-
-  const textSection = overLengthText.length > 0
-    ? `## 文本压缩\n以下字段值过长（超过 ${STATE_TEXT_MAX_LENGTH} 字），请将每个值压缩到 ${STATE_TEXT_COMPRESS_TARGET} 字以内，保留核心信息：\n` +
-      overLengthText.map((x) => `- ${x.entityKey}.${x.fieldKey}（${x.value.length}字）: ${x.value}`).join('\n')
-    : '';
-
-  const listSection = overLengthList.length > 0
-    ? `## 列表裁剪\n以下列表字段条目过多（超过 ${STATE_LIST_MAX_ITEMS} 个），请保留最重要/最新的 ${STATE_LIST_TRIM_TARGET} 个条目，丢弃最久远、价值最低的条目，返回字符串数组：\n` +
-      overLengthList.map((x) => `- ${x.entityKey}.${x.fieldKey}（${x.value.length}条）: ${JSON.stringify(x.value)}`).join('\n')
-    : '';
-
-  // 稳定前缀（cacheableSystem）：压缩任务的通用指令 + 输出格式，逐字节稳定。
-  // 动态后缀（user 段）：本轮待压缩的具体字段值，逐次变化，不进缓存。
-  const cacheableSystem = renderBackendPrompt('state-compress.md');
-  const runtimeUser = renderBackendPrompt('state-compress-runtime.md', { TEXT_SECTION: textSection, LIST_SECTION: listSection });
-  const prompt = [
-    { role: 'system', content: cacheableSystem },
-    { role: 'user', content: runtimeUser },
-  ];
-
-  const raw = await llm.complete(prompt, {
-    temperature: 0,
-    maxTokens: LLM_STATE_COMPRESS_MAX_TOKENS,
-    configScope: resolveAuxScope(sessionId),
-    callType: 'state_compress',
-    conversationId: sessionId,
-    cacheableSystem,
-    timeoutMs: LLM_BACKGROUND_TASK_TIMEOUT_MS,
-  });
-
-  const compressed = parseCompressedResponse(raw, sid);
-  applyCompressedFields(patch, compressed, overLengthText, overLengthList, sid);
-}
-
 // ── 主函数 ──────────────────────────────────────────────────────────────────
-
-function loadStateUpdateTargets(worldId, characterIds, world) {
-  const worldActiveFields = world ? filterActive(getWorldStateFieldsByWorldId(worldId)) : [];
-  const characters = getCharactersByIds(characterIds || []);
-  // 角色状态字段 schema 由 world_id 决定，取第一个有效角色的 world_id。
-  const charWorldId = characters[0]?.world_id ?? worldId;
-  const charSchemaFields = charWorldId ? filterActive(getCharacterStateFieldsByWorldId(charWorldId)) : [];
-  const charactersWithFields = charSchemaFields.length > 0 ? characters : [];
-  const personaActiveFields = world ? filterActive(getPersonaStateFieldsByWorldId(worldId)) : [];
-
-  return { worldActiveFields, characters, charWorldId, charSchemaFields, charactersWithFields, personaActiveFields };
-}
-
-function buildEntityStateSections(targets, { world, worldId, sessionId, session }) {
-  const {
-    worldActiveFields, charactersWithFields, charSchemaFields, personaActiveFields,
-  } = targets;
-  const schemaSections = [];
-  const valueSections = [];
-  const responseKeys = [];
-  let worldValueMap = null;
-  const charValueMaps = [];
-  let personaValueMap = null;
-
-  if (worldActiveFields.length > 0) {
-    worldValueMap = mergeSessionValues(
-      buildValueMap(getAllWorldStateValues(worldId)),
-      getSessionWorldStateValues(sessionId, worldId)
-    );
-    const head = `=== 世界状态（"${world.name}"）===`;
-    schemaSections.push(`${head}\n` + buildFieldsSchema(worldActiveFields));
-    valueSections.push(`${head}\n` + buildFieldsValues(worldActiveFields, worldValueMap));
-    responseKeys.push('"world"（世界状态）');
-  }
-
-  const charIds = charactersWithFields.map((char) => char.id);
-  const charDefaults = getCharacterStateValuesByCharacterIds(charIds);
-  const charSessionValues = getSessionCharacterStateValuesByCharacterIds(sessionId, charIds);
-  for (let i = 0; i < charactersWithFields.length; i++) {
-    const char = charactersWithFields[i];
-    const charKey = `char_${i}`;
-    const charValueMap = mergeSessionValues(
-      buildValueMap(charDefaults[char.id]),
-      charSessionValues[char.id]
-    );
-    charValueMaps[i] = charValueMap;
-    const head = `=== 角色状态（key="${charKey}"，角色名"${char.name}"）===`;
-    schemaSections.push(
-      `${head}\n` +
-        `注意：只追踪"${char.name}"自身的状态变化。与"${char.name}"直接相关、并真实发生在其身上的共同经历（如受伤、获得报酬、装备损耗、位置变化）也应计入角色状态；仅玩家独有的变化不要记到角色上。\n` +
-        buildFieldsSchema(charSchemaFields)
-    );
-    valueSections.push(`${head}\n` + buildFieldsValues(charSchemaFields, charValueMap));
-    responseKeys.push(`"${charKey}"（角色"${char.name}"状态）`);
-  }
-
-  if (personaActiveFields.length > 0) {
-    // writing session 自带 persona_id；chat / 无 persona_id 时回退到 active persona
-    const personaDefaults = session?.persona_id
-      ? getAllPersonaStateValuesByPersonaId(session.persona_id)
-      : getAllPersonaStateValues(worldId);
-    personaValueMap = mergeSessionValues(
-      buildValueMap(personaDefaults),
-      getSessionPersonaStateValues(sessionId, worldId)
-    );
-    const head = `=== 玩家状态 ===`;
-    schemaSections.push(
-      `${head}\n` +
-        `注意：只追踪玩家自身的变化，勿将角色的经历记录为玩家的状态。\n` +
-        buildFieldsSchema(personaActiveFields)
-    );
-    valueSections.push(`${head}\n` + buildFieldsValues(personaActiveFields, personaValueMap));
-    responseKeys.push('"persona"（玩家状态）');
-  }
-
-  return { schemaSections, valueSections, responseKeys, worldValueMap, charValueMaps, personaValueMap };
-}
-
-function buildNearbyContext(sessionId, charWorldId, personaId) {
-  let nearbyPlayerName = '';
-  if (personaId) {
-    const persona = getPersonaById(personaId);
-    nearbyPlayerName = typeof persona?.name === 'string' ? persona.name.trim() : '';
-  }
-  const nearbyEnabledFields = getCharacterStateFieldsByWorldId(charWorldId)
-    .filter((f) => Number(f.nearby_enabled) === 1);
-  const rows = listNearbyBySessionId(sessionId);
-  const valuesByNearby = getStateValuesByNearbyIds(rows.map((row) => row.id));
-  const nearbyPool = rows.map((row) => {
-    const state = {};
-    for (const value of valuesByNearby.get(row.id)) {
-      if (value.runtime_value_json == null) continue;
-      try { state[value.field_key] = JSON.parse(value.runtime_value_json); }
-      catch { state[value.field_key] = value.runtime_value_json; }
-    }
-    return {
-      id: row.id,
-      name: row.name,
-      is_saved: Number(row.is_saved) === 1 ? 1 : 0,
-      persona: row.persona ?? '',
-      state,
-    };
-  });
-  return { nearbyPool, nearbyEnabledFields, nearbyPlayerName };
-}
 
 function buildStateDialogue(messages, primaryName) {
   const recentMsgs = messages
@@ -561,6 +122,106 @@ function buildStateUpdateExampleKeys(worldActiveFields, charactersWithFields, pe
   ]
     .filter(Boolean)
     .join(', ');
+}
+
+/**
+ * 调 LLM 获取状态更新 patch：JSON 解析失败时按 STATE_UPDATE_JSON_RETRY_MAX 重试。
+ * LLM API 调用本身失败（raw 为空）不重试，直接返回 null。
+ */
+async function requestStatePatch(prompt, cacheableSystem, sid, sessionId) {
+  let patch = null;
+  let lastRaw = null;
+
+  for (let attempt = 0; attempt <= STATE_UPDATE_JSON_RETRY_MAX; attempt++) {
+    const raw = await llm.complete(prompt, {
+      temperature: LLM_TASK_TEMPERATURE,
+      maxTokens: LLM_STATE_UPDATE_MAX_TOKENS,
+      configScope: resolveAuxScope(sessionId),
+      callType: 'state_update',
+      conversationId: sessionId,
+      cacheableSystem,
+      timeoutMs: LLM_BACKGROUND_TASK_TIMEOUT_MS,
+    });
+    if (!raw) return null;  // LLM API 失败，不进入 JSON 重试
+    lastRaw = raw;
+    log.info(`RAW  ${formatMeta({ session: sid, chars: raw.length, attempt, preview: shouldLogRaw('llm_raw') ? previewText(raw) : undefined })}`);
+
+    patch = extractJsonPatch(raw, sid);
+    if (patch !== null) break;
+
+    if (attempt < STATE_UPDATE_JSON_RETRY_MAX) {
+      log.warn(`JSON RETRY ${attempt + 1}/${STATE_UPDATE_JSON_RETRY_MAX}  ${formatMeta({ session: sid, preview: previewText(raw) })}`);
+    }
+  }
+
+  if (patch === null) {
+    log.warn(`JSON PARSE FAIL  ${formatMeta({ session: sid, preview: previewText(lastRaw) })}`);
+  }
+  return patch;
+}
+
+/**
+ * 把 LLM 返回的 patch（含超限压缩）写入世界 / 角色 / 玩家 / nearby 各类会话状态。
+ */
+function writeWorldState(patch, { sessionId, worldId, world, worldActiveFields, worldValueMap }) {
+  if (worldActiveFields.length === 0) return;
+  const values = [];
+  applyStatePatch(worldActiveFields, patch.world,
+    (fieldKey, runtimeValueJson) => values.push({ fieldKey, runtimeValueJson }),
+    `world="${world.name}"`, worldValueMap
+  );
+  upsertSessionWorldStateValues(sessionId, worldId, values);
+}
+
+function writeCharacterStates(patch, { sessionId, charSchemaFields, charactersWithFields, charValueMaps }) {
+  const characterValues = [];
+  for (let i = 0; i < charactersWithFields.length; i++) {
+    const char = charactersWithFields[i];
+    applyStatePatch(charSchemaFields, patch[`char_${i}`],
+      (fieldKey, runtimeValueJson) => characterValues.push({ characterId: char.id, fieldKey, runtimeValueJson }),
+      `char="${char.name}"`, charValueMaps[i]
+    );
+  }
+  upsertSessionCharacterStateValues(sessionId, characterValues);
+}
+
+function writePersonaState(patch, { sessionId, worldId, world, personaActiveFields, personaValueMap }) {
+  if (personaActiveFields.length === 0) return;
+  const values = [];
+  applyStatePatch(personaActiveFields, patch.persona,
+    (fieldKey, runtimeValueJson) => values.push({ fieldKey, runtimeValueJson }),
+    `persona  world="${world?.name}"`, personaValueMap
+  );
+  upsertSessionPersonaStateValues(sessionId, worldId, values);
+}
+
+async function writeStatePatch(patch, { sid, sessionId, worldId, world, targets, valueMaps, nearbyContext, charWorldId }) {
+  const { worldActiveFields, charSchemaFields, charactersWithFields, personaActiveFields } = targets;
+  const { worldValueMap, charValueMaps, personaValueMap } = valueMaps;
+
+  // ── 字数/列表检查：超限时压缩后再写入 ──
+  await compressOverLimitFields(patch, [
+    ...(worldActiveFields.length > 0 ? [{ entityKey: 'world', fields: worldActiveFields, patchData: patch.world, valueMap: worldValueMap }] : []),
+    ...charactersWithFields.map((_, i) => ({ entityKey: `char_${i}`, fields: charSchemaFields, patchData: patch[`char_${i}`], valueMap: charValueMaps[i] })),
+    ...(personaActiveFields.length > 0 ? [{ entityKey: 'persona', fields: personaActiveFields, patchData: patch.persona, valueMap: personaValueMap }] : []),
+  ], sid, sessionId);
+
+  // ── 写入各类状态（会话级） ──
+  writeWorldState(patch, { sessionId, worldId, world, worldActiveFields, worldValueMap });
+  writeCharacterStates(patch, { sessionId, charSchemaFields, charactersWithFields, charValueMaps });
+  writePersonaState(patch, { sessionId, worldId, world, personaActiveFields, personaValueMap });
+
+  // ── 写作模式：应用 nearby_characters 输出 ──
+  if (nearbyContext) {
+    applyNearbyResult({
+      sessionId,
+      worldId: charWorldId,
+      fields: nearbyContext.nearbyEnabledFields,
+      nearby_characters: patch.nearby_characters,
+      pool: nearbyContext.nearbyPool,
+      playerName: nearbyContext.nearbyPlayerName,
+    });
+  }
 }
 
 /**
@@ -629,15 +290,7 @@ export async function updateAllStates(worldId, characterIds, sessionId) {
     ? buildNearbyContext(sessionId, charWorldId, session?.persona_id)
     : null;
   if (nearbyContext) {
-    // TODO(token): nearby pool 每轮由 listNearbyBySessionId + getStateValuesByNearbyIds 重建，
-    //   且 buildNearbyPromptSection 把「指令」与「逐轮变化的池数据」揉在一起，无法切出稳定前缀。
-    //   后续可考虑：把 nearby 的「字段定义/输出格式说明」抽进 schema 前缀，仅把池数据留在动态段；
-    //   并对 pool 做会话级缓存 + 失效（saved/transient 变更时 invalidate）。当前保守只放进动态段，不缓存。
-    valueSections.push(
-      `=== 登场角色（nearby_characters）===\n` +
-        buildNearbyPromptSection(nearbyContext.nearbyPool, nearbyContext.nearbyEnabledFields, { playerName: nearbyContext.nearbyPlayerName })
-    );
-    responseKeys.push('"nearby_characters"（本轮登场角色，数组）');
+    appendNearbyPromptSection(valueSections, responseKeys, nearbyContext);
   }
 
   // 对话上下文：取最近 4 条（2 轮），分"上一轮"/"本轮"打标签
@@ -677,233 +330,20 @@ export async function updateAllStates(worldId, characterIds, sessionId) {
   })}`);
 
   // thinking_level 由副模型配置决定（用户在 UI 选择，例如 deepseek 选 thinking_disabled）；这里不再硬编码 null 覆盖。
-  // ── LLM 调用 + JSON 解析（含 JSON 失败重试） ────────────────────────────
-  let patch = null;
-  let lastRaw = null;
-
-  for (let attempt = 0; attempt <= STATE_UPDATE_JSON_RETRY_MAX; attempt++) {
-    const raw = await llm.complete(prompt, {
-      temperature: LLM_TASK_TEMPERATURE,
-      maxTokens: LLM_STATE_UPDATE_MAX_TOKENS,
-      configScope: resolveAuxScope(sessionId),
-      callType: 'state_update',
-      conversationId: sessionId,
-      cacheableSystem,
-      timeoutMs: LLM_BACKGROUND_TASK_TIMEOUT_MS,
-    });
-    if (!raw) return;  // LLM API 失败，不进入 JSON 重试
-    lastRaw = raw;
-    log.info(`RAW  ${formatMeta({ session: sid, chars: raw.length, attempt, preview: shouldLogRaw('llm_raw') ? previewText(raw) : undefined })}`);
-
-    patch = extractJsonPatch(raw, sid);
-    if (patch !== null) break;
-
-    if (attempt < STATE_UPDATE_JSON_RETRY_MAX) {
-      log.warn(`JSON RETRY ${attempt + 1}/${STATE_UPDATE_JSON_RETRY_MAX}  ${formatMeta({ session: sid, preview: previewText(raw) })}`);
-    }
-  }
-
-  if (patch === null) {
-    log.warn(`JSON PARSE FAIL  ${formatMeta({ session: sid, preview: previewText(lastRaw) })}`);
-    return;
-  }
+  const patch = await requestStatePatch(prompt, cacheableSystem, sid, sessionId);
   if (!patch || typeof patch !== 'object' || Array.isArray(patch)) return;
 
-  // ── 字数/列表检查：超限时压缩后再写入 ──
-  await compressOverLimitFields(patch, [
-    ...(worldActiveFields.length > 0 ? [{ entityKey: 'world', fields: worldActiveFields, patchData: patch.world, valueMap: worldValueMap }] : []),
-    ...charactersWithFields.map((_, i) => ({ entityKey: `char_${i}`, fields: charSchemaFields, patchData: patch[`char_${i}`], valueMap: charValueMaps[i] })),
-    ...(personaActiveFields.length > 0 ? [{ entityKey: 'persona', fields: personaActiveFields, patchData: patch.persona, valueMap: personaValueMap }] : []),
-  ], sid, sessionId);
-
-  // ── 写入各类状态（会话级） ──
-  if (worldActiveFields.length > 0) {
-    const values = [];
-    applyStatePatch(worldActiveFields, patch.world,
-      (fieldKey, runtimeValueJson) => values.push({ fieldKey, runtimeValueJson }),
-      `world="${world.name}"`, worldValueMap
-    );
-    upsertSessionWorldStateValues(sessionId, worldId, values);
-  }
-
-  const characterValues = [];
-  for (let i = 0; i < charactersWithFields.length; i++) {
-    const char = charactersWithFields[i];
-    applyStatePatch(charSchemaFields, patch[`char_${i}`],
-      (fieldKey, runtimeValueJson) => characterValues.push({ characterId: char.id, fieldKey, runtimeValueJson }),
-      `char="${char.name}"`, charValueMaps[i]
-    );
-  }
-  upsertSessionCharacterStateValues(sessionId, characterValues);
-
-  if (personaActiveFields.length > 0) {
-    const values = [];
-    applyStatePatch(personaActiveFields, patch.persona,
-      (fieldKey, runtimeValueJson) => values.push({ fieldKey, runtimeValueJson }),
-      `persona  world="${world?.name}"`, personaValueMap
-    );
-    upsertSessionPersonaStateValues(sessionId, worldId, values);
-  }
-
-  // ── 写作模式：应用 nearby_characters 输出 ──
-  if (nearbyContext) {
-    applyNearbyResult({
-      sessionId,
-      worldId: charWorldId,
-      fields: nearbyContext.nearbyEnabledFields,
-      nearby_characters: patch.nearby_characters,
-      pool: nearbyContext.nearbyPool,
-      playerName: nearbyContext.nearbyPlayerName,
-    });
-  }
+  await writeStatePatch(patch, {
+    sid, sessionId, worldId, world, targets,
+    valueMaps: { worldValueMap, charValueMaps, personaValueMap },
+    nearbyContext, charWorldId,
+  });
 }
 
-/**
- * 把 LLM 输出的 nearby_characters 应用到 DB（写作模式）。
- *
- * 规则：
- *  1. ref_id 命中池 → 更新该 nearby（name/persona/state）
- *  2. ref_id 不命中 → 整条丢弃（log.warn）
- *  3. ref_id=null + name 命中池 → 等同 ref_id 命中
- *  4. ref_id=null + name 不在池 → 新建 transient（is_saved=0），写入 state
- *  5. 池里没回的 transient 删除（saved 永远保留）
- *  6. 未启用字段或类型校验失败 → 跳过
- *
- * @param {object}   params
- * @param {string}   params.sessionId
- * @param {string}   params.worldId
- * @param {object[]} params.fields              启用的 character_state_fields
- * @param {*}        params.nearby_characters   LLM 输出（可能不是数组）
- * @param {Array<{id:string,name:string,is_saved:0|1}>} params.pool
- */
-function applyNearbyState(targetId, stateObj, { sessionId, enabledKeys, fieldByKey }) {
-  if (!stateObj || typeof stateObj !== 'object' || Array.isArray(stateObj)) return;
-  const values = [];
-  for (const [key, raw] of Object.entries(stateObj)) {
-    if (!enabledKeys.has(key)) continue;
-    const validated = validateValue(raw, fieldByKey[key]);
-    if (validated === undefined) continue;
-    const valueJson = validated === null ? null : JSON.stringify(validated);
-    values.push({ sessionId, nearbyId: targetId, fieldKey: key, valueJson });
-  }
-  upsertNearbyStateValues(values);
-}
-
-function applyNearbyPatch(targetId, item, context) {
-  const { sessionId, poolById, poolByName, seenIds } = context;
-  const poolItem = poolById[targetId];
-  if (typeof item.persona === 'string') updateNearbyPersona(targetId, item.persona);
-
-  // 改名：仅当 LLM 给了非空 name 且与现有不同 且 池内无同名占用
-  if (typeof item.name === 'string' && item.name.trim() && poolItem && item.name !== poolItem.name) {
-    const conflict = poolByName[item.name];
-    if (!conflict) {
-      updateNearbyName(targetId, item.name);
-    } else if (conflict.id !== targetId) {
-      log.warn(`NEARBY RENAME SKIP  ${formatMeta({ session: sessionId.slice(0, 8), id: targetId, want: item.name, conflictId: conflict.id })}`);
-    }
-  }
-  applyNearbyState(targetId, item.state, context);
-  seenIds.add(targetId);
-}
-
-function createTransientNearby(name, item, context) {
-  const { sessionId, fields, seenIds } = context;
-  const persona = typeof item.persona === 'string' ? item.persona : '';
-  let newId;
-  try {
-    newId = createNearbyCharacter({ sessionId, name, persona, isSaved: 0 });
-  } catch (err) {
-    // UNIQUE 冲突等场景兜底
-    log.warn(`NEARBY CREATE FAIL  ${formatMeta({ session: sessionId.slice(0, 8), name, error: err.message })}`);
-    const existed = getNearbyByName(sessionId, name);
-    if (!existed) return;
-    newId = existed.id;
-  }
-  applyNearbyState(newId, item.state, context);
-  // 诊断：新登场角色按 prompt 约束应填齐所有启用字段，缺字段时 warn
-  const stateKeys = item.state && typeof item.state === 'object' ? Object.keys(item.state) : [];
-  const missing = fields.map((field) => field.field_key).filter((key) => !stateKeys.includes(key));
-  if (missing.length) {
-    log.warn(`NEARBY NEW MISSING FIELDS  ${formatMeta({ session: sessionId.slice(0, 8), name, missing: missing.join(',') })}`);
-  }
-  seenIds.add(newId);
-}
-
-export function applyNearbyResult({ sessionId, worldId: _worldId, fields, nearby_characters, pool, playerName = '' }) {
-  const items = Array.isArray(nearby_characters) ? nearby_characters : [];
-  const enabledKeys = new Set(fields.map((f) => f.field_key));
-  const fieldByKey = Object.fromEntries(fields.map((f) => [f.field_key, f]));
-  const poolById = Object.fromEntries(pool.map((p) => [p.id, p]));
-  const poolByName = Object.fromEntries(pool.map((p) => [p.name, p]));
-  const seenIds = new Set();
-  const playerNameTrim = typeof playerName === 'string' ? playerName.trim() : '';
-  const context = { sessionId, fields, enabledKeys, fieldByKey, poolById, poolByName, seenIds };
-
-  for (const item of items) {
-    if (!item || typeof item !== 'object') continue;
-    const itemName = typeof item.name === 'string' ? item.name.trim() : '';
-    if (playerNameTrim && itemName && itemName === playerNameTrim) {
-      log.warn(`NEARBY DROP PLAYER  ${formatMeta({ session: sessionId.slice(0, 8), name: itemName })}`);
-      continue;
-    }
-    const refId = item.ref_id ?? null;
-    if (refId) {
-      if (poolById[refId]) {
-        applyNearbyPatch(refId, item, context);
-      } else {
-        log.warn(`NEARBY REF MISS  ${formatMeta({ session: sessionId.slice(0, 8), ref_id: refId })}`);
-      }
-      continue;
-    }
-    // ref_id == null
-    const name = typeof item.name === 'string' ? item.name.trim() : '';
-    if (!name) continue;
-    if (poolByName[name]) {
-      applyNearbyPatch(poolByName[name].id, item, context);
-      continue;
-    }
-    createTransientNearby(name, item, context);
-  }
-
-  // 清理：保留 saved 全部 + 本轮提到的 transient
-  const keepIds = pool.filter((p) => p.is_saved === 1 || seenIds.has(p.id)).map((p) => p.id);
-  // 本轮新建的 transient 不在 pool 里，但 deleteTransientNotInIds 仅删 transient，
-  // 新建的 ID 也需要保留：合并到 keepIds
-  for (const id of seenIds) {
-    if (!keepIds.includes(id)) keepIds.push(id);
-  }
-  deleteTransientNotInIds(sessionId, keepIds);
-
-  // 本轮"被 LLM 触达"信号：bump updated_at，供前端判断 saved 角色是否登场（自动展开/收起）
-  // state_updated_at 在 state 字段空时不前进，所以单独维护 row.updated_at
-  touchNearbyRows(seenIds);
-}
-
-// ── 值格式化 ─────────────────────────────────────────────────────────────
 // 值校验（validateValue）已提取至 backend/utils/state-field-validate.js，供本文件与
 // backend/services/state-extract.js 共用，避免同一套类型规则出现两份实现。
 
-function formatValueForPrompt(valueJson, field) {
-  if (valueJson == null) return '（未设置）';
-
-  // 兼容旧数据：无 default_value 的空字符串/空数组本质上是历史占位值，
-  // 应继续视为"未设置"，让自动补全有机会运行。
-  if (field.default_value == null) {
-    if (field.type === 'text' && valueJson === '""') return '（未设置）';
-    if (field.type === 'list' && valueJson === '[]') return '（未设置）';
-  }
-
-  return valueJson;
-}
-
 export const __testables = {
-  filterActive,
-  buildValueMap,
-  buildFieldsSchema,
-  buildFieldsValues,
   applyStatePatch,
   validateValue,
-  formatValueForPrompt,
-  applyNearbyResult,
 };

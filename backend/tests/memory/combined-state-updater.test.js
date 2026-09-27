@@ -21,13 +21,13 @@ after(() => {
 });
 
 test('filterActive 返回 update_mode=llm_auto 的字段', async () => {
-  const { __testables } = await freshImport('backend/memory/combined-state-updater.js');
+  const { filterActive } = await freshImport('backend/memory/state-update-context.js');
   const fields = [
     { field_key: 'manual', update_mode: 'manual' },
     { field_key: 'auto_weather', update_mode: 'llm_auto' },
     { field_key: 'auto_hp', update_mode: 'llm_auto' },
   ];
-  const active = __testables.filterActive(fields);
+  const active = filterActive(fields);
   assert.deepEqual(active.map((item) => item.field_key), ['auto_weather', 'auto_hp']);
 });
 
