@@ -13,6 +13,10 @@ const mocks = vi.hoisted(() => ({
   getWorldStateValues: vi.fn(),
   updateWorldStateValue: vi.fn(),
   syncDiaryTimeField: vi.fn(),
+  uploadWorldCover: vi.fn(),
+  extractAccentColorFromFile: vi.fn(),
+  extractAccentColorFromImageSrc: vi.fn(),
+  loadedWorld: {},
 }));
 
 vi.mock('react-router-dom', () => ({
@@ -24,6 +28,12 @@ vi.mock('../../src/core/api/worlds', () => ({
   getWorld: (...args) => mocks.getWorld(...args),
   createWorld: (...args) => mocks.createWorld(...args),
   updateWorld: (...args) => mocks.updateWorld(...args),
+  uploadWorldCover: (...args) => mocks.uploadWorldCover(...args),
+}));
+vi.mock('../../src/core/utils/extractAccentColor.js', () => ({
+  extractAccentColorFromFile: (...args) => mocks.extractAccentColorFromFile(...args),
+  extractAccentColorFromImageSrc: (...args) => mocks.extractAccentColorFromImageSrc(...args),
+  FALLBACK_ACCENT_HEX: '#7f95a8',
 }));
 vi.mock('../../src/core/api/import-export', () => ({
   downloadWorldCard: vi.fn(),
@@ -60,6 +70,9 @@ vi.mock('../../src/core/api/config', () => ({
   getConfig: (...args) => mocks.getConfig(...args),
 }));
 vi.mock('../../src/components/state/StateFieldList', () => ({ default: ({ scope }) => <div>{scope}-fields</div> }));
+vi.mock('../../src/components/ui/AvatarUpload', () => ({
+  default: ({ fileInputRef, onFileChange }) => <input ref={fileInputRef} type="file" onChange={onFileChange} />,
+}));
 vi.mock('../../src/components/state/StateValueField', () => ({
   default: ({ field, onSave }) => (
     <button onClick={() => onSave(field.field_key, '"stored"')}>save-{field.field_key}</button>
@@ -94,18 +107,44 @@ describe('WorldEditPage', () => {
     mocks.useNavigate.mockReset();
     mocks.createWorld.mockReset();
     mocks.updateWorld.mockReset();
+    mocks.uploadWorldCover.mockReset();
+    mocks.extractAccentColorFromFile.mockReset();
+    mocks.extractAccentColorFromImageSrc.mockReset();
     mocks.updateWorldStateValue.mockReset();
     mocks.syncDiaryTimeField.mockReset();
-    mocks.getWorld.mockResolvedValue({
+    mocks.loadedWorld = {
       id: 'world-1',
       name: '群星海',
       temperature: 0.7,
       max_tokens: 1024,
-    });
+      accent_color: null,
+      accent_source: 'auto',
+    };
+    mocks.getWorld.mockImplementation(async () => ({ ...mocks.loadedWorld }));
     mocks.getWorldStateValues.mockResolvedValue([{ field_key: 'weather', label: '天气' }]);
     mocks.getConfig.mockResolvedValue({ diary: { chat: { date_mode: 'real' } } });
     mocks.createWorld.mockResolvedValue({ id: 'world-2' });
-    mocks.updateWorld.mockResolvedValue({ id: 'world-1' });
+    mocks.updateWorld.mockImplementation(async (_id, patch) => {
+      mocks.loadedWorld = { ...mocks.loadedWorld, ...patch };
+      return { id: 'world-1' };
+    });
+    mocks.uploadWorldCover.mockImplementation(async (_id, file, accentColor) => {
+      const manual = mocks.loadedWorld.accent_source === 'manual';
+      const nextAccentColor = manual ? mocks.loadedWorld.accent_color : accentColor;
+      mocks.loadedWorld = {
+        ...mocks.loadedWorld,
+        cover_path: 'covers/new-cover.png',
+        accent_color: nextAccentColor,
+        accent_source: manual ? 'manual' : 'auto',
+      };
+      return {
+        cover_path: 'covers/new-cover.png',
+        accent_color: nextAccentColor,
+        accent_source: manual ? 'manual' : 'auto',
+      };
+    });
+    mocks.extractAccentColorFromFile.mockResolvedValue('#123456');
+    mocks.extractAccentColorFromImageSrc.mockResolvedValue('#789abc');
     mocks.updateWorldStateValue.mockResolvedValue({ success: true });
     mocks.syncDiaryTimeField.mockResolvedValue(undefined);
   });
@@ -141,6 +180,7 @@ describe('WorldEditPage', () => {
     render(<WorldEditPage />);
 
     expect(await screen.findByDisplayValue('群星海')).toBeInTheDocument();
+    expect(screen.getByText('world-fields')).toBeInTheDocument();
     fireEvent.change(screen.getByDisplayValue('群星海'), { target: { value: '群星海-修订' } });
 
     fireEvent.click(screen.getAllByText('保存')[0]);
@@ -153,6 +193,74 @@ describe('WorldEditPage', () => {
     }));
     expect(mocks.useNavigate).toHaveBeenCalledWith(-1);
     expect(mocks.syncDiaryTimeField).toHaveBeenCalledWith('world-1');
+  });
+
+  it('保存 LLM 参数时保留数值转换', async () => {
+    render(<WorldEditPage />);
+
+    await screen.findByDisplayValue('群星海');
+    const llmInputs = screen.getAllByLabelText('留空则使用全局配置');
+    fireEvent.change(llmInputs[0], { target: { value: '1.25' } });
+    fireEvent.change(llmInputs[1], { target: { value: '2048' } });
+    fireEvent.click(screen.getAllByText('保存')[1]);
+
+    await waitFor(() => expect(mocks.updateWorld).toHaveBeenCalledWith('world-1', {
+      name: '群星海',
+      description: '',
+      temperature: 1.25,
+      max_tokens: 2048,
+    }));
+  });
+
+  it('新建状态模板不挂载；编辑页上传封面并保留主色切换逻辑', async () => {
+    mocks.useParams.mockReturnValue({});
+    const createView = render(<WorldEditPage />);
+    expect(screen.queryByText('world-fields')).not.toBeInTheDocument();
+    createView.unmount();
+
+    mocks.useParams.mockReturnValue({ worldId: 'world-1' });
+    mocks.loadedWorld = {
+      ...mocks.loadedWorld,
+      cover_path: 'covers/old-cover.png',
+      accent_color: '#445566',
+      accent_source: 'auto',
+    };
+    const updatedEvent = vi.fn();
+    window.addEventListener('we:world-updated', updatedEvent);
+    render(<WorldEditPage />);
+    await screen.findByDisplayValue('群星海');
+
+    const file = new File(['cover'], 'cover.png', { type: 'image/png' });
+    fireEvent.change(document.querySelector('input[type="file"]'), { target: { files: [file] } });
+    await waitFor(() => expect(mocks.uploadWorldCover).toHaveBeenCalledWith('world-1', file, '#123456'));
+    expect(mocks.extractAccentColorFromFile).toHaveBeenCalledWith(file);
+
+    fireEvent.click(screen.getByRole('switch'));
+    await waitFor(() => expect(mocks.updateWorld).toHaveBeenCalledWith('world-1', {
+      accent_color: '#123456',
+      accent_source: 'manual',
+    }));
+
+    fireEvent.change(await screen.findByLabelText('选择主色'), { target: { value: '#aabbcc' } });
+    await waitFor(() => expect(mocks.updateWorld).toHaveBeenCalledWith('world-1', {
+      accent_color: '#aabbcc',
+      accent_source: 'manual',
+    }));
+
+    mocks.extractAccentColorFromFile.mockClear();
+    const manualCover = new File(['manual cover'], 'manual-cover.png', { type: 'image/png' });
+    fireEvent.change(document.querySelector('input[type="file"]'), { target: { files: [manualCover] } });
+    await waitFor(() => expect(mocks.uploadWorldCover).toHaveBeenLastCalledWith('world-1', manualCover, null));
+    expect(mocks.extractAccentColorFromFile).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('switch'));
+    await waitFor(() => expect(mocks.extractAccentColorFromImageSrc).toHaveBeenCalledWith('/api/uploads/covers/new-cover.png'));
+    await waitFor(() => expect(mocks.updateWorld).toHaveBeenCalledWith('world-1', {
+      accent_color: '#789abc',
+      accent_source: 'auto',
+    }));
+    expect(updatedEvent).toHaveBeenCalled();
+    window.removeEventListener('we:world-updated', updatedEvent);
   });
 
   it('名称为空时显示校验错误且不提交', async () => {
