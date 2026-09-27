@@ -1,172 +1,180 @@
 # WorldEngine
 
-**本地优先的 AI 角色扮演引擎**
-状态驱动叙事 · 分层记忆召回 · 动态提示词注入 · Chat / Writing 双模式
+**本地优先的 AI 角色扮演与长篇创作引擎**
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+在一个持续演化的世界中管理角色、玩家身份、规则、状态和记忆，并通过对话或写作推进故事。
+
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Release](https://img.shields.io/github/v/release/n0ctx/WorldEngine?include_prereleases&label=release)](https://github.com/n0ctx/WorldEngine/releases)
 [![Stars](https://img.shields.io/github/stars/n0ctx/WorldEngine?style=social)](https://github.com/n0ctx/WorldEngine/stargazers)
-[![Node](https://img.shields.io/badge/node-%E2%89%A518-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
+[![Node](https://img.shields.io/badge/node-%E2%89%A520.19-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
 
-![卷宗书架界面](docs/images/bookshelf.png)
+![WorldEngine 世界书架](docs/images/bookshelf.png)
 
----
+## 适合做什么
 
-## WorldEngine 是什么
+WorldEngine 面向需要长期维护设定和剧情连续性的创作者。它不是一次性聊天壳，而是把故事运行所需的信息分层保存：
 
-WorldEngine 是一个本地优先的 AI 角色扮演与创作引擎，面向需要长期推进剧情、维护世界观和管理复杂角色状态的创作者。它把世界设定、角色设定、状态字段、提示词规则和历史记忆组织成一个可持续运行的叙事系统，让用户可以围绕同一个世界开展多轮对话、章节写作和角色互动。
+- **世界**：世界观、规则条目、世界状态和模型参数。
+- **玩家身份（Persona）**：同一世界中可切换的玩家姓名、人设与状态。
+- **角色**：角色卡、开场白、后置指令和独立状态。
+- **故事线**：对话与写作会话、消息历史、章节和状态快照。
+- **记忆**：摘要召回、原文展开、长期记忆、表格记忆和日记，可按需启用。
 
-在 WorldEngine 中，世界、角色和会话都有独立的配置与状态。系统会根据当前剧情自动召回相关记忆、更新角色状态，并按规则注入合适的提示词内容，从而减少反复手动补充设定的成本。用户既可以以 Chat 模式进行单角色对话，也可以以 Writing 模式进行多角色协作写作，适合互动小说、TRPG、角色扮演和长篇创意写作场景。
+适用于互动小说、角色扮演、TRPG 辅助、世界观实验和长篇创意写作。
 
----
+## 当前能力
 
-## 快速上手
+### 对话与写作
 
-### 方式一：下载桌面版（无需 Node.js）
+- **Chat**：围绕单个角色进行对话，支持多会话、续写、重新生成、编辑消息和状态侧栏。
+- **Writing**：按章节组织长篇正文，可让多个场景角色共同参与，并管理附近角色及其状态。
+- 对话和写作拥有独立的模型、全局提示词、正则规则、自定义 CSS 与功能开关。
+- 流式生成过程中可以停止；页面重载后会尝试恢复仍在运行的任务。
 
-前往 [Releases](https://github.com/n0ctx/WorldEngine/releases) 下载对应平台安装包，安装后在设置页填入 LLM API Key 即可使用。支持 macOS（Intel / Apple Silicon）和 Windows（x64）。
+### 规则与状态
 
-### 方式二：一键脚本启动（需要 Node.js 18+）
+- 规则条目支持常驻、关键词、语义判断和状态条件四类触发方式。
+- 世界、角色、玩家身份分别维护状态字段和状态值。
+- 字段支持文本、数值、布尔、枚举、列表、日期时间和表格等类型。
+- 会话保存自己的状态快照；删除或重新生成消息时，相关状态和记忆可随故事线一起回退。
 
-克隆仓库后，直接双击对应脚本，自动安装依赖、启动前后端并打开浏览器：
+### 记忆系统
 
-- **macOS**：双击 `WorldEngine.command`（首次需在终端执行 `chmod +x WorldEngine.command` 赋予执行权限）
-- **Windows**：双击 `WorldEngine.bat`
+- 对历史轮次生成摘要，并通过 Embedding 召回与当前内容相关的片段。
+- 可让辅助模型判断是否需要展开摘要对应的原文。
+- 可选长期记忆、按日记载和四类结构化表格记忆：关系、物品、地点、势力。
+- 写作模式可以按当前剧情召回已保存角色，减少长篇推进中的人物遗漏。
 
-### 方式三：手动启动（需要 Node.js 18+）
+### 写卡助手
+
+写卡助手是独立于剧情模型的配置代理，可以协助创建或修改世界、角色、玩家身份、规则、状态字段和全局配置。涉及写入的操作会先展示计划或提案，由用户确认后执行。
+
+### 个性化与运维
+
+- 内置可切换主题，并支持自定义 CSS。
+- 对话和写作可分别配置显示正则规则。
+- 支持代理地址、模型连通性测试、Token 用量展示和 Provider 安全信号查看。
+- 支持世界、角色、玩家卡、模式设置和迁移包的导入导出。
+
+## 数据与隐私
+
+WorldEngine 的数据库、配置、头像、记忆和日志保存在本机：
+
+- 源码模式默认使用仓库下的 `data/`。
+- 桌面版使用操作系统分配给 WorldEngine 的应用数据目录。
+- API Key 保存在本地配置中，不会写入世界卡、设置导出文件或全量迁移包。
+
+“本地优先”不等于“所有推理都在本地”。选择云端 Provider 时，生成所需的提示词和上下文会发送给对应服务商；如需完全本地推理，请使用 Ollama、LM Studio 或 llama.cpp，并自行确认所用模型和 Embedding 服务的运行位置。
+
+迁移包用于备份设定与配置，不包含对话或写作会话历史。如需完整备份，请在退出应用后复制整个应用数据目录。导入设置和迁移包属于覆盖性操作，请先确认备份。
+
+## 安装与启动
+
+### 桌面版
+
+在 [Releases](https://github.com/n0ctx/WorldEngine/releases) 下载对应安装包。当前打包目标包括：
+
+- macOS：Apple Silicon、Intel
+- Windows：x64
+
+安装后打开设置，选择 Provider，填写 API Key 或本地模型地址并测试连接。
+
+### 从源码运行
+
+要求：
+
+- Node.js `20.19+` 或 `22.12+`
+- npm
 
 ```bash
 git clone https://github.com/n0ctx/WorldEngine.git
 cd WorldEngine
 
-npm install --prefix frontend
+# 根依赖包含前端和写卡助手；后端单独安装
+npm install
 npm install --prefix backend
 
-# 两个终端分别启动
-cd frontend && npm run dev   # http://localhost:5173
-cd backend  && npm run dev   # http://localhost:3000
+# 同时启动前端和后端
+npm run dev
 ```
 
-首次启动后在设置页填入 LLM 提供商的 API Key，然后新建世界 → 新建角色 → 开启对话或写作会话。
+启动后访问 <http://localhost:5173>。后端默认监听 `127.0.0.1:3000`。
 
----
+也可以直接运行仓库根目录的启动脚本，它会同步依赖并打开浏览器：
 
-## 核心能力
+- macOS：双击 `WorldEngine.command`；首次运行前可能需要执行 `chmod +x WorldEngine.command`
+- Windows：双击 `WorldEngine.bat`
 
-### 动态提示词注入
+## 模型支持
 
-提示词条目支持 4 种触发类型，精细控制每轮注入哪些信息：
+主模型和辅助模型可分别配置。界面内置以下 Provider：
 
-| 类型 | 触发时机 |
+- 云端：OpenAI、Anthropic、Google Gemini、OpenRouter、DeepSeek、Grok、SiliconFlow、Qwen、Xiaomi、GLM、Kimi、MiniMax，以及对应的 Coding Plan 接口。
+- 本地：Ollama、LM Studio、llama.cpp。
+- Embedding：OpenAI、OpenAI Compatible、Ollama，也可以关闭。
+
+远程自定义地址必须使用 HTTPS，且不能指向本机或私有网络；本地 Provider 只接受本机地址。这一限制用于避免把凭据或请求意外发送到不可信目标。
+
+## 导入导出
+
+| 扩展名 | 内容 |
 |---|---|
-| `always` | 常驻，每轮必然注入 |
-| `keyword` | 用户消息含关键词时触发 |
-| `llm` | AI 预判语义相关时注入，按 token 权重排序 |
-| `state` | 状态字段满足条件表达式时自动激活 |
+| `.wechar.json` | 单个角色及其状态字段 |
+| `.wepersona.json` | 单个玩家身份及其状态字段 |
+| `.weworld.json` | 世界、角色、玩家身份、规则、状态字段和默认值 |
+| `.weglobal.json` | 当前对话或写作模式的提示词、CSS、正则和相关配置 |
+| `.wemigration.json` | 两种模式的全局设置与全部世界卡，用于配置和设定迁移 |
 
-常驻条目走 Prompt Cache 层，每轮不重复计费；语义条目按当前上下文按需召回，不注入无关内容。
+所有格式都是 JSON。导出文件不包含 API Key；当前也不导出对话或写作会话历史。
 
-### 分层记忆系统
+## 项目结构
 
-每轮 AI 回复后异步生成摘要并建向量索引。新消息发送时，语义召回历史相关片段注入上下文，同 session 阈值 0.6，跨 session 默认关闭可手动开启。LLM 进一步判断是否展开原文（智能展开），在保持上下文简洁的同时让细节可追溯。长期记忆通过独立的 `memory.md` 文件持久化，按轮次快照，支持随消息回滚还原。
-
-### 结构化表格记忆
-
-在向量召回之外，另用四张内置表格维护「当前世界状态」的结构化快照，防止长程剧情穿帮：
-
-| 表 | 记录内容 |
-|---|---|
-| 关系表 | 角色/势力之间的当前关系、信任敌意、债务承诺 |
-| 物品表 | 关键物品的持有人、位置、效果、状态 |
-| 地点表 | 地点的归属、当前状态、危险资源、历史标记 |
-| 势力表 | 组织的控制范围、核心人物、实力、立场 |
-
-每轮回复后由副模型自动增删改，满表时自动归档；用户也能在「表格记忆」面板直接点单元格改值或删行。按轮次快照，随消息回滚还原。
-
-### 状态驱动叙事
-
-世界、角色、玩家（Persona）各自拥有独立的状态字段，支持 text / number / boolean / enum / list / datetime / table 七种类型。`llm_auto` 模式下每轮 AI 回复后自动解析并更新状态；每个会话有独立的状态快照，多会话互不干扰。状态值可以直接触发对应的提示词条目，让场景变化自动带入上下文。字段的定义、默认值和触发条件都可在「状态工作台」以字段为中心集中配置。
-
-新建世界会自动带上一套默认状态字段（世界层地点/天气，角色层与玩家层各一套性格/年龄/外貌/穿着/身份），落库后就是普通字段，可以自由改名、改类型或删除，只影响新建的世界。角色/玩家编辑页的「状态」区可点「AI 提取状态字段建议」，用辅助模型从人设正文推断该层全部字段的建议值，逐条勾选后再写入，不会静默覆盖已有内容。
-
-### Chat / Writing 双模式
-
-- **对话（Chat）**：气泡消息列表，单角色扮演，右侧实时状态面板，支持重新生成、续写、编辑。
-- **写作（Writing）**：散文段落排版，多角色协作，章节自动分组并生成标题，AI 统筹所有激活角色的行为。
-
-### 写卡助手
-
-挂载在界面右侧的 AI 代理面板。以提案（Proposal）方式辅助构建世界、角色、Persona 和全局配置，用户逐条确认后方执行，SSE 实时推送进度。不参与剧情对话，只做配置层的修改。
-
----
-
-## 技术架构速览
-
-```
-全局配置
-  └─ 世界（提示词、状态字段、正则规则、CSS）
-       └─ 角色（系统提示词、状态字段、生成参数）
-            └─ 会话（状态快照、消息历史、turn record）
+```text
+frontend/    React 前端、页面与交互状态
+backend/     Express API、SQLite、模型调用、状态与记忆流程
+assistant/   写卡助手客户端、服务端和工具
+desktop/     Electron 桌面封装与打包配置
+themes/      可切换主题包
+shared/      前后端与助手共享协议
+scripts/     质量守卫和仓库维护脚本
+data/        源码模式的本地数据目录
 ```
 
-Prompt 按 14 段顺序组装，前 4 段走 Prompt Cache 层（全局提示词 + Persona + 角色 system prompt + 常驻条目），后续段动态拼接（状态、长期记忆、表格记忆、召回摘要、历史消息、后置提示词、当前消息）。各 provider 缓存策略自动适配（Anthropic `cache_control`、OpenAI-compatible 稳定前缀、Gemini explicit cache）。
+主要技术栈：React 19、Vite 8、Zustand、Express 5、SQLite（better-sqlite3）、Electron。
 
-技术栈：React 19 + Vite + TailwindCSS + Zustand（前端）/ Node.js + Express + ES Modules（后端）/ SQLite（better-sqlite3）/ OpenAI 或 Ollama embeddings（可选）/ Electron（桌面端）
-
-LLM 支持：Anthropic Claude · OpenAI GPT · OpenAI 兼容接口（DeepSeek / SiliconFlow / Grok 等）· Google Gemini · Ollama 本地模型
-
----
-
-## 导入导出格式
-
-| 格式 | 内容 |
-|---|---|
-| `.wechar.json` | 单角色（含状态字段定义和默认值） |
-| `.weworld.json` | 完整世界（含所有角色、配置、会话历史） |
-| `.weglobal.json` | 全局设置（提示词、CSS、正则，不含 API Key） |
-
----
-
-## 弹幕彩蛋
-
-可选开启的娱乐彩蛋：每轮回复后由副模型生成一组「观众弹幕」，扣住本轮具体剧情，并注入主角人设支持第一视角代入。以 B 站式跑马灯在顶部栏单行滚动，鼠标悬停暂停。随消息删除/重生成/回滚自动清理，任何失败都静默降级不影响主流程。
-
----
-
-## 开发与构建
+## 开发与验证
 
 ```bash
-# 重置数据库（开发用）
-cd backend && npm run db:reset
+# 完整检查：lint、源码守卫、各模块测试
+npm run check
+
+# 只运行八类源码守卫
+npm run check:guards
+
+# 分模块测试
+npm run test:frontend
+npm run test:backend
+npm run test:assistant
+
+# 端到端测试
+npm run test:e2e
 
 # 构建前端
-cd frontend && npm run build
+npm run build --prefix frontend
 
-# 打包桌面应用（首次需下载 Node runtime，约需几分钟）
+# 构建桌面安装包
+npm run desktop:install
 npm run desktop:dist
 ```
 
-桌面打包产物在 `desktop/dist/`。数据目录：
+源码守卫采用基线棘轮：历史问题可以逐步减少，但新代码不能新增或扩大体量、复杂度、重复、死代码、测试形态、运行形态、循环依赖和架构边界问题。
 
-- macOS：`~/Library/Application Support/worldengine-desktop/`
-- Windows：`%APPDATA%\worldengine-desktop\`
+## 项目状态
 
-日志文件位于 `data/logs/worldengine-YYYY-MM-DD.log`，级别通过 `data/config.json` 的 `logging` 配置块控制。
+WorldEngine 仍在快速迭代，数据结构、配置和交互可能继续变化。使用开发版本时请定期导出迁移包，并在升级后检查模型配置与关键世界数据。
 
-### 源码守卫
+## 社区与许可
 
-`npm run lint` 包含 8 个源码守卫：体量、圈复杂度、重复代码、死代码、测试形态、运行形态、循环依赖、架构边界。改完代码后运行 `npm run check:guards`，它会跑完全部守卫再汇总结果，一个失败不会中断其余；单独运行用 `npm run check:<名字>`，守卫自身的测试是 `npm run test:guards`。
-
-- 现有问题记在 `scripts/*-baseline.json`，只许减少。新增违规要修掉。
-- 报「基线与现状对不上」说明问题已改善或已消失，用对应脚本的 `--update-baseline` 刷新基线，并和代码一起提交。
-- 检测器分不清的有意写法（前后端镜像、一次性迁移等），在代码上一行写 `// guard-allow(<守卫名>): <理由>`，规则见 `scripts/guard-common.mjs` 头部。
-
-## 主题系统
-
-前端主题现在只接受正式语义 token 和基础色板 token。旧兼容别名已经移除，新主题或自定义 CSS 需要使用 `--we-color-*`、`--we-font-*`、`--we-page-canvas-*`、`--we-card-*`、`--we-panel-card-*` 等当前入口。
-
----
-
-## 社区
-
-QQ 群：**964968606**
+- QQ 群：**964968606**
+- License：[MIT](LICENSE)
