@@ -71,14 +71,14 @@ export default [
     },
   },
   // 常量定义文件本身需要写字面量，单独豁免。
-  // routes/config.js 内 OPENAI_COMPATIBLE_BASE_URLS 与 _shared/base-urls.js 内 chat 路径副本是有意 drift
+  // services/model-catalog.js 内 OPENAI_COMPATIBLE_BASE_URLS 与 _shared/base-urls.js 内 chat 路径副本是有意 drift
   // （kimi-coding 的 /models 端点用 /coding/v1，chat 端点用 /coding），必须独立维护，豁免本规则。
   {
     files: [
       'services/import-export-constants.js',
       'llm/providers/_shared/base-urls.js',
       'llm/providers/anthropic/constants.js',
-      'routes/config.js',
+      'services/model-catalog.js',
     ],
     rules: {
       'no-restricted-syntax': 'off',
