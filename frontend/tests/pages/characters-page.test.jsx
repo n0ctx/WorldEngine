@@ -100,7 +100,7 @@ vi.mock('../../src/components/ui/Icon.jsx', () => ({
   default: ({ children, ...props }) => <svg {...props}>{children}</svg>,
 }));
 
-import CharactersPage from '../../src/pages/CharactersPage.jsx';
+import CharactersPage from '../../src/pages/CharactersPage/index.jsx';
 
 describe('CharactersPage', () => {
   beforeEach(() => {
