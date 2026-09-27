@@ -1,22 +1,10 @@
-import { useRef, useState, useCallback, forwardRef } from 'react';
+import { forwardRef } from 'react';
 import ProximityRail from '../motion/ProximityRail.jsx';
 import ProseChapters from './ProseChapters.jsx';
 import MessageBubbles from './MessageBubbles.jsx';
 import MessageListStatus from './MessageListStatus.jsx';
-import useSessionMessages from './useSessionMessages.js';
-import useMessagePaging from './useMessagePaging.js';
+import useMessageListState from './useMessageListState.js';
 import useMessageDisplay from './useMessageDisplay.js';
-import useMessageListHandle from './useMessageListHandle.js';
-
-// 按消息的顶部留白定位到列表顶部
-function scrollToMessageIn(list, messageId) {
-  if (!list || !messageId) return;
-  const target = list.querySelector(`[data-message-id="${CSS.escape(String(messageId))}"]`);
-  if (!target) return;
-  const margin = parseFloat(getComputedStyle(target).scrollMarginTop) || 0;
-  const top = target.getBoundingClientRect().top - list.getBoundingClientRect().top + list.scrollTop - margin;
-  list.scrollTo({ top, behavior: 'smooth' });
-}
 
 const MessageList = forwardRef(function MessageList({
   sessionId,
@@ -46,30 +34,10 @@ const MessageList = forwardRef(function MessageList({
   pageTurnSize,
   onPageInfoChange,
 }, ref) {
-  const listRef = useRef(null);
-  // 翻页锚点：followLast=true 永远跟随末页（新消息到来时自动追随）；用户手动翻页后 followLast=false 停在固定页
-  const [pageAnchor, setPageAnchor] = useState({ idx: 0, followLast: true });
-
   const {
-    messages, setMessages, loading, loadError, reload, messagesRef, scrollToLatestPendingRef,
-  } = useSessionMessages({ sessionId, onMessagesLoaded, setPageAnchor });
-
-  const handleJumpToMessage = useCallback((messageId) => scrollToMessageIn(listRef.current, messageId), []);
-
-  const {
-    pageMessages, onLastPage, lastPageIdxRef,
-  } = useMessagePaging({
-    messages, pageAnchor, setPageAnchor, pageTurnSize, onPageInfoChange,
-    generating, continuingMessageId, scrollToLatestPendingRef, listRef,
-  });
-
-  useMessageListHandle(ref, {
-    setMessages,
-    setPageAnchor,
-    lastPageIdxRef,
-    listRef,
-    messagesRef,
-    handleJumpToMessage,
+    listRef, messages, loading, loadError, reload, pageMessages, onLastPage, handleJumpToMessage,
+  } = useMessageListState(ref, {
+    sessionId, onMessagesLoaded, pageTurnSize, onPageInfoChange, generating, continuingMessageId,
   });
 
   const {

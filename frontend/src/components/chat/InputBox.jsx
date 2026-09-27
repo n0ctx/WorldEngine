@@ -1,10 +1,9 @@
-import { useState, useRef, useEffect, forwardRef } from 'react';
+import { useState, useRef, useEffect, useImperativeHandle, forwardRef } from 'react';
 import { applyRules } from '../../core/utils/regex-runner.js';
 import ConfirmModal from '../ui/ConfirmModal.jsx';
 import { isImeComposing } from '../../core/utils/ime.js';
 import { useMotion } from '../../core/hooks/useMotion.js';
 import useChatDraft from './useChatDraft.js';
-import useFillTextRef from './useFillTextRef.js';
 import useSlashCommands from './useSlashCommands.js';
 import useImageAttachments from './useImageAttachments.js';
 import InputBoxToolbar from './InputBoxToolbar.jsx';
@@ -32,9 +31,29 @@ const InputBox = forwardRef(function InputBox({
   const press = m.gesture('press');
   const [text, setText] = useState('');
   const textareaRef = useRef(null);
+  const [pendingFill, setPendingFill] = useState(null);
 
   const { clearDraft } = useChatDraft({ mode, sessionId, text, setText });
-  const { pendingFill, setPendingFill } = useFillTextRef({ ref, text, setText, textareaRef });
+
+  // 暴露命令式 fillText 给父组件
+  useImperativeHandle(ref, () => ({
+    // confirmOverwrite：已有内容时弹确认框，由用户决定是否覆盖
+    fillText(value, opts = {}) {
+      const { force = false, focus = false, confirmOverwrite = false } = opts;
+      if (!force && text.trim()) {
+        if (confirmOverwrite) setPendingFill(value);
+        return false;
+      }
+      setText(value);
+      if (focus) {
+        setTimeout(() => textareaRef.current?.focus({ preventScroll: true }), 0);
+      }
+      return true;
+    },
+    hasText() {
+      return text.trim().length > 0;
+    },
+  }), [text]);
   const {
     slashIndex,
     filteredCommands,
