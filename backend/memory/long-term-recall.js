@@ -133,23 +133,21 @@ export async function recallTurns({ sessionId, coveredTo, mode, recentMessages }
   if (!Number.isInteger(coveredTo)) return empty;
 
   const config = getConfig();
-  const enabled = mode === 'writing'
-    ? config.writing?.memory_expansion_enabled !== false
-    : config.memory_expansion_enabled !== false;
-  if (!enabled) return empty;
+  const recallConfig = mode === 'writing' ? config.writing : config;
+  if (recallConfig.memory_expansion_enabled === false) return empty;
 
   const candidatesAsc = getRecallIndexCandidates(sessionId, coveredTo);
   if (candidatesAsc.length === 0) return empty;
 
-  const indexBudget = config.long_term_index_budget ?? 20000;
+  const indexBudget = recallConfig.long_term_index_budget ?? 20000;
   const { selected, skippedBeforeRound, indexTokens } = selectWithinBudget(candidatesAsc, indexBudget);
   if (selected.length === 0) {
     log.warn(`索引超预算，本轮无可用候选  ${formatMeta({ session: sessionId.slice(0, 8), candidates: candidatesAsc.length, budget: indexBudget })}`);
     return { recordIds: [], candidateCount: candidatesAsc.length, skippedBeforeRound };
   }
 
-  const maxSessions = Number.isInteger(config.memory_recall_max_sessions) && config.memory_recall_max_sessions > 0
-    ? config.memory_recall_max_sessions
+  const maxSessions = Number.isInteger(recallConfig.memory_recall_max_sessions) && recallConfig.memory_recall_max_sessions > 0
+    ? recallConfig.memory_recall_max_sessions
     : MEMORY_RECALL_MAX_SESSIONS;
 
   const systemContent = renderBackendPrompt('memory-recall-system.md', {

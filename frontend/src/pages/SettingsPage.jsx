@@ -38,7 +38,7 @@ export default function SettingsPage() {
     setSettingsModeState(mode);
     try { globalThis.localStorage?.setItem(SETTINGS_MODE_STORAGE_KEY, mode); } catch { /* ignore */ }
   };
-  const { loading, llmProps, promptProps, diaryProps, onImportSuccess } = useSettingsConfig();
+  const { loading, llmProps, promptProps, diaryProps, onImportSuccess } = useSettingsConfig(settingsMode);
   const panelRef = useRef(null);
   const navItemsRef = useRef(null);
   const mouseDownOutsidePanel = useRef(false);

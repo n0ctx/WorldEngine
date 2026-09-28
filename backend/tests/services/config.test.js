@@ -25,6 +25,31 @@ test('缺少配置文件时写入默认值并返回独立对象', () => {
   assert.equal(getConfig().ui.theme, 'nocturne');
 });
 
+test('对话和写作的行为配置分别保存', () => {
+  fs.rmSync(sandbox.configPath, { force: true });
+  updateConfig({
+    memory_recall_max_sessions: 3,
+    long_term_index_budget: 6000,
+    danmaku: { enabled: true, count: 4, speed: 'slow' },
+    ui: { show_thinking: false },
+    writing: {
+      memory_recall_max_sessions: 8,
+      long_term_index_budget: 30000,
+      danmaku: { enabled: false, count: 9, speed: 'fast' },
+      ui: { show_thinking: true },
+    },
+  });
+  const config = getConfig();
+  assert.equal(config.memory_recall_max_sessions, 3);
+  assert.equal(config.writing.memory_recall_max_sessions, 8);
+  assert.equal(config.long_term_index_budget, 6000);
+  assert.equal(config.writing.long_term_index_budget, 30000);
+  assert.equal(config.danmaku.count, 4);
+  assert.equal(config.writing.danmaku.count, 9);
+  assert.equal(config.ui.show_thinking, false);
+  assert.equal(config.writing.ui.show_thinking, true);
+});
+
 test('updateConfig：非法预算值规范到默认值/null，合法值按范围钳制', () => {
   fs.rmSync(sandbox.configPath, { force: true });
 
@@ -123,6 +148,7 @@ test('旧配置含废弃键时，迁移后全部消失并持久化', () => {
       long_term_memory_enabled: true,
       saved_nearby_recall_enabled: true,
       table_memory_enabled: true,
+      table_memory_row_limits: { relations: 6 },
     },
   });
 
@@ -138,6 +164,7 @@ test('旧配置含废弃键时，迁移后全部消失并持久化', () => {
   assert.equal('long_term_memory_enabled' in config.writing, false);
   assert.equal('saved_nearby_recall_enabled' in config.writing, false);
   assert.equal('table_memory_enabled' in config.writing, false);
+  assert.equal('table_memory_row_limits' in config.writing, false);
   assert.deepEqual(sandbox.readConfig(), config);
 });
 

@@ -45,6 +45,10 @@ export default function AppRouter() {
   const setAutoCollapseThinking = useDisplaySettingsStore((s) => s.setAutoCollapseThinking);
   const setShowTokenUsage = useDisplaySettingsStore((s) => s.setShowTokenUsage);
   const setDanmakuSpeed = useDisplaySettingsStore((s) => s.setDanmakuSpeed);
+  const setWritingShowThinking = useDisplaySettingsStore((s) => s.setWritingShowThinking);
+  const setWritingAutoCollapseThinking = useDisplaySettingsStore((s) => s.setWritingAutoCollapseThinking);
+  const setWritingShowTokenUsage = useDisplaySettingsStore((s) => s.setWritingShowTokenUsage);
+  const setWritingDanmakuSpeed = useDisplaySettingsStore((s) => s.setWritingDanmakuSpeed);
   const isAssistantOpen = useAssistantPanel((s) => s.isOpen);
   const appMode = useAppModeStore((s) => s.appMode);
   const [assistantLoaded, setAssistantLoaded] = useState(false);
@@ -65,11 +69,15 @@ export default function AppRouter() {
       setAutoCollapseThinking(c.ui?.auto_collapse_thinking !== false);
       setShowTokenUsage(c.ui?.show_token_usage === true);
       setDanmakuSpeed(c.danmaku?.speed ?? 'normal');
+      setWritingShowThinking(c.writing?.ui?.show_thinking !== false);
+      setWritingAutoCollapseThinking(c.writing?.ui?.auto_collapse_thinking !== false);
+      setWritingShowTokenUsage(c.writing?.ui?.show_token_usage === true);
+      setWritingDanmakuSpeed(c.writing?.danmaku?.speed ?? 'normal');
       return refreshThemeCss(c.ui?.theme || DEFAULT_THEME_ID, { silent: true });
     }).then(() => {
       return refreshCustomCss('chat');
     }).catch(() => {});
-  }, [setAutoCollapseThinking, setShowThinking, setShowTokenUsage, setDanmakuSpeed]);
+  }, [setAutoCollapseThinking, setShowThinking, setShowTokenUsage, setDanmakuSpeed, setWritingShowThinking, setWritingAutoCollapseThinking, setWritingShowTokenUsage, setWritingDanmakuSpeed]);
 
   // 写卡助手在 apply_css_snippet / apply_regex_rule 成功后会派发对应事件；
   // 监听必须挂在根组件（而非设置页内组件）上，否则用户停留在聊天/世界/角色页时

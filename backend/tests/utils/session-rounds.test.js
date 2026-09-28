@@ -57,6 +57,6 @@ test('roundTokens：累加轮内所有消息的 token 数', () => {
       { role: 'assistant', content: 'hello' },
     ],
   };
-  // 中文 2 字 ≈ 1 token；'hello' 5 字符 ≈ ceil(5*0.25) = 2 token
-  assert.equal(roundTokens(round), 1 + 2);
+  // 中文 2 字 ≈ ceil(2*0.78) = 2 token；'hello' 5 字符 ≈ ceil(5*0.25) = 2 token
+  assert.equal(roundTokens(round), 2 + 2);
 });

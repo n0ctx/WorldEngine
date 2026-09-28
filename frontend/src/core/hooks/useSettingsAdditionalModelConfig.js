@@ -47,10 +47,6 @@ export function useSettingsAdditionalModelConfig(patchConfig) {
     await patchConfig({ assistant: { model_source: value } });
   }
 
-  function applyImportedModelSettings(importedConfig) {
-    setWritingLlm(readWritingModelSettings(importedConfig).writingLlm);
-  }
-
   return {
     modelProps: {
       auxLlm,
@@ -71,7 +67,6 @@ export function useSettingsAdditionalModelConfig(patchConfig) {
       fetchWritingModels,
       testWritingConnection,
     },
-    onImportSuccess: applyImportedModelSettings,
     applyConfig,
   };
 }

@@ -228,7 +228,7 @@ function ResponseSettings({
 
       <ToggleRow
         label="渲染思维链"
-        hint="显示 <think> 标签内容（可折叠），对话与写作均生效；关闭则完全屏蔽"
+        hint="显示 <think> 标签内容（可折叠）；关闭则完全屏蔽"
         checked={showThinking}
         onChange={onToggleShowThinking}
       />
@@ -256,7 +256,7 @@ function ResponseSettings({
 
       <ToggleRow
         label="弹幕"
-        hint="每轮回复后由副模型生成几条「观众弹幕」，在输入框上方滚动飘过（纯特效，不保存，对话与写作共用）"
+        hint="每轮回复后由副模型生成几条「观众弹幕」，在输入框上方滚动飘过（纯特效，不保存）"
         checked={danmakuEnabled}
         onChange={onToggleDanmaku}
       />

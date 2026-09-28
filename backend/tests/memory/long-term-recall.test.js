@@ -175,6 +175,24 @@ test('模型输出去重、截断到 memory_recall_max_sessions，并映射回 t
   assert.deepEqual(result.recordIds, [records[2].id, records[0].id]);
 });
 
+test('写作召回使用写作预算和轮数上限', async () => {
+  resetMockEnv();
+  const { session } = setupSession('writing');
+  const records = [1, 2, 3].map((n) => insertTurnRecord(sandbox.db, session.id, { round_index: n, summary: `第${n}轮摘要` }));
+  process.env.MOCK_LLM_COMPLETE = JSON.stringify({ turns: [1, 2, 3] });
+  const nextConfig = sandbox.readConfig();
+  nextConfig.long_term_index_budget = 2000;
+  nextConfig.memory_recall_max_sessions = 3;
+  nextConfig.writing.long_term_index_budget = 100000;
+  nextConfig.writing.memory_recall_max_sessions = 1;
+  nextConfig.writing.memory_expansion_enabled = true;
+  sandbox.writeConfig(nextConfig);
+
+  const { recallTurns } = await freshImport('backend/memory/long-term-recall.js');
+  const result = await recallTurns({ sessionId: session.id, coveredTo: 3, mode: 'writing' });
+  assert.deepEqual(result.recordIds, [records[0].id]);
+});
+
 test('候选目录超预算时只保留最近部分，更早轮次记入 skippedBeforeRound 且不可被模型选中', async () => {
   resetMockEnv();
   const { session } = setupSession();
