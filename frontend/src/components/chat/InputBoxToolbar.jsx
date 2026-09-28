@@ -14,7 +14,7 @@ export default function InputBoxToolbar({
   onScrollToBottom,
   onContinue,
   onImpersonate,
-  onLongTermMemory,
+  onMiddleSummary,
   onTableMemory,
 }) {
   return (
@@ -56,14 +56,14 @@ export default function InputBoxToolbar({
         >
           <UserRoundPen size={20} />
         </motion.button>
-        {onLongTermMemory && (
+        {onMiddleSummary && (
           <motion.button
             type="button"
             onMouseDown={keepInputFocus}
-            onClick={() => onLongTermMemory()}
+            onClick={() => onMiddleSummary()}
             className="we-chat-quick-btn"
-            title="长期记忆"
-            aria-label="长期记忆"
+            title="剧情摘要"
+            aria-label="剧情摘要"
             {...press}
           >
             <BookMarked size={20} />

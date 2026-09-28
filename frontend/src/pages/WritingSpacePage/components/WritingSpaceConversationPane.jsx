@@ -3,14 +3,14 @@ import MessageList from '../../../components/chat/MessageList.jsx';
 import InputBox from '../../../components/chat/InputBox.jsx';
 import Pager from '../../../components/chat/Pager.jsx';
 import ProviderSafetyBanner from '../../../components/ui/ProviderSafetyBanner.jsx';
-import LongTermMemoryModal from '../../../components/session/LongTermMemoryModal.jsx';
+import MiddleSummaryModal from '../../../components/session/MiddleSummaryModal.jsx';
 import TableMemoryModal from '../../../components/session/TableMemoryModal.jsx';
 import Icon from '../../../components/ui/Icon.jsx';
 
 export default function WritingSpaceConversationPane({ worldId, navigate, config, pageState, lifecycle, stream }) {
-  const { ltmEnabled, tableMemoryEnabled, chapterTurnSize, pageTurnSize } = config;
+  const { tableMemoryEnabled, chapterTurnSize, pageTurnSize } = config;
   const {
-    ltmOpen, setLtmOpen, tmOpen, setTmOpen, pageInfo, setPageInfo,
+    summaryOpen, setSummaryOpen, tmOpen, setTmOpen, pageInfo, setPageInfo,
     inputBoxRef, messageListRef,
   } = pageState;
   const { persona, isInitializing, initError, retryInitialization } = lifecycle;
@@ -26,11 +26,11 @@ export default function WritingSpaceConversationPane({ worldId, navigate, config
   return (
     <div className="we-chat-center-pane flex-1 min-w-0 flex flex-col overflow-hidden relative">
         <AnimatePresence>
-          {ltmEnabled && ltmOpen && currentSession && (
-            <LongTermMemoryModal
-              key="ltm-modal"
+          {summaryOpen && currentSession && (
+            <MiddleSummaryModal
+              key="middle-summary-modal"
               sessionId={currentSession.id}
-              onClose={() => setLtmOpen(false)}
+              onClose={() => setSummaryOpen(false)}
             />
           )}
           {tableMemoryEnabled && tmOpen && currentSession && (
@@ -144,7 +144,7 @@ export default function WritingSpaceConversationPane({ worldId, navigate, config
           onContinue={handleContinue}
           onImpersonate={handleImpersonate}
           onTitle={handleRetitle}
-          onLongTermMemory={ltmEnabled && currentSession ? () => setLtmOpen(true) : null}
+          onMiddleSummary={currentSession ? () => setSummaryOpen(true) : null}
           onTableMemory={tableMemoryEnabled && currentSession ? () => setTmOpen(true) : null}
           pagerSlot={(
             <Pager
