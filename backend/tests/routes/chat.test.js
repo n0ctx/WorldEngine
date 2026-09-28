@@ -14,7 +14,6 @@ import { enqueue, waitForQueueIdle } from '../../utils/async-queue.js';
 
 const sandbox = createTestSandbox('chat-route-suite', {
   global_system_prompt: '系统提示',
-  context_history_rounds: 2,
 });
 sandbox.setEnv();
 

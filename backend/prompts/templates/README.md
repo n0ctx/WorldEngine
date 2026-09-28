@@ -13,7 +13,11 @@
 
 文件说明：
 - `memory-turn-summary.md`
-  生成每轮 turn summary 的摘要模板。
+  生成轮次目录索引行（scene / cast / summary）的模板。
+- `memory-middle-summary.md`
+  中期剧情摘要滚动合并模板：旧摘要 + 新滑出轮次 → 新摘要。
+- `memory-middle-summary-shrink.md`
+  中期剧情摘要超出目标长度时的压缩模板。
 - `memory-title-generation.md`
   生成会话标题的模板。
 - `memory-retitle-generation.md`

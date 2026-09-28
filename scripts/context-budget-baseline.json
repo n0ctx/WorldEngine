@@ -959,12 +959,12 @@
     "backend/db/queries/messages.js": {
       "kind": "code",
       "metrics": {
-        "file_tokens": 3033,
-        "largest_function": 26,
-        "function_class_count": 27,
+        "file_tokens": 2672,
+        "largest_function": 12,
+        "function_class_count": 26,
         "internal_dependencies": 1
       },
-      "largest_function_name": "getUncompressedMessagesBySessionId",
+      "largest_function_name": "createMessage",
       "sections": []
     },
     "backend/db/queries/persona-state-fields.js": {
@@ -1220,17 +1220,6 @@
       "largest_function_name": "runHook",
       "sections": []
     },
-    "backend/llm/embedding.js": {
-      "kind": "code",
-      "metrics": {
-        "file_tokens": 1171,
-        "largest_function": 30,
-        "function_class_count": 5,
-        "internal_dependencies": 3
-      },
-      "largest_function_name": "embedOpenAI",
-      "sections": []
-    },
     "backend/llm/index.js": {
       "kind": "code",
       "metrics": {
@@ -1476,12 +1465,12 @@
     "backend/memory/recall.js": {
       "kind": "code",
       "metrics": {
-        "file_tokens": 4123,
-        "largest_function": 86,
-        "function_class_count": 12,
-        "internal_dependencies": 10
+        "file_tokens": 2029,
+        "largest_function": 23,
+        "function_class_count": 9,
+        "internal_dependencies": 4
       },
-      "largest_function_name": "searchRecalledSummaries",
+      "largest_function_name": "renderNearbyBlock",
       "sections": []
     },
     "backend/memory/saved-nearby-recall.js": {
@@ -1515,17 +1504,6 @@
         "internal_dependencies": 6
       },
       "largest_function_name": "generateTitle",
-      "sections": []
-    },
-    "backend/memory/summary-expander.js": {
-      "kind": "code",
-      "metrics": {
-        "file_tokens": 1479,
-        "largest_function": 62,
-        "function_class_count": 2,
-        "internal_dependencies": 9
-      },
-      "largest_function_name": "decideExpansion",
       "sections": []
     },
     "backend/memory/title-generation.js": {
@@ -1753,33 +1731,6 @@
       "largest_function_name": null,
       "sections": []
     },
-    "backend/prompts/templates/memory-expand-system.md": {
-      "kind": "document",
-      "metrics": {
-        "document_tokens": 110,
-        "document_loc": 4
-      },
-      "largest_function_name": null,
-      "sections": []
-    },
-    "backend/prompts/templates/memory-expand-user.md": {
-      "kind": "document",
-      "metrics": {
-        "document_tokens": 87,
-        "document_loc": 8
-      },
-      "largest_function_name": null,
-      "sections": []
-    },
-    "backend/prompts/templates/memory-long-term-compress.md": {
-      "kind": "document",
-      "metrics": {
-        "document_tokens": 276,
-        "document_loc": 19
-      },
-      "largest_function_name": null,
-      "sections": []
-    },
     "backend/prompts/templates/memory-retitle-generation.md": {
       "kind": "document",
       "metrics": {
@@ -1848,15 +1799,6 @@
       "metrics": {
         "document_tokens": 42,
         "document_loc": 4
-      },
-      "largest_function_name": null,
-      "sections": []
-    },
-    "backend/prompts/templates/memory-turn-summary-with-ltm.md": {
-      "kind": "document",
-      "metrics": {
-        "document_tokens": 1202,
-        "document_loc": 65
       },
       "largest_function_name": null,
       "sections": []
@@ -2117,17 +2059,6 @@
         "largest_function": 17,
         "function_class_count": 4,
         "internal_dependencies": 2
-      },
-      "largest_function_name": "(匿名)",
-      "sections": []
-    },
-    "backend/routes/long-term-memory.js": {
-      "kind": "code",
-      "metrics": {
-        "file_tokens": 437,
-        "largest_function": 10,
-        "function_class_count": 0,
-        "internal_dependencies": 3
       },
       "largest_function_name": "(匿名)",
       "sections": []
@@ -2449,17 +2380,6 @@
         "internal_dependencies": 12
       },
       "largest_function_name": "exportGlobalSettings",
-      "sections": []
-    },
-    "backend/services/long-term-memory.js": {
-      "kind": "code",
-      "metrics": {
-        "file_tokens": 1558,
-        "largest_function": 44,
-        "function_class_count": 8,
-        "internal_dependencies": 5
-      },
-      "largest_function_name": "compressMemory",
       "sections": []
     },
     "backend/services/nearby-card-maker.js": {
@@ -3023,17 +2943,6 @@
       "largest_function_name": "(匿名)",
       "sections": []
     },
-    "backend/tests/memory/summary-expander.test.js": {
-      "kind": "code",
-      "metrics": {
-        "file_tokens": 1010,
-        "largest_function": 0,
-        "function_class_count": 0,
-        "internal_dependencies": 2
-      },
-      "largest_function_name": null,
-      "sections": []
-    },
     "backend/tests/memory/title-generation.test.js": {
       "kind": "code",
       "metrics": {
@@ -3070,12 +2979,12 @@
     "backend/tests/prompts/assembler-shape.test.js": {
       "kind": "code",
       "metrics": {
-        "file_tokens": 3235,
-        "largest_function": 18,
-        "function_class_count": 10,
+        "file_tokens": 3031,
+        "largest_function": 10,
+        "function_class_count": 7,
         "internal_dependencies": 2
       },
-      "largest_function_name": "withEmbeddingFetch",
+      "largest_function_name": "extractAnchors",
       "sections": []
     },
     "backend/tests/prompts/assembler.test.js": {
@@ -3351,17 +3260,6 @@
         "internal_dependencies": 2
       },
       "largest_function_name": "normalizeWorldPackage",
-      "sections": []
-    },
-    "backend/tests/services/long-term-memory.test.js": {
-      "kind": "code",
-      "metrics": {
-        "file_tokens": 1485,
-        "largest_function": 3,
-        "function_class_count": 1,
-        "internal_dependencies": 2
-      },
-      "largest_function_name": "ltmFile",
       "sections": []
     },
     "backend/tests/services/nearby-card-maker.test.js": {
@@ -3661,17 +3559,6 @@
       "largest_function_name": "(匿名)",
       "sections": []
     },
-    "backend/tests/utils/session-summary-vector-store.test.js": {
-      "kind": "code",
-      "metrics": {
-        "file_tokens": 1311,
-        "largest_function": 4,
-        "function_class_count": 2,
-        "internal_dependencies": 1
-      },
-      "largest_function_name": "writeRaw",
-      "sections": []
-    },
     "backend/tests/utils/state-field-validate.test.js": {
       "kind": "code",
       "metrics": {
@@ -3881,17 +3768,6 @@
       "largest_function_name": "assertExists",
       "sections": []
     },
-    "backend/utils/session-summary-vector-store.js": {
-      "kind": "code",
-      "metrics": {
-        "file_tokens": 983,
-        "largest_function": 19,
-        "function_class_count": 1,
-        "internal_dependencies": 1
-      },
-      "largest_function_name": "search",
-      "sections": []
-    },
     "backend/utils/state-field-validate.js": {
       "kind": "code",
       "metrics": {
@@ -3901,17 +3777,6 @@
         "internal_dependencies": 2
       },
       "largest_function_name": "validateValue",
-      "sections": []
-    },
-    "backend/utils/state-update-tracker.js": {
-      "kind": "code",
-      "metrics": {
-        "file_tokens": 265,
-        "largest_function": 8,
-        "function_class_count": 2,
-        "internal_dependencies": 0
-      },
-      "largest_function_name": "trackStateUpdate",
       "sections": []
     },
     "backend/utils/template-vars.js": {
@@ -3956,17 +3821,6 @@
         "internal_dependencies": 0
       },
       "largest_function_name": "stackScan",
-      "sections": []
-    },
-    "backend/utils/turn-summary-vector-store.js": {
-      "kind": "code",
-      "metrics": {
-        "file_tokens": 1239,
-        "largest_function": 35,
-        "function_class_count": 2,
-        "internal_dependencies": 1
-      },
-      "largest_function_name": "search",
       "sections": []
     },
     "docs/superpowers/plans/2026-06-24-table-memory-backend.md": {
@@ -4504,17 +4358,6 @@
         "internal_dependencies": 0
       },
       "largest_function_name": "makeTables",
-      "sections": []
-    },
-    "frontend/src/components/session/LongTermMemoryModal.jsx": {
-      "kind": "code",
-      "metrics": {
-        "file_tokens": 883,
-        "largest_function": 94,
-        "function_class_count": 3,
-        "internal_dependencies": 4
-      },
-      "largest_function_name": "LongTermMemoryModal",
       "sections": []
     },
     "frontend/src/components/session/TableMemoryModal.jsx": {
@@ -5417,17 +5260,6 @@
         "internal_dependencies": 2
       },
       "largest_function_name": "readJsonFile",
-      "sections": []
-    },
-    "frontend/src/core/api/long-term-memory.js": {
-      "kind": "code",
-      "metrics": {
-        "file_tokens": 180,
-        "largest_function": 9,
-        "function_class_count": 2,
-        "internal_dependencies": 0
-      },
-      "largest_function_name": "updateLongTermMemory",
       "sections": []
     },
     "frontend/src/core/api/persona-state-fields.js": {
@@ -6800,17 +6632,6 @@
       "largest_function_name": "readAsText",
       "sections": []
     },
-    "frontend/tests/api/long-term-memory.test.js": {
-      "kind": "code",
-      "metrics": {
-        "file_tokens": 439,
-        "largest_function": 1,
-        "function_class_count": 2,
-        "internal_dependencies": 1
-      },
-      "largest_function_name": "json",
-      "sections": []
-    },
     "frontend/tests/api/persona-state-values.test.js": {
       "kind": "code",
       "metrics": {
@@ -7026,17 +6847,6 @@
         "file_tokens": 1564,
         "largest_function": 5,
         "function_class_count": 4,
-        "internal_dependencies": 1
-      },
-      "largest_function_name": "(匿名)",
-      "sections": []
-    },
-    "frontend/tests/components/session/long-term-memory-modal.test.jsx": {
-      "kind": "code",
-      "metrics": {
-        "file_tokens": 344,
-        "largest_function": 4,
-        "function_class_count": 0,
         "internal_dependencies": 1
       },
       "largest_function_name": "(匿名)",
