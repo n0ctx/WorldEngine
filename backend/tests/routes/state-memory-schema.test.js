@@ -13,7 +13,9 @@ test('GET /api/state-memory/schema 返回实体类型、档案字段与相关常
 
   assert.deepEqual(body.entityTypes, ['character', 'location', 'item', 'faction', 'other', 'player']);
   assert.deepEqual(Object.keys(body.profileFields).sort(), [...body.entityTypes].sort());
-  assert.deepEqual(body.profileFields.player.map((f) => f.key), ['outfit']);
+  const playerKeys = body.profileFields.player.map((f) => f.key);
+  assert.ok(playerKeys.includes('gender') && playerKeys.includes('outfit'));
+  assert.ok(!playerKeys.includes('core_traits'), '玩家没有人格字段');
   assert.ok(body.profileFields.character.some((field) => field.key === 'core_traits'));
   assert.deepEqual(body.threadKinds, ['承诺', '任务', '债务', '冲突', '谜团', '威胁', '计划', '目标']);
   assert.deepEqual(body.exclusivePredicates, ['持有者', '控制者']);

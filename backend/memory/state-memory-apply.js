@@ -16,7 +16,7 @@
  *     → { applied: number, rejected: {op, reason}[] }
  *   applyEntityFields({ sessionId, worldId, entityFields, mainCharacterEntityId })
  *     → { applied: number, rejected: {ref, fieldKey?, reason}[] }
- *   ensureBaseEntities({ sessionId, round, personaName, mainCharacter })
+ *   ensureBaseEntities({ sessionId, worldId, round, persona, mainCharacter })
  *     → { playerEntityId, mainCharacterEntityId }
  */
 
@@ -34,7 +34,7 @@ import { withSessionStateTransaction } from '../db/queries/session-state-batch.j
 import { upsertEntityStateValues } from '../db/queries/session-entity-state-values.js';
 import { getCharacterStateFieldsByWorldId } from '../db/queries/character-state-fields.js';
 import {
-  ENTITY_TYPES, getProfileFieldDefinitions, resolveActiveProfileFields,
+  ENTITY_TYPES, getProfileFieldDefinitions, resolveActiveProfileFields, getEditableProfileFields, parseProfileDefaults,
   isPlaceholderValue, THREAD_KINDS, EXCLUSIVE_PREDICATES, DYNAMIC_LOCATION_KEY,
 } from './state-memory-schema.js';
 import { parseWorldDate, compareWorldDate } from '../utils/world-date.js';
@@ -48,6 +48,8 @@ import { createLogger, formatMeta } from '../utils/logger.js';
 const log = createLogger('all-state');
 
 const THREAD_OUTCOMES = ['resolved', 'failed'];
+/** 原文没有依据、由 AI 结合世界观创作补全的档案字段，证据列记这个标记 */
+const PROFILE_FILL_EVIDENCE = 'AI 补全';
 const PLACE_NAME_MAX_LENGTH = 20;
 const SENTENCE_PUNCTUATION_RE = /[。！？.!?]/;
 
@@ -273,18 +275,6 @@ function writeListLikeField(entity, fieldDef, opType, payload, evidence, ctx) {
   return commitProfileWrite(entity, fieldDef, truncateListItems(items), evidence, ctx);
 }
 
-function writeAgeField(entity, fieldDef, value, evidence, ctx) {
-  if (typeof value?.age !== 'number') return { ok: false, reason: 'age_recorded 格式无效' };
-  const worldDate = parseWorldDate(ctx.worldProfile.time);
-  const recorded = { age: value.age, as_of_round: ctx.round };
-  if (worldDate) {
-    const mm = String(worldDate.month).padStart(2, '0');
-    const dd = String(worldDate.day).padStart(2, '0');
-    recorded.as_of_date = `${worldDate.year}-${mm}-${dd}`;
-  }
-  return commitProfileWrite(entity, fieldDef, recorded, evidence, ctx);
-}
-
 function writeTextField(entity, fieldDef, opType, value, evidence, ctx) {
   if (typeof value !== 'string' || isPlaceholderValue(value)) return { ok: false, reason: '占位值或空文本' };
   const trimmed = value.trim();
@@ -296,14 +286,11 @@ function writeTextField(entity, fieldDef, opType, value, evidence, ctx) {
 }
 
 function writeStandardField(entity, fieldDef, opType, payload, evidence, ctx) {
-  const hasValue = ctx.profileValues.get(entity.entity_id)?.has(fieldDef.key) ?? false;
-  if (fieldDef.mutability === 'immutable' && hasValue && opType !== 'correct') {
+  if (fieldDef.mutability === 'immutable' && hasProfileValue(ctx, entity.entity_id, fieldDef.key) && opType !== 'correct') {
     return { ok: false, reason: 'immutable 已有值时须用 correct_profile' };
   }
   if (fieldDef.kind === 'list') return writeListLikeField(entity, fieldDef, opType, payload, evidence, ctx);
-  return fieldDef.kind === 'age'
-    ? writeAgeField(entity, fieldDef, payload, evidence, ctx)
-    : writeTextField(entity, fieldDef, opType, payload, evidence, ctx);
+  return writeTextField(entity, fieldDef, opType, payload, evidence, ctx);
 }
 
 function writeAppendOnlyField(entity, fieldDef, opType, payload, evidence, ctx) {
@@ -334,25 +321,58 @@ function getProfileFieldCache(ctx, type) {
 }
 
 function gateProfileWrite(entity, fieldKey, ctx) {
-  if (entity.card_id && fieldKey !== 'outfit') return { ok: false, reason: '关联卡片实体拒绝档案写入' };
   const { byKey, active } = getProfileFieldCache(ctx, entity.type);
   const fieldDef = byKey.get(fieldKey);
   if (!fieldDef) return { ok: false, reason: `未知档案字段: ${fieldKey}` };
+  if (fieldDef.kind === 'age') return { ok: false, reason: '年龄按出生日期自动计算，不接受 AI 写入' };
   if (!active.has(fieldKey)) return { ok: false, reason: `档案字段已停用: ${fieldKey}` };
   return { ok: true, fieldDef };
 }
 
 /** 按 §3.4 可变性表写入档案字段，供 create_entity / update_profile / correct_profile / list_add / list_remove 共用。 */
-function writeProfileFieldGeneric(entity, fieldKey, opType, payload, evidence, ctx) {
+/** 已有真实取值：空列表、「未知」「无」这类占位值都算空，首次填写可以直接补上。 */
+function hasProfileValue(ctx, entityId, fieldKey) {
+  const value = ctx.profileValues.get(entityId)?.get(fieldKey);
+  return Array.isArray(value) ? value.length > 0 : !isPlaceholderValue(value);
+}
+
+/** acceptEvidence：证据是否放行，默认逐字核验原文；首次填写的创作补全由调用方先判过空字段再放行。 */
+function writeProfileFieldGeneric(entity, fieldKey, opType, payload, evidence, ctx, acceptEvidence = ctx.verifyEvidence) {
   const gate = gateProfileWrite(entity, fieldKey, ctx);
   if (!gate.ok) return gate;
   const { fieldDef } = gate;
 
   if (fieldDef.mutability === 'dynamic') return writeListLikeField(entity, fieldDef, opType, payload, null, ctx);
-  if (!ctx.verifyEvidence(evidence)) return { ok: false, reason: '证据核验失败' };
+  if (!acceptEvidence(evidence)) return { ok: false, reason: '证据核验失败' };
   if (fieldDef.appendOnly) return writeAppendOnlyField(entity, fieldDef, opType, payload, evidence, ctx);
   if (fieldDef.highBar) return writeHighBarField(entity, fieldDef, opType, payload, evidence, ctx);
   return writeStandardField(entity, fieldDef, opType, payload, evidence, ctx);
+}
+
+/**
+ * 首次填写（create_entity 初始档案、fill_profile）：原文有据时照常记证据；原文没有依据时允许创作补全，
+ * 但只能写空字段，证据记为 PROFILE_FILL_EVIDENCE。改动已有值一律要逐字原文证据。
+ */
+function writeInitialProfileField(entity, fieldKey, value, evidence, ctx) {
+  if (ctx.verifyEvidence(evidence)) return writeProfileFieldGeneric(entity, fieldKey, 'create', value, evidence, ctx);
+  if (hasProfileValue(ctx, entity.entity_id, fieldKey)) return { ok: false, reason: '已有值的档案字段改动须附证据' };
+  return writeProfileFieldGeneric(entity, fieldKey, 'create', value, PROFILE_FILL_EVIDENCE, ctx, () => true);
+}
+
+/** 按 { 字段key: 值 或 { value, evidence } } 逐项首次填写档案，单项失败只记日志；返回写入成功的项数。 */
+function fillProfileEntries(entity, profile, ctx) {
+  let written = 0;
+  for (const [fieldKey, entry] of Object.entries(profile)) {
+    const isWrapped = entry && typeof entry === 'object' && !Array.isArray(entry) && 'value' in entry;
+    const value = isWrapped ? entry.value : entry;
+    const result = writeInitialProfileField(entity, fieldKey, value, isWrapped ? entry.evidence : null, ctx);
+    if (result.ok) {
+      written += 1;
+    } else {
+      log.warn(`STATE MEMORY PROFILE FILL SKIP  ${formatMeta({ entity: entity.entity_id, field: fieldKey, reason: result.reason })}`);
+    }
+  }
+  return written;
 }
 
 // ============================
@@ -385,16 +405,14 @@ function handleCreateEntity(op, ctx) {
   if (!ENTITY_TYPES.includes(op.type)) return { ok: false, reason: `未知实体类型: ${op.type}` };
   const existing = ctx.index.byNameOrAlias.get(name);
   const entity = existing ?? createNewEntity(ctx, { name, type: op.type, aliases: op.aliases });
-  if (op.profile && typeof op.profile === 'object') {
-    for (const [fieldKey, value] of Object.entries(op.profile)) {
-      const result = writeProfileFieldGeneric(entity, fieldKey, 'create', value, op.evidence, ctx);
-      if (!result.ok) {
-        log.warn(`STATE MEMORY CREATE PROFILE FIELD SKIP  ${formatMeta({ entity: entity.entity_id, field: fieldKey, reason: result.reason })}`);
-      }
-    }
-  }
+  if (op.profile && typeof op.profile === 'object') fillProfileEntries(entity, op.profile, ctx);
   return { ok: true };
 }
+
+const handleFillProfile = withResolvedEntity((op, ctx, entity) => {
+  if (!op.profile || typeof op.profile !== 'object') return { ok: false, reason: '缺少 profile' };
+  return fillProfileEntries(entity, op.profile, ctx) > 0 ? { ok: true } : { ok: false, reason: '没有可补全的空字段' };
+});
 
 /** update_profile / correct_profile / list_add / list_remove 都只是「解析实体 + 校验 field + 走 writeProfileFieldGeneric」换个 opType。 */
 function makeProfileFieldHandler(opType, payloadKey) {
@@ -474,6 +492,13 @@ function handleUpsertRelation(op, ctx) {
     const duplicate = ctx.relations.some((r) => r.subject_id === subjectId && r.predicate === predicate
       && (objectId ? r.object_id === objectId : r.object_value === objectValue));
     if (duplicate) return { ok: false, reason: '关系已存在' };
+  }
+  // 同一主体到同一客体实体只保留一条关系：关系演变（如「意向」→「确立」）时新谓词替换旧的
+  if (objectId) {
+    const superseded = ctx.relations.filter((r) => r.subject_id === subjectId && r.object_id === objectId);
+    // guard-allow(perf-shape): 规则保证同一主客体对至多一条现存关系，只有规则生效前的旧数据才会多于一条
+    for (const previous of superseded) closeRelation(ctx.sessionId, previous.relation_id, ctx.round);
+    ctx.relations = ctx.relations.filter((r) => !superseded.includes(r));
   }
 
   const relationId = crypto.randomUUID();
@@ -603,6 +628,7 @@ function handleSetPresent(op, ctx) {
 
 const OP_HANDLERS = {
   create_entity: handleCreateEntity,
+  fill_profile: handleFillProfile,
   update_profile: makeProfileFieldHandler('update', 'value'),
   list_add: makeProfileFieldHandler('list_add', 'items'),
   list_remove: makeProfileFieldHandler('list_remove', 'items'),
@@ -703,11 +729,31 @@ export function applyEntityFields({ sessionId, worldId, entityFields, mainCharac
   return { applied: rows.length, rejected };
 }
 
+const PROFILE_DEFAULT_EVIDENCE = '初始值';
+
 /**
- * 会话第一次运行状态写入时，幂等地建好玩家实体和对话模式的主角色实体。
+ * 把角色卡 / 人设的档案初始值带入会话实体：只写本世界启用、会话里还没有记录的字段，已有值不覆盖。
+ */
+export function seedProfileDefaults(sessionId, { entityId, entityType, worldId, profileDefaultsJson, round }) {
+  const defaults = parseProfileDefaults(profileDefaultsJson);
+  // 初始值只有文本和文本列表；空列表和占位文本都不带入
+  const fields = getEditableProfileFields(worldId, entityType).filter((field) => {
+    const value = defaults[field.key];
+    return Array.isArray(value) ? value.length > 0 : !isPlaceholderValue(value);
+  });
+  if (fields.length === 0) return;
+  const current = getEntityDetails(sessionId, [entityId])[entityId]?.profile ?? {};
+  // guard-allow(perf-shape): 档案字段是固定的十几个，逐个写入
+  for (const field of fields.filter((f) => !current[f.key])) {
+    upsertProfileField(sessionId, entityId, field.key, JSON.stringify(defaults[field.key]), PROFILE_DEFAULT_EVIDENCE, round);
+  }
+}
+
+/**
+ * 幂等地建好玩家实体和对话模式的主角色实体，并把人设 / 主角色卡的档案初始值补进还空着的档案字段。
  * @returns {{ playerEntityId: string, mainCharacterEntityId: string | null }}
  */
-export function ensureBaseEntities({ sessionId, round, personaName, mainCharacter }) {
+export function ensureBaseEntities({ sessionId, worldId, round, persona, mainCharacter }) {
   return withSessionStateTransaction(() => {
     const entities = listCurrentEntities(sessionId);
     const index = buildEntityIndex(entities);
@@ -715,9 +761,12 @@ export function ensureBaseEntities({ sessionId, round, personaName, mainCharacte
 
     let playerEntityId = entities.find((entity) => entity.type === 'player')?.entity_id ?? null;
     if (!playerEntityId) {
-      const name = (typeof personaName === 'string' && personaName.trim()) || '玩家';
+      const name = (typeof persona?.name === 'string' && persona.name.trim()) || '玩家';
       playerEntityId = createNewEntity(ctx, { name, type: 'player', aliases: [] }).entity_id;
     }
+    seedProfileDefaults(sessionId, {
+      entityId: playerEntityId, entityType: 'player', worldId, profileDefaultsJson: persona?.profile_defaults_json, round,
+    });
 
     let mainCharacterEntityId = null;
     if (mainCharacter?.id) {
@@ -726,6 +775,9 @@ export function ensureBaseEntities({ sessionId, round, personaName, mainCharacte
         const name = (typeof mainCharacter.name === 'string' && mainCharacter.name.trim()) || '角色';
         mainCharacterEntityId = createNewEntity(ctx, { name, type: 'character', aliases: [], cardId: mainCharacter.id }).entity_id;
       }
+      seedProfileDefaults(sessionId, {
+        entityId: mainCharacterEntityId, entityType: 'character', worldId, profileDefaultsJson: mainCharacter.profile_defaults_json, round,
+      });
     }
 
     return { playerEntityId, mainCharacterEntityId };

@@ -17,6 +17,9 @@ import { ALL_MESSAGES_LIMIT, LLM_TASK_TEMPERATURE, LLM_STATE_UPDATE_MAX_TOKENS, 
 import { getSessionById } from '../db/queries/sessions.js';
 import { createLogger, formatMeta, previewText, shouldLogRaw } from '../utils/logger.js';
 import { renderBackendPrompt } from '../prompts/prompt-loader.js';
+import { renderTriggeredEntriesSection } from '../prompts/segments.js';
+import { getAllWorldEntries } from '../db/queries/prompt-entries.js';
+import { applyTemplateVars } from '../utils/template-vars.js';
 import { resolveAuxScope } from '../utils/aux-scope.js';
 import { validateValue } from '../utils/state-field-validate.js';
 import { extractJsonPatch } from './state-update-json.js';
@@ -26,6 +29,7 @@ import {
   buildStateMemoryProfileFieldsSchema, buildNpcApplicableFieldsSchema,
   captureBaselineIfAbsent, resolveCurrentRound, resolveBaseEntities,
   writeRealDateWorldTime, resolveRelevantEntityIds, buildRuntimeUserPrompt,
+  resolvePersona,
 } from './state-update-context.js';
 import { applyStateMemoryOps, applyEntityFields } from './state-memory-apply.js';
 
@@ -121,14 +125,36 @@ function buildStateUpdateExampleKeys(worldActiveFields, charactersWithFields, pe
 }
 
 /**
+ * 世界观：本世界所有启用的常驻（always）条目，供补全档案时保持设定一致。只依赖世界与人设，
+ * 逐轮稳定，放进可缓存的 system 前缀；关键词 / AI 判断触发的条目要额外匹配，这里不带。
+ */
+export function buildWorldSettingText(world, personaName) {
+  if (!world) return '';
+  const entries = getAllWorldEntries(world.id)
+    .filter((entry) => entry.enabled !== 0 && entry.trigger_type === 'always' && entry.content)
+    .sort((a, b) => (a.token ?? 1) - (b.token ?? 1) || (a.sort_order ?? 0) - (b.sort_order ?? 0));
+  const tv = (text) => applyTemplateVars(text, { user: personaName || '', char: null, world: world.name });
+  return renderTriggeredEntriesSection(entries, tv) ?? '';
+}
+
+/** 玩家人设正文：补全玩家档案时以它为准。同样逐轮稳定，放进可缓存前缀。 */
+export function buildPersonaSettingText(world, persona) {
+  const prompt = persona?.system_prompt?.trim();
+  if (!prompt) return '';
+  return applyTemplateVars(prompt, { user: persona.name || '', char: null, world: world?.name });
+}
+
+/**
  * 组装状态更新调用的稳定前缀（cacheableSystem）：通用指令 + 各字段 schema 定义 + 状态记忆规则/
  * 档案字段清单。只依赖字段定义与会话所在世界的 schema，逐字节稳定，不含轮次/实体目录等动态内容。
  * 单独抽出供测试直接断言 system 内容，不必经过 LLM 调用。
  */
-function buildCacheableSystemPrompt(worldId, targets, { schemaSections, responseKeys }) {
+function buildCacheableSystemPrompt(worldId, targets, { schemaSections, responseKeys, worldSetting, personaSetting }) {
   const { worldActiveFields, charactersWithFields, personaActiveFields } = targets;
   const exampleKeys = buildStateUpdateExampleKeys(worldActiveFields, charactersWithFields, personaActiveFields);
   return renderBackendPrompt('state-update.md', {
+    WORLD_SETTING: worldSetting || '（无）',
+    PERSONA_SETTING: personaSetting || '（无）',
     SCHEMA: schemaSections.join('\n\n'),
     RESPONSE_KEYS: responseKeys.join('、'),
     EXAMPLE_KEYS: exampleKeys,
@@ -294,7 +320,10 @@ export async function updateAllStates(worldId, characterIds, sessionId) {
   // ── 切分稳定前缀 / 动态后缀（prompt caching） ──
   // 必须逐字成为 system 消息内容的前缀，provider 层据此切出可缓存段（参考 assembler.js）。
   // 动态后缀（user 段）：各字段当前取值 + 实体目录/世界事实/相关实体详情 + 本轮对话，逐轮变化，不进缓存。
-  const cacheableSystem = buildCacheableSystemPrompt(worldId, targets, { schemaSections, responseKeys });
+  const persona = resolvePersona(session, worldId);
+  const worldSetting = buildWorldSettingText(world, persona?.name);
+  const personaSetting = buildPersonaSettingText(world, persona);
+  const cacheableSystem = buildCacheableSystemPrompt(worldId, targets, { schemaSections, responseKeys, worldSetting, personaSetting });
   const relevantIds = resolveRelevantEntityIds(sessionId, messages, { playerEntityId, mainCharacterEntityId });
   const runtimeUser = buildRuntimeUserPrompt({
     sessionId, worldId, mainCharacterEntityId, valueSections, dialogue, responseKeys, round, relevantIds,

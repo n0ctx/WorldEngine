@@ -27,13 +27,14 @@ import {
 import { runOnDelete } from '../utils/cleanup-hooks.js';
 
 import { getCharacterById } from '../db/queries/characters.js';
+import { resolveBaseEntities } from '../memory/state-update-context.js';
 import { getConfig } from './config.js';
 import { createLogger, formatMeta } from '../utils/logger.js';
 
 const log = createLogger('svc', 'green');
 
 /**
- * 创建会话；若角色有 first_message 则自动插入开场白。
+ * 创建会话：建好玩家与主角色的状态记忆实体（带入档案初始值）；若角色有 first_message 则自动插入开场白。
  * 开场白作为普通消息落库，之后原样进入展示与提示词历史，所以模板变量在此处替换。
  */
 export function createSession(characterId) {
@@ -42,6 +43,10 @@ export function createSession(characterId) {
   const diaryChat = config.diary?.chat;
   const diary_date_mode = diaryChat?.enabled ? (diaryChat.date_mode ?? 'virtual') : null;
   const session = dbCreateSession(characterId, { diary_date_mode });
+  // 开局就建好玩家与主角色实体并带入档案初始值，不等第一轮状态整理
+  if (character) {
+    resolveBaseEntities({ session, worldId: character.world_id, sessionId: session.id, round: 0, characters: [character], isWriting: false });
+  }
 
   if (character && character.first_message) {
     dbCreateMessage({

@@ -31,3 +31,15 @@ export function resetPersonaStateValuesByPersonaId(worldId, personaId) {
 export function resetPersonaStateValues(worldId) {
   return request(`${BASE}/worlds/${worldId}/persona-state-values/reset`, { method: 'POST' }, '重置失败');
 }
+
+/** 玩家卡的档案初始值（身份 / 外貌），行形状同状态值：{ field_key, label, group, type, value_json } */
+export function getPersonaProfileDefaults(personaId) {
+  return request(`${BASE}/personas/${personaId}/profile-defaults`);
+}
+
+export function updatePersonaProfileDefault(personaId, fieldKey, valueJson) {
+  return request(`${BASE}/personas/${personaId}/profile-defaults/${fieldKey}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ value_json: valueJson }),
+  });
+}

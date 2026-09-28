@@ -13,6 +13,9 @@
 【相关实体详情】
 {{ENTITY_DETAILS}}
 
+【待补全】（本轮必须全部补上，本轮没出场的也要补：按【相关实体详情】里它已有的档案、关系和【世界观】创作，正文没写到的直接编出合理的值。缺档案用 fill_profile，缺字段用顶层 entity_fields，缺位置用 set_state）
+{{PROFILE_GAPS}}
+
 对话内容：
 {{DIALOGUE}}
 

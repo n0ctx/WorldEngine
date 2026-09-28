@@ -59,7 +59,7 @@ test('POST /entities 建立实体；重名 409；未知类型 400', async () => 
   assert.equal(badType.status, 400);
 });
 
-test('POST /entities/from-card 从角色卡建置顶关联实体并复制默认值；重复 409；卡片不属于本世界 400', async () => {
+test('POST /entities/from-card 从角色卡建置顶关联实体并复制默认值与档案初始值；重复 409；卡片不属于本世界 400', async () => {
   const { world, session } = setupSessionWithWorld();
   insertCharacterStateField(ctx.sandbox.db, world.id, { field_key: 'mood', label: '心情', type: 'text' });
 
@@ -67,6 +67,8 @@ test('POST /entities/from-card 从角色卡建置顶关联实体并复制默认�
   insertCharacterStateValue(ctx.sandbox.db, character.id, {
     field_key: 'mood', default_value_json: JSON.stringify('沉静'),
   });
+  ctx.sandbox.db.prepare('UPDATE characters SET profile_defaults_json = ? WHERE id = ?')
+    .run(JSON.stringify({ gender: '男', core_traits: ['寡言'] }), character.id);
 
   const res = await ctx.request(
     `/api/sessions/${session.id}/state-memory/entities/from-card`,
@@ -78,6 +80,8 @@ test('POST /entities/from-card 从角色卡建置顶关联实体并复制默认�
   assert.equal(entity.card_id, character.id);
   assert.equal(entity.pinned, true);
   assert.equal(entity.fields.find((f) => f.field_key === 'mood').value, '沉静');
+  assert.equal(entity.profile.gender.value, '男');
+  assert.deepEqual(entity.profile.core_traits.value, ['寡言']);
 
   const conflict = await ctx.request(
     `/api/sessions/${session.id}/state-memory/entities/from-card`,

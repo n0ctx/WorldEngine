@@ -328,6 +328,13 @@ function migrateConfig(config) {
     dirty = mergeSectionKeys(section, config.provider_keys) || dirty;
   }
 
+  // 对话 / 写作显示设置拆分前只有顶层 ui：写作还没有自己的 ui 时继承旧值，不落回默认的关闭
+  const legacyUi = ensurePlainObject(config.ui, null);
+  if (config.writing === writingSection && !writingSection.ui && legacyUi) {
+    writingSection.ui = Object.fromEntries(Object.entries(DEFAULT_WRITING.ui).map(([key, value]) => [key, legacyUi[key] ?? value]));
+    dirty = true;
+  }
+
   return dirty;
 }
 

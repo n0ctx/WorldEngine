@@ -119,14 +119,29 @@ test('人设为空（name/description/system_prompt 全空）时不调用 LLM，
   assert.deepEqual(result, []);
 });
 
-test('世界下没有任何角色状态字段时，直接返回空数组，不调用 LLM', async () => {
-  const world = insertWorld(sandbox.db, { name: '提取-无字段-世界' });
-  const character = insertCharacter(sandbox.db, world.id, { name: '有人设的角色', description: '一些描述。' });
+test('档案字段也参与推断：带 profile_key，当前值取卡片上的档案初始值；玩家卡没有人格字段', async () => {
+  const world = insertWorld(sandbox.db, { name: '提取-档案-世界' });
+  const character = insertCharacter(sandbox.db, world.id, { name: '有人设的角色', description: '一位沉默的女剑客。' });
+  sandbox.db.prepare('UPDATE characters SET profile_defaults_json = ? WHERE id = ?').run(JSON.stringify({ gender: '男' }), character.id);
+  const persona = insertPersona(sandbox.db, world.id, { name: '旅人', description: '一名向导。' });
 
-  const { extractCharacterStateSuggestions } = await freshImport('backend/services/state-extract.js');
+  process.env.MOCK_LLM_COMPLETE = JSON.stringify({
+    'profile.gender': '女',
+    'profile.core_traits': ['沉默'],
+    'profile.no_such_field': '忽略',
+  });
+  const { extractCharacterStateSuggestions, extractPersonaStateSuggestions } = await freshImport('backend/services/state-extract.js');
   const result = await extractCharacterStateSuggestions(character.id);
 
-  assert.deepEqual(result, []);
+  const byKey = Object.fromEntries(result.map((r) => [r.field_key, r]));
+  assert.deepEqual(Object.keys(byKey).sort(), ['profile.core_traits', 'profile.gender']);
+  assert.equal(byKey['profile.gender'].profile_key, 'gender');
+  assert.equal(byKey['profile.gender'].label, '身份·性别');
+  assert.equal(byKey['profile.gender'].current_value_json, JSON.stringify('男'));
+  assert.deepEqual(JSON.parse(byKey['profile.core_traits'].suggested_value_json), ['沉默']);
+
+  const personaResult = await extractPersonaStateSuggestions(persona.id);
+  assert.deepEqual(personaResult.map((r) => r.field_key), ['profile.gender'], '玩家卡没有人格字段');
 });
 
 test('extractCharacterStateSuggestions：角色不存在抛 NOT_FOUND', async () => {

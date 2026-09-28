@@ -21,6 +21,7 @@ CREATE TABLE IF NOT EXISTS personas (
   description    TEXT NOT NULL DEFAULT '',
   system_prompt  TEXT NOT NULL DEFAULT '',
   avatar_path    TEXT,
+  profile_defaults_json TEXT NOT NULL DEFAULT '{}',
   sort_order     INTEGER NOT NULL DEFAULT 0,
   created_at     INTEGER NOT NULL,
   updated_at     INTEGER NOT NULL
@@ -69,6 +70,7 @@ CREATE TABLE IF NOT EXISTS characters (
   post_prompt    TEXT NOT NULL DEFAULT '',
   first_message  TEXT NOT NULL DEFAULT '',
   avatar_path    TEXT,
+  profile_defaults_json TEXT NOT NULL DEFAULT '{}',
   sort_order     INTEGER NOT NULL DEFAULT 0,
   created_at     INTEGER NOT NULL,
   updated_at     INTEGER NOT NULL
@@ -500,6 +502,7 @@ export function initSchema(db) {
   migrateStateFieldSchema(db);
   migratePromptActivationSchema(db);
   migrateNearbyEnabledColumn(db);
+  migrateProfileDefaultsColumns(db);
   migrateWritingSessionPersonaSchema(db);
   migrateWorldAppearanceSchema(db);
 }
@@ -716,6 +719,12 @@ function migratePromptActivationSchema(db) {
 function migrateNearbyEnabledColumn(db) {
   // 附近角色：character_state_fields 新增 nearby_enabled 列；旧行由 SQLite 默认值自动填 1
   try { db.exec(`ALTER TABLE character_state_fields ADD COLUMN nearby_enabled INTEGER NOT NULL DEFAULT 1`); } catch {}
+}
+
+function migrateProfileDefaultsColumns(db) {
+  // 角色卡 / 人设的档案初始值（身份、外貌、人格），{字段key: 值}
+  try { db.exec(`ALTER TABLE characters ADD COLUMN profile_defaults_json TEXT NOT NULL DEFAULT '{}'`); } catch {}
+  try { db.exec(`ALTER TABLE personas ADD COLUMN profile_defaults_json TEXT NOT NULL DEFAULT '{}'`); } catch {}
 }
 
 function migrateWritingSessionPersonaSchema(db) {

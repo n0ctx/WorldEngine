@@ -1,28 +1,44 @@
-import { useState } from 'react';
+import { useId, useState } from 'react';
+import Icon from '../ui/Icon.jsx';
 import Select from '../ui/Select.jsx';
 import { createStateRelation, deleteStateRelation } from '../../core/api/state-memory.js';
 import { log } from '../../core/utils/logger.js';
+
+const FREE_TEXT_OBJECT = '__text__';
 
 function entityOptions(entities) {
   return entities.filter((e) => e.status === 'active').map((e) => ({ value: e.entity_id, label: e.name }));
 }
 
 function entityName(entities, entityId) {
-  return entities.find((e) => e.entity_id === entityId)?.name ?? '（未知实体）';
+  return entities.find((e) => e.entity_id === entityId)?.name ?? '（未知）';
 }
 
-function NewRelationForm({ entities, sessionId, reload }) {
+/** 关系词建议：本会话已用过的关系词 + 系统约定的排他关系词 */
+function predicateSuggestions(relations, schema) {
+  return [...new Set([...relations.map((r) => r.predicate), ...(schema?.exclusivePredicates ?? [])])];
+}
+
+function NewRelationForm({ entities, relations, schema, sessionId, reload, onDone }) {
   const [subjectId, setSubjectId] = useState('');
   const [predicate, setPredicate] = useState('');
-  const [objectId, setObjectId] = useState('');
+  const [objectChoice, setObjectChoice] = useState('');
   const [objectValue, setObjectValue] = useState('');
   const [error, setError] = useState('');
+  const listId = useId();
 
   const options = entityOptions(entities);
+  const freeText = objectChoice === FREE_TEXT_OBJECT;
+  const objectId = freeText ? '' : objectChoice;
+  const objectLabel = freeText ? objectValue.trim() : (objectId ? entityName(entities, objectId) : '');
+  const preview = subjectId && predicate.trim() && objectLabel
+    ? `${entityName(entities, subjectId)} —${predicate.trim()}→ ${objectLabel}`
+    : '';
 
   async function handleCreate() {
-    if (!subjectId || !predicate.trim()) { setError('缺少主体或谓词'); return; }
-    if (!objectId && !objectValue.trim()) { setError('缺少客体'); return; }
+    if (!subjectId) { setError('请选择是谁'); return; }
+    if (!predicate.trim()) { setError('请填写关系'); return; }
+    if (!objectId && !objectValue.trim()) { setError('请选择或填写对象'); return; }
     setError('');
     try {
       await createStateRelation(sessionId, {
@@ -31,8 +47,8 @@ function NewRelationForm({ entities, sessionId, reload }) {
         object_id: objectId || undefined,
         object_value: objectId ? undefined : objectValue.trim(),
       });
-      setSubjectId(''); setPredicate(''); setObjectId(''); setObjectValue('');
       reload();
+      onDone();
     } catch (err) {
       log.error('state-memory.relation.create_failed', err, { toast: err?.message || '新增关系失败' });
       setError(err.message || '新增失败');
@@ -41,25 +57,67 @@ function NewRelationForm({ entities, sessionId, reload }) {
 
   return (
     <div className="we-sm-relation-form">
-      <Select value={subjectId} onChange={setSubjectId} options={[{ value: '', label: '选择主体' }, ...options]} />
-      <input className="we-input" placeholder="谓词" value={predicate} onChange={(e) => setPredicate(e.target.value)} />
-      <Select value={objectId} onChange={setObjectId} options={[{ value: '', label: '选择客体实体' }, ...options]} />
-      <input
-        className="we-input"
-        placeholder="或填客体文字"
-        value={objectValue}
-        disabled={!!objectId}
-        onChange={(e) => setObjectValue(e.target.value)}
-      />
-      <button type="button" className="we-btn we-btn-sm we-btn-secondary" onClick={handleCreate}>新增关系</button>
+      <div className="we-sm-relation-form-row">
+        <div className="we-sm-form-cell">
+          <span className="we-sm-form-label">谁</span>
+          <Select value={subjectId} onChange={setSubjectId} options={[{ value: '', label: '选择' }, ...options]} />
+        </div>
+        <div className="we-sm-form-cell">
+          <span className="we-sm-form-label">关系</span>
+          <input
+            className="we-sm-compact-input"
+            placeholder="如：持有者、成员、师父"
+            aria-label="关系"
+            list={listId}
+            value={predicate}
+            onChange={(e) => setPredicate(e.target.value)}
+          />
+          <datalist id={listId}>
+            {predicateSuggestions(relations, schema).map((p) => <option key={p} value={p} />)}
+          </datalist>
+        </div>
+        <div className="we-sm-form-cell">
+          <span className="we-sm-form-label">对象</span>
+          <Select
+            value={objectChoice}
+            onChange={setObjectChoice}
+            options={[{ value: '', label: '选择' }, ...options, { value: FREE_TEXT_OBJECT, label: '其他（手动填写）' }]}
+          />
+        </div>
+      </div>
+      {freeText && (
+        <input
+          className="we-sm-compact-input"
+          placeholder="填写对象，如：一把旧钥匙"
+          aria-label="对象文字"
+          value={objectValue}
+          onChange={(e) => setObjectValue(e.target.value)}
+        />
+      )}
+      <div className="we-sm-relation-form-footer">
+        <span className="we-sm-relation-preview">{preview ? `将记录：${preview}` : ''}</span>
+        <button type="button" className="we-btn we-btn-sm we-btn-ghost" onClick={onDone}>取消</button>
+        <button type="button" className="we-btn we-btn-sm we-btn-primary" onClick={handleCreate}>添加</button>
+      </div>
       {error && <p className="we-settings-toggle-hint text-[var(--we-color-accent)]" role="alert">{error}</p>}
     </div>
   );
 }
 
-export default function StateMemoryRelationTab({ sessionId, data, reload }) {
+function DeleteIcon() {
+  return (
+    <Icon size={16}>
+      <path d="M6 6l12 12M18 6L6 18" />
+    </Icon>
+  );
+}
+
+export default function StateMemoryRelationTab({ sessionId, data, schema, reload }) {
+  const [adding, setAdding] = useState(false);
   const entities = data?.entities ?? [];
   const relations = data?.relations ?? [];
+  const sorted = [...relations].sort((a, b) =>
+    entityName(entities, a.subject_id).localeCompare(entityName(entities, b.subject_id), 'zh'));
 
   async function handleDelete(relationId) {
     try {
@@ -72,22 +130,55 @@ export default function StateMemoryRelationTab({ sessionId, data, reload }) {
 
   return (
     <div className="we-sm-relation-tab">
-      <NewRelationForm entities={entities} sessionId={sessionId} reload={reload} />
-      {relations.length === 0 && <p className="we-section-empty">暂无关系</p>}
+      <div className="we-sm-tab-head">
+        <p className="we-sm-intro">人物、物品、势力之间的固定关系，例如谁持有什么、谁属于哪个势力。AI 回复时会参考。</p>
+        {!adding && (
+          <button type="button" className="we-btn we-btn-sm we-btn-secondary" onClick={() => setAdding(true)}>
+            ＋ 添加关系
+          </button>
+        )}
+      </div>
+
+      {adding && (
+        <NewRelationForm
+          entities={entities}
+          relations={relations}
+          schema={schema}
+          sessionId={sessionId}
+          reload={reload}
+          onDone={() => setAdding(false)}
+        />
+      )}
+
+      {relations.length === 0 && !adding && (
+        <div className="we-sm-empty">
+          <p className="we-sm-empty-title">还没有记录关系</p>
+          <p className="we-sm-empty-hint">AI 在剧情里发现关系时会自动记录，也可以手动添加。</p>
+        </div>
+      )}
+
       <ul className="we-sm-relation-list">
-        {relations.map((relation) => (
+        {sorted.map((relation) => (
           <li key={relation.relation_id} className="we-sm-relation-item">
-            <span>
-              {entityName(entities, relation.subject_id)}
-              {' —'}{relation.predicate}{'→ '}
-              {relation.object_id ? entityName(entities, relation.object_id) : relation.object_value}
+            <span className="we-sm-relation-text">
+              <span className="we-sm-relation-name">{entityName(entities, relation.subject_id)}</span>
+              <span className="we-sm-relation-arrow" aria-hidden="true">—</span>
+              <span className="we-sm-chip">{relation.predicate}</span>
+              <span className="we-sm-relation-arrow" aria-hidden="true">→</span>
+              {relation.object_id ? (
+                <span className="we-sm-relation-name">{entityName(entities, relation.object_id)}</span>
+              ) : (
+                <span className="we-sm-relation-free">{relation.object_value}</span>
+              )}
             </span>
             <button
               type="button"
-              className="we-btn we-btn-sm we-btn-danger"
+              className="we-sm-icon-btn"
+              aria-label="删除关系"
+              title="删除关系"
               onClick={() => handleDelete(relation.relation_id)}
             >
-              删除
+              <DeleteIcon />
             </button>
           </li>
         ))}

@@ -27,8 +27,10 @@ test('ENTITY_TYPES 覆盖六种实体类型', () => {
   assert.deepEqual(ENTITY_TYPES, ['character', 'location', 'item', 'faction', 'other', 'player']);
 });
 
-test('player 只有穿着档案字段；非 character 类型字段全部 semi_stable', () => {
-  assert.deepEqual(getProfileFieldDefinitions('player').map((f) => [f.key, f.mutability]), [['outfit', 'dynamic']]);
+test('player 有角色的身份与外貌档案字段、没有人格；非 character 类型字段全部 semi_stable', () => {
+  const expected = getProfileFieldDefinitions('character').filter((f) => f.group !== '人格');
+  assert.deepEqual(getProfileFieldDefinitions('player'), expected);
+  assert.ok(expected.some((f) => f.key === 'outfit') && expected.some((f) => f.key === 'gender'));
   for (const type of ['location', 'item', 'faction', 'other']) {
     const fields = getProfileFieldDefinitions(type);
     assert.ok(fields.length > 0, `${type} 应有字段`);
@@ -49,7 +51,7 @@ test('character 档案字段的可变性与分组符合设计', () => {
   assert.equal(byKey.gender.mutability, 'immutable');
   assert.equal(byKey.occupation.mutability, 'semi_stable');
 
-  for (const key of ['gender', 'birth_date', 'age_recorded', 'species', 'origin', 'occupation', 'social_identity']) {
+  for (const key of ['gender', 'birth_date', 'age_recorded', 'species', 'origin', 'occupation', 'social_identity', 'background']) {
     assert.equal(byKey[key].group, '身份');
   }
   for (const key of ['height', 'build', 'hair', 'eyes', 'distinguishing_features', 'outfit']) {
@@ -58,7 +60,6 @@ test('character 档案字段的可变性与分组符合设计', () => {
   for (const key of ['core_traits', 'behavioral_patterns', 'values', 'speech_style']) {
     assert.equal(byKey[key].group, '人格');
   }
-  assert.equal(byKey.background.group, '经历');
 });
 
 test('外貌组字段共享同义词', () => {
@@ -97,17 +98,19 @@ test('isPlaceholderValue 接受非字符串值：null/undefined 为占位，数�
 
 // ─── resolveActiveProfileFields（同义字段停用） ─────────────────────────────────────────────
 
-test('非 character 类型返回全部字段；player 默认启用穿着', () => {
+test('非 character 类型返回全部字段；player 默认启用全部身份与外貌字段', () => {
   const world = insertWorld(sandbox.db);
   const locationFields = resolveActiveProfileFields(world.id, 'location');
   assert.deepEqual(locationFields, getProfileFieldDefinitions('location').map((f) => f.key));
-  assert.deepEqual(resolveActiveProfileFields(world.id, 'player'), ['outfit']);
+  assert.deepEqual(resolveActiveProfileFields(world.id, 'player'), getProfileFieldDefinitions('player').map((f) => f.key));
 });
 
-test('世界里有同义的玩家字段时，玩家的穿着档案字段停用', () => {
+test('世界里有同义的玩家字段时，玩家对应的档案字段停用', () => {
   const world = insertWorld(sandbox.db);
   insertPersonaStateField(sandbox.db, world.id, { field_key: 'outfit', label: '服装' });
-  assert.deepEqual(resolveActiveProfileFields(world.id, 'player'), []);
+  const active = resolveActiveProfileFields(world.id, 'player');
+  assert.ok(!active.includes('outfit'));
+  assert.ok(active.includes('gender'));
 });
 
 test('世界里存在 nearby_enabled=1 的同义角色字段时，对应档案字段停用', () => {

@@ -48,7 +48,7 @@ import { getAllCharacterStateValues } from '../db/queries/character-state-values
 import { splitRounds } from '../utils/session-rounds.js';
 import { parseWorldDate, deriveAge } from '../utils/world-date.js';
 import { validateValue } from '../utils/state-field-validate.js';
-import { truncateText, truncateListItems } from '../memory/state-memory-apply.js';
+import { truncateText, truncateListItems, seedProfileDefaults } from '../memory/state-memory-apply.js';
 import {
   ENTITY_TYPES, THREAD_KINDS, DYNAMIC_LOCATION_KEY,
   getProfileFieldDefinitions, resolveActiveProfileFields, isPlaceholderValue,
@@ -158,7 +158,6 @@ function buildEntityView(entity, ctx) {
     fields: buildFieldsView(entity, ctx.worldCharacterFields, ctx.fieldValues),
     age,
     activeProfileFields: resolveActiveProfileFields(ctx.worldId, entity.type),
-    card_description: entity.card_id ? (getCharacterById(entity.card_id)?.description ?? null) : null,
   };
 }
 
@@ -192,7 +191,7 @@ export function getStateMemory(sessionId) {
   return {
     entities,
     relations: listCurrentRelations(sessionId),
-    threads: listThreads(sessionId),
+    threads: listThreads(sessionId).map(toThreadView),
     facts,
     world: worldProfile,
     presentIds: presence ? presence.entity_ids : [],
@@ -229,7 +228,7 @@ export function createEntity(sessionId, body = {}) {
   return getEntityViewById(sessionId, entityId);
 }
 
-/** 从角色卡建置顶关联实体：卡片须属于本会话所在世界；同名 active 实体已存在时 409。 */
+/** 从角色卡建置顶关联实体（带入卡片的档案初始值）：卡片须属于本会话所在世界；同名 active 实体已存在时 409。 */
 export function createEntityFromCard(sessionId, body = {}) {
   const session = requireSession(sessionId);
   const worldId = resolveSessionWorldId(session);
@@ -247,6 +246,9 @@ export function createEntityFromCard(sessionId, body = {}) {
     entityId, seq: nextEntitySeq(sessionId), type: 'character', name,
     aliasesJson: '[]', cardId: characterId, pinned: true,
   }, round);
+  seedProfileDefaults(sessionId, {
+    entityId, entityType: 'character', worldId, profileDefaultsJson: character.profile_defaults_json, round,
+  });
 
   // 把该世界 nearby_enabled=1 的角色字段在该卡片上的默认值复制到实体的用户字段运行时值
   const fields = worldId ? getCharacterStateFieldsByWorldId(worldId).filter((f) => f.nearby_enabled) : [];
@@ -317,7 +319,7 @@ function normalizeManualTextValue(fieldDef, value) {
   return truncateText(trimmed);
 }
 
-function normalizeManualProfileValue(fieldDef, value, ctx) {
+export function normalizeManualProfileValue(fieldDef, value, ctx) {
   if (fieldDef.kind === 'list') return normalizeManualListValue(fieldDef, value);
   if (fieldDef.kind === 'age') return normalizeManualAgeValue(fieldDef, value, ctx);
   return normalizeManualTextValue(fieldDef, value);
@@ -477,6 +479,14 @@ export function deleteRelation(sessionId, relationId) {
 // 未完结事项
 // ============================
 
+function toThreadView(thread) {
+  return {
+    thread_id: thread.thread_id, seq: thread.seq, kind: thread.kind,
+    participants: JSON.parse(thread.participants_json || '[]'), content: thread.content,
+    status: thread.status, opened_round: thread.opened_round,
+  };
+}
+
 export function createThread(sessionId, body = {}) {
   requireSession(sessionId);
   if (!THREAD_KINDS.includes(body.kind)) throw serviceError('bad_request', `未知事项类型: ${body.kind}`);
@@ -515,10 +525,7 @@ export function updateThread(sessionId, threadId, body = {}) {
     threadId: thread.thread_id, seq: thread.seq, kind: thread.kind, participantsJson: thread.participants_json,
     content, status, openedRound: thread.opened_round,
   }, round);
-  return {
-    thread_id: thread.thread_id, seq: thread.seq, kind: thread.kind,
-    participants: JSON.parse(thread.participants_json || '[]'), content, status, opened_round: thread.opened_round,
-  };
+  return toThreadView({ ...thread, content, status });
 }
 
 // ============================

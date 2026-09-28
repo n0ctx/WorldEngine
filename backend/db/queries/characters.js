@@ -77,6 +77,11 @@ export function updateCharacter(id, patch) {
   return updateRowFields('characters', id, patch, ['name', 'description', 'system_prompt', 'post_prompt', 'first_message', 'avatar_path', 'sort_order']);
 }
 
+/** 写入角色卡的档案初始值（已校验的 {字段key: 值} JSON）。 */
+export function setCharacterProfileDefaults(id, profileDefaultsJson) {
+  db.prepare('UPDATE characters SET profile_defaults_json = ?, updated_at = ? WHERE id = ?').run(profileDefaultsJson, Date.now(), id);
+}
+
 /**
  * 批量更新角色排序（传入 [{id, sort_order}, ...] 数组）
  */

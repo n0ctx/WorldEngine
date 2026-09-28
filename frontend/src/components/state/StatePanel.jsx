@@ -1,15 +1,14 @@
 import { useCallback, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
 
 import useStore from '../../core/state/index.js';
 import { resetSessionCharacterStateValues } from '../../core/api/session-state-values.js';
 import { useStateMemoryPanelData } from '../../core/hooks/useStateMemory.js';
 import SessionStatePanel from './SessionStatePanel.jsx';
-import StateChangeCard from './StateChangeCard.jsx';
+import EntityStateBlock from './EntityStateBlock.jsx';
 import StateMemoryDynamicState from './StateMemoryDynamicState.jsx';
 import useEntitySections from './useEntitySections.jsx';
 import PanelCard from '../ui/PanelCard.jsx';
-import { ResetAction, StateEmpty } from './panel-parts.jsx';
+import { ResetAction } from './panel-parts.jsx';
 import { log } from '../../core/utils/logger.js';
 
 const CLASS_NAMES = {
@@ -22,31 +21,6 @@ const CLASS_NAMES = {
   overlayChip: 'we-state-change-chip',
   overlayText: 'we-state-change-text',
 };
-
-/** 主角色页签的档案组：身份信息以卡片为准，只给一行提示 + 跳转编辑入口 */
-function MainCharacterProfileNote({ character }) {
-  const navigate = useNavigate();
-  const location = useLocation();
-  return (
-    <div className="we-state-section we-main-character-profile">
-      <div className="we-state-section-title">
-        <span className="we-section-label">档案</span>
-      </div>
-      <p className="we-settings-toggle-hint we-sm-card-note">
-        身份信息以角色卡为准。
-        {character && (
-          <button
-            type="button"
-            className="we-state-section-reset we-main-character-edit-link"
-            onClick={() => navigate(`/characters/${character.id}/edit`, { state: { backgroundLocation: location } })}
-          >
-            编辑角色卡
-          </button>
-        )}
-      </p>
-    </div>
-  );
-}
 
 export default function StatePanel({ sessionId, character, worldId, persona, onDiaryInject }) {
   const tick = useStore((s) => s.memoryRefreshTick);
@@ -70,7 +44,7 @@ export default function StatePanel({ sessionId, character, worldId, persona, onD
   });
 
   // 角色区块是对话模式独有：写作模式的角色在「附近角色」里按人分 tab
-  const extraSections = useCallback(({ stateData, setStateData, stateDiff, stateDiffReady, stateError, templateCtx, renderLoadError, saveStateValue }) => {
+  const extraSections = useCallback(({ stateData, setStateData, stateDiff, stateError, templateCtx, renderLoadError, saveStateValue }) => {
     async function handleResetChar() {
       if (!sessionId || charResetting) return;
       setCharResetting(true);
@@ -80,6 +54,33 @@ export default function StatePanel({ sessionId, character, worldId, persona, onD
       finally { setCharResetting(false); }
     }
 
+    const userProps = {
+      userRows: stateData?.character ?? [],
+      userChangedKeys: new Set(stateDiff.character.map((change) => change.row.field_key)),
+      onSaveUserRow: (fieldKey, valueJson, characterId) =>
+        saveStateValue('character', fieldKey, valueJson, characterId ?? character?.id),
+      templateCtx,
+    };
+
+    function renderCharacterBody() {
+      if (stateError) return renderLoadError('角色状态加载失败');
+      if (!mainCharacterEntity) {
+        return <StateMemoryDynamicState {...userProps} gridLayout />;
+      }
+      return (
+        <EntityStateBlock
+          sessionId={sessionId}
+          entity={mainCharacterEntity}
+          schema={schema}
+          entities={stateMemory.entities}
+          relations={stateMemory.relations ?? []}
+          diffKeys={entityDiff}
+          reload={reloadStateMemory}
+          {...userProps}
+        />
+      );
+    }
+
     return [{
       key: 'character',
       label: character?.name || '角色',
@@ -87,43 +88,12 @@ export default function StatePanel({ sessionId, character, worldId, persona, onD
       content: (
         <div className="we-panel-tab-body">
           <PanelCard variant="headerless">
-            {character ? (
-              <>
-                <MainCharacterProfileNote character={character} />
-                {mainCharacterEntity && (
-                  <div className="we-entity-dynamic">
-                    <StateMemoryDynamicState
-                      sessionId={sessionId}
-                      entity={mainCharacterEntity}
-                      diffKeys={entityDiff}
-                      reload={reloadStateMemory}
-                    />
-                  </div>
-                )}
-                <div className="we-state-section-title">
-                  <span className="we-section-label">用户字段</span>
-                </div>
-                {stateError ? renderLoadError('角色状态加载失败') : (
-                  <StateChangeCard
-                    className="we-status-character"
-                    rows={stateData?.character ?? null}
-                    changes={stateDiff.character}
-                    hasBaseline={stateDiffReady}
-                    onSave={(fieldKey, valueJson, characterId) =>
-                      saveStateValue('character', fieldKey, valueJson, characterId ?? character?.id)}
-                    templateCtx={templateCtx}
-                    emptyContent={<StateEmpty hint="角色状态会随剧情逐步记录" />}
-                  />
-                )}
-              </>
-            ) : (
-              <p className="we-section-empty">尚未选择角色</p>
-            )}
+            {character ? renderCharacterBody() : <p className="we-section-empty">尚未选择角色</p>}
           </PanelCard>
         </div>
       ),
     }, ...npcSections];
-  }, [character, charResetting, sessionId, mainCharacterEntity, entityDiff, reloadStateMemory, npcSections]);
+  }, [character, charResetting, sessionId, mainCharacterEntity, stateMemory, schema, entityDiff, reloadStateMemory, npcSections]);
 
   return (
     <SessionStatePanel

@@ -82,6 +82,20 @@ test('updateConfig：非法预算值规范到默认值/null，合法值按范围
   assert.equal(inherited.writing.short_term_token_budget, null);
 });
 
+test('写作还没有自己的显示设置时继承顶层的思考 / token 消耗开关', () => {
+  sandbox.writeConfig({
+    ui: { theme: 'dark', show_token_usage: true, show_thinking: false },
+    writing: { llm: { provider: 'writer' } },
+  });
+
+  const config = getConfig();
+  assert.deepEqual(config.writing.ui, { show_thinking: false, auto_collapse_thinking: true, show_token_usage: true });
+  assert.deepEqual(sandbox.readConfig().writing.ui, config.writing.ui);
+
+  sandbox.writeConfig({ ui: { show_token_usage: true }, writing: { ui: { show_token_usage: false } } });
+  assert.equal(getConfig().writing.ui.show_token_usage, false, '写作已有自己的设置时不覆盖');
+});
+
 test('读取旧配置时迁移共享密钥并持久化规范化结果', () => {
   sandbox.writeConfig({
     provider_keys: { shared: 'root-key' },

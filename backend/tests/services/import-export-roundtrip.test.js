@@ -207,8 +207,11 @@ test('角色卡 round-trip 保持角色主体与合法状态值等价', async ()
     field_key: 'mood',
     default_value_json: '"平静"',
   });
+  sandbox.db.prepare('UPDATE characters SET profile_defaults_json = ? WHERE id = ?')
+    .run(JSON.stringify({ gender: '男', core_traits: ['沉默'] }), character.id);
 
   const exported = exportCharacter(character.id);
+  assert.deepEqual(exported.character.profile_defaults, { gender: '男', core_traits: ['沉默'] });
   const imported = importCharacter(targetWorld.id, exported);
   const reExported = exportCharacter(imported.id);
 
@@ -226,6 +229,8 @@ test('玩家卡 round-trip 保持玩家主体与合法状态值等价', async ()
   });
   writeUploadFile(sandbox, 'avatars/persona-hero.png', 'persona-hero');
   sandbox.db.prepare('UPDATE worlds SET active_persona_id = ? WHERE id = ?').run(persona.id, sourceWorld.id);
+  sandbox.db.prepare('UPDATE personas SET profile_defaults_json = ? WHERE id = ?')
+    .run(JSON.stringify({ gender: '女' }), persona.id);
   insertPersonaStateField(sandbox.db, sourceWorld.id, {
     field_key: 'stamina',
     label: '体力',
@@ -241,6 +246,7 @@ test('玩家卡 round-trip 保持玩家主体与合法状态值等价', async ()
   });
 
   const exported = exportPersona(sourceWorld.id);
+  assert.deepEqual(exported.persona.profile_defaults, { gender: '女' });
   const imported = importPersona(targetWorld.id, exported);
   sandbox.db.prepare('UPDATE worlds SET active_persona_id = ? WHERE id = ?').run(imported.id, targetWorld.id);
   const reExported = exportPersona(targetWorld.id);

@@ -1,8 +1,8 @@
 /**
- * state-extract.js — 从角色卡 / 玩家卡人设正文推断该世界下全部状态字段的建议值。
+ * state-extract.js — 从角色卡 / 玩家卡人设正文推断该世界下全部状态字段与档案初始值的建议值。
  *
- * 只读、只推断，不写库：写库由前端在用户勾选确认后走既有的状态值写入接口
- * （PATCH .../state-values/:fieldKey）。
+ * 只读、只推断，不写库：写库由前端在用户勾选确认后走既有接口——状态字段走
+ * PATCH .../state-values/:fieldKey，档案字段（带 profile_key 的建议）走 PATCH .../profile-defaults/:fieldKey。
  *
  * 人设为空（name/description/system_prompt 全空）时直接返回空数组，不占用一次 LLM 调用。
  * 每个字段的建议值都经过 validateValue（backend/utils/state-field-validate.js）校验，
@@ -17,6 +17,8 @@ import { getAllCharacterStateValues } from '../db/queries/character-state-values
 import { getPersonaStateFieldsByWorldId } from '../db/queries/persona-state-fields.js';
 import { getAllPersonaStateValuesByPersonaId } from '../db/queries/persona-state-values.js';
 import { validateValue } from '../utils/state-field-validate.js';
+import { listProfileDefaultRows } from './profile-defaults.js';
+import { isPlaceholderValue } from '../memory/state-memory-schema.js';
 import { renderBackendPrompt } from '../prompts/prompt-loader.js';
 import { LLM_TASK_TEMPERATURE, LLM_STATE_UPDATE_MAX_TOKENS, STATE_TEXT_MAX_LENGTH, STATE_LIST_MAX_ITEMS } from '../utils/constants.js';
 import { createLogger, formatMeta, previewText } from '../utils/logger.js';
@@ -69,12 +71,12 @@ function buildFieldsSchemaText(fields) {
 
 /**
  * 校验 + 汇总建议结果：逐字段用 validateValue 校验 LLM 输出，
- * 校验不过或值为空的字段直接丢弃，不返回该字段的建议。
+ * 校验不过、值为空或是「未知」这类占位文本的字段直接丢弃，不返回该字段的建议。
  *
  * @param {object[]} fields    该世界下全部状态字段定义
  * @param {Record<string, {default_value_json: string|null, runtime_value_json: string|null}>} valueMap
  * @param {object} suggestions LLM 返回的 { field_key: rawValue } 对象
- * @returns {Array<{ field_key, label, type, current_value_json, suggested_value_json }>}
+ * @returns {Array<{ field_key, profile_key?, label, type, current_value_json, suggested_value_json }>}
  *
  * current_value_json 直接透传 character_state_values/persona_state_values 里的原始存储值，
  * suggested_value_json 则始终是 JSON.stringify(validateValue(...)) 的合法 JSON。这两者的格式
@@ -91,7 +93,7 @@ function buildResult(fields, valueMap, suggestions) {
 
     const rawValue = suggestions[field.field_key];
     const validated = validateValue(rawValue, field);
-    if (validated === undefined || validated === null) {
+    if (isPlaceholderValue(validated)) {
       log.warn(`DROP  ${formatMeta({ key: field.field_key, type: field.type, raw: previewText(JSON.stringify(rawValue)) })}`);
       continue;
     }
@@ -101,6 +103,7 @@ function buildResult(fields, valueMap, suggestions) {
 
     result.push({
       field_key: field.field_key,
+      profile_key: field.profile_key,
       label: field.label,
       type: field.type,
       current_value_json: currentValueJson,
@@ -145,20 +148,40 @@ async function callExtractLLM({ name, personaText, fields, callType }) {
   return parsed;
 }
 
-async function extractSuggestions(entity, fields, loadValueRows, callType) {
+const PROFILE_KEY_PREFIX = 'profile.';
+const PROFILE_FIELD_HINTS = { birth_date: '格式 YYYY-MM-DD' };
+
+/** 档案字段按状态字段的形状参与推断：key 加 profile. 前缀避免与状态字段重名，当前值取卡片上的档案初始值。 */
+function buildProfileExtractFields(kind, id) {
+  return listProfileDefaultRows(kind, id).map((row) => ({
+    field_key: `${PROFILE_KEY_PREFIX}${row.field_key}`,
+    profile_key: row.field_key,
+    label: `${row.group}·${row.label}`,
+    type: row.type,
+    description: PROFILE_FIELD_HINTS[row.field_key],
+    current_value_json: row.value_json,
+  }));
+}
+
+async function extractSuggestions(entity, { kind, stateFields, loadValueRows, callType }) {
+  const profileFields = buildProfileExtractFields(kind, entity.id);
+  const fields = [...profileFields, ...stateFields];
   if (fields.length === 0) return [];
   const personaText = buildPersonaText(entity);
   if (!personaText) return [];
 
-  const valueMap = Object.fromEntries(loadValueRows().map((v) => [v.field_key, v]));
+  const valueMap = Object.fromEntries([
+    ...loadValueRows().map((v) => [v.field_key, v]),
+    ...profileFields.map((f) => [f.field_key, { default_value_json: f.current_value_json }]),
+  ]);
   const suggestions = await callExtractLLM({ name: entity.name, personaText, fields, callType });
   return buildResult(fields, valueMap, suggestions);
 }
 
 /**
- * 提取某角色在其所属世界下全部角色状态字段的建议值。
+ * 提取某角色在其所属世界下全部角色状态字段与档案初始值（身份 / 外貌 / 人格）的建议值。
  * @param {string} characterId
- * @returns {Promise<Array<{ field_key, label, type, current_value_json, suggested_value_json }>>}
+ * @returns {Promise<Array<{ field_key, profile_key?, label, type, current_value_json, suggested_value_json }>>}
  */
 export async function extractCharacterStateSuggestions(characterId) {
   const character = getCharacterById(characterId);
@@ -168,14 +191,18 @@ export async function extractCharacterStateSuggestions(characterId) {
     throw err;
   }
 
-  const fields = getCharacterStateFieldsByWorldId(character.world_id);
-  return extractSuggestions(character, fields, () => getAllCharacterStateValues(characterId), 'state_extract_character');
+  return extractSuggestions(character, {
+    kind: 'character',
+    stateFields: getCharacterStateFieldsByWorldId(character.world_id),
+    loadValueRows: () => getAllCharacterStateValues(characterId),
+    callType: 'state_extract_character',
+  });
 }
 
 /**
- * 提取某玩家卡在其所属世界下全部玩家状态字段的建议值。
+ * 提取某玩家卡在其所属世界下全部玩家状态字段与档案初始值（身份 / 外貌）的建议值。
  * @param {string} personaId
- * @returns {Promise<Array<{ field_key, label, type, current_value_json, suggested_value_json }>>}
+ * @returns {Promise<Array<{ field_key, profile_key?, label, type, current_value_json, suggested_value_json }>>}
  */
 export async function extractPersonaStateSuggestions(personaId) {
   const persona = getPersonaById(personaId);
@@ -185,6 +212,10 @@ export async function extractPersonaStateSuggestions(personaId) {
     throw err;
   }
 
-  const fields = getPersonaStateFieldsByWorldId(persona.world_id);
-  return extractSuggestions(persona, fields, () => getAllPersonaStateValuesByPersonaId(personaId), 'state_extract_persona');
+  return extractSuggestions(persona, {
+    kind: 'persona',
+    stateFields: getPersonaStateFieldsByWorldId(persona.world_id),
+    loadValueRows: () => getAllPersonaStateValuesByPersonaId(personaId),
+    callType: 'state_extract_persona',
+  });
 }

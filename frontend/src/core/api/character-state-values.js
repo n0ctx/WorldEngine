@@ -21,3 +21,15 @@ export function extractCharacterStateValues(characterId) {
 export function resetCharacterStateValues(characterId) {
   return request(`${BASE}/characters/${characterId}/state-values/reset`, { method: 'POST' }, '重置失败');
 }
+
+/** 角色卡的档案初始值（身份 / 外貌 / 人格），行形状同状态值：{ field_key, label, group, type, value_json } */
+export function getCharacterProfileDefaults(characterId) {
+  return request(`${BASE}/characters/${characterId}/profile-defaults`);
+}
+
+export function updateCharacterProfileDefault(characterId, fieldKey, valueJson) {
+  return request(`${BASE}/characters/${characterId}/profile-defaults/${fieldKey}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ value_json: valueJson }),
+  });
+}

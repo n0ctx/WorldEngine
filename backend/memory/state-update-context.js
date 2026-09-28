@@ -25,7 +25,7 @@ import { upsertWorldProfile } from '../db/queries/state-memory.js';
 
 import { ENTITY_TYPES, getProfileFieldDefinitions, resolveActiveProfileFields } from './state-memory-schema.js';
 import { ensureBaseEntities } from './state-memory-apply.js';
-import { selectRelevantEntities, renderEntityDirectory, renderWorldFactsForUpdate, renderEntityDetailsForUpdate } from './state-memory-render.js';
+import { selectRelevantEntities, renderEntityDirectory, renderWorldFactsForUpdate, renderEntityDetailsForUpdate, renderProfileGapsForUpdate } from './state-memory-render.js';
 import { captureFullSnapshot } from './state-rollback.js';
 import { splitRounds } from '../utils/session-rounds.js';
 import { renderBackendPrompt } from '../prompts/prompt-loader.js';
@@ -243,7 +243,8 @@ export function buildStateMemoryProfileFieldsSchema(worldId) {
       const activeKeys = type === 'character' || type === 'player'
         ? new Set(resolveActiveProfileFields(worldId, type))
         : new Set(defs.map((f) => f.key));
-      const filtered = defs.filter((f) => activeKeys.has(f.key));
+      // 年龄按出生日期和世界时间自动计算，不交给 AI 写
+      const filtered = defs.filter((f) => activeKeys.has(f.key) && f.kind !== 'age');
       if (filtered.length === 0) return null;
       return `【${PROFILE_ENTITY_TYPE_LABELS[type] ?? type}】\n${filtered.map(formatProfileFieldLine).join('\n')}`;
     })
@@ -289,13 +290,16 @@ export function resolveCurrentRound(messages) {
   return { round, turnText };
 }
 
-/** 首轮建好基础实体：玩家（人设名）+ 对话模式主角色（第一个角色卡）；写作模式主角色为 null。 */
+/** 会话使用的人设：会话指定的人设，否则世界默认人设。 */
+export function resolvePersona(session, worldId) {
+  if (session?.persona_id) return getPersonaById(session.persona_id);
+  return worldId ? getPersonaByWorldId(worldId) : null;
+}
+
+/** 建好基础实体：玩家（人设）+ 对话模式主角色（第一个角色卡）；写作模式主角色为 null。 */
 export function resolveBaseEntities({ session, worldId, sessionId, round, characters, isWriting }) {
-  const mainCharacterCard = !isWriting && characters[0] ? { id: characters[0].id, name: characters[0].name } : null;
-  const persona = session?.persona_id
-    ? getPersonaById(session.persona_id)
-    : (worldId ? getPersonaByWorldId(worldId) : null);
-  return ensureBaseEntities({ sessionId, round, personaName: persona?.name, mainCharacter: mainCharacterCard });
+  const mainCharacter = !isWriting ? characters[0] ?? null : null;
+  return ensureBaseEntities({ sessionId, worldId, round, persona: resolvePersona(session, worldId), mainCharacter });
 }
 
 /**
@@ -331,6 +335,8 @@ export function resolveRelevantEntityIds(sessionId, messages, { playerEntityId, 
 
 /** 状态更新调用的动态后缀（user 段）：各字段当前取值 + 实体目录/世界事实/相关实体详情 + 本轮对话，逐轮变化，不进缓存。 */
 export function buildRuntimeUserPrompt({ sessionId, worldId, mainCharacterEntityId, valueSections, dialogue, responseKeys, round, relevantIds }) {
+  // 待补全的实体即使本轮没出场也带上详情，AI 才能按已有信息创作
+  const gaps = renderProfileGapsForUpdate(sessionId, { worldId, priorityIds: relevantIds, mainCharacterEntityId });
   return renderBackendPrompt('state-update-runtime.md', {
     VALUES: valueSections.join('\n\n'),
     DIALOGUE: dialogue,
@@ -338,6 +344,7 @@ export function buildRuntimeUserPrompt({ sessionId, worldId, mainCharacterEntity
     ROUND: round,
     ENTITY_DIRECTORY: renderEntityDirectory(sessionId) || '（无）',
     WORLD_FACTS: renderWorldFactsForUpdate(sessionId) || '（无）',
-    ENTITY_DETAILS: renderEntityDetailsForUpdate(sessionId, [...relevantIds], { worldId, mainCharacterEntityId }) || '（无）',
+    ENTITY_DETAILS: renderEntityDetailsForUpdate(sessionId, [...new Set([...relevantIds, ...gaps.entityIds])], { worldId, mainCharacterEntityId }) || '（无）',
+    PROFILE_GAPS: gaps.text || '（无）',
   });
 }

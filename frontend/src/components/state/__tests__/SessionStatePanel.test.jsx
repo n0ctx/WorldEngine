@@ -23,7 +23,6 @@ vi.mock('../../../core/api/session-state-values.js', () => ({
 }));
 vi.mock('../../../core/api/state-memory.js', () => ({
   updateStateEntity: vi.fn(),
-  createStateFact: vi.fn(),
   deleteStateFact: vi.fn(),
   updateStateWorld: vi.fn(),
 }));
@@ -33,7 +32,7 @@ vi.mock('../../../core/hooks/useSessionState.js', () => ({
 vi.mock('../../../core/hooks/useStateDiff.js', () => ({
   useStateDiff: () => ({ diff: { world: [], persona: [], character: [] }, ready: true }),
 }));
-vi.mock('../WorldProfileGroup.jsx', () => ({ default: () => <div />, PlayerProfileGroup: () => null }));
+vi.mock('../WorldProfileGroup.jsx', () => ({ default: ({ children }) => <div>{children}</div> }));
 vi.mock('../../ui/SectionTabs.jsx', () => {
   function MockSectionTabs({ sections, defaultKey }) {
     const [activeKey, setActiveKey] = useState(defaultKey ?? sections[0]?.key);
@@ -61,7 +60,7 @@ vi.mock('../../ui/SectionTabs.jsx', () => {
   return { default: MockSectionTabs };
 });
 vi.mock('../../ui/PanelCard.jsx', () => ({ default: ({ children }) => <div>{children}</div> }));
-vi.mock('../StateChangeCard.jsx', () => ({
+vi.mock('../StatusSection.jsx', () => ({
   default: ({ className, onSave }) => (
     <button type="button" onClick={() => onSave('weather', JSON.stringify('clear'))}>{className}</button>
   ),
@@ -74,7 +73,6 @@ vi.mock('../panel-parts.jsx', () => ({
   ),
   ResetAction: () => <button type="button">重置</button>,
   StateBusyOverlay: () => null,
-  StateEmpty: ({ hint }) => <span>{hint}</span>,
 }));
 
 const SessionStatePanel = (await import('../SessionStatePanel.jsx')).default;

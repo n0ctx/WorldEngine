@@ -3120,20 +3120,6 @@
   margin: 0;
 }
 
-/* ── PersonaEditPage 状态字段间距 ── */
-
-.we-persona-state-list {
-  margin-top: var(--we-space-sm);
-}
-
-.we-persona-state-item {
-  margin-bottom: var(--we-space-md);
-}
-
-.we-persona-state-label {
-  margin-bottom: var(--we-space-xs);
-}
-
 /* ── SettingsPage 加载状态 ── */
 
 .we-settings-canvas-loading {
@@ -3994,26 +3980,6 @@
 .we-state-reset:hover,
 .we-state-reset:focus-visible { color: var(--we-color-accent); }
 .we-state-reset:disabled { color: var(--we-color-text-tertiary); cursor: not-allowed; }
-/* 空态：图标 + 一句引导，取代裸"暂无数据" */
-.we-state-empty {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  text-align: center;
-  gap: var(--we-space-xs);
-  padding: var(--we-space-lg) var(--we-space-sm);
-  color: var(--we-color-text-tertiary);
-}
-.we-state-empty svg { opacity: 0.5; }
-.we-state-empty-hint {
-  font-family: var(--we-font-display);
-  font-style: italic;
-  font-size: var(--we-text-xs);
-  color: var(--we-color-text-tertiary);
-  letter-spacing: var(--we-tracking-normal);
-  max-width: 24ch;
-  line-height: var(--we-leading-normal);
-}
 
 /* 写作 nearby：动作按钮去硬框（制卡/保存/收起/移除/+），常显但无边框底色，hover/聚焦仅提亮 —
    呼应聊天面板的安静风格，消除"生硬的 hover 框" */

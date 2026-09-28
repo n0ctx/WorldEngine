@@ -7,6 +7,7 @@ import { deleteSession as dbDeleteSession } from '../db/queries/sessions.js';
 import { getMessageIdsBySessionId } from '../db/queries/messages.js';
 import { runOnDelete } from '../utils/cleanup-hooks.js';
 import { getConfig } from './config.js';
+import { resolveBaseEntities } from '../memory/state-update-context.js';
 import { createLogger, formatMeta } from '../utils/logger.js';
 import {
   createPersona as dbCreatePersona,
@@ -35,6 +36,8 @@ export function createWritingSession(worldId) {
   const diary_date_mode = diaryWriting?.enabled ? (diaryWriting.date_mode ?? 'virtual') : null;
   const personaId = resolveActivePersonaId(worldId);
   const session = dbCreateWritingSession(worldId, { diary_date_mode, persona_id: personaId });
+  // 开局就建好玩家实体并带入人设的档案初始值，不等第一轮状态整理
+  resolveBaseEntities({ session, worldId, sessionId: session.id, round: 0, characters: [], isWriting: true });
   log.info(`writing_session.create  ${formatMeta({ sessionId: session.id, worldId, personaId })}`);
   return session;
 }

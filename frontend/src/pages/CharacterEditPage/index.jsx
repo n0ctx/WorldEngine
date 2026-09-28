@@ -3,15 +3,15 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { getCharacter, updateCharacter, uploadAvatar, createCharacter } from '../../core/api/characters';
 import { getAvatarColor, getAvatarUrl } from '../../core/utils/avatar';
 import { downloadCharacterCard } from '../../core/api/import-export';
-import { getCharacterStateValues, updateCharacterStateValue, extractCharacterStateValues } from '../../core/api/character-state-values';
+import {
+  getCharacterStateValues, updateCharacterStateValue, extractCharacterStateValues,
+  getCharacterProfileDefaults, updateCharacterProfileDefault,
+} from '../../core/api/character-state-values';
 import MarkdownEditor from '../../components/ui/MarkdownEditor';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
-import SectionTabs from '../../components/ui/SectionTabs.jsx';
 import SealStampAnimation from './components/SealStampAnimation.jsx';
-import StateValueField from '../../components/state/StateValueField';
-import StateExtractPreviewModal from '../../components/state/StateExtractPreviewModal';
-import { applyExtractedValues } from '../../components/state/applyExtractedValues.js';
+import CardEditTabs from '../../components/state/CardEditTabs.jsx';
 import EditPageShell from '../layout/EditPageShell';
 import FormGroup from '../../components/ui/FormGroup';
 import AvatarUpload from '../../components/ui/AvatarUpload';
@@ -49,8 +49,8 @@ export default function CharacterEditPage() {
   const [firstMessage, setFirstMessage] = useState(draft.firstMessage ?? '');
   const [avatarPath, setAvatarPath] = useState(null);
   const [stateFields, setStateFields] = useState([]);
+  const [profileRows, setProfileRows] = useState([]);
   const [reloadKey, setReloadKey] = useState(0);
-  const [showExtract, setShowExtract] = useState(false);
   // 最近一次从服务端加载的表单值，用于判断关闭时是否有未保存修改
   const [saved, setSaved] = useState(null);
   const dirty = !!saved && (
@@ -69,7 +69,8 @@ export default function CharacterEditPage() {
     Promise.all([
       getCharacter(characterId),
       getCharacterStateValues(characterId),
-    ]).then(([c, fields]) => {
+      getCharacterProfileDefaults(characterId),
+    ]).then(([c, fields, profile]) => {
       const loaded = {
         name: c.name,
         description: c.description ?? '',
@@ -86,6 +87,7 @@ export default function CharacterEditPage() {
       setFirstMessage(loaded.firstMessage);
       setAvatarPath(c.avatar_path);
       setStateFields(fields);
+      setProfileRows(profile);
       setLoading(false);
     }).catch((err) => {
       log.error('character_edit.load_failed', err);
@@ -104,22 +106,6 @@ export default function CharacterEditPage() {
     window.addEventListener('we:character-updated', h);
     return () => window.removeEventListener('we:character-updated', h);
   }, []);
-
-  async function handleStateValueSave(fieldKey, valueJson) {
-    try {
-      await updateCharacterStateValue(characterId, fieldKey, valueJson);
-    } catch (err) {
-      log.error('character.state.save_failed', err, { toast: err.message || '状态值保存失败' });
-    }
-  }
-
-  async function handleExtractConfirm(items) {
-    try {
-      await applyExtractedValues(items, (item) => updateCharacterStateValue(characterId, item.field_key, item.suggested_value_json));
-    } finally {
-      setReloadKey((k) => k + 1); // 部分失败时已成功写入的部分仍需刷新显示
-    }
-  }
 
   async function handleAvatarClick() {
     fileInputRef.current?.click();
@@ -247,34 +233,14 @@ export default function CharacterEditPage() {
     ),
   };
 
-  const sections = isCreate
-    ? [basicTab]
-    : [
-        basicTab,
-        {
-          key: 'state_init',
-          label: '状态初始值',
-          content: stateFields.length === 0 ? (
-            <p className="we-edit-empty-text">暂无状态字段（可在世界编辑页添加角色状态模板）</p>
-          ) : (
-            <div className="we-state-value-list">
-              <div className="we-state-extract-trigger-row">
-                <Button variant="ghost" size="sm" onClick={() => setShowExtract(true)}>
-                  AI 提取状态字段建议
-                </Button>
-              </div>
-              {stateFields.map(f => (
-                <div key={f.field_key} className="we-state-value-row">
-                  <div>
-                    <p className="we-state-value-label">{f.label}</p>
-                  </div>
-                  <StateValueField field={f} onSave={handleStateValueSave} />
-                </div>
-              ))}
-            </div>
-          ),
-        },
-      ];
+  const stateInit = isCreate ? null : {
+    profileRows,
+    stateFields,
+    writeProfile: (fieldKey, valueJson) => updateCharacterProfileDefault(characterId, fieldKey, valueJson),
+    writeState: (fieldKey, valueJson) => updateCharacterStateValue(characterId, fieldKey, valueJson),
+    extract: () => extractCharacterStateValues(characterId),
+    onChanged: () => setReloadKey((k) => k + 1),
+  };
 
   const exportAction = !isCreate && characterId ? (
     <Button variant="ghost" size="sm" onClick={handleExport} disabled={exporting}>
@@ -294,16 +260,9 @@ export default function CharacterEditPage() {
         title={isCreate ? '新建角色' : (name ? `编辑角色 · ${name}` : '')}
         headerActions={exportAction}
       >
-        <SectionTabs sections={sections} defaultKey="basic" variant="gooey" />
+        <CardEditTabs basicTab={basicTab} stateInit={stateInit} />
       </EditPageShell>
       <SealStampAnimation trigger={sealKey} text="成" />
-      {showExtract && (
-        <StateExtractPreviewModal
-          onExtract={() => extractCharacterStateValues(characterId)}
-          onConfirm={handleExtractConfirm}
-          onClose={() => setShowExtract(false)}
-        />
-      )}
     </>
   );
 }

@@ -12,18 +12,17 @@ import {
 } from '../core/api/personas';
 import {
   getPersonaStateValues,
-  updatePersonaStateValue,
   getPersonaStateValuesByPersonaId,
   updatePersonaStateValueByPersonaId,
+  getPersonaProfileDefaults,
+  updatePersonaProfileDefault,
 } from '../core/api/persona-state-values';
 import { downloadPersonaCard } from '../core/api/import-export';
 import { getAvatarColor, getAvatarUrl } from '../core/utils/avatar';
 import MarkdownEditor from '../components/ui/MarkdownEditor';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
-import StateValueField from '../components/state/StateValueField';
-import StateExtractPreviewModal from '../components/state/StateExtractPreviewModal';
-import { applyExtractedValues } from '../components/state/applyExtractedValues.js';
+import CardEditTabs from '../components/state/CardEditTabs.jsx';
 import EditPageShell from './layout/EditPageShell';
 import FormGroup from '../components/ui/FormGroup';
 import AvatarUpload from '../components/ui/AvatarUpload';
@@ -59,7 +58,7 @@ export default function PersonaEditPage() {
   const [reloadKey, setReloadKey] = useState(0);
   const [avatarPath, setAvatarPath] = useState(null);
   const [stateFields, setStateFields] = useState([]);
-  const [showExtract, setShowExtract] = useState(false);
+  const [profileRows, setProfileRows] = useState([]);
   // 最近一次从服务端加载的表单值，用于判断关闭时是否有未保存修改
   const [saved, setSaved] = useState(null);
   const dirty = !!saved && (
@@ -77,11 +76,7 @@ export default function PersonaEditPage() {
     if (isNew) {
       (async () => {
         await Promise.resolve();
-        if (cancelled) return;
-        getPersonaStateValues(worldId).then((fields) => {
-          if (!cancelled) setStateFields(fields);
-        }).catch(() => {});
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       })();
       return () => {
         cancelled = true;
@@ -112,21 +107,23 @@ export default function PersonaEditPage() {
       Promise.all([
         getPersonaById(personaIdParam),
         getPersonaStateValuesByPersonaId(worldId, personaIdParam),
-      ]).then(([p, fields]) => {
+        getPersonaProfileDefaults(personaIdParam),
+      ]).then(([p, fields, profile]) => {
         if (p) applyPersona(p);
         setStateFields(fields);
+        setProfileRows(profile);
         setLoading(false);
       }).catch(handleLoadError);
     } else {
       // 兼容旧路由 /worlds/:worldId/persona（加载 active persona）
-      Promise.all([
-        getPersona(worldId),
-        getPersonaStateValues(worldId),
-      ]).then(([p, fields]) => {
-        applyPersona(p);
-        setStateFields(fields);
-        setLoading(false);
-      }).catch(handleLoadError);
+      getPersona(worldId)
+        .then((p) => Promise.all([p, getPersonaStateValues(worldId), getPersonaProfileDefaults(p.id)]))
+        .then(([p, fields, profile]) => {
+          applyPersona(p);
+          setStateFields(fields);
+          setProfileRows(profile);
+          setLoading(false);
+        }).catch(handleLoadError);
     }
     return () => {
       cancelled = true;
@@ -144,27 +141,6 @@ export default function PersonaEditPage() {
     window.addEventListener('we:persona-updated', h);
     return () => window.removeEventListener('we:persona-updated', h);
   }, []);
-
-  async function handleStateValueSave(fieldKey, valueJson) {
-    try {
-      if (resolvedPersonaId) {
-        await updatePersonaStateValueByPersonaId(worldId, resolvedPersonaId, fieldKey, valueJson);
-      } else {
-        await updatePersonaStateValue(worldId, fieldKey, valueJson);
-      }
-    } catch (err) {
-      log.error('persona.state.save_failed', err, { toast: err.message || '状态值保存失败' });
-    }
-  }
-
-  async function handleExtractConfirm(items) {
-    if (!resolvedPersonaId) return;
-    try {
-      await applyExtractedValues(items, (item) => updatePersonaStateValueByPersonaId(worldId, resolvedPersonaId, item.field_key, item.suggested_value_json));
-    } finally {
-      setReloadKey((k) => k + 1); // 部分失败时已成功写入的部分仍需刷新显示
-    }
-  }
 
   async function handleFileChange(e) {
     const file = e.target.files?.[0];
@@ -238,8 +214,10 @@ export default function PersonaEditPage() {
     <Button variant="ghost" size="sm" onClick={handleExport}>导出玩家卡</Button>
   ) : null;
 
-  return (
-    <EditPageShell loading={loading} loadError={loadError} onRetry={retryLoad} dirty={dirty} isOverlay={isOverlay} onClose={() => navigate(-1)} title={pageTitle} headerActions={exportAction}>
+  const basicTab = {
+    key: 'basic',
+    label: '玩家设定',
+    content: (
       <div className="we-edit-form-stack">
         <AvatarUpload
           name={name}
@@ -250,11 +228,9 @@ export default function PersonaEditPage() {
           onAvatarClick={() => fileInputRef.current?.click()}
           onFileChange={handleFileChange}
         />
-
         <FormGroup label="玩家名">
           <Input value={name} onChange={e => setName(e.target.value)} placeholder="你在这个世界里的名字" />
         </FormGroup>
-
         <FormGroup label="简介" hint="纯展示用途，不注入提示词">
           <textarea
             className="we-textarea"
@@ -264,51 +240,30 @@ export default function PersonaEditPage() {
             placeholder="一句话介绍这个玩家…"
           />
         </FormGroup>
-
         <FormGroup label="人设">
           <MarkdownEditor value={systemPrompt} onChange={setSystemPrompt} placeholder="你的身份、背景等" minHeight={120} />
         </FormGroup>
-
-        {stateFields.length > 0 && (
-          <div>
-            <div className="we-edit-state-sep" />
-            <FormGroup label="玩家状态">
-              <div className="we-state-extract-trigger-row">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setShowExtract(true)}
-                  disabled={!resolvedPersonaId}
-                  title={resolvedPersonaId ? undefined : '请先保存玩家卡后再提取'}
-                >
-                  AI 提取状态字段建议
-                </Button>
-              </div>
-              <div className="we-state-value-list we-persona-state-list">
-                {stateFields.map(f => (
-                  <div key={f.field_key} className="we-persona-state-item">
-                    <p className="we-state-value-label we-persona-state-label">{f.label}</p>
-                    <StateValueField field={f} onSave={handleStateValueSave} />
-                  </div>
-                ))}
-              </div>
-            </FormGroup>
-          </div>
-        )}
-
         <div className="we-edit-save-row">
           <Button variant="primary" onClick={handleSave} disabled={saving}>
             {saving ? '保存中…' : isNew ? '创建' : '保存'}
           </Button>
         </div>
       </div>
-      {showExtract && resolvedPersonaId && (
-        <StateExtractPreviewModal
-          onExtract={() => extractPersonaStateValues(resolvedPersonaId)}
-          onConfirm={handleExtractConfirm}
-          onClose={() => setShowExtract(false)}
-        />
-      )}
+    ),
+  };
+
+  const stateInit = isNew ? null : {
+    profileRows,
+    stateFields,
+    writeProfile: (fieldKey, valueJson) => updatePersonaProfileDefault(resolvedPersonaId, fieldKey, valueJson),
+    writeState: (fieldKey, valueJson) => updatePersonaStateValueByPersonaId(worldId, resolvedPersonaId, fieldKey, valueJson),
+    extract: () => extractPersonaStateValues(resolvedPersonaId),
+    onChanged: () => setReloadKey((k) => k + 1),
+  };
+
+  return (
+    <EditPageShell loading={loading} loadError={loadError} onRetry={retryLoad} dirty={dirty} isOverlay={isOverlay} onClose={() => navigate(-1)} title={pageTitle} headerActions={exportAction}>
+      <CardEditTabs basicTab={basicTab} stateInit={stateInit} />
     </EditPageShell>
   );
 }

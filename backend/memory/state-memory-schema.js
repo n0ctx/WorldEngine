@@ -16,31 +16,28 @@ export const ENTITY_TYPES = ['character', 'location', 'item', 'faction', 'other'
 
 const APPEARANCE_SYNONYMS = ['外貌', 'appearance'];
 
-const OUTFIT_FIELD = { key: 'outfit', label: '穿着', group: '外貌', kind: 'list', mutability: 'dynamic', synonyms: ['穿着', '服装', '衣着', 'outfit'] };
-
 const CHARACTER_PROFILE_FIELDS = [
   // 身份
   { key: 'gender', label: '性别', group: '身份', kind: 'text', mutability: 'immutable', synonyms: ['性别', 'gender'] },
   { key: 'birth_date', label: '出生日期', group: '身份', kind: 'text', mutability: 'immutable', synonyms: [] },
-  { key: 'age_recorded', label: '记录年龄', group: '身份', kind: 'age', mutability: 'semi_stable', synonyms: ['年龄', 'age'] },
+  { key: 'age_recorded', label: '年龄', group: '身份', kind: 'age', mutability: 'semi_stable', synonyms: ['年龄', 'age'] },
   { key: 'species', label: '种族', group: '身份', kind: 'text', mutability: 'immutable', synonyms: ['种族', 'species'] },
   { key: 'origin', label: '出身', group: '身份', kind: 'text', mutability: 'immutable', synonyms: [] },
   { key: 'occupation', label: '职业', group: '身份', kind: 'text', mutability: 'semi_stable', synonyms: ['职业', '工作', '身份', 'identity'] },
   { key: 'social_identity', label: '社会身份', group: '身份', kind: 'list', mutability: 'semi_stable', synonyms: [] },
+  { key: 'background', label: '经历', group: '身份', kind: 'list', mutability: 'semi_stable', appendOnly: true, synonyms: [] },
   // 外貌
   { key: 'height', label: '身高', group: '外貌', kind: 'text', mutability: 'semi_stable', synonyms: APPEARANCE_SYNONYMS },
   { key: 'build', label: '体型', group: '外貌', kind: 'text', mutability: 'semi_stable', synonyms: APPEARANCE_SYNONYMS },
   { key: 'hair', label: '发型', group: '外貌', kind: 'text', mutability: 'semi_stable', synonyms: APPEARANCE_SYNONYMS },
   { key: 'eyes', label: '眼睛', group: '外貌', kind: 'text', mutability: 'semi_stable', synonyms: APPEARANCE_SYNONYMS },
   { key: 'distinguishing_features', label: '显著特征', group: '外貌', kind: 'list', mutability: 'semi_stable', synonyms: APPEARANCE_SYNONYMS },
-  OUTFIT_FIELD,
+  { key: 'outfit', label: '穿着', group: '外貌', kind: 'list', mutability: 'dynamic', synonyms: ['穿着', '服装', '衣着', 'outfit'] },
   // 人格
   { key: 'core_traits', label: '核心性格', group: '人格', kind: 'list', mutability: 'semi_stable', highBar: true, synonyms: ['性格', '个性', 'personality'] },
   { key: 'behavioral_patterns', label: '行为习惯', group: '人格', kind: 'list', mutability: 'semi_stable', synonyms: [] },
   { key: 'values', label: '价值观', group: '人格', kind: 'list', mutability: 'semi_stable', highBar: true, synonyms: [] },
   { key: 'speech_style', label: '说话方式', group: '人格', kind: 'list', mutability: 'semi_stable', synonyms: [] },
-  // 经历
-  { key: 'background', label: '经历', group: '经历', kind: 'list', mutability: 'semi_stable', appendOnly: true, synonyms: [] },
 ];
 
 const LOCATION_PROFILE_FIELDS = [
@@ -72,8 +69,8 @@ const PROFILE_FIELDS_BY_TYPE = {
   item: ITEM_PROFILE_FIELDS,
   faction: FACTION_PROFILE_FIELDS,
   other: OTHER_PROFILE_FIELDS,
-  // 玩家的身份信息以人设为准，只记录会随剧情变化的穿着
-  player: [OUTFIT_FIELD],
+  // 玩家有自己的人格（由用户扮演），只记录身份与外貌
+  player: CHARACTER_PROFILE_FIELDS.filter((field) => field.group !== '人格'),
 };
 
 /** 按实体类型取档案字段定义（不做同义字段停用过滤，全量定义） */
@@ -134,6 +131,31 @@ export function resolveActiveProfileFields(worldId, entityType) {
   return definitions
     .filter((field) => !isDeactivatedBySynonyms(field, enabledUserFields))
     .map((field) => field.key);
+}
+
+/** 可以预设初始值、由 AI 补全的档案字段：本世界启用的字段，去掉按出生日期自动计算的年龄。 */
+export function getEditableProfileFields(worldId, entityType) {
+  const active = new Set(resolveActiveProfileFields(worldId, entityType));
+  return getProfileFieldDefinitions(entityType).filter((field) => active.has(field.key) && field.kind !== 'age');
+}
+
+function isProfileDefaultValue(value) {
+  return typeof value === 'string' || (Array.isArray(value) && value.every((item) => typeof item === 'string'));
+}
+
+/** 档案初始值只留 {字段key: 文本或文本列表}，形状不对的值丢掉（导入的卡片也走这里）。 */
+export function sanitizeProfileDefaults(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+  return Object.fromEntries(Object.entries(value).filter(([, v]) => isProfileDefaultValue(v)));
+}
+
+/** 角色卡 / 人设上存的档案初始值；解析失败按空处理。 */
+export function parseProfileDefaults(profileDefaultsJson) {
+  try {
+    return sanitizeProfileDefaults(JSON.parse(profileDefaultsJson || '{}'));
+  } catch {
+    return {};
+  }
 }
 
 // ============================

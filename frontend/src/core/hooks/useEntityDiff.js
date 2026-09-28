@@ -4,8 +4,8 @@ import { didSessionChange } from './useSessionResetGuard.js';
 const EMPTY = new Set();
 
 /**
- * 状态记忆实体（档案 / 现状）的变化行，键为 `${entity_id}:profile.${key}` 或
- * `${entity_id}:state.${key}`，供 EntityStateBlock / PlayerProfileGroup /
+ * 状态记忆实体（档案 / 现状 / 角色用户字段）的变化行，键为 `${entity_id}:profile.${key}`、
+ * `${entity_id}:state.${key}` 或 `${entity_id}:field.${key}`，供 EntityStateBlock /
  * StateMemoryDynamicState 做行级高亮。
  */
 function diffEntities(prevEntities, nextEntities) {
@@ -21,6 +21,10 @@ function diffEntities(prevEntities, nextEntities) {
     }
     for (const [key, value] of Object.entries(entity.dynamic ?? {})) {
       if (JSON.stringify(prev.dynamic?.[key]) !== JSON.stringify(value)) changed.add(`${entity.entity_id}:state.${key}`);
+    }
+    const prevFields = new Map((prev.fields ?? []).map((field) => [field.field_key, field.value]));
+    for (const field of entity.fields ?? []) {
+      if (JSON.stringify(prevFields.get(field.field_key)) !== JSON.stringify(field.value)) changed.add(`${entity.entity_id}:field.${field.field_key}`);
     }
   }
   return changed;

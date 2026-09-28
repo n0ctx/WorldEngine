@@ -89,14 +89,14 @@ export function listCharactersForExport(worldId) {
 
 export function listPersonasForExport(worldId) {
   return db.prepare(
-    'SELECT id, name, description, system_prompt, avatar_path, sort_order FROM personas WHERE world_id = ? ORDER BY sort_order ASC, created_at ASC, id ASC',
+    'SELECT id, name, description, system_prompt, profile_defaults_json, avatar_path, sort_order FROM personas WHERE world_id = ? ORDER BY sort_order ASC, created_at ASC, id ASC',
   ).all(worldId);
 }
 
 /** 导出单个玩家卡用的行；personaId 为 null 时取该世界最早创建的 persona */
 export function getPersonaForExport(personaId, worldId = null) {
   return db.prepare(`
-    SELECT id, name, description, system_prompt, avatar_path
+    SELECT id, name, description, system_prompt, profile_defaults_json, avatar_path
     FROM personas
     WHERE id = COALESCE(?, (
       SELECT id FROM personas WHERE world_id = ? ORDER BY created_at ASC, id ASC LIMIT 1
@@ -172,14 +172,15 @@ export function insertStateValueRows(kind, rows) {
 
 export function insertCharacterRows(rows) {
   insertRows('characters', [
-    'id', 'world_id', 'name', 'description', 'system_prompt', 'post_prompt', 'first_message', 'avatar_path',
-    'sort_order', 'created_at', 'updated_at',
+    'id', 'world_id', 'name', 'description', 'system_prompt', 'post_prompt', 'first_message', 'profile_defaults_json',
+    'avatar_path', 'sort_order', 'created_at', 'updated_at',
   ], rows);
 }
 
 export function insertPersonaRows(rows) {
   insertRows('personas', [
-    'id', 'world_id', 'name', 'description', 'system_prompt', 'avatar_path', 'sort_order', 'created_at', 'updated_at',
+    'id', 'world_id', 'name', 'description', 'system_prompt', 'profile_defaults_json', 'avatar_path', 'sort_order',
+    'created_at', 'updated_at',
   ], rows);
 }
 

@@ -88,7 +88,7 @@ test('analyzeEntityForCard：LLM 返回非法 JSON 抛错', async () => {
   );
 });
 
-test('createCharacterFromEntity：落库；仅 nearby_enabled=1 字段写 default_value_json；不写 runtime；回写实体 card_id', async () => {
+test('createCharacterFromEntity：落库；仅 nearby_enabled=1 字段写 default_value_json；档案存成档案初始值；不写 runtime；回写实体 card_id', async () => {
   const { worldId, sessionId } = makeWorldAndWritingSession('create');
   const moodField = insertCharacterStateField(sandbox.db, worldId, {
     field_key: 'mood', label: '心情', type: 'text',
@@ -107,6 +107,8 @@ test('createCharacterFromEntity：落库；仅 nearby_enabled=1 字段写 defaul
     `INSERT INTO session_entity_state_values (id, session_id, entity_id, field_key, runtime_value_json, updated_at)
      VALUES (?, ?, ?, ?, ?, ?)`,
   ).run(crypto.randomUUID(), sessionId, entity.entity_id, 'hp', JSON.stringify(33), Date.now());
+  const { updateEntity } = await freshImport('backend/services/state-memory.js');
+  updateEntity(sessionId, entity.entity_id, { profile: { gender: '男', core_traits: ['暴躁'] } });
 
   const { createCharacterFromEntity } = await freshImport('backend/services/entity-card-maker.js');
   const newId = createCharacterFromEntity({
@@ -129,6 +131,7 @@ test('createCharacterFromEntity：落库；仅 nearby_enabled=1 字段写 defaul
   assert.equal(row.first_message, 'fm');
   assert.equal(row.post_prompt, '');
   assert.equal(row.avatar_path, null);
+  assert.deepEqual(JSON.parse(row.profile_defaults_json), { gender: '男', core_traits: ['暴躁'] });
 
   // 状态值：仅 mood，且只写 default_value_json
   const values = sandbox.db.prepare(

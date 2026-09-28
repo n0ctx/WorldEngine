@@ -12,6 +12,8 @@ const mocks = vi.hoisted(() => ({
   uploadAvatar: vi.fn(),
   getCharacterStateValues: vi.fn(),
   updateCharacterStateValue: vi.fn(),
+  getCharacterProfileDefaults: vi.fn(),
+  updateCharacterProfileDefault: vi.fn(),
   logError: vi.fn(),
 }));
 
@@ -34,6 +36,8 @@ vi.mock('../../src/core/api/import-export', () => ({
 vi.mock('../../src/core/api/character-state-values', () => ({
   getCharacterStateValues: (...args) => mocks.getCharacterStateValues(...args),
   updateCharacterStateValue: (...args) => mocks.updateCharacterStateValue(...args),
+  getCharacterProfileDefaults: (...args) => mocks.getCharacterProfileDefaults(...args),
+  updateCharacterProfileDefault: (...args) => mocks.updateCharacterProfileDefault(...args),
 }));
 vi.mock('../../src/core/utils/logger.js', () => ({
   log: {
@@ -87,6 +91,11 @@ describe('CharacterEditPage', () => {
       avatar_path: null,
     });
     mocks.getCharacterStateValues.mockResolvedValue([{ field_key: 'age_char', label: '年龄' }]);
+    mocks.getCharacterProfileDefaults.mockResolvedValue([
+      { field_key: 'gender', label: '性别', group: '身份', type: 'text', value_json: null },
+      { field_key: 'core_traits', label: '核心性格', group: '人格', type: 'list', value_json: null },
+    ]);
+    mocks.updateCharacterProfileDefault.mockResolvedValue({ success: true });
     mocks.createCharacter.mockResolvedValue({ id: 'char-2' });
     mocks.updateCharacter.mockResolvedValue({ id: 'char-1' });
     mocks.updateCharacterStateValue.mockResolvedValue({ success: true });
@@ -94,7 +103,7 @@ describe('CharacterEditPage', () => {
     mocks.logError.mockReset();
   });
 
-  it('会保存角色编辑结果并保存状态初始值', async () => {
+  it('会保存角色编辑结果，状态初始值页可编辑档案初始值与现状初始值', async () => {
     render(<CharacterEditPage />);
 
     expect(await screen.findByDisplayValue('阿塔')).toBeInTheDocument();
@@ -105,6 +114,12 @@ describe('CharacterEditPage', () => {
     fireEvent.click(screen.getByText('save-age_char'));
 
     await waitFor(() => expect(mocks.updateCharacterStateValue).toHaveBeenCalledWith('char-1', 'age_char', '"hp-10"'));
+
+    expect(screen.getByText('身份')).toBeInTheDocument();
+    expect(screen.getByText('人格')).toBeInTheDocument();
+    expect(screen.getByText('现状')).toBeInTheDocument();
+    fireEvent.click(screen.getByText('save-gender'));
+    await waitFor(() => expect(mocks.updateCharacterProfileDefault).toHaveBeenCalledWith('char-1', 'gender', '"hp-10"'));
 
     fireEvent.click(screen.getAllByText('保存')[0]);
 

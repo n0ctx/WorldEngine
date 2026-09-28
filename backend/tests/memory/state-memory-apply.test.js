@@ -20,7 +20,7 @@ const {
 } = await freshImport('backend/memory/state-memory-apply.js');
 const {
   listCurrentEntities, listCurrentRelations, listThreads, listCurrentWorldFacts,
-  getCurrentWorldProfile, getEntityDetails, upsertEntity,
+  getCurrentWorldProfile, getEntityDetails, upsertEntity, upsertProfileField,
 } = await freshImport('backend/db/queries/state-memory.js');
 const { getEntityStateValues } = await freshImport('backend/db/queries/session-entity-state-values.js');
 
@@ -94,7 +94,7 @@ test('create_entity 与已有实体重名时转为对该实体的档案更新，
   const entityId = makeEntity(session.id, { name: '沈彦', seq: 1 });
   const result = applyStateMemoryOps({
     sessionId: session.id, worldId: world.id, round: 2,
-    ops: [{ op: 'create_entity', type: 'character', name: '沈彦', profile: { occupation: '前海军军官' }, evidence: '前海军军官' }],
+    ops: [{ op: 'create_entity', type: 'character', name: '沈彦', profile: { occupation: { value: '前海军军官', evidence: '前海军军官' } } }],
     turnText: '沈彦其实是名前海军军官。', realDate: false, mainCharacterEntityId: null,
   });
   assert.equal(result.applied, 1);
@@ -103,6 +103,77 @@ test('create_entity 与已有实体重名时转为对该实体的档案更新，
   assert.equal(entities[0].entity_id, entityId);
   const details = getEntityDetails(session.id, [entityId]);
   assert.equal(JSON.parse(details[entityId].profile.occupation.value_json), '前海军军官');
+});
+
+test('create_entity 初始档案：原文有据的记证据，无据的创作补全记为 AI 补全，占位值与年龄被丢弃', () => {
+  const { world, session } = setupSession();
+  const result = applyStateMemoryOps({
+    sessionId: session.id, worldId: world.id, round: 1,
+    ops: [{
+      op: 'create_entity', type: 'character', name: '苏晚',
+      profile: {
+        gender: { value: '女', evidence: '她叫苏晚，是个女孩' },
+        occupation: '前空乘',
+        age_recorded: 26,
+        birth_date: '2000-03-01',
+        species: '未知',
+      },
+    }],
+    turnText: '她叫苏晚，是个女孩，以前在航司工作。', realDate: false, mainCharacterEntityId: null,
+  });
+  assert.equal(result.applied, 1);
+  const entity = listCurrentEntities(session.id).find((e) => e.name === '苏晚');
+  const { profile } = getEntityDetails(session.id, [entity.entity_id])[entity.entity_id];
+  assert.equal(profile.gender.evidence, '她叫苏晚，是个女孩');
+  assert.equal(JSON.parse(profile.occupation.value_json), '前空乘');
+  assert.equal(profile.occupation.evidence, 'AI 补全');
+  assert.equal(profile.age_recorded, undefined, '年龄按出生日期自动计算，AI 写入被拒');
+  assert.equal(JSON.parse(profile.birth_date.value_json), '2000-03-01');
+  assert.equal(profile.species, undefined);
+});
+
+test('fill_profile 只补空字段：已有值不被无证据覆盖，关联角色卡的实体同样可补', () => {
+  const { world, session, character } = setupSession();
+  makeEntity(session.id, { name: '林知夏', seq: 1 });
+  makeEntity(session.id, { name: '卡片角色', seq: 2, cardId: character.id });
+  applyStateMemoryOps({
+    sessionId: session.id, worldId: world.id, round: 1,
+    ops: [{ op: 'update_profile', entity: 'e1', field: 'occupation', value: '模特', evidence: '她是一名模特' }],
+    turnText: '她是一名模特。', realDate: false, mainCharacterEntityId: null,
+  });
+
+  const result = applyStateMemoryOps({
+    sessionId: session.id, worldId: world.id, round: 2,
+    ops: [
+      { op: 'fill_profile', entity: 'e1', profile: { occupation: '学生', height: '168cm', core_traits: ['谨慎'] } },
+      { op: 'fill_profile', entity: 'e2', profile: { height: '170cm' } },
+    ],
+    ...noop,
+  });
+  assert.equal(result.applied, 2);
+  assert.equal(result.rejected.length, 0);
+
+  const cardEntity = listCurrentEntities(session.id).find((e) => e.name === '卡片角色');
+  assert.equal(JSON.parse(getEntityDetails(session.id, [cardEntity.entity_id])[cardEntity.entity_id].profile.height.value_json), '170cm');
+  const entity = listCurrentEntities(session.id).find((e) => e.name === '林知夏');
+  const { profile } = getEntityDetails(session.id, [entity.entity_id])[entity.entity_id];
+  assert.equal(JSON.parse(profile.occupation.value_json), '模特');
+  assert.equal(JSON.parse(profile.height.value_json), '168cm');
+  assert.deepEqual(JSON.parse(profile.core_traits.value_json), ['谨慎']);
+});
+
+test('fill_profile 可以覆盖「未知」这类占位值', () => {
+  const { world, session } = setupSession();
+  const place = makeEntity(session.id, { type: 'location', name: '渡口', seq: 1 });
+  upsertProfileField(session.id, place, 'category', '"未知"', '迁移', 0);
+
+  const result = applyStateMemoryOps({
+    sessionId: session.id, worldId: world.id, round: 1,
+    ops: [{ op: 'fill_profile', entity: 'e1', profile: { category: '内河渡口' } }],
+    ...noop,
+  });
+  assert.equal(result.applied, 1);
+  assert.equal(JSON.parse(getEntityDetails(session.id, [place])[place].profile.category.value_json), '内河渡口');
 });
 
 test('证据不是本轮原文子串时，档案写入被拒', () => {
@@ -177,7 +248,7 @@ test('占位值在 set_state 与 create_entity profile 中都被丢弃', () => {
   const result = applyStateMemoryOps({
     sessionId: session.id, worldId: world.id, round: 1,
     ops: [
-      { op: 'create_entity', type: 'character', name: '神秘人', profile: { occupation: '未知' }, evidence: '身份不明的神秘人' },
+      { op: 'create_entity', type: 'character', name: '神秘人', profile: { occupation: { value: '未知', evidence: '身份不明的神秘人' } } },
       { op: 'set_state', entity: '神秘人', key: '伤势', value: '未知' },
     ],
     turnText: '一个身份不明的神秘人出现了。', realDate: false, mainCharacterEntityId: null,
@@ -239,9 +310,9 @@ test('对 NPC 生效但为手动更新的字段，applyEntityFields 丢弃', () 
   assert.equal(values[entityId].trust, undefined);
 });
 
-// ─── 玩家实体只有穿着档案字段 ─────────────────────────────────────────────
+// ─── 玩家实体只有身份与外貌档案字段 ─────────────────────────────────────────────
 
-test('玩家实体只有穿着档案字段：outfit 可写，其他字段被拒', () => {
+test('玩家实体可写身份与外貌档案字段，人格字段被拒', () => {
   const { world, session } = setupSession();
   const playerId = makeEntity(session.id, { type: 'player', name: '旅人', seq: 1 });
   const result = applyStateMemoryOps({
@@ -249,14 +320,16 @@ test('玩家实体只有穿着档案字段：outfit 可写，其他字段被拒'
     ops: [
       { op: 'update_profile', entity: 'e1', field: 'outfit', value: ['灰色斗篷'] },
       { op: 'update_profile', entity: 'e1', field: 'occupation', value: '旅人', evidence: '身份是旅人' },
+      { op: 'list_add', entity: 'e1', field: 'core_traits', items: ['沉稳'], evidence: '身份是旅人' },
     ],
     turnText: '身份是旅人', realDate: false, mainCharacterEntityId: null,
   });
-  assert.equal(result.applied, 1);
+  assert.equal(result.applied, 2);
   assert.equal(result.rejected.length, 1);
   assert.match(result.rejected[0].reason, /未知档案字段/);
   const details = getEntityDetails(session.id, [playerId]);
   assert.deepEqual(JSON.parse(details[playerId].profile.outfit.value_json), ['灰色斗篷']);
+  assert.equal(JSON.parse(details[playerId].profile.occupation.value_json), '旅人');
 });
 
 test('世界有同义玩家字段时，玩家的 outfit 档案操作被停用', () => {
@@ -314,9 +387,39 @@ test('排他谓词换手时自动关闭旧关系；不同谓词共用同一张�
   void place;
 });
 
+test('upsert_relation：同一主体到同一客体实体的新谓词替换旧关系，其他客体不受影响', () => {
+  const { world, session } = setupSession();
+  const shen = makeEntity(session.id, { name: '沈砚', seq: 1 });
+  const su = makeEntity(session.id, { name: '苏晚', seq: 2 });
+  const lin = makeEntity(session.id, { name: '林知夏', seq: 3 });
+
+  applyStateMemoryOps({
+    sessionId: session.id, worldId: world.id, round: 1,
+    ops: [
+      { op: 'upsert_relation', subject: 'e1', predicate: '包养意向对象', object: 'e2' },
+      { op: 'upsert_relation', subject: 'e1', predicate: '包养意向对象', object: 'e3' },
+      { op: 'upsert_relation', subject: 'e1', predicate: '住处', objectValue: '江景大平层' },
+    ],
+    ...noop,
+  });
+  const result = applyStateMemoryOps({
+    sessionId: session.id, worldId: world.id, round: 2,
+    ops: [{ op: 'upsert_relation', subject: 'e1', predicate: '包养关系', object: 'e2' }],
+    ...noop,
+  });
+  assert.equal(result.applied, 1);
+
+  const current = listCurrentRelations(session.id).map((r) => [r.subject_id, r.predicate, r.object_id ?? r.object_value]);
+  assert.deepEqual(new Set(current.map(JSON.stringify)), new Set([
+    [shen, '包养关系', su],
+    [shen, '包养意向对象', lin],
+    [shen, '住处', '江景大平层'],
+  ].map(JSON.stringify)));
+});
+
 // ─── 关联角色卡的实体 ─────────────────────────────────────────────
 
-test('关联角色卡的实体拒绝档案写入，但可写 outfit、动态状态、关系与事项', () => {
+test('关联角色卡的实体与其他角色一样可写档案、outfit、动态状态、关系与事项', () => {
   const { world, session, character } = setupSession();
   const cardEntity = makeEntity(session.id, { name: '沈彦', seq: 1, cardId: character.id });
   makeEntity(session.id, { name: '林乔', seq: 2 });
@@ -332,11 +435,11 @@ test('关联角色卡的实体拒绝档案写入，但可写 outfit、动态状�
     ],
     turnText: '现在是海关顾问', realDate: false, mainCharacterEntityId: null,
   });
-  assert.equal(result.applied, 4);
-  assert.equal(result.rejected.length, 1);
-  assert.match(result.rejected[0].reason, /关联卡片实体拒绝档案写入/);
+  assert.equal(result.applied, 5);
+  assert.equal(result.rejected.length, 0);
 
   const details = getEntityDetails(session.id, [cardEntity]);
+  assert.equal(JSON.parse(details[cardEntity].profile.occupation.value_json), '海关顾问');
   assert.deepEqual(JSON.parse(details[cardEntity].profile.outfit.value_json), ['黑色风衣']);
   assert.equal(details[cardEntity].dynamic['伤势'], '右臂受伤');
 });
@@ -487,16 +590,38 @@ test('ops 不是数组时整体忽略', () => {
 
 test('ensureBaseEntities 建好玩家与主角色实体，且幂等', () => {
   const { world, session, character, persona } = setupSession();
-  const first = ensureBaseEntities({
-    sessionId: session.id, round: 1, personaName: persona.name, mainCharacter: { id: character.id, name: character.name },
-  });
+  const first = ensureBaseEntities({ sessionId: session.id, worldId: world.id, round: 1, persona, mainCharacter: character });
   assert.ok(first.playerEntityId);
   assert.ok(first.mainCharacterEntityId);
   assert.equal(listCurrentEntities(session.id).length, 2);
 
-  const second = ensureBaseEntities({
-    sessionId: session.id, round: 2, personaName: persona.name, mainCharacter: { id: character.id, name: character.name },
-  });
+  const second = ensureBaseEntities({ sessionId: session.id, worldId: world.id, round: 2, persona, mainCharacter: character });
   assert.deepEqual(second, first);
   assert.equal(listCurrentEntities(session.id).length, 2);
+});
+
+test('ensureBaseEntities 把人设与主角色卡的档案初始值带入还空着的档案字段，已有值不覆盖', () => {
+  const { world, session, character, persona } = setupSession();
+  const personaWithDefaults = { ...persona, profile_defaults_json: JSON.stringify({ gender: '男', core_traits: ['沉稳'] }) };
+  const card = { ...character, profile_defaults_json: JSON.stringify({ occupation: '镖师', core_traits: ['寡言'], age_recorded: { age: 30 } }) };
+
+  const { playerEntityId, mainCharacterEntityId } = ensureBaseEntities({
+    sessionId: session.id, worldId: world.id, round: 1, persona: personaWithDefaults, mainCharacter: card,
+  });
+  const details = getEntityDetails(session.id, [playerEntityId, mainCharacterEntityId]);
+  assert.equal(JSON.parse(details[playerEntityId].profile.gender.value_json), '男');
+  assert.equal(details[playerEntityId].profile.core_traits, undefined, '玩家没有人格字段');
+  assert.equal(JSON.parse(details[mainCharacterEntityId].profile.occupation.value_json), '镖师');
+  assert.deepEqual(JSON.parse(details[mainCharacterEntityId].profile.core_traits.value_json), ['寡言']);
+  assert.equal(details[mainCharacterEntityId].profile.age_recorded, undefined, '年龄不从初始值写入');
+  assert.equal(details[mainCharacterEntityId].profile.occupation.evidence, '初始值');
+
+  applyStateMemoryOps({
+    sessionId: session.id, worldId: world.id, round: 2,
+    ops: [{ op: 'update_profile', entity: 'e2', field: 'occupation', value: '捕快', evidence: '他如今是捕快' }],
+    turnText: '他如今是捕快', realDate: false, mainCharacterEntityId,
+  });
+  ensureBaseEntities({ sessionId: session.id, worldId: world.id, round: 3, persona: personaWithDefaults, mainCharacter: card });
+  const after = getEntityDetails(session.id, [mainCharacterEntityId])[mainCharacterEntityId];
+  assert.equal(JSON.parse(after.profile.occupation.value_json), '捕快');
 });

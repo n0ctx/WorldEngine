@@ -17,7 +17,7 @@ const {
 } = await freshImport('backend/db/queries/state-memory.js');
 const {
   selectRelevantEntities, renderStoryState, renderEntityDirectory, renderWorldFactsForUpdate,
-  renderEntityDetailsForUpdate, renderEntityProfileText,
+  renderEntityDetailsForUpdate, renderEntityProfileText, renderProfileGapsForUpdate,
 } = await freshImport('backend/memory/state-memory-render.js');
 
 function setupSession() {
@@ -170,7 +170,7 @@ test('世界里有 nearby_enabled=1 的同义「职业」字段时，occupation 
   assert.match(text, /身份：男/);
 });
 
-test('card_id 实体档案改为卡片描述，穿着与现状照常渲染', () => {
+test('关联角色卡的实体与其他角色一样渲染档案、穿着与现状', () => {
   const { sessionId, worldId } = setupSession();
   const character = insertCharacter(sandbox.db, worldId, { name: '卡片角色', description: '一位神秘的旅人，寡言少语。' });
   const entityId = createEntity(sessionId, { name: '卡片角色', round: 1, cardId: character.id });
@@ -179,25 +179,10 @@ test('card_id 实体档案改为卡片描述，穿着与现状照常渲染', () 
   upsertDynamicState(sessionId, entityId, '位置', '码头', 1);
 
   const text = renderStoryState(sessionId, { worldId, userMessage: '卡片角色出场', budget: 3000 });
-  assert.match(text, /简介：一位神秘的旅人，寡言少语。/);
-  assert.ok(!text.includes('身份：男'), 'card 实体不应渲染档案身份行');
+  assert.match(text, /身份：男/);
+  assert.ok(!text.includes('简介：'), '不再用卡片简介代替档案');
   assert.match(text, /穿着：灰色斗篷/);
   assert.match(text, /现状：位置=码头/);
-});
-
-test('对话模式主角色只渲染现状、关系、事项', () => {
-  const { sessionId, worldId } = setupSession();
-  const mainId = createEntity(sessionId, { name: '主角', round: 1 });
-  const other = createEntity(sessionId, { name: '配角', round: 1, pinned: true });
-  upsertProfileField(sessionId, mainId, 'gender', '"男"', '主角是个男人', 1);
-  upsertDynamicState(sessionId, mainId, '位置', '码头', 1);
-  upsertRelation(sessionId, { relationId: 'r-main', seq: nextRelationSeq(sessionId), subjectId: mainId, predicate: '盟友', objectId: other }, 1);
-
-  const text = renderStoryState(sessionId, { worldId, mainCharacterEntityId: mainId, userMessage: '主角配角出场', budget: 3000 });
-  assert.ok(!text.includes('身份：男'), '主角色不应渲染档案身份行');
-  assert.match(text, /【主角】/);
-  assert.match(text, /现状：位置=码头/);
-  assert.match(text, /关系：主角 —盟友→ 配角/);
 });
 
 test('无实体也无世界数据时返回空串', () => {
@@ -227,6 +212,67 @@ test('世界里有同义玩家字段时，玩家穿着行不出现', () => {
 
   const text = renderStoryState(sessionId, { worldId, budget: 3000 });
   assert.ok(!text.includes('穿着：粗布外套'), '同义玩家字段命中时 outfit 档案字段应停用');
+});
+
+// ─── renderProfileGapsForUpdate ─────────────────────────────────────────────
+
+test('renderProfileGapsForUpdate：列出空档案、NPC 空用户字段与缺位置，角色卡实体附卡片简介，本轮相关的优先', () => {
+  const { worldId, sessionId } = setupSession();
+  insertCharacterStateField(sandbox.db, worldId, { field_key: 'goal', label: '目标', update_mode: 'llm_auto' });
+  insertCharacterStateField(sandbox.db, worldId, { field_key: 'favor', label: '好感', update_mode: 'llm_auto', default_value: '50' });
+  insertCharacterStateField(sandbox.db, worldId, { field_key: 'note', label: '备注', update_mode: 'manual' });
+  const card = insertCharacter(sandbox.db, worldId, { name: '卡片', description: '寡言的旅人' });
+
+  const place = createEntity(sessionId, { type: 'location', name: '旧港' });
+  upsertProfileField(sessionId, place, 'category', '"港口"', '旧港是港口', 1);
+  upsertProfileField(sessionId, place, 'description', '"废弃港口"', '旧港已废弃', 1);
+  const cardEntity = createEntity(sessionId, { name: '卡片', cardId: card.id });
+  const player = createEntity(sessionId, { type: 'player', name: '玩家' });
+  const late = createEntity(sessionId, { name: '丙' });
+  upsertDynamicState(sessionId, late, '位置', '旧港', 1);
+  const retired = createEntity(sessionId, { name: '已退场' });
+  upsertEntity(sessionId, { entityId: retired, seq: 5, type: 'character', name: '已退场', aliasesJson: '[]', status: 'retired' }, 2);
+
+  const characterKeys = 'gender、birth_date、species、origin、occupation、social_identity、background、height、build、hair、eyes、distinguishing_features、outfit、core_traits、behavioral_patterns、values、speech_style';
+  const lines = renderProfileGapsForUpdate(sessionId, { worldId, priorityIds: new Set([late]) }).text.split('\n');
+  assert.deepEqual(lines, [
+    `e4｜丙｜缺档案：${characterKeys}｜缺字段：goal`,
+    'e1｜旧港｜缺档案：features',
+    `e2｜卡片｜缺档案：${characterKeys}｜缺字段：goal｜缺现状：位置｜角色卡：寡言的旅人`,
+    'e3｜玩家｜缺档案：gender、birth_date、species、origin、occupation、social_identity、background、height、build、hair、eyes、distinguishing_features、outfit｜缺现状：位置',
+  ]);
+
+  const withMain = renderProfileGapsForUpdate(sessionId, { worldId, priorityIds: new Set([player]), mainCharacterEntityId: cardEntity }).text;
+  assert.deepEqual(withMain.split('\n'), [
+    'e3｜玩家｜缺档案：gender、birth_date、species、origin、occupation、social_identity、background、height、build、hair、eyes、distinguishing_features、outfit｜缺现状：位置',
+    'e1｜旧港｜缺档案：features',
+    `e2｜卡片｜缺档案：${characterKeys}｜缺现状：位置｜角色卡：寡言的旅人`,
+    `e4｜丙｜缺档案：${characterKeys}｜缺字段：goal`,
+  ], '玩家不含年龄与人格；主角色的用户字段走 char_N，不列在这里');
+});
+
+test('renderProfileGapsForUpdate：人物与事物各占每轮 3 个名额，角色再多也不挤掉地点、物品、势力', () => {
+  const { worldId, sessionId } = setupSession();
+  for (const name of ['甲', '乙', '丙', '丁', '戊']) createEntity(sessionId, { name });
+  createEntity(sessionId, { type: 'location', name: '渡口' });
+  createEntity(sessionId, { type: 'item', name: '铜钥匙' });
+  createEntity(sessionId, { type: 'faction', name: '漕帮' });
+  createEntity(sessionId, { type: 'location', name: '码头' });
+
+  const gaps = renderProfileGapsForUpdate(sessionId, { worldId });
+  const names = gaps.text.split('\n').map((line) => line.split('｜')[1]);
+  assert.deepEqual(names, ['甲', '乙', '丙', '渡口', '铜钥匙', '漕帮']);
+  assert.equal(gaps.entityIds.length, 6);
+});
+
+test('renderProfileGapsForUpdate：「未知」「无」这类占位值按空处理，照样要求补全', () => {
+  const { worldId, sessionId } = setupSession();
+  const place = createEntity(sessionId, { type: 'location', name: '渡口' });
+  upsertProfileField(sessionId, place, 'category', '"未知"', '迁移', 0);
+  upsertProfileField(sessionId, place, 'description', '"老渡口"', '迁移', 0);
+  upsertProfileField(sessionId, place, 'features', '["石阶"]', '迁移', 0);
+
+  assert.equal(renderProfileGapsForUpdate(sessionId, { worldId }).text, 'e1｜渡口｜缺档案：category');
 });
 
 // ─── renderEntityDirectory ─────────────────────────────────────────────
@@ -275,17 +321,15 @@ test('renderEntityDetailsForUpdate：带 e/r/t 编号，档案附可变性标注
   assert.match(text, /t1｜［承诺］三日内归还账本（沈彦、林乔，第 1 轮起）/);
 });
 
-test('renderEntityDetailsForUpdate：player 只输出编号、名字与 outfit', () => {
+test('renderEntityDetailsForUpdate：player 输出档案与现状（含位置）', () => {
   const { sessionId, worldId } = setupSession();
   const playerId = createEntity(sessionId, { type: 'player', name: '旅人', round: 1 });
   upsertProfileField(sessionId, playerId, 'outfit', '["粗布外套"]', '他穿着粗布外套', 1);
-  upsertDynamicState(sessionId, playerId, '心情', '愉悦', 1);
+  upsertDynamicState(sessionId, playerId, '位置', '码头', 1);
 
   const text = renderEntityDetailsForUpdate(sessionId, [playerId], { worldId });
-  assert.match(text, /旅人/);
   assert.match(text, /outfit=粗布外套（dynamic）/);
-  assert.ok(!text.includes('现状'), 'player 不应渲染现状');
-  assert.ok(!text.includes('愉悦'), 'player 不应渲染现状');
+  assert.match(text, /现状：位置=码头/);
 });
 
 test('renderEntityDetailsForUpdate：空数组返回空串', () => {

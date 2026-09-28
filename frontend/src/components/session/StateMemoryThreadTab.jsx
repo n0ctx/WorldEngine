@@ -1,5 +1,7 @@
 import { useState } from 'react';
+import Icon from '../ui/Icon.jsx';
 import { updateStateThread } from '../../core/api/state-memory.js';
+import { isImeComposing } from '../../core/utils/ime.js';
 import { log } from '../../core/utils/logger.js';
 
 const STATUS_LABELS = { active: '进行中', resolved: '已解决', failed: '已失败' };
@@ -12,6 +14,8 @@ function participantNames(entities, participantIds) {
 function ThreadRow({ sessionId, thread, entities, reload }) {
   const [content, setContent] = useState(thread.content);
   const [error, setError] = useState('');
+  const active = thread.status === 'active';
+  const participants = participantNames(entities, thread.participants);
 
   async function commit(patch) {
     setError('');
@@ -25,37 +29,56 @@ function ThreadRow({ sessionId, thread, entities, reload }) {
   }
 
   return (
-    <li className="we-sm-thread-item">
+    <li className={`we-sm-thread-item${active ? '' : ' is-closed'}`}>
       <div className="we-sm-thread-head">
-        <span className="we-sm-thread-kind">［{thread.kind}］</span>
-        <span className="we-settings-toggle-hint">
-          {participantNames(entities, thread.participants)} · 第 {thread.opened_round} 轮起
+        <span className="we-sm-chip">{thread.kind}</span>
+        <span className="we-sm-thread-meta">
+          {participants && <>{participants} · </>}第 {thread.opened_round} 轮起
+        </span>
+        <span className="we-sm-thread-actions">
+          {active ? (
+            <>
+              <button type="button" className="we-sm-text-btn" title="这件事已经了结" onClick={() => commit({ status: 'resolved' })}>已解决</button>
+              <button type="button" className="we-sm-text-btn" title="这件事没能完成" onClick={() => commit({ status: 'failed' })}>已失败</button>
+            </>
+          ) : (
+            <>
+              <span className="we-sm-thread-status">{STATUS_LABELS[thread.status] ?? thread.status}</span>
+              <button type="button" className="we-sm-text-btn" onClick={() => commit({ status: 'active' })}>重新打开</button>
+            </>
+          )}
         </span>
       </div>
       <textarea
-        className="we-input we-sm-thread-content"
+        className="we-sm-thread-content"
+        aria-label="事项内容"
         value={content}
-        rows={2}
+        rows={1}
         onChange={(e) => setContent(e.target.value)}
+        onKeyDown={(e) => {
+          if (isImeComposing(e)) return;
+          if (e.key === 'Escape' && content !== thread.content) {
+            e.preventDefault();
+            setContent(thread.content);
+          }
+        }}
         onBlur={() => { if (content.trim() && content !== thread.content) commit({ content: content.trim() }); }}
       />
-      <div className="we-sm-thread-actions">
-        {thread.status === 'active' ? (
-          <>
-            <button type="button" className="we-btn we-btn-sm we-btn-secondary" onClick={() => commit({ status: 'resolved' })}>标记已解决</button>
-            <button type="button" className="we-btn we-btn-sm we-btn-secondary" onClick={() => commit({ status: 'failed' })}>标记已失败</button>
-          </>
-        ) : (
-          <button type="button" className="we-btn we-btn-sm we-btn-secondary" onClick={() => commit({ status: 'active' })}>重新打开</button>
-        )}
-        <span className="we-settings-toggle-hint">{STATUS_LABELS[thread.status] ?? thread.status}</span>
-      </div>
       {error && <p className="we-settings-toggle-hint text-[var(--we-color-accent)]" role="alert">{error}</p>}
     </li>
   );
 }
 
+function Chevron({ open }) {
+  return (
+    <Icon size={16} className={`we-sm-chevron${open ? ' is-open' : ''}`}>
+      <path d="M9 6l6 6-6 6" />
+    </Icon>
+  );
+}
+
 export default function StateMemoryThreadTab({ sessionId, data, reload }) {
+  const [showClosed, setShowClosed] = useState(false);
   const entities = data?.entities ?? [];
   const threads = data?.threads ?? [];
   const active = threads.filter((t) => t.status === 'active');
@@ -63,21 +86,41 @@ export default function StateMemoryThreadTab({ sessionId, data, reload }) {
 
   return (
     <div className="we-sm-thread-tab">
-      <div className="we-state-section-title"><span className="we-section-label">进行中</span></div>
-      {active.length === 0 && <p className="we-section-empty">暂无进行中事项</p>}
-      <ul className="we-sm-thread-list">
-        {active.map((thread) => (
-          <ThreadRow key={thread.thread_id} sessionId={sessionId} thread={thread} entities={entities} reload={reload} />
-        ))}
-      </ul>
+      <p className="we-sm-intro">尚未了结的承诺、任务、冲突等。进行中的事项会提醒 AI 延续剧情，了结后不再提供。</p>
 
-      <div className="we-state-section-title"><span className="we-section-label">已结束</span></div>
-      {closed.length === 0 && <p className="we-section-empty">暂无已结束事项</p>}
-      <ul className="we-sm-thread-list">
-        {closed.map((thread) => (
-          <ThreadRow key={thread.thread_id} sessionId={sessionId} thread={thread} entities={entities} reload={reload} />
-        ))}
-      </ul>
+      {active.length === 0 ? (
+        <div className="we-sm-empty">
+          <p className="we-sm-empty-title">暂无未了事项</p>
+          <p className="we-sm-empty-hint">剧情里出现承诺、任务、冲突等时，AI 会自动记录。</p>
+        </div>
+      ) : (
+        <ul className="we-sm-thread-list">
+          {active.map((thread) => (
+            <ThreadRow key={thread.thread_id} sessionId={sessionId} thread={thread} entities={entities} reload={reload} />
+          ))}
+        </ul>
+      )}
+
+      {closed.length > 0 && (
+        <div className="we-sm-closed">
+          <button
+            type="button"
+            className="we-sm-closed-toggle"
+            aria-expanded={showClosed}
+            onClick={() => setShowClosed((v) => !v)}
+          >
+            <Chevron open={showClosed} />
+            已结束 {closed.length}
+          </button>
+          {showClosed && (
+            <ul className="we-sm-thread-list">
+              {closed.map((thread) => (
+                <ThreadRow key={thread.thread_id} sessionId={sessionId} thread={thread} entities={entities} reload={reload} />
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
     </div>
   );
 }

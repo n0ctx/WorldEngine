@@ -48,6 +48,34 @@ test('createSession 插入开场白时替换 {{user}}/{{char}}/{{world}}', async
   assert.equal(firstMessage.content, '（白漓看到周大壮坐在废土的店里）');
 });
 
+test('createSession / createWritingSession 开局就建好玩家与主角色实体并带入档案初始值', async () => {
+  const world = insertWorld(sandbox.db, { name: '会话世界-初始值' });
+  const persona = insertPersona(sandbox.db, world.id, { name: '旅人' });
+  sandbox.db.prepare('UPDATE worlds SET active_persona_id = ? WHERE id = ?').run(persona.id, world.id);
+  sandbox.db.prepare('UPDATE personas SET profile_defaults_json = ? WHERE id = ?').run(JSON.stringify({ gender: '女' }), persona.id);
+  const character = insertCharacter(sandbox.db, world.id, { name: '洛因' });
+  sandbox.db.prepare('UPDATE characters SET profile_defaults_json = ? WHERE id = ?').run(JSON.stringify({ occupation: '剑客' }), character.id);
+
+  const { createSession } = await freshImport('backend/services/sessions.js');
+  const { createWritingSession } = await freshImport('backend/services/writing-sessions.js');
+  const { listCurrentEntities, getEntityDetails } = await freshImport('backend/db/queries/state-memory.js');
+
+  const chat = createSession(character.id);
+  const chatEntities = listCurrentEntities(chat.id);
+  const details = getEntityDetails(chat.id, chatEntities.map((e) => e.entity_id));
+  const player = chatEntities.find((e) => e.type === 'player');
+  const main = chatEntities.find((e) => e.card_id === character.id);
+  assert.equal(player.name, '旅人');
+  assert.equal(JSON.parse(details[player.entity_id].profile.gender.value_json), '女');
+  assert.equal(JSON.parse(details[main.entity_id].profile.occupation.value_json), '剑客');
+
+  const writing = createWritingSession(world.id);
+  const writingEntities = listCurrentEntities(writing.id);
+  assert.deepEqual(writingEntities.map((e) => e.type), ['player']);
+  const writingPlayer = getEntityDetails(writing.id, [writingEntities[0].entity_id])[writingEntities[0].entity_id];
+  assert.equal(JSON.parse(writingPlayer.profile.gender.value_json), '女');
+});
+
 test('updateMessageAndDeleteAfter 会更新当前消息并删除之后消息', async () => {
   const world = insertWorld(sandbox.db, { name: '会话世界-编辑' });
   const character = insertCharacter(sandbox.db, world.id, { name: '米娅' });

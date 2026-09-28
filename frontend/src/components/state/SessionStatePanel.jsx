@@ -2,13 +2,13 @@ import { useEffect, useMemo, useState } from 'react';
 
 import SectionTabs from '../ui/SectionTabs.jsx';
 import PanelCard from '../ui/PanelCard.jsx';
-import StateChangeCard from './StateChangeCard.jsx';
-import WorldProfileGroup, { PlayerProfileGroup } from './WorldProfileGroup.jsx';
+import EntityStateBlock from './EntityStateBlock.jsx';
+import StatusSection from './StatusSection.jsx';
+import WorldProfileGroup from './WorldProfileGroup.jsx';
 import {
   DiaryEntry,
   ResetAction,
   StateBusyOverlay,
-  StateEmpty,
 } from './panel-parts.jsx';
 import {
   DIARY_RECENT_LIMIT,
@@ -156,10 +156,15 @@ function DiaryTab({
   );
 }
 
-/** 世界区块：档案组（WorldProfileGroup）+ 用户字段组（StateChangeCard，按字段定义顺序展示） */
+/** 本轮变化的会话状态值行 → field_key 集合，供「现状」高亮 */
+function changedFieldKeys(changes) {
+  return new Set(changes.map((change) => change.row.field_key));
+}
+
+/** 世界区块：现状（时间 / 地点 / 世界用户字段 / 世界事实） */
 function WorldTab({
   worldName, worldResetting, handleResetWorld, stateError, renderLoadError,
-  sessionId, stateMemory, reloadStateMemory, worldRows, stateDiff, stateDiffReady, saveStateValue, templateCtx,
+  sessionId, stateMemory, reloadStateMemory, worldRows, stateDiff, saveStateValue, templateCtx,
 }) {
   return (
     <section className="we-state-block we-state-block--world">
@@ -169,65 +174,68 @@ function WorldTab({
         <ResetAction onClick={handleResetWorld} busy={worldResetting} />
       </header>
       {stateError ? renderLoadError('世界状态加载失败') : (
-        <>
-          <WorldProfileGroup
-            sessionId={sessionId}
-            world={stateMemory?.world}
-            entities={stateMemory?.entities}
-            facts={stateMemory?.facts}
-            reload={reloadStateMemory}
-          />
-          <div className="we-state-section-title">
-            <span className="we-section-label">用户字段</span>
-          </div>
-          <StateChangeCard
-            className="we-status-world"
-            rows={worldRows}
-            changes={stateDiff.world}
-            hasBaseline={stateDiffReady}
-            onSave={(fieldKey, valueJson) => saveStateValue('world', fieldKey, valueJson)}
-            templateCtx={templateCtx}
-            emptyContent={<StateEmpty hint="世界状态会随剧情逐步记录" />}
-          />
-        </>
+        <WorldProfileGroup
+          sessionId={sessionId}
+          world={stateMemory?.world}
+          entities={stateMemory?.entities}
+          facts={stateMemory?.facts}
+          reload={reloadStateMemory}
+        >
+          {worldRows?.length !== 0 && (
+            <StatusSection
+              headerless
+              gridLayout
+              className="we-status-world"
+              rows={worldRows}
+              changedKeys={changedFieldKeys(stateDiff.world)}
+              onSave={(fieldKey, valueJson) => saveStateValue('world', fieldKey, valueJson)}
+              templateCtx={templateCtx}
+            />
+          )}
+        </WorldProfileGroup>
       )}
     </section>
   );
 }
 
-/** 玩家页签：档案组（穿着）+ 用户字段组（StateChangeCard） */
+/** 玩家页签：与 NPC 同一套区块（本轮变化 + 现状 + 全部档案），用户字段来自人设状态值 */
 function PlayerTab({
   stateError, renderLoadError, sessionId, stateMemory, stateMemorySchema, entityDiff,
-  stateDiff, stateDiffReady, reloadStateMemory, stateData, saveStateValue, templateCtx,
+  stateDiff, reloadStateMemory, stateData, saveStateValue, templateCtx,
 }) {
   const playerEntity = stateMemory?.entities?.find((e) => e.type === 'player') ?? null;
-  const playerOutfitDef = stateMemorySchema?.profileFields?.player?.find((d) => d.key === 'outfit') ?? null;
+  const userRows = stateData?.persona ?? [];
+  const userChangedKeys = changedFieldKeys(stateDiff.persona);
+  const onSaveUserRow = (fieldKey, valueJson) => saveStateValue('persona', fieldKey, valueJson);
 
   return (
     <div className="we-panel-tab-body">
       <PanelCard variant="headerless">
         {stateError ? renderLoadError('玩家状态加载失败') : (
-          <>
-            <PlayerProfileGroup
+          playerEntity ? (
+            <EntityStateBlock
               sessionId={sessionId}
-              playerEntity={playerEntity}
-              outfitDef={playerOutfitDef}
+              entity={playerEntity}
+              schema={stateMemorySchema}
+              entities={stateMemory.entities}
+              relations={stateMemory.relations ?? []}
               diffKeys={entityDiff}
               reload={reloadStateMemory}
-            />
-            <div className="we-state-section-title">
-              <span className="we-section-label">用户字段</span>
-            </div>
-            <StateChangeCard
-              className="we-status-player"
-              rows={stateData?.persona ?? null}
-              changes={stateDiff.persona}
-              hasBaseline={stateDiffReady}
-              onSave={(fieldKey, valueJson) => saveStateValue('persona', fieldKey, valueJson)}
+              userRows={userRows}
+              userChangedKeys={userChangedKeys}
+              onSaveUserRow={onSaveUserRow}
               templateCtx={templateCtx}
-              emptyContent={<StateEmpty hint="玩家状态会随剧情逐步记录" />}
             />
-          </>
+          ) : userRows.length > 0 && (
+            <StatusSection
+              title="现状"
+              rows={userRows}
+              changedKeys={userChangedKeys}
+              onSave={onSaveUserRow}
+              templateCtx={templateCtx}
+              gridLayout
+            />
+          )
         )}
       </PanelCard>
     </div>
@@ -275,7 +283,7 @@ export default function SessionStatePanel({
     retryStateLoad,
   } = useSessionState(sessionId, ticks.state, ticks.diary, ticks.queued, ticks.failed);
 
-  const { diff: stateDiff, ready: stateDiffReady } = useStateDiff(stateData, sessionId);
+  const { diff: stateDiff } = useStateDiff(stateData, sessionId);
 
   const worldRows = stateData?.world ?? null;
 
@@ -349,7 +357,6 @@ export default function SessionStatePanel({
       reloadStateMemory={reloadStateMemory}
       worldRows={worldRows}
       stateDiff={stateDiff}
-      stateDiffReady={stateDiffReady}
       saveStateValue={saveStateValue}
       templateCtx={templateCtx}
     />
@@ -364,7 +371,6 @@ export default function SessionStatePanel({
       stateMemorySchema={stateMemorySchema}
       entityDiff={entityDiff}
       stateDiff={stateDiff}
-      stateDiffReady={stateDiffReady}
       reloadStateMemory={reloadStateMemory}
       stateData={stateData}
       saveStateValue={saveStateValue}
@@ -391,7 +397,6 @@ export default function SessionStatePanel({
       stateData,
       setStateData,
       stateDiff,
-      stateDiffReady,
       stateError,
       templateCtx,
       renderLoadError,

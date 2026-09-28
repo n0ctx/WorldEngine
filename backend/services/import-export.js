@@ -44,6 +44,7 @@ import {
   EXPORT_FORMAT_MIGRATION,
 } from './import-export-constants.js';
 import { UPLOADS_DIR } from '../utils/data-dir.js';
+import { parseProfileDefaults, sanitizeProfileDefaults } from '../memory/state-memory-schema.js';
 
 const log = createLogger('svc', 'green');
 
@@ -138,6 +139,7 @@ function exportWorldCharacter(character) {
     system_prompt: character.system_prompt,
     post_prompt: character.post_prompt ?? '',
     first_message: character.first_message,
+    profile_defaults: parseProfileDefaults(character.profile_defaults_json),
     avatar_path: character.avatar_path ?? null,
     sort_order: character.sort_order,
     ...(avatarBase64 ? { avatar_base64: avatarBase64, avatar_mime: avatarMime } : {}),
@@ -152,6 +154,7 @@ function exportWorldPersona(persona, activePersonaId) {
     name: persona.name,
     description: persona.description ?? '',
     system_prompt: persona.system_prompt,
+    profile_defaults: parseProfileDefaults(persona.profile_defaults_json),
     avatar_path: persona.avatar_path ?? null,
     ...(avatarBase64 ? { avatar_base64: avatarBase64, avatar_mime: avatarMime } : {}),
     is_active: persona.id === activePersonaId,
@@ -166,6 +169,7 @@ function normalizeImportedPersonas(data) {
     name: data.persona?.name ?? '',
     description: data.persona?.description ?? '',
     system_prompt: data.persona?.system_prompt ?? '',
+    profile_defaults: data.persona?.profile_defaults,
     avatar_path: data.persona?.avatar_path ?? null,
     avatar_base64: data.persona?.avatar_base64,
     avatar_mime: data.persona?.avatar_mime,
@@ -184,6 +188,7 @@ function characterRow(characterId, worldId, charData, sortOrder, now) {
     system_prompt: charData.system_prompt ?? '',
     post_prompt: charData.post_prompt ?? '',
     first_message: charData.first_message ?? '',
+    profile_defaults_json: JSON.stringify(sanitizeProfileDefaults(charData.profile_defaults)),
     avatar_path: saveAvatarFile(characterId, charData.avatar_base64, charData.avatar_mime),
     sort_order: sortOrder,
     created_at: now,
@@ -199,6 +204,7 @@ function personaRow(personaId, worldId, persona, sortOrder, now) {
     name: persona.name ?? '',
     description: persona.description ?? '',
     system_prompt: persona.system_prompt ?? '',
+    profile_defaults_json: JSON.stringify(sanitizeProfileDefaults(persona.profile_defaults)),
     avatar_path: saveAvatarFile(personaId, persona.avatar_base64, persona.avatar_mime),
     sort_order: sortOrder,
     created_at: now,
@@ -334,6 +340,7 @@ export function exportCharacter(characterId) {
       system_prompt: character.system_prompt,
       post_prompt: character.post_prompt ?? '',
       first_message: character.first_message,
+      profile_defaults: parseProfileDefaults(character.profile_defaults_json),
       avatar_path: character.avatar_path ?? null,
       ...(avatarBase64 ? { avatar_base64: avatarBase64, avatar_mime: avatarMime } : {}),
     },
@@ -355,6 +362,7 @@ function buildPersonaExportPayload(persona) {
       name: persona.name,
       description: persona.description ?? '',
       system_prompt: persona.system_prompt,
+      profile_defaults: parseProfileDefaults(persona.profile_defaults_json),
       avatar_path: persona.avatar_path ?? null,
       ...(avatarBase64 ? { avatar_base64: avatarBase64, avatar_mime: avatarMime } : {}),
     },
@@ -416,6 +424,7 @@ function normalizePersonaImportData(data) {
       name: data.character?.name ?? '',
       description: data.character?.description ?? '',
       system_prompt: data.character?.system_prompt ?? '',
+      profile_defaults: data.character?.profile_defaults,
       avatar_path: data.character?.avatar_path ?? null,
       avatar_base64: data.character?.avatar_base64,
       avatar_mime: data.character?.avatar_mime,

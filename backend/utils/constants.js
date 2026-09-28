@@ -93,7 +93,7 @@ export const LLM_TITLE_MAX_TOKENS = 30;
 /** 轮次索引生成最大 token 数（输出 JSON 包装 + scene + cast + 80 字摘要，900 留出余量避免被截） */
 export const LLM_TURN_SUMMARY_MAX_TOKENS = 900;
 /** 状态更新（combined-state-updater）最大 token 数：状态记忆写入并入该调用后输出增加操作列表，上限相应调大 */
-export const LLM_STATE_UPDATE_MAX_TOKENS = 4096;
+export const LLM_STATE_UPDATE_MAX_TOKENS = 8192;
 /** 状态更新 JSON 解析失败时，额外重新调用 LLM 的最大次数（共 1+N 次机会） */
 export const STATE_UPDATE_JSON_RETRY_MAX = 2;
 /** 状态压缩（state-compress）最大 token 数 */
@@ -128,6 +128,8 @@ export const STATE_LIST_ITEM_MAX = 30;
 export const STATE_EVIDENCE_MIN = 4;
 /** 档案证据原文最长字符数 */
 export const STATE_EVIDENCE_MAX = 80;
+/** 每轮状态更新最多要求补全空缺的旧实体数（人物、事物各算一份） */
+export const STATE_PROFILE_FILL_PER_ROUND = 3;
 /** 按名字/别名匹配实体时的最短字数 */
 export const STATE_NAME_MATCH_MIN = 2;
 

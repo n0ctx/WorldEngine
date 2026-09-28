@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
-import StateMemoryEntityDetail from './StateMemoryEntityDetail.jsx';
+import Icon from '../ui/Icon.jsx';
+import StateMemoryEntityDetail, { PinIcon } from './StateMemoryEntityDetail.jsx';
 
 const ENTITY_TYPE_LABELS = {
   character: '角色',
@@ -10,8 +11,6 @@ const ENTITY_TYPE_LABELS = {
   player: '玩家',
 };
 
-const ENTITY_TYPE_ORDER = ['character', 'location', 'item', 'faction', 'other', 'player'];
-
 function matchesSearch(entity, keyword) {
   if (!keyword) return true;
   const needle = keyword.trim().toLowerCase();
@@ -20,55 +19,100 @@ function matchesSearch(entity, keyword) {
   return (entity.aliases ?? []).some((alias) => alias.toLowerCase().includes(needle));
 }
 
-function groupEntitiesByType(entities) {
+/** 按 types 的顺序分组，组内已退场的排在末尾 */
+function groupEntitiesByType(entities, types) {
   const byType = new Map();
   for (const entity of entities) {
     if (!byType.has(entity.type)) byType.set(entity.type, []);
     byType.get(entity.type).push(entity);
   }
-  return ENTITY_TYPE_ORDER
+  return types
     .filter((type) => byType.has(type))
-    .map((type) => ({ type, entities: byType.get(type) }));
+    .map((type) => ({
+      type,
+      entities: [...byType.get(type)].sort((a, b) => Number(a.status === 'retired') - Number(b.status === 'retired')),
+    }));
 }
 
-export default function StateMemoryEntityTab({ sessionId, data, schema, reload }) {
+function SearchIcon() {
+  return (
+    <Icon size={16} className="we-sm-search-icon">
+      <circle cx="11" cy="11" r="7" />
+      <path d="M20 20l-3.5-3.5" />
+    </Icon>
+  );
+}
+
+function EntityListItem({ entity, active, present, onSelect }) {
+  const retired = entity.status === 'retired';
+  return (
+    <button
+      type="button"
+      className={`we-sm-entity-item${active ? ' active' : ''}${retired ? ' is-retired' : ''}`}
+      title={entity.name}
+      onClick={onSelect}
+    >
+      <span className={`we-sm-presence-dot${present ? ' is-present' : ''}`} aria-hidden="true" />
+      <span className="we-sm-entity-name">{entity.name}</span>
+      {entity.pinned && <span className="we-sm-entity-pin" aria-label="已置顶"><PinIcon /></span>}
+      {retired && <span className="we-sm-entity-retired">已退场</span>}
+    </button>
+  );
+}
+
+/** 一个实体页签（角色 / 地点 / 物品 / 势力）：types 决定收哪些类型、按什么顺序分组 */
+export default function StateMemoryEntityTab({ sessionId, data, schema, reload, types, intro }) {
   const [search, setSearch] = useState('');
   const [selectedId, setSelectedId] = useState(null);
 
-  const entities = useMemo(() => data?.entities ?? [], [data]);
+  const entities = useMemo(() => (data?.entities ?? []).filter((entity) => types.includes(entity.type)), [data, types]);
+  const presentIds = useMemo(() => new Set(data?.presentIds ?? []), [data]);
   const filtered = useMemo(
     () => entities.filter((entity) => matchesSearch(entity, search)),
     [entities, search],
   );
-  const groups = useMemo(() => groupEntitiesByType(filtered), [filtered]);
-  const selected = entities.find((entity) => entity.entity_id === selectedId) ?? null;
+  const groups = useMemo(() => groupEntitiesByType(filtered, types), [filtered, types]);
+
+  // 没选或所选已被搜索过滤掉时，默认显示列表里第一个仍在场上的实体
+  const ordered = groups.flatMap((group) => group.entities);
+  const selected = ordered.find((entity) => entity.entity_id === selectedId)
+    ?? ordered.find((entity) => entity.status === 'active')
+    ?? ordered[0]
+    ?? null;
 
   return (
     <div className="we-sm-entity-tab">
       <div className="we-sm-entity-list">
-        <input
-          className="we-input we-sm-search"
-          placeholder="按名字或别名搜索"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          aria-label="搜索实体"
-        />
-        {groups.length === 0 && <p className="we-section-empty">暂无实体</p>}
+        <p className="we-sm-intro">{intro}</p>
+        <label className="we-sm-search">
+          <SearchIcon />
+          <input
+            className="we-sm-search-input"
+            placeholder="搜索名字或别名"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            aria-label="搜索实体"
+          />
+        </label>
+        {groups.length === 0 && (
+          <p className="we-section-empty">{search.trim() ? '没有匹配的名字' : '暂无记录'}</p>
+        )}
         {groups.map(({ type, entities: groupEntities }) => (
           <div key={type} className="we-sm-entity-group">
-            <div className="we-state-section-title">
-              <span className="we-section-label">{ENTITY_TYPE_LABELS[type] ?? type}</span>
-            </div>
+            {groups.length > 1 && (
+              <div className="we-sm-group-title">
+                <span>{ENTITY_TYPE_LABELS[type] ?? type}</span>
+                <span className="we-sm-group-count">{groupEntities.length}</span>
+              </div>
+            )}
             {groupEntities.map((entity) => (
-              <button
+              <EntityListItem
                 key={entity.entity_id}
-                type="button"
-                className={`we-sm-entity-item${entity.entity_id === selectedId ? ' active' : ''}`}
-                onClick={() => setSelectedId(entity.entity_id)}
-              >
-                <span>{entity.name}</span>
-                {entity.status === 'retired' && <span className="we-sm-entity-retired">已退场</span>}
-              </button>
+                entity={entity}
+                active={entity.entity_id === selected?.entity_id}
+                present={presentIds.has(entity.entity_id)}
+                onSelect={() => setSelectedId(entity.entity_id)}
+              />
             ))}
           </div>
         ))}
@@ -76,14 +120,17 @@ export default function StateMemoryEntityTab({ sessionId, data, schema, reload }
       <div className="we-sm-entity-detail-pane">
         {selected ? (
           <StateMemoryEntityDetail
+            key={selected.entity_id}
             sessionId={sessionId}
             entity={selected}
+            typeLabel={ENTITY_TYPE_LABELS[selected.type] ?? selected.type}
+            present={presentIds.has(selected.entity_id)}
             schema={schema}
             reload={reload}
             onClosed={() => setSelectedId(null)}
           />
         ) : (
-          <p className="we-section-empty">选择左侧实体查看详情</p>
+          <p className="we-section-empty">选择左侧条目查看详情</p>
         )}
       </div>
     </div>

@@ -159,6 +159,7 @@ test('事项：新建、未知类型 400、更新内容与状态、未知状态 
   const thread = createThread(session.id, { kind: '承诺', participants: [a.entity_id], content: '三日内归还账本' });
   assert.equal(thread.status, 'active');
   assert.deepEqual(thread.participants, [a.entity_id]);
+  assert.deepEqual(getStateMemory(session.id).threads, [thread]);
 
   const updated = updateThread(session.id, thread.thread_id, { status: 'resolved' });
   assert.equal(updated.status, 'resolved');

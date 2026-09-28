@@ -16,6 +16,8 @@ const mocks = vi.hoisted(() => ({
   updatePersonaStateValue: vi.fn(),
   getPersonaStateValuesByPersonaId: vi.fn(),
   updatePersonaStateValueByPersonaId: vi.fn(),
+  getPersonaProfileDefaults: vi.fn(),
+  updatePersonaProfileDefault: vi.fn(),
   downloadPersonaCard: vi.fn(),
   logError: vi.fn(),
 }));
@@ -38,6 +40,11 @@ vi.mock('../../src/core/api/persona-state-values', () => ({
   updatePersonaStateValue: (...args) => mocks.updatePersonaStateValue(...args),
   getPersonaStateValuesByPersonaId: (...args) => mocks.getPersonaStateValuesByPersonaId(...args),
   updatePersonaStateValueByPersonaId: (...args) => mocks.updatePersonaStateValueByPersonaId(...args),
+  getPersonaProfileDefaults: (...args) => mocks.getPersonaProfileDefaults(...args),
+  updatePersonaProfileDefault: (...args) => mocks.updatePersonaProfileDefault(...args),
+}));
+vi.mock('../../src/components/ui/SectionTabs.jsx', () => ({
+  default: ({ sections }) => <div>{sections.map((section) => <div key={section.key}>{section.content}</div>)}</div>,
 }));
 vi.mock('../../src/core/api/import-export', () => ({
   downloadPersonaCard: (...args) => mocks.downloadPersonaCard(...args),
@@ -90,12 +97,16 @@ describe('PersonaEditPage', () => {
     mocks.updatePersonaStateValue.mockResolvedValue({ success: true });
     mocks.updatePersonaStateValueByPersonaId.mockResolvedValue({ success: true });
     mocks.getPersonaStateValuesByPersonaId.mockResolvedValue([{ field_key: 'mood', label: '心境' }]);
+    mocks.getPersonaProfileDefaults.mockResolvedValue([
+      { field_key: 'gender', label: '性别', group: '身份', type: 'text', value_json: null },
+    ]);
+    mocks.updatePersonaProfileDefault.mockResolvedValue({ success: true });
     mocks.downloadPersonaCard.mockResolvedValue(undefined);
     mocks.uploadPersonaAvatar.mockResolvedValue({ avatar_path: 'avatars/persona.png' });
     mocks.logError.mockReset();
   });
 
-  it('会保存玩家信息并支持导出', async () => {
+  it('会保存玩家信息并支持导出，状态初始值页可编辑身份外貌初始值与现状初始值', async () => {
     render(<PersonaEditPage />);
 
     expect(await screen.findByDisplayValue('旅者')).toBeInTheDocument();
@@ -103,6 +114,10 @@ describe('PersonaEditPage', () => {
     fireEvent.click(screen.getByText('save-mood'));
 
     await waitFor(() => expect(mocks.updatePersonaStateValueByPersonaId).toHaveBeenCalledWith('world-1', 'persona-1', 'mood', '"玩家值"'));
+    expect(mocks.getPersonaProfileDefaults).toHaveBeenCalledWith('persona-1');
+    expect(screen.queryByText('人格')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByText('save-gender'));
+    await waitFor(() => expect(mocks.updatePersonaProfileDefault).toHaveBeenCalledWith('persona-1', 'gender', '"玩家值"'));
 
     fireEvent.click(screen.getByText('导出玩家卡'));
     await waitFor(() => expect(mocks.downloadPersonaCard).toHaveBeenCalledWith('persona-1', '行者.wepersona.json'));

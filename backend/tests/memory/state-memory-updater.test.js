@@ -10,6 +10,7 @@ import {
   insertPersonaStateField,
   insertSession,
   insertWorld,
+  insertWorldEntry,
   insertWorldStateField,
 } from '../helpers/fixtures.js';
 
@@ -178,8 +179,56 @@ test('世界里 nearby_enabled=1 的「职业」角色字段会让档案清单�
   const sections = buildEntityStateSections(targets, { world: w, worldId: world.id, sessionId: session.id, session });
   const system = __testables.buildCacheableSystemPrompt(world.id, targets, sections);
 
-  assert.ok(!system.includes('- occupation（'), 'occupation 档案字段应因同义用户字段停用');
+  const characterBlock = system.slice(system.indexOf('【角色】'), system.indexOf('【地点】'));
+  assert.ok(!characterBlock.includes('- occupation（'), 'occupation 档案字段应因同义用户字段停用');
   assert.ok(system.includes('career（职业'), 'NPC 适用字段清单应包含 career');
+});
+
+test('system 前缀带上本世界启用的常驻条目作为世界观，不带需触发的和已停用的条目', async () => {
+  resetMockEnv();
+  const world = insertWorld(sandbox.db, { name: '雾都' });
+  insertWorldEntry(sandbox.db, world.id, { title: '地理', content: '{{world}}终年大雾，{{user}}住在河南岸。', trigger_type: 'always', token: 0 });
+  insertWorldEntry(sandbox.db, world.id, { title: '规矩', content: '入夜后禁止上街。', trigger_type: 'always', token: 2 });
+  insertWorldEntry(sandbox.db, world.id, { title: '秘闻', content: '钟楼下有密道。', trigger_type: 'keyword', keywords: ['钟楼'] });
+  const disabled = insertWorldEntry(sandbox.db, world.id, { title: '旧设定', content: '已废弃的设定。', trigger_type: 'always' });
+  sandbox.db.prepare('UPDATE world_prompt_entries SET enabled = 0 WHERE id = ?').run(disabled.id);
+
+  const { loadStateUpdateTargets, buildEntityStateSections } = await freshImport('backend/memory/state-update-context.js');
+  const { __testables, buildWorldSettingText } = await freshImport('backend/memory/combined-state-updater.js');
+  const { getWorldById } = await freshImport('backend/db/queries/worlds.js');
+  const character = insertCharacter(sandbox.db, world.id, { name: '丁' });
+  const session = insertSession(sandbox.db, { character_id: character.id, world_id: world.id });
+
+  const w = getWorldById(world.id);
+  const targets = loadStateUpdateTargets(world.id, [character.id], w);
+  const sections = buildEntityStateSections(targets, { world: w, worldId: world.id, sessionId: session.id, session });
+  const worldSetting = buildWorldSettingText(w, '旅人');
+  const system = __testables.buildCacheableSystemPrompt(world.id, targets, { ...sections, worldSetting });
+
+  assert.ok(system.includes('雾都终年大雾，旅人住在河南岸。'));
+  assert.ok(system.indexOf('【地理】') < system.indexOf('【规矩】'));
+  assert.ok(!system.includes('钟楼下有密道'));
+  assert.ok(!system.includes('已废弃的设定'));
+});
+
+test('system 前缀带上会话人设正文作为玩家人设', async () => {
+  resetMockEnv();
+  const world = insertWorld(sandbox.db, { name: '雾都' });
+  const persona = insertPersona(sandbox.db, world.id, { name: '旅人', system_prompt: '{{user}}是来自{{world}}的邮差，左眼有疤。' });
+
+  const { loadStateUpdateTargets, buildEntityStateSections, resolvePersona } = await freshImport('backend/memory/state-update-context.js');
+  const { __testables, buildPersonaSettingText } = await freshImport('backend/memory/combined-state-updater.js');
+  const { getWorldById } = await freshImport('backend/db/queries/worlds.js');
+  const character = insertCharacter(sandbox.db, world.id, { name: '丁' });
+  const session = insertSession(sandbox.db, { character_id: character.id, world_id: world.id, persona_id: persona.id });
+
+  const w = getWorldById(world.id);
+  const targets = loadStateUpdateTargets(world.id, [character.id], w);
+  const sections = buildEntityStateSections(targets, { world: w, worldId: world.id, sessionId: session.id, session });
+  const personaSetting = buildPersonaSettingText(w, resolvePersona(session, world.id));
+  const system = __testables.buildCacheableSystemPrompt(world.id, targets, { ...sections, personaSetting });
+
+  assert.ok(system.includes('### 玩家人设\n\n旅人是来自雾都的邮差，左眼有疤。'));
 });
 
 test('两轮调用之间 system 内容逐字节相同', async () => {
@@ -282,4 +331,24 @@ test('entity_fields 写入 NPC 的 llm_auto+nearby_enabled 字段', async () => 
   assert.ok(npc, 'NPC 阿吉应已创建（对应 e3）');
   const values = getEntityStateValues(session.id, [npc.entity_id]);
   assert.equal(values[npc.entity_id]?.favor, JSON.stringify(60));
+});
+
+test('待补全的实体本轮没出场也带上详情，AI 才能按已有信息补', async () => {
+  resetMockEnv();
+  const world = insertWorld(sandbox.db, { name: '补全世界' });
+  const character = insertCharacter(sandbox.db, world.id, { name: '甲' });
+  const session = insertSession(sandbox.db, { character_id: character.id, world_id: world.id });
+  const { buildRuntimeUserPrompt } = await freshImport('backend/memory/state-update-context.js');
+  const { upsertEntity, upsertProfileField } = await freshImport('backend/db/queries/state-memory.js');
+  upsertEntity(session.id, { entityId: 'far-away', seq: 1, type: 'character', name: '远方的人', aliasesJson: '[]' }, 1);
+  upsertProfileField(session.id, 'far-away', 'occupation', '"铁匠"', '迁移', 1);
+
+  const prompt = buildRuntimeUserPrompt({
+    sessionId: session.id, worldId: world.id, mainCharacterEntityId: null, valueSections: [], dialogue: '', responseKeys: [], round: 2,
+    relevantIds: new Set(),
+  });
+  const details = prompt.slice(prompt.indexOf('【相关实体详情】'), prompt.indexOf('【待补全】'));
+  assert.match(details, /e1｜character｜远方的人/);
+  assert.match(details, /occupation=铁匠/);
+  assert.match(prompt.slice(prompt.indexOf('【待补全】')), /e1｜远方的人｜缺档案：gender/);
 });

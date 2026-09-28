@@ -54,9 +54,7 @@ vi.mock('../../../src/core/hooks/useSessionState.js', () => {
 });
 vi.mock('../../../src/components/state/WorldProfileGroup.jsx', () => ({
   default: () => <div />,
-  PlayerProfileGroup: () => null,
 }));
-vi.mock('../../../src/components/state/StateChangeCard.jsx', () => ({ default: () => null }));
 // 面板自身的 NPC 页签装配是被测对象，SectionTabs 换成把每个 tab 的 label/actions/content
 // 都摊平渲染的轻量替身，方便按 tab 分区查询
 vi.mock('../../../src/components/ui/SectionTabs.jsx', () => ({
@@ -88,7 +86,6 @@ function entity(overrides = {}) {
     fields: [],
     activeProfileFields: [],
     aliases: [],
-    card_description: null,
     ...overrides,
   };
 }

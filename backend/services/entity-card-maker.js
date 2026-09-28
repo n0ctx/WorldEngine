@@ -14,12 +14,13 @@ import * as llm from '../llm/index.js';
 import { resolveAuxScope } from '../utils/aux-scope.js';
 import { buildEntityCardAnalyzePrompt } from '../prompts/entity-card-prompt.js';
 import { renderEntityProfileText } from '../memory/state-memory-render.js';
-import { listCurrentEntities, upsertEntity } from '../db/queries/state-memory.js';
+import { getEditableProfileFields, sanitizeProfileDefaults } from '../memory/state-memory-schema.js';
+import { listCurrentEntities, upsertEntity, getEntityDetails } from '../db/queries/state-memory.js';
 import { getEntityStateValues } from '../db/queries/session-entity-state-values.js';
 import { getCharacterStateFieldsByWorldId } from '../db/queries/character-state-fields.js';
 import { getSessionById } from '../db/queries/sessions.js';
 import { getMessagesBySessionId } from '../db/queries/messages.js';
-import { createCharacter } from '../db/queries/characters.js';
+import { createCharacter, setCharacterProfileDefaults } from '../db/queries/characters.js';
 import { upsertCharacterStateValues } from '../db/queries/character-state-values.js';
 import { splitRounds } from '../utils/session-rounds.js';
 import { ALL_MESSAGES_LIMIT } from '../utils/constants.js';
@@ -122,7 +123,7 @@ export async function analyzeEntityForCard(sessionId, entityId) {
 }
 
 /**
- * 把实体落成公共角色卡 + 把启用字段当前值写入 default_value_json，并把该实体的 card_id
+ * 把实体落成公共角色卡 + 把启用字段当前值写入 default_value_json、档案写入档案初始值，并把该实体的 card_id
  * 回写为新角色卡（记在会话当前最新一轮）。
  *
  * @param {object} args
@@ -175,6 +176,14 @@ export function createCharacterFromEntity({
       fieldKey: value.field_key,
       defaultValueJson: value.runtime_value_json,
     })));
+
+  // 实体当前档案存成新角色卡的档案初始值
+  const profile = getEntityDetails(sessionId, [entityId])[entityId]?.profile ?? {};
+  setCharacterProfileDefaults(character.id, JSON.stringify(sanitizeProfileDefaults(Object.fromEntries(
+    getEditableProfileFields(worldId, 'character')
+      .filter((field) => profile[field.key])
+      .map((field) => [field.key, JSON.parse(profile[field.key].value_json)]),
+  ))));
 
   // 把实体关联到新角色卡
   upsertEntity(sessionId, {

@@ -1,39 +1,27 @@
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import ConfirmModal from '../ui/ConfirmModal.jsx';
+import Icon from '../ui/Icon.jsx';
 import { deleteStateEntity, updateStateEntity } from '../../core/api/state-memory.js';
 import { log } from '../../core/utils/logger.js';
-import StateMemoryProfileField from '../state/StateMemoryProfileField.jsx';
 import StateMemoryDynamicState from '../state/StateMemoryDynamicState.jsx';
-import StateMemoryEntityFields from '../state/StateMemoryEntityFields.jsx';
+import StateMemoryProfileGroups from '../state/StateMemoryProfileGroups.jsx';
+import { visibleProfileDefs } from '../state/profile-defs.js';
 
-function groupProfileFields(fieldDefs) {
-  const groups = [];
-  const byKey = new Map();
-  for (const def of fieldDefs) {
-    const key = def.group || '';
-    if (!byKey.has(key)) {
-      const bucket = { key, defs: [] };
-      byKey.set(key, bucket);
-      groups.push(bucket);
-    }
-    byKey.get(key).defs.push(def);
-  }
-  return groups;
+export function PinIcon() {
+  return (
+    <Icon size={16}>
+      <path d="M12 17v5" />
+      <path d="M9 3h6l-1 6 4 4v2H6v-2l4-4z" />
+    </Icon>
+  );
 }
 
-function visibleProfileFieldDefs(schema, entity) {
-  const allFieldDefs = schema?.profileFields?.[entity.type] ?? [];
-  const activeKeys = new Set(entity.activeProfileFields ?? []);
-  const isCardEntity = !!entity.card_id;
-  return allFieldDefs.filter((def) => activeKeys.has(def.key) && (!isCardEntity || def.key === 'outfit'));
-}
-
-export default function StateMemoryEntityDetail({ sessionId, entity, schema, reload, onClosed }) {
+export default function StateMemoryEntityDetail({ sessionId, entity, typeLabel, present, schema, reload, onClosed }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [error, setError] = useState('');
 
-  const grouped = groupProfileFields(visibleProfileFieldDefs(schema, entity));
+  const retired = entity.status === 'retired';
 
   async function runAction(fn, failMessage) {
     setError('');
@@ -43,10 +31,6 @@ export default function StateMemoryEntityDetail({ sessionId, entity, schema, rel
     } catch (err) {
       setError(err.message || failMessage);
     }
-  }
-
-  function commitProfileField(fieldKey, value) {
-    runAction(() => updateStateEntity(sessionId, entity.entity_id, { profile: { [fieldKey]: value } }), '保存失败');
   }
 
   function togglePinned() {
@@ -68,57 +52,47 @@ export default function StateMemoryEntityDetail({ sessionId, entity, schema, rel
   return (
     <div className="we-sm-detail">
       <div className="we-sm-detail-header">
-        <h3>{entity.name}{entity.status === 'retired' ? '（已退场）' : ''}</h3>
-        <label className="we-sm-pin">
-          <input type="checkbox" checked={entity.pinned} onChange={togglePinned} />
-          置顶
-        </label>
-      </div>
-
-      {entity.aliases?.length > 0 && (
-        <p className="we-settings-toggle-hint">别名：{entity.aliases.join('、')}</p>
-      )}
-
-      {entity.card_id && (
-        <div className="we-sm-card-note">
-          <p className="we-settings-toggle-hint">身份信息以角色卡为准</p>
-          {entity.card_description && <p className="we-status-value">{entity.card_description}</p>}
-        </div>
-      )}
-
-      {grouped.map(({ key, defs }) => (
-        <div key={key || 'default'} className="we-state-section">
-          {key && (
-            <div className="we-state-section-title">
-              <span className="we-section-label">{key}</span>
-            </div>
-          )}
-          <div className="we-fields-list">
-            {defs.map((def) => (
-              <StateMemoryProfileField
-                key={def.key}
-                fieldDef={def}
-                entry={entity.profile?.[def.key]}
-                age={def.key === 'age_recorded' ? entity.age : undefined}
-                onCommit={(value) => commitProfileField(def.key, value)}
-              />
-            ))}
+        <div className="we-sm-detail-heading">
+          <h3>{entity.name}</h3>
+          <div className="we-sm-detail-meta">
+            <span className="we-sm-chip">{typeLabel}</span>
+            {present && <span className="we-sm-chip we-sm-chip--accent">在场</span>}
+            {retired && <span className="we-sm-chip">已退场</span>}
+            {entity.aliases?.length > 0 && <span>又名 {entity.aliases.join('、')}</span>}
           </div>
         </div>
-      ))}
+        <div className="we-sm-detail-actions">
+          <button
+            type="button"
+            className={`we-sm-pin-toggle${entity.pinned ? ' is-on' : ''}`}
+            aria-pressed={entity.pinned}
+            aria-label="置顶"
+            title="置顶后每轮都会提供给 AI"
+            onClick={togglePinned}
+          >
+            <PinIcon />
+            {entity.pinned ? '已置顶' : '置顶'}
+          </button>
+          {!retired && (
+            <button
+              type="button"
+              className="we-sm-pin-toggle we-sm-delete-toggle"
+              title="删除后标记为已退场，相关关系一并关闭"
+              onClick={() => setConfirmDelete(true)}
+            >
+              删除实体
+            </button>
+          )}
+        </div>
+      </div>
 
-      <StateMemoryDynamicState sessionId={sessionId} entity={entity} reload={reload} />
-      <StateMemoryEntityFields sessionId={sessionId} entity={entity} reload={reload} />
+      <StateMemoryProfileGroups sessionId={sessionId} entity={entity} defs={visibleProfileDefs(schema, entity)} reload={reload} />
+
+      <StateMemoryDynamicState sessionId={sessionId} entity={entity} reload={reload} includeUserFields />
 
       {error && (
         <p className="we-settings-toggle-hint mt-2 text-[var(--we-color-accent)]" role="alert">{error}</p>
       )}
-
-      <div className="we-sm-detail-footer">
-        <button type="button" className="we-btn we-btn-sm we-btn-danger" onClick={() => setConfirmDelete(true)}>
-          删除实体
-        </button>
-      </div>
 
       {confirmDelete && createPortal(
         <div className="we-tm-confirm-layer">

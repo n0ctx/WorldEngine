@@ -42,7 +42,6 @@ function baseEntity(overrides = {}) {
     fields: [],
     age: { age: 30, text: '30 岁' },
     activeProfileFields: ['gender', 'occupation', 'outfit', 'core_traits'],
-    card_description: null,
     ...overrides,
   };
 }
@@ -55,47 +54,63 @@ const entities = [
 
 const relations = [
   { relation_id: 'r1', subject_id: 'e1', predicate: '成员', object_id: 'e5', object_value: null },
-  { relation_id: 'r2', subject_id: 'e1', predicate: '持有者', object_id: 'e7', object_value: null },
+  { relation_id: 'r2', subject_id: 'e7', predicate: '持有者', object_id: 'e1', object_value: null },
 ];
 
-describe('EntityStateBlock', () => {
-  it('按分组显示已启用且非空的档案字段，immutable 字段带锁形标记，未启用/空字段不显示', () => {
-    render(
-      <EntityStateBlock
-        sessionId="s1"
-        entity={baseEntity()}
-        schema={schema}
-        entities={entities}
-        relations={[]}
-        reload={vi.fn()}
-      />,
-    );
+function renderBlock(props = {}) {
+  return render(
+    <EntityStateBlock
+      sessionId="s1"
+      entity={baseEntity()}
+      schema={schema}
+      entities={entities}
+      relations={[]}
+      reload={vi.fn()}
+      {...props}
+    />,
+  );
+}
 
+function expandProfile() {
+  fireEvent.click(screen.getByRole('button', { name: /查看全部档案/ }));
+}
+
+describe('EntityStateBlock', () => {
+  it('默认只显示现状（动态状态 + 用户字段），档案收起；展开后按分组显示全部启用字段', () => {
+    renderBlock({ entity: baseEntity({ fields: [{ field_key: 'favor', label: '好感', type: 'number', update_mode: 'llm_auto', value: 60 }] }) });
+    expect(screen.getByText('现状')).toBeInTheDocument();
+    expect(screen.getByText('好感')).toBeInTheDocument();
+    expect(screen.queryByText('职业')).not.toBeInTheDocument();
+
+    expect(screen.getByRole('button', { name: '查看全部档案（4 项）' })).toBeInTheDocument();
+    expandProfile();
     expect(screen.getByText('身份')).toBeInTheDocument();
     expect(screen.getByText('职业')).toBeInTheDocument();
-    // core_traits 在 activeProfileFields 里但值为空（profile 没有该字段），不应显示
-    expect(screen.queryByText('核心性格')).not.toBeInTheDocument();
-    // immutable 字段（性别）带锁形标记：查找带 title 属性的 key（悬停显示证据）
-    const genderKey = screen.getByText('性别').closest('.we-status-key');
-    expect(genderKey.getAttribute('title')).toContain('他是个男人');
-    expect(genderKey.querySelector('svg')).not.toBeNull();
+    expect(screen.getByText('人格')).toBeInTheDocument();
+    expect(screen.getByText('核心性格')).toBeInTheDocument();
+    expect(screen.getByText('前海军军官').closest('.we-status-field')).toHaveTextContent('职业');
   });
 
-  it('卡片实体的档案组改为只读摘要，「穿着」仍可编辑', async () => {
-    mocks.updateStateEntity.mockResolvedValue({});
-    render(
-      <EntityStateBlock
-        sessionId="s1"
-        entity={baseEntity({ card_id: 'char-1', card_description: '一位神秘的前军官，行踪不定。', profile: { outfit: { value: ['黑色风衣'], evidence: '', round: 1 } } })}
-        schema={schema}
-        entities={entities}
-        relations={[]}
-        reload={vi.fn()}
-      />,
-    );
+  it('本轮变化的档案字段单列在「本轮变化」并高亮，现状里变化的行高亮', () => {
+    renderBlock({ diffKeys: new Set(['e1:profile.occupation', 'e1:state.位置']) });
+    const changes = screen.getByText('本轮变化').closest('.we-state-section');
+    expect(changes).toHaveTextContent('职业');
+    expect(changes).not.toHaveTextContent('性别');
+    expect(screen.getByText('职业').closest('.we-status-field')).toHaveClass('we-status-field--changed');
+    expect(screen.getByText('位置').closest('.we-status-field')).toHaveClass('we-status-field--changed');
+    expect(screen.getByText('伤势').closest('.we-status-field')).not.toHaveClass('we-status-field--changed');
+  });
 
-    expect(screen.getByText('一位神秘的前军官，行踪不定。')).toBeInTheDocument();
-    expect(screen.queryByText('职业')).not.toBeInTheDocument();
+  it('没有档案变化时不显示「本轮变化」', () => {
+    renderBlock();
+    expect(screen.queryByText('本轮变化')).not.toBeInTheDocument();
+  });
+
+  it('关联角色卡的实体与其他角色一样显示全部档案', () => {
+    renderBlock({ entity: baseEntity({ card_id: 'char-1', profile: { outfit: { value: ['黑色风衣'], evidence: '', round: 1 } } }) });
+    expect(screen.getByRole('button', { name: '查看全部档案（4 项）' })).toBeInTheDocument();
+    expandProfile();
+    expect(screen.getByText('职业')).toBeInTheDocument();
     expect(screen.getByText('穿着')).toBeInTheDocument();
     expect(screen.getByText('黑色风衣')).toBeInTheDocument();
   });
@@ -103,16 +118,7 @@ describe('EntityStateBlock', () => {
   it('现状小节「位置」总排第一，可编辑与删除（清空即删除）', async () => {
     mocks.updateStateEntity.mockResolvedValue({});
     const reload = vi.fn();
-    render(
-      <EntityStateBlock
-        sessionId="s1"
-        entity={baseEntity()}
-        schema={schema}
-        entities={entities}
-        relations={[]}
-        reload={reload}
-      />,
-    );
+    renderBlock({ reload });
 
     const keys = screen.getAllByText(/位置|伤势/);
     expect(keys[0]).toHaveTextContent('位置');
@@ -128,18 +134,29 @@ describe('EntityStateBlock', () => {
     expect(reload).toHaveBeenCalled();
   });
 
-  it('所属组织与持有物品从关系派生（本实体为主体），只读显示', () => {
-    render(
-      <EntityStateBlock
-        sessionId="s1"
-        entity={baseEntity()}
-        schema={schema}
-        entities={entities}
-        relations={relations}
-        reload={vi.fn()}
-      />,
-    );
+  it('传入 userRows 时现状显示这些行、不显示实体自带字段，保存走 onSaveUserRow', async () => {
+    const onSaveUserRow = vi.fn().mockResolvedValue();
+    renderBlock({
+      entity: baseEntity({ fields: [{ field_key: 'favor', label: '好感', type: 'number', update_mode: 'llm_auto', value: 60 }] }),
+      userRows: [{ field_key: 'mood', label: '心情', type: 'text', update_mode: 'llm_auto', effective_value_json: '"平静"' }],
+      userChangedKeys: new Set(['mood']),
+      onSaveUserRow,
+    });
+    expect(screen.queryByText('好感')).not.toBeInTheDocument();
+    expect(screen.getByText('心情').closest('.we-status-field')).toHaveClass('we-status-field--changed');
 
+    fireEvent.click(screen.getByText('平静'));
+    const input = screen.getByDisplayValue('平静');
+    fireEvent.change(input, { target: { value: '烦躁' } });
+    fireEvent.blur(input);
+    await waitFor(() => {
+      expect(onSaveUserRow).toHaveBeenCalledWith('mood', JSON.stringify('烦躁'), undefined);
+    });
+  });
+
+  it('展开后显示关系派生的所属组织（本实体 —成员→ 组织）与持有物品（物品 —持有者→ 本实体）', () => {
+    renderBlock({ relations });
+    expandProfile();
     expect(screen.getByText('所属')).toBeInTheDocument();
     expect(screen.getByText('黑潮会')).toBeInTheDocument();
     expect(screen.getByText('持有')).toBeInTheDocument();
@@ -149,17 +166,10 @@ describe('EntityStateBlock', () => {
   it('编辑档案字段调用 PATCH profile', async () => {
     mocks.updateStateEntity.mockResolvedValue({});
     const reload = vi.fn();
-    render(
-      <EntityStateBlock
-        sessionId="s1"
-        entity={baseEntity()}
-        schema={schema}
-        entities={entities}
-        relations={[]}
-        reload={reload}
-      />,
-    );
+    renderBlock({ reload });
+    expandProfile();
 
+    fireEvent.click(screen.getByText('前海军军官'));
     const occupationInput = screen.getByDisplayValue('前海军军官');
     fireEvent.change(occupationInput, { target: { value: '海关顾问' } });
     fireEvent.blur(occupationInput);
@@ -168,24 +178,5 @@ describe('EntityStateBlock', () => {
       expect(mocks.updateStateEntity).toHaveBeenCalledWith('s1', 'e1', { profile: { occupation: '海关顾问' } });
     });
     expect(reload).toHaveBeenCalled();
-  });
-
-  it('diffKeys 命中的档案行和现状行带高亮类，未命中的不带', () => {
-    render(
-      <EntityStateBlock
-        sessionId="s1"
-        entity={baseEntity()}
-        schema={schema}
-        entities={entities}
-        relations={[]}
-        diffKeys={new Set(['e1:profile.occupation', 'e1:state.位置'])}
-        reload={vi.fn()}
-      />,
-    );
-
-    expect(screen.getByText('职业').closest('.we-sm-profile-row')).toHaveClass('we-status-field--changed');
-    expect(screen.getByText('性别').closest('.we-sm-profile-row')).not.toHaveClass('we-status-field--changed');
-    expect(screen.getByText('位置').closest('.we-status-field')).toHaveClass('we-status-field--changed');
-    expect(screen.getByText('伤势').closest('.we-status-field')).not.toHaveClass('we-status-field--changed');
   });
 });

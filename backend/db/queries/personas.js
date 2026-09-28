@@ -102,6 +102,11 @@ export function updatePersonaById(id, data = {}) {
   return db.prepare('SELECT * FROM personas WHERE id = ?').get(id);
 }
 
+/** 写入人设的档案初始值（已校验的 {字段key: 值} JSON）。 */
+export function setPersonaProfileDefaults(id, profileDefaultsJson) {
+  db.prepare('UPDATE personas SET profile_defaults_json = ?, updated_at = ? WHERE id = ?').run(profileDefaultsJson, Date.now(), id);
+}
+
 /**
  * 删除 persona。若该世界下仅剩一条 persona，抛出 Error 禁止删除。
  * 若被删除的是 active persona，同时将 worlds.active_persona_id 置 NULL。

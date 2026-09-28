@@ -47,9 +47,8 @@ export function formatDatetimeChinese(iso, prefix = '') {
 }
 
 /**
- * 状态字段值 → 展示字符串（与 StatusSection.parseValue 逐字节一致，抽出来给
- * StateChangeCard 复用，避免"情境卡"里的旧值/新值格式化和完整表格的格式化各写一份、
- * 慢慢跑偏）。JSON.parse 成功时才按类型格式化；失败时整体回退为原始字符串
+ * 状态字段值 → 展示字符串（StatusSection.parseValue 即此函数）。
+ * JSON.parse 成功时才按类型格式化；失败时整体回退为原始字符串
  * （wsf.default_value 之类的裸字符串场景），datetime 例外单独尝试。
  */
 export function formatFieldValue(effectiveValueJson, type, prefix) {

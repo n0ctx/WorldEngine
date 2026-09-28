@@ -9,7 +9,7 @@
  *
  * 对外接口：
  *   selectRelevantEntities(sessionId, { userMessage, lastAssistant }) → [{ entityId, reason }]
- *   renderStoryState(sessionId, { worldId, mainCharacterEntityId, userMessage, lastAssistant, budget }) → string
+ *   renderStoryState(sessionId, { worldId, userMessage, lastAssistant, budget }) → string
  *   renderEntityDirectory(sessionId, budget = STATE_DIRECTORY_BUDGET) → string
  *   renderWorldFactsForUpdate(sessionId) → string
  *   renderEntityDetailsForUpdate(sessionId, entityIds, { worldId, mainCharacterEntityId }) → string
@@ -31,11 +31,12 @@ import { getCharacterById } from '../db/queries/characters.js';
 import {
   getProfileFieldDefinitions,
   resolveActiveProfileFields,
+  isPlaceholderValue,
   DYNAMIC_LOCATION_KEY,
 } from './state-memory-schema.js';
 import { parseWorldDate, deriveAge } from '../utils/world-date.js';
 import { countTokens } from '../utils/token-counter.js';
-import { STATE_DIRECTORY_BUDGET, STATE_NAME_MATCH_MIN } from '../utils/constants.js';
+import { STATE_DIRECTORY_BUDGET, STATE_NAME_MATCH_MIN, STATE_PROFILE_FILL_PER_ROUND } from '../utils/constants.js';
 
 const STORY_STATE_HINT = '以下是当前场景相关人物与事物的既定设定和现状。人物的身份、外貌、性格、说话方式必须与此一致；列出不代表必须登场。';
 const NON_CHARACTER_TYPE_LABELS = { location: '地点', item: '物品', faction: '组织', other: '其他' };
@@ -151,17 +152,6 @@ function activeProfileKeysFactory(worldId) {
   return (type) => {
     if (!cache.has(type)) cache.set(type, resolveActiveKeySet(worldId, type));
     return cache.get(type);
-  };
-}
-
-function cardSummaryFactory() {
-  const cache = new Map();
-  return (cardId) => {
-    if (!cache.has(cardId)) {
-      const card = getCharacterById(cardId);
-      cache.set(cardId, card?.description ? card.description.trim() : '');
-    }
-    return cache.get(cardId);
   };
 }
 
@@ -320,17 +310,11 @@ function addOptionalFragments(fragments, bucket, state, entries) {
   }
 }
 
-/** 档案相关片段：card_id 实体只有一条卡片简介；否则按身份/外貌/性格/经历拆成多条可裁剪片段。 */
+/** 档案相关片段：按身份/外貌/性格/经历拆成多条可裁剪片段。 */
 function buildProfileFragments(entity, ctx, state, bucket, fragments) {
   const details = ctx.details[entity.entity_id] || { profile: {}, dynamic: {} };
   const activeKeys = ctx.activeProfileKeys(entity.type);
   const requiredParts = [];
-
-  const card = entity.card_id ? ctx.getCardSummary(entity.card_id) : '';
-  if (card) {
-    addOptionalFragment(fragments, bucket, state, card, () => { state.cardSummaryText = card; });
-    return requiredParts;
-  }
 
   const identity = buildIdentityParts(details.profile, activeKeys, ctx.worldDate);
   state.identityCore = identity.core;
@@ -360,7 +344,7 @@ function buildProfileFragments(entity, ctx, state, bucket, fragments) {
   return requiredParts;
 }
 
-/** 穿着、所属/持有、现状、用户字段：card 与非 card 角色都适用的片段。 */
+/** 穿着、所属/持有、现状、用户字段。 */
 function buildCommonFragments(entity, ctx, state, bucket, fragments) {
   const details = ctx.details[entity.entity_id] || { profile: {}, dynamic: {} };
   const activeKeys = ctx.activeProfileKeys(entity.type);
@@ -393,18 +377,8 @@ function buildCharacterState(entity, ctx) {
   return { state, requiredText: requiredParts.join('\n'), fragments };
 }
 
-/** 对话模式主角色：身份信息以角色卡为准，只渲染现状、关系、事项。 */
-function buildMainCharacterState(entity, ctx) {
-  const details = ctx.details[entity.entity_id] || { profile: {}, dynamic: {} };
-  const { bucket, state, fragments } = initCharacterState(entity, ctx);
-  const status = buildStatusText(details.dynamic);
-  if (status) fragments.push(makeFragment(bucket, state, status, () => { state.statusText = status; }));
-  return { state, requiredText: '', fragments };
-}
-
 function finalizeCharacterBlock(state) {
   const lines = [];
-  if (state.cardSummaryText) lines.push(`简介：${state.cardSummaryText}`);
 
   const identityBits = [state.identityCore, state.identityOrigin].filter(Boolean);
   let identityLine = identityBits.length ? `身份：${identityBits.join('，')}` : '';
@@ -436,7 +410,7 @@ function finalizeCharacterBlock(state) {
 }
 
 // ============================
-// story_state：关系 / 事项 / 世界事实 / 玩家穿着
+// story_state：关系 / 事项 / 世界事实 / 玩家行
 // ============================
 
 function buildRelationLines(relations, nameOf) {
@@ -476,16 +450,16 @@ function buildEntityIndex(sessionId) {
 }
 
 /**
- * 玩家穿着行：不受选取规则影响、不参与预算裁剪，固定跟在世界事实之后。
- * 世界里有同义玩家字段（导致 outfit 停用）时不输出。
+ * 玩家行（位置、穿着）：不受选取规则影响、不参与预算裁剪，固定跟在世界事实之后。
+ * 世界里有同义玩家字段（导致 outfit 停用）时不输出穿着。
  */
-function buildPlayerOutfitLine(sessionId, worldId, player) {
+function buildPlayerLine(sessionId, worldId, player) {
   if (!player) return '';
-  const activeKeys = resolveActiveKeySet(worldId, 'player');
-  if (!activeKeys.has('outfit')) return '';
-  const details = getEntityDetails(sessionId, [player.entity_id]);
-  const outfit = buildOutfitText(details[player.entity_id]?.profile || {}, activeKeys);
-  return outfit ? `【${player.name}】穿着：${outfit}` : '';
+  const detail = getEntityDetails(sessionId, [player.entity_id])[player.entity_id];
+  const location = detail?.dynamic?.[DYNAMIC_LOCATION_KEY];
+  const outfit = buildOutfitText(detail?.profile || {}, resolveActiveKeySet(worldId, 'player'));
+  const bits = [location ? `位置：${location}` : '', outfit ? `穿着：${outfit}` : ''].filter(Boolean);
+  return bits.length ? `【${player.name}】${bits.join('｜')}` : '';
 }
 
 function buildRenderContext(sessionId, { worldId, selectedIds, worldProfile, nameOf }) {
@@ -500,24 +474,23 @@ function buildRenderContext(sessionId, { worldId, selectedIds, worldProfile, nam
   return {
     details, relations, threads, presenceIds, fieldValues, userFields, worldDate, nameOf,
     activeProfileKeys: activeProfileKeysFactory(worldId),
-    getCardSummary: cardSummaryFactory(),
   };
 }
 
 /**
- * 渲染注入主模型的 `<story_state>` 段。世界时间/地点/世界事实/玩家穿着不受预算裁剪；
+ * 渲染注入主模型的 `<story_state>` 段。世界时间/地点/世界事实/玩家位置与穿着不受预算裁剪；
  * 其余内容按优先级放入 budget（token 数）以内，超出时从末尾裁掉；角色的身份组核心字段
  * （性别/年龄/种族/职业）和说话方式永远保留。无任何内容时返回空串。
  */
 export function renderStoryState(sessionId, opts = {}) {
-  const { worldId, mainCharacterEntityId, userMessage, lastAssistant, budget = DEFAULT_STORY_STATE_BUDGET } = opts;
+  const { worldId, userMessage, lastAssistant, budget = DEFAULT_STORY_STATE_BUDGET } = opts;
   const worldProfile = getCurrentWorldProfile(sessionId);
   const facts = listCurrentWorldFacts(sessionId);
   const headerText = buildWorldHeaderText(worldProfile, facts);
 
   const { allEntities, byId, nameOf } = buildEntityIndex(sessionId);
   const activePlayer = allEntities.find((e) => e.type === 'player' && e.status === 'active') ?? null;
-  const playerOutfitLine = buildPlayerOutfitLine(sessionId, worldId, activePlayer);
+  const playerLine = buildPlayerLine(sessionId, worldId, activePlayer);
 
   const selection = selectRelevantEntities(sessionId, { userMessage, lastAssistant });
   const selectedIds = selection.map((s) => s.entityId).filter((id) => byId.has(id) && byId.get(id).type !== 'player');
@@ -538,7 +511,7 @@ export function renderStoryState(sessionId, opts = {}) {
       fragments.push(makeSimpleFragment(2, block, () => entityOutput.set(entityId, block)));
       return;
     }
-    const built = entityId === mainCharacterEntityId ? buildMainCharacterState(entity, ctx) : buildCharacterState(entity, ctx);
+    const built = buildCharacterState(entity, ctx);
     characterStates.push({ entityId, built });
     if (built.requiredText) {
       used += countTokens(built.state.header) + countTokens(built.requiredText);
@@ -566,7 +539,7 @@ export function renderStoryState(sessionId, opts = {}) {
   });
 
   const entityTexts = selectedIds.map((id) => entityOutput.get(id)).filter(Boolean);
-  const body = [headerText, playerOutfitLine, ...entityTexts, ...resultRelations, ...resultThreads]
+  const body = [headerText, playerLine, ...entityTexts, ...resultRelations, ...resultThreads]
     .filter(Boolean).join('\n');
   return body ? `<story_state hint="${STORY_STATE_HINT}">\n${body}\n</story_state>` : '';
 }
@@ -593,6 +566,75 @@ export function renderEntityDirectory(sessionId, budget = STATE_DIRECTORY_BUDGET
   return kept.map((k) => k.line).join('\n');
 }
 
+/** 存储的 JSON 取值是否为空：null / 空串 / 空数组 /「未知」「无」这类占位值；解析不了的原样按文本判断。 */
+function isEmptyStoredValue(raw) {
+  if (raw == null) return true;
+  let value;
+  try { value = JSON.parse(raw); } catch { value = raw; }
+  return Array.isArray(value) ? value.length === 0 : isPlaceholderValue(value);
+}
+
+/** 关联角色卡的实体附上卡片简介，补档案时以卡为准 */
+function cardNote(entity) {
+  const description = entity.card_id ? getCharacterById(entity.card_id)?.description?.trim() : '';
+  return description ? `角色卡：${description}` : null;
+}
+
+function isPerson(entity) {
+  return entity.type === 'player' || entity.type === 'character';
+}
+
+/**
+ * 有空缺、本轮需要补全的实体：text 每行 e<seq>｜名字｜缺档案：key、…｜缺字段：key、…｜缺现状：位置｜角色卡：简介，
+ * entityIds 供调用方把这些实体的详情一并交给 AI（未出场的实体也要按已有信息补）。
+ * 不含已退场实体；与本轮相关的实体优先，其余按编号，人物与事物每轮各最多 STATE_PROFILE_FILL_PER_ROUND 个。
+ */
+export function renderProfileGapsForUpdate(sessionId, { worldId, priorityIds, mainCharacterEntityId } = {}) {
+  const candidates = listCurrentEntities(sessionId).filter((e) => e.status === 'active');
+  const ids = candidates.map((e) => e.entity_id);
+  const details = getEntityDetails(sessionId, ids);
+  const fieldValues = getEntityStateValues(sessionId, ids);
+  const userFields = resolveWorldCharacterFields(worldId).filter((f) => f.update_mode === 'llm_auto');
+  const activeKeys = activeProfileKeysFactory(worldId);
+  const priority = priorityIds ?? new Set();
+  const taken = { person: 0, thing: 0 };
+  const gaps = candidates
+    .map((entity) => {
+      const { profile = {}, dynamic = {} } = details[entity.entity_id] ?? {};
+      const values = fieldValues[entity.entity_id] ?? {};
+      // 年龄按出生日期自动计算，不算缺
+      const profileKeys = getProfileFieldDefinitions(entity.type)
+        .filter((def) => def.kind !== 'age' && activeKeys(entity.type).has(def.key))
+        .filter((def) => isEmptyStoredValue(profile[def.key]?.value_json))
+        .map((def) => def.key);
+      // 只查 NPC 角色：主角色的字段走 char_N
+      const fieldKeys = entity.type === 'character' && entity.entity_id !== mainCharacterEntityId
+        ? userFields.filter((field) => isEmptyStoredValue(values[field.field_key] ?? field.default_value)).map((field) => field.field_key)
+        : [];
+      // 玩家和角色都要有位置
+      const dynamicKeys = isPerson(entity) && !dynamic[DYNAMIC_LOCATION_KEY] ? [DYNAMIC_LOCATION_KEY] : [];
+      return { entity, profileKeys, fieldKeys, dynamicKeys };
+    })
+    .filter(({ profileKeys, fieldKeys, dynamicKeys }) => profileKeys.length + fieldKeys.length + dynamicKeys.length > 0)
+    .sort((a, b) => Number(priority.has(b.entity.entity_id)) - Number(priority.has(a.entity.entity_id)) || a.entity.seq - b.entity.seq)
+    // 人物（玩家 / 角色）与事物（地点 / 物品 / 势力 / 其他）各占一份名额，事物不会被角色挤掉
+    .filter((gap) => {
+      const kind = isPerson(gap.entity) ? 'person' : 'thing';
+      taken[kind] += 1;
+      return taken[kind] <= STATE_PROFILE_FILL_PER_ROUND;
+    });
+  return {
+    entityIds: gaps.map(({ entity }) => entity.entity_id),
+    text: gaps.map(({ entity, profileKeys, fieldKeys, dynamicKeys }) => [
+      `e${entity.seq}｜${entity.name}`,
+      profileKeys.length ? `缺档案：${profileKeys.join('、')}` : null,
+      fieldKeys.length ? `缺字段：${fieldKeys.join('、')}` : null,
+      dynamicKeys.length ? `缺现状：${dynamicKeys.join('、')}` : null,
+      profileKeys.length ? cardNote(entity) : null,
+    ].filter(Boolean).join('｜')).join('\n'),
+  };
+}
+
 /** 当前全部世界事实：f<seq>｜内容。 */
 export function renderWorldFactsForUpdate(sessionId) {
   return listCurrentWorldFacts(sessionId).map((f) => `f${f.seq}｜${f.text}`).join('\n');
@@ -616,34 +658,24 @@ function renderEntityDetailBlock(entity, ctx) {
   const lines = [`e${entity.seq}｜${entity.type}｜${entity.name}｜${aliases}`];
   const detail = ctx.details[entity.entity_id] || { profile: {}, dynamic: {} };
 
-  if (entity.entity_id !== ctx.mainCharacterEntityId) {
-    const activeKeys = ctx.activeKeysFn(entity.type);
-    const defs = getProfileFieldDefinitions(entity.type);
-    const profileLine = defs
-      .filter((def) => activeKeys.has(def.key) && detail.profile[def.key])
-      .map((def) => `${def.key}=${formatProfileValueForModel(detail.profile[def.key], def)}（${def.mutability}）`)
-      .join('；');
-    if (profileLine) lines.push(`档案：${profileLine}`);
-  }
+  const activeKeys = ctx.activeKeysFn(entity.type);
+  const profileLine = getProfileFieldDefinitions(entity.type)
+    .filter((def) => activeKeys.has(def.key) && detail.profile[def.key])
+    .map((def) => `${def.key}=${formatProfileValueForModel(detail.profile[def.key], def)}（${def.mutability}）`)
+    .join('；');
+  if (profileLine) lines.push(`档案：${profileLine}`);
 
-  // player 只输出编号、名字与 outfit：身份信息以人设为准，不记录现状与用户字段。
-  if (entity.type !== 'player') {
-    const status = buildStatusText(detail.dynamic);
-    if (status) lines.push(`现状：${status}`);
+  const status = buildStatusText(detail.dynamic);
+  if (status) lines.push(`现状：${status}`);
 
-    if (entity.type === 'character') {
-      const fieldsText = buildFieldsText(ctx.fieldValues[entity.entity_id] || {}, ctx.userFields || []);
-      if (fieldsText) lines.push(`字段：${fieldsText}`);
-    }
+  if (entity.type === 'character') {
+    const fieldsText = buildFieldsText(ctx.fieldValues[entity.entity_id] || {}, ctx.userFields || []);
+    if (fieldsText) lines.push(`字段：${fieldsText}`);
   }
 
   return lines.join('\n');
 }
 
-/**
- * 带 e<seq> 编号的相关实体详情：档案（字段=值 附可变性）、动态状态、用户字段当前值，
- * 以及涉及它们的关系（r<seq>）与进行中事项（t<seq>）。用于状态更新调用的 user 提示词。
- */
 export function renderEntityDetailsForUpdate(sessionId, entityIds, { worldId, mainCharacterEntityId } = {}) {
   if (!entityIds || entityIds.length === 0) return '';
   const { byId, nameOf } = buildEntityIndex(sessionId);

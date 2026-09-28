@@ -246,7 +246,7 @@ function ResponseSettings({
 
       <ToggleRow
         label="显示 token 消耗"
-        hint="在每条 AI 回复底部显示本轮 token 用量，含缓存命中/写入统计（仅 Anthropic 模型）"
+        hint="在每条 AI 回复底部显示本轮 token 用量；服务商返回缓存数据时一并显示缓存命中 / 写入，本地模型可能没有用量数据"
         checked={showTokenUsage}
         onChange={onToggleShowTokenUsage}
       />

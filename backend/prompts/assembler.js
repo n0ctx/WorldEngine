@@ -46,7 +46,6 @@ import { getConfig } from '../services/config.js';
 import { matchEntries } from './entry-matcher.js';
 import { renderCharacterState } from '../memory/recall.js';
 import { recallTurns } from '../memory/long-term-recall.js';
-import { listCurrentEntities } from '../db/queries/state-memory.js';
 
 import { getOrCreatePersona } from '../services/personas.js';
 import { applyRules } from '../utils/regex-runner.js';
@@ -133,14 +132,6 @@ function resolveRecentTurnContext(uncompressedMessages) {
     userMessage: getCurrentUserMessage(uncompressedMessages)?.content ?? '',
     lastAssistant: uncompressedMessages.findLast((msg) => msg.role === 'assistant')?.content ?? '',
   };
-}
-
-/** 对话模式的主角色在状态记忆里对应的实体 id；不存在则返回 null（供 [7.5] story_state 判定主角色视角） */
-function resolveMainCharacterEntityId(sessionId, characterId) {
-  const match = listCurrentEntities(sessionId).find(
-    (e) => e.type === 'character' && e.status === 'active' && e.card_id === characterId,
-  );
-  return match ? match.entity_id : null;
 }
 
 // keepLatestUser：续写模式不摘除最后一条 user。普通生成时最后一条 user 是"本轮新输入"，
@@ -306,7 +297,6 @@ async function buildChatSystemPrompt(sessionId, character, world, config, option
   const { userMessage, lastAssistant } = resolveRecentTurnContext(uncompressedMessages);
   const storyStateSection = renderStoryStateSection(sessionId, {
     worldId: world.id,
-    mainCharacterEntityId: resolveMainCharacterEntityId(sessionId, character.id),
     userMessage,
     lastAssistant,
     budget: config.state_injection_token_budget,
@@ -436,11 +426,10 @@ async function buildWritingCoreSystemParts(sessionId, world, writing, persona, o
   // [5] 世界状态 / [6] 玩家状态
   pushSharedStateSections(world.id, sessionId, tv, dynamicSystemParts);
 
-  // [7] 状态记忆（写作模式下没有单一主角色，mainCharacterEntityId 传 null）
+  // [7] 状态记忆
   const { userMessage, lastAssistant } = resolveRecentTurnContext(uncompressedMessages);
   const storyStateSection = renderStoryStateSection(sessionId, {
     worldId: world.id,
-    mainCharacterEntityId: null,
     userMessage,
     lastAssistant,
     budget: stateInjectionBudget,
