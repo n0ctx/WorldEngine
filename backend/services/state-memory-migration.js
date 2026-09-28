@@ -12,8 +12,9 @@
  *   1. 附近角色 → character 实体：已保存置顶，persona 进档案 background 第一项；
  *      五个默认字段的值转入档案对应字段，其余字段原样转入 session_entity_state_values。
  *   2. 四张表（tables.json 当前行）→ 实体 / 关系 / 事项，按名字与别名匹配或新建实体。
- *   0A. 世界当前时间 / 地点 → state_world_profile；旧条件里的 `世界.<旧标签>`
- *       改写为保留名 `世界.时间` / `世界.地点`；随后删除这两个世界字段及其全部取值。
+ *   0A. 世界当前时间 / 地点（diary_time / location 预设字段，及标签为「时间」「地点」的自建字段）
+ *       → state_world_profile；旧条件里的 `世界.<旧标签>` 改写为保留名 `世界.时间` / `世界.地点`；
+ *       随后删除这些世界字段及其全部取值。
  *   3. 删除旧表 session_nearby_characters / session_nearby_character_state_values、
  *      turn_records.table_memory_snapshot 列（存在时）。
  *
@@ -60,6 +61,7 @@ import {
 } from '../db/queries/state-memory.js';
 import { upsertEntityStateValues } from '../db/queries/session-entity-state-values.js';
 import { getPersonaById, getPersonaByWorldId } from '../db/queries/personas.js';
+import { getWorldStateFieldsByWorldId } from '../db/queries/world-state-fields.js';
 
 const TABLE_MEMORY_DIR = path.join(DATA_ROOT, 'table_memory');
 const MIGRATION_ROUND = 0;
@@ -445,10 +447,30 @@ function resolveSessionFieldValue(sessionId, worldId, fieldKey) {
   return resolveWorldFieldFallback(worldId, fieldKey);
 }
 
+/**
+ * 世界里承担「时间」「地点」的字段：field_key 为 diary_time / location 的预设字段，
+ * 以及标签为「时间」「地点」的自建字段。取值优先用预设字段，没有时用第一个同名自建字段。
+ */
+function resolveTimeLocationFields(worldId) {
+  const fields = getWorldStateFieldsByWorldId(worldId);
+  const pick = (fieldKey, label) => {
+    const matched = fields.filter((f) => f.field_key === fieldKey || f.label?.trim() === label);
+    const primary = matched.find((f) => f.field_key === fieldKey) ?? matched[0] ?? null;
+    return { primaryKey: primary?.field_key ?? null, fields: matched };
+  };
+  return {
+    time: pick('diary_time', RESERVED_WORLD_FIELD_LABELS[0]),
+    location: pick('location', RESERVED_WORLD_FIELD_LABELS[1]),
+  };
+}
+
 export function migrateSessionWorldProfile(sessionId, worldId, registry) {
   if (!worldId) return;
-  const time = resolveSessionFieldValue(sessionId, worldId, 'diary_time');
-  const location = resolveSessionFieldValue(sessionId, worldId, 'location');
+  const { time: timeFields, location: locationFields } = resolveTimeLocationFields(worldId);
+  const time = timeFields.primaryKey ? resolveSessionFieldValue(sessionId, worldId, timeFields.primaryKey) : null;
+  const location = locationFields.primaryKey
+    ? resolveSessionFieldValue(sessionId, worldId, locationFields.primaryKey)
+    : null;
   const locationEntityId = location ? registry.findByName(location) : null;
   upsertWorldProfile(sessionId, 'time', time !== WORLD_TIME_EMPTY_DEFAULT ? time : null, null, MIGRATION_ROUND);
   upsertWorldProfile(sessionId, 'location', location, locationEntityId, MIGRATION_ROUND);
@@ -458,17 +480,18 @@ export function migrateSessionWorldProfile(sessionId, worldId, registry) {
 // 第零步 A（续）：删除两个世界字段，改写引用它们的条目条件
 // ============================
 
-function migrateWorldFieldToReserved(worldId, fieldKey, reservedLabel) {
-  const field = getWorldStateField(worldId, fieldKey);
-  if (!field) return;
-  rewriteEntryConditionsTargetField(worldId, `世界.${field.label}`, `世界.${reservedLabel}`);
-  deleteWorldStateFieldAndValues(worldId, fieldKey);
+function migrateWorldFieldsToReserved(worldId, fields, reservedLabel) {
+  for (const field of fields) {
+    rewriteEntryConditionsTargetField(worldId, `世界.${field.label}`, `世界.${reservedLabel}`);
+    deleteWorldStateFieldAndValues(worldId, field.field_key);
+  }
 }
 
 function migrateAllWorldsTimeLocationFields() {
   const worldIds = listAllWorldIds();
   for (const worldId of worldIds) {
-    migrateWorldFieldToReserved(worldId, 'diary_time', RESERVED_WORLD_FIELD_LABELS[0]);
-    migrateWorldFieldToReserved(worldId, 'location', RESERVED_WORLD_FIELD_LABELS[1]);
+    const { time, location } = resolveTimeLocationFields(worldId);
+    migrateWorldFieldsToReserved(worldId, time.fields, RESERVED_WORLD_FIELD_LABELS[0]);
+    migrateWorldFieldsToReserved(worldId, location.fields, RESERVED_WORLD_FIELD_LABELS[1]);
   }
 }

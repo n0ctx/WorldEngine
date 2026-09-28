@@ -374,6 +374,19 @@ test('完整旧数据迁移：附近角色、四张表、世界档案、条件�
 
   insertTurnRecord(db, session.id, { round_index: 1, table_memory_snapshot: '{"legacy":true}' });
 
+  // 自建字段：field_key 不是预设值，但标签为「时间」「地点」，同样迁入世界档案并删除
+  const customWorld = insertWorld(db);
+  const customSession = insertSession(db, { world_id: customWorld.id, mode: 'writing' });
+  insertWorldStateField(db, customWorld.id, { field_key: 'now_time', label: '时间', type: 'text', default_value: '' });
+  insertWorldStateField(db, customWorld.id, { field_key: 'locate', label: '地点', type: 'text', default_value: '' });
+  insertWorldStateField(db, customWorld.id, { field_key: 'weather', label: '天气', type: 'text', default_value: '' });
+  insertSessionWorldStateValue(db, customSession.id, customWorld.id, {
+    field_key: 'now_time', runtime_value_json: JSON.stringify('第三天傍晚'),
+  });
+  insertSessionWorldStateValue(db, customSession.id, customWorld.id, {
+    field_key: 'locate', runtime_value_json: JSON.stringify('城南码头'),
+  });
+
   // 对话会话：旧表格用人设名、字面「玩家」和主角色名指代玩家与主角色
   const persona = insertPersona(db, world.id, { name: '顾遥' });
   const character = insertCharacter(db, world.id, { name: '苏禾' });
@@ -494,6 +507,19 @@ test('完整旧数据迁移：附近角色、四张表、世界档案、条件�
 
   // 实体总数：玩家（世界人设顾遥）、沈彦、路人甲、林乔、银戒指、神秘匕首、旧港仓库、黑潮会 = 8
   assert.equal(currentEntities(session.id).length, 8);
+
+  const customProfile = worldProfileOf(customSession.id);
+  assert.equal(customProfile.time.value, '第三天傍晚');
+  assert.equal(customProfile.location.value, '城南码头');
+  assert.deepEqual(
+    db.prepare('SELECT field_key FROM world_state_fields WHERE world_id = ? ORDER BY field_key').all(customWorld.id)
+      .map((f) => f.field_key),
+    ['weather'],
+  );
+  assert.equal(
+    db.prepare('SELECT COUNT(*) AS n FROM session_world_state_values WHERE session_id = ?').get(customSession.id).n,
+    0,
+  );
 
   // 对话会话：人设名与字面「玩家」都落到 player 实体，主角色名落到带 card_id 的主角色实体，不另建同名角色
   const chatEntities = currentEntities(chatSession.id);
