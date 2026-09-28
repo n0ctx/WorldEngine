@@ -156,7 +156,7 @@ function DiaryTab({
   );
 }
 
-/** 世界区块：档案组（WorldProfileGroup）+ 用户字段组（StateChangeCard，不再置顶 diary_time） */
+/** 世界区块：档案组（WorldProfileGroup）+ 用户字段组（StateChangeCard，按字段定义顺序展示） */
 function WorldTab({
   worldName, worldResetting, handleResetWorld, stateError, renderLoadError,
   sessionId, stateMemory, reloadStateMemory, worldRows, stateDiff, stateDiffReady, saveStateValue, templateCtx,

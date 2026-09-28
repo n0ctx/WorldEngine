@@ -1055,28 +1055,6 @@
       "largest_function_name": "upsertSessionCharacterStateValue",
       "sections": []
     },
-    "backend/db/queries/session-nearby-character-state-values.js": {
-      "kind": "code",
-      "metrics": {
-        "file_tokens": 332,
-        "largest_function": 22,
-        "function_class_count": 3,
-        "internal_dependencies": 1
-      },
-      "largest_function_name": "upsertNearbyStateValue",
-      "sections": []
-    },
-    "backend/db/queries/session-nearby-characters.js": {
-      "kind": "code",
-      "metrics": {
-        "file_tokens": 862,
-        "largest_function": 15,
-        "function_class_count": 12,
-        "internal_dependencies": 1
-      },
-      "largest_function_name": "deleteTransientNotInIds",
-      "sections": []
-    },
     "backend/db/queries/session-persona-state-values.js": {
       "kind": "code",
       "metrics": {
@@ -1473,17 +1451,6 @@
       "largest_function_name": "renderNearbyBlock",
       "sections": []
     },
-    "backend/memory/saved-nearby-recall.js": {
-      "kind": "code",
-      "metrics": {
-        "file_tokens": 1021,
-        "largest_function": 65,
-        "function_class_count": 1,
-        "internal_dependencies": 7
-      },
-      "largest_function_name": "decideSavedNearbyRecall",
-      "sections": []
-    },
     "backend/memory/state-rollback.js": {
       "kind": "code",
       "metrics": {
@@ -1559,28 +1526,6 @@
         "internal_dependencies": 10
       },
       "largest_function_name": "matchEntries",
-      "sections": []
-    },
-    "backend/prompts/nearby-card-prompt.js": {
-      "kind": "code",
-      "metrics": {
-        "file_tokens": 496,
-        "largest_function": 26,
-        "function_class_count": 1,
-        "internal_dependencies": 1
-      },
-      "largest_function_name": "buildNearbyCardAnalyzePrompt",
-      "sections": []
-    },
-    "backend/prompts/nearby-prompt.js": {
-      "kind": "code",
-      "metrics": {
-        "file_tokens": 2472,
-        "largest_function": 92,
-        "function_class_count": 5,
-        "internal_dependencies": 0
-      },
-      "largest_function_name": "buildNearbyPromptSection",
       "sections": []
     },
     "backend/prompts/prompt-loader.js": {
@@ -1740,51 +1685,6 @@
       "largest_function_name": null,
       "sections": []
     },
-    "backend/prompts/templates/memory-table-update.md": {
-      "kind": "document",
-      "metrics": {
-        "document_tokens": 1160,
-        "document_loc": 32
-      },
-      "largest_function_name": null,
-      "sections": [
-        {
-          "key": "1:表结构（key 和列名固定，只能用这些，每行额外有内置「别名」列）:1",
-          "title": "表结构（key 和列名固定，只能用这些，每行额外有内置「别名」列）",
-          "level": 1,
-          "largest_section_tokens": 36,
-          "largest_section_loc": 3
-        },
-        {
-          "key": "1:当前表格（含 id 列，id 是行的唯一标识；未列出的表表示当前为空）:1",
-          "title": "当前表格（含 id 列，id 是行的唯一标识；未列出的表表示当前为空）",
-          "level": 1,
-          "largest_section_tokens": 36,
-          "largest_section_loc": 3
-        },
-        {
-          "key": "1:各表行数上限:1",
-          "title": "各表行数上限",
-          "level": 1,
-          "largest_section_tokens": 12,
-          "largest_section_loc": 3
-        },
-        {
-          "key": "1:本轮新增正文:1",
-          "title": "本轮新增正文",
-          "level": 1,
-          "largest_section_tokens": 12,
-          "largest_section_loc": 3
-        },
-        {
-          "key": "1:规则:1",
-          "title": "规则",
-          "level": 1,
-          "largest_section_tokens": 1024,
-          "largest_section_loc": 18
-        }
-      ]
-    },
     "backend/prompts/templates/memory-title-generation-retry.md": {
       "kind": "document",
       "metrics": {
@@ -1828,24 +1728,6 @@
           "largest_section_loc": 37
         }
       ]
-    },
-    "backend/prompts/templates/saved-nearby-recall-system.md": {
-      "kind": "document",
-      "metrics": {
-        "document_tokens": 254,
-        "document_loc": 10
-      },
-      "largest_function_name": null,
-      "sections": []
-    },
-    "backend/prompts/templates/saved-nearby-recall-user.md": {
-      "kind": "document",
-      "metrics": {
-        "document_tokens": 99,
-        "document_loc": 9
-      },
-      "largest_function_name": null,
-      "sections": []
     },
     "backend/prompts/templates/shared-suggestion-continuation.md": {
       "kind": "document",
@@ -1936,44 +1818,6 @@
       },
       "largest_function_name": null,
       "sections": []
-    },
-    "backend/prompts/templates/writing-nearby-card-analyze.md": {
-      "kind": "document",
-      "metrics": {
-        "document_tokens": 268,
-        "document_loc": 18
-      },
-      "largest_function_name": null,
-      "sections": [
-        {
-          "key": "2:该角色的状态字段（来自会话 nearby 状态）:1",
-          "title": "该角色的状态字段（来自会话 nearby 状态）",
-          "level": 2,
-          "largest_section_tokens": 24,
-          "largest_section_loc": 3
-        },
-        {
-          "key": "2:该角色现有的一句话人设（将作为角色卡 description 的基底，请在此基础上扩写出完整 system_prompt）:1",
-          "title": "该角色现有的一句话人设（将作为角色卡 description 的基底，请在此基础上扩写出完整 system_prompt）",
-          "level": 2,
-          "largest_section_tokens": 43,
-          "largest_section_loc": 3
-        },
-        {
-          "key": "2:最近 {{RECENT_ROUNDS}} 轮原文（按时间顺序）:1",
-          "title": "最近 {{RECENT_ROUNDS}} 轮原文（按时间顺序）",
-          "level": 2,
-          "largest_section_tokens": 24,
-          "largest_section_loc": 3
-        },
-        {
-          "key": "2:输出要求:1",
-          "title": "输出要求",
-          "level": 2,
-          "largest_section_tokens": 132,
-          "largest_section_loc": 7
-        }
-      ]
     },
     "backend/routes/character-state-values.js": {
       "kind": "code",
@@ -2184,17 +2028,6 @@
       "largest_function_name": "buildContinuationMessages",
       "sections": []
     },
-    "backend/routes/table-memory.js": {
-      "kind": "code",
-      "metrics": {
-        "file_tokens": 527,
-        "largest_function": 14,
-        "function_class_count": 0,
-        "internal_dependencies": 5
-      },
-      "largest_function_name": "(匿名)",
-      "sections": []
-    },
     "backend/routes/themes.js": {
       "kind": "code",
       "metrics": {
@@ -2382,17 +2215,6 @@
       "largest_function_name": "exportGlobalSettings",
       "sections": []
     },
-    "backend/services/nearby-card-maker.js": {
-      "kind": "code",
-      "metrics": {
-        "file_tokens": 1706,
-        "largest_function": 44,
-        "function_class_count": 5,
-        "internal_dependencies": 12
-      },
-      "largest_function_name": "createCharacterFromNearby",
-      "sections": []
-    },
     "backend/services/persona-state-fields.js": {
       "kind": "code",
       "metrics": {
@@ -2492,39 +2314,6 @@
       "largest_function_name": "validateStateValue",
       "sections": []
     },
-    "backend/services/table-memory-ops.js": {
-      "kind": "code",
-      "metrics": {
-        "file_tokens": 2297,
-        "largest_function": 77,
-        "function_class_count": 8,
-        "internal_dependencies": 1
-      },
-      "largest_function_name": "applyOps",
-      "sections": []
-    },
-    "backend/services/table-memory-schema.js": {
-      "kind": "code",
-      "metrics": {
-        "file_tokens": 1546,
-        "largest_function": 10,
-        "function_class_count": 4,
-        "internal_dependencies": 0
-      },
-      "largest_function_name": "resolveRowLimits",
-      "sections": []
-    },
-    "backend/services/table-memory.js": {
-      "kind": "code",
-      "metrics": {
-        "file_tokens": 2270,
-        "largest_function": 48,
-        "function_class_count": 14,
-        "internal_dependencies": 9
-      },
-      "largest_function_name": "updateTableMemory",
-      "sections": []
-    },
     "backend/services/themes.js": {
       "kind": "code",
       "metrics": {
@@ -2611,28 +2400,6 @@
         "internal_dependencies": 2
       },
       "largest_function_name": "(匿名)",
-      "sections": []
-    },
-    "backend/tests/db/queries/session-nearby-character-state-values.test.js": {
-      "kind": "code",
-      "metrics": {
-        "file_tokens": 1194,
-        "largest_function": 6,
-        "function_class_count": 1,
-        "internal_dependencies": 2
-      },
-      "largest_function_name": "makeSession",
-      "sections": []
-    },
-    "backend/tests/db/queries/session-nearby-characters.test.js": {
-      "kind": "code",
-      "metrics": {
-        "file_tokens": 1605,
-        "largest_function": 6,
-        "function_class_count": 1,
-        "internal_dependencies": 2
-      },
-      "largest_function_name": "makeSession",
       "sections": []
     },
     "backend/tests/db/queries/state-fields.test.js": {
@@ -2866,17 +2633,6 @@
       "largest_function_name": "fakeProvider",
       "sections": []
     },
-    "backend/tests/memory/combined-state-updater-nearby.test.js": {
-      "kind": "code",
-      "metrics": {
-        "file_tokens": 2732,
-        "largest_function": 16,
-        "function_class_count": 7,
-        "internal_dependencies": 2
-      },
-      "largest_function_name": "bootstrap",
-      "sections": []
-    },
     "backend/tests/memory/combined-state-updater.test.js": {
       "kind": "code",
       "metrics": {
@@ -2919,17 +2675,6 @@
         "internal_dependencies": 2
       },
       "largest_function_name": "fetch",
-      "sections": []
-    },
-    "backend/tests/memory/saved-nearby-recall.test.js": {
-      "kind": "code",
-      "metrics": {
-        "file_tokens": 896,
-        "largest_function": 7,
-        "function_class_count": 1,
-        "internal_dependencies": 2
-      },
-      "largest_function_name": "setupSession",
       "sections": []
     },
     "backend/tests/memory/state-rollback.test.js": {
@@ -3007,17 +2752,6 @@
         "internal_dependencies": 2
       },
       "largest_function_name": "pushAssistantUserPair",
-      "sections": []
-    },
-    "backend/tests/prompts/nearby-prompt.test.js": {
-      "kind": "code",
-      "metrics": {
-        "file_tokens": 643,
-        "largest_function": 1,
-        "function_class_count": 0,
-        "internal_dependencies": 1
-      },
-      "largest_function_name": "(匿名)",
       "sections": []
     },
     "backend/tests/routes/chat-extra.test.js": {
@@ -3185,17 +2919,6 @@
       "largest_function_name": "postJson",
       "sections": []
     },
-    "backend/tests/routes/writing-nearby.test.js": {
-      "kind": "code",
-      "metrics": {
-        "file_tokens": 2329,
-        "largest_function": 11,
-        "function_class_count": 2,
-        "internal_dependencies": 3
-      },
-      "largest_function_name": "setupWorldSessionAndField",
-      "sections": []
-    },
     "backend/tests/routes/writing.test.js": {
       "kind": "code",
       "metrics": {
@@ -3260,28 +2983,6 @@
         "internal_dependencies": 2
       },
       "largest_function_name": "normalizeWorldPackage",
-      "sections": []
-    },
-    "backend/tests/services/nearby-card-maker.test.js": {
-      "kind": "code",
-      "metrics": {
-        "file_tokens": 1923,
-        "largest_function": 10,
-        "function_class_count": 2,
-        "internal_dependencies": 2
-      },
-      "largest_function_name": "makeWorldAndWritingSession",
-      "sections": []
-    },
-    "backend/tests/services/nearby-characters.test.js": {
-      "kind": "code",
-      "metrics": {
-        "file_tokens": 2341,
-        "largest_function": 9,
-        "function_class_count": 2,
-        "internal_dependencies": 2
-      },
-      "largest_function_name": "makeWorldAndSession",
       "sections": []
     },
     "backend/tests/services/persona-state-fields.test.js": {
@@ -3381,105 +3082,6 @@
         "internal_dependencies": 2
       },
       "largest_function_name": "(匿名)",
-      "sections": []
-    },
-    "backend/tests/table-memory/apply-ops.test.js": {
-      "kind": "code",
-      "metrics": {
-        "file_tokens": 2837,
-        "largest_function": 4,
-        "function_class_count": 1,
-        "internal_dependencies": 2
-      },
-      "largest_function_name": "seedItems",
-      "sections": []
-    },
-    "backend/tests/table-memory/io-rollback.test.js": {
-      "kind": "code",
-      "metrics": {
-        "file_tokens": 1126,
-        "largest_function": 1,
-        "function_class_count": 0,
-        "internal_dependencies": 0
-      },
-      "largest_function_name": "(匿名)",
-      "sections": []
-    },
-    "backend/tests/table-memory/postgen-gating.test.js": {
-      "kind": "code",
-      "metrics": {
-        "file_tokens": 1236,
-        "largest_function": 3,
-        "function_class_count": 4,
-        "internal_dependencies": 1
-      },
-      "largest_function_name": "chatTask",
-      "sections": []
-    },
-    "backend/tests/table-memory/render.test.js": {
-      "kind": "code",
-      "metrics": {
-        "file_tokens": 470,
-        "largest_function": 0,
-        "function_class_count": 0,
-        "internal_dependencies": 2
-      },
-      "largest_function_name": null,
-      "sections": []
-    },
-    "backend/tests/table-memory/rollback-wiring.test.js": {
-      "kind": "code",
-      "metrics": {
-        "file_tokens": 216,
-        "largest_function": 0,
-        "function_class_count": 0,
-        "internal_dependencies": 0
-      },
-      "largest_function_name": null,
-      "sections": []
-    },
-    "backend/tests/table-memory/route.test.js": {
-      "kind": "code",
-      "metrics": {
-        "file_tokens": 1284,
-        "largest_function": 1,
-        "function_class_count": 0,
-        "internal_dependencies": 4
-      },
-      "largest_function_name": "(匿名)",
-      "sections": []
-    },
-    "backend/tests/table-memory/schema.test.js": {
-      "kind": "code",
-      "metrics": {
-        "file_tokens": 289,
-        "largest_function": 0,
-        "function_class_count": 0,
-        "internal_dependencies": 1
-      },
-      "largest_function_name": null,
-      "sections": []
-    },
-    "backend/tests/table-memory/turn-record-snapshot.test.js": {
-      "kind": "code",
-      "metrics": {
-        "file_tokens": 377,
-        "largest_function": 1,
-        "function_class_count": 0,
-        "internal_dependencies": 1
-      },
-      "largest_function_name": "(匿名)",
-      "sections": []
-    },
-    "backend/tests/table-memory/update.test.js": {
-      "kind": "code",
-      "metrics": {
-        "file_tokens": 304,
-        "largest_function": 0,
-        "function_class_count": 0,
-        "internal_dependencies": 0
-      },
-      "largest_function_name": null,
       "sections": []
     },
     "backend/tests/utils/async-queue.test.js": {
@@ -4347,28 +3949,6 @@
         "internal_dependencies": 21
       },
       "largest_function_name": null,
-      "sections": []
-    },
-    "frontend/src/components/session/__tests__/TableMemoryModal.test.jsx": {
-      "kind": "code",
-      "metrics": {
-        "file_tokens": 1254,
-        "largest_function": 10,
-        "function_class_count": 1,
-        "internal_dependencies": 0
-      },
-      "largest_function_name": "makeTables",
-      "sections": []
-    },
-    "frontend/src/components/session/TableMemoryModal.jsx": {
-      "kind": "code",
-      "metrics": {
-        "file_tokens": 2613,
-        "largest_function": 134,
-        "function_class_count": 8,
-        "internal_dependencies": 5
-      },
-      "largest_function_name": "TableMemoryModal",
       "sections": []
     },
     "frontend/src/components/session/WorldTimelinePanel.jsx": {
@@ -5350,17 +4930,6 @@
       "largest_function_name": "request",
       "sections": []
     },
-    "frontend/src/core/api/session-nearby.js": {
-      "kind": "code",
-      "metrics": {
-        "file_tokens": 462,
-        "largest_function": 6,
-        "function_class_count": 10,
-        "internal_dependencies": 1
-      },
-      "largest_function_name": "addSavedNearbyFromCharacter",
-      "sections": []
-    },
     "frontend/src/core/api/session-state-values.js": {
       "kind": "code",
       "metrics": {
@@ -5425,17 +4994,6 @@
         "internal_dependencies": 2
       },
       "largest_function_name": "parseSSEStream",
-      "sections": []
-    },
-    "frontend/src/core/api/table-memory.js": {
-      "kind": "code",
-      "metrics": {
-        "file_tokens": 185,
-        "largest_function": 9,
-        "function_class_count": 2,
-        "internal_dependencies": 0
-      },
-      "largest_function_name": "updateTableMemory",
       "sections": []
     },
     "frontend/src/core/api/themes.js": {
@@ -6206,39 +5764,6 @@
         "internal_dependencies": 17
       },
       "largest_function_name": "WorldsPage",
-      "sections": []
-    },
-    "frontend/src/pages/WritingSpacePage/components/AddSavedNearbyModal.jsx": {
-      "kind": "code",
-      "metrics": {
-        "file_tokens": 815,
-        "largest_function": 67,
-        "function_class_count": 2,
-        "internal_dependencies": 5
-      },
-      "largest_function_name": "AddSavedNearbyModal",
-      "sections": []
-    },
-    "frontend/src/pages/WritingSpacePage/components/MakeCardModal.jsx": {
-      "kind": "code",
-      "metrics": {
-        "file_tokens": 1641,
-        "largest_function": 172,
-        "function_class_count": 4,
-        "internal_dependencies": 3
-      },
-      "largest_function_name": "MakeCardModal",
-      "sections": []
-    },
-    "frontend/src/pages/WritingSpacePage/components/NearbyCharacterBlock.jsx": {
-      "kind": "code",
-      "metrics": {
-        "file_tokens": 929,
-        "largest_function": 110,
-        "function_class_count": 3,
-        "internal_dependencies": 3
-      },
-      "largest_function_name": "NearbyCharacterBlock",
       "sections": []
     },
     "frontend/src/pages/WritingSpacePage/components/NearbyPanel.jsx": {

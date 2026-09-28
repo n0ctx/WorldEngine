@@ -43,13 +43,11 @@ const BASE_CONFIG = {
   global_post_prompt: 'GOLDEN 后置提示 {{char}}',
   memory_expansion_enabled: true,
   suggestion_enabled: true,
-  table_memory_enabled: false,
   writing: {
     global_system_prompt: 'GOLDEN 写作全局 {{world}}',
     global_post_prompt: 'GOLDEN 写作后置',
     suggestion_enabled: true,
     memory_expansion_enabled: true,
-    table_memory_enabled: false,
     llm: {
       provider: null,
       provider_models: {},

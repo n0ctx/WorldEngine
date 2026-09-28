@@ -436,7 +436,7 @@ async function buildWritingCoreSystemParts(sessionId, world, writing, persona, o
   // [5] 世界状态 / [6] 玩家状态
   pushSharedStateSections(world.id, sessionId, tv, dynamicSystemParts);
 
-  // [7] 状态记忆（写作模式专属，取代 chat 模式的 character_state / nearby_characters）
+  // [7] 状态记忆（写作模式下没有单一主角色，mainCharacterEntityId 传 null）
   const { userMessage, lastAssistant } = resolveRecentTurnContext(uncompressedMessages);
   const storyStateSection = renderStoryStateSection(sessionId, {
     worldId: world.id,

@@ -78,7 +78,7 @@ export function renderStorySummarySection(text, tv) {
   return `<story_summary>\n以下是更早剧情的连续摘要，用于理解前因；细节以下方原文为准。\n${tv(text)}\n</story_summary>`;
 }
 
-/** [7.5] 状态记忆：对话模式在 char_state 之后、写作模式取代 nearby_characters */
+/** [7.5] 状态记忆：对话模式在 char_state 之后注入；写作模式没有单一主角色，直接注入该段 */
 export function renderStoryStateSection(sessionId, opts, tv) {
   const text = renderStoryState(sessionId, opts);
   return text ? tv(text) : null;
