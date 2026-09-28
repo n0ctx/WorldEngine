@@ -17,8 +17,6 @@ function createHarness() {
     setRecallSummary: vi.fn(),
     startMemoryRecalling: vi.fn(),
     stopMemoryRecalling: vi.fn(),
-    startMemoryExpanding: vi.fn(),
-    stopMemoryExpanding: vi.fn(),
     startMemoryWriting: vi.fn(),
     stopMemoryWriting: vi.fn(),
     cancelMemoryWriting: vi.fn(),
@@ -133,5 +131,15 @@ describe('session stream callbacks', () => {
     expect(harness.state.setGenerating).not.toHaveBeenCalledWith(false);
     expect(harness.memory.startMemoryWriting).toHaveBeenCalledWith(undefined);
     expect(harness.finalizeStream).toHaveBeenCalledWith(null);
+  });
+
+  it('onMemoryRecallDone 用 hit 写入 recallSummary 并停止召回指示', () => {
+    const harness = createHarness();
+    const callbacks = harness.callbacks();
+
+    callbacks.onMemoryRecallDone({ hit: 3, candidates: [], skippedBeforeRound: 0 });
+
+    expect(harness.memory.stopMemoryRecalling).toHaveBeenCalledTimes(1);
+    expect(harness.memory.setRecallSummary).toHaveBeenCalledWith({ hit: 3 });
   });
 });

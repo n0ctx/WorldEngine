@@ -60,7 +60,7 @@ async function dispatch(events, callbackNames) {
 describe('parseSSEStream 的事件分发表', () => {
   const ALL_CALLBACKS = [
     'onDelta', 'onDone', 'onAborted', 'onError', 'onTitleUpdated', 'onUserSaved',
-    'onMemoryRecallStart', 'onMemoryRecallDone', 'onMemoryExpandStart', 'onMemoryExpandDone',
+    'onMemoryRecallStart', 'onMemoryRecallDone',
     'onSavedRecallDone', 'onChapterTitleUpdated', 'onStateQueued', 'onStateUpdated',
     'onStateUpdateFailed', 'onPostprocessFailed', 'onDiaryUpdated',
     'onSuggestionFallbackStarted', 'onSuggestionFallbackSucceeded', 'onSuggestionFallbackFailed',
@@ -96,8 +96,6 @@ describe('parseSSEStream 的事件分发表', () => {
   it('整个事件对象原样透传的回调', async () => {
     const events = [
       { type: 'memory_recall_done', hit: 2 },
-      { type: 'memory_expand_start', candidates: [] },
-      { type: 'memory_expand_done', expanded: ['t1'] },
       { type: 'saved_recall_done', hit: 1, ids: ['n1'], mode: 'judge' },
       { type: 'state_update_failed', error: 'e' },
       { type: 'postprocess_failed', label: 'title' },
@@ -108,14 +106,12 @@ describe('parseSSEStream 的事件分发表', () => {
     const calls = await dispatch(events, ALL_CALLBACKS);
     expect(calls).toEqual([
       ['onMemoryRecallDone', events[0]],
-      ['onMemoryExpandStart', events[1]],
-      ['onMemoryExpandDone', events[2]],
-      ['onSavedRecallDone', events[3]],
-      ['onStateUpdateFailed', events[4]],
-      ['onPostprocessFailed', events[5]],
-      ['onSuggestionFallbackStarted', events[6]],
-      ['onSuggestionFallbackSucceeded', events[7]],
-      ['onSuggestionFallbackFailed', events[8]],
+      ['onSavedRecallDone', events[1]],
+      ['onStateUpdateFailed', events[2]],
+      ['onPostprocessFailed', events[3]],
+      ['onSuggestionFallbackStarted', events[4]],
+      ['onSuggestionFallbackSucceeded', events[5]],
+      ['onSuggestionFallbackFailed', events[6]],
     ]);
   });
 

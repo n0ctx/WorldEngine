@@ -124,14 +124,7 @@ function handlePostprocessFailed(isSameSession, isContinuation, runId, memory, m
 function handleMemoryRecallDone(isLive, stopMemoryRecalling, setRecallSummary, evt) {
   if (!isLive()) return;
   stopMemoryRecalling();
-  setRecallSummary({ recalled: evt?.hit ?? 0, expanded: 0 });
-}
-
-function handleMemoryExpandDone(isLive, stopMemoryExpanding, setRecallSummary, evt) {
-  if (!isLive()) return;
-  stopMemoryExpanding();
-  const count = Array.isArray(evt?.expanded) ? evt.expanded.length : 0;
-  setRecallSummary((prev) => prev ? { ...prev, expanded: count } : { recalled: 0, expanded: count });
+  setRecallSummary({ hit: evt?.hit ?? 0 });
 }
 
 function handleChapterTitleUpdated(isSameSession, extraCallbacks, chapterIndex, title) {
@@ -208,10 +201,6 @@ export function createSessionStreamCallbacks({
       if (isLive()) memory.startMemoryRecalling();
     },
     onMemoryRecallDone: (evt) => handleMemoryRecallDone(isLive, memory.stopMemoryRecalling, memory.setRecallSummary, evt),
-    onMemoryExpandStart: () => {
-      if (isLive()) memory.startMemoryExpanding();
-    },
-    onMemoryExpandDone: (evt) => handleMemoryExpandDone(isLive, memory.stopMemoryExpanding, memory.setRecallSummary, evt),
     onChapterTitleUpdated: (chapterIndex, title) => handleChapterTitleUpdated(isSameSession, extraCallbacks, chapterIndex, title),
     onSavedRecallDone: (evt) => handleSavedRecallDone(isLive, extraCallbacks, evt),
     onStreamEnd: () => handleStreamEnd(isLive, isContinuation, runId, memory, finalizeStream),

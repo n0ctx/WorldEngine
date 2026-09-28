@@ -19,7 +19,7 @@ export default function WritingSpacePage() {
   const pageState = useConversationPageState();
   const { inputBoxRef, messageListRef, memory } = pageState;
 
-  const { memoryRecalling, memoryExpanding, memoryWriting, recallSummary } = memory;
+  const { memoryRecalling, memoryWriting, recallSummary } = memory;
 
   const stream = useWritingStream({ worldId, messageListRef, inputBoxRef, memory });
   const lifecycle = useWritingSpaceLifecycle({ worldId, stream, log });
@@ -51,7 +51,7 @@ export default function WritingSpacePage() {
           )}
         />
       )}
-      recall={{ memoryRecalling, memoryExpanding, memoryWriting, recallSummary }}
+      recall={{ memoryRecalling, memoryWriting, recallSummary }}
       main={(
         <WritingSpaceConversationPane
           worldId={worldId}

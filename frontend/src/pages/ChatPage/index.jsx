@@ -23,7 +23,7 @@ export default function ChatPage() {
     ltmOpen, setLtmOpen, tmOpen, setTmOpen, pageInfo, setPageInfo,
     inputBoxRef, messageListRef, memory,
   } = useConversationPageState();
-  const { memoryRecalling, memoryExpanding, memoryWriting, recallSummary } = memory;
+  const { memoryRecalling, memoryWriting, recallSummary } = memory;
 
   const stream = useChatStream({
     character,
@@ -62,7 +62,7 @@ export default function ChatPage() {
       clearActiveSession={stream.clearActiveSession}
       setCurrentSession={stream.setCurrentSession}
       onCreateSession={handleCreateChatSession}
-      memoryRecall={{ memoryRecalling, memoryExpanding, memoryWriting, recallSummary }}
+      memoryRecall={{ memoryRecalling, memoryWriting, recallSummary }}
       onDiaryInject={stream.setPendingDiaryInject}
       main={(
         <ChatConversationPane

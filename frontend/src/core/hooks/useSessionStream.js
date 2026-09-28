@@ -33,8 +33,6 @@ export function useSessionStream({
     setRecallSummary,
     startMemoryRecalling,
     stopMemoryRecalling,
-    startMemoryExpanding,
-    stopMemoryExpanding,
     startMemoryWriting,
     stopMemoryWriting,
     cancelMemoryWriting,
@@ -225,14 +223,14 @@ export function useSessionStream({
       messages: { pendingAssistantRef, streamingKeyRef, assistantAppendedEarlyRef, messageListRef, tempUserIdRef },
       text: { continuingMessageIdRef, continuingTextRef, streamingTextRef, setStreamingText, setContinuingMessageId, setContinuingText },
       options: { pendingOptionsRef, streamingOptionsRef, setCurrentOptions },
-      memory: { stopMemoryRecalling, stopMemoryExpanding, stopMemoryWriting },
+      memory: { stopMemoryRecalling, stopMemoryWriting },
       abortedRef: streamAbortedRef,
       mountedRef,
       setGenerating,
       stopRef,
       refreshMessages: () => setMessageListKey((key) => key + 1),
     });
-  }, [isCurrentStreamRun, stopMemoryRecalling, stopMemoryExpanding, stopMemoryWriting, messageListRef, setCurrentOptions]);
+  }, [isCurrentStreamRun, stopMemoryRecalling, stopMemoryWriting, messageListRef, setCurrentOptions]);
 
   // 将本轮身份与 hook 运行时状态绑定到 SSE 事件处理器。
   function makeCallbacks(runId, sessionIdHint = null, continuationToken = null) {
@@ -252,8 +250,6 @@ export function useSessionStream({
         setRecallSummary,
         startMemoryRecalling,
         stopMemoryRecalling,
-        startMemoryExpanding,
-        stopMemoryExpanding,
         startMemoryWriting,
         stopMemoryWriting,
         cancelMemoryWriting,
