@@ -31,20 +31,27 @@ test('updateConfig：非法预算值规范到默认值/null，合法值按范围
   const config = updateConfig({
     short_term_token_budget: 'abc',
     long_term_index_budget: 1,
+    state_injection_token_budget: 'abc',
     writing: { short_term_token_budget: 'abc' },
   });
   assert.equal(config.short_term_token_budget, 8000);
   assert.equal(config.long_term_index_budget, 2000);
+  assert.equal(config.state_injection_token_budget, 3000);
   assert.equal(config.writing.short_term_token_budget, null);
 
   const clamped = updateConfig({
     short_term_token_budget: 999999,
     long_term_index_budget: 999999999,
+    state_injection_token_budget: 999999,
     writing: { short_term_token_budget: 500 },
   });
   assert.equal(clamped.short_term_token_budget, 200000);
   assert.equal(clamped.long_term_index_budget, 500000);
+  assert.equal(clamped.state_injection_token_budget, 50000);
   assert.equal(clamped.writing.short_term_token_budget, 1000);
+
+  const lowClamped = updateConfig({ state_injection_token_budget: 1 });
+  assert.equal(lowClamped.state_injection_token_budget, 500);
 
   const inherited = updateConfig({ writing: { short_term_token_budget: null } });
   assert.equal(inherited.writing.short_term_token_budget, null);
@@ -109,7 +116,7 @@ test('读取旧配置时迁移共享密钥并持久化规范化结果', () => {
   assert.deepEqual(sandbox.readConfig(), config);
 });
 
-test('旧配置含六个废弃键时，迁移后全部消失并持久化', () => {
+test('旧配置含七个废弃键时，迁移后全部消失并持久化', () => {
   sandbox.writeConfig({
     context_compress_rounds: 7,
     context_history_rounds: 10,
@@ -118,6 +125,7 @@ test('旧配置含六个废弃键时，迁移后全部消失并持久化', () =>
     writing: {
       context_history_rounds: 5,
       long_term_memory_enabled: true,
+      saved_nearby_recall_enabled: true,
     },
   });
 
@@ -129,6 +137,7 @@ test('旧配置含六个废弃键时，迁移后全部消失并持久化', () =>
   assert.equal('embedding' in config, false);
   assert.equal('context_history_rounds' in config.writing, false);
   assert.equal('long_term_memory_enabled' in config.writing, false);
+  assert.equal('saved_nearby_recall_enabled' in config.writing, false);
   assert.deepEqual(sandbox.readConfig(), config);
 });
 

@@ -58,6 +58,7 @@ const DEFAULT_CONFIG = {
   memory_recall_max_sessions: 5,
   short_term_token_budget: 8000,
   long_term_index_budget: 20000,
+  state_injection_token_budget: 3000,
   suggestion_enabled: false,
   log_prompt: false,
   logging: {
@@ -80,7 +81,6 @@ const DEFAULT_CONFIG = {
     suggestion_enabled: false,
     memory_expansion_enabled: true,
     table_memory_enabled: false,
-    saved_nearby_recall_enabled: true,
     llm: {
       provider: null,
       provider_models: {},
@@ -112,7 +112,6 @@ const DEFAULT_WRITING = {
   suggestion_enabled: false,
   memory_expansion_enabled: true,
   table_memory_enabled: false,
-  saved_nearby_recall_enabled: true,
   llm: {
     provider: null,
     provider_models: {},
@@ -235,6 +234,11 @@ function normalizeConfigForPersist(config) {
     DEFAULT_CONFIG.long_term_index_budget,
     { min: 2000, max: 500000 },
   );
+  normalized.state_injection_token_budget = normalizePositiveInteger(
+    normalized.state_injection_token_budget,
+    DEFAULT_CONFIG.state_injection_token_budget,
+    { min: 500, max: 50000 },
+  );
   // writing 侧为 null 时继承 chat 顶层预算：null 原样保留，非法值同样回退 null
   normalized.writing.short_term_token_budget = normalized.writing.short_term_token_budget == null
     ? null
@@ -276,7 +280,7 @@ const LEGACY_CONFIG_KEYS = [
   'long_term_memory_enabled',
   'embedding',
 ];
-const LEGACY_WRITING_KEYS = ['context_history_rounds', 'long_term_memory_enabled'];
+const LEGACY_WRITING_KEYS = ['context_history_rounds', 'long_term_memory_enabled', 'saved_nearby_recall_enabled'];
 
 function migrateConfig(config) {
   let dirty = false;
