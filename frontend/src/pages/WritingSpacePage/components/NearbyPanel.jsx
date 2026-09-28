@@ -6,7 +6,7 @@ import SessionStatePanel from '../../../components/state/SessionStatePanel.jsx';
 import NearbyCharacterBlock from './NearbyCharacterBlock.jsx';
 
 import AddSavedNearbyModal from './AddSavedNearbyModal.jsx';
-import MakeCardModal from './MakeCardModal.jsx';
+import MakeCardModal from '../../../components/state/MakeCardModal.jsx';
 import ConfirmModal from '../../../components/ui/ConfirmModal.jsx';
 import { fetchNearby, setNearbySaved, removeNearby } from '../../../core/api/session-nearby.js';
 import { RefreshIcon } from '../../../components/state/panel-parts.jsx';
@@ -111,7 +111,7 @@ export default function NearbyPanel({
   // 记录上次应用过的 savedRecallTick，避免对同一事件重复处理；session 切换时重置为当前 tick 以忽略陈旧 hits
   const lastAppliedRecallTickRef = useRef(savedRecallTick);
   const [addModalOpen, setAddModalOpen] = useState(false);
-  const [makeCardOpen, setMakeCardOpen] = useState(false);
+  const [makeCardTarget, setMakeCardTarget] = useState(null);
   const [removingNearby, setRemovingNearby] = useState(null);
 
   const applyNearbyResponse = useCallback((isCurrent) => {
@@ -201,11 +201,14 @@ export default function NearbyPanel({
     </button>
   );
 
-  const nearbyToolbarBase = (
+  // MakeCardModal 现在按具体实体分析制卡（不再是「先挑选再分析」两步流程），
+  // 这里记录触发制卡的 nearby 项；nearby 面板仍是旧的「附近角色」模型，
+  // 只按实体接口所需最小形状适配，完整重做由 N12c 负责。
+  const nearbyToolbarBase = (n) => (
     <button
       type="button"
       className="we-state-section-reset we-panel-card-action we-panel-card-action--chip"
-      onClick={() => setMakeCardOpen(true)}
+      onClick={() => setMakeCardTarget(n ?? null)}
       aria-label="制卡"
       title="制卡"
     >
@@ -253,7 +256,7 @@ export default function NearbyPanel({
     const isSaved = isNearbySaved(n);
     return (
       <>
-        {nearbyToolbarBase}
+        {nearbyToolbarBase(n)}
         <button
           type="button"
           className="we-state-section-reset we-panel-card-action we-panel-card-action--chip"
@@ -349,7 +352,7 @@ export default function NearbyPanel({
           </div>
         ),
       }))
-      : [{ key: 'nearby', label: '附近', content: emptyNearbyTab, actions: nearbyToolbarBase }]
+      : [{ key: 'nearby', label: '附近', content: emptyNearbyTab, actions: nearbyToolbarBase() }]
   );
 
   const belowTabs = (
@@ -402,13 +405,13 @@ export default function NearbyPanel({
               onClose={() => setAddModalOpen(false)}
             />
           )}
-          {makeCardOpen && (
+          {makeCardTarget && (
             <MakeCardModal
               worldId={worldId}
               sessionId={sessionId}
-              nearby={nearby ?? []}
-              onClose={() => setMakeCardOpen(false)}
-              onDone={() => { setMakeCardOpen(false); reloadNearby(); }}
+              entity={{ entity_id: makeCardTarget.id, name: makeCardTarget.name }}
+              onClose={() => setMakeCardTarget(null)}
+              onCreated={() => { setMakeCardTarget(null); reloadNearby(); }}
             />
           )}
         </AnimatePresence>

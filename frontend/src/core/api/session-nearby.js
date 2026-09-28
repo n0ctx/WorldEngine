@@ -42,14 +42,3 @@ export function patchNearbyState(worldId, sessionId, nearbyId, fieldKey, valueJs
 export function removeNearby(worldId, sessionId, nearbyId) {
   return request(`${nearbyBase(worldId, sessionId)}/${nearbyId}`, { method: 'DELETE' });
 }
-
-export function analyzeNearbyForCard(worldId, sessionId, nearbyId) {
-  return request(`${nearbyBase(worldId, sessionId)}/${nearbyId}/analyze`, { method: 'POST' });
-}
-
-export function createCharacterFromNearby(worldId, payload) {
-  return request(`${BASE}/worlds/${worldId}/characters/from-nearby`, {
-    method: 'POST',
-    body: JSON.stringify(payload),
-  });
-}

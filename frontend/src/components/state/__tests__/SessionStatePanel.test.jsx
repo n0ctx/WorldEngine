@@ -4,8 +4,11 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 
 const harness = vi.hoisted(() => ({
   state: null,
+  stateMemory: null,
+  stateMemorySchema: null,
   setStateData: vi.fn(),
   retryStateLoad: vi.fn(),
+  reloadStateMemory: vi.fn(),
   getWorld: vi.fn(),
   getConfig: vi.fn(),
   patchStateValue: vi.fn(),
@@ -20,12 +23,23 @@ vi.mock('../../../core/api/session-state-values.js', () => ({
   resetSessionPersonaStateValues: vi.fn(),
   patchSessionStateValue: harness.patchStateValue,
 }));
+vi.mock('../../../core/api/state-memory.js', () => ({
+  updateStateEntity: vi.fn(),
+  createStateFact: vi.fn(),
+  deleteStateFact: vi.fn(),
+  updateStateWorld: vi.fn(),
+}));
 vi.mock('../../../core/hooks/useSessionState.js', () => ({
   useSessionState: () => harness.state,
 }));
-vi.mock('../../../core/hooks/useStateDiff.js', () => ({
-  useStateDiff: () => ({ diff: { world: [], persona: [] }, ready: true }),
+vi.mock('../../../core/hooks/useStateMemory.js', () => ({
+  useStateMemory: () => harness.stateMemory,
+  useStateMemorySchema: () => harness.stateMemorySchema,
 }));
+vi.mock('../../../core/hooks/useStateDiff.js', () => ({
+  useStateDiff: () => ({ diff: { world: [], persona: [], entities: new Set() }, ready: true }),
+}));
+vi.mock('../WorldProfileGroup.jsx', () => ({ default: () => <div />, PlayerProfileGroup: () => null }));
 vi.mock('../../ui/SectionTabs.jsx', () => {
   function MockSectionTabs({ sections, defaultKey }) {
     const [activeKey, setActiveKey] = useState(defaultKey ?? sections[0]?.key);
@@ -114,6 +128,14 @@ async function openDiaryTab() {
 
 beforeEach(() => {
   harness.state = state();
+  harness.stateMemory = {
+    data: { world: { time: null, location: null, location_entity_id: null }, entities: [], facts: [] },
+    error: '',
+    loading: false,
+    reload: harness.reloadStateMemory,
+    setData: vi.fn(),
+  };
+  harness.stateMemorySchema = { profileFields: { player: [], character: [] } };
   harness.getWorld.mockResolvedValue({ name: '森林' });
   harness.getConfig.mockResolvedValue({ diary: { chat: { enabled: true } } });
   harness.patchStateValue.mockResolvedValue();

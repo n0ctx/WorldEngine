@@ -46,7 +46,7 @@ vi.mock('../../../src/components/state/StatusSection.jsx', () => ({ default: () 
 vi.mock('../../../src/components/ui/PanelCard.jsx', () => ({ default: ({ children }) => <div>{children}</div> }));
 vi.mock('../../../src/pages/WritingSpacePage/components/NearbyCharacterBlock.jsx', () => ({ default: () => <div /> }));
 vi.mock('../../../src/pages/WritingSpacePage/components/AddSavedNearbyModal.jsx', () => ({ default: () => <div /> }));
-vi.mock('../../../src/pages/WritingSpacePage/components/MakeCardModal.jsx', () => ({ default: () => <div /> }));
+vi.mock('../../../src/components/state/MakeCardModal.jsx', () => ({ default: () => <div /> }));
 vi.mock('../../../src/components/ui/SectionTabs.jsx', () => ({
   default: ({ sections }) => (
     <div>

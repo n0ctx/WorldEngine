@@ -3,9 +3,9 @@ import { createPortal } from 'react-dom';
 import ConfirmModal from '../ui/ConfirmModal.jsx';
 import { deleteStateEntity, updateStateEntity } from '../../core/api/state-memory.js';
 import { log } from '../../core/utils/logger.js';
-import StateMemoryProfileField from './StateMemoryProfileField.jsx';
-import StateMemoryDynamicState from './StateMemoryDynamicState.jsx';
-import StateMemoryEntityFields from './StateMemoryEntityFields.jsx';
+import StateMemoryProfileField from '../state/StateMemoryProfileField.jsx';
+import StateMemoryDynamicState from '../state/StateMemoryDynamicState.jsx';
+import StateMemoryEntityFields from '../state/StateMemoryEntityFields.jsx';
 
 function groupProfileFields(fieldDefs) {
   const groups = [];
