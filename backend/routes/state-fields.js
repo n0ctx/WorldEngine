@@ -27,9 +27,15 @@ import {
 } from '../services/character-state-fields.js';
 import { assertExists } from '../utils/route-helpers.js';
 import { createLogger, formatMeta } from '../utils/logger.js';
+import { RESERVED_WORLD_FIELD_LABELS } from '../memory/state-memory-schema.js';
 
 const router = Router();
 const log = createLogger('state-fields', 'cyan');
+
+/** label 是否是保留给世界档案（时间/地点）的名称 */
+function isReservedWorldLabel(label) {
+  return RESERVED_WORLD_FIELD_LABELS.includes((label ?? '').trim());
+}
 
 /** 注册某一层（world / character）状态字段的 CRUD 与排序路由 */
 function registerStateFieldRoutes(scope, { list, create, reorder, update, remove }) {
@@ -42,6 +48,10 @@ function registerStateFieldRoutes(scope, { list, create, reorder, update, remove
     if (!field_key || !label || !type) {
       log.warn(`state-fields.bad_request ${formatMeta({ method: req.method, path: req.path, reason: 'field_key, label, type 为必填项' })}`);
       return res.status(400).json({ error: 'field_key, label, type 为必填项' });
+    }
+    if (scope === 'world' && isReservedWorldLabel(label)) {
+      log.warn(`state-fields.bad_request ${formatMeta({ method: req.method, path: req.path, reason: `reserved label: ${label}` })}`);
+      return res.status(400).json({ error: '该名称已由系统管理' });
     }
     try {
       const field = create(req.params.worldId, req.body);
@@ -67,6 +77,10 @@ function registerStateFieldRoutes(scope, { list, create, reorder, update, remove
   });
 
   router.put(`/${scope}-state-fields/:id`, (req, res) => {
+    if (scope === 'world' && 'label' in req.body && isReservedWorldLabel(req.body.label)) {
+      log.warn(`state-fields.bad_request ${formatMeta({ method: req.method, path: req.path, reason: `reserved label: ${req.body.label}` })}`);
+      return res.status(400).json({ error: '该名称已由系统管理' });
+    }
     const field = update(req.params.id, req.body);
     if (!assertExists(res, field, '字段不存在')) return;
     res.json(field);

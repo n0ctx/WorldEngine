@@ -2,7 +2,7 @@
  * diary-generator.js — 日记生成模块
  *
  * 负责：
- *   1. 解析虚拟日期字段（_diary_time）
+ *   1. 按轮读取世界档案「时间」（虚拟日期模式）
  *   2. 检测跨日（虚拟 / 真实日期两种模式）
  *   3. 收集前一天的消息原文
  *   4. 调用 LLM 生成日记文档
@@ -26,7 +26,8 @@ import { getSessionById } from '../db/queries/sessions.js';
 import { getAllTurnRecordsBySessionId } from '../db/queries/turn-records.js';
 import { upsertDailyEntry } from '../db/queries/daily-entries.js';
 import { getMessageById } from '../db/queries/messages.js';
-import { LLM_TASK_TEMPERATURE, LLM_DIARY_MAX_TOKENS, DIARY_TIME_FIELD_KEY } from '../utils/constants.js';
+import { getWorldProfileAtRound } from '../db/queries/state-memory.js';
+import { LLM_TASK_TEMPERATURE, LLM_DIARY_MAX_TOKENS } from '../utils/constants.js';
 import { renderBackendPrompt } from '../prompts/prompt-loader.js';
 import { createLogger, formatMeta } from '../utils/logger.js';
 import { resolveAuxScope } from '../utils/aux-scope.js';
@@ -88,21 +89,17 @@ function realDateDisplay(ts) {
   return d.toLocaleDateString('zh-CN', opts);
 }
 
-// ─── 快照日期提取 ─────────────────────────────────────────────────
+// ─── 虚拟日期读取 ─────────────────────────────────────────────────
 
 /**
- * 从 state_snapshot（JSON 字符串）提取 _diary_time 字段的值
- * @param {string|null} snapshotJson
- * @returns {string|null} runtime_value_json 原始值
+ * 读取某一轮的世界档案「时间」值（虚拟日期模式），转成 parseVirtualDate 认识的 JSON 编码字符串
+ * @param {string} sessionId
+ * @param {number} round
+ * @returns {string|null}
  */
-function extractDiaryTimeFromSnapshot(snapshotJson) {
-  if (!snapshotJson) return null;
-  try {
-    const snap = JSON.parse(snapshotJson);
-    return snap?.world?.[DIARY_TIME_FIELD_KEY] ?? null;
-  } catch {
-    return null;
-  }
+function getWorldTimeJsonAtRound(sessionId, round) {
+  const value = getWorldProfileAtRound(sessionId, 'time', round)?.value;
+  return value != null ? JSON.stringify(value) : null;
 }
 
 // ─── 消息收集 ─────────────────────────────────────────────────────
@@ -118,19 +115,20 @@ function getMessageContent(messageId) {
 /**
  * 收集属于 prevDateStr 的所有对话消息文本（用于日记生成）
  *
+ * @param {string} sessionId
  * @param {object[]} allRecords  getAllTurnRecordsBySessionId 返回值（已按 round_index ASC）
  * @param {string} prevDateStr   目标日期，如 "1000-03-05"
  * @param {'virtual'|'real'} dateMode
  * @returns {string}  拼接好的消息文本
  */
-function collectPrevDayMessages(allRecords, prevDateStr, dateMode) {
+function collectPrevDayMessages(sessionId, allRecords, prevDateStr, dateMode) {
   const lines = [];
 
   for (const rec of allRecords) {
     let recDateStr;
 
     if (dateMode === 'virtual') {
-      const raw = extractDiaryTimeFromSnapshot(rec.state_snapshot);
+      const raw = getWorldTimeJsonAtRound(sessionId, rec.round_index);
       const parsed = parseVirtualDate(raw);
       recDateStr = parsed ? formatDateStr(parsed) : null;
     } else {
@@ -207,8 +205,8 @@ export async function checkAndGenerateDiary(sessionId, roundIndex) {
   let currDateStr, prevDateStr, prevDateDisplay;
 
   if (dateMode === 'virtual') {
-    const currRaw = extractDiaryTimeFromSnapshot(currRec.state_snapshot);
-    const prevRaw = extractDiaryTimeFromSnapshot(prevRec.state_snapshot);
+    const currRaw = getWorldTimeJsonAtRound(sessionId, currRec.round_index);
+    const prevRaw = getWorldTimeJsonAtRound(sessionId, prevRec.round_index);
     const currParsed = parseVirtualDate(currRaw);
     const prevParsed = parseVirtualDate(prevRaw);
 
@@ -233,7 +231,7 @@ export async function checkAndGenerateDiary(sessionId, roundIndex) {
 
   // 收集前一天消息
   const prevDayRecords = allRecords.filter((r) => r.round_index < roundIndex);
-  const messagesText = collectPrevDayMessages(prevDayRecords, prevDateStr, dateMode);
+  const messagesText = collectPrevDayMessages(sessionId, prevDayRecords, prevDateStr, dateMode);
 
   if (!messagesText) {
     log.info(`SKIP  ${formatMeta({ session: sid, reason: 'no-messages-for-prev-day', date: prevDateStr })}`);

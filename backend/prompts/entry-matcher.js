@@ -14,6 +14,7 @@
 
 import { getMessagesBySessionId } from '../db/queries/messages.js';
 import { getSessionById } from '../db/queries/sessions.js';
+import { getCurrentWorldProfile } from '../db/queries/state-memory.js';
 import {
   getSessionWorldStateValues,
   getSessionPersonaStateValues,
@@ -245,6 +246,22 @@ function setStateMapRow(map, scope, row) {
   if (val != null) map.set(`${scope}.${row.label}`, val);
 }
 
+/**
+ * 世界档案的「时间」「地点」是保留键，覆盖同名用户世界字段：
+ * 命中冲突时以世界档案为准并 log.warn。
+ */
+export function applyWorldProfileToStateMap(map, sessionId) {
+  const profile = getCurrentWorldProfile(sessionId);
+  if (profile.time != null) {
+    if (map.has('世界.时间')) log.warn(`用户世界字段标签与保留名"时间"冲突，条件评估以世界档案为准`);
+    map.set('世界.时间', String(profile.time));
+  }
+  if (profile.location != null) {
+    if (map.has('世界.地点')) log.warn(`用户世界字段标签与保留名"地点"冲突，条件评估以世界档案为准`);
+    map.set('世界.地点', String(profile.location));
+  }
+}
+
 function buildSharedStateMap(worldId, sessionId) {
   const map = new Map();
   for (const row of getSessionWorldStateValues(sessionId, worldId)) {
@@ -253,6 +270,7 @@ function buildSharedStateMap(worldId, sessionId) {
   for (const row of getSessionPersonaStateValues(sessionId, worldId)) {
     setStateMapRow(map, '玩家', row);
   }
+  applyWorldProfileToStateMap(map, sessionId);
   return map;
 }
 

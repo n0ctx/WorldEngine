@@ -10,12 +10,8 @@ import { runOnDelete } from '../utils/cleanup-hooks.js';
 import {
   getWorldStateFieldsByWorldId,
   createWorldStateField,
-  updateWorldStateField,
-  deleteWorldStateField,
 } from '../db/queries/world-state-fields.js';
 import { upsertWorldStateValue } from '../db/queries/world-state-values.js';
-import { getConfig } from './config.js';
-import { DIARY_TIME_FIELD_KEY, DIARY_TIME_UPDATE_INSTRUCTION, DIARY_TIME_DESCRIPTION } from '../utils/constants.js';
 import { upsertPersona } from '../db/queries/personas.js';
 import { getAllWorldSessionIds } from '../db/queries/characters.js';
 import { deleteDailyEntriesBySessionIds } from '../db/queries/daily-entries.js';
@@ -29,66 +25,8 @@ function getInitialValueJson(field) {
   return field.default_value ?? null;
 }
 
-/**
- * 根据当前全局日记配置，同步世界的 diary_time 状态字段。
- * - 日记开启：若字段不存在则创建；若存在但 update_mode 与当前模式不符则更新
- * - 日记关闭：若字段存在则删除
- * 调用时机：创建世界、创建会话、前端页面进入时（通过 /api/worlds/:id/sync-diary 路由）
- */
-export function ensureDiaryTimeField(worldId) {
-  const config = getConfig();
-  const chatEnabled = config.diary?.chat?.enabled;
-  const writingEnabled = config.diary?.writing?.enabled;
-  const isDiaryEnabled = !!(chatEnabled || writingEnabled);
-
-  // 优先使用 chat 模式；若仅 writing 启用则使用 writing 模式
-  const dateMode = chatEnabled
-    ? (config.diary.chat.date_mode ?? 'virtual')
-    : (config.diary?.writing?.date_mode ?? 'virtual');
-
-  const fields = getWorldStateFieldsByWorldId(worldId);
-  const timeField = fields.find((f) => f.field_key === DIARY_TIME_FIELD_KEY);
-
-  if (isDiaryEnabled && !timeField) {
-    createWorldStateField(worldId, {
-      field_key: DIARY_TIME_FIELD_KEY,
-      label: '时间',
-      description: DIARY_TIME_DESCRIPTION,
-      type: 'datetime',
-      update_mode: dateMode === 'real' ? 'system_rule' : 'llm_auto',
-      update_instruction: dateMode === 'real' ? '' : DIARY_TIME_UPDATE_INSTRUCTION,
-      allow_empty: 1,
-      sort_order: 0,
-      default_value: '1000-01-01T00:00',
-    });
-  } else if (!isDiaryEnabled && timeField) {
-    deleteWorldStateField(timeField.id);
-  } else if (isDiaryEnabled && timeField) {
-    const expectedMode = dateMode === 'real' ? 'system_rule' : 'llm_auto';
-    const expectedInstruction = dateMode === 'real' ? '' : DIARY_TIME_UPDATE_INSTRUCTION;
-    const needsUpdate =
-      timeField.update_mode !== expectedMode ||
-      timeField.update_instruction !== expectedInstruction ||
-      timeField.description !== DIARY_TIME_DESCRIPTION ||
-      timeField.sort_order !== 0 ||
-      timeField.type !== 'datetime';
-    if (needsUpdate) {
-      updateWorldStateField(timeField.id, {
-        update_mode: expectedMode,
-        update_instruction: expectedInstruction,
-        description: DIARY_TIME_DESCRIPTION,
-        sort_order: 0,
-        type: 'datetime',
-      });
-    }
-  }
-}
-
 export function createWorld(data) {
   const world = dbCreateWorld(data);
-
-  // 日记时间字段同步（复用 ensureDiaryTimeField 逻辑）
-  ensureDiaryTimeField(world.id);
 
   // 新建世界种下默认世界层状态字段，让用户不必每个世界重设。玩家层/角色层不预设，由用户按需创建。
   // 落库后就是普通字段，用户可改可删。只在 createWorld 里种，不影响已存在的世界。

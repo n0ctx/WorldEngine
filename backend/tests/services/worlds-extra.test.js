@@ -65,39 +65,3 @@ test('deleteWorld 触发 cleanup 钩子并最终从 DB 删除世界', async () =
   assert.equal(getWorldById(world.id), undefined);
 });
 
-test('ensureDiaryTimeField 在 chat 关闭、仅 writing 启用时使用 writing 的 date_mode', async () => {
-  sandbox.writeConfig({
-    ...sandbox.readConfig(),
-    diary: {
-      chat: { enabled: false, date_mode: 'virtual' },
-      writing: { enabled: true, date_mode: 'real' },
-    },
-  });
-  const world = insertWorld(sandbox.db, { name: '日记-writing-only' });
-  const { ensureDiaryTimeField } = await freshImport('backend/services/worlds.js');
-  ensureDiaryTimeField(world.id);
-
-  const row = sandbox.db.prepare(`
-    SELECT update_mode FROM world_state_fields WHERE world_id = ? AND field_key = 'diary_time'
-  `).get(world.id);
-  assert.equal(row.update_mode, 'system_rule');
-});
-
-test('ensureDiaryTimeField 在已存在且模式相同时不重复更新', async () => {
-  sandbox.writeConfig({
-    ...sandbox.readConfig(),
-    diary: {
-      chat: { enabled: true, date_mode: 'virtual' },
-      writing: { enabled: false, date_mode: 'virtual' },
-    },
-  });
-  const world = insertWorld(sandbox.db, { name: '日记-no-op' });
-  const { ensureDiaryTimeField } = await freshImport('backend/services/worlds.js');
-  ensureDiaryTimeField(world.id);
-  const before = sandbox.db.prepare(`SELECT updated_at FROM world_state_fields WHERE world_id = ? AND field_key = 'diary_time'`).get(world.id);
-
-  // 第二次 ensure 时 update_mode 已是 llm_auto，应走 needsUpdate=false 路径
-  ensureDiaryTimeField(world.id);
-  const after = sandbox.db.prepare(`SELECT updated_at FROM world_state_fields WHERE world_id = ? AND field_key = 'diary_time'`).get(world.id);
-  assert.equal(before.updated_at, after.updated_at, 'updated_at 不应改变（说明跳过了更新）');
-});

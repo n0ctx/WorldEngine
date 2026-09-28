@@ -48,6 +48,48 @@ test('POST /api/worlds/:worldId/world-state-fields 校验必填并 201 返回；
   assert.equal(dup.status, 409);
 });
 
+test('POST /api/worlds/:worldId/world-state-fields label 为保留名（时间/地点）时返回 400；character 字段不受影响', async () => {
+  const world = insertWorld(ctx.sandbox.db, { name: '保留名-世界' });
+
+  const badTime = await ctx.request(`/api/worlds/${world.id}/world-state-fields`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ field_key: 'my_time', label: '时间', type: 'datetime' }),
+  });
+  assert.equal(badTime.status, 400);
+  assert.deepEqual(await badTime.json(), { error: '该名称已由系统管理' });
+
+  const badLocation = await ctx.request(`/api/worlds/${world.id}/world-state-fields`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ field_key: 'my_location', label: '  地点  ', type: 'text' }),
+  });
+  assert.equal(badLocation.status, 400);
+
+  const character = await ctx.request(`/api/worlds/${world.id}/character-state-fields`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ field_key: 'char_time', label: '时间', type: 'text' }),
+  });
+  assert.equal(character.status, 201);
+});
+
+test('PUT /api/world-state-fields/:id label 更新为保留名时返回 400；character 字段不受影响', async () => {
+  const world = insertWorld(ctx.sandbox.db, { name: '保留名-更新-世界' });
+  const field = insertWorldStateField(ctx.sandbox.db, world.id, { field_key: 'mood2', label: '心情', type: 'text' });
+  const charField = insertCharacterStateField(ctx.sandbox.db, world.id, { field_key: 'mood2_char', label: '心情', type: 'text' });
+
+  const bad = await ctx.request(`/api/world-state-fields/${field.id}`, {
+    method: 'PUT', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ label: '地点' }),
+  });
+  assert.equal(bad.status, 400);
+  assert.deepEqual(await bad.json(), { error: '该名称已由系统管理' });
+
+  const okChar = await ctx.request(`/api/character-state-fields/${charField.id}`, {
+    method: 'PUT', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ label: '地点' }),
+  });
+  assert.equal(okChar.status, 200);
+});
+
 test('PUT /api/world-state-fields/:id 更新；不存在 404', async () => {
   const world = insertWorld(ctx.sandbox.db, { name: '字段更新-世界' });
   const field = insertWorldStateField(ctx.sandbox.db, world.id, { field_key: 'mood', label: '心情', type: 'text' });

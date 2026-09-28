@@ -272,9 +272,9 @@ export function buildNpcApplicableFieldsSchema(worldId) {
  * gate 必须是「基线不存在」而非「无 turn record」——重生成首轮时 turn record 已被删空，
  * 但此时 session 状态仍是污染态，setSessionStateBaselineIfAbsent 的 IS NULL 条件保证不会被覆盖。
  */
-export function captureBaselineIfAbsent(sessionId, worldId, characterIds, isWriting) {
+export function captureBaselineIfAbsent(sessionId, worldId, characterIds) {
   if (!worldId) return;
-  const baseline = captureFullSnapshot(sessionId, worldId, characterIds || [], isWriting);
+  const baseline = captureFullSnapshot(sessionId, worldId, characterIds || []);
   setSessionStateBaselineIfAbsent(sessionId, JSON.stringify(baseline));
 }
 
@@ -308,7 +308,7 @@ function formatRealTimeDiaryStr() {
   return `${pad(local.getFullYear(), 4)}-${pad(local.getMonth() + 1)}-${pad(local.getDate())}T${pad(local.getHours())}:${pad(local.getMinutes())}`;
 }
 
-/** 真实日期模式：写入世界档案 time（不再写 diary_time 用户字段），AI 输出的 set_world time 会被丢弃。 */
+/** 真实日期模式：写入世界档案 time，AI 输出的 set_world time 会被丢弃。 */
 export function writeRealDateWorldTime({ realDate, worldId, sessionId, round, sid }) {
   if (!realDate || !worldId) return;
   const timeStr = formatRealTimeDiaryStr();

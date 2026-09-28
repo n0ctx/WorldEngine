@@ -14,7 +14,7 @@ sandbox.setEnv();
 
 after(() => sandbox.cleanup());
 
-test('createSession 会写入 diary_date_mode、同步 diary_time 字段并插入角色开场白', async () => {
+test('createSession 会写入 diary_date_mode 并插入角色开场白', async () => {
   const world = insertWorld(sandbox.db, { name: '会话世界-创建' });
   const character = insertCharacter(sandbox.db, world.id, {
     name: '洛因',
@@ -28,13 +28,9 @@ test('createSession 会写入 diary_date_mode、同步 diary_time 字段并插�
   const firstMessage = sandbox.db.prepare(`
     SELECT role, content FROM messages WHERE session_id = ? ORDER BY created_at ASC LIMIT 1
   `).get(session.id);
-  const diaryField = sandbox.db.prepare(`
-    SELECT field_key, update_mode FROM world_state_fields WHERE world_id = ? AND field_key = 'diary_time'
-  `).get(world.id);
 
   assert.equal(dbSession.diary_date_mode, 'virtual');
   assert.deepEqual(firstMessage, { role: 'assistant', content: '欢迎来到试炼场。' });
-  assert.deepEqual(diaryField, { field_key: 'diary_time', update_mode: 'llm_auto' });
 });
 
 test('createSession 插入开场白时替换 {{user}}/{{char}}/{{world}}', async () => {

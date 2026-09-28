@@ -14,22 +14,10 @@
  *   - enum_options 传原生 JS 数组，落库时由 db/queries 层统一 JSON.stringify
  *   - number      不给 default_value（只设 min_value），留空表示无默认值
  *
- * world_state_fields 里 diary_time 固定占 sort_order 0（见 ensureDiaryTimeField），
- * 这里的世界层字段从 sort_order 1 开始。
+ * 时间、地点由状态记忆的世界档案统一管理，新世界只预设天气。
  */
 
 export const DEFAULT_WORLD_STATE_FIELDS = [
-  {
-    field_key: 'location',
-    label: '地点',
-    type: 'text',
-    description: '当前故事发生的地点',
-    update_mode: 'llm_auto',
-    update_instruction: '跟随剧情中人物所处位置变化更新，写具体地点名',
-    allow_empty: 1,
-    default_value: '',
-    sort_order: 1,
-  },
   {
     field_key: 'weather',
     label: '天气',
@@ -40,6 +28,6 @@ export const DEFAULT_WORLD_STATE_FIELDS = [
     enum_options: ['晴', '多云', '阴', '雨', '雪', '雾', '风暴'],
     allow_empty: 1,
     default_value: '晴',
-    sort_order: 2,
+    sort_order: 0,
   },
 ];

@@ -1,9 +1,8 @@
 /**
  * world-date.js — 世界日期解析与年龄推算
  *
- * 世界日期格式为 `YYYY-MM-DD` 或 `YYYY-MM-DDTHH:mm`，年份位数不限（与
- * DIARY_TIME_UPDATE_INSTRUCTION 描述的格式一致），用于状态记忆的世界档案「当前时间」、
- * 档案字段「出生日期」「记录年龄」的年龄推算。
+ * 世界日期格式为 `YYYY-MM-DD` 或 `YYYY-MM-DDTHH:mm`，年份位数不限，用于状态记忆的
+ * 世界档案「当前时间」、档案字段「出生日期」「记录年龄」的年龄推算。
  */
 
 const WORLD_DATE_PATTERN = /^(\d+)-(\d{2})-(\d{2})(?:T(\d{2}):(\d{2}))?$/;
