@@ -1,10 +1,10 @@
 你是一名角色卡撰写助手。请根据以下信息，为名为「{{NAME}}」的登场角色撰写一张角色卡草稿。
 
-## 该角色的状态字段（来自会话 nearby 状态）
+## 该角色的状态字段（来自会话状态记忆）
 {{STATE_LINES}}
 
-## 该角色现有的一句话人设（将作为角色卡 description 的基底，请在此基础上扩写出完整 system_prompt）
-{{PERSONA}}
+## 该角色现有的档案文本（将作为角色卡 description 的基底，请在此基础上扩写出完整 system_prompt）
+{{PROFILE_TEXT}}
 
 ## 最近 {{RECENT_ROUNDS}} 轮原文（按时间顺序）
 {{RECENT_TEXT}}

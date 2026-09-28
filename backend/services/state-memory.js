@@ -10,6 +10,8 @@
  * 对外接口：
  *   getStateMemory(sessionId) → { entities, relations, threads, facts, world, presentIds }
  *   createEntity(sessionId, { type, name, aliases?, pinned? }) → entity 视图
+ *   createEntityFromCard(sessionId, { character_id }) → entity 视图，从角色卡建置顶关联实体
+ *     并把该世界 nearby_enabled=1 的字段在该卡片上的默认值复制到实体的用户字段运行时值
  *   updateEntity(sessionId, entityId, { name?, aliases?, pinned?, profile?, dynamic? }) → entity 视图
  *   retireEntity(sessionId, entityId) → entity 视图
  *   updateEntityField(sessionId, entityId, fieldKey, { value }) → entity 视图
@@ -42,6 +44,7 @@ import { getCharacterStateFieldsByWorldId } from '../db/queries/character-state-
 import { getSessionById } from '../db/queries/sessions.js';
 import { getMessagesBySessionId } from '../db/queries/messages.js';
 import { getCharacterById } from '../db/queries/characters.js';
+import { getAllCharacterStateValues } from '../db/queries/character-state-values.js';
 import { splitRounds } from '../utils/session-rounds.js';
 import { parseWorldDate, deriveAge } from '../utils/world-date.js';
 import { validateValue } from '../utils/state-field-validate.js';
@@ -200,20 +203,59 @@ export function getStateMemory(sessionId) {
 // 实体：新建 / 改动 / 退场 / 用户字段
 // ============================
 
+/** 同名 active 实体已存在时 409。 */
+function assertNameAvailable(sessionId, name) {
+  const conflict = listCurrentEntities(sessionId).some((e) => e.status === 'active' && e.name === name);
+  if (conflict) throw serviceError('conflict', '名字与其他实体重名');
+}
+
+/** 新建实体前的公共准备：记在当前最新一轮，分配新 entityId。 */
+function beginEntityCreation(sessionId) {
+  return { round: resolveManualRound(sessionId), entityId: crypto.randomUUID() };
+}
+
 export function createEntity(sessionId, body = {}) {
   requireSession(sessionId);
   if (!ENTITY_TYPES.includes(body.type)) throw serviceError('bad_request', `未知实体类型: ${body.type}`);
   const name = typeof body.name === 'string' ? body.name.trim() : '';
   if (!name) throw serviceError('bad_request', '缺少名字');
-  const conflict = listCurrentEntities(sessionId).some((e) => e.status === 'active' && e.name === name);
-  if (conflict) throw serviceError('conflict', '名字与其他实体重名');
+  assertNameAvailable(sessionId, name);
 
-  const round = resolveManualRound(sessionId);
-  const entityId = crypto.randomUUID();
+  const { round, entityId } = beginEntityCreation(sessionId);
   upsertEntity(sessionId, {
     entityId, seq: nextEntitySeq(sessionId), type: body.type, name,
     aliasesJson: JSON.stringify(normalizeAliases(body.aliases)), pinned: !!body.pinned,
   }, round);
+  return getEntityViewById(sessionId, entityId);
+}
+
+/** 从角色卡建置顶关联实体：卡片须属于本会话所在世界；同名 active 实体已存在时 409。 */
+export function createEntityFromCard(sessionId, body = {}) {
+  const session = requireSession(sessionId);
+  const worldId = resolveSessionWorldId(session);
+  const characterId = typeof body.character_id === 'string' ? body.character_id.trim() : '';
+  if (!characterId) throw serviceError('bad_request', '缺少 character_id');
+  const character = getCharacterById(characterId);
+  if (!character) throw serviceError('not_found', '角色卡不存在');
+  if (character.world_id !== worldId) throw serviceError('bad_request', '角色卡不属于该世界');
+
+  const name = character.name;
+  assertNameAvailable(sessionId, name);
+
+  const { round, entityId } = beginEntityCreation(sessionId);
+  upsertEntity(sessionId, {
+    entityId, seq: nextEntitySeq(sessionId), type: 'character', name,
+    aliasesJson: '[]', cardId: characterId, pinned: true,
+  }, round);
+
+  // 把该世界 nearby_enabled=1 的角色字段在该卡片上的默认值复制到实体的用户字段运行时值
+  const fields = worldId ? getCharacterStateFieldsByWorldId(worldId).filter((f) => f.nearby_enabled) : [];
+  const enabledKeys = new Set(fields.map((f) => f.field_key));
+  const cardValues = getAllCharacterStateValues(characterId);
+  upsertEntityStateValues(sessionId, cardValues
+    .filter((v) => enabledKeys.has(v.field_key) && v.default_value_json != null)
+    .map((v) => ({ entityId, fieldKey: v.field_key, runtimeValueJson: v.default_value_json })));
+
   return getEntityViewById(sessionId, entityId);
 }
 

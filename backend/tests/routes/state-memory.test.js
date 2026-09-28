@@ -2,7 +2,10 @@ import test, { after } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { createRouteTestContext } from '../helpers/http.js';
-import { insertWorld, insertSession } from '../helpers/fixtures.js';
+import { resetMockEnv } from '../helpers/test-env.js';
+import {
+  insertWorld, insertSession, insertCharacter, insertCharacterStateField, insertCharacterStateValue,
+} from '../helpers/fixtures.js';
 
 const ctx = createRouteTestContext('routes-state-memory');
 after(() => ctx.close());
@@ -14,6 +17,12 @@ function jsonInit(method, body) {
 function setupSession() {
   const world = insertWorld(ctx.sandbox.db);
   return insertSession(ctx.sandbox.db, { world_id: world.id, mode: 'writing' });
+}
+
+function setupSessionWithWorld() {
+  const world = insertWorld(ctx.sandbox.db);
+  const session = insertSession(ctx.sandbox.db, { world_id: world.id, mode: 'writing' });
+  return { world, session };
 }
 
 async function createEntity(sessionId, body) {
@@ -48,6 +57,74 @@ test('POST /entities 建立实体；重名 409；未知类型 400', async () => 
 
   const badType = await ctx.request(`/api/sessions/${session.id}/state-memory/entities`, jsonInit('POST', { type: 'x', name: 'Y' }));
   assert.equal(badType.status, 400);
+});
+
+test('POST /entities/from-card 从角色卡建置顶关联实体并复制默认值；重复 409；卡片不属于本世界 400', async () => {
+  const { world, session } = setupSessionWithWorld();
+  insertCharacterStateField(ctx.sandbox.db, world.id, { field_key: 'mood', label: '心情', type: 'text' });
+
+  const character = insertCharacter(ctx.sandbox.db, world.id, { name: '阿绪' });
+  insertCharacterStateValue(ctx.sandbox.db, character.id, {
+    field_key: 'mood', default_value_json: JSON.stringify('沉静'),
+  });
+
+  const res = await ctx.request(
+    `/api/sessions/${session.id}/state-memory/entities/from-card`,
+    jsonInit('POST', { character_id: character.id }),
+  );
+  assert.equal(res.status, 200);
+  const entity = await res.json();
+  assert.equal(entity.name, '阿绪');
+  assert.equal(entity.card_id, character.id);
+  assert.equal(entity.pinned, true);
+  assert.equal(entity.fields.find((f) => f.field_key === 'mood').value, '沉静');
+
+  const conflict = await ctx.request(
+    `/api/sessions/${session.id}/state-memory/entities/from-card`,
+    jsonInit('POST', { character_id: character.id }),
+  );
+  assert.equal(conflict.status, 409);
+
+  const otherWorld = insertWorld(ctx.sandbox.db);
+  const otherCharacter = insertCharacter(ctx.sandbox.db, otherWorld.id, { name: '外人' });
+  const worldMismatch = await ctx.request(
+    `/api/sessions/${session.id}/state-memory/entities/from-card`,
+    jsonInit('POST', { character_id: otherCharacter.id }),
+  );
+  assert.equal(worldMismatch.status, 400);
+
+  const notFound = await ctx.request(
+    `/api/sessions/${session.id}/state-memory/entities/from-card`,
+    jsonInit('POST', { character_id: 'no-such' }),
+  );
+  assert.equal(notFound.status, 404);
+});
+
+test('POST /entities/:entityId/analyze 返回 LLM 制卡草稿；实体不存在 404', async () => {
+  resetMockEnv();
+  const session = setupSession();
+  const entity = await createEntity(session.id, { type: 'character', name: '阿绪' });
+
+  process.env.MOCK_LLM_COMPLETE = JSON.stringify({
+    system_prompt: '阿绪性格沉静。',
+    first_message: '你好。',
+  });
+
+  const res = await ctx.request(
+    `/api/sessions/${session.id}/state-memory/entities/${entity.entity_id}/analyze`,
+    { method: 'POST' },
+  );
+  assert.equal(res.status, 200);
+  const draft = await res.json();
+  assert.equal(draft.name, '阿绪');
+  assert.equal(draft.system_prompt, '阿绪性格沉静。');
+  assert.equal(draft.first_message, '你好。');
+
+  const notFound = await ctx.request(
+    `/api/sessions/${session.id}/state-memory/entities/no-such/analyze`,
+    { method: 'POST' },
+  );
+  assert.equal(notFound.status, 404);
 });
 
 test('PATCH /entities/:entityId 改动档案与现状；改名冲突 409；实体不存在 404', async () => {

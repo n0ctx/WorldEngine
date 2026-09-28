@@ -79,7 +79,7 @@ router.get('/:sessionId/state-values', (req, res) => {
   const worldId = resolveSessionWorldId(session);
   if (!worldId) return res.json({ world: [], persona: [], character: [] });
 
-  // 写作模式没有固定角色身份（角色由 nearby 池单独管理），返回空 character 段；
+  // 写作模式没有固定角色身份（角色由状态记忆实体单独管理），返回空 character 段；
   // 对话模式取绑定角色
   const characterIds = session.character_id ? [session.character_id] : [];
 

@@ -4,14 +4,13 @@ import crypto from 'node:crypto';
 
 import { createTestSandbox, freshImport, resetMockEnv } from '../helpers/test-env.js';
 import {
-  insertCharacter,
   insertCharacterStateField,
   insertMessage,
   insertSession,
   insertWorld,
 } from '../helpers/fixtures.js';
 
-const sandbox = createTestSandbox('service-nearby-card-maker');
+const sandbox = createTestSandbox('service-entity-card-maker');
 sandbox.setEnv();
 
 after(() => sandbox.cleanup());
@@ -36,59 +35,60 @@ function makeWorldAndWritingSession(name) {
   return { worldId: world.id, sessionId: session.id };
 }
 
-test('analyzeNearbyForCard：返回 LLM 草稿（name 透传 + LLM 三字段）', async () => {
+async function makeCharacterEntity(sessionId, name) {
+  const { createEntity } = await freshImport('backend/services/state-memory.js');
+  return createEntity(sessionId, { type: 'character', name });
+}
+
+test('analyzeEntityForCard：返回 LLM 草稿（name 透传 + LLM 两字段 + description 来自档案文本）', async () => {
   const { worldId, sessionId } = makeWorldAndWritingSession('analyze');
   const moodField = insertCharacterStateField(sandbox.db, worldId, {
     field_key: 'mood', label: '心情', type: 'text',
   });
   setNearbyEnabled(sandbox.db, moodField.id, 1);
 
-  const character = insertCharacter(sandbox.db, worldId, { name: '阿绪', description: '一个内敛的青年。' });
-
-  const { addSavedFromCharacter, patchNearbyState } =
-    await freshImport('backend/services/writing-sessions.js');
-  const nearbyId = addSavedFromCharacter(sessionId, character.id);
-  patchNearbyState(sessionId, nearbyId, 'mood', JSON.stringify('沉静'));
+  const entity = await makeCharacterEntity(sessionId, '阿绪');
+  const { updateEntity, updateEntityField } = await freshImport('backend/services/state-memory.js');
+  updateEntity(sessionId, entity.entity_id, { profile: { background: ['一个内敛的青年'] } });
+  updateEntityField(sessionId, entity.entity_id, 'mood', { value: '沉静' });
 
   // 写几条消息让 analyze 有上下文
   insertMessage(sandbox.db, sessionId, { role: 'user', content: '你好啊' });
   insertMessage(sandbox.db, sessionId, { role: 'assistant', content: '你好。' });
 
-  // mock LLM 返回固定 JSON（不再包含 description；description 由 nearby.persona 决定）
+  // mock LLM 返回固定 JSON（不再包含 description；description 由档案文本决定）
   process.env.MOCK_LLM_COMPLETE = JSON.stringify({
     system_prompt: '阿绪性格沉静，言语克制，习惯先观察再开口。',
     first_message: '（轻轻点头）你好。',
   });
 
-  const { analyzeNearbyForCard } =
-    await freshImport('backend/services/nearby-card-maker.js');
-  const draft = await analyzeNearbyForCard(sessionId, nearbyId);
+  const { renderEntityProfileText } = await freshImport('backend/memory/state-memory-render.js');
+  const expectedDescription = renderEntityProfileText(sessionId, entity.entity_id, { worldId });
+  assert.ok(expectedDescription);
+
+  const { analyzeEntityForCard } = await freshImport('backend/services/entity-card-maker.js');
+  const draft = await analyzeEntityForCard(sessionId, entity.entity_id);
 
   assert.equal(draft.name, '阿绪');
   assert.equal(draft.system_prompt, '阿绪性格沉静，言语克制，习惯先观察再开口。');
-  // description 直接来自 nearby.persona（addSavedFromCharacter 时从 character.description 拷贝）
-  assert.equal(draft.description, '一个内敛的青年。');
+  assert.equal(draft.description, expectedDescription);
   assert.equal(draft.first_message, '（轻轻点头）你好。');
 });
 
-test('analyzeNearbyForCard：LLM 返回非法 JSON 抛错', async () => {
-  const { worldId, sessionId } = makeWorldAndWritingSession('analyze-bad');
-  const character = insertCharacter(sandbox.db, worldId, { name: '糟糕' });
-  const { addSavedFromCharacter } =
-    await freshImport('backend/services/writing-sessions.js');
-  const nearbyId = addSavedFromCharacter(sessionId, character.id);
+test('analyzeEntityForCard：LLM 返回非法 JSON 抛错', async () => {
+  const { sessionId } = makeWorldAndWritingSession('analyze-bad');
+  const entity = await makeCharacterEntity(sessionId, '糟糕');
 
   process.env.MOCK_LLM_COMPLETE = '这不是 JSON 啊';
 
-  const { analyzeNearbyForCard } =
-    await freshImport('backend/services/nearby-card-maker.js');
+  const { analyzeEntityForCard } = await freshImport('backend/services/entity-card-maker.js');
   await assert.rejects(
-    () => analyzeNearbyForCard(sessionId, nearbyId),
+    () => analyzeEntityForCard(sessionId, entity.entity_id),
     /invalid JSON/i,
   );
 });
 
-test('createCharacterFromNearby：落库；仅 nearby_enabled=1 字段写 default_value_json；不写 runtime；不带 persona；不带 nearby id', async () => {
+test('createCharacterFromEntity：落库；仅 nearby_enabled=1 字段写 default_value_json；不写 runtime；回写实体 card_id', async () => {
   const { worldId, sessionId } = makeWorldAndWritingSession('create');
   const moodField = insertCharacterStateField(sandbox.db, worldId, {
     field_key: 'mood', label: '心情', type: 'text',
@@ -99,27 +99,20 @@ test('createCharacterFromNearby：落库；仅 nearby_enabled=1 字段写 defaul
   setNearbyEnabled(sandbox.db, moodField.id, 1);
   setNearbyEnabled(sandbox.db, hpField.id, 0);
 
-  const seedCharacter = insertCharacter(sandbox.db, worldId, { name: '种子' });
-  const { addSavedFromCharacter, patchNearbyState, patchNearbyPersona } =
-    await freshImport('backend/services/writing-sessions.js');
-  const nearbyId = addSavedFromCharacter(sessionId, seedCharacter.id);
-
-  // 给 nearby 设置当前值（启用 mood + 禁用 hp 直接绕过 service 写库，模拟旧值）
-  patchNearbyState(sessionId, nearbyId, 'mood', JSON.stringify('愤怒'));
-  // 直接写 hp（模拟历史脏数据），即便存在也不应被拷贝
+  const entity = await makeCharacterEntity(sessionId, '种子');
+  const { updateEntityField } = await freshImport('backend/services/state-memory.js');
+  updateEntityField(sessionId, entity.entity_id, 'mood', { value: '愤怒' });
+  // 直接写 hp（模拟禁用字段的历史脏数据），即便存在也不应被拷贝
   sandbox.db.prepare(
-    `INSERT INTO session_nearby_character_state_values
-     (id, session_id, nearby_id, field_key, runtime_value_json, updated_at)
+    `INSERT INTO session_entity_state_values (id, session_id, entity_id, field_key, runtime_value_json, updated_at)
      VALUES (?, ?, ?, ?, ?, ?)`,
-  ).run(crypto.randomUUID(), sessionId, nearbyId, 'hp', JSON.stringify(33), Date.now());
-  patchNearbyPersona(sessionId, nearbyId, '私下人设占位');
+  ).run(crypto.randomUUID(), sessionId, entity.entity_id, 'hp', JSON.stringify(33), Date.now());
 
-  const { createCharacterFromNearby } =
-    await freshImport('backend/services/nearby-card-maker.js');
-  const newId = createCharacterFromNearby({
+  const { createCharacterFromEntity } = await freshImport('backend/services/entity-card-maker.js');
+  const newId = createCharacterFromEntity({
     worldId,
     sessionId,
-    nearbyId,
+    entityId: entity.entity_id,
     name: '阿绪',
     system_prompt: 'sp',
     description: 'desc',
@@ -146,18 +139,19 @@ test('createCharacterFromNearby：落库；仅 nearby_enabled=1 字段写 defaul
   assert.equal(values[0].default_value_json, JSON.stringify('愤怒'));
   assert.equal(values[0].runtime_value_json, null);
 
-  // persona 不应写到 character row 任何字段（createCharacterFromNearby 用调用方传入的入参）
-  // 描述/系统提示词都应是入参原值
-  assert.ok(!row.description.includes('私下人设占位'));
-  assert.ok(!row.system_prompt.includes('私下人设占位'));
+  // 实体的 card_id 回写为新角色卡
+  const entityRow = sandbox.db.prepare(
+    'SELECT card_id FROM state_entities WHERE session_id = ? AND entity_id = ? AND valid_to_round IS NULL',
+  ).get(sessionId, entity.entity_id);
+  assert.equal(entityRow.card_id, newId);
 });
 
-test('createCharacterFromNearby：批量复制大量启用字段的当前值', async () => {
+test('createCharacterFromEntity：批量复制大量启用字段的当前值', async () => {
   const { worldId, sessionId } = makeWorldAndWritingSession('create-many-state-values');
   const stateCount = 180;
   const fieldKeys = [];
   for (let index = 0; index < stateCount; index += 1) {
-    const fieldKey = `nearby_state_${index}`;
+    const fieldKey = `entity_state_${index}`;
     const field = insertCharacterStateField(sandbox.db, worldId, {
       field_key: fieldKey,
       label: `状态 ${index}`,
@@ -168,20 +162,17 @@ test('createCharacterFromNearby：批量复制大量启用字段的当前值', a
     fieldKeys.push(fieldKey);
   }
 
-  const seedCharacter = insertCharacter(sandbox.db, worldId, { name: '多状态种子' });
-  const { addSavedFromCharacter, patchNearbyState } =
-    await freshImport('backend/services/writing-sessions.js');
-  const nearbyId = addSavedFromCharacter(sessionId, seedCharacter.id);
+  const entity = await makeCharacterEntity(sessionId, '多状态种子');
+  const { updateEntityField } = await freshImport('backend/services/state-memory.js');
   for (let index = 0; index < fieldKeys.length; index += 1) {
-    patchNearbyState(sessionId, nearbyId, fieldKeys[index], JSON.stringify(`current-${index}`));
+    updateEntityField(sessionId, entity.entity_id, fieldKeys[index], { value: `current-${index}` });
   }
 
-  const { createCharacterFromNearby } =
-    await freshImport('backend/services/nearby-card-maker.js');
-  const characterId = createCharacterFromNearby({
+  const { createCharacterFromEntity } = await freshImport('backend/services/entity-card-maker.js');
+  const characterId = createCharacterFromEntity({
     worldId,
     sessionId,
-    nearbyId,
+    entityId: entity.entity_id,
     name: '多状态新角色',
   });
   const values = sandbox.db.prepare(`
@@ -204,35 +195,31 @@ test('createCharacterFromNearby：批量复制大量启用字段的当前值', a
   });
 });
 
-test('createCharacterFromNearby：name 缺失 / nearby 不属于 session / session 不属于 world 抛错', async () => {
+test('createCharacterFromEntity：name 缺失 / 实体不属于 session / session 不属于 world 抛错', async () => {
   const { worldId, sessionId } = makeWorldAndWritingSession('errors');
-  const character = insertCharacter(sandbox.db, worldId, { name: 'A' });
-  const { addSavedFromCharacter } =
-    await freshImport('backend/services/writing-sessions.js');
-  const nearbyId = addSavedFromCharacter(sessionId, character.id);
+  const entity = await makeCharacterEntity(sessionId, 'A');
 
-  const { createCharacterFromNearby } =
-    await freshImport('backend/services/nearby-card-maker.js');
+  const { createCharacterFromEntity } = await freshImport('backend/services/entity-card-maker.js');
 
   // name 缺失
   assert.throws(
-    () => createCharacterFromNearby({ worldId, sessionId, nearbyId, name: '   ' }),
+    () => createCharacterFromEntity({ worldId, sessionId, entityId: entity.entity_id, name: '   ' }),
     /name is required/,
   );
 
-  // nearby 不存在
+  // 实体不存在
   assert.throws(
-    () => createCharacterFromNearby({
-      worldId, sessionId, nearbyId: 'no-such-nearby', name: 'X',
+    () => createCharacterFromEntity({
+      worldId, sessionId, entityId: 'no-such-entity', name: 'X',
     }),
-    (err) => err.code === 'NEARBY_NOT_FOUND',
+    (err) => err.code === 'ENTITY_NOT_FOUND',
   );
 
   // session 不属于 world
   const otherWorld = insertWorld(sandbox.db, { name: '别的世界' });
   assert.throws(
-    () => createCharacterFromNearby({
-      worldId: otherWorld.id, sessionId, nearbyId, name: 'X',
+    () => createCharacterFromEntity({
+      worldId: otherWorld.id, sessionId, entityId: entity.entity_id, name: 'X',
     }),
     (err) => err.code === 'SESSION_WORLD_MISMATCH',
   );

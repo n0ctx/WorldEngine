@@ -1,31 +1,31 @@
 /**
- * nearby-card-prompt.js — 写作模式"附近"角色制卡用的 LLM 提示词构建。
+ * entity-card-prompt.js — 状态记忆实体制卡用的 LLM 提示词构建。
  *
- * 由 backend/services/nearby-card-maker.js 的 analyzeNearbyForCard 调用，
+ * 由 backend/services/entity-card-maker.js 的 analyzeEntityForCard 调用，
  * 输出 [{ role:'user', content:'...' }] 形式的 messages，供 llm.complete 使用。
  *
- * 模板：backend/prompts/templates/writing-nearby-card-analyze.md
+ * 模板：backend/prompts/templates/writing-entity-card-analyze.md
  *
- * @module backend/prompts/nearby-card-prompt
+ * @module backend/prompts/entity-card-prompt
  */
 
 import { renderBackendPrompt } from './prompt-loader.js';
 
 /**
- * 构建 nearby 制卡分析用的 messages。
+ * 构建实体制卡分析用的 messages。
  *
  * @param {object} args
- * @param {string} args.name           nearby 角色名
- * @param {string} args.persona        nearby.persona（一句话人物设定，将作为 description 基底）
+ * @param {string} args.name           实体名
+ * @param {string} args.profileText    实体档案纯文本（renderEntityProfileText，将作为 description 基底）
  * @param {Array<{field_key:string, runtime_value_json:*}>} args.stateValues
- *   nearby 当前状态值列表（仅 runtime_value_json != null 的会被渲染）
+ *   实体当前状态值列表（仅 runtime_value_json != null 的会被渲染）
  * @param {Array<{role:string, content:string}>} args.recentMessages
  * @param {number} args.recentRounds   最近多少轮（仅用于提示文字展示）
  * @returns {Array<{role:'user', content:string}>}
  */
-export function buildNearbyCardAnalyzePrompt({
+export function buildEntityCardAnalyzePrompt({
   name,
-  persona,
+  profileText,
   stateValues,
   recentMessages,
   recentRounds,
@@ -39,10 +39,10 @@ export function buildNearbyCardAnalyzePrompt({
     .map((m) => `[${m.role}] ${m.content ?? ''}`)
     .join('\n\n');
 
-  const content = renderBackendPrompt('writing-nearby-card-analyze.md', {
+  const content = renderBackendPrompt('writing-entity-card-analyze.md', {
     NAME: name,
     STATE_LINES: stateLines || '（无）',
-    PERSONA: persona || '（无）',
+    PROFILE_TEXT: profileText || '（无）',
     RECENT_ROUNDS: recentRounds,
     RECENT_TEXT: recentText || '（无）',
   });
