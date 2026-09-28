@@ -92,7 +92,6 @@ test('buildPrompt 组装系统段、历史消息、独立 system 后置提示词
     ...sandbox.readConfig(),
     global_system_prompt: '全局系统：{{world}}',
     global_post_prompt: '全局后置：{{char}}',
-    context_history_rounds: 2,
     provider_keys: {},
     llm: {
       provider: 'mock',
@@ -151,7 +150,6 @@ test('buildPrompt 在开启状态栏、召回展开、日记注入与 suggestion
     ...sandbox.readConfig(),
     global_system_prompt: '全局系统：{{world}}',
     global_post_prompt: '全局后置：{{char}}',
-    context_history_rounds: 1,
     suggestion_enabled: true,
   });
 
@@ -198,7 +196,6 @@ test('buildPrompt 在关闭 suggestion 时不会把 next prompt 指令拼到当�
     ...sandbox.readConfig(),
     global_system_prompt: '',
     global_post_prompt: '',
-    context_history_rounds: 1,
     suggestion_enabled: false,
   });
 
@@ -219,7 +216,6 @@ test('buildPrompt always 条目注入 dynamic 块', async () => {
     ...sandbox.readConfig(),
     global_system_prompt: '',
     global_post_prompt: '',
-    context_history_rounds: 1,
     suggestion_enabled: false,
   });
 
@@ -244,7 +240,6 @@ test('buildPrompt 角色 system_prompt 注入 cached system，always 条目注�
     ...sandbox.readConfig(),
     global_system_prompt: '',
     global_post_prompt: '',
-    context_history_rounds: 1,
     suggestion_enabled: false,
   });
 
@@ -278,7 +273,6 @@ test('buildWritingPrompt 写作模式不注入 [4] 角色 system_prompt 与 [7] 
       ...sandbox.readConfig().writing,
       global_system_prompt: '写作系统：{{world}} / {{char}}',
       global_post_prompt: '写作后置：{{char}}',
-      context_history_rounds: 1,
       suggestion_enabled: true,
       memory_expansion_enabled: true,
       llm: {

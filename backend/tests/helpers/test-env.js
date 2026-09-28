@@ -70,7 +70,6 @@ export function createTestConfig(patch = {}) {
       auto_collapse_thinking: true,
       show_token_usage: false,
     },
-    context_history_rounds: 3,
     global_system_prompt: '',
     global_post_prompt: '',
     memory_expansion_enabled: false,
@@ -86,7 +85,6 @@ export function createTestConfig(patch = {}) {
     writing: {
       global_system_prompt: '',
       global_post_prompt: '',
-      context_history_rounds: null,
       suggestion_enabled: false,
       memory_expansion_enabled: false,
       llm: {

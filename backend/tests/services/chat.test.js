@@ -14,7 +14,6 @@ import {
 
 const sandbox = createTestSandbox('service-chat-suite', {
   global_system_prompt: '系统：{{world}}',
-  context_history_rounds: 1,
 });
 sandbox.setEnv();
 

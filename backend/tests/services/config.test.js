@@ -52,10 +52,8 @@ test('updateConfig：非法预算值规范到默认值/null，合法值按范围
 
 test('读取旧配置时迁移共享密钥并持久化规范化结果', () => {
   sandbox.writeConfig({
-    context_compress_rounds: 7,
     provider_keys: { shared: 'root-key' },
     llm: { provider: 'llm', api_key: 'llm-key', provider_keys: { llm_legacy: 'llm-secret' } },
-    embedding: { provider: 'embedding', provider_keys: { shared: 'old-key', embedding_legacy: 'embedding-secret' } },
     aux_llm: { provider: 'aux', api_key: 'aux-key' },
     log_prompt: true,
     logging: { mode: 'raw', max_preview_chars: '120.8', modules: [], llm_raw: { enabled: true } },
@@ -72,13 +70,10 @@ test('读取旧配置时迁移共享密钥并持久化规范化结果', () => {
 
   const config = getConfig();
 
-  assert.equal(config.context_history_rounds, 7);
-  assert.equal('context_compress_rounds' in config, false);
   assert.deepEqual(config.provider_keys, {
     shared: 'root-key',
     llm: 'llm-key',
     llm_legacy: 'llm-secret',
-    embedding_legacy: 'embedding-secret',
     aux: 'aux-key',
     writer: 'writer-key',
     writer_aux: 'writer-aux-key',
@@ -112,4 +107,53 @@ test('读取旧配置时迁移共享密钥并持久化规范化结果', () => {
     factions: 20,
   });
   assert.deepEqual(sandbox.readConfig(), config);
+});
+
+test('旧配置含六个废弃键时，迁移后全部消失并持久化', () => {
+  sandbox.writeConfig({
+    context_compress_rounds: 7,
+    context_history_rounds: 10,
+    long_term_memory_enabled: true,
+    embedding: { provider: 'openai', model: 'text-embedding-3-small' },
+    writing: {
+      context_history_rounds: 5,
+      long_term_memory_enabled: true,
+    },
+  });
+
+  const config = getConfig();
+
+  assert.equal('context_compress_rounds' in config, false);
+  assert.equal('context_history_rounds' in config, false);
+  assert.equal('long_term_memory_enabled' in config, false);
+  assert.equal('embedding' in config, false);
+  assert.equal('context_history_rounds' in config.writing, false);
+  assert.equal('long_term_memory_enabled' in config.writing, false);
+  assert.deepEqual(sandbox.readConfig(), config);
+});
+
+test('不含废弃键的配置在再次读取时不会被重写', () => {
+  fs.rmSync(sandbox.configPath, { force: true });
+  getConfig();
+  const mtimeBefore = fs.statSync(sandbox.configPath).mtimeMs;
+
+  getConfig();
+  const mtimeAfter = fs.statSync(sandbox.configPath).mtimeMs;
+  assert.equal(mtimeAfter, mtimeBefore);
+});
+
+test('openai_compatible 的 provider key：仍被使用时保留，无 scope 使用时删除', () => {
+  sandbox.writeConfig({
+    provider_keys: { openai_compatible: 'compat-key' },
+    llm: { provider: 'openai_compatible', model: 'compat-model' },
+  });
+  const kept = getConfig();
+  assert.equal(kept.provider_keys.openai_compatible, 'compat-key');
+
+  sandbox.writeConfig({
+    provider_keys: { openai_compatible: 'compat-key' },
+    llm: { provider: 'mock', model: 'mock-model' },
+  });
+  const removed = getConfig();
+  assert.equal('openai_compatible' in removed.provider_keys, false);
 });

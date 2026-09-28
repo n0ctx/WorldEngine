@@ -47,20 +47,12 @@ const DEFAULT_CONFIG = {
     temperature: 0.8,
     thinking_level: null,
   },
-  embedding: {
-    provider: 'openai',
-    provider_models: {},
-    base_url: '',
-    model: 'text-embedding-3-small',
-  },
   ui: structuredClone(DEFAULT_UI),
-  context_history_rounds: 10,
   chapter_turn_size: 20,
   page_turn_size: 50,
   global_system_prompt: '',
   global_post_prompt: '',
   memory_expansion_enabled: true,
-  long_term_memory_enabled: false,
   table_memory_enabled: false,
   table_memory_row_limits: structuredClone(DEFAULT_ROW_LIMITS),
   memory_recall_max_sessions: 5,
@@ -82,13 +74,11 @@ const DEFAULT_CONFIG = {
   writing: {
     global_system_prompt: '',
     global_post_prompt: '',
-    context_history_rounds: null,
     chapter_turn_size: null,
     page_turn_size: null,
     short_term_token_budget: null,
     suggestion_enabled: false,
     memory_expansion_enabled: true,
-    long_term_memory_enabled: false,
     table_memory_enabled: false,
     saved_nearby_recall_enabled: true,
     llm: {
@@ -116,13 +106,11 @@ const DEFAULT_CONFIG = {
 const DEFAULT_WRITING = {
   global_system_prompt: '',
   global_post_prompt: '',
-  context_history_rounds: null,
   chapter_turn_size: null,
   page_turn_size: null,
   short_term_token_budget: null,
   suggestion_enabled: false,
   memory_expansion_enabled: true,
-  long_term_memory_enabled: false,
   table_memory_enabled: false,
   saved_nearby_recall_enabled: true,
   llm: {
@@ -221,18 +209,12 @@ function normalizeConfigForPersist(config) {
   const normalized = ensurePlainObject(config, structuredClone(DEFAULT_CONFIG));
   normalized.provider_keys = ensurePlainObject(normalized.provider_keys);
   normalized.llm = normalizeLlmSection(normalized.llm, DEFAULT_CONFIG.llm);
-  normalized.embedding = normalizeLlmSection(normalized.embedding, DEFAULT_CONFIG.embedding);
   normalized.aux_llm = normalizeLlmSection(normalized.aux_llm, DEFAULT_AUX_LLM);
   normalized.writing = ensurePlainObject(normalized.writing, structuredClone(DEFAULT_WRITING));
   normalized.writing.llm = normalizeLlmSection(normalized.writing.llm, DEFAULT_WRITING.llm);
   normalized.writing.aux_llm = normalizeLlmSection(normalized.writing.aux_llm, DEFAULT_WRITING.aux_llm);
   normalized.ui = { ...structuredClone(DEFAULT_UI), ...ensurePlainObject(normalized.ui) };
   normalized.logging = { ...structuredClone(DEFAULT_LOGGING), ...ensurePlainObject(normalized.logging) };
-  normalized.context_history_rounds = normalizePositiveInteger(
-    normalized.context_history_rounds,
-    DEFAULT_CONFIG.context_history_rounds,
-    { min: 1, max: 1000 },
-  );
   normalized.chapter_turn_size = normalizePositiveInteger(
     normalized.chapter_turn_size,
     DEFAULT_CONFIG.chapter_turn_size,
@@ -288,23 +270,45 @@ function mergeSectionKeys(section, sharedKeys) {
   return dirty;
 }
 
+const LEGACY_CONFIG_KEYS = [
+  'context_compress_rounds',
+  'context_history_rounds',
+  'long_term_memory_enabled',
+  'embedding',
+];
+const LEGACY_WRITING_KEYS = ['context_history_rounds', 'long_term_memory_enabled'];
+
 function migrateConfig(config) {
   let dirty = false;
-  // 迁移旧字段名 context_compress_rounds → context_history_rounds
-  if ('context_compress_rounds' in config && !('context_history_rounds' in config)) {
-    config.context_history_rounds = config.context_compress_rounds;
-    delete config.context_compress_rounds;
-    dirty = true;
+
+  // 顶层共享 key 池先规范化成对象，后续读写才安全
+  const priorProviderKeys = config.provider_keys;
+  config.provider_keys = ensurePlainObject(priorProviderKeys);
+  if (config.provider_keys !== priorProviderKeys) dirty = true;
+
+  const writingSection = ensurePlainObject(config.writing);
+  const usesOpenaiCompatible = [config.llm?.provider, config.aux_llm?.provider, writingSection.llm?.provider, writingSection.aux_llm?.provider]
+    .includes('openai_compatible');
+
+  // 删除已废弃的旧配置键（短期记忆改用 token 预算、长期记忆/向量检索已下线），
+  // 以及不再被任何 scope 使用的 openai_compatible 共享 key
+  const deletions = [
+    ...LEGACY_CONFIG_KEYS.map((key) => [config, key, true]),
+    ...LEGACY_WRITING_KEYS.map((key) => [writingSection, key, true]),
+    [config.provider_keys, 'openai_compatible', !usesOpenaiCompatible],
+  ];
+  for (const [obj, key, shouldDelete] of deletions) {
+    if (shouldDelete && key in obj) {
+      delete obj[key];
+      dirty = true;
+    }
   }
 
   // 把旧版各 section 的 key 收拢到顶层共享池
-  if (!config.provider_keys || typeof config.provider_keys !== 'object' || Array.isArray(config.provider_keys)) {
-    config.provider_keys = {};
-    dirty = true;
-  }
-  for (const section of [config.llm, config.embedding, config.aux_llm, config.writing?.llm, config.writing?.aux_llm]) {
+  for (const section of [config.llm, config.aux_llm, config.writing?.llm, config.writing?.aux_llm]) {
     dirty = mergeSectionKeys(section, config.provider_keys) || dirty;
   }
+
   return dirty;
 }
 
