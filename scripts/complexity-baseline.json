@@ -26,7 +26,7 @@
     "backend/memory/nearby-state-apply.js#applyNearbyResult": 32,
     "backend/memory/state-update-compress.js#compressOverLimitFields": 43,
     "backend/memory/turn-summarizer.js#createTurnRecord": 53,
-    "backend/prompts/assembler.js#buildWritingPrompt": 43,
+    "backend/prompts/assembler.js#buildWritingPrompt": 41,
     "backend/prompts/entry-matcher.js#evaluateCondition": 31,
     "backend/prompts/entry-matcher.js#matchEntries": 65,
     "backend/prompts/entry-matcher.js#matchStateEntries>(匿名)": 31,

@@ -36,7 +36,6 @@ export const SUGGESTION_TOKEN_RESERVE = 200;     // 选项生成预留输出空�
 // 记忆召回
 // ============================
 export const MEMORY_RECALL_MAX_SESSIONS = 5;
-export const MEMORY_RECALL_MAX_TOKENS = 2048;
 export const MEMORY_RECALL_SIMILARITY_THRESHOLD = 0.75;       // 跨 session 阈值
 export const MEMORY_RECALL_SAME_SESSION_THRESHOLD = 0.6;     // 同 session 内阈值
 /** turn 摘要锚点中 cast 人物名条数上限（与 memory-turn-summary*.md 模板中的 4 个一致） */
@@ -46,13 +45,10 @@ export const TURN_SUMMARY_CAST_MAX = 4;
 // 记忆分层（memory-v2）
 // ============================
 /** 中期摘要单条最大 token 数 */
-// guard-allow(dead-code): memory-v2-p1 后续节点（中期摘要压缩）消费，本节点只定义常量
 export const MIDDLE_SUMMARY_MAX_TOKENS = 1000;
 /** 中期摘要压缩输入（原文轮次拼接后）最大 token 数 */
-// guard-allow(dead-code): memory-v2-p1 后续节点（中期摘要压缩）消费，本节点只定义常量
 export const MIDDLE_COMPRESS_INPUT_MAX_TOKENS = 12000;
 /** 中期摘要覆盖的原文轮数上限 */
-// guard-allow(dead-code): memory-v2-p1 后续节点（中期摘要压缩）消费，本节点只定义常量
 export const MIDDLE_RAW_ROUNDS_MAX = 20;
 /** 长期记忆索引条目单条最大 token 数 */
 // guard-allow(dead-code): memory-v2-p1 后续节点（长期记忆索引）消费，本节点只定义常量
@@ -61,7 +57,6 @@ export const LONG_TERM_INDEX_MAX_TOKENS = 100;
 // guard-allow(dead-code): memory-v2-p1 后续节点（长期记忆索引回填）消费，本节点只定义常量
 export const TURN_INDEX_BACKFILL_MAX = 3;
 /** 长期记忆召回超时时间（毫秒） */
-// guard-allow(dead-code): memory-v2-p1 后续节点（长期记忆召回）消费，本节点只定义常量
 export const LONG_TERM_RECALL_TIMEOUT_MS = 30000;
 
 // ============================

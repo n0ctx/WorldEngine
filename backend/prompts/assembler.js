@@ -137,12 +137,12 @@ function getCurrentUserMessage(messages) {
 // 由 getCurrentUserMessage 单独重贴到末尾，故历史里要先摘掉它；续写没有新输入，最后一条是
 // assistant，强行摘除其前的 user 会破坏轮次交替并让待续写 assistant 错位，故保留全窗口原序。
 //
-// 短期窗口边界由中期覆盖范围决定（D9）：
+// 短期窗口边界由中期覆盖范围决定：
 // - coveredTo 有值：严格保留 round_index > coveredTo 的完整轮次，窗口大小随会话推进自然
 //   收窄/扩张，不在这里重算「滑出」（滑出计算在轮后任务里做）。
 // - coveredTo 缺失（旧会话过渡期：会话尚无 turn record，或最新记录的 middle_covered_to
 //   为 null）：从最新往最旧取完整轮次，累计 token 不超过 budget，但至少保留最近一个完整
-//   轮次；更早的轮次本轮不进短期窗口（已与用户确认此降级行为可接受）。
+//   轮次；更早的轮次本轮不进短期窗口。
 function sliceHistoryAfterRound(messages, coveredTo, { keepLatestUser = false, budget = Infinity } = {}) {
   const history = keepLatestUser ? messages : omitLatestUserMessage(messages);
   const rounds = splitRounds(history);
@@ -371,7 +371,7 @@ export async function buildPrompt(sessionId, options = {}) {
   // [1-11] 合并为单条 system message：cached 前缀 + dynamic 后缀
   if (systemContent) messages.push({ role: 'system', content: systemContent });
 
-  // [12] 历史消息：短期窗口边界由中期覆盖范围决定（D9）。
+  // [12] 历史消息：短期窗口边界由中期覆盖范围决定。
   const uncompressedMessages = getUncompressedMessagesBySessionId(sessionId);
   const shortTermBudget = config.short_term_token_budget ?? 8000;
   const history = sliceHistoryAfterRound(uncompressedMessages, coveredTo, { keepLatestUser: continuation, budget: shortTermBudget });
@@ -570,7 +570,7 @@ export async function buildWritingPrompt(sessionId, options = {}) {
   // [1-11] 合并为单条 system message：cached 前缀 + dynamic 后缀
   if (systemContent) messages.push({ role: 'system', content: systemContent });
 
-  // [12] 历史消息：短期窗口边界由中期覆盖范围决定（D9）；turn records 仅用于摘要/时间线。
+  // [12] 历史消息：短期窗口边界由中期覆盖范围决定；turn records 仅用于摘要/时间线。
   const uncompressedMessages = getUncompressedMessagesBySessionId(sessionId);
   const shortTermBudget = writing.short_term_token_budget ?? config.short_term_token_budget ?? 8000;
   const history = sliceHistoryAfterRound(

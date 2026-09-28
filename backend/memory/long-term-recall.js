@@ -112,18 +112,18 @@ export const __testables = {
 };
 
 /**
- * 长期记忆召回：从「历史轮次目录」里挑选与当前对话相关的轮次，映射回 turn_records.id（D11）。
+ * 长期记忆召回：从「历史轮次目录」里挑选与当前对话相关的轮次，映射回 turn_records.id。
  *
  * 行为：
  * - 按 mode 读取开关（chat 读 memory_expansion_enabled，writing 读 writing.memory_expansion_enabled），
  *   为 false 时不查询、不调用模型，直接返回空结果。
  * - coveredTo 缺失（旧会话过渡期，尚无中期摘要覆盖范围）时视为无候选，直接返回空结果。
- * - 候选为空时不调用模型（D4①）。
+ * - 候选为空时不调用模型。
  * - 候选目录按 long_term_index_budget 从最新往最旧裁剪；超预算的更早轮次本轮不可召回，
  *   记在 skippedBeforeRound（未裁剪时为 null）。
  * - 模型输出 `{"turns":[<轮次编号>,...]}`：编号需在候选中出现，去重、保持模型给出的顺序，
  *   截到 memory_recall_max_sessions（默认 5）。
- * - 模型调用异常、超时或输出解析失败时静默返回空结果，只记日志，不影响本轮生成（D4②）。
+ * - 模型调用异常、超时或输出解析失败时静默返回空结果，只记日志，不影响本轮生成。
  *
  * @param {{ sessionId: string, coveredTo: number|null, mode: 'chat'|'writing', recentMessages?: string }} options
  * @returns {Promise<{ recordIds: string[], candidateCount: number, skippedBeforeRound: number|null }>}
