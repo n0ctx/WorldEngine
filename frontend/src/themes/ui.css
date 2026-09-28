@@ -2889,7 +2889,10 @@
   border-radius: var(--we-radius-xs);
   padding: 1px 6px; /* 1px: design exact, 6px: design exact */
   line-height: var(--we-leading-normal);
-  white-space: nowrap;
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  box-sizing: border-box;
 }
 .we-status-tags.we-status-editable {
   cursor: pointer;
