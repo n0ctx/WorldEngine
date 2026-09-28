@@ -480,6 +480,7 @@ export function migrateSessionWorldProfile(sessionId, worldId, registry) {
 // 第零步 A（续）：删除两个世界字段，改写引用它们的条目条件
 // ============================
 
+// guard-allow(perf-shape): 一次性数据迁移，由 internal_meta 标记保证只跑一次；每个世界匹配到的字段通常只有一个
 function migrateWorldFieldsToReserved(worldId, fields, reservedLabel) {
   for (const field of fields) {
     rewriteEntryConditionsTargetField(worldId, `世界.${field.label}`, `世界.${reservedLabel}`);
