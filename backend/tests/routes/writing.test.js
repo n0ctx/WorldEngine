@@ -528,7 +528,7 @@ test('写作 regenerate 在 afterMessageId 为 assistant 消息时返回 400', a
   assert.deepEqual(await res.json(), { error: 'afterMessageId must be a user message' });
 });
 
-test('写作 regenerate 会删除 afterMessageId 之后的消息并清空后续 turn record', async () => {
+test('写作 regenerate 会删除 afterMessageId 之后的消息并按新回答重建 turn record', async () => {
   resetMockEnv();
 
   process.env.MOCK_LLM_STREAM_CHUNKS = JSON.stringify(['新的段落']);
@@ -558,9 +558,9 @@ test('写作 regenerate 会删除 afterMessageId 之后的消息并清空后续 
   assert.equal(rows[1].content, '新的段落');
 
   const turnRecords = ctx.sandbox.db.prepare(
-    'SELECT round_index FROM turn_records WHERE session_id = ? ORDER BY round_index ASC',
+    'SELECT round_index, summary FROM turn_records WHERE session_id = ? ORDER BY round_index ASC',
   ).all(session.id);
-  assert.deepEqual(turnRecords, []);
+  assert.deepEqual(turnRecords, [{ round_index: 1, summary: '' }]);
 });
 
 test('写作 regenerate 会等待同 session 队列空闲后再截断消息', async () => {

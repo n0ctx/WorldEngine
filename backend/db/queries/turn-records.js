@@ -101,24 +101,6 @@ export function getAllTurnRecordsBySessionId(sessionId) {
 }
 
 /**
- * 统计某会话的 turn record 数量
- */
-export function countTurnRecords(sessionId) {
-  return db.prepare(
-    'SELECT COUNT(*) AS n FROM turn_records WHERE session_id = ?',
-  ).get(sessionId).n;
-}
-
-/**
- * 写入指定 turn record 的长期记忆文件快照（memory.md 全文）。
- * 用于在创建/更新 turn record 后回填该轮 LTM 状态，供回滚时还原。
- */
-export function updateTurnRecordLtmSnapshot(id, snapshot) {
-  db.prepare('UPDATE turn_records SET long_term_memory_snapshot = ? WHERE id = ?')
-    .run(snapshot ?? null, id);
-}
-
-/**
  * 写入指定 turn record 的表格记忆文件快照（tables.json 全文）。
  * 用于在创建/更新 turn record 后回填该轮表格状态，供回滚时还原。
  */

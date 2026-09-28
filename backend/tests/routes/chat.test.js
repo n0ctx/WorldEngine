@@ -414,7 +414,7 @@ test('POST /continue 在最后一条 assistant 前没有 user 消息时返回 40
   assert.deepEqual(await response.json(), { error: '当前会话没有可续写的用户-助手轮次' });
 });
 
-test('POST /regenerate 会删除 afterMessageId 之后的消息并截断 turn records', async () => {
+test('POST /regenerate 会删除 afterMessageId 之后的消息并按新回答重建 turn record', async () => {
   resetMockEnv();
   process.env.MOCK_LLM_STREAM_CHUNKS = JSON.stringify(['新的回答']);
 
@@ -448,8 +448,8 @@ test('POST /regenerate 会删除 afterMessageId 之后的消息并截断 turn re
   assert.equal(rows[0].content, '第一问');
   assert.equal(rows[1].content, '新的回答');
 
-  const turnRecords = sandbox.db.prepare('SELECT round_index FROM turn_records WHERE session_id = ? ORDER BY round_index ASC').all(session.id);
-  assert.deepEqual(turnRecords, []);
+  const turnRecords = sandbox.db.prepare('SELECT round_index, summary FROM turn_records WHERE session_id = ? ORDER BY round_index ASC').all(session.id);
+  assert.deepEqual(turnRecords, [{ round_index: 1, summary: '' }]);
 });
 
 test('POST /regenerate 会等待同 session 队列空闲后再截断消息', async () => {

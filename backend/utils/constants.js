@@ -101,6 +101,7 @@ export const LLM_TASK_TEMPERATURE = 0.3;
 /** 会话标题生成最大 token 数 */
 export const LLM_TITLE_MAX_TOKENS = 30;
 /** turn record 摘要生成最大 token 数（启用 LTM 时输出 JSON 包装 + 摘要 + 3 条 memory，900 留出余量避免末条被截） */
+// guard-allow(dead-code): memory-v2-p1 后续节点（长期记忆索引）消费
 export const LLM_TURN_SUMMARY_MAX_TOKENS = 900;
 /** 状态更新（combined-state-updater）最大 token 数 */
 export const LLM_STATE_UPDATE_MAX_TOKENS = 2048;
