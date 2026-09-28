@@ -520,7 +520,6 @@ function migrateTurnRecordsAndDiary(db) {
   // turn_records 逐步补列：
   //   user_message_id / asst_message_id — 指针模式，替代已移除的复制内容字段
   //   state_snapshot — 该轮结束时的三层状态，用于 regenerate/删除/编辑后的状态回滚
-  //   long_term_memory_snapshot — 该轮结束时 memory.md 全文，用于回滚时同步还原长期记忆
   //   table_memory_snapshot — 该轮结束时 tables.json 全文，用于回滚时同步还原表格记忆
   //   scene / cast_json — 摘要锚点：场景与在场角色，只用于召回时定位，不参与 embedding
   //   middle_summary / middle_covered_to — 该轮结束时的滚动中期摘要及其覆盖到的轮次，NULL 表示旧数据未生成
@@ -529,7 +528,6 @@ function migrateTurnRecordsAndDiary(db) {
     ['user_message_id', 'TEXT'],
     ['asst_message_id', 'TEXT'],
     ['state_snapshot', 'TEXT'],
-    ['long_term_memory_snapshot', 'TEXT'],
     ['table_memory_snapshot', 'TEXT'],
     ['scene', 'TEXT'],
     ['cast_json', 'TEXT'],
@@ -538,8 +536,11 @@ function migrateTurnRecordsAndDiary(db) {
   ]) {
     if (!turnRecordCols.has(name)) db.exec(`ALTER TABLE turn_records ADD COLUMN ${name} ${type}`);
   }
-  try { db.exec(`ALTER TABLE turn_records DROP COLUMN user_context`); } catch {}
-  try { db.exec(`ALTER TABLE turn_records DROP COLUMN asst_context`); } catch {}
+  // user_context / asst_context 为已移除的复制内容字段；long_term_memory_snapshot 随
+  // 剧情摘要接口取代长期记忆文件而不再需要
+  for (const column of ['user_context', 'asst_context', 'long_term_memory_snapshot']) {
+    try { db.exec(`ALTER TABLE turn_records DROP COLUMN ${column}`); } catch {}
+  }
   // 日记系统：sessions 记录创建时的日记模式，daily_entries 存日记元数据
   try { db.exec(`ALTER TABLE sessions ADD COLUMN diary_date_mode TEXT`); } catch {}
   try { db.exec(`CREATE INDEX IF NOT EXISTS idx_daily_entries_session ON daily_entries(session_id, date_str)`); } catch {}

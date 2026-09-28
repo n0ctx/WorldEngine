@@ -110,6 +110,20 @@ export function updateTurnRecordTableSnapshot(id, snapshot) {
 }
 
 /**
+ * 更新会话最新一条 turn record 的中期摘要正文（人工编辑用）。
+ *
+ * @param {string} sessionId
+ * @param {string} content
+ * @returns {boolean} 是否更新成功（无 turn record 时返回 false）
+ */
+export function updateLatestMiddleSummary(sessionId, content) {
+  const latest = getLatestTurnRecord(sessionId);
+  if (!latest) return false;
+  db.prepare('UPDATE turn_records SET middle_summary = ? WHERE id = ?').run(content, latest.id);
+  return true;
+}
+
+/**
  * 回填指定 turn record 的长期记忆索引字段（摘要 / 场景 / 在场角色）。
  *
  * @param {string} id

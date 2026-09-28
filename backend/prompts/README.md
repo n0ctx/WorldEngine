@@ -44,9 +44,6 @@
 - `templates/memory-turn-summary-with-ltm.md`
   长期记忆开启时使用的 turn 摘要 prompt 变体；同时要求模型抽取若干条长期记忆条目。
   调用方：`backend/memory/turn-summarizer.js`
-- `templates/memory-long-term-compress.md`
-  长期记忆条目超出阈值后，将多条记忆合并/压缩的 prompt。
-  调用方：`backend/services/long-term-memory.js`
 - `templates/memory-expand-system.md`
   记忆展开 preflight 的 system prompt，要求模型只返回 JSON。
   调用方：`backend/memory/summary-expander.js`

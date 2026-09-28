@@ -13,7 +13,6 @@ import { unlinkUploadFile, unlinkUploadFiles } from '../utils/file-cleanup.js';
 import * as sessionSummaryVectorStore from '../utils/session-summary-vector-store.js';
 import * as turnSummaryVectorStore from '../utils/turn-summary-vector-store.js';
 import { deleteDiaryDir } from '../memory/diary-generator.js';
-import { deleteMemoryDir as deleteLongTermMemoryDir } from './long-term-memory.js';
 import { deleteTableMemoryDir } from './table-memory.js';
 
 import {
@@ -96,11 +95,6 @@ registerSessionScopedCleanup((sid) => sessionSummaryVectorStore.deleteBySessionI
 // daily_entries 表由 ON DELETE CASCADE 自动清理；磁盘文件需手动删除
 
 registerSessionScopedCleanup(deleteDiaryDir);
-
-// ── 长期记忆文件目录 ─────────────────────────────────────────────
-// 模块：long-term-memory — 管理 data/long_term_memory/{sessionId}/ 目录
-
-registerSessionScopedCleanup(deleteLongTermMemoryDir);
 
 // ── 表格记忆文件目录 ─────────────────────────────────────────────
 // 模块：table-memory — 管理 data/table_memory/{sessionId}/ 目录

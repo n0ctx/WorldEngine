@@ -125,6 +125,7 @@ test('initSchema 为缺少 middle_summary / middle_covered_to 的旧 turn_record
     const columns = db.pragma('table_info(turn_records)').map((column) => column.name);
     assert.ok(columns.includes('middle_summary'));
     assert.ok(columns.includes('middle_covered_to'));
+    assert.ok(!columns.includes('long_term_memory_snapshot'));
 
     const row = db.prepare(
       'SELECT summary, middle_summary, middle_covered_to FROM turn_records WHERE id = ?',
