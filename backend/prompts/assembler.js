@@ -10,9 +10,8 @@
  *   [6]  玩家状态                     │
  *   [7]  角色状态                     │
  *   [8]  世界 State 条目              │ 动态后缀
- *   [8.5] 长期记忆（开关启用时）      │ （每轮变化）
- *   [9]  召回摘要                     │
- *   [10] 展开原文                     │
+ *   [8.5] 剧情摘要（中期摘要非空时）  │ （每轮变化）
+ *   [10] 长期召回原文                 │
  *   [11] 日记注入                    ┘
  *
  *   [历史消息：role:user/assistant 交替]
@@ -37,7 +36,8 @@ import { fileURLToPath } from 'node:url';
 import { getSessionById } from '../db/queries/sessions.js';
 import { getCharacterById } from '../db/queries/characters.js';
 import { getWorldById } from '../db/queries/worlds.js';
-import { getUncompressedMessagesBySessionId } from '../db/queries/messages.js';
+import { getMessagesBySessionId } from '../db/queries/messages.js';
+import { getLatestTurnRecord } from '../db/queries/turn-records.js';
 import {
   getAllWorldEntries,
 } from '../db/queries/prompt-entries.js';
@@ -48,9 +48,8 @@ import {
   renderTransientNearby,
   renderSavedNearbyIndex,
   renderRecalledSavedNearby,
-  searchRecalledSummaries,
 } from '../memory/recall.js';
-import { decideExpansion } from '../memory/summary-expander.js';
+import { recallTurns } from '../memory/long-term-recall.js';
 import { decideSavedNearbyRecall } from '../memory/saved-nearby-recall.js';
 import { listNearbyBySessionId } from '../db/queries/session-nearby-characters.js';
 import { getCharacterStateFieldsByWorldId } from '../db/queries/character-state-fields.js';
@@ -60,14 +59,13 @@ import { applyRules } from '../utils/regex-runner.js';
 import { applyTemplateVars } from '../utils/template-vars.js';
 import { createLogger } from '../utils/logger.js';
 import { loadBackendPrompt } from './prompt-loader.js';
+import { splitRounds, roundTokens } from '../utils/session-rounds.js';
 import {
-  buildExpandCandidates,
   composeSystemContent,
   renderCachedEntriesSection,
   renderDiarySection,
   renderExpandedSection,
-  renderLongTermMemorySection,
-  renderRecalledSummariesSection,
+  renderStorySummarySection,
   renderTableMemorySection,
   renderTriggeredEntriesSection,
   renderUserInfoSection,
@@ -138,18 +136,31 @@ function getCurrentUserMessage(messages) {
 // keepLatestUser：续写模式不摘除最后一条 user。普通生成时最后一条 user 是"本轮新输入"，
 // 由 getCurrentUserMessage 单独重贴到末尾，故历史里要先摘掉它；续写没有新输入，最后一条是
 // assistant，强行摘除其前的 user 会破坏轮次交替并让待续写 assistant 错位，故保留全窗口原序。
-function sliceCompletedHistoryByRounds(messages, rounds, { keepLatestUser = false } = {}) {
+//
+// 短期窗口边界由中期覆盖范围决定：
+// - coveredTo 有值：严格保留 round_index > coveredTo 的完整轮次，窗口大小随会话推进自然
+//   收窄/扩张，不在这里重算「滑出」（滑出计算在轮后任务里做）。
+// - coveredTo 缺失（旧会话过渡期：会话尚无 turn record，或最新记录的 middle_covered_to
+//   为 null）：从最新往最旧取完整轮次，累计 token 不超过 budget，但至少保留最近一个完整
+//   轮次；更早的轮次本轮不进短期窗口。
+function sliceHistoryAfterRound(messages, coveredTo, { keepLatestUser = false, budget = Infinity } = {}) {
   const history = keepLatestUser ? messages : omitLatestUserMessage(messages);
-  const userIndexes = history
-    .map((msg, index) => (msg.role === 'user' ? index : -1))
-    .filter((index) => index >= 0);
+  const rounds = splitRounds(history);
+  if (rounds.length === 0) return history;
 
-  if (!Number.isInteger(rounds) || rounds <= 0 || userIndexes.length <= rounds) {
-    return history;
+  if (Number.isInteger(coveredTo)) {
+    return rounds.filter((round) => round.roundIndex > coveredTo).flatMap((round) => round.messages);
   }
 
-  const startIndex = userIndexes[userIndexes.length - rounds];
-  return history.slice(startIndex);
+  const keptRounds = [];
+  let usedTokens = 0;
+  for (let i = rounds.length - 1; i >= 0; i--) {
+    const tokens = roundTokens(rounds[i]);
+    if (keptRounds.length > 0 && usedTokens + tokens > budget) break;
+    keptRounds.unshift(rounds[i]);
+    usedTokens += tokens;
+  }
+  return keptRounds.flatMap((round) => round.messages);
 }
 
 export const __testables = {
@@ -157,7 +168,7 @@ export const __testables = {
   formatMessageForLLM,
   omitLatestUserMessage,
   getCurrentUserMessage,
-  sliceCompletedHistoryByRounds,
+  sliceHistoryAfterRound,
 };
 
 // ─── 核心函数 ─────────────────────────────────────────────────────
@@ -199,51 +210,39 @@ async function pushTriggeredEntries(sessionId, worldId, allWorldEntries, tv, dyn
   return triggeredEntries;
 }
 
-/** [8.5] 长期记忆（会话级 md 文件）+ [8.6] 表格记忆，按 settings 里的开关注入 */
-function pushMemoryFileSections(sessionId, settings, tv, dynamicSystemParts) {
-  const ltmSection = renderLongTermMemorySection(sessionId, settings.long_term_memory_enabled, tv);
-  if (ltmSection) {
-    dynamicSystemParts.push(ltmSection.text);
-    log.debug(`│  [8.5] long-term memory injected  chars=${ltmSection.chars}`);
+/** [8] 触发条目 → [8.5] 剧情摘要（中期摘要）→ [8.6] 表格记忆，chat / writing 共用这一段 */
+async function pushEntriesAndMemorySections(sessionId, worldId, allWorldEntries, settings, storySummary, tv, dynamicSystemParts) {
+  const triggeredEntries = await pushTriggeredEntries(sessionId, worldId, allWorldEntries, tv, dynamicSystemParts);
+
+  const storySummarySection = renderStorySummarySection(storySummary, tv);
+  if (storySummarySection) {
+    dynamicSystemParts.push(storySummarySection);
+    log.debug(`│  [8.5] story summary injected  chars=${storySummary.length}`);
   }
+
   const tableSection = renderTableMemorySection(sessionId, settings.table_memory_enabled);
   if (tableSection) {
     dynamicSystemParts.push(tableSection.text);
     log.debug(`│  [8.6] table memory injected  chars=${tableSection.chars}`);
   }
+
+  return triggeredEntries;
 }
 
-/** [9] 召回摘要，并通知前端召回结束 */
-async function pushRecalledSummaries(worldId, sessionId, tv, dynamicSystemParts, onRecallEvent) {
-  const { recalled } = await searchRecalledSummaries(worldId, sessionId);
-  const recallHitCount = recalled.length;
-  const recalledSection = renderRecalledSummariesSection(recalled, tv);
-  if (recalledSection) dynamicSystemParts.push(recalledSection);
-  if (recallHitCount > 0) log.debug(`│  [9] recall  hits=${recallHitCount}`);
-  onRecallEvent?.('memory_recall_done', { hit: recallHitCount });
-  return { recalled, recallHitCount };
-}
-
-/** [8] 触发条目 → [8.5][8.6] 记忆文件 → [9] 召回摘要，chat / writing 共用这一段 */
-async function pushEntriesMemoryAndRecall(sessionId, worldId, allWorldEntries, settings, tv, dynamicSystemParts, onRecallEvent) {
-  const triggeredEntries = await pushTriggeredEntries(sessionId, worldId, allWorldEntries, tv, dynamicSystemParts);
-  pushMemoryFileSections(sessionId, settings, tv, dynamicSystemParts);
-  const { recalled, recallHitCount } = await pushRecalledSummaries(worldId, sessionId, tv, dynamicSystemParts, onRecallEvent);
-  return { triggeredEntries, recalled, recallHitCount };
-}
-
-/** [10] 注入 AI 选中的展开原文，并通知前端展开结束 */
-function pushExpandedSection(expandIds, tv, dynamicSystemParts, onRecallEvent) {
-  if (expandIds.length === 0) {
-    onRecallEvent?.('memory_expand_done', { expanded: [] });
-    return;
-  }
-  const expanded = renderExpandedSection(expandIds, tv);
+/**
+ * [10] 渲染长期召回选中的原文并通知前端召回结束。
+ * recall 为 recallTurns() 的结果（chat 直接 await 得到；writing 与 saved-nearby 判定并发 await 得到）。
+ * 返回本轮实际注入原文的轮数（SSE `hit` 字段，也是外部返回的 recallHitCount）。
+ */
+function renderLongTermRecallSection(recall, tv, dynamicSystemParts, onRecallEvent) {
+  const { recordIds, candidateCount, skippedBeforeRound } = recall;
+  const expanded = renderExpandedSection(recordIds, tv);
   if (expanded.text) {
     dynamicSystemParts.push(expanded.text);
-    log.debug(`│  [10] expand  ids=${expandIds.length}`);
+    log.debug(`│  [10] recall  hits=${expanded.hitIds.length}/${candidateCount}`);
   }
-  onRecallEvent?.('memory_expand_done', { expanded: expanded.expandedText ? expandIds : [] });
+  onRecallEvent?.('memory_recall_done', { hit: expanded.hitIds.length, candidates: candidateCount, skippedBeforeRound });
+  return expanded.hitIds.length;
 }
 
 /** [13+14] 当前用户消息 + 后置提示词合并为一条 user message；没有当前用户消息时单独发后置提示词 */
@@ -267,7 +266,7 @@ function pushCurrentUserTurn(messages, uncompressedMessages, postParts, worldId,
 }
 
 async function buildChatSystemPrompt(sessionId, character, world, config, options) {
-  const { diaryInjection, onRecallEvent, continuation } = options;
+  const { diaryInjection, onRecallEvent, continuation, coveredTo, storySummary } = options;
   const persona = getOrCreatePersona(world.id);
   const personaName = persona?.name || '';
   const personaPrompt = persona?.system_prompt || '';
@@ -300,18 +299,14 @@ async function buildChatSystemPrompt(sessionId, character, world, config, option
   if (characterStateText) dynamicSystemParts.push(`<char_state>\n${tv(characterStateText)}\n</char_state>`);
 
   // [8] 世界 State 条目（常驻 / 关键词 / AI 召回；token=0 的常驻条目已进 cached layer）
-  // [8.5] 长期记忆 / [8.6] 表格记忆
-  // [9] 召回摘要（向量搜索历史 turn summaries，排除当前上下文窗口内的轮次）
-  const { triggeredEntries, recalled, recallHitCount } = await pushEntriesMemoryAndRecall(
-    sessionId, world.id, allWorldEntries, config, tv, dynamicSystemParts, onRecallEvent,
+  // [8.5] 剧情摘要 / [8.6] 表格记忆
+  const triggeredEntries = await pushEntriesAndMemorySections(
+    sessionId, world.id, allWorldEntries, config, storySummary, tv, dynamicSystemParts,
   );
 
-  // [10] 记忆展开（由 AI 决定需要展开哪些原文）
-  if (recallHitCount > 0 && config.memory_expansion_enabled !== false) {
-    onRecallEvent?.('memory_expand_start', { candidates: buildExpandCandidates(recalled) });
-    const expandIds = await decideExpansion({ sessionId, recalled });
-    pushExpandedSection(expandIds, tv, dynamicSystemParts, onRecallEvent);
-  }
+  // [10] 长期召回（AI 从历史轮次目录里挑选需要回看原文的轮次）
+  const recall = await recallTurns({ sessionId, coveredTo, mode: 'chat' });
+  const recallHitCount = renderLongTermRecallSection(recall, tv, dynamicSystemParts, onRecallEvent);
 
   // [11] 日记注入（一次性，仅本轮生效）
   const diarySection = renderDiarySection(diaryInjection);
@@ -337,7 +332,7 @@ async function buildChatSystemPrompt(sessionId, character, world, config, option
  *
  * 新的 prompt 组装顺序（为支持 Prompt Cache 分层）：
  *   Cached system [1, 2, 3, 4]：全局 + 常驻 cached 条目 + 玩家 + 角色
- *   Dynamic system [5-11]：世界状态 + 玩家状态 + 角色状态 + State 条目 + 召回摘要 + 展开原文 + 日记
+ *   Dynamic system [5-11]：世界状态 + 玩家状态 + 角色状态 + State 条目 + 剧情摘要 + 长期召回原文 + 日记
  *   History [12]：历史 user/assistant 交替
  *   Bottom: [13] 后置提示词（system）→ [14] 当前用户消息（尾部 user）
  *
@@ -362,9 +357,12 @@ export async function buildPrompt(sessionId, options = {}) {
   log.info(`┌─ buildPrompt  session=${sid}  char="${character.name}"  world="${world.name}"`);
 
   const config = getConfig();
+  const latestRecord = getLatestTurnRecord(sessionId);
+  const coveredTo = latestRecord?.middle_covered_to ?? null;
+  const storySummary = latestRecord?.middle_summary ?? '';
 
   const { cachedContent, systemContent, recallHitCount, activatedEntries, suggestionText, postParts } = await buildChatSystemPrompt(
-    sessionId, character, world, config, options,
+    sessionId, character, world, config, { ...options, coveredTo, storySummary },
   );
 
   // ─── CONSTRUCT MESSAGES ───
@@ -373,9 +371,10 @@ export async function buildPrompt(sessionId, options = {}) {
   // [1-11] 合并为单条 system message：cached 前缀 + dynamic 后缀
   if (systemContent) messages.push({ role: 'system', content: systemContent });
 
-  // [12] 历史消息：稳定使用原始消息窗口。
-  const uncompressedMessages = getUncompressedMessagesBySessionId(sessionId);
-  const history = sliceCompletedHistoryByRounds(uncompressedMessages, config.context_history_rounds ?? 12, { keepLatestUser: continuation });
+  // [12] 历史消息：短期窗口边界由中期覆盖范围决定。
+  const uncompressedMessages = getMessagesBySessionId(sessionId, null, 0);
+  const shortTermBudget = config.short_term_token_budget ?? 8000;
+  const history = sliceHistoryAfterRound(uncompressedMessages, coveredTo, { keepLatestUser: continuation, budget: shortTermBudget });
   // 历史里不回灌旧的 <next_prompt> 选项块：它们会变成同格式的 few-shot 示范，
   // 把新一轮选项拽回"延续上文"的老路，且新选项存回历史后自我强化。
   for (const msg of history) {
@@ -401,7 +400,7 @@ export async function buildPrompt(sessionId, options = {}) {
 }
 
 async function buildWritingCoreSystemParts(sessionId, world, writing, persona, options) {
-  const { onRecallEvent, skipWritingInstructions } = options;
+  const { skipWritingInstructions, storySummary } = options;
   const personaName = persona?.name || '';
   const personaPrompt = persona?.system_prompt || '';
   const tv = writingTemplateVars(world, persona);
@@ -450,41 +449,35 @@ async function buildWritingCoreSystemParts(sessionId, world, writing, persona, o
   }
 
   // [8] 世界 State 条目（常驻 / 关键词 / AI 召回；token=0 的常驻条目已进 cached layer）
-  // [8.5] 长期记忆 / [8.6] 表格记忆
-  // [9] 召回摘要（向量搜索历史 turn summaries，排除当前上下文窗口内的轮次）
-  const { triggeredEntries, recalled, recallHitCount } = await pushEntriesMemoryAndRecall(
-    sessionId, world.id, allWorldEntries, writing, tv, dynamicSystemParts, onRecallEvent,
+  // [8.5] 剧情摘要 / [8.6] 表格记忆
+  const triggeredEntries = await pushEntriesAndMemorySections(
+    sessionId, world.id, allWorldEntries, writing, storySummary, tv, dynamicSystemParts,
   );
 
   const activatedEntries = selectActivatedEntries(triggeredEntries);
   const suggestionText = writing.suggestion_enabled ? tv(SUGGESTION_PROMPT) : null;
-  return { cachedSystemParts, dynamicSystemParts, savedRows, nearbyFields, recalled, recallHitCount, activatedEntries, suggestionText };
+  return { cachedSystemParts, dynamicSystemParts, savedRows, nearbyFields, activatedEntries, suggestionText };
 }
 
 async function buildWritingMemorySections(sessionId, world, persona, core, options) {
-  const { diaryInjection, onRecallEvent, writing } = options;
-  const { recalled, recallHitCount, savedRows, nearbyFields } = core;
+  const { diaryInjection, onRecallEvent, writing, coveredTo } = options;
+  const { savedRows, nearbyFields } = core;
   const tv = writingTemplateVars(world, persona);
   const dynamicSections = [];
-  // [10] 记忆展开 / [10.5] saved nearby preflight 召回
+  // [10] 长期召回 / [10.5] saved nearby preflight 召回
   // 两个 preflight LLM 判定彼此独立，并发触发以节省一个 aux RTT。
   // saved 池子小（N ≤ SAVED_RECALL_PREFLIGHT_MIN-1）时，judge 固定开销摊不开，
   // 直接全量注入比走 aux LLM 更省 token 也避免漏判风险。
   const SAVED_RECALL_PREFLIGHT_MIN = 4;
-  const runExpand = recallHitCount > 0 && writing.memory_expansion_enabled !== false;
   const runSavedRecall = writing.saved_nearby_recall_enabled !== false && savedRows.length > 0;
   const needSavedJudge = runSavedRecall && savedRows.length >= SAVED_RECALL_PREFLIGHT_MIN;
 
-  if (runExpand) {
-    onRecallEvent?.('memory_expand_start', { candidates: buildExpandCandidates(recalled) });
-  }
-
-  const [expandIds, judgedSavedIds] = await Promise.all([
-    runExpand ? decideExpansion({ sessionId, recalled }) : Promise.resolve([]),
+  const [recall, judgedSavedIds] = await Promise.all([
+    recallTurns({ sessionId, coveredTo, mode: 'writing' }),
     needSavedJudge ? decideSavedNearbyRecall({ sessionId, savedRows }) : Promise.resolve([]),
   ]);
 
-  if (runExpand) pushExpandedSection(expandIds, tv, dynamicSections, onRecallEvent);
+  const recallHitCount = renderLongTermRecallSection(recall, tv, dynamicSections, onRecallEvent);
 
   if (runSavedRecall) {
     const hitIds = needSavedJudge ? judgedSavedIds : savedRows.map((r) => r.id);
@@ -506,20 +499,23 @@ async function buildWritingMemorySections(sessionId, world, persona, core, optio
     dynamicSections.push(diarySection);
     log.debug('│  [11] diary injection applied (writing)');
   }
-  return dynamicSections;
+  return { dynamicSections, recallHitCount };
 }
 
 async function buildWritingSystemPrompt(sessionId, world, writing, persona, options) {
   const core = await buildWritingCoreSystemParts(sessionId, world, writing, persona, options);
-  const memorySections = await buildWritingMemorySections(sessionId, world, persona, core, {
-    writing, diaryInjection: options.diaryInjection, onRecallEvent: options.onRecallEvent,
+  const { dynamicSections, recallHitCount } = await buildWritingMemorySections(sessionId, world, persona, core, {
+    writing,
+    diaryInjection: options.diaryInjection,
+    onRecallEvent: options.onRecallEvent,
+    coveredTo: options.coveredTo,
   });
-  const dynamicSystemParts = core.dynamicSystemParts.concat(memorySections);
+  const dynamicSystemParts = core.dynamicSystemParts.concat(dynamicSections);
   const { cachedContent, systemContent } = composeSystemContent(core.cachedSystemParts, dynamicSystemParts);
   return {
     cachedContent,
     systemContent,
-    recallHitCount: core.recallHitCount,
+    recallHitCount,
     activatedEntries: core.activatedEntries,
     suggestionText: core.suggestionText,
   };
@@ -532,8 +528,8 @@ async function buildWritingSystemPrompt(sessionId, world, writing, persona, opti
  *
  * Cached layer: [1] 全局、[2] 常驻 cached 条目、[3] 玩家
  * Dynamic layer: [5] 世界状态 / [6] 玩家状态 / [7] 附近角色（nearby_characters）
- *                / [8] 世界条目 / [8.5] 长期记忆
- *                / [9] 召回摘要 / [10] 记忆展开 / [11] 日记
+ *                / [8] 世界条目 / [8.5] 剧情摘要
+ *                / [10] 长期召回原文 / [11] 日记
  * Bottom: [12] 历史消息，[13+14] 后置提示词 + 当前消息（合并为一条 user message）
  *
  * @param {string} sessionId
@@ -558,10 +554,14 @@ export async function buildWritingPrompt(sessionId, options = {}) {
   const personaName = persona?.name || '';
   const tv = writingTemplateVars(world, persona);
 
+  const latestRecord = getLatestTurnRecord(sessionId);
+  const coveredTo = latestRecord?.middle_covered_to ?? null;
+  const storySummary = latestRecord?.middle_summary ?? '';
+
   log.info(`┌─ buildWritingPrompt  session=${sid}  world="${world.name}"`);
 
   const { cachedContent, systemContent, recallHitCount, activatedEntries, suggestionText } = await buildWritingSystemPrompt(
-    sessionId, world, writing, persona, options,
+    sessionId, world, writing, persona, { ...options, coveredTo, storySummary },
   );
 
   // ─── CONSTRUCT MESSAGES ───
@@ -570,12 +570,13 @@ export async function buildWritingPrompt(sessionId, options = {}) {
   // [1-11] 合并为单条 system message：cached 前缀 + dynamic 后缀
   if (systemContent) messages.push({ role: 'system', content: systemContent });
 
-  // [12] 历史消息：稳定使用原始消息窗口；turn records 仅用于摘要/时间线。
-  const uncompressedMessages = getUncompressedMessagesBySessionId(sessionId);
-  const history = sliceCompletedHistoryByRounds(
+  // [12] 历史消息：短期窗口边界由中期覆盖范围决定；turn records 仅用于摘要/时间线。
+  const uncompressedMessages = getMessagesBySessionId(sessionId, null, 0);
+  const shortTermBudget = writing.short_term_token_budget ?? config.short_term_token_budget ?? 8000;
+  const history = sliceHistoryAfterRound(
     uncompressedMessages,
-    writing.context_history_rounds ?? config.context_history_rounds ?? 12,
-    { keepLatestUser: continuation },
+    coveredTo,
+    { keepLatestUser: continuation, budget: shortTermBudget },
   );
   // 同 chat 版：历史里不回灌旧的 <next_prompt> 选项块，避免变成延续型选项的 few-shot 示范。
   for (const msg of history) {

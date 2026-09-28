@@ -1,4 +1,4 @@
-import { awaitPendingStateUpdate } from '../../../utils/state-update-tracker.js';
+import { awaitMemoryCommit } from '../../../utils/memory-commit-tracker.js';
 
 export async function runStreamLifecycle({
   sessionId,
@@ -26,7 +26,7 @@ export async function runStreamLifecycle({
     },
   };
 
-  await awaitPendingStateUpdate(sessionId);
+  await awaitMemoryCommit(sessionId);
 
   if (stateRolledBack) {
     emitSse({ type: 'state_rolled_back' });

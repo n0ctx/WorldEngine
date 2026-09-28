@@ -9,8 +9,8 @@ export function createWritingSession(worldId, { diary_date_mode = null, persona_
   const id = randomUUID();
   const now = Date.now();
   db.prepare(
-    `INSERT INTO sessions (id, character_id, world_id, persona_id, mode, title, compressed_context, diary_date_mode, created_at, updated_at)
-     VALUES (?, NULL, ?, ?, 'writing', NULL, NULL, ?, ?, ?)`
+    `INSERT INTO sessions (id, character_id, world_id, persona_id, mode, title, diary_date_mode, created_at, updated_at)
+     VALUES (?, NULL, ?, ?, 'writing', NULL, ?, ?, ?)`
   ).run(id, worldId, persona_id, diary_date_mode, now, now);
   return db.prepare('SELECT * FROM sessions WHERE id = ?').get(id);
 }

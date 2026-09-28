@@ -3,7 +3,6 @@ import { getConfig, updateConfig, getAuxLlmConfig, getWritingLlmConfig, getWriti
 import { resolveActiveThemeId } from '../services/themes.js';
 import { validateModelFetchBaseUrl } from '../utils/network-safety.js';
 import { applyProxy } from '../utils/proxy.js';
-import { embed } from '../llm/embedding.js';
 import { resolveModelPricing } from '../services/model-pricing.js';
 import { fetchModels, getThinkingOptions, verifyLlmConnection, verifyModelConnection } from '../services/model-catalog.js';
 import { createLogger, formatMeta, getLoggingConfig } from '../utils/logger.js';
@@ -29,7 +28,6 @@ function stripApiKeys(config) {
     Object.entries(sharedKeys).map(([k, v]) => [k, !!v]),
   );
   if (safe.llm) safe.llm.has_key = !!resolveApiKey(safe.llm, sharedKeys);
-  if (safe.embedding) safe.embedding.has_key = !!resolveApiKey(safe.embedding, sharedKeys);
   if (safe.aux_llm) safe.aux_llm.has_key = !!resolveApiKey(safe.aux_llm, sharedKeys);
   if (safe.writing?.llm) safe.writing.llm.has_key = !!resolveApiKey(safe.writing.llm, sharedKeys);
   if (safe.writing?.aux_llm) safe.writing.aux_llm.has_key = !!resolveApiKey(safe.writing.aux_llm, sharedKeys);
@@ -119,7 +117,6 @@ router.put('/', (req, res) => {
     delete patch.provider_keys;
     const modelSections = [
       [patch.llm, current.llm],
-      [patch.embedding, current.embedding],
       [patch.aux_llm, current.aux_llm],
       [patch.writing?.llm, current.writing?.llm],
       [patch.writing?.aux_llm, current.writing?.aux_llm],
@@ -150,7 +147,7 @@ router.put('/', (req, res) => {
 });
 
 // PUT /api/config/provider-key — 写入指定 provider 的 API Key 到顶层共享池
-// 所有对话/写作主副模型 + Embedding 共用同一份 provider_keys
+// 所有对话/写作主副模型共用同一份 provider_keys
 router.put('/provider-key', (req, res) => {
   const { provider, api_key } = req.body || {};
   if (typeof provider !== 'string' || !provider) {
@@ -232,41 +229,6 @@ router.get('/aux/models', async (_req, res) => {
   } catch (err) {
     log.warn(`GET /api/config/aux/models FAIL  ${formatMeta({ provider, error: err.message })}`);
     res.status(502).json({ error: '无法获取模型列表，请检查 API Key 和网络连接' });
-  }
-});
-
-// GET /api/config/embedding-models — 拉取 Embedding 模型列表
-router.get('/embedding-models', async (_req, res) => {
-  const config = getConfig();
-  const { provider, base_url } = config.embedding;
-  if (!provider) {
-    return res.json({ models: [] });
-  }
-  const apiKey = getProviderKey(provider);
-  try {
-    const models = await fetchModels(provider, apiKey, base_url);
-    log.info(`GET /api/config/embedding-models  ${formatMeta({ provider, count: models.length })}`);
-    res.json({ models });
-  } catch (err) {
-    log.warn(`GET /api/config/embedding-models FAIL  ${formatMeta({ provider, error: err.message })}`);
-    res.status(502).json({ error: '无法获取模型列表，请检查 API Key 和网络连接' });
-  }
-});
-
-// GET /api/config/test-embedding — 验证 Embedding 连通性（不保存结果）
-router.get('/test-embedding', async (_req, res) => {
-  const config = getConfig();
-  if (!config.embedding?.provider) {
-    return res.json({ success: false, error: '未配置 Embedding provider' });
-  }
-  try {
-    const vector = await embed('Hello');
-    if (!Array.isArray(vector)) {
-      return res.json({ success: false, error: '未返回有效向量' });
-    }
-    res.json({ success: true, dimensions: vector.length });
-  } catch (err) {
-    res.json({ success: false, error: err.message });
   }
 });
 

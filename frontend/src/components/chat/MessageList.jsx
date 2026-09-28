@@ -46,6 +46,8 @@ const MessageList = forwardRef(function MessageList({
     messages, pageMessages, onLastPage, prose, generating, continuingMessageId,
     streamingKey, streamingText, options, chapterTurnSize,
   });
+  // 只有会话以 AI 回复结尾时才能编辑它；末尾是失败残留的用户消息时后端会拒绝
+  const editLastAssistant = messages.at(-1)?.role === 'assistant' ? onEditAssistantMessage : undefined;
 
   if (loading || !sessionId || loadError) {
     return <MessageListStatus loading={loading} sessionId={sessionId} loadError={loadError} onRetry={reload} />;
@@ -78,7 +80,7 @@ const MessageList = forwardRef(function MessageList({
           optionsStreaming={optionsStreaming}
           onEditMessage={onEditMessage}
           onRegenerateMessage={onRegenerateMessage}
-          onEditAssistantMessage={onEditAssistantMessage}
+          onEditAssistantMessage={editLastAssistant}
           onDeleteMessage={onDeleteMessage}
           suppressLastFrozen={suppressLastFrozen}
           lastAssistantId={lastAssistantId}
@@ -101,7 +103,7 @@ const MessageList = forwardRef(function MessageList({
           optionsStreaming={optionsStreaming}
           onEditMessage={onEditMessage}
           onRegenerateMessage={onRegenerateMessage}
-          onEditAssistantMessage={onEditAssistantMessage}
+          onEditAssistantMessage={editLastAssistant}
           onDeleteMessage={onDeleteMessage}
           suppressLastFrozen={suppressLastFrozen}
           lastAssistantId={lastAssistantId}

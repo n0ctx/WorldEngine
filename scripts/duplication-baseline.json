@@ -19,15 +19,15 @@
     "0eed7e14aa44426f": {
       "tokens": 44,
       "locations": [
-        "backend/routes/config.js:962-967",
-        "frontend/src/core/constants/settings.js:160-165"
+        "backend/services/model-catalog.js:222-227",
+        "frontend/src/core/constants/settings.js:153-158"
       ]
     },
     "2a4b98e5e9ab8e01": {
       "tokens": 57,
       "locations": [
-        "backend/routes/config.js:254-260",
-        "backend/routes/config.js:291-297"
+        "backend/services/model-pricing-parsers.js:104-110",
+        "backend/services/model-pricing-parsers.js:141-147"
       ]
     },
     "48700827ca3d34bb": {
@@ -98,14 +98,7 @@
       "tokens": 43,
       "locations": [
         "frontend/src/components/chat/MessageItem.jsx:29-32",
-        "frontend/src/components/writing/WritingMessageItem.jsx:122-125"
-      ]
-    },
-    "f1894470420479ca": {
-      "tokens": 45,
-      "locations": [
-        "frontend/src/components/settings/FeaturesConfigPanel.jsx:68-72",
-        "frontend/src/components/settings/FeaturesConfigPanel.jsx:73-77"
+        "frontend/src/components/writing/WritingMessageItem.jsx:121-124"
       ]
     },
     "f4684b0c8b2784ee": {

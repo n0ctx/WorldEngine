@@ -10,10 +10,7 @@
 
 import { registerOnDelete } from '../utils/cleanup-hooks.js';
 import { unlinkUploadFile, unlinkUploadFiles } from '../utils/file-cleanup.js';
-import * as sessionSummaryVectorStore from '../utils/session-summary-vector-store.js';
-import * as turnSummaryVectorStore from '../utils/turn-summary-vector-store.js';
 import { deleteDiaryDir } from '../memory/diary-generator.js';
-import { deleteMemoryDir as deleteLongTermMemoryDir } from './long-term-memory.js';
 import { deleteTableMemoryDir } from './table-memory.js';
 
 import {
@@ -86,29 +83,13 @@ function registerSessionScopedCleanup(cleanup) {
   });
 }
 
-// ── Session Summary 向量 ─────────────────────────────────────────
-// 写路径已废弃（summary-embedder.js 已删除），清理钩子保留以处理旧数据
-
-registerSessionScopedCleanup((sid) => sessionSummaryVectorStore.deleteBySessionId(sid));
-
 // ── 日记文件目录 ─────────────────────────────────────────────────
 // 模块：diary-generator — 管理 data/daily/{sessionId}/ 目录
 // daily_entries 表由 ON DELETE CASCADE 自动清理；磁盘文件需手动删除
 
 registerSessionScopedCleanup(deleteDiaryDir);
 
-// ── 长期记忆文件目录 ─────────────────────────────────────────────
-// 模块：long-term-memory — 管理 data/long_term_memory/{sessionId}/ 目录
-
-registerSessionScopedCleanup(deleteLongTermMemoryDir);
-
 // ── 表格记忆文件目录 ─────────────────────────────────────────────
 // 模块：table-memory — 管理 data/table_memory/{sessionId}/ 目录
 
 registerSessionScopedCleanup(deleteTableMemoryDir);
-
-// ── Turn Summary 向量 ────────────────────────────────────────────
-// 模块：turn-summarizer — 管理 data/vectors/turn_summaries.json
-// turn_records 表由 ON DELETE CASCADE 自动清理；向量文件需手动清理
-
-registerSessionScopedCleanup((sid) => turnSummaryVectorStore.deleteBySessionId(sid));

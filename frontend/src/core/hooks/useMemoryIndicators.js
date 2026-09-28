@@ -6,21 +6,18 @@ function stopIndicator(startRef, timerRef, setActive) {
   timerRef.current = setTimeout(() => setActive(false), delay);
 }
 
-// 记忆指示器状态机：召回 / 扩展 / 写入 三段动画 + recallSummary。对话页与写作页共用。
+// 记忆指示器状态机：召回 / 写入 两段动画 + recallSummary。对话页与写作页共用。
 // 每段保证至少展示 1500ms（从 start 时刻计），写入完成 2000ms 后清除 summary。
 // 流式回调只调用 start/stop（不读取布尔值），故 hook 暴露这些函数 + 状态值供页面消费。
 export function useMemoryIndicators() {
   const [memoryRecalling, setMemoryRecalling] = useState(false);
-  const [memoryExpanding, setMemoryExpanding] = useState(false);
   const [memoryWriting, setMemoryWriting] = useState(false);
-  const [recallSummary, setRecallSummary] = useState(null); // null | { recalled, expanded }
+  const [recallSummary, setRecallSummary] = useState(null); // null | { hit }
 
   const memoryRecallingStartRef = useRef(null);
-  const memoryExpandingStartRef = useRef(null);
   const memoryWritingStartRef = useRef(null);
   const memoryWritingRunIdRef = useRef(null);
   const memoryRecallingTimerRef = useRef(null);
-  const memoryExpandingTimerRef = useRef(null);
   const memoryWritingTimerRef = useRef(null);
   const recallSummaryTimerRef = useRef(null);
 
@@ -32,15 +29,6 @@ export function useMemoryIndicators() {
   }, []);
   const stopMemoryRecalling = useCallback(() => {
     stopIndicator(memoryRecallingStartRef, memoryRecallingTimerRef, setMemoryRecalling);
-  }, []);
-
-  const startMemoryExpanding = useCallback(() => {
-    clearTimeout(memoryExpandingTimerRef.current);
-    memoryExpandingStartRef.current = Date.now();
-    setMemoryExpanding(true);
-  }, []);
-  const stopMemoryExpanding = useCallback(() => {
-    stopIndicator(memoryExpandingStartRef, memoryExpandingTimerRef, setMemoryExpanding);
   }, []);
 
   const startMemoryWriting = useCallback((runId = null) => {
@@ -72,26 +60,21 @@ export function useMemoryIndicators() {
   // 切换会话 / 清空活动会话时整体复位。
   const clearMemoryState = useCallback(() => {
     clearTimeout(memoryRecallingTimerRef.current);
-    clearTimeout(memoryExpandingTimerRef.current);
     clearTimeout(memoryWritingTimerRef.current);
     clearTimeout(recallSummaryTimerRef.current);
     memoryWritingRunIdRef.current = null;
     setMemoryRecalling(false);
-    setMemoryExpanding(false);
     setMemoryWriting(false);
     setRecallSummary(null);
   }, []);
 
   return {
     memoryRecalling,
-    memoryExpanding,
     memoryWriting,
     recallSummary,
     setRecallSummary,
     startMemoryRecalling,
     stopMemoryRecalling,
-    startMemoryExpanding,
-    stopMemoryExpanding,
     startMemoryWriting,
     stopMemoryWriting,
     cancelMemoryWriting,

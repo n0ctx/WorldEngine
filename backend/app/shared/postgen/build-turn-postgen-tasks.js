@@ -3,7 +3,7 @@ import { updateAllStates } from '../../../memory/combined-state-updater.js';
 import { checkAndGenerateDiary } from '../../../memory/diary-generator.js';
 import { generateDanmaku } from '../../../memory/danmaku-generator.js';
 import { generateTitle } from '../../../memory/summarizer.js';
-import { createTurnRecord } from '../../../memory/turn-summarizer.js';
+import { createTurnRecord, generateTurnIndex } from '../../../memory/turn-summarizer.js';
 import { getConfig } from '../../../services/config.js';
 import { buildLastTurnText, updateTableMemory } from '../../../services/table-memory.js';
 
@@ -11,7 +11,11 @@ import { buildLastTurnText, updateTableMemory } from '../../../services/table-me
  * 一轮生成结束后的副模型任务清单，两种模式共用。
  *
  * 槽位顺序即执行顺序（同优先级下按 enqueue 先后），不可随意调整：
- * 写作模式原本就是 session-title 紧跟 chapter-title。
+ * title(p2) → chapterTasks(p2) → all-state(p2) → table-memory(p2)
+ * → turn-record(p2，blocksNextTurn) → danmaku(p2) → turn-index(p3) → diary(p4)。
+ * turn-record 排在 table-memory 之后、danmaku 之前，依靠同优先级先进先出，
+ * 保证它取快照时状态与表格已写完；blocksNextTurn 让下一轮开始前等它完成
+ * （见 backend/utils/memory-commit-tracker.js）。
  *
  * label 是对外契约（hooks/README.md 的「内置任务 label 参考」），不可改名。
  */
@@ -60,6 +64,13 @@ export function buildTurnPostgenTasks({
       keepSseAlive: false,
     },
     {
+      label: 'turn-record',
+      priority: 2,
+      fn: () => createTurnRecord(sessionId),
+      blocksNextTurn: true,
+      keepSseAlive: true,
+    },
+    {
       label: 'danmaku',
       priority: 2,
       condition: getConfig().danmaku?.enabled === true,
@@ -70,9 +81,9 @@ export function buildTurnPostgenTasks({
       keepSseAlive: true,
     },
     {
-      label: 'turn-record',
+      label: 'turn-index',
       priority: 3,
-      fn: () => createTurnRecord(sessionId, turnRecordOpts),
+      fn: () => generateTurnIndex(sessionId),
       keepSseAlive: false,
     },
     {
@@ -82,9 +93,6 @@ export function buildTurnPostgenTasks({
         const latest = getLatestTurnRecord(sessionId);
         if (latest) await checkAndGenerateDiary(sessionId, latest.round_index);
       },
-      // 取两侧并集：isUpdate 守卫来自对话侧（编辑回复时不重复生成日记），
-      // diary_updated 事件来自写作侧（前端据此刷新日记面板）
-      condition: !turnRecordOpts?.isUpdate,
       sseEvent: 'diary_updated',
       ssePayload: () => ({ type: 'diary_updated' }),
       keepSseAlive: true,

@@ -1,6 +1,6 @@
 import { AnimatePresence } from 'framer-motion';
 import Icon from '../../../components/ui/Icon.jsx';
-import LongTermMemoryModal from '../../../components/session/LongTermMemoryModal.jsx';
+import MiddleSummaryModal from '../../../components/session/MiddleSummaryModal.jsx';
 import TableMemoryModal from '../../../components/session/TableMemoryModal.jsx';
 import MessageList from '../../../components/chat/MessageList.jsx';
 import SpeakerStage from '../../../components/chat/SpeakerStage.jsx';
@@ -20,20 +20,20 @@ export default function ChatConversationPane({
   motionPrefs,
   onBack,
 }) {
-  const { ltmEnabled, tableMemoryEnabled, chapterTurnSize, pageTurnSize } = config;
+  const { tableMemoryEnabled, chapterTurnSize, pageTurnSize } = config;
   const {
-    ltmOpen, setLtmOpen, tmOpen, setTmOpen, pageInfo, setPageInfo,
+    summaryOpen, setSummaryOpen, tmOpen, setTmOpen, pageInfo, setPageInfo,
     inputBoxRef, messageListRef,
   } = pageState;
 
   return (
     <div className="we-main we-chat-center-pane flex-1 min-w-0 flex flex-col overflow-hidden">
       <AnimatePresence>
-        {ltmEnabled && ltmOpen && currentSession && (
-          <LongTermMemoryModal
-            key="ltm-modal"
+        {summaryOpen && currentSession && (
+          <MiddleSummaryModal
+            key="middle-summary-modal"
             sessionId={currentSession.id}
-            onClose={() => setLtmOpen(false)}
+            onClose={() => setSummaryOpen(false)}
           />
         )}
         {tableMemoryEnabled && tmOpen && currentSession && (
@@ -112,7 +112,7 @@ export default function ChatConversationPane({
         onImpersonate={stream.handleImpersonate}
         onRetry={stream.handleRetryLast}
         onTitle={stream.handleRetitle}
-        onLongTermMemory={ltmEnabled && currentSession ? () => setLtmOpen(true) : null}
+        onMiddleSummary={currentSession ? () => setSummaryOpen(true) : null}
         onTableMemory={tableMemoryEnabled && currentSession ? () => setTmOpen(true) : null}
         worldId={character?.world_id ?? null}
         sessionId={currentSessionId}

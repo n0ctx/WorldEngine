@@ -39,12 +39,13 @@ import writingRoutes from './routes/writing.js';
 import sessionTimelineRoutes from './routes/session-timeline.js';
 import dailyEntriesRoutes from './routes/daily-entries.js';
 import sessionStateValuesRoutes from './routes/session-state-values.js';
-import longTermMemoryRoutes from './routes/long-term-memory.js';
+import middleSummaryRoutes from './routes/middle-summary.js';
 import tableMemoryRoutes from './routes/table-memory.js';
 import assistantRoutes from '../assistant/server/routes.js';
 import clientLogsRoutes from './routes/client-logs.js';
 import providerSafetyEventsRoutes from './routes/provider-safety-events.js';
 import { resolveUploadPath } from './services/state-values.js';
+import { removeLegacyMemoryData } from './services/legacy-memory-cleanup.js';
 import { createLogger, formatMeta, logBootBanner } from './utils/logger.js';
 import { requestIdMiddleware } from './middleware/request-id.js';
 import { DATA_ROOT, UPLOADS_DIR } from './utils/data-dir.js';
@@ -89,7 +90,6 @@ function localOnly(req, res, next) {
 const dataDirs = [
   path.join(DATA_ROOT, 'uploads', 'avatars'),
   path.join(DATA_ROOT, 'uploads', 'attachments'),
-  path.join(DATA_ROOT, 'vectors'),
   path.join(DATA_ROOT, 'logs'),
 ];
 for (const dir of dataDirs) {
@@ -98,6 +98,7 @@ for (const dir of dataDirs) {
 
 // 初始化数据库表结构
 initSchema(db);
+removeLegacyMemoryData();
 const { hydrateAssistantTasks } = await import('../assistant/server/task-store.js');
 hydrateAssistantTasks();
 const { hydrateSessionStreamTasks } = await import('./services/session-stream-task-store.js');
@@ -161,7 +162,7 @@ export function createApp() {
   app.use('/api/sessions', sessionTimelineRoutes);
   app.use('/api/sessions', dailyEntriesRoutes);
   app.use('/api/sessions', sessionStateValuesRoutes);
-  app.use('/api/sessions', longTermMemoryRoutes);
+  app.use('/api/sessions', middleSummaryRoutes);
   app.use('/api/sessions', tableMemoryRoutes);
   app.use('/api', promptEntriesRoutes);
   app.use('/api', stateFieldsRoutes);

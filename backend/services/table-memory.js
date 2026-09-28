@@ -99,7 +99,7 @@ export function deleteTableMemoryDir(sessionId) {
 }
 
 /**
- * 按 turn record 中的快照还原 tables.json（对齐 restoreLtmFromTurnRecord 三态语义）。
+ * 按 turn record 中的快照还原 tables.json：无记录清空目录，快照为 null（旧数据）保持不动，否则按快照覆盖写入。
  */
 export function restoreTablesFromTurnRecord(sessionId, lastRecord) {
   const sid = sessionId.slice(0, 8);

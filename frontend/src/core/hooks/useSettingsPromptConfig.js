@@ -11,20 +11,19 @@ import {
 export function useSettingsPromptConfig(patchConfig) {
   const [globalSystemPrompt, setGlobalSystemPrompt] = useState('');
   const [globalPostPrompt, setGlobalPostPrompt] = useState('');
-  const [contextRounds, setContextRounds] = useState(10);
+  const [shortTermTokenBudget, setShortTermTokenBudget] = useState(8000);
   const [writingSystemPrompt, setWritingSystemPrompt] = useState('');
   const [writingPostPrompt, setWritingPostPrompt] = useState('');
-  const [writingContextRounds, setWritingContextRounds] = useState(null);
+  const [writingShortTermTokenBudget, setWritingShortTermTokenBudget] = useState(null);
   const [memoryExpansionEnabled, setMemoryExpansionEnabled] = useState(true);
   const [suggestionEnabled, setSuggestionEnabled] = useState(false);
   const [writingSuggestionEnabled, setWritingSuggestionEnabled] = useState(false);
   const [writingMemoryExpansionEnabled, setWritingMemoryExpansionEnabled] = useState(true);
-  const [longTermMemoryEnabled, setLongTermMemoryEnabled] = useState(false);
-  const [writingLongTermMemoryEnabled, setWritingLongTermMemoryEnabled] = useState(false);
   const [tableMemoryEnabled, setTableMemoryEnabled] = useState(false);
   const [writingTableMemoryEnabled, setWritingTableMemoryEnabled] = useState(false);
   const [tableMemoryRowLimits, setTableMemoryRowLimits] = useState({});
   const [memoryRecallMaxSessions, setMemoryRecallMaxSessions] = useState(5);
+  const [longTermIndexBudget, setLongTermIndexBudget] = useState(20000);
   const [danmakuEnabled, setDanmakuEnabled] = useState(false);
   const [danmakuCount, setDanmakuCount] = useState(5);
   const [danmakuSpeed, setDanmakuSpeedLocal] = useState('normal');
@@ -39,10 +38,10 @@ export function useSettingsPromptConfig(patchConfig) {
   const applyPromptSettings = useCallback((settings) => {
     setGlobalSystemPrompt(settings.globalSystemPrompt);
     setGlobalPostPrompt(settings.globalPostPrompt);
-    setContextRounds(settings.contextRounds);
+    setShortTermTokenBudget(settings.shortTermTokenBudget);
     setWritingSystemPrompt(settings.writingSystemPrompt);
     setWritingPostPrompt(settings.writingPostPrompt);
-    setWritingContextRounds(settings.writingContextRounds);
+    setWritingShortTermTokenBudget(settings.writingShortTermTokenBudget);
   }, []);
 
   const applyMemorySettings = useCallback((settings) => {
@@ -50,12 +49,11 @@ export function useSettingsPromptConfig(patchConfig) {
     setSuggestionEnabled(settings.suggestionEnabled);
     setWritingSuggestionEnabled(settings.writingSuggestionEnabled);
     setWritingMemoryExpansionEnabled(settings.writingMemoryExpansionEnabled);
-    setLongTermMemoryEnabled(settings.longTermMemoryEnabled);
-    setWritingLongTermMemoryEnabled(settings.writingLongTermMemoryEnabled);
     setTableMemoryEnabled(settings.tableMemoryEnabled);
     setWritingTableMemoryEnabled(settings.writingTableMemoryEnabled);
     setTableMemoryRowLimits(settings.tableMemoryRowLimits);
     setMemoryRecallMaxSessions(settings.memoryRecallMaxSessions);
+    setLongTermIndexBudget(settings.longTermIndexBudget);
   }, []);
 
   const applyDanmakuSettings = useCallback((settings) => {
@@ -102,14 +100,14 @@ export function useSettingsPromptConfig(patchConfig) {
     }, { announceSaved: false }));
   }
 
-  async function handleSaveContextRounds(value) {
-    await patchConfig({ context_history_rounds: Number(value) });
+  async function handleSaveShortTermTokenBudget(value) {
+    await patchConfig({ short_term_token_budget: Number(value) });
   }
 
-  async function handleSaveWritingContextRounds(value) {
+  async function handleSaveWritingShortTermTokenBudget(value) {
     await patchConfig({
       writing: {
-        context_history_rounds: value !== '' && value !== null ? Number(value) : null,
+        short_term_token_budget: value !== '' && value !== null ? Number(value) : null,
       },
     });
   }
@@ -173,14 +171,6 @@ export function useSettingsPromptConfig(patchConfig) {
     await updateEnabledSetting(setWritingMemoryExpansionEnabled, enabled, 'memory_expansion_enabled', true);
   }
 
-  async function handleToggleLongTermMemory(enabled) {
-    await updateEnabledSetting(setLongTermMemoryEnabled, enabled, 'long_term_memory_enabled');
-  }
-
-  async function handleToggleWritingLongTermMemory(enabled) {
-    await updateEnabledSetting(setWritingLongTermMemoryEnabled, enabled, 'long_term_memory_enabled', true);
-  }
-
   async function handleToggleTableMemory(enabled) {
     await updateEnabledSetting(setTableMemoryEnabled, enabled, 'table_memory_enabled');
   }
@@ -203,6 +193,13 @@ export function useSettingsPromptConfig(patchConfig) {
     await patchConfig({ memory_recall_max_sessions: n });
   }
 
+  async function handleSaveLongTermIndexBudget(value) {
+    const isEmpty = value === '' || value === null || value === undefined;
+    const n = isEmpty ? 20000 : Math.min(500000, Math.max(2000, Math.floor(Number(value) || 20000)));
+    setLongTermIndexBudget(n);
+    await patchConfig({ long_term_index_budget: n });
+  }
+
   const applyImportedPromptSettings = useCallback((importedConfig) => {
     applyPromptSettings(readPromptSettings(importedConfig));
     applyMemorySettings(readMemorySettings(importedConfig));
@@ -215,9 +212,9 @@ export function useSettingsPromptConfig(patchConfig) {
       setGlobalSystemPrompt,
       globalPostPrompt,
       setGlobalPostPrompt,
-      contextRounds,
-      setContextRounds,
-      onSaveContextRounds: handleSaveContextRounds,
+      shortTermTokenBudget,
+      setShortTermTokenBudget,
+      onSaveShortTermTokenBudget: handleSaveShortTermTokenBudget,
       memoryExpansionEnabled,
       onToggleMemoryExpansion: handleToggleMemoryExpansion,
       suggestionEnabled,
@@ -233,10 +230,6 @@ export function useSettingsPromptConfig(patchConfig) {
       onChangeDanmakuSpeed: handleChangeDanmakuSpeed,
       writingMemoryExpansionEnabled,
       onToggleWritingMemoryExpansion: handleToggleWritingMemoryExpansion,
-      longTermMemoryEnabled,
-      onToggleLongTermMemory: handleToggleLongTermMemory,
-      writingLongTermMemoryEnabled,
-      onToggleWritingLongTermMemory: handleToggleWritingLongTermMemory,
       tableMemoryEnabled,
       onToggleTableMemory: handleToggleTableMemory,
       writingTableMemoryEnabled,
@@ -247,6 +240,9 @@ export function useSettingsPromptConfig(patchConfig) {
       memoryRecallMaxSessions,
       setMemoryRecallMaxSessions,
       onSaveMemoryRecallMaxSessions: handleSaveMemoryRecallMaxSessions,
+      longTermIndexBudget,
+      setLongTermIndexBudget,
+      onSaveLongTermIndexBudget: handleSaveLongTermIndexBudget,
       onSave: handleSaveGeneral,
       saving,
       saved,
@@ -256,10 +252,10 @@ export function useSettingsPromptConfig(patchConfig) {
       setWritingSystemPrompt,
       writingPostPrompt,
       setWritingPostPrompt,
-      writingContextRounds,
-      setWritingContextRounds,
+      writingShortTermTokenBudget,
+      setWritingShortTermTokenBudget,
       onSaveWriting: handleSaveWritingGeneral,
-      onSaveWritingContextRounds: handleSaveWritingContextRounds,
+      onSaveWritingShortTermTokenBudget: handleSaveWritingShortTermTokenBudget,
       chapterTurnSize,
       setChapterTurnSize,
       onSaveChapterTurnSize: handleSaveChapterTurnSize,

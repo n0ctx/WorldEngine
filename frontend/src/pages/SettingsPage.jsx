@@ -143,12 +143,12 @@ export default function SettingsPage() {
               <div className="we-settings-section">
                 <FeaturesConfigPanel
                   settingsMode={settingsMode}
-                  contextRounds={promptProps.contextRounds}
-                  setContextRounds={promptProps.setContextRounds}
-                  onSaveContextRounds={promptProps.onSaveContextRounds}
-                  writingContextRounds={promptProps.writingContextRounds}
-                  setWritingContextRounds={promptProps.setWritingContextRounds}
-                  onSaveWritingContextRounds={promptProps.onSaveWritingContextRounds}
+                  shortTermTokenBudget={promptProps.shortTermTokenBudget}
+                  setShortTermTokenBudget={promptProps.setShortTermTokenBudget}
+                  onSaveShortTermTokenBudget={promptProps.onSaveShortTermTokenBudget}
+                  writingShortTermTokenBudget={promptProps.writingShortTermTokenBudget}
+                  setWritingShortTermTokenBudget={promptProps.setWritingShortTermTokenBudget}
+                  onSaveWritingShortTermTokenBudget={promptProps.onSaveWritingShortTermTokenBudget}
                   chapterTurnSize={promptProps.chapterTurnSize}
                   setChapterTurnSize={promptProps.setChapterTurnSize}
                   onSaveChapterTurnSize={promptProps.onSaveChapterTurnSize}
@@ -165,10 +165,6 @@ export default function SettingsPage() {
                   onToggleMemoryExpansion={promptProps.onToggleMemoryExpansion}
                   writingMemoryExpansionEnabled={promptProps.writingMemoryExpansionEnabled}
                   onToggleWritingMemoryExpansion={promptProps.onToggleWritingMemoryExpansion}
-                  longTermMemoryEnabled={promptProps.longTermMemoryEnabled}
-                  onToggleLongTermMemory={promptProps.onToggleLongTermMemory}
-                  writingLongTermMemoryEnabled={promptProps.writingLongTermMemoryEnabled}
-                  onToggleWritingLongTermMemory={promptProps.onToggleWritingLongTermMemory}
                   tableMemoryEnabled={promptProps.tableMemoryEnabled}
                   onToggleTableMemory={promptProps.onToggleTableMemory}
                   writingTableMemoryEnabled={promptProps.writingTableMemoryEnabled}
@@ -179,6 +175,9 @@ export default function SettingsPage() {
                   memoryRecallMaxSessions={promptProps.memoryRecallMaxSessions}
                   setMemoryRecallMaxSessions={promptProps.setMemoryRecallMaxSessions}
                   onSaveMemoryRecallMaxSessions={promptProps.onSaveMemoryRecallMaxSessions}
+                  longTermIndexBudget={promptProps.longTermIndexBudget}
+                  setLongTermIndexBudget={promptProps.setLongTermIndexBudget}
+                  onSaveLongTermIndexBudget={promptProps.onSaveLongTermIndexBudget}
                   chatDiaryEnabled={diaryProps.chatEnabled}
                   onToggleChatDiaryEnabled={diaryProps.onToggleChatEnabled}
                   chatDateMode={diaryProps.chatDateMode}

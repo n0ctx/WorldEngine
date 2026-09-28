@@ -62,12 +62,6 @@ export function createTestConfig(patch = {}) {
       temperature: 0.6,
       thinking_level: null,
     },
-    embedding: {
-      provider: null,
-      provider_models: {},
-      base_url: '',
-      model: '',
-    },
     ui: {
       theme: 'classic-parchment',
       font_size: 16,
@@ -76,7 +70,6 @@ export function createTestConfig(patch = {}) {
       auto_collapse_thinking: true,
       show_token_usage: false,
     },
-    context_history_rounds: 3,
     global_system_prompt: '',
     global_post_prompt: '',
     memory_expansion_enabled: false,
@@ -92,7 +85,6 @@ export function createTestConfig(patch = {}) {
     writing: {
       global_system_prompt: '',
       global_post_prompt: '',
-      context_history_rounds: null,
       suggestion_enabled: false,
       memory_expansion_enabled: false,
       llm: {
@@ -109,12 +101,9 @@ export function createTestSandbox(name, configPatch = {}) {
   const dbPath = path.join(root, 'worldengine.test.db');
   const configPath = path.join(root, 'config.json');
   const uploadsDir = path.join(root, 'uploads');
-  const vectorsDir = path.join(root, 'vectors');
   const assistantStateDir = path.join(root, 'assistant-state');
-  const turnSummaryStorePath = path.join(vectorsDir, 'turn_summaries.json');
 
   fs.mkdirSync(uploadsDir, { recursive: true });
-  fs.mkdirSync(vectorsDir, { recursive: true });
   fs.mkdirSync(assistantStateDir, { recursive: true });
   fs.writeFileSync(configPath, JSON.stringify(createTestConfig(configPatch), null, 2));
 
@@ -127,16 +116,13 @@ export function createTestSandbox(name, configPatch = {}) {
     dbPath,
     configPath,
     uploadsDir,
-    vectorsDir,
     assistantStateDir,
-    turnSummaryStorePath,
     db,
     setEnv() {
       process.env.WE_DB_PATH = dbPath;
       process.env.WE_CONFIG_PATH = configPath;
       process.env.WE_DATA_DIR = root;
       process.env.WE_UPLOADS_DIR = uploadsDir;
-      process.env.WE_TURN_SUMMARY_STORE_PATH = turnSummaryStorePath;
       process.env.ASSISTANT_STATE_DIR = assistantStateDir;
       process.env.WE_DISABLE_AUTOSTART = 'true';
       process.env.WE_LLM_RETRY_MAX = '0';

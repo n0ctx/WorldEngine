@@ -67,10 +67,12 @@ function AssistantMessageActions({
             <RotateCcw size={16} />
             重新生成
           </button>
-          <button onClick={startEditAI} aria-label="编辑 AI 回复">
-            <PencilLine size={16} />
-            编辑
-          </button>
+          {startEditAI && (
+            <button onClick={startEditAI} aria-label="编辑 AI 回复">
+              <PencilLine size={16} />
+              编辑
+            </button>
+          )}
           {onDelete && <DeleteButton onDelete={() => onDelete(message.id)} />}
         </div>
       )}

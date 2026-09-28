@@ -53,7 +53,7 @@ export default function MessageBubbles({
                 streamingText={(isContinuing || isStream) ? displayMsg.content : undefined}
                 onEdit={onEditMessage}
                 onRegenerate={onRegenerateMessage}
-                onEditAssistant={onEditAssistantMessage}
+                onEditAssistant={msg.id === lastAssistantId ? onEditAssistantMessage : undefined}
                 onDelete={isStream ? undefined : onDeleteMessage}
                 isGreeting={msgIdx === 0 && msg.role === 'assistant' && !isStream}
               />

@@ -11,10 +11,8 @@
 import {
   renderPersonaState,
   renderWorldState,
-  renderRecalledSummaries,
 } from '../memory/recall.js';
-import { renderExpandedTurnRecords } from '../memory/summary-expander.js';
-import { readMemoryFile as readLongTermMemory } from '../services/long-term-memory.js';
+import { renderRecalledTurns } from '../memory/long-term-recall.js';
 import { readTables } from '../services/table-memory.js';
 import { renderTablesToMarkdown } from '../services/table-memory-ops.js';
 import { MEMORY_EXPAND_MAX_TOKENS, SUGGESTION_TOKEN_RESERVE } from '../utils/constants.js';
@@ -75,12 +73,10 @@ export function renderTriggeredEntriesSection(triggeredEntries, tv) {
   return `<world_entries>\n${entryTexts.join('\n\n')}\n</world_entries>`;
 }
 
-/** [8.5] 长期记忆（会话级 md 文件）；未启用或为空时返回 null */
-export function renderLongTermMemorySection(sessionId, enabled, tv) {
-  if (enabled !== true) return null;
-  const ltm = readLongTermMemory(sessionId).trim();
-  if (!ltm) return null;
-  return { text: `<long_term_memory>\n${tv(ltm)}\n</long_term_memory>`, chars: ltm.length };
+/** [8.5] 剧情摘要（中期摘要滚动文本，来自最新 turn_record.middle_summary）；为空时返回 null */
+export function renderStorySummarySection(text, tv) {
+  if (!text) return null;
+  return `<story_summary>\n以下是更早剧情的连续摘要，用于理解前因；细节以下方原文为准。\n${tv(text)}\n</story_summary>`;
 }
 
 /**
@@ -97,29 +93,11 @@ export function renderTableMemorySection(sessionId, enabled) {
   };
 }
 
-/** [9] 召回摘要 */
-export function renderRecalledSummariesSection(recalled, tv) {
-  const text = renderRecalledSummaries(recalled);
-  return text ? `<recalled_memories>\n${tv(text)}\n</recalled_memories>` : null;
-}
-
-/** [10] 展开判定的候选清单（SSE 透传用） */
-export function buildExpandCandidates(recalled) {
-  return recalled.map((r) => ({
-    ref: r.ref,
-    turn_record_id: r.turn_record_id,
-    session_id: r.session_id,
-    session_title: r.session_title,
-    round_index: r.round_index,
-    created_at: r.created_at,
-  }));
-}
-
-/** [10] 展开原文；expandedText 为空时 text 为 null（调用方据此决定 SSE 载荷） */
-export function renderExpandedSection(expandIds, tv) {
-  const expandedText = renderExpandedTurnRecords(expandIds, MEMORY_EXPAND_MAX_TOKENS);
+/** [10] 长期召回原文；recordIds 为长期召回选中的 turn_records.id 列表 */
+export function renderExpandedSection(recordIds, tv) {
+  const { text: expandedText, hitIds } = renderRecalledTurns(recordIds, MEMORY_EXPAND_MAX_TOKENS);
   return {
-    expandedText,
+    hitIds,
     text: expandedText ? `<expanded_dialogues>\n${tv(expandedText)}\n</expanded_dialogues>` : null,
   };
 }

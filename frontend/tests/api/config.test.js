@@ -2,13 +2,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   fetchAuxModels,
-  fetchEmbeddingModels,
   fetchModels,
   fetchWritingModels,
   getConfig,
   testAuxConnection,
   testConnection,
-  testEmbeddingConnection,
   testWritingConnection,
   updateConfig,
   updateProviderKey,
@@ -24,9 +22,7 @@ describe('config api', () => {
     await updateConfig({ llm: { provider: 'openai' } });
     await updateProviderKey('openai', 'main-key');
     await fetchModels();
-    await fetchEmbeddingModels();
     await testConnection();
-    await testEmbeddingConnection();
     await fetchAuxModels();
     await testAuxConnection();
     await fetchWritingModels();
@@ -42,12 +38,10 @@ describe('config api', () => {
       body: JSON.stringify({ provider: 'openai', api_key: 'main-key' }),
     }));
     expect(fetch).toHaveBeenNthCalledWith(4, '/api/config/models', expect.any(Object));
-    expect(fetch).toHaveBeenNthCalledWith(5, '/api/config/embedding-models', expect.any(Object));
-    expect(fetch).toHaveBeenNthCalledWith(6, '/api/config/test-connection', expect.any(Object));
-    expect(fetch).toHaveBeenNthCalledWith(7, '/api/config/test-embedding', expect.any(Object));
-    expect(fetch).toHaveBeenNthCalledWith(8, '/api/config/aux/models', expect.any(Object));
-    expect(fetch).toHaveBeenNthCalledWith(9, '/api/config/aux/test-connection', expect.any(Object));
-    expect(fetch).toHaveBeenNthCalledWith(10, '/api/config/writing/models', expect.any(Object));
-    expect(fetch).toHaveBeenNthCalledWith(11, '/api/config/writing/test-connection', expect.any(Object));
+    expect(fetch).toHaveBeenNthCalledWith(5, '/api/config/test-connection', expect.any(Object));
+    expect(fetch).toHaveBeenNthCalledWith(6, '/api/config/aux/models', expect.any(Object));
+    expect(fetch).toHaveBeenNthCalledWith(7, '/api/config/aux/test-connection', expect.any(Object));
+    expect(fetch).toHaveBeenNthCalledWith(8, '/api/config/writing/models', expect.any(Object));
+    expect(fetch).toHaveBeenNthCalledWith(9, '/api/config/writing/test-connection', expect.any(Object));
   });
 });

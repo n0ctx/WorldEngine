@@ -23,7 +23,7 @@ const InputBox = forwardRef(function InputBox({
   onImpersonate,
   onRetry,
   onTitle,
-  onLongTermMemory = null,
+  onMiddleSummary = null,
   onTableMemory = null,
   pagerSlot = null,
 }, ref) {
@@ -135,7 +135,7 @@ const InputBox = forwardRef(function InputBox({
         onScrollToBottom={onScrollToBottom}
         onContinue={onContinue}
         onImpersonate={onImpersonate}
-        onLongTermMemory={onLongTermMemory}
+        onMiddleSummary={onMiddleSummary}
         onTableMemory={onTableMemory}
       />
 

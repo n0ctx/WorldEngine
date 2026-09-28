@@ -39,20 +39,20 @@
 ### 记忆与摘要
 
 - `templates/memory-turn-summary.md`
-  每轮对话结束后，为 `turn_records.summary` 生成摘要的 prompt。
-  调用方：`backend/memory/turn-summarizer.js`
-- `templates/memory-turn-summary-with-ltm.md`
-  长期记忆开启时使用的 turn 摘要 prompt 变体；同时要求模型抽取若干条长期记忆条目。
-  调用方：`backend/memory/turn-summarizer.js`
-- `templates/memory-long-term-compress.md`
-  长期记忆条目超出阈值后，将多条记忆合并/压缩的 prompt。
-  调用方：`backend/services/long-term-memory.js`
-- `templates/memory-expand-system.md`
-  记忆展开 preflight 的 system prompt，要求模型只返回 JSON。
-  调用方：`backend/memory/summary-expander.js`
-- `templates/memory-expand-user.md`
-  记忆展开 preflight 的 user prompt，喂给模型“近期对话 + 召回摘要”。
-  调用方：`backend/memory/summary-expander.js`
+  为轮次目录索引行生成 `{scene, cast, summary}` 的 prompt（不是 `turn_records.summary`，该列已废弃）。
+  调用方：`backend/memory/turn-summarizer.js`（`generateTurnIndex`）
+- `templates/memory-middle-summary.md`
+  中期剧情摘要滚动合并 prompt：把旧摘要与新滑出的轮次合并为新摘要。
+  调用方：`backend/memory/middle-summary.js`
+- `templates/memory-middle-summary-shrink.md`
+  中期剧情摘要超出目标长度时的压缩 prompt。
+  调用方：`backend/memory/middle-summary.js`
+- `templates/memory-recall-system.md`
+  长期记忆召回判定的 system prompt，喂给模型历史轮次目录索引，要求只返回命中的轮次编号 JSON。
+  调用方：`backend/memory/long-term-recall.js`（`recallTurns`）
+- `templates/memory-recall-user.md`
+  长期记忆召回判定的 user prompt，喂给模型近期对话原文。
+  调用方：`backend/memory/long-term-recall.js`（`recallTurns`）
 
 ### 标题生成
 

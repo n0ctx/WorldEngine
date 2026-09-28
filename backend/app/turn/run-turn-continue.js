@@ -2,6 +2,7 @@ import * as llm from '../../llm/index.js';
 import { recordProviderSafetyEvent, toPublicProviderSafetySignal } from '../../services/provider-safety-events.js';
 import { buildTurnPostgenTasks } from '../shared/postgen/build-turn-postgen-tasks.js';
 import { runPostGenFlow } from '../shared/postgen/run-postgen-flow.js';
+import { rollbackSession } from '../shared/rollback/rollback-session.js';
 import { runStreamLifecycle } from '../shared/stream/create-stream-runner.js';
 import { finalizeStreamOutput } from '../shared/stream/finalize-stream-output.js';
 import { processStreamOutput, makeSuggestionFallbackCallbacks } from '../../services/chat.js';
@@ -138,6 +139,8 @@ export async function runTurnContinue({ mode, sessionId, emitSse: rawEmitSse, at
       if (!aborted && mergedContent) {
         const messages = mode.session.getMessages(sessionId, ALL_MESSAGES_LIMIT, 0);
         if (messages.some((message) => message.role === 'user')) {
+          // 续写没有新增消息，重做最后一轮只需回退状态/表格/轮次记录，不用截断消息
+          await rollbackSession(mode, sessionId, () => {}, { redoLatestRound: true });
           const { hasSseWaits } = await runPostGenFlow({
             sessionId,
             worldId,

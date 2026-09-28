@@ -22,7 +22,6 @@ test('normalizeProposal 会过滤敏感字段并规范 global-config changes', (
   const proposal = __testables.normalizeProposal({
     changes: {
       llm: { api_key: 'secret', model: 'mock-model' },
-      embedding: { api_key: 'embed-secret' },
       global_system_prompt: '新的系统提示',
     },
   }, {
@@ -33,7 +32,6 @@ test('normalizeProposal 会过滤敏感字段并规范 global-config changes', (
   assert.equal(proposal.type, 'global-config');
   assert.equal(proposal.operation, 'update');
   assert.equal(proposal.changes.llm.api_key, undefined);
-  assert.equal(proposal.changes.embedding.api_key, undefined);
   assert.equal(proposal.changes.global_system_prompt, '新的系统提示');
   assert.equal(proposal.entryOps, undefined);
 });

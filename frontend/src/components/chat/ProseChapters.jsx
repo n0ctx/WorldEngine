@@ -58,7 +58,7 @@ export default function ProseChapters({
                   worldId={worldId}
                   onEdit={isStream ? undefined : onEditMessage}
                   onRegenerate={isStream ? undefined : onRegenerateMessage}
-                  onEditAssistant={isStream ? undefined : onEditAssistantMessage}
+                  onEditAssistant={!isStream && msg.id === lastAssistantId ? onEditAssistantMessage : undefined}
                   onDelete={isStream ? undefined : onDeleteMessage}
                 />
                 {displayMsg._options?.length > 0 && !isStream && !(suppressLastFrozen && msg.id === lastAssistantId) && (

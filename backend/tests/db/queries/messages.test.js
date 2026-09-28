@@ -72,21 +72,6 @@ test('getMessagesBySessionId 会在相同 created_at 下保持稳定插入顺序
   );
 });
 
-test('getUncompressedMessagesBySessionId 会返回最新 N 条未压缩消息并保持升序', async () => {
-  const world = insertWorld(sandbox.db, { name: '消息世界-压缩' });
-  const character = insertCharacter(sandbox.db, world.id, { name: '二号' });
-  const session = insertSession(sandbox.db, { character_id: character.id });
-  const { getUncompressedMessagesBySessionId } = await freshImport('backend/db/queries/messages.js');
-
-  insertMessage(sandbox.db, session.id, { role: 'user', content: 'm1', created_at: 1 });
-  insertMessage(sandbox.db, session.id, { role: 'assistant', content: 'm2', created_at: 2, is_compressed: 1 });
-  insertMessage(sandbox.db, session.id, { role: 'user', content: 'm3', created_at: 3 });
-  insertMessage(sandbox.db, session.id, { role: 'assistant', content: 'm4', created_at: 4 });
-
-  const rows = getUncompressedMessagesBySessionId(session.id, 2, 0);
-  assert.deepEqual(rows.map((row) => row.content), ['m3', 'm4']);
-});
-
 test('附件辅助查询会忽略非法 attachments JSON，并按 message/session/character/world 聚合', async () => {
   const world = insertWorld(sandbox.db, { name: '消息世界-附件聚合' });
   const character = insertCharacter(sandbox.db, world.id, { name: '三号' });

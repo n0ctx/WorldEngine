@@ -6,7 +6,6 @@ import { createRouteTestContext } from '../helpers/http.js';
 const ctx = createRouteTestContext('config-route-suite', {
   provider_keys: { mock: 'secret-key', openai: 'embed-secret' },
   llm: { provider: 'mock', model: 'mock-model' },
-  embedding: { provider: 'openai', model: 'text-embedding-3-small' },
 });
 
 after(() => ctx.close());
@@ -18,7 +17,6 @@ test('GET /api/config 会隐藏真实 provider_keys 并暴露 has_key', async ()
   const data = await res.json();
 
   assert.equal(data.llm.has_key, true);
-  assert.equal(data.embedding.has_key, true);
   assert.equal(data.provider_keys.mock, true);
   assert.equal(data.provider_keys.openai, true);
 });
@@ -36,7 +34,6 @@ test('PUT /api/config 在 provider 切换时恢复 provider_models 中缓存的 
       temperature: 0.6,
       thinking_level: null,
     },
-    embedding: ctx.sandbox.readConfig().embedding,
   });
 
   const res = await ctx.request('/api/config', {
@@ -63,10 +60,6 @@ test('PUT /api/config/provider-key 写入指定 provider 的 key 到顶层共享
       ...ctx.sandbox.readConfig().llm,
       provider: 'mock',
     },
-    embedding: {
-      ...ctx.sandbox.readConfig().embedding,
-      provider: 'openai',
-    },
   });
 
   let res = await ctx.request('/api/config/provider-key', {
@@ -87,7 +80,6 @@ test('PUT /api/config/provider-key 写入指定 provider 的 key 到顶层共享
   assert.equal(saved.provider_keys.mock, 'llm-key');
   assert.equal(saved.provider_keys.openai, 'embed-key');
   assert.equal(saved.llm.provider_keys, undefined);
-  assert.equal(saved.embedding.provider_keys, undefined);
 });
 
 test('GET /api/config/models 对 coding plan provider 返回静态模型列表', async () => {

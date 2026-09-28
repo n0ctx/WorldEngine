@@ -3,11 +3,12 @@ import assert from 'node:assert/strict';
 
 import { createRouteTestContext } from '../helpers/http.js';
 import { resetMockEnv, waitFor } from '../helpers/test-env.js';
-import { enqueue } from '../../utils/async-queue.js';
+import { enqueue, waitForQueueIdle } from '../../utils/async-queue.js';
 import { CHAPTER_MESSAGE_SIZE } from '../../utils/constants.js';
 import {
   insertMessage,
   insertSession,
+  insertSessionWorldStateValue,
   insertTurnRecord,
   insertWorld,
 } from '../helpers/fixtures.js';
@@ -214,6 +215,118 @@ test('写作 continue 的 SSE 流包含 state_updated 事件', async () => {
   const continueEvents = parseSsePayloads(await res.text());
 
   assert.ok(continueEvents.some((e) => e.type === 'state_updated'), 'continue 应包含 state_updated');
+});
+
+test('写作 continue 重做最后一轮：不新建消息、turn record 按续写后内容重建而非新增', async () => {
+  resetMockEnv();
+  process.env.MOCK_LLM_STREAM_CHUNKS = JSON.stringify(['初始回复']);
+
+  const world = insertWorld(ctx.sandbox.db, { name: '续写重做世界' });
+  let res = await ctx.request(`/api/worlds/${world.id}/writing-sessions`, { method: 'POST' });
+  const session = await res.json();
+
+  res = await ctx.request(`/api/worlds/${world.id}/writing-sessions/${session.id}/generate`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ content: '开始写' }),
+  });
+  assert.equal(res.status, 200);
+
+  const beforeMessages = ctx.sandbox.db.prepare(
+    'SELECT id, role FROM messages WHERE session_id = ? ORDER BY created_at ASC',
+  ).all(session.id);
+  const assistantId = beforeMessages.find((m) => m.role === 'assistant').id;
+
+  const beforeRecords = ctx.sandbox.db.prepare(
+    'SELECT round_index, asst_message_id FROM turn_records WHERE session_id = ? ORDER BY round_index ASC',
+  ).all(session.id);
+  assert.deepEqual(beforeRecords.map((r) => r.round_index), [1]);
+  assert.equal(beforeRecords[0].asst_message_id, assistantId);
+
+  process.env.MOCK_LLM_STREAM_CHUNKS = JSON.stringify(['续写内容']);
+  res = await ctx.request(`/api/worlds/${world.id}/writing-sessions/${session.id}/continue`, {
+    method: 'POST',
+  });
+  assert.equal(res.status, 200);
+
+  const afterMessages = ctx.sandbox.db.prepare(
+    'SELECT id, role, content FROM messages WHERE session_id = ? ORDER BY created_at ASC',
+  ).all(session.id);
+  assert.deepEqual(afterMessages.map((m) => m.role), ['user', 'assistant']);
+  assert.equal(afterMessages[1].id, assistantId, '续写不新建 assistant 消息');
+  assert.match(afterMessages[1].content, /初始回复/);
+  assert.match(afterMessages[1].content, /续写内容/);
+
+  const afterRecords = ctx.sandbox.db.prepare(
+    'SELECT round_index, asst_message_id FROM turn_records WHERE session_id = ? ORDER BY round_index ASC',
+  ).all(session.id);
+  assert.deepEqual(afterRecords.map((r) => r.round_index), [1], '续写重做最后一轮：round_index 不变、不新增行');
+  assert.equal(afterRecords[0].asst_message_id, assistantId, 'turn record 指向续写后的同一条 assistant 消息');
+});
+
+test('写作 continue 先把状态回退到上一轮快照，再重建本轮 turn record', async () => {
+  resetMockEnv();
+  process.env.MOCK_LLM_STREAM_CHUNKS = JSON.stringify(['续写内容']);
+
+  const world = insertWorld(ctx.sandbox.db, { name: '续写回退世界' });
+  const session = insertSession(ctx.sandbox.db, { world_id: world.id, mode: 'writing' });
+  const snapshot = (weather) => JSON.stringify({ world: { weather }, persona: {}, character: {}, nearby: [] });
+  insertSessionWorldStateValue(ctx.sandbox.db, session.id, world.id, { field_key: 'weather', runtime_value_json: '"暴雨"' });
+  insertMessage(ctx.sandbox.db, session.id, { role: 'user', content: 'u1', created_at: 1 });
+  insertMessage(ctx.sandbox.db, session.id, { role: 'assistant', content: 'a1', created_at: 2 });
+  insertMessage(ctx.sandbox.db, session.id, { role: 'user', content: 'u2', created_at: 3 });
+  const asst2 = insertMessage(ctx.sandbox.db, session.id, { role: 'assistant', content: 'a2', created_at: 4 });
+  insertTurnRecord(ctx.sandbox.db, session.id, { round_index: 1, summary: '第一轮', state_snapshot: snapshot('"晴"') });
+  insertTurnRecord(ctx.sandbox.db, session.id, { round_index: 2, summary: '第二轮', state_snapshot: snapshot('"暴雨"') });
+
+  const res = await ctx.request(`/api/worlds/${world.id}/writing-sessions/${session.id}/continue`, { method: 'POST' });
+  assert.equal(res.status, 200);
+  await res.text();
+
+  const weather = ctx.sandbox.db.prepare(
+    'SELECT runtime_value_json FROM session_world_state_values WHERE session_id = ? AND field_key = ?',
+  ).get(session.id, 'weather');
+  assert.equal(weather.runtime_value_json, '"晴"', '续写前应回到第一轮结束时的状态，不叠加第二轮结果');
+
+  const records = ctx.sandbox.db.prepare(
+    'SELECT round_index, summary, asst_message_id FROM turn_records WHERE session_id = ? ORDER BY round_index ASC',
+  ).all(session.id);
+  assert.deepEqual(records.map((r) => [r.round_index, r.summary]), [[1, '第一轮'], [2, '']]);
+  assert.equal(records[1].asst_message_id, asst2.id);
+});
+
+test('写作 edit-assistant 编辑最后回复：先回退状态再重建 turn record', async () => {
+  resetMockEnv();
+  const snapshot = (w) => JSON.stringify({ world: { weather: w }, persona: {}, character: {}, nearby: [] });
+
+  const world = insertWorld(ctx.sandbox.db, { name: '编辑回退' });
+  const session = insertSession(ctx.sandbox.db, { world_id: world.id, mode: 'writing' });
+  insertSessionWorldStateValue(ctx.sandbox.db, session.id, world.id, { field_key: 'weather', runtime_value_json: '"暴雨"' });
+  insertMessage(ctx.sandbox.db, session.id, { role: 'user', content: 'u1', created_at: 1 });
+  insertMessage(ctx.sandbox.db, session.id, { role: 'assistant', content: 'a1', created_at: 2 });
+  insertMessage(ctx.sandbox.db, session.id, { role: 'user', content: 'u2', created_at: 3 });
+  const asst2 = insertMessage(ctx.sandbox.db, session.id, { role: 'assistant', content: 'a2', created_at: 4 });
+  insertTurnRecord(ctx.sandbox.db, session.id, { round_index: 1, summary: '第一轮', state_snapshot: snapshot('"晴"') });
+  insertTurnRecord(ctx.sandbox.db, session.id, { round_index: 2, summary: '第二轮', state_snapshot: snapshot('"暴雨"') });
+
+  const res = await ctx.request(`/api/worlds/${world.id}/writing-sessions/${session.id}/edit-assistant`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ messageId: asst2.id, content: '改过的回复' }),
+  });
+  assert.equal(res.status, 200);
+  await waitForQueueIdle(session.id);
+
+  const weather = ctx.sandbox.db
+    .prepare('SELECT runtime_value_json v FROM session_world_state_values WHERE session_id=? AND field_key=?')
+    .get(session.id, 'weather');
+  assert.equal(weather.v, '"晴"');
+
+  const records = ctx.sandbox.db.prepare(
+    'SELECT round_index, summary, asst_message_id FROM turn_records WHERE session_id = ? ORDER BY round_index ASC',
+  ).all(session.id);
+  assert.deepEqual(records.map((r) => [r.round_index, r.summary]), [[1, '第一轮'], [2, '']]);
+  assert.equal(records[1].asst_message_id, asst2.id);
 });
 
 test('写作 generate 在 session 不存在时返回 404', async () => {
@@ -528,7 +641,7 @@ test('写作 regenerate 在 afterMessageId 为 assistant 消息时返回 400', a
   assert.deepEqual(await res.json(), { error: 'afterMessageId must be a user message' });
 });
 
-test('写作 regenerate 会删除 afterMessageId 之后的消息并清空后续 turn record', async () => {
+test('写作 regenerate 会删除 afterMessageId 之后的消息并按新回答重建 turn record', async () => {
   resetMockEnv();
 
   process.env.MOCK_LLM_STREAM_CHUNKS = JSON.stringify(['新的段落']);
@@ -558,9 +671,9 @@ test('写作 regenerate 会删除 afterMessageId 之后的消息并清空后续 
   assert.equal(rows[1].content, '新的段落');
 
   const turnRecords = ctx.sandbox.db.prepare(
-    'SELECT round_index FROM turn_records WHERE session_id = ? ORDER BY round_index ASC',
+    'SELECT round_index, summary FROM turn_records WHERE session_id = ? ORDER BY round_index ASC',
   ).all(session.id);
-  assert.deepEqual(turnRecords, []);
+  assert.deepEqual(turnRecords, [{ round_index: 1, summary: '' }]);
 });
 
 test('写作 regenerate 会等待同 session 队列空闲后再截断消息', async () => {

@@ -14,7 +14,6 @@ export function usePageConfig(mode = 'chat') {
   const setShowTokenUsage = useDisplaySettingsStore((s) => s.setShowTokenUsage);
   const setPricing = isWriting ? setCurrentWritingModelPricing : setCurrentModelPricing;
 
-  const [ltmEnabled, setLtmEnabled] = useState(false);
   const [tableMemoryEnabled, setTableMemoryEnabled] = useState(false);
   const [chapterTurnSize, setChapterTurnSize] = useState(20);
   const [pageTurnSize, setPageTurnSize] = useState(50);
@@ -24,7 +23,6 @@ export function usePageConfig(mode = 'chat') {
       const scoped = isWriting ? (c.writing ?? {}) : c;
       setShowTokenUsage(c.ui?.show_token_usage === true);
       setPricing((isWriting ? c.writing?.llm : c.llm)?.model_pricing ?? null);
-      setLtmEnabled(scoped.long_term_memory_enabled === true);
       setTableMemoryEnabled(scoped.table_memory_enabled === true);
       setChapterTurnSize(scoped.chapter_turn_size ?? c.chapter_turn_size ?? 20);
       setPageTurnSize(scoped.page_turn_size ?? c.page_turn_size ?? 50);
@@ -34,5 +32,5 @@ export function usePageConfig(mode = 'chat') {
     return () => window.removeEventListener('we:global-config-updated', load);
   }, [isWriting, setPricing, setShowTokenUsage]);
 
-  return { ltmEnabled, tableMemoryEnabled, chapterTurnSize, pageTurnSize };
+  return { tableMemoryEnabled, chapterTurnSize, pageTurnSize };
 }

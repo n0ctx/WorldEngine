@@ -33,7 +33,6 @@ export function finalizeSessionStream(runId, state) {
   state.setGenerating(false);
   state.text.setStreamingText('');
   state.memory.stopMemoryRecalling();
-  state.memory.stopMemoryExpanding();
   state.memory.stopMemoryWriting(runId);
   state.text.setContinuingMessageId(null);
   state.text.setContinuingText('');

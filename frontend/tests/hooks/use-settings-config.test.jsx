@@ -46,9 +46,8 @@ describe('useSettingsConfig', () => {
     window.removeEventListener ??= vi.fn();
     getConfig.mockResolvedValue({
       llm: { provider: 'mock', model: 'mock-model' },
-      embedding: { provider: 'openai', model: 'embed-model' },
       proxy_url: '',
-      context_history_rounds: 4,
+      short_term_token_budget: 4000,
       global_system_prompt: '系统提示',
       global_post_prompt: '后置提示',
       memory_expansion_enabled: true,
@@ -57,7 +56,7 @@ describe('useSettingsConfig', () => {
       writing: {
         global_system_prompt: '写作系统',
         global_post_prompt: '写作后置',
-        context_history_rounds: 8,
+        short_term_token_budget: 12000,
         suggestion_enabled: true,
         memory_expansion_enabled: false,
         llm: { provider: null, model: 'writer', temperature: 0.5, max_tokens: 333 },
@@ -71,7 +70,6 @@ describe('useSettingsConfig', () => {
     });
     updateConfig.mockResolvedValue({
       llm: { provider: 'ollama', model: 'llama3.2', base_url: 'http://127.0.0.1:11434', has_key: false, provider_keys: { ollama: false } },
-      embedding: { provider: 'openai', model: 'embed-model', has_key: false, provider_keys: { openai: false } },
       aux_llm: { provider: 'openai', model: 'gpt-4.1-mini', base_url: '', has_key: true, provider_keys: { openai: true } },
       writing: { llm: { provider: 'openai', model: 'writer-next', base_url: '', has_key: true, provider_keys: { openai: true } } },
     });
@@ -155,7 +153,7 @@ describe('useSettingsConfig', () => {
     await waitFor(() => expect(result.current.loading).toBe(false));
     getConfig.mockResolvedValueOnce({
       global_system_prompt: '外部更新的提示词',
-      context_history_rounds: 15,
+      short_term_token_budget: 15000,
       ui: { show_thinking: false },
       diary: { chat: { enabled: false }, writing: { enabled: true } },
     });
@@ -180,13 +178,13 @@ describe('useSettingsConfig', () => {
     await act(async () => {
       result.current.promptProps.setGlobalSystemPrompt('新系统');
       result.current.promptProps.setGlobalPostPrompt('新后置');
-      result.current.promptProps.setContextRounds(12);
+      result.current.promptProps.setShortTermTokenBudget(12000);
     });
 
     await waitFor(() => {
       expect(result.current.promptProps.globalSystemPrompt).toBe('新系统');
       expect(result.current.promptProps.globalPostPrompt).toBe('新后置');
-      expect(result.current.promptProps.contextRounds).toBe(12);
+      expect(result.current.promptProps.shortTermTokenBudget).toBe(12000);
     });
 
     await act(async () => {
@@ -196,13 +194,13 @@ describe('useSettingsConfig', () => {
     await act(async () => {
       result.current.promptProps.setWritingSystemPrompt('新写作系统');
       result.current.promptProps.setWritingPostPrompt('新写作后置');
-      result.current.promptProps.setWritingContextRounds(6);
+      result.current.promptProps.setWritingShortTermTokenBudget(6000);
     });
 
     await waitFor(() => {
       expect(result.current.promptProps.writingSystemPrompt).toBe('新写作系统');
       expect(result.current.promptProps.writingPostPrompt).toBe('新写作后置');
-      expect(result.current.promptProps.writingContextRounds).toBe(6);
+      expect(result.current.promptProps.writingShortTermTokenBudget).toBe(6000);
     });
 
     await act(async () => {
@@ -256,20 +254,19 @@ describe('useSettingsConfig', () => {
     getConfig
       .mockResolvedValueOnce({
         llm: {},
-        embedding: {},
         writing: { llm: { provider: null } },
         ui: {},
       })
       .mockResolvedValueOnce({
         global_system_prompt: '导入后的系统',
         global_post_prompt: '导入后的后置',
-        context_history_rounds: 16,
+        short_term_token_budget: 16000,
         memory_expansion_enabled: false,
         suggestion_enabled: true,
         writing: {
           global_system_prompt: '导入后的写作系统',
           global_post_prompt: '导入后的写作后置',
-          context_history_rounds: 6,
+          short_term_token_budget: 6000,
           suggestion_enabled: false,
           memory_expansion_enabled: true,
           llm: { provider: 'openai', model: 'writer-2' },
@@ -285,25 +282,23 @@ describe('useSettingsConfig', () => {
 
     expect(result.current.promptProps.globalSystemPrompt).toBe('导入后的系统');
     expect(result.current.promptProps.writingSystemPrompt).toBe('导入后的写作系统');
-    expect(result.current.promptProps.contextRounds).toBe(16);
+    expect(result.current.promptProps.shortTermTokenBudget).toBe(16000);
     expect(result.current.promptProps.memoryExpansionEnabled).toBe(false);
     expect(result.current.promptProps.suggestionEnabled).toBe(true);
   });
 
-  it('覆盖 embedding / features / diary / ui 相关 handlers', async () => {
+  it('覆盖 features / diary / ui 相关 handlers', async () => {
     const { result } = renderHook(() => useSettingsConfig());
     await waitFor(() => expect(result.current.loading).toBe(false));
 
     await act(async () => {
-      await result.current.llmProps.onEmbeddingChange('provider', 'openai_compatible');
-      await result.current.llmProps.onEmbeddingChange('base_url', 'https://embed.example/v1');
       await result.current.llmProps.onToggleShowThinking(false);
       await result.current.llmProps.onToggleAutoCollapseThinking(true);
       await result.current.llmProps.onToggleShowTokenUsage(true);
       await result.current.llmProps.onProxyUrlSave('http://127.0.0.1:7890');
 
-      await result.current.promptProps.onSaveContextRounds(12);
-      await result.current.promptProps.onSaveWritingContextRounds(5);
+      await result.current.promptProps.onSaveShortTermTokenBudget(12000);
+      await result.current.promptProps.onSaveWritingShortTermTokenBudget(5000);
       await result.current.promptProps.onToggleMemoryExpansion(false);
       await result.current.promptProps.onToggleSuggestion(true);
       await result.current.promptProps.onToggleWritingSuggestion(false);
@@ -315,14 +310,12 @@ describe('useSettingsConfig', () => {
       await result.current.diaryProps.onChangeWritingDateMode('real');
     });
 
-    expect(updateConfig).toHaveBeenCalledWith({ embedding: { provider: 'openai_compatible' } });
-    expect(updateConfig).toHaveBeenCalledWith({ embedding: { base_url: 'https://embed.example/v1' } });
     expect(updateConfig).toHaveBeenCalledWith({ ui: { show_thinking: false } });
     expect(updateConfig).toHaveBeenCalledWith({ ui: { auto_collapse_thinking: true } });
     expect(updateConfig).toHaveBeenCalledWith({ ui: { show_token_usage: true } });
     expect(updateConfig).toHaveBeenCalledWith({ proxy_url: 'http://127.0.0.1:7890' });
-    expect(updateConfig).toHaveBeenCalledWith({ context_history_rounds: 12 });
-    expect(updateConfig).toHaveBeenCalledWith({ writing: { context_history_rounds: 5 } });
+    expect(updateConfig).toHaveBeenCalledWith({ short_term_token_budget: 12000 });
+    expect(updateConfig).toHaveBeenCalledWith({ writing: { short_term_token_budget: 5000 } });
     expect(updateConfig).toHaveBeenCalledWith({ memory_expansion_enabled: false });
     expect(updateConfig).toHaveBeenCalledWith({ suggestion_enabled: true });
     expect(updateConfig).toHaveBeenCalledWith({ writing: { suggestion_enabled: false } });

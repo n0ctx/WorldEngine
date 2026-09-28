@@ -154,4 +154,16 @@ describe('MessageItem', () => {
       });
     }
   });
+
+  it('没有 onEditAssistant 的 AI 消息不显示编辑入口', () => {
+    render(
+      <MessageItem
+        message={{ id: 'msg-assistant-readonly', role: 'assistant', content: '较早的回答', created_at: 1 }}
+        onRegenerate={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole('button', { name: '重新生成 AI 回复' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '编辑 AI 回复' })).toBeNull();
+  });
 });

@@ -1,18 +1,15 @@
 import test, { after } from 'node:test';
 import assert from 'node:assert/strict';
-import fs from 'node:fs';
 
 import { createTestSandbox, freshImport } from '../helpers/test-env.js';
 import {
   insertCharacter,
   insertCharacterStateField,
   insertCharacterStateValue,
-  insertMessage,
   insertPersona,
   insertPersonaStateField,
   insertPersonaStateValue,
   insertSession,
-  insertTurnRecord,
   insertWorld,
   insertWorldStateField,
   insertWorldStateValue,
@@ -61,59 +58,4 @@ test('renderXxxState 优先读取 session runtime，再回退 default', async ()
   assert.match(renderWorldState(world.id, session.id), /第三日/);
   assert.match(renderCharacterState(character.id, session.id), /兴奋/);
   assert.match(renderPersonaState(world.id, session.id), /75/);
-});
-
-test('renderRecalledSummaries 在有锚点时注入场景与在场人物', async () => {
-  const { renderRecalledSummaries } = await freshImport('backend/memory/recall.js');
-  const text = renderRecalledSummaries([
-    { ref: 1, created_at: 0, session_title: '旧会话', scene: '图书馆', cast: ['赵齐', '白羽岚'], content: '两人否决了风力发电方案。' },
-    { ref: 2, created_at: 0, session_title: '旧会话', scene: '', cast: [], content: '没有锚点的旧摘要。' },
-  ]);
-
-  const [withAnchor, withoutAnchor] = text.split('\n');
-  assert.match(withAnchor, /【图书馆 · 赵齐、白羽岚】两人否决了风力发电方案。$/);
-  assert.match(withoutAnchor, /· 旧会话】没有锚点的旧摘要。$/);
-});
-
-test('searchRecalledSummaries 从向量存储命中旧 turn record 并排除最近轮次', async () => {
-  const nextConfig = sandbox.readConfig();
-  nextConfig.provider_keys = { ...(nextConfig.provider_keys || {}), openai: 'test-key' };
-  nextConfig.embedding = {
-    provider: 'openai',
-    provider_models: {},
-    base_url: '',
-    model: 'text-embedding-3-small',
-  };
-  nextConfig.context_history_rounds = 1;
-  sandbox.writeConfig(nextConfig);
-
-  const world = insertWorld(sandbox.db, { name: '晨曦城' });
-  const character = insertCharacter(sandbox.db, world.id, { name: '莱恩' });
-  const session = insertSession(sandbox.db, { character_id: character.id, title: '当前会话', created_at: 1000 });
-  insertMessage(sandbox.db, session.id, { role: 'user', content: '我们回忆旧战役', created_at: 1 });
-  insertMessage(sandbox.db, session.id, { role: 'assistant', content: '你提到了旧日盟约。', created_at: 2 });
-  const oldRecord = insertTurnRecord(sandbox.db, session.id, { round_index: 1, summary: '旧战役的盟约', created_at: 3 });
-  const recentRecord = insertTurnRecord(sandbox.db, session.id, { round_index: 2, summary: '最近一轮摘要', created_at: 4 });
-
-  fs.writeFileSync(sandbox.turnSummaryStorePath, JSON.stringify({
-    version: 1,
-    entries: [
-      { turn_record_id: oldRecord.id, session_id: session.id, world_id: world.id, vector: [1, 0], updated_at: 1 },
-      { turn_record_id: recentRecord.id, session_id: session.id, world_id: world.id, vector: [1, 0], updated_at: 2 },
-    ],
-  }));
-
-  const originalFetch = globalThis.fetch;
-  globalThis.fetch = async () => ({
-    ok: true,
-    json: async () => ({ data: [{ embedding: [1, 0] }] }),
-  });
-
-  const { searchRecalledSummaries } = await freshImport('backend/memory/recall.js');
-  const result = await searchRecalledSummaries(world.id, session.id);
-  globalThis.fetch = originalFetch;
-
-  assert.equal(result.recalled.length, 1);
-  assert.equal(result.recalled[0].turn_record_id, oldRecord.id);
-  assert.match(result.recentMessagesText, /旧战役/);
 });

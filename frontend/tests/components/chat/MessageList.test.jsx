@@ -10,8 +10,10 @@ vi.mock('../../../src/core/api/sessions.js', () => ({
 
 // 用轻量替身盯住「渲染形态选择」，避免把断言绑死在两个 item 组件的内部实现上
 vi.mock('../../../src/components/chat/MessageItem.jsx', () => ({
-  default: ({ message, showCaret }) => (
-    <div data-testid="bubble" data-id={message.id} data-caret={String(showCaret)}>{message.content}</div>
+  default: ({ message, showCaret, onEditAssistant }) => (
+    <div data-testid="bubble" data-id={message.id} data-caret={String(showCaret)} data-editable={String(!!onEditAssistant)}>
+      {message.content}
+    </div>
   ),
 }));
 vi.mock('../../../src/components/writing/WritingMessageItem.jsx', () => ({
@@ -235,5 +237,21 @@ describe('MessageList 的加载与错误态', () => {
     mocks.getMessages.mockResolvedValue(makeMessages(2));
     fireEvent.click(retry);
     await waitFor(() => expect(screen.getAllByTestId('bubble')).toHaveLength(2));
+  });
+});
+
+describe('MessageList 的 AI 回复编辑入口', () => {
+  it('会话以 AI 回复结尾时只有最后一条可编辑', async () => {
+    await renderList({ prose: false, onEditAssistantMessage: vi.fn() });
+    await waitFor(() => expect(screen.getAllByTestId('bubble')).toHaveLength(4));
+    const editable = screen.getAllByTestId('bubble').filter((el) => el.dataset.editable === 'true');
+    expect(editable.map((el) => el.dataset.id)).toEqual(['m4']);
+  });
+
+  it('会话以用户消息结尾时没有可编辑的 AI 回复', async () => {
+    mocks.getMessages.mockResolvedValue(makeMessages(3));
+    await renderList({ prose: false, onEditAssistantMessage: vi.fn() });
+    await waitFor(() => expect(screen.getAllByTestId('bubble')).toHaveLength(3));
+    expect(screen.getAllByTestId('bubble').every((el) => el.dataset.editable === 'false')).toBe(true);
   });
 });

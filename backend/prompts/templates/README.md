@@ -13,15 +13,19 @@
 
 文件说明：
 - `memory-turn-summary.md`
-  生成每轮 turn summary 的摘要模板。
+  生成轮次目录索引行（scene / cast / summary）的模板。
+- `memory-middle-summary.md`
+  中期剧情摘要滚动合并模板：旧摘要 + 新滑出轮次 → 新摘要。
+- `memory-middle-summary-shrink.md`
+  中期剧情摘要超出目标长度时的压缩模板。
 - `memory-title-generation.md`
   生成会话标题的模板。
 - `memory-retitle-generation.md`
   手动重命名标题时使用的标题模板。
-- `memory-expand-system.md`
-  决定哪些历史记忆需要展开原文的 system 模板。
-- `memory-expand-user.md`
-  决定哪些历史记忆需要展开原文的 user 模板。
+- `memory-recall-system.md`
+  长期记忆召回的 system 模板：固定说明 + 历史轮次目录。
+- `memory-recall-user.md`
+  长期记忆召回的 user 模板：近期对话 + 输出要求。
 - `entry-preflight-system.md`
   判断 Prompt 条目是否命中的 system 模板。
 - `entry-preflight-user.md`

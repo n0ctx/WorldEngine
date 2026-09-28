@@ -8,26 +8,17 @@ const Wrap = ({ children }) => (
 
 export default function MemoryRecallOverlay({
   memoryRecalling = false,
-  memoryExpanding = false,
   memoryWriting = false,
   recallSummary = null,
 }) {
-  const recallParts = [];
-  if (recallSummary?.recalled > 0) recallParts.push(`召回 ${recallSummary.recalled} 条`);
-  if (recallSummary?.expanded > 0) recallParts.push(`展开 ${recallSummary.expanded} 条`);
-
   if (memoryRecalling) {
     return <Wrap><span className="we-memory-recall__label">正在检索记忆…</span></Wrap>;
-  }
-  if (memoryExpanding) {
-    const label = recallParts.length > 0 ? `${recallParts[0]} · 正在翻阅…` : '正在翻阅历史对话…';
-    return <Wrap><span className="we-memory-recall__label">{label}</span></Wrap>;
   }
   if (memoryWriting) {
     return <Wrap><span className="we-memory-recall__label">正在记录记忆…</span></Wrap>;
   }
-  if (recallParts.length > 0) {
-    return <Wrap><span className="we-memory-recall__summary">{recallParts.join(' · ')}</span></Wrap>;
+  if (recallSummary?.hit > 0) {
+    return <Wrap><span className="we-memory-recall__summary">{`召回 ${recallSummary.hit} 轮`}</span></Wrap>;
   }
   return <Wrap>{null}</Wrap>;
 }

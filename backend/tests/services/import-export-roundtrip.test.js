@@ -253,7 +253,7 @@ test('全局设置 round-trip 采用覆盖语义并保留导出内容等价', as
     ...sandbox.readConfig(),
     global_system_prompt: '全局系统 A',
     global_post_prompt: '全局后置 A',
-    context_history_rounds: 7,
+    short_term_token_budget: 7000,
     memory_expansion_enabled: true,
   });
 
@@ -306,7 +306,7 @@ test('全局设置 round-trip 采用覆盖语义并保留导出内容等价', as
     ...sandbox.readConfig(),
     global_system_prompt: '被覆盖的系统提示',
     global_post_prompt: '被覆盖的后置提示',
-    context_history_rounds: 99,
+    short_term_token_budget: 99000,
     memory_expansion_enabled: false,
   });
 
@@ -348,7 +348,7 @@ test('写作模式全局设置只更新有效的 writing 字段', () => {
       ...currentWriting,
       global_system_prompt: '旧写作系统提示',
       global_post_prompt: '旧写作后置提示',
-      context_history_rounds: 12,
+      short_term_token_budget: 12000,
       llm: { ...currentLlm, model: 'old-model' },
     },
   });
@@ -357,7 +357,7 @@ test('写作模式全局设置只更新有效的 writing 字段', () => {
   payload.writing = {
     global_system_prompt: '新的写作系统提示',
     global_post_prompt: '新的写作后置提示',
-    context_history_rounds: null,
+    short_term_token_budget: null,
     llm: {
       provider: 'openai',
       provider_models: { openai: 'gpt-new' },
@@ -376,12 +376,24 @@ test('写作模式全局设置只更新有效的 writing 字段', () => {
   const imported = sandbox.readConfig();
   assert.equal(imported.writing.global_system_prompt, '新的写作系统提示');
   assert.equal(imported.writing.global_post_prompt, '新的写作后置提示');
-  assert.equal(imported.writing.context_history_rounds, null);
+  assert.equal(imported.writing.short_term_token_budget, null);
   assert.deepEqual(imported.writing.llm.provider_models, { openai: 'gpt-new' });
   assert.equal(imported.writing.llm.model, 'gpt-new');
   assert.equal(imported.writing.llm.temperature, 0.75);
   assert.equal(imported.writing.llm.max_tokens, 512);
   assert.equal(imported.writing.llm.thinking_level, 'high');
+});
+
+test('导入旧版全局设置文件时忽略 context_history_rounds 旧键', () => {
+  const payload = exportGlobalSettings('chat');
+  payload.config.context_history_rounds = 15;
+  payload.custom_css_snippets = [];
+  payload.regex_rules = [];
+
+  importGlobalSettings(payload);
+
+  const imported = sandbox.readConfig();
+  assert.equal('context_history_rounds' in imported, false);
 });
 
 test('旧版单玩家世界卡仍导入玩家状态值', () => {

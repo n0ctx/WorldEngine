@@ -3,7 +3,6 @@ import { DIARY_DATE_MODE } from '../constants/settings.js';
 export function readMainModelSettings(config) {
   return {
     llm: config.llm || {},
-    embedding: config.embedding || {},
     proxyUrl: config.proxy_url ?? '',
   };
 }
@@ -45,10 +44,10 @@ export function readPromptSettings(config) {
   return {
     globalSystemPrompt: config.global_system_prompt ?? '',
     globalPostPrompt: config.global_post_prompt ?? '',
-    contextRounds: config.context_history_rounds ?? 10,
+    shortTermTokenBudget: config.short_term_token_budget ?? 8000,
     writingSystemPrompt: writing.global_system_prompt ?? '',
     writingPostPrompt: writing.global_post_prompt ?? '',
-    writingContextRounds: writing.context_history_rounds ?? null,
+    writingShortTermTokenBudget: writing.short_term_token_budget ?? null,
   };
 }
 
@@ -59,12 +58,11 @@ export function readMemorySettings(config) {
     suggestionEnabled: config.suggestion_enabled === true,
     writingSuggestionEnabled: writing.suggestion_enabled === true,
     writingMemoryExpansionEnabled: writing.memory_expansion_enabled !== false,
-    longTermMemoryEnabled: config.long_term_memory_enabled === true,
-    writingLongTermMemoryEnabled: writing.long_term_memory_enabled === true,
     tableMemoryEnabled: config.table_memory_enabled === true,
     writingTableMemoryEnabled: writing.table_memory_enabled === true,
     tableMemoryRowLimits: config.table_memory_row_limits ?? {},
     memoryRecallMaxSessions: config.memory_recall_max_sessions ?? 5,
+    longTermIndexBudget: config.long_term_index_budget ?? 20000,
   };
 }
 
@@ -102,7 +100,7 @@ function nestUnder(path, value) {
 }
 
 /**
- * 模型配置段（llm / embedding / aux_llm 等）的字段变更处理：
+ * 模型配置段（llm / aux_llm 等）的字段变更处理：
  * 切换 provider 时写回后端并用返回的 base_url/model/has_key 刷新本地；has_key 只改本地；其余字段本地与后端同步写。
  * @param {string[]} path 配置段在 config 中的路径，如 ['writing', 'aux_llm']
  * @param {(provider: string) => object} providerPatch 切换 provider 时提交的补丁

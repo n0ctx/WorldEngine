@@ -36,11 +36,24 @@ export const SUGGESTION_TOKEN_RESERVE = 200;     // 选项生成预留输出空�
 // 记忆召回
 // ============================
 export const MEMORY_RECALL_MAX_SESSIONS = 5;
-export const MEMORY_RECALL_MAX_TOKENS = 2048;
-export const MEMORY_RECALL_SIMILARITY_THRESHOLD = 0.75;       // 跨 session 阈值
-export const MEMORY_RECALL_SAME_SESSION_THRESHOLD = 0.6;     // 同 session 内阈值
 /** turn 摘要锚点中 cast 人物名条数上限（与 memory-turn-summary*.md 模板中的 4 个一致） */
 export const TURN_SUMMARY_CAST_MAX = 4;
+
+// ============================
+// 记忆分层（memory-v2）
+// ============================
+/** 中期摘要单条最大 token 数 */
+export const MIDDLE_SUMMARY_MAX_TOKENS = 1000;
+/** 中期摘要压缩输入（原文轮次拼接后）最大 token 数 */
+export const MIDDLE_COMPRESS_INPUT_MAX_TOKENS = 12000;
+/** 中期摘要覆盖的原文轮数上限 */
+export const MIDDLE_RAW_ROUNDS_MAX = 20;
+/** 长期记忆索引条目单条最大 token 数 */
+export const LONG_TERM_INDEX_MAX_TOKENS = 100;
+/** 每次回填长期记忆索引的 turn record 条数上限 */
+export const TURN_INDEX_BACKFILL_MAX = 3;
+/** 长期记忆召回超时时间（毫秒） */
+export const LONG_TERM_RECALL_TIMEOUT_MS = 30000;
 
 // ============================
 // 记忆原文展开（T28）
@@ -83,7 +96,7 @@ export const ALL_MESSAGES_LIMIT = null;
 export const LLM_TASK_TEMPERATURE = 0.3;
 /** 会话标题生成最大 token 数 */
 export const LLM_TITLE_MAX_TOKENS = 30;
-/** turn record 摘要生成最大 token 数（启用 LTM 时输出 JSON 包装 + 摘要 + 3 条 memory，900 留出余量避免末条被截） */
+/** 轮次索引生成最大 token 数（输出 JSON 包装 + scene + cast + 80 字摘要，900 留出余量避免被截） */
 export const LLM_TURN_SUMMARY_MAX_TOKENS = 900;
 /** 状态更新（combined-state-updater）最大 token 数 */
 export const LLM_STATE_UPDATE_MAX_TOKENS = 2048;
@@ -91,20 +104,6 @@ export const LLM_STATE_UPDATE_MAX_TOKENS = 2048;
 export const STATE_UPDATE_JSON_RETRY_MAX = 2;
 /** 状态压缩（state-compress）最大 token 数 */
 export const LLM_STATE_COMPRESS_MAX_TOKENS = 512;
-
-// ============================
-// 长期记忆（会话级 md 文件）
-// ============================
-/** 单轮长期记忆条目数上限（与 memory-turn-summary-with-ltm.md 模板中的 2 条一致） */
-export const LONG_TERM_MEMORY_PER_TURN_MAX = 2;
-/** 单条长期记忆字符上限（含 [年月日时分] 时间前缀的条目易超 30 字被截断，放到 60） */
-export const LONG_TERM_MEMORY_LINE_MAX_CHARS = 60;
-/** 长期记忆文档触发压缩的行数阈值（硬编码行数检测，不走 LLM） */
-export const LONG_TERM_MEMORY_MAX_LINES = 20;
-/** 长期记忆压缩目标行数（LLM 输出后硬截断到此上限） */
-export const LONG_TERM_MEMORY_TARGET_LINES = 10;
-/** 长期记忆压缩调用最大 token 数 */
-export const LLM_LONG_TERM_MEMORY_COMPRESS_MAX_TOKENS = 1024;
 
 // ============================
 // 状态字段长度限制

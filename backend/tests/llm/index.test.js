@@ -136,7 +136,6 @@ test('complete 在 provider 非流式调用超时时返回 504 LLMError', { conc
       WE_CONFIG_PATH: sandbox.configPath,
       WE_DATA_DIR: sandbox.root,
       WE_UPLOADS_DIR: sandbox.uploadsDir,
-      WE_TURN_SUMMARY_STORE_PATH: sandbox.turnSummaryStorePath,
       ASSISTANT_STATE_DIR: sandbox.assistantStateDir,
       WE_DISABLE_AUTOSTART: 'true',
       WE_LLM_RETRY_MAX: '0',

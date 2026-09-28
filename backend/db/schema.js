@@ -80,7 +80,6 @@ CREATE TABLE IF NOT EXISTS sessions (
   world_id            TEXT REFERENCES worlds(id) ON DELETE CASCADE,
   mode                TEXT NOT NULL DEFAULT 'chat',
   title               TEXT,
-  compressed_context  TEXT,
   state_baseline_json TEXT,
   created_at          INTEGER NOT NULL,
   updated_at          INTEGER NOT NULL
@@ -113,16 +112,7 @@ CREATE TABLE IF NOT EXISTS messages (
   role           TEXT NOT NULL,
   content        TEXT NOT NULL,
   attachments    TEXT,
-  is_compressed  INTEGER NOT NULL DEFAULT 0,
   created_at     INTEGER NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS session_summaries (
-  id             TEXT PRIMARY KEY,
-  session_id     TEXT NOT NULL UNIQUE REFERENCES sessions(id) ON DELETE CASCADE,
-  content        TEXT NOT NULL,
-  created_at     INTEGER NOT NULL,
-  updated_at     INTEGER NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS world_state_fields (
@@ -409,6 +399,7 @@ export function initSchema(db) {
   db.exec(TABLES);
   migrateInitialLegacyColumns(db);
   migrateSessionsAndStateValues(db);
+  migrateDropCompressionAndSummarySchema(db);
   // 旧 sessions 缺少 world_id，重建后再创建引用该列的索引。
   db.exec(INDEXES);
   migrateSessionAndLegacyTableIndexes(db);
@@ -448,11 +439,19 @@ function migrateInitialLegacyColumns(db) {
   // T-desc: 为现有数据库添加 characters.description / personas.description 列
   try { db.exec(`ALTER TABLE characters ADD COLUMN description TEXT NOT NULL DEFAULT ''`); } catch {}
   try { db.exec(`ALTER TABLE personas ADD COLUMN description TEXT NOT NULL DEFAULT ''`); } catch {}
-  // T32: 轮次压缩字段迁移
-  try { db.exec(`ALTER TABLE messages ADD COLUMN is_compressed INTEGER NOT NULL DEFAULT 0`); } catch {}
-  try { db.exec(`ALTER TABLE sessions ADD COLUMN compressed_context TEXT`); } catch {}
-  // T32: 字段迁移完成后才能创建依赖 is_compressed 的索引
-  try { db.exec(`CREATE INDEX IF NOT EXISTS idx_messages_session_compressed ON messages(session_id, is_compressed, created_at)`); } catch {}
+}
+
+/**
+ * 旧上下文压缩结构下线：短期窗口改用未压缩全量消息，长期记忆改用剧情摘要接口，
+ * 不再需要 messages.is_compressed / sessions.compressed_context / session_summaries。
+ * 删列前须先删引用该列的索引，否则 SQLite 会拒绝 DROP COLUMN。
+ */
+function migrateDropCompressionAndSummarySchema(db) {
+  db.exec(`DROP INDEX IF EXISTS idx_messages_session_compressed`);
+  for (const [table, column] of [['messages', 'is_compressed'], ['sessions', 'compressed_context']]) {
+    try { db.exec(`ALTER TABLE ${table} DROP COLUMN ${column}`); } catch {}
+  }
+  db.exec(`DROP TABLE IF EXISTS session_summaries`);
 }
 
 function migrateSessionsAndStateValues(db) {
@@ -469,12 +468,11 @@ function migrateSessionsAndStateValues(db) {
         world_id            TEXT REFERENCES worlds(id) ON DELETE CASCADE,
         mode                TEXT NOT NULL DEFAULT 'chat',
         title               TEXT,
-        compressed_context  TEXT,
         created_at          INTEGER NOT NULL,
         updated_at          INTEGER NOT NULL
       )`);
-      db.exec(`INSERT INTO sessions_new (id, character_id, world_id, mode, title, compressed_context, created_at, updated_at)
-        SELECT id, character_id, NULL, 'chat', title, compressed_context, created_at, updated_at FROM sessions`);
+      db.exec(`INSERT INTO sessions_new (id, character_id, world_id, mode, title, created_at, updated_at)
+        SELECT id, character_id, NULL, 'chat', title, created_at, updated_at FROM sessions`);
       db.exec('DROP TABLE sessions');
       db.exec('ALTER TABLE sessions_new RENAME TO sessions');
       db.exec('COMMIT');
@@ -517,20 +515,30 @@ function migrateScopedSettingsAndPromptDescriptions(db) {
 }
 
 function migrateTurnRecordsAndDiary(db) {
-  // turn_records 改为指针模式：新增 user_message_id / asst_message_id，移除复制内容字段
-  try { db.exec(`ALTER TABLE turn_records ADD COLUMN user_message_id TEXT`); } catch {}
-  try { db.exec(`ALTER TABLE turn_records ADD COLUMN asst_message_id TEXT`); } catch {}
-  try { db.exec(`ALTER TABLE turn_records DROP COLUMN user_context`); } catch {}
-  try { db.exec(`ALTER TABLE turn_records DROP COLUMN asst_context`); } catch {}
-  // 状态快照：保存该轮结束时的三层状态，用于 regenerate/删除/编辑后的状态回滚
-  try { db.exec(`ALTER TABLE turn_records ADD COLUMN state_snapshot TEXT`); } catch {}
-  // 长期记忆文件快照：保存该轮结束时 memory.md 的全文，用于回滚时同步还原长期记忆
-  try { db.exec(`ALTER TABLE turn_records ADD COLUMN long_term_memory_snapshot TEXT`); } catch {}
-  // 表格记忆文件快照：保存该轮结束时 tables.json 全文，用于回滚时同步还原表格记忆
-  try { db.exec(`ALTER TABLE turn_records ADD COLUMN table_memory_snapshot TEXT`); } catch {}
-  // 摘要锚点：场景与在场角色，只用于召回时定位，不参与 embedding
-  try { db.exec(`ALTER TABLE turn_records ADD COLUMN scene TEXT`); } catch {}
-  try { db.exec(`ALTER TABLE turn_records ADD COLUMN cast_json TEXT`); } catch {}
+  // turn_records 逐步补列：
+  //   user_message_id / asst_message_id — 指针模式，替代已移除的复制内容字段
+  //   state_snapshot — 该轮结束时的三层状态，用于 regenerate/删除/编辑后的状态回滚
+  //   table_memory_snapshot — 该轮结束时 tables.json 全文，用于回滚时同步还原表格记忆
+  //   scene / cast_json — 摘要锚点：场景与在场角色，只用于召回时定位
+  //   middle_summary / middle_covered_to — 该轮结束时的滚动中期摘要及其覆盖到的轮次，NULL 表示旧数据未生成
+  const turnRecordCols = new Set(db.pragma('table_info(turn_records)').map((col) => col.name));
+  for (const [name, type] of [
+    ['user_message_id', 'TEXT'],
+    ['asst_message_id', 'TEXT'],
+    ['state_snapshot', 'TEXT'],
+    ['table_memory_snapshot', 'TEXT'],
+    ['scene', 'TEXT'],
+    ['cast_json', 'TEXT'],
+    ['middle_summary', 'TEXT'],
+    ['middle_covered_to', 'INTEGER'],
+  ]) {
+    if (!turnRecordCols.has(name)) db.exec(`ALTER TABLE turn_records ADD COLUMN ${name} ${type}`);
+  }
+  // user_context / asst_context 为已移除的复制内容字段；long_term_memory_snapshot 随
+  // 剧情摘要接口取代长期记忆文件而不再需要
+  for (const column of ['user_context', 'asst_context', 'long_term_memory_snapshot']) {
+    try { db.exec(`ALTER TABLE turn_records DROP COLUMN ${column}`); } catch {}
+  }
   // 日记系统：sessions 记录创建时的日记模式，daily_entries 存日记元数据
   try { db.exec(`ALTER TABLE sessions ADD COLUMN diary_date_mode TEXT`); } catch {}
   try { db.exec(`CREATE INDEX IF NOT EXISTS idx_daily_entries_session ON daily_entries(session_id, date_str)`); } catch {}

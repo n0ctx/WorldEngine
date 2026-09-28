@@ -7,7 +7,7 @@ const useLocationMock = vi.fn();
 const settingsHook = vi.hoisted(() => ({
   value: {
     loading: false,
-    llmProps: { llm: {}, embedding: {} },
+    llmProps: { llm: {} },
     promptProps: {},
     diaryProps: {},
     onImportSuccess: vi.fn(),
@@ -38,7 +38,7 @@ describe('SettingsPage', () => {
   beforeEach(() => {
     settingsHook.value = {
       loading: false,
-      llmProps: { llm: {}, embedding: {} },
+      llmProps: { llm: {} },
       promptProps: {},
       diaryProps: {},
       onImportSuccess: vi.fn(),

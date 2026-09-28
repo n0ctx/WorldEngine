@@ -3,10 +3,9 @@ import { activeStreams, saveAttachments } from '../../../services/chat.js';
 import { getOrCreatePersona } from '../../../services/personas.js';
 import { updateMessageContent } from '../../../db/queries/messages.js';
 import { getMessageById } from '../../../services/sessions.js';
-import { createTurnRecord } from '../../../memory/turn-summarizer.js';
-import { updateAllStates } from '../../../memory/combined-state-updater.js';
 import { generateTitle } from '../../../memory/summarizer.js';
-import { enqueue, waitForQueueIdle } from '../../../utils/async-queue.js';
+import { waitForQueueIdle } from '../../../utils/async-queue.js';
+import { runPostGenTasks } from '../../../utils/post-gen-runner.js';
 import { ALL_MESSAGES_LIMIT } from '../../../utils/constants.js';
 import { formatMeta } from '../../../utils/logger.js';
 import { stripThinkBlocksFromText } from '../../../utils/turn-dialogue.js';
@@ -16,6 +15,8 @@ import { buildTurnContext } from '../../turn/build-turn-context.js';
 import { runTurnContinue } from '../../turn/run-turn-continue.js';
 import { runTurnRegenerate } from '../../turn/run-turn-regenerate.js';
 import { runTurnStream } from '../../turn/run-turn-stream.js';
+import { buildTurnPostgenTasks } from '../postgen/build-turn-postgen-tasks.js';
+import { rollbackSession } from '../rollback/rollback-session.js';
 import {
   attachSessionStreamSse,
   buildSessionStreamSnapshot,
@@ -85,10 +86,9 @@ export function createTurnHandlers({ mode, resolveSession, emitSse, logNs, guard
           mode.impersonate.promptOptions(),
         );
 
-        const prompt = [...messages];
-        while (prompt.length > 0 && prompt[prompt.length - 1].role === 'user') {
-          prompt.pop();
-        }
+        // 剥掉尾部连续的 user 消息，只留到最后一条非 user 消息为止
+        const lastNonUserIndex = messages.findLastIndex((message) => message.role !== 'user');
+        const prompt = messages.slice(0, lastNonUserIndex + 1);
         prompt.push({ role: 'user', content: renderBackendPrompt('chat-impersonate.md', { PERSONA_NAME: personaName }) });
 
         log.info(
@@ -116,33 +116,8 @@ export function createTurnHandlers({ mode, resolveSession, emitSse, logNs, guard
       }
     },
 
-    /** 编辑 AI 回复：改内容并按需重跑状态更新与轮次记录 */
-    editAssistant: async (req, res) => {
-      const { sessionId } = req.params;
-      const { messageId, content } = req.body;
-
-      if (!messageId || !content || typeof content !== 'string') {
-        return badRequest(req, res, 'messageId and content are required');
-      }
-      if (!resolveSession(req, res)) return;
-
-      const trimmedContent = content.trim();
-      updateMessageContent(messageId, trimmedContent);
-      await runHook('message:edited', { id: messageId, sessionId, content: trimmedContent });
-
-      const allMessages = mode.session.getMessages(sessionId, ALL_MESSAGES_LIMIT, 0);
-      const lastAssistant = [...allMessages].reverse().find((message) => message.role === 'assistant');
-      if (lastAssistant?.id === messageId) {
-        const { worldId, characterIds } = mode.resolveScope(sessionId);
-        enqueue(sessionId, () => updateAllStates(worldId, characterIds, sessionId), 2, 'all-state')
-          .catch((err) => log.warn('后台任务失败:', err.message));
-      }
-
-      enqueue(sessionId, () => createTurnRecord(sessionId, { isUpdate: true }), 3, 'turn-record')
-        .catch((err) => log.warn('后台任务失败:', err.message));
-
-      res.json({ success: true });
-    },
+    /** 编辑 AI 回复：只允许原地编辑最后一条消息（必须是 assistant），按需重做最后一轮 */
+    editAssistant: createEditAssistantHandler({ mode, resolveSession, badRequest, log, logNs }),
 
     /** 手动重命名会话：与 postgen 的自动起名走同一条副模型路径 */
     retitle: async (req, res) => {
@@ -158,6 +133,56 @@ export function createTurnHandlers({ mode, resolveSession, emitSse, logNs, guard
         return unhandled(req, res, err);
       }
     },
+  };
+}
+
+/** 编辑最后一条 AI 回复：目标不是会话最后一条 assistant 消息时拒绝，否则重做最后一轮。 */
+function createEditAssistantHandler({ mode, resolveSession, badRequest, log, logNs }) {
+  return async (req, res) => {
+    const { sessionId } = req.params;
+    const { messageId, content } = req.body;
+
+    if (!messageId || !content || typeof content !== 'string') {
+      return badRequest(req, res, 'messageId and content are required');
+    }
+    if (!resolveSession(req, res)) return;
+
+    const allMessages = mode.session.getMessages(sessionId, ALL_MESSAGES_LIMIT, 0);
+    const lastMessage = allMessages.at(-1);
+    // 目标必须是会话最后一条消息且为 assistant；末尾是失败残留的 user 消息时同样拒绝
+    if (lastMessage?.id !== messageId || lastMessage?.role !== 'assistant') {
+      log.warn(`${logNs}.edit_not_last ${formatMeta({ session: sessionId.slice(0, 8), messageId: messageId.slice(0, 8) })}`);
+      return res.status(409).json({ error: 'only the last assistant message can be edited' });
+    }
+
+    const trimmedContent = content.trim();
+    updateMessageContent(messageId, trimmedContent);
+    await runHook('message:edited', { id: messageId, sessionId, content: trimmedContent });
+
+    // 开场白（会话里还没有任何 user 消息）不构成一轮，只改内容
+    if (!allMessages.some((message) => message.role === 'user')) {
+      return res.json({ success: true });
+    }
+
+    const { worldId, characterIds, session } = mode.resolveScope(sessionId);
+    await rollbackSession(mode, sessionId, () => {}, { redoLatestRound: true });
+    runPostGenTasks(
+      sessionId,
+      buildTurnPostgenTasks({
+        mode,
+        sessionId,
+        worldId,
+        characterIds,
+        session,
+        messages: allMessages,
+        turnRecordOpts: { isUpdate: true },
+        includeSessionTitle: false,
+        includeChapterTitle: false,
+      }),
+      { sid: sessionId.slice(0, 8), emitSse: () => {} },
+    );
+
+    res.json({ success: true });
   };
 }
 
