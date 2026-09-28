@@ -1,24 +1,24 @@
 /**
- * state-memory-migration.js — 旧记忆数据一次性迁移到状态记忆（memory v2 第二阶段，D12）
+ * state-memory-migration.js — 旧记忆数据一次性迁移到状态记忆
  *
  * 只在 server 启动、`initSchema()` 之后调用一次：按 internal_meta 标记
  * `state_memory_migrated_v1` 判断是否已迁移，已迁移直接返回。
  * 全部数据库写入在一个事务内完成，失败整体回滚并向上抛出（server 启动报错退出，不捕获）；
  * 事务提交后再删除 `data/table_memory/` 目录。全部写入记为第 0 轮。
  *
- * 步骤（对应 memory-v2-phase2-plan.md §5.8）：
- *   0. 已有世界的默认字段（U10）：personality/age/appearance/identity/outfit（含 `_char`
+ * 步骤：
+ *   0. 已有世界的默认字段：personality/age/appearance/identity/outfit（含 `_char`
  *      后缀写法）在 character_state_fields 上取消「对 NPC 生效」。
  *   1. 附近角色 → character 实体：已保存置顶，persona 进档案 background 第一项；
  *      五个默认字段的值转入档案对应字段，其余字段原样转入 session_entity_state_values。
  *   2. 四张表（tables.json 当前行）→ 实体 / 关系 / 事项，按名字与别名匹配或新建实体。
- *   0A. 世界当前时间 / 地点（U17）→ state_world_profile；旧条件里的 `世界.<旧标签>`
+ *   0A. 世界当前时间 / 地点 → state_world_profile；旧条件里的 `世界.<旧标签>`
  *       改写为保留名 `世界.时间` / `世界.地点`；随后删除这两个世界字段及其全部取值。
  *   3. 删除旧表 session_nearby_characters / session_nearby_character_state_values、
  *      turn_records.table_memory_snapshot 列（存在时）。
  *
- * 旧表格快照文件读取用 fs 直接读 JSON，不 import services/table-memory.js（该服务随后
- * 会被下线）；读到损坏 JSON 时不捕获异常，让迁移失败回滚，而不是静默丢弃旧数据。
+ * 旧表格快照文件读取用 fs 直接读 JSON，不依赖表格记忆服务（已下线）；读到损坏 JSON 时
+ * 不捕获异常，让迁移失败回滚，而不是静默丢弃旧数据。
  *
  * 除 migrateToStateMemory() 外，其余导出函数只为按迁移阶段拆分成独立的可测/可读单元，
  * 不是给其他模块调用的公共接口。
@@ -96,7 +96,7 @@ export function migrateToStateMemory() {
 }
 
 // ============================
-// 第零步：默认字段对 NPC 停用（U10）
+// 第零步：默认字段对 NPC 停用
 // ============================
 
 function migrateDeactivateDefaultNearbyFields() {
@@ -403,7 +403,7 @@ function migrateFactionMembers(sessionId, registry, factionEntityId, raw) {
 }
 
 // ============================
-// 第零步 A：世界当前时间 / 地点（U17）
+// 第零步 A：世界当前时间 / 地点
 // ============================
 
 function resolveWorldFieldFallback(worldId, fieldKey) {

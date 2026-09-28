@@ -235,7 +235,7 @@ async function pushEntriesAndMemorySections(sessionId, worldId, allWorldEntries,
 
 /**
  * [10] 渲染长期召回选中的原文并通知前端召回结束。
- * recall 为 recallTurns() 的结果（chat 直接 await 得到；writing 与 saved-nearby 判定并发 await 得到）。
+ * recall 为 recallTurns() 的结果（chat、writing 均直接 await 得到）。
  * 返回本轮实际注入原文的轮数（SSE `hit` 字段，也是外部返回的 recallHitCount）。
  */
 function renderLongTermRecallSection(recall, tv, dynamicSystemParts, onRecallEvent) {

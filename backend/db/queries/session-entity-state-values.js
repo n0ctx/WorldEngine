@@ -1,7 +1,7 @@
 /**
  * session-entity-state-values.js — 角色实体的用户字段运行时值
  *
- * 走 D2 的快照机制（非多版本）：状态记忆回滚时随 rollbackStateMemory 一并清理，
+ * 走现有的状态快照机制（非多版本）：状态记忆回滚时随 rollbackStateMemory 一并清理，
  * 手动状态快照恢复时随 session-state-batch.js 的 writeSessionStateRows 批量写入。
  *
  * 对外接口：

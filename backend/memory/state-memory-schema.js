@@ -153,9 +153,10 @@ const PLACEHOLDER_VALUE_SET = new Set([
   '未知', '不明', '暂无', '无', '空', '待定', '？',
 ]);
 
-/** 值去掉空白、转小写后属于占位词集合，或为空串，即视为占位值 */
+/** 值为空，或转成字符串、去掉空白、转小写后为空串或属于占位词集合，即视为占位值 */
 export function isPlaceholderValue(value) {
-  const normalized = (value ?? '').replace(/\s+/g, '').toLowerCase();
+  if (value == null) return true;
+  const normalized = String(value).replace(/\s+/g, '').toLowerCase();
   return normalized === '' || PLACEHOLDER_VALUE_SET.has(normalized);
 }
 

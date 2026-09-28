@@ -88,6 +88,13 @@ test('isPlaceholderValue 识别占位值，去空白且不区分大小写', () =
   }
 });
 
+test('isPlaceholderValue 接受非字符串值：null/undefined 为占位，数字按字符串判断', () => {
+  assert.equal(isPlaceholderValue(null), true);
+  assert.equal(isPlaceholderValue(undefined), true);
+  assert.equal(isPlaceholderValue(18), false);
+  assert.equal(isPlaceholderValue(0), false);
+});
+
 // ─── resolveActiveProfileFields（同义字段停用） ─────────────────────────────────────────────
 
 test('非 character 类型返回全部字段；player 默认启用穿着', () => {

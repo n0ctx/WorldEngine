@@ -115,7 +115,7 @@ export function verifyEvidence(evidence, turnText) {
   return normalizedTurn.includes(trimmed);
 }
 
-/** 动态状态键是否与该实体适用的用户字段 field_key 或 label 相同（D10 字段归属拦截）。 */
+/** 动态状态键是否与该实体适用的用户字段 field_key 或 label 相同（字段归属拦截）。 */
 export function isFieldOwnedByUserField(key, applicableUserFields) {
   return applicableUserFields.some((field) => field.field_key === key || field.label === key);
 }
