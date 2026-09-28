@@ -6,6 +6,7 @@
  */
 
 import { getCharacterStateFieldsByWorldId } from '../db/queries/character-state-fields.js';
+import { getPersonaStateFieldsByWorldId } from '../db/queries/persona-state-fields.js';
 
 export const ENTITY_TYPES = ['character', 'location', 'item', 'faction', 'other', 'player'];
 
@@ -14,6 +15,8 @@ export const ENTITY_TYPES = ['character', 'location', 'item', 'faction', 'other'
 // ============================
 
 const APPEARANCE_SYNONYMS = ['外貌', 'appearance'];
+
+const OUTFIT_FIELD = { key: 'outfit', label: '穿着', group: '外貌', kind: 'list', mutability: 'dynamic', synonyms: ['穿着', '服装', '衣着', 'outfit'] };
 
 const CHARACTER_PROFILE_FIELDS = [
   // 身份
@@ -30,7 +33,7 @@ const CHARACTER_PROFILE_FIELDS = [
   { key: 'hair', label: '发型', group: '外貌', kind: 'text', mutability: 'semi_stable', synonyms: APPEARANCE_SYNONYMS },
   { key: 'eyes', label: '眼睛', group: '外貌', kind: 'text', mutability: 'semi_stable', synonyms: APPEARANCE_SYNONYMS },
   { key: 'distinguishing_features', label: '显著特征', group: '外貌', kind: 'list', mutability: 'semi_stable', synonyms: APPEARANCE_SYNONYMS },
-  { key: 'outfit', label: '穿着', group: '外貌', kind: 'list', mutability: 'dynamic', synonyms: ['穿着', '服装', '衣着', 'outfit'] },
+  OUTFIT_FIELD,
   // 人格
   { key: 'core_traits', label: '核心性格', group: '人格', kind: 'list', mutability: 'semi_stable', highBar: true, synonyms: ['性格', '个性', 'personality'] },
   { key: 'behavioral_patterns', label: '行为习惯', group: '人格', kind: 'list', mutability: 'semi_stable', synonyms: [] },
@@ -69,7 +72,8 @@ const PROFILE_FIELDS_BY_TYPE = {
   item: ITEM_PROFILE_FIELDS,
   faction: FACTION_PROFILE_FIELDS,
   other: OTHER_PROFILE_FIELDS,
-  player: [],
+  // 玩家的身份信息以人设为准，只记录会随剧情变化的穿着
+  player: [OUTFIT_FIELD],
 };
 
 /** 按实体类型取档案字段定义（不做同义字段停用过滤，全量定义） */
@@ -78,7 +82,7 @@ export function getProfileFieldDefinitions(entityType) {
 }
 
 // ============================
-// 同义字段停用（U11）
+// 同义字段停用
 // ============================
 
 /** 用户角色字段 field_key 常见的 `_char` 后缀（与世界层同名字段区分），比对同义词前先去掉 */
@@ -96,7 +100,7 @@ function stripCharFieldKeySuffix(fieldKey) {
 }
 
 /**
- * 该世界里勾选了「对 NPC 生效」的角色字段，是否会让某个档案字段停用：
+ * 用户字段是否会让某个档案字段停用：
  * 用户字段的 label 或去掉 `_char` 后缀的 field_key，与档案字段的同义词完全匹配（不区分大小写）。
  */
 function isDeactivatedBySynonyms(profileField, enabledUserFields) {
@@ -109,19 +113,24 @@ function isDeactivatedBySynonyms(profileField, enabledUserFields) {
   });
 }
 
+function userFieldsCoveringProfile(worldId, entityType) {
+  if (entityType === 'character') {
+    return getCharacterStateFieldsByWorldId(worldId).filter((field) => field.nearby_enabled);
+  }
+  if (entityType === 'player') return getPersonaStateFieldsByWorldId(worldId);
+  return [];
+}
+
 /**
  * 某世界里该实体类型当前启用的档案字段 key 数组。
  * - character：读该世界 `nearby_enabled=1` 的角色字段，同义命中的档案字段停用
  *   （外貌组各字段共享同一组同义词，命中任一都会让整组一起停用）；
- * - 非 character 类型不受影响，返回其全部字段 key；
- * - player 没有档案字段，返回空数组。
+ * - player：读该世界的玩家字段，同义命中的档案字段停用；
+ * - 其他类型不受影响，返回其全部字段 key。
  */
 export function resolveActiveProfileFields(worldId, entityType) {
   const definitions = getProfileFieldDefinitions(entityType);
-  if (entityType !== 'character') {
-    return definitions.map((field) => field.key);
-  }
-  const enabledUserFields = getCharacterStateFieldsByWorldId(worldId).filter((field) => field.nearby_enabled);
+  const enabledUserFields = userFieldsCoveringProfile(worldId, entityType);
   return definitions
     .filter((field) => !isDeactivatedBySynonyms(field, enabledUserFields))
     .map((field) => field.key);
@@ -136,7 +145,7 @@ export const THREAD_KINDS = ['承诺', '任务', '债务', '冲突', '谜团', '
 export const EXCLUSIVE_PREDICATES = ['持有者', '控制者'];
 
 // ============================
-// 占位值（D9）
+// 占位值
 // ============================
 
 const PLACEHOLDER_VALUE_SET = new Set([
@@ -151,7 +160,7 @@ export function isPlaceholderValue(value) {
 }
 
 // ============================
-// 世界档案（U17）
+// 世界档案
 // ============================
 
 export const DYNAMIC_LOCATION_KEY = '位置';

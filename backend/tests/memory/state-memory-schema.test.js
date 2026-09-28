@@ -2,7 +2,7 @@ import test, { after } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { createTestSandbox, freshImport } from '../helpers/test-env.js';
-import { insertCharacterStateField, insertWorld } from '../helpers/fixtures.js';
+import { insertCharacterStateField, insertPersonaStateField, insertWorld } from '../helpers/fixtures.js';
 
 const sandbox = createTestSandbox('memory-state-memory-schema');
 sandbox.setEnv();
@@ -27,8 +27,8 @@ test('ENTITY_TYPES 覆盖六种实体类型', () => {
   assert.deepEqual(ENTITY_TYPES, ['character', 'location', 'item', 'faction', 'other', 'player']);
 });
 
-test('player 无档案字段；非 character 类型字段全部 semi_stable', () => {
-  assert.deepEqual(getProfileFieldDefinitions('player'), []);
+test('player 只有穿着档案字段；非 character 类型字段全部 semi_stable', () => {
+  assert.deepEqual(getProfileFieldDefinitions('player').map((f) => [f.key, f.mutability]), [['outfit', 'dynamic']]);
   for (const type of ['location', 'item', 'faction', 'other']) {
     const fields = getProfileFieldDefinitions(type);
     assert.ok(fields.length > 0, `${type} 应有字段`);
@@ -77,7 +77,7 @@ test('THREAD_KINDS / EXCLUSIVE_PREDICATES / 世界档案常量', () => {
   assert.deepEqual(RESERVED_WORLD_FIELD_LABELS, ['时间', '地点']);
 });
 
-// ─── isPlaceholderValue（D9） ─────────────────────────────────────────────
+// ─── isPlaceholderValue ─────────────────────────────────────────────
 
 test('isPlaceholderValue 识别占位值，去空白且不区分大小写', () => {
   for (const value of ['unknown', 'Unknown', ' NONE ', 'null', 'N/A', '未知', '不明', '暂无', '无', '空', '待定', '？', '', '   ']) {
@@ -88,12 +88,18 @@ test('isPlaceholderValue 识别占位值，去空白且不区分大小写', () =
   }
 });
 
-// ─── resolveActiveProfileFields（U11 同义字段停用） ─────────────────────────────────────────────
+// ─── resolveActiveProfileFields（同义字段停用） ─────────────────────────────────────────────
 
-test('非 character 类型返回全部字段；player 返回空数组', () => {
+test('非 character 类型返回全部字段；player 默认启用穿着', () => {
   const world = insertWorld(sandbox.db);
   const locationFields = resolveActiveProfileFields(world.id, 'location');
   assert.deepEqual(locationFields, getProfileFieldDefinitions('location').map((f) => f.key));
+  assert.deepEqual(resolveActiveProfileFields(world.id, 'player'), ['outfit']);
+});
+
+test('世界里有同义的玩家字段时，玩家的穿着档案字段停用', () => {
+  const world = insertWorld(sandbox.db);
+  insertPersonaStateField(sandbox.db, world.id, { field_key: 'outfit', label: '服装' });
   assert.deepEqual(resolveActiveProfileFields(world.id, 'player'), []);
 });
 
