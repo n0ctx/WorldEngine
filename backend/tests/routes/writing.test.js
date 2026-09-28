@@ -216,6 +216,53 @@ test('写作 continue 的 SSE 流包含 state_updated 事件', async () => {
   assert.ok(continueEvents.some((e) => e.type === 'state_updated'), 'continue 应包含 state_updated');
 });
 
+test('写作 continue 重做最后一轮：不新建消息、turn record 按续写后内容重建而非新增', async () => {
+  resetMockEnv();
+  process.env.MOCK_LLM_STREAM_CHUNKS = JSON.stringify(['初始回复']);
+
+  const world = insertWorld(ctx.sandbox.db, { name: '续写重做世界' });
+  let res = await ctx.request(`/api/worlds/${world.id}/writing-sessions`, { method: 'POST' });
+  const session = await res.json();
+
+  res = await ctx.request(`/api/worlds/${world.id}/writing-sessions/${session.id}/generate`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ content: '开始写' }),
+  });
+  assert.equal(res.status, 200);
+
+  const beforeMessages = ctx.sandbox.db.prepare(
+    'SELECT id, role FROM messages WHERE session_id = ? ORDER BY created_at ASC',
+  ).all(session.id);
+  const assistantId = beforeMessages.find((m) => m.role === 'assistant').id;
+
+  const beforeRecords = ctx.sandbox.db.prepare(
+    'SELECT round_index, asst_message_id FROM turn_records WHERE session_id = ? ORDER BY round_index ASC',
+  ).all(session.id);
+  assert.deepEqual(beforeRecords.map((r) => r.round_index), [1]);
+  assert.equal(beforeRecords[0].asst_message_id, assistantId);
+
+  process.env.MOCK_LLM_STREAM_CHUNKS = JSON.stringify(['续写内容']);
+  res = await ctx.request(`/api/worlds/${world.id}/writing-sessions/${session.id}/continue`, {
+    method: 'POST',
+  });
+  assert.equal(res.status, 200);
+
+  const afterMessages = ctx.sandbox.db.prepare(
+    'SELECT id, role, content FROM messages WHERE session_id = ? ORDER BY created_at ASC',
+  ).all(session.id);
+  assert.deepEqual(afterMessages.map((m) => m.role), ['user', 'assistant']);
+  assert.equal(afterMessages[1].id, assistantId, '续写不新建 assistant 消息');
+  assert.match(afterMessages[1].content, /初始回复/);
+  assert.match(afterMessages[1].content, /续写内容/);
+
+  const afterRecords = ctx.sandbox.db.prepare(
+    'SELECT round_index, asst_message_id FROM turn_records WHERE session_id = ? ORDER BY round_index ASC',
+  ).all(session.id);
+  assert.deepEqual(afterRecords.map((r) => r.round_index), [1], '续写重做最后一轮：round_index 不变、不新增行');
+  assert.equal(afterRecords[0].asst_message_id, assistantId, 'turn record 指向续写后的同一条 assistant 消息');
+});
+
 test('写作 generate 在 session 不存在时返回 404', async () => {
   resetMockEnv();
   const world = insertWorld(ctx.sandbox.db, { name: '丢失会话世界' });
