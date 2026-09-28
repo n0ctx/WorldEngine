@@ -13,8 +13,6 @@ import {
   insertSessionWorldStateValue,
   insertWorldEntry,
   insertEntryCondition,
-  insertNearbyCharacter,
-  insertNearbyStateValue,
   insertTurnRecord,
 } from '../helpers/fixtures.js';
 
@@ -34,6 +32,70 @@ const {
 const { default: db } = await freshImport('backend/db/index.js');
 
 test.after(() => sandbox.cleanup());
+
+/**
+ * schema.js 已不再建这两张旧表：迁移测试需要在沙箱库里自行按删除前的结构建出旧表，
+ * 再插入旧数据，才能验证迁移读取旧表并清理的行为。
+ */
+function createLegacyNearbyTables() {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS session_nearby_characters (
+      id          TEXT PRIMARY KEY,
+      session_id  TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+      name        TEXT NOT NULL,
+      persona     TEXT NOT NULL DEFAULT '',
+      is_saved    INTEGER NOT NULL DEFAULT 0,
+      created_at  INTEGER NOT NULL,
+      updated_at  INTEGER NOT NULL,
+      UNIQUE(session_id, name)
+    );
+    CREATE TABLE IF NOT EXISTS session_nearby_character_state_values (
+      id                 TEXT PRIMARY KEY,
+      session_id         TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+      nearby_id          TEXT NOT NULL REFERENCES session_nearby_characters(id) ON DELETE CASCADE,
+      field_key          TEXT NOT NULL,
+      runtime_value_json TEXT,
+      updated_at         INTEGER NOT NULL,
+      UNIQUE(nearby_id, field_key)
+    );
+  `);
+}
+createLegacyNearbyTables();
+
+function insertNearbyCharacter(db, sessionId, patch = {}) {
+  const id = patch.id ?? crypto.randomUUID();
+  const now = patch.created_at ?? Date.now();
+  db.prepare(`
+    INSERT INTO session_nearby_characters (id, session_id, name, persona, is_saved, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+  `).run(
+    id,
+    sessionId,
+    patch.name ?? '临时角色',
+    patch.persona ?? '',
+    patch.is_saved ?? 0,
+    now,
+    patch.updated_at ?? now,
+  );
+  return { id, session_id: sessionId, ...patch, created_at: now, updated_at: patch.updated_at ?? now };
+}
+
+function insertNearbyStateValue(db, sessionId, nearbyId, patch = {}) {
+  const id = patch.id ?? crypto.randomUUID();
+  const now = patch.updated_at ?? Date.now();
+  db.prepare(`
+    INSERT INTO session_nearby_character_state_values (id, session_id, nearby_id, field_key, runtime_value_json, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?)
+  `).run(
+    id,
+    sessionId,
+    nearbyId,
+    patch.field_key ?? 'field',
+    patch.runtime_value_json ?? null,
+    now,
+  );
+  return { id, session_id: sessionId, nearby_id: nearbyId, ...patch, updated_at: now };
+}
 
 /**
  * 迁移步骤函数的最小 registry 替身：只实现 findOrCreate/findByName/addAliases/markPinned

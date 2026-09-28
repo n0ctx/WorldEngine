@@ -11,7 +11,6 @@
 import { registerOnDelete } from '../utils/cleanup-hooks.js';
 import { unlinkUploadFile, unlinkUploadFiles } from '../utils/file-cleanup.js';
 import { deleteDiaryDir } from '../memory/diary-generator.js';
-import { deleteTableMemoryDir } from './table-memory.js';
 
 import {
   getAttachmentsByMessageId,
@@ -88,8 +87,3 @@ function registerSessionScopedCleanup(cleanup) {
 // daily_entries 表由 ON DELETE CASCADE 自动清理；磁盘文件需手动删除
 
 registerSessionScopedCleanup(deleteDiaryDir);
-
-// ── 表格记忆文件目录 ─────────────────────────────────────────────
-// 模块：table-memory — 管理 data/table_memory/{sessionId}/ 目录
-
-registerSessionScopedCleanup(deleteTableMemoryDir);

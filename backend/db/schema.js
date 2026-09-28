@@ -85,27 +85,6 @@ CREATE TABLE IF NOT EXISTS sessions (
   updated_at          INTEGER NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS session_nearby_characters (
-  id          TEXT PRIMARY KEY,
-  session_id  TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
-  name        TEXT NOT NULL,
-  persona     TEXT NOT NULL DEFAULT '',
-  is_saved    INTEGER NOT NULL DEFAULT 0,
-  created_at  INTEGER NOT NULL,
-  updated_at  INTEGER NOT NULL,
-  UNIQUE(session_id, name)
-);
-
-CREATE TABLE IF NOT EXISTS session_nearby_character_state_values (
-  id                 TEXT PRIMARY KEY,
-  session_id         TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
-  nearby_id          TEXT NOT NULL REFERENCES session_nearby_characters(id) ON DELETE CASCADE,
-  field_key          TEXT NOT NULL,
-  runtime_value_json TEXT,
-  updated_at         INTEGER NOT NULL,
-  UNIQUE(nearby_id, field_key)
-);
-
 CREATE TABLE IF NOT EXISTS messages (
   id             TEXT PRIMARY KEY,
   session_id     TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
@@ -520,7 +499,7 @@ export function initSchema(db) {
   migrateSortOrders(db);
   migrateStateFieldSchema(db);
   migratePromptActivationSchema(db);
-  migrateNearbyCharacterSchema(db);
+  migrateNearbyEnabledColumn(db);
   migrateWritingSessionPersonaSchema(db);
   migrateWorldAppearanceSchema(db);
 }
@@ -628,7 +607,6 @@ function migrateTurnRecordsAndDiary(db) {
   // turn_records 逐步补列：
   //   user_message_id / asst_message_id — 指针模式，替代已移除的复制内容字段
   //   state_snapshot — 该轮结束时的三层状态，用于 regenerate/删除/编辑后的状态回滚
-  //   table_memory_snapshot — 该轮结束时 tables.json 全文，用于回滚时同步还原表格记忆
   //   scene / cast_json — 摘要锚点：场景与在场角色，只用于召回时定位
   //   middle_summary / middle_covered_to — 该轮结束时的滚动中期摘要及其覆盖到的轮次，NULL 表示旧数据未生成
   const turnRecordCols = new Set(db.pragma('table_info(turn_records)').map((col) => col.name));
@@ -636,7 +614,6 @@ function migrateTurnRecordsAndDiary(db) {
     ['user_message_id', 'TEXT'],
     ['asst_message_id', 'TEXT'],
     ['state_snapshot', 'TEXT'],
-    ['table_memory_snapshot', 'TEXT'],
     ['scene', 'TEXT'],
     ['cast_json', 'TEXT'],
     ['middle_summary', 'TEXT'],
@@ -736,21 +713,9 @@ function migratePromptActivationSchema(db) {
   try { db.exec(`ALTER TABLE sessions ADD COLUMN keyword_active_state TEXT NOT NULL DEFAULT '{}'`); } catch {}
 }
 
-function migrateNearbyCharacterSchema(db) {
+function migrateNearbyEnabledColumn(db) {
   // 附近角色：character_state_fields 新增 nearby_enabled 列；旧行由 SQLite 默认值自动填 1
   try { db.exec(`ALTER TABLE character_state_fields ADD COLUMN nearby_enabled INTEGER NOT NULL DEFAULT 1`); } catch {}
-  // 附近角色：两张新表的检索索引
-  try { db.exec(`CREATE INDEX IF NOT EXISTS idx_session_nearby_characters_session_id ON session_nearby_characters(session_id)`); } catch {}
-  // 附近角色：memory 列改名为 persona（语义从"与玩家一句话交互总结"改为"一句话人物设定"）
-  try {
-    const cols = db.prepare(`PRAGMA table_info(session_nearby_characters)`).all();
-    const hasMemory = cols.some((c) => c.name === 'memory');
-    const hasPersona = cols.some((c) => c.name === 'persona');
-    if (hasMemory && !hasPersona) {
-      db.exec(`ALTER TABLE session_nearby_characters RENAME COLUMN memory TO persona`);
-    }
-  } catch {}
-  try { db.exec(`CREATE INDEX IF NOT EXISTS idx_session_nearby_character_state_values_nearby_id ON session_nearby_character_state_values(nearby_id, field_key)`); } catch {}
 }
 
 function migrateWritingSessionPersonaSchema(db) {

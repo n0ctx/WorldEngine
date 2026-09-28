@@ -20,7 +20,7 @@
       "tokens": 44,
       "locations": [
         "backend/services/model-catalog.js:222-227",
-        "frontend/src/core/constants/settings.js:153-158"
+        "frontend/src/core/constants/settings.js:144-149"
       ]
     },
     "2a4b98e5e9ab8e01": {
@@ -47,15 +47,8 @@
     "70829e14b49c934b": {
       "tokens": 46,
       "locations": [
-        "frontend/src/components/state/StateFieldList.jsx:196-204",
+        "frontend/src/components/state/StateFieldList.jsx:168-176",
         "frontend/src/components/ui/ConfirmModal.jsx:25-34"
-      ]
-    },
-    "8c6338f3b7c3e4de": {
-      "tokens": 52,
-      "locations": [
-        "backend/db/queries/entry-conditions.js:18-20",
-        "backend/db/queries/session-nearby-character-state-values.js:52-54"
       ]
     },
     "99dec6c4a3d783f6": {
@@ -98,7 +91,7 @@
       "tokens": 43,
       "locations": [
         "frontend/src/components/chat/MessageItem.jsx:29-32",
-        "frontend/src/components/writing/WritingMessageItem.jsx:121-124"
+        "frontend/src/components/writing/WritingMessageItem.jsx:135-138"
       ]
     },
     "f4684b0c8b2784ee": {
@@ -106,7 +99,7 @@
       "locations": [
         "frontend/src/components/settings/CustomCssManager.jsx:52-57",
         "frontend/src/components/settings/ThemeManager.jsx:37-42",
-        "frontend/src/components/state/StateFieldList.jsx:44-49"
+        "frontend/src/components/state/StateFieldList.jsx:41-46"
       ]
     }
   }

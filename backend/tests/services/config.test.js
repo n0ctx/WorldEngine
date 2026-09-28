@@ -72,7 +72,6 @@ test('读取旧配置时迁移共享密钥并持久化规范化结果', () => {
     diary: { chat: { enabled: true } },
     assistant: { model_source: 'writing' },
     danmaku: false,
-    table_memory_row_limits: { relations: 6, items: '3.8', unknown: 99 },
   });
 
   const config = getConfig();
@@ -107,25 +106,23 @@ test('读取旧配置时迁移共享密钥并持久化规范化结果', () => {
     writing: { enabled: false, date_mode: 'virtual' },
   });
   assert.deepEqual(config.danmaku, { enabled: false, count: 5, speed: 'normal' });
-  assert.deepEqual(config.table_memory_row_limits, {
-    relations: 6,
-    items: 3,
-    places: 30,
-    factions: 20,
-  });
+  assert.equal('table_memory_row_limits' in config, false);
   assert.deepEqual(sandbox.readConfig(), config);
 });
 
-test('旧配置含七个废弃键时，迁移后全部消失并持久化', () => {
+test('旧配置含废弃键时，迁移后全部消失并持久化', () => {
   sandbox.writeConfig({
     context_compress_rounds: 7,
     context_history_rounds: 10,
     long_term_memory_enabled: true,
     embedding: { provider: 'openai', model: 'text-embedding-3-small' },
+    table_memory_enabled: true,
+    table_memory_row_limits: { relations: 6 },
     writing: {
       context_history_rounds: 5,
       long_term_memory_enabled: true,
       saved_nearby_recall_enabled: true,
+      table_memory_enabled: true,
     },
   });
 
@@ -135,9 +132,12 @@ test('旧配置含七个废弃键时，迁移后全部消失并持久化', () =>
   assert.equal('context_history_rounds' in config, false);
   assert.equal('long_term_memory_enabled' in config, false);
   assert.equal('embedding' in config, false);
+  assert.equal('table_memory_enabled' in config, false);
+  assert.equal('table_memory_row_limits' in config, false);
   assert.equal('context_history_rounds' in config.writing, false);
   assert.equal('long_term_memory_enabled' in config.writing, false);
   assert.equal('saved_nearby_recall_enabled' in config.writing, false);
+  assert.equal('table_memory_enabled' in config.writing, false);
   assert.deepEqual(sandbox.readConfig(), config);
 });
 

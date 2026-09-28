@@ -8,7 +8,6 @@ import {
   getSessionById,
   touchSession,
 } from '../../services/sessions.js';
-import { getLastTurnMessages } from '../../db/queries/messages.js';
 import { createLogger } from '../../utils/logger.js';
 
 /**
@@ -68,8 +67,6 @@ export const chatMode = {
 
   postgen: {
     titleLabel: 'title',
-    tableMemoryEnabled: () => getConfig().table_memory_enabled === true,
-    lastTurnMessages: (sessionId) => getLastTurnMessages(sessionId),
     /** 章节标题是写作专属，对话模式没有这个槽位 */
     chapterTasks: () => [],
   },

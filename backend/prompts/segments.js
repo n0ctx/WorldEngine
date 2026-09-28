@@ -14,8 +14,6 @@ import {
 } from '../memory/recall.js';
 import { renderRecalledTurns } from '../memory/long-term-recall.js';
 import { renderStoryState } from '../memory/state-memory-render.js';
-import { readTables } from '../services/table-memory.js';
-import { renderTablesToMarkdown } from '../services/table-memory-ops.js';
 import { MEMORY_EXPAND_MAX_TOKENS, SUGGESTION_TOKEN_RESERVE } from '../utils/constants.js';
 
 /** [2] 常驻 cached 条目（trigger_type=always 且 token=0） */
@@ -78,21 +76,6 @@ export function renderTriggeredEntriesSection(triggeredEntries, tv) {
 export function renderStorySummarySection(text, tv) {
   if (!text) return null;
   return `<story_summary>\n以下是更早剧情的连续摘要，用于理解前因；细节以下方原文为准。\n${tv(text)}\n</story_summary>`;
-}
-
-/**
- * [8.6] 表格记忆：结构化真源渲染成 md（主模型版不含内部 id）。
- * 未启用或为空时返回 null。
- */
-// guard-allow(dead-code): assembler.js 已改注入 <story_state> 取代表格记忆，调用已移除；函数本身随 N14 删除 table_memory_* 时一并清理
-export function renderTableMemorySection(sessionId, enabled) {
-  if (enabled !== true) return null;
-  const md = renderTablesToMarkdown(readTables(sessionId), { withId: false });
-  if (!md) return null;
-  return {
-    text: `<table_memory hint="以下为已知状态的被动参考，均为当前状态快照。剧情以玩家本轮输入为准——这不是在场名单或行动清单，不要因某项列在表里就让它登场或被提及，也不要在无关的人/势力/线索间臆造关联；仅本轮正文确需或明确关联时才动用。">\n${md}\n</table_memory>`,
-    chars: md.length,
-  };
 }
 
 /** [7.5] 状态记忆：对话模式在 char_state 之后、写作模式取代 nearby_characters */

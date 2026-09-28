@@ -51,7 +51,7 @@ registerHook('generation:post', async ({ sessionId, taskSpecs, mode }) => {
 });
 ```
 
-内置任务 label 参考（按执行顺序）：`title` / `session-title` / `chapter-title` / `all-state` / `table-memory` / `turn-record` / `danmaku` / `turn-index` / `diary`
+内置任务 label 参考（按执行顺序）：`title` / `session-title` / `chapter-title` / `all-state` / `turn-record` / `danmaku` / `turn-index` / `diary`
 
 ## 访问内部模块
 

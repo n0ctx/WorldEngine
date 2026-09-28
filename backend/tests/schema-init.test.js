@@ -94,6 +94,16 @@ test('initSchema 为新建的空库创建含 middle_summary / middle_covered_to 
     const columns = db.pragma('table_info(turn_records)').map((column) => column.name);
     assert.ok(columns.includes('middle_summary'));
     assert.ok(columns.includes('middle_covered_to'));
+    assert.ok(!columns.includes('table_memory_snapshot'));
+
+    assert.equal(
+      db.prepare(`SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'session_nearby_characters'`).get(),
+      undefined,
+    );
+    assert.equal(
+      db.prepare(`SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'session_nearby_character_state_values'`).get(),
+      undefined,
+    );
 
     const stateMemoryTables = [
       'state_entities', 'state_profile_fields', 'state_dynamic', 'state_relations',

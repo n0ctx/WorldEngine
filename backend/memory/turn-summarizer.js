@@ -17,7 +17,6 @@ import { getCharacterById } from '../db/queries/characters.js';
 import { getMessagesBySessionId } from '../db/queries/messages.js';
 import {
   upsertTurnRecord,
-  updateTurnRecordTableSnapshot,
   updateTurnRecordIndex,
   getLatestTurnRecord,
   getUnindexedTurnRecords,
@@ -34,7 +33,6 @@ import {
 } from '../utils/constants.js';
 import { renderBackendPrompt } from '../prompts/prompt-loader.js';
 import { captureFullSnapshot } from './state-rollback.js';
-import { readTablesRaw } from '../services/table-memory.js';
 import { splitRounds } from '../utils/session-rounds.js';
 import { computeMiddleSummary, resolveNames } from './middle-summary.js';
 import { resolveAuxScope } from '../utils/aux-scope.js';
@@ -153,15 +151,6 @@ export async function createTurnRecord(sessionId) {
     middle_summary: middle.text,
     middle_covered_to: middle.coveredTo,
   });
-
-  // tables.json 依赖 priority 2 的 table-memory 任务先写入。
-  if (record) {
-    try {
-      updateTurnRecordTableSnapshot(record.id, readTablesRaw(sessionId));
-    } catch (err) {
-      log.warn(`TABLE SNAPSHOT FAIL  ${formatMeta({ session: sid, error: err.message })}`);
-    }
-  }
 
   log.info(`DONE  ${formatMeta({ session: sid, round: round_index, recordId: record?.id ?? null })}`);
 

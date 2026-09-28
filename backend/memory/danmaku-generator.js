@@ -14,7 +14,6 @@ import {
 import { getSessionById } from '../db/queries/sessions.js';
 import { getCharacterById } from '../db/queries/characters.js';
 import { getPersonaByWorldId } from '../db/queries/personas.js';
-import { buildLastTurnText } from '../services/table-memory.js';
 import { resolveAuxScope } from '../utils/aux-scope.js';
 import { getConfig } from '../services/config.js';
 import { stripThinkTags } from './title-generation.js';
@@ -47,6 +46,17 @@ function buildPersonaText(sessionId) {
   } catch {
     return '';
   }
+}
+
+/**
+ * 从一轮消息中取「最后一条 user + 最后一条 assistant」拼成本轮文本。
+ */
+function buildLastTurnText(messages) {
+  const list = Array.isArray(messages) ? messages : [];
+  const reversed = [...list].reverse();
+  const lastUser = reversed.find((m) => m.role === 'user');
+  const lastAsst = reversed.find((m) => m.role === 'assistant');
+  return [lastUser?.content, lastAsst?.content].filter(Boolean).join('\n');
 }
 
 function buildPrompt(turnText, count, personaText) {
