@@ -240,7 +240,7 @@ title(p2) → chapter-title(p2) → all-state(p2, tracksState)
   - `computeMiddleSummary(sessionId, roundIndex) → { text, coveredTo, evicted, failed, error }`；
   - 滑出计算抽成纯函数 `planEviction(rounds, coveredTo, budget, latestRound)`，单独测试。
 - 新增模板 `memory-middle-summary.md`。
-  - 变量：`USER_NAME`、`CHARACTER_NAME`、`PREVIOUS_SUMMARY`、`NEW_ROUNDS`、`MAX_CHARS`（取 1200 字，留出估算误差）。
+  - 变量：`USER_NAME`、`CHARACTER_NAME`、`PREVIOUS_SUMMARY`、`NEW_ROUNDS`、`MAX_CHARS`（取 1000 字，留出估算误差）。
   - 要点：
     - 只写「故事为什么走到现在」：时间顺序、关键决策与后果、因果、场景迁移、关系变化过程、身份揭示与冲突的起落（PRD §8.4）；
     - 不写成当前数值、库存、完整外貌人格、任务清单（PRD §8.5）；

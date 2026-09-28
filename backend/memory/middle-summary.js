@@ -30,7 +30,7 @@ import {
 } from '../utils/constants.js';
 
 /** 中期摘要正文目标字数上限，留给模型的篇幅预算（估算误差由输出校验兜底） */
-const MIDDLE_SUMMARY_TARGET_CHARS = 1200;
+const MIDDLE_SUMMARY_TARGET_CHARS = 1000;
 
 /**
  * 计算短期窗口滑出计划。
@@ -139,7 +139,9 @@ async function callMerge(sessionId, userName, characterName, previousSummary, ma
     USER_NAME: userName,
     CHARACTER_NAME: characterName,
     PREVIOUS_SUMMARY: previousSummary,
+    PREVIOUS_CHARS: previousSummary.length,
     NEW_ROUNDS: materialText,
+    NEW_CHARS: materialText.length,
     MAX_CHARS: MIDDLE_SUMMARY_TARGET_CHARS,
   }));
 }
@@ -147,6 +149,7 @@ async function callMerge(sessionId, userName, characterName, previousSummary, ma
 async function callShrink(sessionId, summary) {
   return callMiddleSummaryLLM(sessionId, renderBackendPrompt('memory-middle-summary-shrink.md', {
     SUMMARY: summary,
+    SUMMARY_CHARS: summary.length,
     MAX_CHARS: MIDDLE_SUMMARY_TARGET_CHARS,
   }));
 }
