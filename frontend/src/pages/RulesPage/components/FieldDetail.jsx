@@ -13,11 +13,11 @@ export default function FieldDetail({ worldId, scope, scopeKey, field, existingG
   const [editingDef, setEditingDef] = useState(false); // 是否就地展开「编辑定义」
 
   return (
-    <div className="we-workshop-detail-inner">
+    <div className="we-entry-editor-panel we-entry-editor-panel--inline we-workshop-detail-inner">
       <div className="we-workshop-detail-head">
         <div>
-          <h2 className="we-workshop-detail-title">{field.label}</h2>
-          <span className="we-field-badge">{TYPE_LABEL[field.type] ?? field.type}</span>
+          <h3 className="we-entry-editor-title we-workshop-detail-title">{field.label}</h3>
+          <span className="we-entry-section-badge">{TYPE_LABEL[field.type] ?? field.type}</span>
           {field.description && <p className="we-workshop-detail-desc">{field.description}</p>}
         </div>
         <button
@@ -115,7 +115,7 @@ function RelatedEntries({ worldId, scope, field, reloadKey, onNew, onEdit }) {
   return (
     <div className="we-workshop-section">
       <div className="we-workshop-section-head">
-        <span className="we-workshop-section-title">相关触发条目</span>
+        <span className="we-entry-editor-label">相关触发条目</span>
         <button className="we-btn we-btn-sm we-btn-secondary" onClick={onNew}>+ 新建条目</button>
       </div>
       {loading ? (

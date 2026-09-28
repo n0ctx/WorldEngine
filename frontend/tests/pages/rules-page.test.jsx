@@ -14,6 +14,7 @@ const mocks = vi.hoisted(() => ({
   listWorldStateFields: vi.fn(),
   listCharacterStateFields: vi.fn(),
   listPersonaStateFields: vi.fn(),
+  deleteCharacterStateField: vi.fn(),
   logError: vi.fn(),
 }));
 
@@ -41,7 +42,7 @@ vi.mock('../../src/core/api/character-state-fields', () => ({
   listCharacterStateFields: (...args) => mocks.listCharacterStateFields(...args),
   createCharacterStateField: vi.fn(),
   updateCharacterStateField: vi.fn(),
-  deleteCharacterStateField: vi.fn(),
+  deleteCharacterStateField: (...args) => mocks.deleteCharacterStateField(...args),
 }));
 vi.mock('../../src/core/api/persona-state-fields', () => ({
   listPersonaStateFields: (...args) => mocks.listPersonaStateFields(...args),
@@ -111,6 +112,7 @@ describe('RulesPage', () => {
     mocks.listWorldStateFields.mockReset().mockResolvedValue([]);
     mocks.listCharacterStateFields.mockReset().mockResolvedValue([]);
     mocks.listPersonaStateFields.mockReset().mockResolvedValue([]);
+    mocks.deleteCharacterStateField.mockReset();
     mocks.logError.mockReset();
   });
 
@@ -218,6 +220,22 @@ describe('RulesPage', () => {
     expect(screen.getByText('世界观设定')).toBeInTheDocument();
     expect(screen.getByText('战斗触发')).toBeInTheDocument();
     expect(screen.getByText('好感条件')).toBeInTheDocument();
+  });
+
+  it('删除状态字段：确认后调用 deleteFn 并重拉该作用域字段', async () => {
+    mocks.useSearchParams.mockReturnValue([new URLSearchParams('tab=state')]);
+    mocks.listCharacterStateFields.mockResolvedValue([{ id: 'f-1', field_key: 'goal', label: '目标', type: 'text' }]);
+    mocks.deleteCharacterStateField.mockResolvedValue({});
+    render(<RulesPage />);
+
+    const list = within(await screen.findByTestId('field-list'));
+    fireEvent.click(list.getByRole('button', { name: '删除字段「目标」' }));
+    expect(mocks.deleteCharacterStateField).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('button', { name: '确认删除' }));
+
+    await waitFor(() => expect(mocks.deleteCharacterStateField).toHaveBeenCalledWith('f-1'));
+    await waitFor(() => expect(mocks.listCharacterStateFields).toHaveBeenCalledTimes(2));
   });
 
   it('?tab=state 时默认打开状态字段视图', async () => {

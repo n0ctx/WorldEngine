@@ -64,6 +64,18 @@ export function useRulesData(worldId, { selectedEntryId, setSelectedEntryId }) {
     }
   }, [refreshEntries, selectedEntryId, setSelectedEntryId]);
 
+  // 删除成功返回 true，交给页面决定是否清空当前选中字段
+  const handleDeleteField = useCallback(async (scopeKey, field) => {
+    try {
+      await SCOPES[scopeKey].deleteFn(field.id);
+    } catch (err) {
+      log.error('state_field.delete_failed', err, { toast: err.message || '删除字段失败' });
+      return false;
+    }
+    await loadFieldsFor(scopeKey);
+    return true;
+  }, [loadFieldsFor]);
+
   const handleToggleEntry = useCallback(async (entry) => {
     const newEnabled = entry.enabled === 0 ? 1 : 0;
     setEntries((prev) => prev.map((e) => (e.id === entry.id ? { ...e, enabled: newEnabled } : e)));
@@ -89,5 +101,6 @@ export function useRulesData(worldId, { selectedEntryId, setSelectedEntryId }) {
     fieldsByScope, loadFieldsFor,
     groupList, existingGroupNames,
     handleDeleteEntry, handleToggleEntry, handleReorderEntriesEnd,
+    handleDeleteField,
   };
 }

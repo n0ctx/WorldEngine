@@ -1,3 +1,4 @@
+import DeleteButton from '../../../components/motion/DeleteButton.jsx';
 import { EntryOrderList, EntryPlainList } from './EntryLists.jsx';
 import { TRIGGER_TYPES, TYPE_LABEL, UNGROUPED } from '../constants.js';
 
@@ -7,7 +8,7 @@ export default function RulesListPane({
   triggerTypeFilter, setTriggerTypeFilter,
   entries, filteredEntries, selectedEntryId,
   onSelectEntry, onToggleEntry, onDeleteEntry, onReorderEntries, onReorderEntriesEnd,
-  fieldScope, fields, selectedFieldKey, setSelectedFieldKey, setCreatingField,
+  fieldScope, fields, selectedFieldKey, setSelectedFieldKey, setCreatingField, onDeleteField,
 }) {
   if (navMode === 'entries') {
     return (
@@ -83,21 +84,30 @@ export default function RulesListPane({
         <button className="we-btn we-btn-sm we-btn-secondary" onClick={() => setCreatingField(true)}>+ 添加</button>
       </div>
       {fields.length === 0 ? (
-        <p className="we-workshop-empty">暂无字段</p>
+        <div className="we-entry-section-empty">暂无字段</div>
       ) : (
-        <ul className="we-workshop-field-items">
+        <div className="we-entry-section-list" data-testid="field-list">
           {fields.map((f) => (
-            <li key={f.field_key}>
-              <button
-                className={`we-workshop-field-item${f.field_key === selectedFieldKey ? ' is-active' : ''}`}
-                onClick={() => setSelectedFieldKey(f.field_key)}
-              >
-                <span className="we-workshop-field-name">{f.label}</span>
-                <span className="we-field-badge">{TYPE_LABEL[f.type] ?? f.type}</span>
-              </button>
-            </li>
+            <div
+              key={f.field_key}
+              role="button"
+              tabIndex={0}
+              className={`we-entry-section-row we-entry-section-row--selectable${f.field_key === selectedFieldKey ? ' is-selected' : ''}`}
+              onClick={() => setSelectedFieldKey(f.field_key)}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelectedFieldKey(f.field_key); } }}
+            >
+              <div className="we-entry-section-main">
+                <div className="we-entry-section-title-line">
+                  <span className="we-entry-section-name">{f.label}</span>
+                  <span className="we-entry-section-badge">{TYPE_LABEL[f.type] ?? f.type}</span>
+                </div>
+              </div>
+              <div className="we-entry-section-actions">
+                <DeleteButton label={`删除字段「${f.label}」`} onConfirm={() => onDeleteField(f)} />
+              </div>
+            </div>
           ))}
-        </ul>
+        </div>
       )}
     </section>
   );

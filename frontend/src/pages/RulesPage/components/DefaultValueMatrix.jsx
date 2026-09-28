@@ -71,27 +71,7 @@ export default function DefaultValueMatrix({ worldId, scope, field }) {
 
   return (
     <div className="we-workshop-section">
-      <div className="we-workshop-section-head">
-        <span className="we-workshop-section-title">各{scope.label}默认值</span>
-        {bulkField && instances.length > 1 && (
-          <div className="we-workshop-bulk">
-            <span className="we-workshop-bulk-label">批量填同值</span>
-            <StateValueField
-              key={`bulk:${field.field_key}`}
-              field={bulkField}
-              onSave={handleBulkDraft}
-            />
-            <button
-              type="button"
-              className="we-btn we-btn-sm we-btn-secondary"
-              onClick={handleBulkApply}
-              disabled={bulkSaving}
-            >
-              {bulkSaving ? '应用中…' : '应用到全部'}
-            </button>
-          </div>
-        )}
-      </div>
+      <span className="we-entry-editor-label">各{scope.label}默认值</span>
 
       {loading ? (
         <p className="we-workshop-empty">加载中…</p>
@@ -99,6 +79,26 @@ export default function DefaultValueMatrix({ worldId, scope, field }) {
         <p className="we-workshop-empty">暂无{scope.label}</p>
       ) : (
         <div className="we-workshop-matrix">
+          {bulkField && instances.length > 1 && (
+            <div className="we-workshop-matrix-row">
+              <span className="we-workshop-bulk-label">批量填同值</span>
+              <div className="we-workshop-bulk">
+                <StateValueField
+                  key={`bulk:${field.field_key}`}
+                  field={bulkField}
+                  onSave={handleBulkDraft}
+                />
+                <button
+                  type="button"
+                  className="we-btn we-btn-sm we-btn-secondary"
+                  onClick={handleBulkApply}
+                  disabled={bulkSaving}
+                >
+                  {bulkSaving ? '应用中…' : '应用到全部'}
+                </button>
+              </div>
+            </div>
+          )}
           {instances.map((inst) => {
             const row = rowsByInstance[inst.id];
             return (

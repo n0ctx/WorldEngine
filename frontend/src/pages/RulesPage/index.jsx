@@ -35,6 +35,7 @@ export default function RulesPage() {
     fieldsByScope, loadFieldsFor,
     groupList, existingGroupNames,
     handleDeleteEntry, handleToggleEntry, handleReorderEntriesEnd,
+    handleDeleteField,
   } = useRulesData(worldId, { selectedEntryId, setSelectedEntryId });
 
   const fieldScope = SCOPES[fieldScopeKey];
@@ -61,6 +62,11 @@ export default function RulesPage() {
     setFieldScopeKey(key);
     setSelectedFieldKey(fieldsByScope[key]?.[0]?.field_key ?? null);
     setCreatingField(false);
+  }
+
+  async function deleteField(field) {
+    const deleted = await handleDeleteField(fieldScopeKey, field);
+    if (deleted && field.field_key === selectedFieldKey) setSelectedFieldKey(null);
   }
 
   const groupFilteredEntries = entryFilter === 'all'
@@ -118,6 +124,7 @@ export default function RulesPage() {
             selectedFieldKey={selectedFieldKey}
             setSelectedFieldKey={setSelectedFieldKey}
             setCreatingField={setCreatingField}
+            onDeleteField={deleteField}
           />
 
           {/* 右：详情 */}
