@@ -2,7 +2,8 @@
  * state-update-context.js — 状态更新所需的字段定义/当前取值读取，及 prompt 各节组装
  *
  * 确定本轮活跃字段、读取世界/角色/玩家的默认值与会话运行时值，
- * 并渲染为 prompt 的 schema / values 文本段。
+ * 并渲染为 prompt 的 schema / values 文本段；另负责状态记忆接入所需的准备步骤
+ * （基线捕获、本轮轮号、基础实体、真实日期时间、相关实体与 runtime 段组装）。
  */
 
 import { getCharactersByIds } from '../db/queries/characters.js';
