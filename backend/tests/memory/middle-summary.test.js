@@ -39,14 +39,14 @@ test('planEviction：窗口总 token 不超预算时无滑出', async () => {
 
 test('planEviction：超预算只滑出最老的完整轮次', async () => {
   const { planEviction } = await freshImport('backend/memory/middle-summary.js');
-  // 每轮 100 个中文字符 ≈ 50 token；滑出最老 1 轮后剩余 51 token，落在预算 60 以内即停
+  // 每轮 100 个中文字符 ≈ 78 token；滑出最老 1 轮后剩余 79 token，落在预算 90 以内即停
   const big = '测'.repeat(100);
   const rounds = [
     round(1, [msg('user', big)]),
     round(2, [msg('user', big)]),
     round(3, [msg('user', '短')]),
   ];
-  const result = planEviction(rounds, 0, 60, 3);
+  const result = planEviction(rounds, 0, 90, 3);
 
   assert.equal(result.evictedTo, 1);
   assert.equal(result.windowRounds, 2);
