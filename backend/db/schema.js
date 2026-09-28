@@ -366,6 +366,108 @@ CREATE TABLE IF NOT EXISTS provider_safety_events (
   output_hash TEXT,
   raw_provider_meta_redacted_json TEXT
 );
+
+CREATE TABLE IF NOT EXISTS state_entities (
+  row_id           TEXT PRIMARY KEY,
+  entity_id        TEXT NOT NULL,
+  session_id       TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+  seq              INTEGER NOT NULL,
+  type             TEXT NOT NULL,
+  name             TEXT NOT NULL,
+  aliases_json     TEXT NOT NULL DEFAULT '[]',
+  card_id          TEXT REFERENCES characters(id) ON DELETE SET NULL,
+  pinned           INTEGER NOT NULL DEFAULT 0,
+  status           TEXT NOT NULL DEFAULT 'active',
+  valid_from_round INTEGER NOT NULL,
+  valid_to_round   INTEGER
+);
+
+CREATE TABLE IF NOT EXISTS state_profile_fields (
+  row_id           TEXT PRIMARY KEY,
+  session_id       TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+  entity_id        TEXT NOT NULL,
+  field_key        TEXT NOT NULL,
+  value_json       TEXT NOT NULL,
+  evidence         TEXT,
+  valid_from_round INTEGER NOT NULL,
+  valid_to_round   INTEGER
+);
+
+CREATE TABLE IF NOT EXISTS state_dynamic (
+  row_id           TEXT PRIMARY KEY,
+  session_id       TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+  entity_id        TEXT NOT NULL,
+  key              TEXT NOT NULL,
+  value            TEXT NOT NULL,
+  valid_from_round INTEGER NOT NULL,
+  valid_to_round   INTEGER
+);
+
+CREATE TABLE IF NOT EXISTS state_relations (
+  row_id           TEXT PRIMARY KEY,
+  relation_id      TEXT NOT NULL,
+  session_id       TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+  seq              INTEGER NOT NULL,
+  subject_id       TEXT NOT NULL,
+  predicate        TEXT NOT NULL,
+  object_id        TEXT,
+  object_value     TEXT,
+  note             TEXT NOT NULL DEFAULT '',
+  valid_from_round INTEGER NOT NULL,
+  valid_to_round   INTEGER
+);
+
+CREATE TABLE IF NOT EXISTS state_threads (
+  row_id             TEXT PRIMARY KEY,
+  thread_id          TEXT NOT NULL,
+  session_id         TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+  seq                INTEGER NOT NULL,
+  kind               TEXT NOT NULL,
+  participants_json  TEXT NOT NULL DEFAULT '[]',
+  content            TEXT NOT NULL,
+  status             TEXT NOT NULL DEFAULT 'active',
+  opened_round       INTEGER NOT NULL,
+  valid_from_round   INTEGER NOT NULL,
+  valid_to_round     INTEGER
+);
+
+CREATE TABLE IF NOT EXISTS state_world_profile (
+  row_id             TEXT PRIMARY KEY,
+  session_id         TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+  key                TEXT NOT NULL,
+  value              TEXT,
+  location_entity_id TEXT,
+  valid_from_round   INTEGER NOT NULL,
+  valid_to_round     INTEGER
+);
+
+CREATE TABLE IF NOT EXISTS state_world_facts (
+  row_id           TEXT PRIMARY KEY,
+  fact_id          TEXT NOT NULL,
+  session_id       TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+  seq              INTEGER NOT NULL,
+  text             TEXT NOT NULL,
+  evidence         TEXT,
+  valid_from_round INTEGER NOT NULL,
+  valid_to_round   INTEGER
+);
+
+CREATE TABLE IF NOT EXISTS state_presence (
+  session_id       TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+  round_index      INTEGER NOT NULL,
+  entity_ids_json  TEXT NOT NULL DEFAULT '[]',
+  PRIMARY KEY (session_id, round_index)
+);
+
+CREATE TABLE IF NOT EXISTS session_entity_state_values (
+  id                 TEXT PRIMARY KEY,
+  session_id         TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+  entity_id          TEXT NOT NULL,
+  field_key          TEXT NOT NULL,
+  runtime_value_json TEXT,
+  updated_at         INTEGER NOT NULL,
+  UNIQUE(entity_id, field_key)
+);
 `;
 
 const INDEXES = `
@@ -393,6 +495,14 @@ CREATE INDEX IF NOT EXISTS idx_session_stream_tasks_status_updated_at ON session
 CREATE INDEX IF NOT EXISTS idx_sessions_world_id ON sessions(world_id);
 CREATE INDEX IF NOT EXISTS idx_sessions_character_id ON sessions(character_id);
 CREATE INDEX IF NOT EXISTS idx_messages_session_id_created_at ON messages(session_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_state_entities_session_valid ON state_entities(session_id, valid_to_round);
+CREATE INDEX IF NOT EXISTS idx_state_entities_session_entity ON state_entities(session_id, entity_id);
+CREATE INDEX IF NOT EXISTS idx_state_profile_fields_session_valid ON state_profile_fields(session_id, valid_to_round);
+CREATE INDEX IF NOT EXISTS idx_state_dynamic_session_valid ON state_dynamic(session_id, valid_to_round);
+CREATE INDEX IF NOT EXISTS idx_state_relations_session_valid ON state_relations(session_id, valid_to_round);
+CREATE INDEX IF NOT EXISTS idx_state_threads_session_valid ON state_threads(session_id, valid_to_round);
+CREATE INDEX IF NOT EXISTS idx_state_world_profile_session_valid ON state_world_profile(session_id, valid_to_round);
+CREATE INDEX IF NOT EXISTS idx_state_world_facts_session_valid ON state_world_facts(session_id, valid_to_round);
 `;
 
 export function initSchema(db) {

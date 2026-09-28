@@ -98,8 +98,8 @@ export const LLM_TASK_TEMPERATURE = 0.3;
 export const LLM_TITLE_MAX_TOKENS = 30;
 /** 轮次索引生成最大 token 数（输出 JSON 包装 + scene + cast + 80 字摘要，900 留出余量避免被截） */
 export const LLM_TURN_SUMMARY_MAX_TOKENS = 900;
-/** 状态更新（combined-state-updater）最大 token 数 */
-export const LLM_STATE_UPDATE_MAX_TOKENS = 2048;
+/** 状态更新（combined-state-updater）最大 token 数：状态记忆写入并入该调用后输出增加操作列表，上限相应调大 */
+export const LLM_STATE_UPDATE_MAX_TOKENS = 4096;
 /** 状态更新 JSON 解析失败时，额外重新调用 LLM 的最大次数（共 1+N 次机会） */
 export const STATE_UPDATE_JSON_RETRY_MAX = 2;
 /** 状态压缩（state-compress）最大 token 数 */
@@ -118,6 +118,31 @@ export const STATE_LIST_MAX_ITEMS = 10;
 export const STATE_LIST_TRIM_TARGET = 8;
 /** 工具调用循环（complete-with-tools）最大轮数：写卡助手 dispatch_subagent 多步派发场景需要更大上限，原硬编码 5 在多步任务下会让模型未消化的 tool_use 漏到普通文本里（产生 <｜DSML｜...> 泄漏） */
 export const LLM_TOOL_RESOLUTION_MAX_ITERATIONS = 25;
+
+// ============================
+// 状态记忆（memory-v2 第二阶段）
+// ============================
+/** 当前有效的世界事实条数上限 */
+// guard-allow(dead-code): memory-v2-p2 后续节点使用
+export const STATE_WORLD_FACTS_MAX = 20;
+/** 状态更新提示词里「实体目录」段的 token 预算 */
+// guard-allow(dead-code): memory-v2-p2 后续节点使用
+export const STATE_DIRECTORY_BUDGET = 3000;
+/** 档案文本字段最大字数 */
+// guard-allow(dead-code): memory-v2-p2 后续节点使用
+export const STATE_TEXT_FIELD_MAX = 60;
+/** 档案 list 字段单项最大字数 */
+// guard-allow(dead-code): memory-v2-p2 后续节点使用
+export const STATE_LIST_ITEM_MAX = 30;
+/** 档案证据原文最短字符数 */
+// guard-allow(dead-code): memory-v2-p2 后续节点使用
+export const STATE_EVIDENCE_MIN = 4;
+/** 档案证据原文最长字符数 */
+// guard-allow(dead-code): memory-v2-p2 后续节点使用
+export const STATE_EVIDENCE_MAX = 80;
+/** 按名字/别名匹配实体时的最短字数 */
+// guard-allow(dead-code): memory-v2-p2 后续节点使用
+export const STATE_NAME_MATCH_MIN = 2;
 
 // ============================
 // Anthropic / Gemini extended thinking budget
