@@ -1,22 +1,18 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import fs from 'node:fs';
-import path from 'node:path';
-import os from 'node:os';
 
-// 用临时目录隔离 ASSISTANT_STATE_DIR，避免加载后端模块时改写真实 .temp/assistant/。
-const stateDir = fs.mkdtempSync(path.join(os.tmpdir(), 'we-routes-'));
-process.env.ASSISTANT_STATE_DIR = stateDir;
+import { createTestSandbox, freshImport } from '../../backend/tests/helpers/test-env.js';
+
+// 沙箱提供带表结构的测试库与独立的 ASSISTANT_STATE_DIR，加载后端模块前先设好环境
+const sandbox = createTestSandbox('assistant-normalize-proposal-core');
+sandbox.setEnv();
 const __testables = {
-  ...await import('../server/normalize-proposal.js'),
-  ...await import('../server/proposal-state-ops.js'),
-  ...await import('../server/proposal-values.js'),
+  ...await freshImport('assistant/server/normalize-proposal.js'),
+  ...await freshImport('assistant/server/proposal-state-ops.js'),
+  ...await freshImport('assistant/server/proposal-values.js'),
 };
 
-test.after(() => {
-  try { fs.rmSync(stateDir, { recursive: true, force: true }); } catch { /* ignore */ }
-  delete process.env.ASSISTANT_STATE_DIR;
-});
+test.after(() => sandbox.cleanup());
 
 test('normalizeProposal 会过滤敏感字段并规范 global-config changes', () => {
   const proposal = __testables.normalizeProposal({
