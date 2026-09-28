@@ -6,7 +6,7 @@ import { createTestSandbox, freshImport } from '../helpers/test-env.js';
 
 const sandbox = createTestSandbox('config-service');
 sandbox.setEnv();
-const { getConfig } = await freshImport('backend/services/config.js');
+const { getConfig, updateConfig } = await freshImport('backend/services/config.js');
 
 after(() => sandbox.cleanup());
 
@@ -16,10 +16,38 @@ test('缺少配置文件时写入默认值并返回独立对象', () => {
   const config = getConfig();
   assert.equal(config.ui.theme, 'nocturne');
   assert.deepEqual(config.danmaku, { enabled: false, count: 5, speed: 'normal' });
+  assert.equal(config.short_term_token_budget, 8000);
+  assert.equal(config.long_term_index_budget, 20000);
+  assert.equal(config.writing.short_term_token_budget, null);
   assert.deepEqual(sandbox.readConfig(), config);
 
   config.ui.theme = 'changed';
   assert.equal(getConfig().ui.theme, 'nocturne');
+});
+
+test('updateConfig：非法预算值规范到默认值/null，合法值按范围钳制', () => {
+  fs.rmSync(sandbox.configPath, { force: true });
+
+  const config = updateConfig({
+    short_term_token_budget: 'abc',
+    long_term_index_budget: 1,
+    writing: { short_term_token_budget: 'abc' },
+  });
+  assert.equal(config.short_term_token_budget, 8000);
+  assert.equal(config.long_term_index_budget, 2000);
+  assert.equal(config.writing.short_term_token_budget, null);
+
+  const clamped = updateConfig({
+    short_term_token_budget: 999999,
+    long_term_index_budget: 999999999,
+    writing: { short_term_token_budget: 500 },
+  });
+  assert.equal(clamped.short_term_token_budget, 200000);
+  assert.equal(clamped.long_term_index_budget, 500000);
+  assert.equal(clamped.writing.short_term_token_budget, 1000);
+
+  const inherited = updateConfig({ writing: { short_term_token_budget: null } });
+  assert.equal(inherited.writing.short_term_token_budget, null);
 });
 
 test('读取旧配置时迁移共享密钥并持久化规范化结果', () => {

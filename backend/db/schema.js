@@ -517,20 +517,29 @@ function migrateScopedSettingsAndPromptDescriptions(db) {
 }
 
 function migrateTurnRecordsAndDiary(db) {
-  // turn_records 改为指针模式：新增 user_message_id / asst_message_id，移除复制内容字段
-  try { db.exec(`ALTER TABLE turn_records ADD COLUMN user_message_id TEXT`); } catch {}
-  try { db.exec(`ALTER TABLE turn_records ADD COLUMN asst_message_id TEXT`); } catch {}
+  // turn_records 逐步补列：
+  //   user_message_id / asst_message_id — 指针模式，替代已移除的复制内容字段
+  //   state_snapshot — 该轮结束时的三层状态，用于 regenerate/删除/编辑后的状态回滚
+  //   long_term_memory_snapshot — 该轮结束时 memory.md 全文，用于回滚时同步还原长期记忆
+  //   table_memory_snapshot — 该轮结束时 tables.json 全文，用于回滚时同步还原表格记忆
+  //   scene / cast_json — 摘要锚点：场景与在场角色，只用于召回时定位，不参与 embedding
+  //   middle_summary / middle_covered_to — 该轮结束时的滚动中期摘要及其覆盖到的轮次，NULL 表示旧数据未生成
+  const turnRecordCols = new Set(db.pragma('table_info(turn_records)').map((col) => col.name));
+  for (const [name, type] of [
+    ['user_message_id', 'TEXT'],
+    ['asst_message_id', 'TEXT'],
+    ['state_snapshot', 'TEXT'],
+    ['long_term_memory_snapshot', 'TEXT'],
+    ['table_memory_snapshot', 'TEXT'],
+    ['scene', 'TEXT'],
+    ['cast_json', 'TEXT'],
+    ['middle_summary', 'TEXT'],
+    ['middle_covered_to', 'INTEGER'],
+  ]) {
+    if (!turnRecordCols.has(name)) db.exec(`ALTER TABLE turn_records ADD COLUMN ${name} ${type}`);
+  }
   try { db.exec(`ALTER TABLE turn_records DROP COLUMN user_context`); } catch {}
   try { db.exec(`ALTER TABLE turn_records DROP COLUMN asst_context`); } catch {}
-  // 状态快照：保存该轮结束时的三层状态，用于 regenerate/删除/编辑后的状态回滚
-  try { db.exec(`ALTER TABLE turn_records ADD COLUMN state_snapshot TEXT`); } catch {}
-  // 长期记忆文件快照：保存该轮结束时 memory.md 的全文，用于回滚时同步还原长期记忆
-  try { db.exec(`ALTER TABLE turn_records ADD COLUMN long_term_memory_snapshot TEXT`); } catch {}
-  // 表格记忆文件快照：保存该轮结束时 tables.json 全文，用于回滚时同步还原表格记忆
-  try { db.exec(`ALTER TABLE turn_records ADD COLUMN table_memory_snapshot TEXT`); } catch {}
-  // 摘要锚点：场景与在场角色，只用于召回时定位，不参与 embedding
-  try { db.exec(`ALTER TABLE turn_records ADD COLUMN scene TEXT`); } catch {}
-  try { db.exec(`ALTER TABLE turn_records ADD COLUMN cast_json TEXT`); } catch {}
   // 日记系统：sessions 记录创建时的日记模式，daily_entries 存日记元数据
   try { db.exec(`ALTER TABLE sessions ADD COLUMN diary_date_mode TEXT`); } catch {}
   try { db.exec(`CREATE INDEX IF NOT EXISTS idx_daily_entries_session ON daily_entries(session_id, date_str)`); } catch {}

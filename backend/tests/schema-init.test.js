@@ -74,3 +74,65 @@ test('initSchema upgrades legacy sessions and recreates their indexes', () => {
     db.close();
   }
 });
+
+test('initSchema 为新建的空库创建含 middle_summary / middle_covered_to 列的 turn_records', () => {
+  const db = new Database(':memory:');
+  try {
+    initSchema(db);
+    const columns = db.pragma('table_info(turn_records)').map((column) => column.name);
+    assert.ok(columns.includes('middle_summary'));
+    assert.ok(columns.includes('middle_covered_to'));
+  } finally {
+    db.close();
+  }
+});
+
+test('initSchema 为缺少 middle_summary / middle_covered_to 的旧 turn_records 表补齐两列且保留旧数据', () => {
+  const db = new Database(':memory:');
+  db.exec(`
+    PRAGMA foreign_keys = ON;
+    CREATE TABLE sessions (
+      id TEXT PRIMARY KEY,
+      character_id TEXT,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL
+    );
+    CREATE TABLE turn_records (
+      id                        TEXT PRIMARY KEY,
+      session_id                TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+      round_index                INTEGER NOT NULL,
+      summary                    TEXT NOT NULL,
+      scene                      TEXT,
+      cast_json                  TEXT,
+      user_message_id            TEXT,
+      asst_message_id            TEXT,
+      state_snapshot             TEXT,
+      long_term_memory_snapshot  TEXT,
+      table_memory_snapshot      TEXT,
+      created_at                 INTEGER NOT NULL,
+      UNIQUE(session_id, round_index)
+    );
+    INSERT INTO sessions VALUES ('session-1', NULL, 1, 1);
+    INSERT INTO turn_records (id, session_id, round_index, summary, created_at)
+      VALUES ('turn-1', 'session-1', 1, '旧摘要', 1);
+  `);
+
+  try {
+    // guard-allow(tests): 连续执行两次，验证 initSchema 重复执行不出错
+    initSchema(db);
+    initSchema(db);
+
+    const columns = db.pragma('table_info(turn_records)').map((column) => column.name);
+    assert.ok(columns.includes('middle_summary'));
+    assert.ok(columns.includes('middle_covered_to'));
+
+    const row = db.prepare(
+      'SELECT summary, middle_summary, middle_covered_to FROM turn_records WHERE id = ?',
+    ).get('turn-1');
+    assert.deepEqual(row, { summary: '旧摘要', middle_summary: null, middle_covered_to: null });
+    assert.deepEqual(db.pragma('foreign_key_check'), []);
+    assert.equal(db.inTransaction, false);
+  } finally {
+    db.close();
+  }
+});

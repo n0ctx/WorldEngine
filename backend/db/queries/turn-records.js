@@ -3,6 +3,7 @@ import db from '../index.js';
 
 /**
  * 取会话最近 N 条 turn 摘要，按 round_index 升序返回（用于时间线）。
+ * 只取已生成摘要的行（summary != ''）。
  *
  * @param {string} sessionId
  * @param {number} limit
@@ -12,7 +13,7 @@ export function getRecentTurnSummaries(sessionId, limit) {
   return db.prepare(`
     SELECT round_index, summary, created_at FROM (
       SELECT round_index, summary, created_at FROM turn_records
-      WHERE session_id = ?
+      WHERE session_id = ? AND summary != ''
       ORDER BY round_index DESC LIMIT ?
     ) ORDER BY round_index ASC
   `).all(sessionId, limit);
@@ -34,10 +35,10 @@ export function getRecentTurnRecordIds(sessionId, limit) {
 /**
  * 插入或更新 turn record（按 session_id + round_index UPSERT）
  *
- * @param {object} data - { session_id, round_index, summary, scene, cast_json, user_message_id, asst_message_id, state_snapshot }
+ * @param {object} data - { session_id, round_index, summary, scene, cast_json, user_message_id, asst_message_id, state_snapshot, middle_summary, middle_covered_to }
  * @returns {object} 写入后的行
  */
-export function upsertTurnRecord({ session_id, round_index, summary, scene, cast_json, user_message_id, asst_message_id, state_snapshot }) {
+export function upsertTurnRecord({ session_id, round_index, summary, scene, cast_json, user_message_id, asst_message_id, state_snapshot, middle_summary, middle_covered_to }) {
   const existing = db.prepare(
     'SELECT id FROM turn_records WHERE session_id = ? AND round_index = ?',
   ).get(session_id, round_index);
@@ -47,16 +48,16 @@ export function upsertTurnRecord({ session_id, round_index, summary, scene, cast
   if (existing) {
     db.prepare(`
       UPDATE turn_records
-      SET summary = ?, scene = ?, cast_json = ?, user_message_id = ?, asst_message_id = ?, state_snapshot = ?, created_at = ?
+      SET summary = ?, scene = ?, cast_json = ?, user_message_id = ?, asst_message_id = ?, state_snapshot = ?, middle_summary = ?, middle_covered_to = ?, created_at = ?
       WHERE id = ?
-    `).run(summary, scene ?? null, cast_json ?? null, user_message_id ?? null, asst_message_id ?? null, state_snapshot ?? null, now, existing.id);
+    `).run(summary, scene ?? null, cast_json ?? null, user_message_id ?? null, asst_message_id ?? null, state_snapshot ?? null, middle_summary ?? null, middle_covered_to ?? null, now, existing.id);
     return getTurnRecordById(existing.id);
   } else {
     const id = crypto.randomUUID();
     db.prepare(`
-      INSERT INTO turn_records (id, session_id, round_index, summary, scene, cast_json, user_message_id, asst_message_id, state_snapshot, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(id, session_id, round_index, summary, scene ?? null, cast_json ?? null, user_message_id ?? null, asst_message_id ?? null, state_snapshot ?? null, now);
+      INSERT INTO turn_records (id, session_id, round_index, summary, scene, cast_json, user_message_id, asst_message_id, state_snapshot, middle_summary, middle_covered_to, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(id, session_id, round_index, summary, scene ?? null, cast_json ?? null, user_message_id ?? null, asst_message_id ?? null, state_snapshot ?? null, middle_summary ?? null, middle_covered_to ?? null, now);
     return getTurnRecordById(id);
   }
 }
@@ -154,6 +155,51 @@ export function updateTurnRecordLtmSnapshot(id, snapshot) {
 export function updateTurnRecordTableSnapshot(id, snapshot) {
   db.prepare('UPDATE turn_records SET table_memory_snapshot = ? WHERE id = ?')
     .run(snapshot ?? null, id);
+}
+
+/**
+ * 回填指定 turn record 的长期记忆索引字段（摘要 / 场景 / 在场角色）。
+ *
+ * @param {string} id
+ * @param {{ summary:string, scene?:string, cast_json?:string }} data
+ * @returns {number} 变更的行数
+ */
+export function updateTurnRecordIndex(id, { summary, scene, cast_json }) {
+  return db.prepare(
+    'UPDATE turn_records SET summary = ?, scene = ?, cast_json = ? WHERE id = ?',
+  ).run(summary, scene ?? null, cast_json ?? null, id).changes;
+}
+
+/**
+ * 取会话内已被中期摘要覆盖（round_index <= coveredTo）且已生成摘要的 turn record，
+ * 按 round_index 升序返回，供长期记忆索引召回使用。
+ *
+ * @param {string} sessionId
+ * @param {number} coveredTo
+ * @returns {Array<{ round_index:number, id:string, summary:string, scene:string, cast_json:string }>}
+ */
+export function getRecallIndexCandidates(sessionId, coveredTo) {
+  return db.prepare(`
+    SELECT round_index, id, summary, scene, cast_json FROM turn_records
+    WHERE session_id = ? AND round_index <= ? AND summary != ''
+    ORDER BY round_index ASC
+  `).all(sessionId, coveredTo);
+}
+
+/**
+ * 取会话内尚未生成摘要（summary = ''）的 turn record，按 round_index 升序返回，
+ * 供索引回填任务批量处理。
+ *
+ * @param {string} sessionId
+ * @param {number} limit
+ * @returns {object[]}
+ */
+export function getUnindexedTurnRecords(sessionId, limit) {
+  return db.prepare(`
+    SELECT * FROM turn_records
+    WHERE session_id = ? AND summary = ''
+    ORDER BY round_index ASC LIMIT ?
+  `).all(sessionId, limit);
 }
 
 /**

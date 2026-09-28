@@ -64,6 +64,8 @@ const DEFAULT_CONFIG = {
   table_memory_enabled: false,
   table_memory_row_limits: structuredClone(DEFAULT_ROW_LIMITS),
   memory_recall_max_sessions: 5,
+  short_term_token_budget: 8000,
+  long_term_index_budget: 20000,
   suggestion_enabled: false,
   log_prompt: false,
   logging: {
@@ -83,6 +85,7 @@ const DEFAULT_CONFIG = {
     context_history_rounds: null,
     chapter_turn_size: null,
     page_turn_size: null,
+    short_term_token_budget: null,
     suggestion_enabled: false,
     memory_expansion_enabled: true,
     long_term_memory_enabled: false,
@@ -116,6 +119,7 @@ const DEFAULT_WRITING = {
   context_history_rounds: null,
   chapter_turn_size: null,
   page_turn_size: null,
+  short_term_token_budget: null,
   suggestion_enabled: false,
   memory_expansion_enabled: true,
   long_term_memory_enabled: false,
@@ -239,6 +243,20 @@ function normalizeConfigForPersist(config) {
     DEFAULT_CONFIG.page_turn_size,
     { min: 1, max: 10000 },
   );
+  normalized.short_term_token_budget = normalizePositiveInteger(
+    normalized.short_term_token_budget,
+    DEFAULT_CONFIG.short_term_token_budget,
+    { min: 1000, max: 200000 },
+  );
+  normalized.long_term_index_budget = normalizePositiveInteger(
+    normalized.long_term_index_budget,
+    DEFAULT_CONFIG.long_term_index_budget,
+    { min: 2000, max: 500000 },
+  );
+  // writing 侧为 null 时继承 chat 顶层预算：null 原样保留，非法值同样回退 null
+  normalized.writing.short_term_token_budget = normalized.writing.short_term_token_budget == null
+    ? null
+    : normalizePositiveInteger(normalized.writing.short_term_token_budget, null, { min: 1000, max: 200000 });
   // 行数上限：缺失 key 补默认、非法值清洗、未知 key 丢弃（单字段编辑不会抹掉其余 4 表）
   normalized.table_memory_row_limits = resolveRowLimits(normalized.table_memory_row_limits);
   return normalized;
