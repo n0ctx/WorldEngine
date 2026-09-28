@@ -6,7 +6,7 @@ import RulesListPane from './components/RulesListPane.jsx';
 import RulesDetailPane from './components/RulesDetailPane.jsx';
 import RulesModals from './components/RulesModals.jsx';
 import { useRulesData } from './hooks/useRulesData.js';
-import { SCOPES, UNGROUPED } from './constants.js';
+import { SCOPES } from './constants.js';
 
 export default function RulesPage() {
   const { worldId } = useParams();
@@ -14,8 +14,7 @@ export default function RulesPage() {
   const navigate = useNavigate();
 
   // ── 设定条目 ──
-  const [entryFilter, setEntryFilter] = useState('all'); // all | 分组名 | UNGROUPED（左栏导航）
-  const [triggerTypeFilter, setTriggerTypeFilter] = useState('all'); // all | always | keyword | llm | state（中栏筛选 chip）
+  const [entryFilter, setEntryFilter] = useState('all');
   const [orderMode, setOrderMode] = useState(false);
   const [selectedEntryId, setSelectedEntryId] = useState(null);
   const [creatingEntry, setCreatingEntry] = useState(false);
@@ -33,7 +32,7 @@ export default function RulesPage() {
   const {
     entries, setEntries, refreshEntries,
     fieldsByScope, loadFieldsFor,
-    groupList, existingGroupNames,
+    triggerCounts,
     handleDeleteEntry, handleToggleEntry, handleReorderEntriesEnd,
     handleDeleteField,
   } = useRulesData(worldId, { selectedEntryId, setSelectedEntryId });
@@ -69,16 +68,7 @@ export default function RulesPage() {
     if (deleted && field.field_key === selectedFieldKey) setSelectedFieldKey(null);
   }
 
-  const groupFilteredEntries = entryFilter === 'all'
-    ? entries
-    : entryFilter === UNGROUPED
-      ? entries.filter((e) => !e.group_name)
-      : entries.filter((e) => e.group_name === entryFilter);
-  const filteredEntries = triggerTypeFilter === 'all'
-    ? groupFilteredEntries
-    : groupFilteredEntries.filter((e) => e.trigger_type === triggerTypeFilter);
-  // 新建条目预填分组：当前选中了具体分组时带入，选"全部"/"未分组"时不预填
-  const defaultGroupNameForNew = entryFilter !== 'all' && entryFilter !== UNGROUPED ? entryFilter : '';
+  const filteredEntries = entryFilter === 'all' ? entries : entries.filter((e) => e.trigger_type === entryFilter);
 
   return (
     <div className="we-characters-canvas">
@@ -95,7 +85,7 @@ export default function RulesPage() {
             entryFilter={entryFilter}
             fieldScopeKey={fieldScopeKey}
             entries={entries}
-            groupList={groupList}
+            triggerCounts={triggerCounts}
             fieldsByScope={fieldsByScope}
             onSelectEntryGroup={selectEntryGroup}
             onSelectFieldScope={selectFieldScope}
@@ -109,8 +99,6 @@ export default function RulesPage() {
             setOrderMode={setOrderMode}
             setSelectedEntryId={setSelectedEntryId}
             setCreatingEntry={setCreatingEntry}
-            triggerTypeFilter={triggerTypeFilter}
-            setTriggerTypeFilter={setTriggerTypeFilter}
             entries={entries}
             filteredEntries={filteredEntries}
             selectedEntryId={selectedEntryId}
@@ -134,8 +122,7 @@ export default function RulesPage() {
             creatingEntry={creatingEntry}
             selectedEntry={selectedEntry}
             worldId={worldId}
-            defaultGroupNameForNew={defaultGroupNameForNew}
-            existingGroupNames={existingGroupNames}
+            defaultTriggerTypeForNew={entryFilter === 'all' ? undefined : entryFilter}
             setCreatingEntry={setCreatingEntry}
             setSelectedEntryId={setSelectedEntryId}
             refreshEntries={refreshEntries}

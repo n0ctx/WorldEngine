@@ -7,7 +7,7 @@ import { TYPE_LABEL } from '../constants.js';
 import DefaultValueMatrix from './DefaultValueMatrix.jsx';
 
 // ── 字段详情：定义 + 默认值矩阵 + 相关条目 ──
-export default function FieldDetail({ worldId, scope, scopeKey, field, existingGroupNames, onDefinitionSaved }) {
+export default function FieldDetail({ worldId, scope, scopeKey, field, onDefinitionSaved }) {
   const [entryEditor, setEntryEditor] = useState(null); // { entry } | { prefill:true }
   const [entriesReload, setEntriesReload] = useState(0);
   const [editingDef, setEditingDef] = useState(false); // 是否就地展开「编辑定义」
@@ -62,7 +62,6 @@ export default function FieldDetail({ worldId, scope, scopeKey, field, existingG
             worldId={worldId}
             entry={entryEditor.entry ?? null}
             defaultTriggerType="state"
-            existingGroupNames={existingGroupNames}
             prefillCondition={entryEditor.prefill ? { scope: scope.cnScope, field_label: field.label } : undefined}
             onClose={() => setEntryEditor(null)}
             onSave={() => { setEntryEditor(null); setEntriesReload((k) => k + 1); }}

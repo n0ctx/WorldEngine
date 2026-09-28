@@ -1,6 +1,6 @@
 import { useRef } from 'react';
 import BounceRail from '../../../components/motion/BounceRail.jsx';
-import { FIELD_SCOPE_KEYS, SCOPES, UNGROUPED } from '../constants.js';
+import { FIELD_SCOPE_KEYS, SCOPES, TRIGGER_TYPES } from '../constants.js';
 
 // 左栏导航项：选中态同时写 class（底色）和 aria-current（读屏，也是弹跳圆点的定位依据）
 const navItemProps = (active) => ({
@@ -10,7 +10,7 @@ const navItemProps = (active) => ({
 });
 
 export default function RulesNav({
-  navMode, entryFilter, fieldScopeKey, entries, groupList, fieldsByScope,
+  navMode, entryFilter, fieldScopeKey, entries, triggerCounts, fieldsByScope,
   onSelectEntryGroup, onSelectFieldScope,
 }) {
   const navRef = useRef(null);
@@ -28,25 +28,17 @@ export default function RulesNav({
           <span>全部</span>
           <span className="we-field-badge">{entries.length}</span>
         </button>
-        {groupList.named.map(([name, count]) => (
+        {TRIGGER_TYPES.map(({ key, label }) => (
           <button
-            key={name}
-            data-testid={`nav-entries-group-${name}`}
-            {...navItemProps(navMode === 'entries' && entryFilter === name)}
-            onClick={() => onSelectEntryGroup(name)}
+            key={key}
+            data-testid={`nav-entries-${key}`}
+            {...navItemProps(navMode === 'entries' && entryFilter === key)}
+            onClick={() => onSelectEntryGroup(key)}
           >
-            <span>{name}</span>
-            <span className="we-field-badge">{count}</span>
+            <span>{label}</span>
+            <span className="we-field-badge">{triggerCounts[key]}</span>
           </button>
         ))}
-        <button
-          data-testid="nav-entries-ungrouped"
-          {...navItemProps(navMode === 'entries' && entryFilter === UNGROUPED)}
-          onClick={() => onSelectEntryGroup(UNGROUPED)}
-        >
-          <span>未分组</span>
-          <span className="we-field-badge">{groupList.ungroupedCount}</span>
-        </button>
       </div>
 
       <div className="we-workshop-nav-group">

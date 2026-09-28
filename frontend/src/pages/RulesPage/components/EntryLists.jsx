@@ -3,7 +3,7 @@ import SortableList from '../../../components/ui/SortableList.jsx';
 import DeleteButton from '../../../components/motion/DeleteButton.jsx';
 import { TRIGGER_LABEL } from '../constants.js';
 
-// ── 设定条目：普通列表（按分组筛选，不可拖拽——sort_order 是跨类型的全局顺序，
+// ── 设定条目：普通列表（按机制筛选，不可拖拽——sort_order 是跨类型的全局顺序，
 //    筛选后的子集内拖拽会破坏真实顺序，拖拽排序统一放到「调整顺序」视图里做）──
 export function EntryPlainList({ entries, selectedId, onSelect, onToggle, onDelete }) {
   if (entries.length === 0) {

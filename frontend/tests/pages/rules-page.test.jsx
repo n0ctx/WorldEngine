@@ -74,7 +74,7 @@ vi.mock('../../src/core/utils/logger.js', () => ({
 }));
 
 // EntryEditor / StateFieldEditor / StateValueField 都是复杂子组件，这里只关心 RulesPage 自身的
-// 分组导航、列表筛选、启用开关、删除确认这些结构性行为，子组件内部逻辑各自有单测覆盖。
+// 机制导航、列表筛选、启用开关、删除确认这些结构性行为，子组件内部逻辑各自有单测覆盖。
 vi.mock('../../src/components/state/EntryEditor', () => ({
   default: ({ entry, onClose }) => (
     <div data-testid="entry-editor">
@@ -125,17 +125,17 @@ describe('RulesPage', () => {
     expect(mocks.navigate).toHaveBeenCalledWith('/worlds/world-1');
   });
 
-  it('左栏按用户自定义分组导航 + 全部 + 未分组，状态字段三个作用域', async () => {
+  it('左栏按触发机制自动分组，状态字段保留三个作用域', async () => {
     render(<RulesPage />);
 
     await waitFor(() => expect(mocks.listWorldEntries).toHaveBeenCalledWith('world-1'));
 
-    // 设定条目：全部 4，「总则」分组 2（世界观设定 + 战斗触发），未分组 2（常驻规则 + 好感条件）
     expect(screen.getByTestId('nav-entries-all')).toHaveTextContent('全部4');
-    expect(screen.getByTestId('nav-entries-group-总则')).toHaveTextContent('总则2');
-    expect(screen.getByTestId('nav-entries-ungrouped')).toHaveTextContent('未分组2');
-    // 机制不再是左栏分类维度
-    expect(screen.queryByTestId('nav-entries-always')).not.toBeInTheDocument();
+    expect(screen.getByTestId('nav-entries-always')).toHaveTextContent('一直生效2');
+    expect(screen.getByTestId('nav-entries-keyword')).toHaveTextContent('出现关键词1');
+    expect(screen.getByTestId('nav-entries-llm')).toHaveTextContent('AI 判断相关0');
+    expect(screen.getByTestId('nav-entries-state')).toHaveTextContent('状态满足条件1');
+    expect(screen.queryByTestId('nav-entries-group-总则')).not.toBeInTheDocument();
 
     // 状态字段：三个作用域初始为空
     await waitFor(() => expect(mocks.listCharacterStateFields).toHaveBeenCalledWith('world-1'));
@@ -144,30 +144,30 @@ describe('RulesPage', () => {
     expect(screen.getByTestId('nav-fields-persona')).toHaveTextContent('玩家状态0');
   });
 
-  it('点击「总则」分组后中栏只显示该分组条目', async () => {
+  it('点击机制后中栏只显示该机制条目，不受旧手动分组影响', async () => {
     render(<RulesPage />);
     await waitFor(() => expect(mocks.listWorldEntries).toHaveBeenCalled());
 
-    fireEvent.click(screen.getByTestId('nav-entries-group-总则'));
+    fireEvent.click(screen.getByTestId('nav-entries-always'));
 
     // 右栏此时是「世界规则概览」空态，注入顺序预览里也会出现同名条目——
     // 用 data-testid 把断言范围收窄到中栏列表本身，避免和概览面板的文本重复。
     const list = within(screen.getByTestId('entry-list'));
     expect(list.getByText('世界观设定')).toBeInTheDocument();
-    expect(list.getByText('战斗触发')).toBeInTheDocument();
-    expect(list.queryByText('常驻规则')).not.toBeInTheDocument();
+    expect(list.getByText('常驻规则')).toBeInTheDocument();
+    expect(list.queryByText('战斗触发')).not.toBeInTheDocument();
     expect(list.queryByText('好感条件')).not.toBeInTheDocument();
   });
 
-  it('点击「未分组」后中栏只显示未分组条目', async () => {
+  it('点击状态条件后中栏只显示对应条目', async () => {
     render(<RulesPage />);
     await waitFor(() => expect(mocks.listWorldEntries).toHaveBeenCalled());
 
-    fireEvent.click(screen.getByTestId('nav-entries-ungrouped'));
+    fireEvent.click(screen.getByTestId('nav-entries-state'));
 
     const list = within(screen.getByTestId('entry-list'));
-    expect(list.getByText('常驻规则')).toBeInTheDocument();
     expect(list.getByText('好感条件')).toBeInTheDocument();
+    expect(list.queryByText('常驻规则')).not.toBeInTheDocument();
     expect(list.queryByText('世界观设定')).not.toBeInTheDocument();
   });
 
@@ -208,11 +208,11 @@ describe('RulesPage', () => {
     await waitFor(() => expect(mocks.listWorldEntries).toHaveBeenCalledTimes(2));
   });
 
-  it('调整顺序：切到顺序视图后按钮文案变化，全部条目一起展示（不受分组筛选影响）', async () => {
+  it('调整顺序：切到顺序视图后全部条目一起展示', async () => {
     render(<RulesPage />);
     await waitFor(() => expect(mocks.listWorldEntries).toHaveBeenCalled());
 
-    fireEvent.click(screen.getByTestId('nav-entries-group-总则')); // 先筛到「总则」分组
+    fireEvent.click(screen.getByTestId('nav-entries-always'));
     fireEvent.click(screen.getByText('调整顺序'));
 
     expect(screen.getByText('完成排序')).toBeInTheDocument();

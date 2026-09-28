@@ -46,8 +46,6 @@ export const FIELD_SCOPE_KEYS = ['world', 'character', 'persona'];
 
 export const TYPE_LABEL = { text: '文本', number: '数值', boolean: '布尔', enum: '枚举', list: '列表', datetime: '时间', table: '表格' };
 
-// 触发机制：条目的一个属性（何时生效），不再是左栏分类维度——
-// 左栏改按用户自己起的分组名导航，机制只在中栏色点 + 筛选 chip、右栏详情里出现。
 export const TRIGGER_TYPES = [
   { key: 'always', label: '一直生效', desc: '始终注入' },
   { key: 'keyword', label: '出现关键词', desc: '对话中出现指定词语时自动注入' },
@@ -55,4 +53,3 @@ export const TRIGGER_TYPES = [
   { key: 'state', label: '状态满足条件', desc: '当状态字段满足设定条件时自动注入' },
 ];
 export const TRIGGER_LABEL = Object.fromEntries(TRIGGER_TYPES.map((t) => [t.key, t.label]));
-export const UNGROUPED = '__ungrouped__';

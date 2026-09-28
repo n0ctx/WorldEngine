@@ -4,7 +4,7 @@ import FieldDetail from './FieldDetail.jsx';
 
 export default function RulesDetailPane({
   navMode, orderMode, creatingEntry, selectedEntry,
-  worldId, defaultGroupNameForNew, existingGroupNames,
+  worldId, defaultTriggerTypeForNew,
   setCreatingEntry, setSelectedEntryId, refreshEntries,
   entries, fieldsByScope,
   selectedField, fieldScope, fieldScopeKey, loadFieldsFor,
@@ -20,8 +20,7 @@ export default function RulesDetailPane({
               inline
               worldId={worldId}
               entry={null}
-              defaultGroupName={defaultGroupNameForNew}
-              existingGroupNames={existingGroupNames}
+              defaultTriggerType={defaultTriggerTypeForNew}
               onClose={() => setCreatingEntry(false)}
               onSave={() => { setCreatingEntry(false); refreshEntries(); }}
             />
@@ -33,7 +32,6 @@ export default function RulesDetailPane({
               inline
               worldId={worldId}
               entry={selectedEntry}
-              existingGroupNames={existingGroupNames}
               onClose={() => setSelectedEntryId(null)}
               onSave={() => refreshEntries()}
             />
@@ -58,7 +56,6 @@ export default function RulesDetailPane({
           scope={fieldScope}
           scopeKey={fieldScopeKey}
           field={selectedField}
-          existingGroupNames={existingGroupNames}
           onDefinitionSaved={() => loadFieldsFor(fieldScopeKey)}
         />
       )}

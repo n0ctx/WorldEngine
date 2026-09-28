@@ -3,7 +3,7 @@ import {
   listWorldEntries, deleteWorldEntry, reorderWorldEntries, updateWorldEntry,
 } from '../../../core/api/prompt-entries';
 import { log } from '../../../core/utils/logger.js';
-import { FIELD_SCOPE_KEYS, SCOPES, UNGROUPED } from '../constants.js';
+import { FIELD_SCOPE_KEYS, SCOPES, TRIGGER_TYPES } from '../constants.js';
 
 // 设定条目与状态字段的数据加载、增删改切换逻辑。UI 层的选中态/筛选态留在页面组件里。
 export function useRulesData(worldId, { selectedEntryId, setSelectedEntryId }) {
@@ -38,21 +38,9 @@ export function useRulesData(worldId, { selectedEntryId, setSelectedEntryId }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- 仅需在 worldId 变化时重拉
   }, [worldId]);
 
-  // 左栏分组：用户自己在条目详情里填的 group_name，未分组的落在 UNGROUPED。
-  // 不按 trigger_type 派生——机制不再是分类维度。
-  const groupList = useMemo(() => {
-    const counts = new Map();
-    for (const e of entries) {
-      const key = e.group_name ? e.group_name : UNGROUPED;
-      counts.set(key, (counts.get(key) ?? 0) + 1);
-    }
-    const named = [...counts.entries()]
-      .filter(([key]) => key !== UNGROUPED)
-      .sort((a, b) => a[0].localeCompare(b[0], 'zh'));
-    return { named, ungroupedCount: counts.get(UNGROUPED) ?? 0 };
-  }, [entries]);
-  // 详情里「分组」输入框的建议列表：用户已经起过的分组名
-  const existingGroupNames = useMemo(() => groupList.named.map(([name]) => name), [groupList]);
+  const triggerCounts = useMemo(() => Object.fromEntries(
+    TRIGGER_TYPES.map(({ key }) => [key, entries.filter((entry) => entry.trigger_type === key).length]),
+  ), [entries]);
 
   const handleDeleteEntry = useCallback(async (entry) => {
     try {
@@ -99,7 +87,7 @@ export function useRulesData(worldId, { selectedEntryId, setSelectedEntryId }) {
   return {
     entries, setEntries, refreshEntries,
     fieldsByScope, loadFieldsFor,
-    groupList, existingGroupNames,
+    triggerCounts,
     handleDeleteEntry, handleToggleEntry, handleReorderEntriesEnd,
     handleDeleteField,
   };

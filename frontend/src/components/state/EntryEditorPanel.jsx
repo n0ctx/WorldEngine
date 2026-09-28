@@ -6,7 +6,7 @@ import { clampActiveTurns, clampToken, emptyCondition, TRIGGER_SEGMENTS } from '
 
 export default function EntryEditorPanel({ model, inline }) {
   const {
-    isNew, form, setForm, saving, existingGroupNames, onClose,
+    isNew, form, setForm, saving, onClose,
     keywordInput, setKeywordInput, keywordRef, addKeyword, removeKeyword,
     suggestion, handleAdoptSuggestion, handleDismissSuggestion,
     conditions, fieldTypeMap, rawFieldsByScope, updateCondition, setConditions, handleSave,
@@ -29,22 +29,6 @@ export default function EntryEditorPanel({ model, inline }) {
           className="we-entry-editor-field we-entry-editor-field-mb"
         />
 
-        {/* 分组：条目自己的一个属性，不是必填；输入框带既有分组建议 */}
-        <label className="we-entry-editor-label">分组（可选，用于左栏导航）</label>
-        <div className="we-entry-group-row we-entry-editor-field-mb">
-          <input
-            list="we-entry-group-suggestions"
-            value={form.group_name}
-            onChange={(e) => setForm((f) => ({ ...f, group_name: e.target.value }))}
-            placeholder="例如：城市地理"
-            className="we-entry-editor-field"
-          />
-          <datalist id="we-entry-group-suggestions">
-            {(existingGroupNames ?? []).map((name) => <option key={name} value={name} />)}
-          </datalist>
-        </div>
-
-        {/* 何时生效：机制降级为条目的一个属性，切换后下方对应参数区跟着变 */}
         <label className="we-entry-editor-label">何时生效</label>
         <div className="we-trigger-segmented we-entry-editor-field-mb" role="radiogroup" aria-label="触发机制">
           {TRIGGER_SEGMENTS.map((seg) => (

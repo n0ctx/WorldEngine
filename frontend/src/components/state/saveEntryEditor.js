@@ -19,7 +19,6 @@ export default async function saveEntryEditor({ worldId, entry, isNew, form, key
     keyword_scope: form.keyword_scope.join(','),
     active_turns: clampActiveTurns(form.active_turns),
     token: clampToken(form.token, form.trigger_type),
-    group_name: form.group_name.trim() || null,
   };
 
   const saved = isNew

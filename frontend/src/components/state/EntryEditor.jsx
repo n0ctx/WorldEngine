@@ -8,7 +8,7 @@ import useEntryTriggerSuggestion from './useEntryTriggerSuggestion.js';
 import { applyConditionPatch, clampActiveTurns, findScopeForFieldLabel, parseKeywordScope } from './entryEditorRules.js';
 
 export default function EntryEditor({
-  worldId, entry, defaultTriggerType, defaultGroupName, existingGroupNames,
+  worldId, entry, defaultTriggerType,
   prefillCondition, onClose, onSave, inline = false,
 }) {
   useEscapeKey(onClose, !inline);
@@ -25,7 +25,6 @@ export default function EntryEditor({
     keyword_scope: entry ? parseKeywordScope(entry.keyword_scope) : ['user', 'assistant'],
     active_turns: clampActiveTurns(entry?.active_turns ?? 1),
     token: entry?.token ?? 1,
-    group_name: entry?.group_name ?? defaultGroupName ?? '',
   });
   const [saving, setSaving] = useState(false);
   const [keywordInput, setKeywordInput] = useState('');
@@ -99,7 +98,7 @@ export default function EntryEditor({
   }
 
   const model = {
-    isNew, form, setForm, saving, existingGroupNames, onClose,
+    isNew, form, setForm, saving, onClose,
     keywordInput, setKeywordInput, keywordRef, addKeyword, removeKeyword,
     suggestion, handleAdoptSuggestion, handleDismissSuggestion,
     conditions, fieldTypeMap, rawFieldsByScope, updateCondition, setConditions, handleSave,

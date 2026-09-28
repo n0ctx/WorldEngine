@@ -1359,31 +1359,6 @@
   clip-path: polygon(50% 0%, 0% 100%, 100% 100%);
 }
 
-/* 中栏机制筛选 chip：默认不筛，选中态复用 nav-item 同款 accent 描边逻辑 */
-.we-trigger-filter-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--we-space-xs);
-}
-.we-trigger-filter-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--we-space-xxs);
-  padding: var(--we-space-xxs) var(--we-space-sm);
-  border-radius: var(--we-radius-md);
-  font-size: var(--we-text-xs);
-  color: var(--we-color-text-secondary);
-  background: var(--we-color-bg-muted);
-  border: 1px solid transparent;
-  cursor: pointer;
-  transition: background var(--we-duration-fast) var(--we-easing-sharp), border-color var(--we-duration-fast) var(--we-easing-sharp);
-}
-.we-trigger-filter-chip:hover { background: var(--we-color-bg-subtle); }
-.we-trigger-filter-chip.is-active {
-  color: var(--we-color-text-primary);
-  border-color: var(--we-color-accent);
-}
-
 /* 何时生效：分段控件（新建/编辑条目详情里的机制选择） */
 .we-trigger-segmented {
   display: flex;
@@ -1426,13 +1401,6 @@
   display: flex;
   gap: var(--we-space-xs);
   flex-shrink: 0;
-}
-
-/* 分组名输入：既有分组做建议列表 */
-.we-entry-group-row {
-  display: flex;
-  align-items: center;
-  gap: var(--we-space-sm);
 }
 
 .we-entry-editor-footer {
