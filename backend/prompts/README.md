@@ -76,7 +76,7 @@
 ### 状态更新与压缩
 
 - `templates/state-update.md`
-  会话结束后批量更新世界 / 玩家 / 角色状态的 prompt。
+  每轮生成后批量更新世界 / 玩家 / 角色状态，并写入状态记忆（实体档案、现状、关系、线索、世界档案与事实）的 prompt。
   调用方：`backend/memory/combined-state-updater.js`
 - `templates/state-compress.md`
   状态字段（text / list 等）超出 token 阈值时的压缩 prompt。
