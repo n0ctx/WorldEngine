@@ -26,6 +26,7 @@ import sessionsRoutes from './routes/sessions.js';
 import chatRoutes from './routes/chat.js';
 import promptEntriesRoutes from './routes/prompt-entries.js';
 import stateFieldsRoutes from './routes/state-fields.js';
+import stateMemorySchemaRoutes from './routes/state-memory-schema.js';
 import worldStateValuesRoutes from './routes/world-state-values.js';
 import characterStateValuesRoutes from './routes/character-state-values.js';
 import importExportRoutes from './routes/import-export.js';
@@ -166,6 +167,7 @@ export function createApp() {
   app.use('/api/sessions', tableMemoryRoutes);
   app.use('/api', promptEntriesRoutes);
   app.use('/api', stateFieldsRoutes);
+  app.use('/api', stateMemorySchemaRoutes);
   app.use('/api', worldStateValuesRoutes);
   app.use('/api', characterStateValuesRoutes);
   app.use('/api', importExportRoutes);
