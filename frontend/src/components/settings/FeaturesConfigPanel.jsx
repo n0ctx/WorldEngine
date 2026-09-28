@@ -166,7 +166,7 @@ function MemorySettings({
       {tableMemoryEnabledCurrent && (
         <div className="we-settings-field-group">
           <p className="we-settings-toggle-hint we-settings-rowlimit-hint">
-            每张表的行数上限（0 = 不限制，对话与写作共用）。表满后 AI 新增前会先归档最不重要的旧行；若 AI 未归档，系统兜底归档最旧的行。
+            每张表的行数上限（0 = 不限制）。表满后 AI 新增前会先归档最不重要的旧行；若 AI 未归档，系统兜底归档最旧的行。
           </p>
           {TABLE_MEMORY_TABLES.map(({ key, name }) => (
             <div key={key} className="we-settings-inline-field we-settings-rowlimit-item">
@@ -242,7 +242,7 @@ function ResponseSettings({
 
       <ToggleRow
         label="渲染思维链"
-        hint="显示 <think> 标签内容（可折叠），对话与写作均生效；关闭则完全屏蔽"
+        hint="显示 <think> 标签内容（可折叠）；关闭则完全屏蔽"
         checked={showThinking}
         onChange={onToggleShowThinking}
       />
@@ -270,7 +270,7 @@ function ResponseSettings({
 
       <ToggleRow
         label="弹幕"
-        hint="每轮回复后由副模型生成几条「观众弹幕」，在输入框上方滚动飘过（纯特效，不保存，对话与写作共用）"
+        hint="每轮回复后由副模型生成几条「观众弹幕」，在输入框上方滚动飘过（纯特效，不保存）"
         checked={danmakuEnabled}
         onChange={onToggleDanmaku}
       />

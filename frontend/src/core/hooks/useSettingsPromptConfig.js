@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react';
 import { useDisplaySettingsStore } from '../state/displaySettings.js';
 import { useSaveState } from './useSaveState.js';
+import { modePatch, modeValue } from './settingsModeValue.js';
 import {
   readDanmakuSettings,
   readMemorySettings,
@@ -8,7 +9,8 @@ import {
   readTurnSizeSettings,
 } from './settingsConfigState.js';
 
-export function useSettingsPromptConfig(patchConfig) {
+export function useSettingsPromptConfig(patchConfig, settingsMode) {
+  const isWriting = settingsMode === 'writing';
   const [globalSystemPrompt, setGlobalSystemPrompt] = useState('');
   const [globalPostPrompt, setGlobalPostPrompt] = useState('');
   const [shortTermTokenBudget, setShortTermTokenBudget] = useState(8000);
@@ -22,16 +24,23 @@ export function useSettingsPromptConfig(patchConfig) {
   const [tableMemoryEnabled, setTableMemoryEnabled] = useState(false);
   const [writingTableMemoryEnabled, setWritingTableMemoryEnabled] = useState(false);
   const [tableMemoryRowLimits, setTableMemoryRowLimits] = useState({});
+  const [writingTableMemoryRowLimits, setWritingTableMemoryRowLimits] = useState({});
   const [memoryRecallMaxSessions, setMemoryRecallMaxSessions] = useState(5);
+  const [writingMemoryRecallMaxSessions, setWritingMemoryRecallMaxSessions] = useState(5);
   const [longTermIndexBudget, setLongTermIndexBudget] = useState(20000);
+  const [writingLongTermIndexBudget, setWritingLongTermIndexBudget] = useState(20000);
   const [danmakuEnabled, setDanmakuEnabled] = useState(false);
+  const [writingDanmakuEnabled, setWritingDanmakuEnabled] = useState(false);
   const [danmakuCount, setDanmakuCount] = useState(5);
+  const [writingDanmakuCount, setWritingDanmakuCount] = useState(5);
   const [danmakuSpeed, setDanmakuSpeedLocal] = useState('normal');
+  const [writingDanmakuSpeed, setWritingDanmakuSpeedLocal] = useState('normal');
   const [chapterTurnSize, setChapterTurnSize] = useState(20);
   const [writingChapterTurnSize, setWritingChapterTurnSize] = useState(null);
   const [pageTurnSize, setPageTurnSize] = useState(50);
   const [writingPageTurnSize, setWritingPageTurnSize] = useState(null);
   const setDanmakuSpeedStore = useDisplaySettingsStore((state) => state.setDanmakuSpeed);
+  const setWritingDanmakuSpeedStore = useDisplaySettingsStore((state) => state.setWritingDanmakuSpeed);
   const { saving, saved, run: runSave } = useSaveState();
   const { saving: savingWriting, saved: savedWriting, run: runSaveWriting } = useSaveState();
 
@@ -52,16 +61,23 @@ export function useSettingsPromptConfig(patchConfig) {
     setTableMemoryEnabled(settings.tableMemoryEnabled);
     setWritingTableMemoryEnabled(settings.writingTableMemoryEnabled);
     setTableMemoryRowLimits(settings.tableMemoryRowLimits);
+    setWritingTableMemoryRowLimits(settings.writingTableMemoryRowLimits);
     setMemoryRecallMaxSessions(settings.memoryRecallMaxSessions);
+    setWritingMemoryRecallMaxSessions(settings.writingMemoryRecallMaxSessions);
     setLongTermIndexBudget(settings.longTermIndexBudget);
+    setWritingLongTermIndexBudget(settings.writingLongTermIndexBudget);
   }, []);
 
   const applyDanmakuSettings = useCallback((settings) => {
     setDanmakuEnabled(settings.danmakuEnabled);
     setDanmakuCount(settings.danmakuCount);
     setDanmakuSpeedLocal(settings.danmakuSpeed);
+    setWritingDanmakuEnabled(settings.writingDanmakuEnabled);
+    setWritingDanmakuCount(settings.writingDanmakuCount);
+    setWritingDanmakuSpeedLocal(settings.writingDanmakuSpeed);
     setDanmakuSpeedStore(settings.danmakuSpeed);
-  }, [setDanmakuSpeedStore]);
+    setWritingDanmakuSpeedStore(settings.writingDanmakuSpeed);
+  }, [setDanmakuSpeedStore, setWritingDanmakuSpeedStore]);
 
   const applyTurnSizeSettings = useCallback((settings) => {
     setChapterTurnSize(settings.chapterTurnSize);
@@ -151,20 +167,20 @@ export function useSettingsPromptConfig(patchConfig) {
   }
 
   async function handleToggleDanmaku(enabled) {
-    setDanmakuEnabled(enabled);
-    await patchConfig({ danmaku: { enabled } });
+    modeValue(isWriting, setDanmakuEnabled, setWritingDanmakuEnabled)(enabled);
+    await patchConfig(modePatch(isWriting, 'enabled', enabled, 'danmaku'));
   }
 
   async function handleSaveDanmakuCount(value) {
     const n = Math.max(1, Math.min(20, Number(value) || 5));
-    setDanmakuCount(n);
-    await patchConfig({ danmaku: { count: n } });
+    modeValue(isWriting, setDanmakuCount, setWritingDanmakuCount)(n);
+    await patchConfig(modePatch(isWriting, 'count', n, 'danmaku'));
   }
 
   async function handleChangeDanmakuSpeed(speed) {
-    setDanmakuSpeedLocal(speed);
-    setDanmakuSpeedStore(speed);
-    await patchConfig({ danmaku: { speed } });
+    modeValue(isWriting, setDanmakuSpeedLocal, setWritingDanmakuSpeedLocal)(speed);
+    modeValue(isWriting, setDanmakuSpeedStore, setWritingDanmakuSpeedStore)(speed);
+    await patchConfig(modePatch(isWriting, 'speed', speed, 'danmaku'));
   }
 
   async function handleToggleWritingMemoryExpansion(enabled) {
@@ -182,29 +198,23 @@ export function useSettingsPromptConfig(patchConfig) {
   async function handleSaveTableMemoryRowLimit(key, value) {
     const isEmpty = value === '' || value === null || value === undefined;
     const n = isEmpty ? 0 : Math.min(1000, Math.max(0, Math.floor(Number(value) || 0)));
-    setTableMemoryRowLimits((prev) => ({ ...prev, [key]: n }));
-    await patchConfig({ table_memory_row_limits: { [key]: n } });
+    modeValue(isWriting, setTableMemoryRowLimits, setWritingTableMemoryRowLimits)((prev) => ({ ...prev, [key]: n }));
+    await patchConfig(modePatch(isWriting, 'table_memory_row_limits', { [key]: n }));
   }
 
   async function handleSaveMemoryRecallMaxSessions(value) {
     const isEmpty = value === '' || value === null || value === undefined;
     const n = isEmpty ? 5 : Math.max(1, Math.floor(Number(value) || 5));
-    setMemoryRecallMaxSessions(n);
-    await patchConfig({ memory_recall_max_sessions: n });
+    modeValue(isWriting, setMemoryRecallMaxSessions, setWritingMemoryRecallMaxSessions)(n);
+    await patchConfig(modePatch(isWriting, 'memory_recall_max_sessions', n));
   }
 
   async function handleSaveLongTermIndexBudget(value) {
     const isEmpty = value === '' || value === null || value === undefined;
     const n = isEmpty ? 20000 : Math.min(500000, Math.max(2000, Math.floor(Number(value) || 20000)));
-    setLongTermIndexBudget(n);
-    await patchConfig({ long_term_index_budget: n });
+    modeValue(isWriting, setLongTermIndexBudget, setWritingLongTermIndexBudget)(n);
+    await patchConfig(modePatch(isWriting, 'long_term_index_budget', n));
   }
-
-  const applyImportedPromptSettings = useCallback((importedConfig) => {
-    applyPromptSettings(readPromptSettings(importedConfig));
-    applyMemorySettings(readMemorySettings(importedConfig));
-    applyTurnSizeSettings(readTurnSizeSettings(importedConfig));
-  }, [applyMemorySettings, applyPromptSettings, applyTurnSizeSettings]);
 
   return {
     promptProps: {
@@ -221,12 +231,12 @@ export function useSettingsPromptConfig(patchConfig) {
       onToggleSuggestion: handleToggleSuggestion,
       writingSuggestionEnabled,
       onToggleWritingSuggestion: handleToggleWritingSuggestion,
-      danmakuEnabled,
+      danmakuEnabled: modeValue(isWriting, danmakuEnabled, writingDanmakuEnabled),
       onToggleDanmaku: handleToggleDanmaku,
-      danmakuCount,
-      setDanmakuCount,
+      danmakuCount: modeValue(isWriting, danmakuCount, writingDanmakuCount),
+      setDanmakuCount: modeValue(isWriting, setDanmakuCount, setWritingDanmakuCount),
       onSaveDanmakuCount: handleSaveDanmakuCount,
-      danmakuSpeed,
+      danmakuSpeed: modeValue(isWriting, danmakuSpeed, writingDanmakuSpeed),
       onChangeDanmakuSpeed: handleChangeDanmakuSpeed,
       writingMemoryExpansionEnabled,
       onToggleWritingMemoryExpansion: handleToggleWritingMemoryExpansion,
@@ -234,14 +244,14 @@ export function useSettingsPromptConfig(patchConfig) {
       onToggleTableMemory: handleToggleTableMemory,
       writingTableMemoryEnabled,
       onToggleWritingTableMemory: handleToggleWritingTableMemory,
-      tableMemoryRowLimits,
-      setTableMemoryRowLimits,
+      tableMemoryRowLimits: modeValue(isWriting, tableMemoryRowLimits, writingTableMemoryRowLimits),
+      setTableMemoryRowLimits: modeValue(isWriting, setTableMemoryRowLimits, setWritingTableMemoryRowLimits),
       onSaveTableMemoryRowLimit: handleSaveTableMemoryRowLimit,
-      memoryRecallMaxSessions,
-      setMemoryRecallMaxSessions,
+      memoryRecallMaxSessions: modeValue(isWriting, memoryRecallMaxSessions, writingMemoryRecallMaxSessions),
+      setMemoryRecallMaxSessions: modeValue(isWriting, setMemoryRecallMaxSessions, setWritingMemoryRecallMaxSessions),
       onSaveMemoryRecallMaxSessions: handleSaveMemoryRecallMaxSessions,
-      longTermIndexBudget,
-      setLongTermIndexBudget,
+      longTermIndexBudget: modeValue(isWriting, longTermIndexBudget, writingLongTermIndexBudget),
+      setLongTermIndexBudget: modeValue(isWriting, setLongTermIndexBudget, setWritingLongTermIndexBudget),
       onSaveLongTermIndexBudget: handleSaveLongTermIndexBudget,
       onSave: handleSaveGeneral,
       saving,
@@ -269,7 +279,6 @@ export function useSettingsPromptConfig(patchConfig) {
       setWritingPageTurnSize,
       onSaveWritingPageTurnSize: handleSaveWritingPageTurnSize,
     },
-    onImportSuccess: applyImportedPromptSettings,
     applyConfig,
   };
 }

@@ -7,13 +7,13 @@ import { useSettingsDisplayConfig } from './useSettingsDisplayConfig.js';
 import { useSettingsPrimaryModelConfig } from './useSettingsPrimaryModelConfig.js';
 import { useSettingsPromptConfig } from './useSettingsPromptConfig.js';
 
-export function useSettingsConfig() {
+export function useSettingsConfig(settingsMode) {
   const suppressNextReloadRef = useRef(false);
   const patchConfig = useSettingsConfigWriter(suppressNextReloadRef);
   const primaryModelConfig = useSettingsPrimaryModelConfig(patchConfig);
   const additionalModelConfig = useSettingsAdditionalModelConfig(patchConfig);
-  const displayConfig = useSettingsDisplayConfig(patchConfig);
-  const promptConfig = useSettingsPromptConfig(patchConfig);
+  const displayConfig = useSettingsDisplayConfig(patchConfig, settingsMode);
+  const promptConfig = useSettingsPromptConfig(patchConfig, settingsMode);
   const diaryConfig = useSettingsDiaryConfig(patchConfig);
   const applyPrimaryModelConfig = primaryModelConfig.applyConfig;
   const applyAdditionalModelConfig = additionalModelConfig.applyConfig;
@@ -31,8 +31,7 @@ export function useSettingsConfig() {
 
   async function handleImportSuccess() {
     const importedConfig = await getConfig();
-    additionalModelConfig.onImportSuccess(importedConfig);
-    promptConfig.onImportSuccess(importedConfig);
+    applyConfig(importedConfig);
   }
 
   return {

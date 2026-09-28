@@ -27,7 +27,7 @@ const THINK_REMARK_PLUGINS_W = [remarkGfm];
 const THINK_REHYPE_PLUGINS_W = [[rehypeSanitize, markdownSanitizeSchema]];
 
 function ThinkBlock({ content, open = false, streaming = false, caret = false, interrupted = false }) {
-  const autoCollapse = useDisplaySettingsStore((s) => s.autoCollapseThinking);
+  const autoCollapse = useDisplaySettingsStore((s) => s.writingAutoCollapseThinking);
   const [expanded, setExpanded] = useState(!autoCollapse);
   const cleanContent = stripNextPromptBlocks(content);
 
@@ -113,8 +113,8 @@ export default function WritingMessageItem({
 }) {
   const rawContent = message.content || '';
   const isUser = message.role === 'user';
-  const showThinking = useDisplaySettingsStore((s) => s.showThinking);
-  const showTokenUsage = useDisplaySettingsStore((s) => s.showTokenUsage);
+  const showThinking = useDisplaySettingsStore((s) => s.writingShowThinking);
+  const showTokenUsage = useDisplaySettingsStore((s) => s.writingShowTokenUsage);
   const currentModelPricing = useDisplaySettingsStore((s) => s.currentWritingModelPricing);
 
   let displayContent = rawContent;

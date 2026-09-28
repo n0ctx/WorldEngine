@@ -13,6 +13,7 @@ import { useAssistantPanel } from '../../../core/features/assistant/index.js';
 import DanmakuLayer from '../../../components/chat/DanmakuLayer.jsx';
 import { useDanmakuBandStore } from '../../../core/state/danmakuBand.js';
 import { useDisplaySettingsStore } from '../../../core/state/displaySettings';
+import { useAppModeStore } from '../../../core/state/appMode';
 import { extractIds, resolveTopbarPathname } from '../../../core/utils/worldScope.js';
 
 function WorldSelector({ effectiveWorldId, isCurrentLevel }) {
@@ -147,6 +148,8 @@ export default function TopBar() {
   const isAssistantOpen = useAssistantPanel((s) => s.isOpen);
   const danmakuComments = useDanmakuBandStore((s) => s.comments);
   const danmakuSpeed = useDisplaySettingsStore((s) => s.danmakuSpeed);
+  const writingDanmakuSpeed = useDisplaySettingsStore((s) => s.writingDanmakuSpeed);
+  const appMode = useAppModeStore((s) => s.appMode);
 
   const [chatWorldId, setChatWorldId] = useState(null);
 
@@ -228,7 +231,7 @@ export default function TopBar() {
       {/* 中间槽位：有弹幕时单行滚动，无弹幕时作为占位把右侧按钮推到最右 */}
       <div className="we-topbar-center">
         <div className="we-topbar-danmaku-slot">
-          <DanmakuLayer comments={danmakuComments} speed={danmakuSpeed} />
+          <DanmakuLayer comments={danmakuComments} speed={appMode === 'writing' ? writingDanmakuSpeed : danmakuSpeed} />
         </div>
       </div>
 

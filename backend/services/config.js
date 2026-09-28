@@ -80,6 +80,11 @@ const DEFAULT_CONFIG = {
     suggestion_enabled: false,
     memory_expansion_enabled: true,
     table_memory_enabled: false,
+    table_memory_row_limits: structuredClone(DEFAULT_ROW_LIMITS),
+    memory_recall_max_sessions: 5,
+    long_term_index_budget: 20000,
+    danmaku: { enabled: false, count: 5, speed: 'normal' },
+    ui: { show_thinking: true, auto_collapse_thinking: true, show_token_usage: false },
     saved_nearby_recall_enabled: true,
     llm: {
       provider: null,
@@ -112,6 +117,11 @@ const DEFAULT_WRITING = {
   suggestion_enabled: false,
   memory_expansion_enabled: true,
   table_memory_enabled: false,
+  table_memory_row_limits: structuredClone(DEFAULT_ROW_LIMITS),
+  memory_recall_max_sessions: 5,
+  long_term_index_budget: 20000,
+  danmaku: { enabled: false, count: 5, speed: 'normal' },
+  ui: { show_thinking: true, auto_collapse_thinking: true, show_token_usage: false },
   saved_nearby_recall_enabled: true,
   llm: {
     provider: null,
@@ -241,6 +251,13 @@ function normalizeConfigForPersist(config) {
     : normalizePositiveInteger(normalized.writing.short_term_token_budget, null, { min: 1000, max: 200000 });
   // 行数上限：缺失 key 补默认、非法值清洗、未知 key 丢弃（单字段编辑不会抹掉其余 4 表）
   normalized.table_memory_row_limits = resolveRowLimits(normalized.table_memory_row_limits);
+  normalized.writing.table_memory_row_limits = resolveRowLimits(normalized.writing.table_memory_row_limits);
+  normalized.writing.memory_recall_max_sessions = normalizePositiveInteger(
+    normalized.writing.memory_recall_max_sessions, DEFAULT_WRITING.memory_recall_max_sessions,
+  );
+  normalized.writing.long_term_index_budget = normalizePositiveInteger(
+    normalized.writing.long_term_index_budget, DEFAULT_WRITING.long_term_index_budget, { min: 2000, max: 500000 },
+  );
   return normalized;
 }
 

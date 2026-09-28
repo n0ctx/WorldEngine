@@ -25,6 +25,35 @@ test('缺少配置文件时写入默认值并返回独立对象', () => {
   assert.equal(getConfig().ui.theme, 'nocturne');
 });
 
+test('对话和写作的行为配置分别保存', () => {
+  fs.rmSync(sandbox.configPath, { force: true });
+  updateConfig({
+    table_memory_row_limits: { relations: 12 },
+    memory_recall_max_sessions: 3,
+    long_term_index_budget: 6000,
+    danmaku: { enabled: true, count: 4, speed: 'slow' },
+    ui: { show_thinking: false },
+    writing: {
+      table_memory_row_limits: { relations: 25 },
+      memory_recall_max_sessions: 8,
+      long_term_index_budget: 30000,
+      danmaku: { enabled: false, count: 9, speed: 'fast' },
+      ui: { show_thinking: true },
+    },
+  });
+  const config = getConfig();
+  assert.equal(config.table_memory_row_limits.relations, 12);
+  assert.equal(config.writing.table_memory_row_limits.relations, 25);
+  assert.equal(config.memory_recall_max_sessions, 3);
+  assert.equal(config.writing.memory_recall_max_sessions, 8);
+  assert.equal(config.long_term_index_budget, 6000);
+  assert.equal(config.writing.long_term_index_budget, 30000);
+  assert.equal(config.danmaku.count, 4);
+  assert.equal(config.writing.danmaku.count, 9);
+  assert.equal(config.ui.show_thinking, false);
+  assert.equal(config.writing.ui.show_thinking, true);
+});
+
 test('updateConfig：非法预算值规范到默认值/null，合法值按范围钳制', () => {
   fs.rmSync(sandbox.configPath, { force: true });
 

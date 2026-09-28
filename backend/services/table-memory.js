@@ -162,11 +162,12 @@ function renderRowLimits(current, limits) {
     .join('\n');
 }
 
-export async function updateTableMemory(sessionId, turnText) {
+export async function updateTableMemory(sessionId, turnText, mode = 'chat') {
   const sid = sessionId.slice(0, 8);
   if (!turnText || !turnText.trim()) return;
 
-  const limits = resolveRowLimits(getConfig().table_memory_row_limits);
+  const config = getConfig();
+  const limits = resolveRowLimits(mode === 'writing' ? config.writing?.table_memory_row_limits : config.table_memory_row_limits);
   const current = readTables(sessionId);
   const rendered = renderTablesToMarkdown(current, { withId: true }) || '（当前所有表为空）';
   const prompt = [{

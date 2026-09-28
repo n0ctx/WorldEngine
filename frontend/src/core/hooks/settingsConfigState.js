@@ -34,6 +34,9 @@ export function readDisplaySettings(config) {
     showThinking: config.ui?.show_thinking !== false,
     autoCollapseThinking: config.ui?.auto_collapse_thinking !== false,
     showTokenUsage: config.ui?.show_token_usage === true,
+    writingShowThinking: config.writing?.ui?.show_thinking !== false,
+    writingAutoCollapseThinking: config.writing?.ui?.auto_collapse_thinking !== false,
+    writingShowTokenUsage: config.writing?.ui?.show_token_usage === true,
     modelPricing: config.llm?.model_pricing ?? null,
     writingModelPricing: config.writing?.llm?.model_pricing ?? null,
   };
@@ -63,6 +66,9 @@ export function readMemorySettings(config) {
     tableMemoryRowLimits: config.table_memory_row_limits ?? {},
     memoryRecallMaxSessions: config.memory_recall_max_sessions ?? 5,
     longTermIndexBudget: config.long_term_index_budget ?? 20000,
+    writingTableMemoryRowLimits: writing.table_memory_row_limits ?? {},
+    writingMemoryRecallMaxSessions: writing.memory_recall_max_sessions ?? 5,
+    writingLongTermIndexBudget: writing.long_term_index_budget ?? 20000,
   };
 }
 
@@ -72,6 +78,9 @@ export function readDanmakuSettings(config) {
     danmakuEnabled: danmaku.enabled === true,
     danmakuCount: danmaku.count ?? 5,
     danmakuSpeed: danmaku.speed ?? 'normal',
+    writingDanmakuEnabled: config.writing?.danmaku?.enabled === true,
+    writingDanmakuCount: config.writing?.danmaku?.count ?? 5,
+    writingDanmakuSpeed: config.writing?.danmaku?.speed ?? 'normal',
   };
 }
 

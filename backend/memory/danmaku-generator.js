@@ -111,7 +111,8 @@ function parseDanmaku(raw) {
 export async function generateDanmaku(sessionId, { mode = 'chat' } = {}) {
   const sid = sessionId.slice(0, 8);
   try {
-    const count = Math.max(1, Math.min(20, Number(getConfig().danmaku?.count) || 5));
+    const config = getConfig();
+    const count = Math.max(1, Math.min(20, Number((mode === 'writing' ? config.writing?.danmaku : config.danmaku)?.count) || 5));
     // 聊天与写作的消息同存 messages 表，getLastTurnMessages 对两者皆取「最后一条 user + assistant」
     const turnText = buildLastTurnText(getLastTurnMessages(sessionId));
     if (!turnText || !turnText.trim()) return [];

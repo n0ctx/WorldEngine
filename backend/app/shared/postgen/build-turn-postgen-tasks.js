@@ -59,7 +59,7 @@ export function buildTurnPostgenTasks({
       condition: mode.postgen.tableMemoryEnabled(),
       // 统一从 DB 取本轮最后一问一答：写作续写原本传的是空数组，表格记忆拿不到任何文本
       fn: async () => {
-        await updateTableMemory(sessionId, buildLastTurnText(mode.postgen.lastTurnMessages(sessionId)));
+        await updateTableMemory(sessionId, buildLastTurnText(mode.postgen.lastTurnMessages(sessionId)), mode.id);
       },
       keepSseAlive: false,
     },
@@ -73,7 +73,7 @@ export function buildTurnPostgenTasks({
     {
       label: 'danmaku',
       priority: 2,
-      condition: getConfig().danmaku?.enabled === true,
+      condition: (mode.id === 'writing' ? getConfig().writing?.danmaku : getConfig().danmaku)?.enabled === true,
       fn: () => generateDanmaku(sessionId, { mode: mode.id }),
       sseEvent: 'danmaku',
       ssePayload: (comments) =>
