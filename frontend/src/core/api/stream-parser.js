@@ -11,8 +11,8 @@ import { publishProviderSafetySignal } from './provider-safety-events.js';
  *   onError(error)              — 错误
  *   onTitleUpdated(title)       — 会话标题已更新
  *   onUserSaved(id)             — 用户消息已保存，id 为真实 id（替换前端 tempId）
- *   onMemoryRecallStart()       — 向量召回开始
- *   onMemoryRecallDone(evt)     — 向量召回完成；evt.hit 为最终注入原文的轮数
+ *   onMemoryRecallStart()       — 长期召回开始
+ *   onMemoryRecallDone(evt)     — 长期召回完成；evt.hit 为最终注入原文的轮数
  *   onSavedRecallDone(evt)      — saved nearby 角色召回判定完成；evt.ids 为本轮应展开的角色 id 列表，evt.mode 为 'judge'|'all-in'
  *   onChapterTitleUpdated(chapterIndex, title) — 章节标题已更新（写作）
  *   onStateQueued()             — 状态栏整理 LLM 开始调用（整理中出现时机）
