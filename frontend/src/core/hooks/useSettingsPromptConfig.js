@@ -21,8 +21,6 @@ export function useSettingsPromptConfig(patchConfig, settingsMode) {
   const [suggestionEnabled, setSuggestionEnabled] = useState(false);
   const [writingSuggestionEnabled, setWritingSuggestionEnabled] = useState(false);
   const [writingMemoryExpansionEnabled, setWritingMemoryExpansionEnabled] = useState(true);
-  const [memoryRecallMaxSessions, setMemoryRecallMaxSessions] = useState(5);
-  const [writingMemoryRecallMaxSessions, setWritingMemoryRecallMaxSessions] = useState(5);
   const [longTermIndexBudget, setLongTermIndexBudget] = useState(20000);
   const [stateInjectionTokenBudget, setStateInjectionTokenBudget] = useState(3000);
   const [writingLongTermIndexBudget, setWritingLongTermIndexBudget] = useState(20000);
@@ -55,8 +53,6 @@ export function useSettingsPromptConfig(patchConfig, settingsMode) {
     setSuggestionEnabled(settings.suggestionEnabled);
     setWritingSuggestionEnabled(settings.writingSuggestionEnabled);
     setWritingMemoryExpansionEnabled(settings.writingMemoryExpansionEnabled);
-    setMemoryRecallMaxSessions(settings.memoryRecallMaxSessions);
-    setWritingMemoryRecallMaxSessions(settings.writingMemoryRecallMaxSessions);
     setLongTermIndexBudget(settings.longTermIndexBudget);
     setStateInjectionTokenBudget(settings.stateInjectionTokenBudget);
     setWritingLongTermIndexBudget(settings.writingLongTermIndexBudget);
@@ -181,13 +177,6 @@ export function useSettingsPromptConfig(patchConfig, settingsMode) {
     await updateEnabledSetting(setWritingMemoryExpansionEnabled, enabled, 'memory_expansion_enabled', true);
   }
 
-  async function handleSaveMemoryRecallMaxSessions(value) {
-    const isEmpty = value === '' || value === null || value === undefined;
-    const n = isEmpty ? 5 : Math.max(1, Math.floor(Number(value) || 5));
-    modeValue(isWriting, setMemoryRecallMaxSessions, setWritingMemoryRecallMaxSessions)(n);
-    await patchConfig(modePatch(isWriting, 'memory_recall_max_sessions', n));
-  }
-
   async function handleSaveLongTermIndexBudget(value) {
     const isEmpty = value === '' || value === null || value === undefined;
     const n = isEmpty ? 20000 : Math.min(500000, Math.max(2000, Math.floor(Number(value) || 20000)));
@@ -226,9 +215,6 @@ export function useSettingsPromptConfig(patchConfig, settingsMode) {
       onChangeDanmakuSpeed: handleChangeDanmakuSpeed,
       writingMemoryExpansionEnabled,
       onToggleWritingMemoryExpansion: handleToggleWritingMemoryExpansion,
-      memoryRecallMaxSessions: modeValue(isWriting, memoryRecallMaxSessions, writingMemoryRecallMaxSessions),
-      setMemoryRecallMaxSessions: modeValue(isWriting, setMemoryRecallMaxSessions, setWritingMemoryRecallMaxSessions),
-      onSaveMemoryRecallMaxSessions: handleSaveMemoryRecallMaxSessions,
       longTermIndexBudget: modeValue(isWriting, longTermIndexBudget, writingLongTermIndexBudget),
       setLongTermIndexBudget: modeValue(isWriting, setLongTermIndexBudget, setWritingLongTermIndexBudget),
       onSaveLongTermIndexBudget: handleSaveLongTermIndexBudget,

@@ -34,7 +34,7 @@
 | D9 | **短期窗口边界由中期覆盖范围决定** | 主模型历史 = 所有 `round_index > 最新记录.middle_covered_to` 的轮次原文。滑出计算在轮后任务里做，组装 prompt 时不重算。压缩失败时覆盖范围不推进，窗口只是暂时变长，不丢内容。 |
 | D10 | **token 计数沿用现有 `backend/utils/token-counter.js` 的 `countTokens`** | 不引入 tokenizer 依赖。所有预算都是估算值（中文 0.5/字，其他 0.25/字符，对多数模型偏低估）。 |
 | D11 | **召回用轮次号而不是 UUID 作为索引 ID** | 省 token；返回后映射回 `turn_records.id`。 |
-| D12 | **保留的配置键沿用旧名，只改文案** | `memory_expansion_enabled` 改为「长期召回」总开关；`memory_recall_max_sessions` 改为「每轮最多召回轮次数」。不做键名迁移。 |
+| D12 | **保留的配置键沿用旧名，只改文案** | `memory_expansion_enabled` 改为「长期召回」总开关。不做键名迁移。 |
 | D13 | **`context_history_rounds` 删除，改为 `short_term_token_budget`** | 单位不同，无法换算，不做迁移；旧键留在用户配置文件里也无害，代码不再读取。 |
 | D14 | **轮后任务里的「提交」与「索引」拆成两个任务** | `turn-record`（p2，无 LLM 或只有中期压缩 LLM，进等待点）负责中期摘要 + 快照 + 建行；`turn-index`（p3，LLM，不进等待点）负责写索引文本。 |
 
@@ -152,7 +152,7 @@ export function roundTokens(round) → number   // countTokens 累加 content
 5. **调用**：
    - 消息结构：system = 固定说明 + 【历史轮次目录】索引行，同时作为 `cacheableSystem` 传入；user = 近期对话（上一条 AI 回复 + 当前用户消息）+ 输出要求。
    - 参数：`temperature: 0`，`configScope: resolveAuxScope(sessionId)`，`callType: 'long_term_recall'`，`timeoutMs: LONG_TERM_RECALL_TIMEOUT_MS`（30000）。
-6. **输出**：`{"turns":[12,57]}`。解析时只保留候选里存在的整数，去重，保持顺序，截到 `memory_recall_max_sessions` 条（默认 5）。解析失败、调用异常或超时都返回 `[]`（D4②）。
+6. **输出**：`{"turns":[12,57]}`。解析时只保留候选里存在的整数，去重，保持顺序。解析失败、调用异常或超时都返回 `[]`（D4②）。
 7. **展开**：把轮号映射回记录 ID，按轮号升序读取原文，在 `MEMORY_EXPAND_MAX_TOKENS`（4096）预算内注入。**单条超预算时跳过该条继续尝试后面的**（修正现有「break 丢掉后面全部」）。
 8. **短期去重**：候选只来自 `≤ coveredTo`，天然不与短期窗口重叠（满足 PRD AC-14），不需要额外过滤；旧的 `getRecentTurnRecordIds` 过滤删除，写作模式读错配置的 bug 随之消失。
 9. **SSE**：保留 `memory_recall_start`（`run-turn-stream.js` 现有）与 `memory_recall_done`，载荷改为 `{ hit, candidates, skippedBeforeRound }`，其中 `hit` 为最终注入原文的轮数。删除 `memory_expand_start` 与 `memory_expand_done`。
@@ -205,14 +205,13 @@ title(p2) → chapter-title(p2) → all-state(p2, tracksState)
 | `writing.short_term_token_budget` | `null` | 同上或 null | 写作 | null = 继承 chat |
 | `long_term_index_budget` | 20000 | 2000~500000 | 全局 | 新增，召回模型可见索引的总预算（D2） |
 | `memory_expansion_enabled` / `writing.memory_expansion_enabled` | true | — | 两者 | 保留键名，文案改为「长期召回」 |
-| `memory_recall_max_sessions` | 5 | ≥1 | 全局 | 保留键名，文案改为「每轮最多召回轮次」 |
 | 删除 | — | — | — | `context_history_rounds`、`writing.context_history_rounds`、`long_term_memory_enabled`、`writing.long_term_memory_enabled`、`embedding` 整段 |
 
 常量（`backend/utils/constants.js`）：
 
 - 新增：`MIDDLE_SUMMARY_MAX_TOKENS=1000`、`MIDDLE_COMPRESS_INPUT_MAX_TOKENS=12000`、`MIDDLE_RAW_ROUNDS_MAX=20`、`LONG_TERM_INDEX_MAX_TOKENS=100`、`TURN_INDEX_BACKFILL_MAX=3`、`LONG_TERM_RECALL_TIMEOUT_MS=30000`。
 - 删除：`MEMORY_RECALL_MAX_TOKENS`、`MEMORY_RECALL_SIMILARITY_THRESHOLD`、`MEMORY_RECALL_SAME_SESSION_THRESHOLD`、`LONG_TERM_MEMORY_*`、`LLM_LONG_TERM_MEMORY_COMPRESS_MAX_TOKENS`。
-- 保留：`MEMORY_RECALL_MAX_SESSIONS`、`MEMORY_EXPAND_MAX_TOKENS`、`MEMORY_EXPAND_DECISION_MAX_TOKENS`（`saved-nearby-recall.js` 也在用）。
+- 保留：`MEMORY_EXPAND_MAX_TOKENS`、`MEMORY_EXPAND_DECISION_MAX_TOKENS`（`saved-nearby-recall.js` 也在用）。
 
 导入导出（`backend/services/import-export.js:530,549,595,602`）：把 `context_history_rounds` 换成 `short_term_token_budget`。旧导出文件里的 `context_history_rounds` 忽略即可。
 
@@ -313,7 +312,6 @@ title(p2) → chapter-title(p2) → all-state(p2, tracksState)
   - 「上下文保留轮次」改为「短期记忆 token 预算」（写作可留空继承）；
   - 删除「长期记忆」开关；
   - 「记忆原文展开」改为「长期召回」，提示「每轮生成前由辅助模型按历史目录挑选相关轮次原文，会增加首字等待」；
-  - 「召回条目数量上限」改为「每轮最多召回轮次」；
   - 新增「召回目录预算」数字框，提示「本地小上下文模型请调低；超出部分的早期轮次不参与召回」。
 - 中期摘要查看与编辑：
   - `routes/long-term-memory.js` 改为 `routes/middle-summary.js`：

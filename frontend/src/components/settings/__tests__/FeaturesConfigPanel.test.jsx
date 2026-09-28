@@ -28,9 +28,6 @@ function createProps(overrides = {}) {
     onToggleMemoryExpansion: vi.fn(),
     writingMemoryExpansionEnabled: false,
     onToggleWritingMemoryExpansion: vi.fn(),
-    memoryRecallMaxSessions: 5,
-    setMemoryRecallMaxSessions: vi.fn(),
-    onSaveMemoryRecallMaxSessions: vi.fn(),
     longTermIndexBudget: 20000,
     setLongTermIndexBudget: vi.fn(),
     onSaveLongTermIndexBudget: vi.fn(),
@@ -73,7 +70,6 @@ describe('FeaturesConfigPanel', () => {
 
     const budgetInput = screen.getByRole('spinbutton', { name: '短期记忆 token 预算' });
     expect(budgetInput).toHaveValue(8000);
-    expect(screen.getByRole('spinbutton', { name: '每轮最多召回轮次' })).toHaveValue(5);
     expect(screen.getByRole('spinbutton', { name: '召回目录预算' })).toHaveValue(20000);
     const stateBudgetInput = screen.getByRole('spinbutton', { name: '状态注入预算' });
     expect(stateBudgetInput).toHaveValue(3000);

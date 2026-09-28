@@ -79,12 +79,12 @@ test('selectWithinBudget 从最新往最旧裁剪，超预算的更早轮次记�
   assert.equal(noneResult.indexTokens, 0);
 });
 
-test('pickKnownRounds 过滤未知编号、去重、保持顺序并截断', async () => {
+test('pickKnownRounds 过滤未知编号、去重并保持顺序', async () => {
   const { __testables } = await freshImport('backend/memory/long-term-recall.js');
   const known = new Set([1, 2, 3]);
-  const result = __testables.pickKnownRounds([2, 2, 5, 1, 3, 3, 3], known, 3);
+  const result = __testables.pickKnownRounds([2, 2, 5, 1, 3, 3, 3], known);
   assert.deepEqual(result, [2, 1, 3]);
-  assert.deepEqual(__testables.pickKnownRounds('not-array', known, 3), []);
+  assert.deepEqual(__testables.pickKnownRounds('not-array', known), []);
 });
 
 // ─── recallTurns 集成测试 ───
@@ -153,7 +153,7 @@ test('候选只取 round_index <= coveredTo 的部分；模型选中范围外编
   assert.deepEqual(result.recordIds, [r1.id]);
 });
 
-test('模型输出去重、截断到 memory_recall_max_sessions，并映射回 turn_records.id', async () => {
+test('模型输出去重、过滤未知轮次，并映射回 turn_records.id', async () => {
   resetMockEnv();
   const { session } = setupSession();
   // records[n-1] 对应 round_index = n（按 1..6 顺序插入）
@@ -163,7 +163,6 @@ test('模型输出去重、截断到 memory_recall_max_sessions，并映射回 t
 
   const nextConfig = sandbox.readConfig();
   nextConfig.long_term_index_budget = 100000;
-  nextConfig.memory_recall_max_sessions = 2;
   sandbox.writeConfig(nextConfig);
 
   const { recallTurns } = await freshImport('backend/memory/long-term-recall.js');
@@ -171,26 +170,24 @@ test('模型输出去重、截断到 memory_recall_max_sessions，并映射回 t
 
   assert.equal(result.candidateCount, 6);
   assert.equal(result.skippedBeforeRound, null);
-  // 去重（3,3→3）、过滤未知（99）、按 max_sessions=2 截断，保留模型给出的顺序 [3, 1]
-  assert.deepEqual(result.recordIds, [records[2].id, records[0].id]);
+  assert.deepEqual(result.recordIds, [records[2].id, records[0].id, records[4].id]);
 });
 
-test('写作召回使用写作预算和轮数上限', async () => {
+test('写作召回使用写作目录预算，保留目录内模型选中的轮次', async () => {
   resetMockEnv();
   const { session } = setupSession('writing');
-  const records = [1, 2, 3].map((n) => insertTurnRecord(sandbox.db, session.id, { round_index: n, summary: `第${n}轮摘要` }));
-  process.env.MOCK_LLM_COMPLETE = JSON.stringify({ turns: [1, 2, 3] });
+  const rounds = [1, 2, 3, 4, 5, 6, 7, 8];
+  const records = rounds.map((n) => insertTurnRecord(sandbox.db, session.id, { round_index: n, summary: `第${n}轮摘要` }));
+  process.env.MOCK_LLM_COMPLETE = JSON.stringify({ turns: rounds });
   const nextConfig = sandbox.readConfig();
   nextConfig.long_term_index_budget = 2000;
-  nextConfig.memory_recall_max_sessions = 3;
   nextConfig.writing.long_term_index_budget = 100000;
-  nextConfig.writing.memory_recall_max_sessions = 1;
   nextConfig.writing.memory_expansion_enabled = true;
   sandbox.writeConfig(nextConfig);
 
   const { recallTurns } = await freshImport('backend/memory/long-term-recall.js');
-  const result = await recallTurns({ sessionId: session.id, coveredTo: 3, mode: 'writing' });
-  assert.deepEqual(result.recordIds, [records[0].id]);
+  const result = await recallTurns({ sessionId: session.id, coveredTo: 8, mode: 'writing' });
+  assert.deepEqual(result.recordIds, records.map((record) => record.id));
 });
 
 test('候选目录超预算时只保留最近部分，更早轮次记入 skippedBeforeRound 且不可被模型选中', async () => {

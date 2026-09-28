@@ -53,7 +53,6 @@ function MemorySettings({
   writingShortTermTokenBudget, setWritingShortTermTokenBudget, onSaveWritingShortTermTokenBudget,
   memoryExpansionEnabled, onToggleMemoryExpansion,
   writingMemoryExpansionEnabled, onToggleWritingMemoryExpansion,
-  memoryRecallMaxSessions, setMemoryRecallMaxSessions, onSaveMemoryRecallMaxSessions,
   longTermIndexBudget, setLongTermIndexBudget, onSaveLongTermIndexBudget,
   stateInjectionTokenBudget, setStateInjectionTokenBudget, onSaveStateInjectionTokenBudget,
   chatDiaryEnabled, onToggleChatDiaryEnabled,
@@ -98,27 +97,6 @@ function MemorySettings({
             <span className="we-settings-inline-hint">
               {isChat ? '按 token 预算保留最近轮次原文，超出部分转入中期摘要' : '留空继承对话配置'}
             </span>
-          </div>
-        </FormGroup>
-      </div>
-
-      <div className="we-settings-field-group">
-        <FormGroup
-          label="每轮最多召回轮次"
-          hint="长期召回时最多挑选的历史轮次数，实际注入仍受召回目录预算约束"
-          variant="settings"
-        >
-          <div className="we-settings-inline-field">
-            <Input
-              type="number"
-              min={1}
-              className="we-settings-number-short"
-              aria-label="每轮最多召回轮次"
-              value={memoryRecallMaxSessions ?? ''}
-              onChange={(event) => setMemoryRecallMaxSessions(event.target.value === '' ? '' : Number(event.target.value))}
-              onBlur={() => onSaveMemoryRecallMaxSessions(memoryRecallMaxSessions)}
-            />
-            <span className="we-settings-inline-hint">最多召回 N 轮，默认 5</span>
           </div>
         </FormGroup>
       </div>
@@ -399,7 +377,6 @@ export default function FeaturesConfigPanel({
   writingPageTurnSize, setWritingPageTurnSize, onSaveWritingPageTurnSize,
   memoryExpansionEnabled, onToggleMemoryExpansion,
   writingMemoryExpansionEnabled, onToggleWritingMemoryExpansion,
-  memoryRecallMaxSessions, setMemoryRecallMaxSessions, onSaveMemoryRecallMaxSessions,
   longTermIndexBudget, setLongTermIndexBudget, onSaveLongTermIndexBudget,
   stateInjectionTokenBudget, setStateInjectionTokenBudget, onSaveStateInjectionTokenBudget,
   chatDiaryEnabled, onToggleChatDiaryEnabled,
@@ -421,7 +398,6 @@ export default function FeaturesConfigPanel({
     writingShortTermTokenBudget, setWritingShortTermTokenBudget, onSaveWritingShortTermTokenBudget,
     memoryExpansionEnabled, onToggleMemoryExpansion,
     writingMemoryExpansionEnabled, onToggleWritingMemoryExpansion,
-    memoryRecallMaxSessions, setMemoryRecallMaxSessions, onSaveMemoryRecallMaxSessions,
     longTermIndexBudget, setLongTermIndexBudget, onSaveLongTermIndexBudget,
     stateInjectionTokenBudget, setStateInjectionTokenBudget, onSaveStateInjectionTokenBudget,
     chatDiaryEnabled, onToggleChatDiaryEnabled,

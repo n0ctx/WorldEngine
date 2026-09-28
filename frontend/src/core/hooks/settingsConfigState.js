@@ -61,10 +61,8 @@ export function readMemorySettings(config) {
     suggestionEnabled: config.suggestion_enabled === true,
     writingSuggestionEnabled: writing.suggestion_enabled === true,
     writingMemoryExpansionEnabled: writing.memory_expansion_enabled !== false,
-    memoryRecallMaxSessions: config.memory_recall_max_sessions ?? 5,
     longTermIndexBudget: config.long_term_index_budget ?? 20000,
     stateInjectionTokenBudget: config.state_injection_token_budget ?? 3000,
-    writingMemoryRecallMaxSessions: writing.memory_recall_max_sessions ?? 5,
     writingLongTermIndexBudget: writing.long_term_index_budget ?? 20000,
   };
 }

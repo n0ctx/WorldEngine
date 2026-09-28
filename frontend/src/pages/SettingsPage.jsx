@@ -165,9 +165,6 @@ export default function SettingsPage() {
                   onToggleMemoryExpansion={promptProps.onToggleMemoryExpansion}
                   writingMemoryExpansionEnabled={promptProps.writingMemoryExpansionEnabled}
                   onToggleWritingMemoryExpansion={promptProps.onToggleWritingMemoryExpansion}
-                  memoryRecallMaxSessions={promptProps.memoryRecallMaxSessions}
-                  setMemoryRecallMaxSessions={promptProps.setMemoryRecallMaxSessions}
-                  onSaveMemoryRecallMaxSessions={promptProps.onSaveMemoryRecallMaxSessions}
                   longTermIndexBudget={promptProps.longTermIndexBudget}
                   setLongTermIndexBudget={promptProps.setLongTermIndexBudget}
                   onSaveLongTermIndexBudget={promptProps.onSaveLongTermIndexBudget}

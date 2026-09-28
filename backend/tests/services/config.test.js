@@ -28,20 +28,16 @@ test('缺少配置文件时写入默认值并返回独立对象', () => {
 test('对话和写作的行为配置分别保存', () => {
   fs.rmSync(sandbox.configPath, { force: true });
   updateConfig({
-    memory_recall_max_sessions: 3,
     long_term_index_budget: 6000,
     danmaku: { enabled: true, count: 4, speed: 'slow' },
     ui: { show_thinking: false },
     writing: {
-      memory_recall_max_sessions: 8,
       long_term_index_budget: 30000,
       danmaku: { enabled: false, count: 9, speed: 'fast' },
       ui: { show_thinking: true },
     },
   });
   const config = getConfig();
-  assert.equal(config.memory_recall_max_sessions, 3);
-  assert.equal(config.writing.memory_recall_max_sessions, 8);
   assert.equal(config.long_term_index_budget, 6000);
   assert.equal(config.writing.long_term_index_budget, 30000);
   assert.equal(config.danmaku.count, 4);
@@ -151,6 +147,7 @@ test('读取旧配置时迁移共享密钥并持久化规范化结果', () => {
 
 test('旧配置含废弃键时，迁移后全部消失并持久化', () => {
   sandbox.writeConfig({
+    memory_recall_max_sessions: 2,
     context_compress_rounds: 7,
     context_history_rounds: 10,
     long_term_memory_enabled: true,
@@ -158,6 +155,7 @@ test('旧配置含废弃键时，迁移后全部消失并持久化', () => {
     table_memory_enabled: true,
     table_memory_row_limits: { relations: 6 },
     writing: {
+      memory_recall_max_sessions: 8,
       context_history_rounds: 5,
       long_term_memory_enabled: true,
       saved_nearby_recall_enabled: true,
@@ -168,6 +166,8 @@ test('旧配置含废弃键时，迁移后全部消失并持久化', () => {
 
   const config = getConfig();
 
+  assert.equal('memory_recall_max_sessions' in config, false);
+  assert.equal('memory_recall_max_sessions' in config.writing, false);
   assert.equal('context_compress_rounds' in config, false);
   assert.equal('context_history_rounds' in config, false);
   assert.equal('long_term_memory_enabled' in config, false);

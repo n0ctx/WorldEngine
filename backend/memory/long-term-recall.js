@@ -14,7 +14,6 @@ import * as llm from '../llm/index.js';
 import { countTokens } from '../utils/token-counter.js';
 import { getConfig } from '../services/config.js';
 import {
-  MEMORY_RECALL_MAX_SESSIONS,
   MEMORY_EXPAND_MAX_TOKENS,
   MEMORY_EXPAND_DECISION_MAX_TOKENS,
   LONG_TERM_RECALL_TIMEOUT_MS,
@@ -88,9 +87,9 @@ function buildRecentMessagesText(sessionId) {
 }
 
 /**
- * 从模型返回的轮次编号列表里，只保留候选中存在的整数，去重、保持模型给出的顺序，截到 maxCount 个。
+ * 从模型返回的轮次编号列表里，只保留候选中存在的整数，去重并保持模型给出的顺序。
  */
-function pickKnownRounds(rounds, knownRoundSet, maxCount) {
+function pickKnownRounds(rounds, knownRoundSet) {
   if (!Array.isArray(rounds)) return [];
   const seen = new Set();
   const picked = [];
@@ -99,7 +98,6 @@ function pickKnownRounds(rounds, knownRoundSet, maxCount) {
     if (!Number.isInteger(n) || !knownRoundSet.has(n) || seen.has(n)) continue;
     seen.add(n);
     picked.push(n);
-    if (picked.length >= maxCount) break;
   }
   return picked;
 }
@@ -121,8 +119,7 @@ export const __testables = {
  * - 候选为空时不调用模型。
  * - 候选目录按 long_term_index_budget 从最新往最旧裁剪；超预算的更早轮次本轮不可召回，
  *   记在 skippedBeforeRound（未裁剪时为 null）。
- * - 模型输出 `{"turns":[<轮次编号>,...]}`：编号需在候选中出现，去重、保持模型给出的顺序，
- *   截到 memory_recall_max_sessions（默认 5）。
+ * - 模型输出 `{"turns":[<轮次编号>,...]}`：编号需在候选中出现，去重、保持模型给出的顺序。
  * - 模型调用异常、超时或输出解析失败时静默返回空结果，只记日志，不影响本轮生成。
  *
  * @param {{ sessionId: string, coveredTo: number|null, mode: 'chat'|'writing', recentMessages?: string }} options
@@ -146,10 +143,6 @@ export async function recallTurns({ sessionId, coveredTo, mode, recentMessages }
     return { recordIds: [], candidateCount: candidatesAsc.length, skippedBeforeRound };
   }
 
-  const maxSessions = Number.isInteger(recallConfig.memory_recall_max_sessions) && recallConfig.memory_recall_max_sessions > 0
-    ? recallConfig.memory_recall_max_sessions
-    : MEMORY_RECALL_MAX_SESSIONS;
-
   const systemContent = renderBackendPrompt('memory-recall-system.md', {
     INDEX_LINES: selected.map(renderIndexLine).join('\n'),
   });
@@ -159,7 +152,6 @@ export async function recallTurns({ sessionId, coveredTo, mode, recentMessages }
       role: 'user',
       content: renderBackendPrompt('memory-recall-user.md', {
         CONTEXT_TEXT: recentMessages ?? buildRecentMessagesText(sessionId),
-        MAX_TURNS: maxSessions,
       }),
     },
   ];
@@ -178,7 +170,7 @@ export async function recallTurns({ sessionId, coveredTo, mode, recentMessages }
     });
     const parsed = parseFencedJson(raw);
     const knownRounds = new Set(selected.map((c) => c.round_index));
-    selectedRounds = pickKnownRounds(parsed?.turns, knownRounds, maxSessions);
+    selectedRounds = pickKnownRounds(parsed?.turns, knownRounds);
   } catch (err) {
     log.warn(`召回判定失败，降级为不召回  ${formatMeta({ session: sessionId.slice(0, 8), error: err.message })}`);
     return { recordIds: [], candidateCount: candidatesAsc.length, skippedBeforeRound };

@@ -52,7 +52,6 @@ const DEFAULT_CONFIG = {
   global_system_prompt: '',
   global_post_prompt: '',
   memory_expansion_enabled: true,
-  memory_recall_max_sessions: 5,
   short_term_token_budget: 8000,
   long_term_index_budget: 20000,
   state_injection_token_budget: 3000,
@@ -77,7 +76,6 @@ const DEFAULT_CONFIG = {
     short_term_token_budget: null,
     suggestion_enabled: false,
     memory_expansion_enabled: true,
-    memory_recall_max_sessions: 5,
     long_term_index_budget: 20000,
     danmaku: { enabled: false, count: 5, speed: 'normal' },
     ui: { show_thinking: true, auto_collapse_thinking: true, show_token_usage: false },
@@ -111,7 +109,6 @@ const DEFAULT_WRITING = {
   short_term_token_budget: null,
   suggestion_enabled: false,
   memory_expansion_enabled: true,
-  memory_recall_max_sessions: 5,
   long_term_index_budget: 20000,
   danmaku: { enabled: false, count: 5, speed: 'normal' },
   ui: { show_thinking: true, auto_collapse_thinking: true, show_token_usage: false },
@@ -246,9 +243,6 @@ function normalizeConfigForPersist(config) {
   normalized.writing.short_term_token_budget = normalized.writing.short_term_token_budget == null
     ? null
     : normalizePositiveInteger(normalized.writing.short_term_token_budget, null, { min: 1000, max: 200000 });
-  normalized.writing.memory_recall_max_sessions = normalizePositiveInteger(
-    normalized.writing.memory_recall_max_sessions, DEFAULT_WRITING.memory_recall_max_sessions,
-  );
   normalized.writing.long_term_index_budget = normalizePositiveInteger(
     normalized.writing.long_term_index_budget, DEFAULT_WRITING.long_term_index_budget, { min: 2000, max: 500000 },
   );
@@ -282,6 +276,7 @@ function mergeSectionKeys(section, sharedKeys) {
 }
 
 const LEGACY_CONFIG_KEYS = [
+  'memory_recall_max_sessions',
   'context_compress_rounds',
   'context_history_rounds',
   'long_term_memory_enabled',
@@ -290,6 +285,7 @@ const LEGACY_CONFIG_KEYS = [
   'table_memory_row_limits',
 ];
 const LEGACY_WRITING_KEYS = [
+  'memory_recall_max_sessions',
   'context_history_rounds',
   'long_term_memory_enabled',
   'saved_nearby_recall_enabled',
