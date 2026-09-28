@@ -1,7 +1,7 @@
 import { AnimatePresence } from 'framer-motion';
 import Icon from '../../../components/ui/Icon.jsx';
 import MiddleSummaryModal from '../../../components/session/MiddleSummaryModal.jsx';
-import TableMemoryModal from '../../../components/session/TableMemoryModal.jsx';
+import StateMemoryModal from '../../../components/session/StateMemoryModal.jsx';
 import MessageList from '../../../components/chat/MessageList.jsx';
 import SpeakerStage from '../../../components/chat/SpeakerStage.jsx';
 import InputBox from '../../../components/chat/InputBox.jsx';
@@ -20,9 +20,9 @@ export default function ChatConversationPane({
   motionPrefs,
   onBack,
 }) {
-  const { tableMemoryEnabled, chapterTurnSize, pageTurnSize } = config;
+  const { chapterTurnSize, pageTurnSize } = config;
   const {
-    summaryOpen, setSummaryOpen, tmOpen, setTmOpen, pageInfo, setPageInfo,
+    summaryOpen, setSummaryOpen, stateMemoryOpen, setStateMemoryOpen, pageInfo, setPageInfo,
     inputBoxRef, messageListRef,
   } = pageState;
 
@@ -36,11 +36,11 @@ export default function ChatConversationPane({
             onClose={() => setSummaryOpen(false)}
           />
         )}
-        {tableMemoryEnabled && tmOpen && currentSession && (
-          <TableMemoryModal
-            key="tm-modal"
+        {stateMemoryOpen && currentSession && (
+          <StateMemoryModal
+            key="state-memory-modal"
             sessionId={currentSession.id}
-            onClose={() => setTmOpen(false)}
+            onClose={() => setStateMemoryOpen(false)}
           />
         )}
       </AnimatePresence>
@@ -113,7 +113,7 @@ export default function ChatConversationPane({
         onRetry={stream.handleRetryLast}
         onTitle={stream.handleRetitle}
         onMiddleSummary={currentSession ? () => setSummaryOpen(true) : null}
-        onTableMemory={tableMemoryEnabled && currentSession ? () => setTmOpen(true) : null}
+        onStateMemory={currentSession ? () => setStateMemoryOpen(true) : null}
         worldId={character?.world_id ?? null}
         sessionId={currentSessionId}
         mode="chat"

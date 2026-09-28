@@ -4,13 +4,13 @@ import InputBox from '../../../components/chat/InputBox.jsx';
 import Pager from '../../../components/chat/Pager.jsx';
 import ProviderSafetyBanner from '../../../components/ui/ProviderSafetyBanner.jsx';
 import MiddleSummaryModal from '../../../components/session/MiddleSummaryModal.jsx';
-import TableMemoryModal from '../../../components/session/TableMemoryModal.jsx';
+import StateMemoryModal from '../../../components/session/StateMemoryModal.jsx';
 import Icon from '../../../components/ui/Icon.jsx';
 
 export default function WritingSpaceConversationPane({ worldId, navigate, config, pageState, lifecycle, stream }) {
-  const { tableMemoryEnabled, chapterTurnSize, pageTurnSize } = config;
+  const { chapterTurnSize, pageTurnSize } = config;
   const {
-    summaryOpen, setSummaryOpen, tmOpen, setTmOpen, pageInfo, setPageInfo,
+    summaryOpen, setSummaryOpen, stateMemoryOpen, setStateMemoryOpen, pageInfo, setPageInfo,
     inputBoxRef, messageListRef,
   } = pageState;
   const { persona, isInitializing, initError, retryInitialization } = lifecycle;
@@ -33,11 +33,11 @@ export default function WritingSpaceConversationPane({ worldId, navigate, config
               onClose={() => setSummaryOpen(false)}
             />
           )}
-          {tableMemoryEnabled && tmOpen && currentSession && (
-            <TableMemoryModal
-              key="tm-modal"
+          {stateMemoryOpen && currentSession && (
+            <StateMemoryModal
+              key="state-memory-modal"
               sessionId={currentSession.id}
-              onClose={() => setTmOpen(false)}
+              onClose={() => setStateMemoryOpen(false)}
             />
           )}
         </AnimatePresence>
@@ -145,7 +145,7 @@ export default function WritingSpaceConversationPane({ worldId, navigate, config
           onImpersonate={handleImpersonate}
           onTitle={handleRetitle}
           onMiddleSummary={currentSession ? () => setSummaryOpen(true) : null}
-          onTableMemory={tableMemoryEnabled && currentSession ? () => setTmOpen(true) : null}
+          onStateMemory={currentSession ? () => setStateMemoryOpen(true) : null}
           pagerSlot={(
             <Pager
               totalPages={pageInfo.totalPages}
