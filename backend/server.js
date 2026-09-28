@@ -90,7 +90,6 @@ function localOnly(req, res, next) {
 const dataDirs = [
   path.join(DATA_ROOT, 'uploads', 'avatars'),
   path.join(DATA_ROOT, 'uploads', 'attachments'),
-  path.join(DATA_ROOT, 'vectors'),
   path.join(DATA_ROOT, 'logs'),
 ];
 for (const dir of dataDirs) {
