@@ -148,7 +148,7 @@ export default function EntityStateBlock({ sessionId, entity, schema, entities, 
       </div>
 
       <div className="we-entity-dynamic">
-        <StateMemoryDynamicState sessionId={sessionId} entity={orderedDynamicEntity} reload={reload} />
+        <StateMemoryDynamicState sessionId={sessionId} entity={orderedDynamicEntity} diffKeys={diffKeys} reload={reload} />
       </div>
 
       <StateMemoryEntityFields sessionId={sessionId} entity={entity} reload={reload} />

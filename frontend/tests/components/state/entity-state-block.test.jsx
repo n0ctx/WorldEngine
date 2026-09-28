@@ -169,4 +169,23 @@ describe('EntityStateBlock', () => {
     });
     expect(reload).toHaveBeenCalled();
   });
+
+  it('diffKeys 命中的档案行和现状行带高亮类，未命中的不带', () => {
+    render(
+      <EntityStateBlock
+        sessionId="s1"
+        entity={baseEntity()}
+        schema={schema}
+        entities={entities}
+        relations={[]}
+        diffKeys={new Set(['e1:profile.occupation', 'e1:state.位置'])}
+        reload={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText('职业').closest('.we-sm-profile-row')).toHaveClass('we-status-field--changed');
+    expect(screen.getByText('性别').closest('.we-sm-profile-row')).not.toHaveClass('we-status-field--changed');
+    expect(screen.getByText('位置').closest('.we-status-field')).toHaveClass('we-status-field--changed');
+    expect(screen.getByText('伤势').closest('.we-status-field')).not.toHaveClass('we-status-field--changed');
+  });
 });

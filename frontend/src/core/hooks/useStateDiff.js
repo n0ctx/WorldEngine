@@ -1,7 +1,8 @@
 import { useLayoutEffect, useRef, useState } from 'react';
 import { stateRowKey } from '../../components/state/state-value-format.js';
+import { didSessionChange } from './useSessionResetGuard.js';
 
-const EMPTY = { world: [], persona: [], character: [], entities: new Set() };
+const EMPTY = { world: [], persona: [], character: [] };
 const EMPTY_RESULT = { diff: EMPTY, ready: false };
 
 function diffSection(prevRows, nextRows) {
@@ -15,28 +16,6 @@ function diffSection(prevRows, nextRows) {
     }
   }
   return changes;
-}
-
-/**
- * 状态记忆实体（档案 / 现状）的变化行，键为 `${entity_id}:profile.${key}` 或
- * `${entity_id}:state.${key}`，供 EntityStateBlock / 世界档案组做行级高亮。
- */
-function diffEntities(prevEntities, nextEntities) {
-  const changed = new Set();
-  if (!Array.isArray(prevEntities) || !Array.isArray(nextEntities)) return changed;
-  const prevById = new Map(prevEntities.map((e) => [e.entity_id, e]));
-  for (const entity of nextEntities) {
-    const prev = prevById.get(entity.entity_id);
-    if (!prev) continue;
-    for (const [key, field] of Object.entries(entity.profile ?? {})) {
-      const prevValue = JSON.stringify(prev.profile?.[key]?.value);
-      if (prevValue !== JSON.stringify(field.value)) changed.add(`${entity.entity_id}:profile.${key}`);
-    }
-    for (const [key, value] of Object.entries(entity.dynamic ?? {})) {
-      if (JSON.stringify(prev.dynamic?.[key]) !== JSON.stringify(value)) changed.add(`${entity.entity_id}:state.${key}`);
-    }
-  }
-  return changed;
 }
 
 /**
@@ -58,13 +37,12 @@ function diffEntities(prevEntities, nextEntities) {
  * 只是不严格等价于"AI 生成的这一轮"，先如实说明，不引入额外的"是否为用户编辑"
  * 标记（后端没有这个信号，伪造会更复杂也更不可靠）。
  *
- * entities（可选）：状态记忆 `GET state-memory` 的 entities 数组，用于扩展出
- * `diff.entities`（变化的档案/现状行组成的 Set，键见 diffEntities）。不传时
- * world/persona/character 的既有行为不变，entities 恒为空 Set。
+ * 状态记忆实体（档案 / 现状）的行级 diff 是独立的 useEntityDiff（见同目录），
+ * 不在这里处理——两者的数据源（session_*_state_values 与 state-memory
+ * entities）互不相干，合在一起只会让调用方多传一份不需要的数据。
  */
-export function useStateDiff(stateData, sessionId, entities) {
+export function useStateDiff(stateData, sessionId) {
   const prevDataRef = useRef(null);
-  const prevEntitiesRef = useRef(null);
   const prevSessionRef = useRef(sessionId);
   const [result, setResult] = useState(EMPTY_RESULT);
 
@@ -73,28 +51,23 @@ export function useStateDiff(stateData, sessionId, entities) {
   // ref 的读写全部留在 effect 里，不在渲染期访问——渲染期读写 ref 是本项目
   // react-hooks/refs 规则明确禁止的模式。
   useLayoutEffect(() => {
-    if (prevSessionRef.current !== sessionId) {
-      prevSessionRef.current = sessionId;
+    if (didSessionChange(prevSessionRef, sessionId)) {
       prevDataRef.current = null;
-      prevEntitiesRef.current = null;
       setResult(EMPTY_RESULT);
       return; // 会话切换的这一轮先不比较，等新会话的第一份 stateData 落地后再开始 diff
     }
     if (!stateData) return;
     const prev = prevDataRef.current;
-    const prevEntities = prevEntitiesRef.current;
     setResult(prev ? {
       diff: {
         world: diffSection(prev.world, stateData.world),
         persona: diffSection(prev.persona, stateData.persona),
         character: diffSection(prev.character, stateData.character),
-        entities: diffEntities(prevEntities, entities),
       },
       ready: true,
     } : EMPTY_RESULT);
     prevDataRef.current = stateData;
-    prevEntitiesRef.current = entities ?? null;
-  }, [sessionId, stateData, entities]);
+  }, [sessionId, stateData]);
 
   return result;
 }

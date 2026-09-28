@@ -19,16 +19,12 @@ import { writingSessionListBridge } from '../../../core/utils/session-list-bridg
 import { log } from '../../../core/utils/logger.js';
 
 // 写作页的流式运行时：会话身份存在 hook 内，状态刷新信号走四个局部 tick（逐层 props 下传给右侧面板）。
-// 章节标题与 saved 角色召回是写作独有，留在本层。
+// 章节标题是写作独有，留在本层。
 export function useWritingStream({ worldId, messageListRef, inputBoxRef, memory }) {
   const [stateTick, setStateTick] = useState(0);
   const [diaryTick, setDiaryTick] = useState(0);
   const [stateQueuedTick, setStateQueuedTick] = useState(0);
   const [stateFailedTick, setStateFailedTick] = useState(0);
-  // saved nearby 召回判定结果（驱动右侧面板自动展开/收起 saved 角色 state）
-  // hits=null 表示尚未收到本轮事件（保留之前的展开状态）；tick 在每次事件递增，触发子组件应用
-  const [savedRecallTick, setSavedRecallTick] = useState(0);
-  const [savedRecallHits, setSavedRecallHits] = useState(null);
   // chapterTitles: { [chapterIndex]: { title, is_default } }
   const [chapterTitles, setChapterTitles] = useState({});
 
@@ -84,10 +80,6 @@ export function useWritingStream({ worldId, messageListRef, inputBoxRef, memory 
     onChapterTitleUpdated: (chapterIndex, title) => {
       setChapterTitles((prev) => ({ ...prev, [chapterIndex]: { title, is_default: 0 } }));
     },
-    onSavedRecallDone: (evt) => {
-      setSavedRecallHits(Array.isArray(evt?.ids) ? evt.ids : []);
-      setSavedRecallTick((t) => t + 1);
-    },
   }), []);
 
   const stream = useSessionStream({
@@ -139,8 +131,6 @@ export function useWritingStream({ worldId, messageListRef, inputBoxRef, memory 
     diaryTick,
     stateQueuedTick,
     stateFailedTick,
-    savedRecallTick,
-    savedRecallHits,
     handleChapterEdit,
     handleChapterRetitle,
   };

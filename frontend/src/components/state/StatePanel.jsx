@@ -4,6 +4,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import useStore from '../../core/state/index.js';
 import { resetSessionCharacterStateValues } from '../../core/api/session-state-values.js';
 import { useStateMemory, useStateMemorySchema } from '../../core/hooks/useStateMemory.js';
+import { useEntityDiff } from '../../core/hooks/useEntityDiff.js';
 import SessionStatePanel from './SessionStatePanel.jsx';
 import StateChangeCard from './StateChangeCard.jsx';
 import StateMemoryDynamicState from './StateMemoryDynamicState.jsx';
@@ -56,6 +57,7 @@ export default function StatePanel({ sessionId, character, worldId, persona, onD
 
   const { data: stateMemory, reload: reloadStateMemory } = useStateMemory(sessionId, tick);
   const { schema } = useStateMemorySchema();
+  const entityDiff = useEntityDiff(stateMemory?.entities, sessionId);
   const mainCharacterEntity = stateMemory?.entities?.find((e) => e.card_id === character?.id) ?? null;
 
   const { sections: npcSections, modals: npcModals } = useEntitySections({
@@ -64,6 +66,7 @@ export default function StatePanel({ sessionId, character, worldId, persona, onD
     stateMemory,
     reload: reloadStateMemory,
     schema,
+    diffKeys: entityDiff,
     mainCharacterId: character?.id ?? null,
   });
 
@@ -90,7 +93,12 @@ export default function StatePanel({ sessionId, character, worldId, persona, onD
                 <MainCharacterProfileNote character={character} />
                 {mainCharacterEntity && (
                   <div className="we-entity-dynamic">
-                    <StateMemoryDynamicState sessionId={sessionId} entity={mainCharacterEntity} reload={reloadStateMemory} />
+                    <StateMemoryDynamicState
+                      sessionId={sessionId}
+                      entity={mainCharacterEntity}
+                      diffKeys={entityDiff}
+                      reload={reloadStateMemory}
+                    />
                   </div>
                 )}
                 <div className="we-state-section-title">
@@ -116,7 +124,7 @@ export default function StatePanel({ sessionId, character, worldId, persona, onD
         </div>
       ),
     }, ...npcSections];
-  }, [character, charResetting, sessionId, mainCharacterEntity, reloadStateMemory, npcSections]);
+  }, [character, charResetting, sessionId, mainCharacterEntity, entityDiff, reloadStateMemory, npcSections]);
 
   return (
     <SessionStatePanel
@@ -127,6 +135,10 @@ export default function StatePanel({ sessionId, character, worldId, persona, onD
       ticks={{ state: tick, diary: tick, queued: queuedTick, failed: failedTick }}
       diaryScope="chat"
       classNames={CLASS_NAMES}
+      stateMemory={stateMemory}
+      reloadStateMemory={reloadStateMemory}
+      stateMemorySchema={schema}
+      entityDiff={entityDiff}
       extraSections={extraSections}
       belowTabs={npcModals}
       onDiaryInject={onDiaryInject}

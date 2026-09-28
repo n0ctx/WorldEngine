@@ -4,8 +4,6 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 
 const harness = vi.hoisted(() => ({
   state: null,
-  stateMemory: null,
-  stateMemorySchema: null,
   setStateData: vi.fn(),
   retryStateLoad: vi.fn(),
   reloadStateMemory: vi.fn(),
@@ -32,12 +30,8 @@ vi.mock('../../../core/api/state-memory.js', () => ({
 vi.mock('../../../core/hooks/useSessionState.js', () => ({
   useSessionState: () => harness.state,
 }));
-vi.mock('../../../core/hooks/useStateMemory.js', () => ({
-  useStateMemory: () => harness.stateMemory,
-  useStateMemorySchema: () => harness.stateMemorySchema,
-}));
 vi.mock('../../../core/hooks/useStateDiff.js', () => ({
-  useStateDiff: () => ({ diff: { world: [], persona: [], entities: new Set() }, ready: true }),
+  useStateDiff: () => ({ diff: { world: [], persona: [], character: [] }, ready: true }),
 }));
 vi.mock('../WorldProfileGroup.jsx', () => ({ default: () => <div />, PlayerProfileGroup: () => null }));
 vi.mock('../../ui/SectionTabs.jsx', () => {
@@ -105,6 +99,10 @@ function props() {
     ticks: { state: 0, diary: 0, queued: 0, failed: 0 },
     diaryScope: 'chat',
     classNames,
+    stateMemory: { world: { time: null, location: null, location_entity_id: null }, entities: [], facts: [] },
+    reloadStateMemory: harness.reloadStateMemory,
+    stateMemorySchema: { profileFields: { player: [], character: [] } },
+    entityDiff: new Set(),
   };
 }
 
@@ -128,14 +126,6 @@ async function openDiaryTab() {
 
 beforeEach(() => {
   harness.state = state();
-  harness.stateMemory = {
-    data: { world: { time: null, location: null, location_entity_id: null }, entities: [], facts: [] },
-    error: '',
-    loading: false,
-    reload: harness.reloadStateMemory,
-    setData: vi.fn(),
-  };
-  harness.stateMemorySchema = { profileFields: { player: [], character: [] } };
   harness.getWorld.mockResolvedValue({ name: '森林' });
   harness.getConfig.mockResolvedValue({ diary: { chat: { enabled: true } } });
   harness.patchStateValue.mockResolvedValue();

@@ -2,13 +2,14 @@ import { useEffect, useState } from 'react';
 import ModalShell from '../../../components/ui/ModalShell.jsx';
 import CharacterSeal from '../../../components/chat/CharacterSeal.jsx';
 import { getCharactersByWorld } from '../../../core/api/characters.js';
-import { addSavedNearbyFromCharacter } from '../../../core/api/session-nearby.js';
+import { createEntityFromCard } from '../../../core/api/state-memory.js';
 import { log } from '../../../core/utils/logger.js';
 
-export default function AddSavedNearbyModal({ worldId, sessionId, nearby, onAdded, onClose }) {
+/** 从角色卡添加实体：建立置顶关联卡片的角色实体，取代原「保存到附近角色池」 */
+export default function AddEntityFromCardModal({ worldId, sessionId, entities, onAdded, onClose }) {
   const [chars, setChars] = useState(null); // null = loading, [] = empty
   const [adding, setAdding] = useState(null);
-  const occupiedNames = new Set((nearby ?? []).map((n) => n.name));
+  const occupiedCardIds = new Set((entities ?? []).filter((e) => e.status === 'active' && e.card_id).map((e) => e.card_id));
 
   useEffect(() => {
     if (!worldId) return;
@@ -22,10 +23,10 @@ export default function AddSavedNearbyModal({ worldId, sessionId, nearby, onAdde
   async function handleAdd(charId) {
     setAdding(charId);
     try {
-      await addSavedNearbyFromCharacter(worldId, sessionId, charId);
+      await createEntityFromCard(sessionId, charId);
       onAdded?.();
     } catch (e) {
-      if (e?.status === 409) log.error('nearby.add.duplicate', e, { toast: '名字已在登场角色池中' });
+      if (e?.status === 409) log.error('nearby.add.duplicate', e, { toast: '该角色已在状态记忆中' });
       else log.error('nearby.add.failed', e, { toast: e?.message || '添加失败' });
     } finally {
       setAdding(null);
@@ -43,7 +44,7 @@ export default function AddSavedNearbyModal({ worldId, sessionId, nearby, onAdde
           <p className="we-cast-add-modal-empty">该世界暂无角色卡</p>
         )}
         {chars !== null && chars.map((c) => {
-          const taken = occupiedNames.has(c.name);
+          const taken = occupiedCardIds.has(c.id);
           return (
             <div key={c.id} className="we-cast-add-modal-row">
               <CharacterSeal character={c} size={32} />
@@ -54,7 +55,7 @@ export default function AddSavedNearbyModal({ worldId, sessionId, nearby, onAdde
                 disabled={taken || adding === c.id}
                 className="we-cast-add-modal-action"
               >
-                {taken ? '已在池中' : adding === c.id ? '…' : '添加'}
+                {taken ? '已添加' : adding === c.id ? '…' : '添加'}
               </button>
             </div>
           );

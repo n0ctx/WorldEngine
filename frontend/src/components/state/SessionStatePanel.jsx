@@ -23,7 +23,6 @@ import {
   patchSessionStateValue,
 } from '../../core/api/session-state-values.js';
 import { useSessionState } from '../../core/hooks/useSessionState.js';
-import { useStateMemory, useStateMemorySchema } from '../../core/hooks/useStateMemory.js';
 import { useStateDiff } from '../../core/hooks/useStateDiff.js';
 import { log } from '../../core/utils/logger.js';
 
@@ -198,7 +197,7 @@ function WorldTab({
 
 /** 玩家页签：档案组（穿着）+ 用户字段组（StateChangeCard） */
 function PlayerTab({
-  stateError, renderLoadError, sessionId, stateMemory, stateMemorySchema,
+  stateError, renderLoadError, sessionId, stateMemory, stateMemorySchema, entityDiff,
   stateDiff, stateDiffReady, reloadStateMemory, stateData, saveStateValue, templateCtx,
 }) {
   const playerEntity = stateMemory?.entities?.find((e) => e.type === 'player') ?? null;
@@ -213,7 +212,7 @@ function PlayerTab({
               sessionId={sessionId}
               playerEntity={playerEntity}
               outfitDef={playerOutfitDef}
-              diffKeys={stateDiff.entities}
+              diffKeys={entityDiff}
               reload={reloadStateMemory}
             />
             <div className="we-state-section-title">
@@ -239,11 +238,14 @@ function PlayerTab({
  * 会话状态面板的公共壳：世界区块 + 玩家区块 + 日记区块 + 整理中浮层。
  *
  * 两种模式的差异只剩三处，均由入参注入：
- * - `extraSections`：插在玩家与日记之间的区块（对话是角色，写作是附近角色），
- *   入参里额外带 `stateMemory` / `reloadStateMemory` / `stateMemorySchema` /
- *   `entityDiffKeys`，供两种模式各自搭出 NPC 页签（见 useEntitySections）
+ * - `extraSections`：插在玩家与日记之间的区块（对话是角色，写作是附近角色）
  * - `classNames`：两套外观类名（对话 we-state-*，写作 we-cast-*）
  * - `belowTabs` / `globalActions`：写作侧的已保存角色列表与「从角色卡添加」
+ *
+ * `stateMemory` / `reloadStateMemory` / `stateMemorySchema` / `entityDiff`
+ * 由调用方（StatePanel / NearbyPanel）各自调用 useStateMemory / useEntityDiff
+ * 后传入，这里不再重复拉取——调用方本来就要用同一份状态记忆搭 NPC 页签
+ * （见 useEntitySections），两边各拉一次会打两遍 GET state-memory。
  */
 export default function SessionStatePanel({
   sessionId,
@@ -253,6 +255,10 @@ export default function SessionStatePanel({
   ticks,
   diaryScope,
   classNames,
+  stateMemory,
+  reloadStateMemory,
+  stateMemorySchema,
+  entityDiff,
   extraSections,
   globalActions = null,
   belowTabs = null,
@@ -269,10 +275,7 @@ export default function SessionStatePanel({
     retryStateLoad,
   } = useSessionState(sessionId, ticks.state, ticks.diary, ticks.queued, ticks.failed);
 
-  const { data: stateMemory, reload: reloadStateMemory } = useStateMemory(sessionId, ticks.state);
-  const { schema: stateMemorySchema } = useStateMemorySchema();
-
-  const { diff: stateDiff, ready: stateDiffReady } = useStateDiff(stateData, sessionId, stateMemory?.entities);
+  const { diff: stateDiff, ready: stateDiffReady } = useStateDiff(stateData, sessionId);
 
   const worldRows = stateData?.world ?? null;
 
@@ -359,6 +362,7 @@ export default function SessionStatePanel({
       sessionId={sessionId}
       stateMemory={stateMemory}
       stateMemorySchema={stateMemorySchema}
+      entityDiff={entityDiff}
       stateDiff={stateDiff}
       stateDiffReady={stateDiffReady}
       reloadStateMemory={reloadStateMemory}
