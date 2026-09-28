@@ -77,7 +77,7 @@ test('createWorld 会同时创建 persona 记录', async () => {
   assert.deepEqual(persona, { name: '旅者', system_prompt: '你是见证者' });
 });
 
-test('createWorld 会种下世界/玩家/角色三层默认状态字段并初始化状态值', async () => {
+test('createWorld 只种世界层默认状态字段并初始化状态值；玩家层/角色层不预设字段', async () => {
   const { createWorld } = await freshImport('backend/services/worlds.js');
   const world = createWorld({ name: '世界-默认字段' });
 
@@ -99,19 +99,14 @@ test('createWorld 会种下世界/玩家/角色三层默认状态字段并初始
   `).get(world.id);
   assert.deepEqual(JSON.parse(weatherEnumOptions.enum_options), ['晴', '多云', '阴', '雨', '雪', '雾', '风暴']);
 
-  const personaFields = sandbox.db.prepare(`
-    SELECT field_key, type, update_mode, min_value, sort_order FROM persona_state_fields
-    WHERE world_id = ? ORDER BY sort_order ASC
-  `).all(world.id);
-  assert.deepEqual(personaFields.map((f) => f.field_key), ['personality', 'age', 'appearance', 'outfit', 'identity']);
-  assert.equal(personaFields[1].type, 'number');
-  assert.equal(personaFields[1].min_value, 0);
-  assert.equal(personaFields[3].update_mode, 'llm_auto');
-
-  const characterFields = sandbox.db.prepare(`
-    SELECT field_key, type FROM character_state_fields WHERE world_id = ? ORDER BY sort_order ASC
-  `).all(world.id);
-  assert.deepEqual(characterFields.map((f) => f.field_key), ['personality', 'age', 'appearance', 'outfit', 'identity']);
+  const personaFieldCount = sandbox.db.prepare(
+    'SELECT COUNT(*) AS c FROM persona_state_fields WHERE world_id = ?',
+  ).get(world.id).c;
+  const characterFieldCount = sandbox.db.prepare(
+    'SELECT COUNT(*) AS c FROM character_state_fields WHERE world_id = ?',
+  ).get(world.id).c;
+  assert.equal(personaFieldCount, 0);
+  assert.equal(characterFieldCount, 0);
 
   // 世界状态值：location/weather 已按默认值初始化
   const worldValues = sandbox.db.prepare(`
@@ -123,12 +118,7 @@ test('createWorld 会种下世界/玩家/角色三层默认状态字段并初始
     { field_key: 'weather', default_value_json: '晴' },
   ]);
 
-  // persona 状态值：personality（list）已按默认值 [] 初始化
   const persona = sandbox.db.prepare('SELECT id FROM personas WHERE world_id = ?').get(world.id);
-  const personaValue = sandbox.db.prepare(`
-    SELECT default_value_json FROM persona_state_values WHERE world_id = ? AND field_key = 'personality'
-  `).get(world.id);
-  assert.equal(personaValue.default_value_json, '[]');
   assert.ok(persona.id);
 });
 

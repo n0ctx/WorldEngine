@@ -8,13 +8,24 @@
 
 import db from '../index.js';
 
-const STATE_FIELD_EXPORT_COLUMNS = 'field_key, label, type, description, default_value, update_mode, enum_options, min_value, max_value, allow_empty, update_instruction, prefix, unit, table_columns, sort_order';
-const STATE_FIELD_COLUMNS = [
+// character_state_fields 比 world / persona 多一列 nearby_enabled，导出/导入列按 kind 区分
+const STATE_FIELD_EXPORT_COLUMNS_BASE = 'field_key, label, type, description, default_value, update_mode, enum_options, min_value, max_value, allow_empty, update_instruction, prefix, unit, table_columns, sort_order';
+const STATE_FIELD_EXPORT_COLUMNS = {
+  world: STATE_FIELD_EXPORT_COLUMNS_BASE,
+  character: `${STATE_FIELD_EXPORT_COLUMNS_BASE}, nearby_enabled`,
+  persona: STATE_FIELD_EXPORT_COLUMNS_BASE,
+};
+const STATE_FIELD_COLUMNS_BASE = [
   'id', 'world_id', 'field_key', 'label', 'type', 'description',
   'default_value', 'update_mode',
   'enum_options', 'min_value', 'max_value', 'allow_empty',
   'update_instruction', 'prefix', 'unit', 'table_columns', 'sort_order', 'created_at', 'updated_at',
 ];
+const STATE_FIELD_COLUMNS = {
+  world: STATE_FIELD_COLUMNS_BASE,
+  character: [...STATE_FIELD_COLUMNS_BASE, 'nearby_enabled'],
+  persona: STATE_FIELD_COLUMNS_BASE,
+};
 const STATE_FIELD_TABLES = {
   world: 'world_state_fields',
   character: 'character_state_fields',
@@ -60,7 +71,7 @@ export function listStateValuesForExport(kind, ownerId) {
 /** kind: 'world' | 'character' | 'persona'；按 sort_order 升序，enum_options / table_columns 保持 JSON 字符串 */
 export function listStateFieldsForExport(kind, worldId) {
   return db.prepare(
-    `SELECT ${STATE_FIELD_EXPORT_COLUMNS} FROM ${STATE_FIELD_TABLES[kind]} WHERE world_id = ? ORDER BY sort_order ASC`,
+    `SELECT ${STATE_FIELD_EXPORT_COLUMNS[kind]} FROM ${STATE_FIELD_TABLES[kind]} WHERE world_id = ? ORDER BY sort_order ASC`,
   ).all(worldId);
 }
 
@@ -146,9 +157,12 @@ export function insertPromptEntryRows(rows) {
   ], rows);
 }
 
-/** kind: 'world' | 'character' | 'persona' */
+/** kind: 'world' | 'character' | 'persona'；character 行缺 nearby_enabled（旧文件没有这一列）时按 1 处理 */
 export function insertStateFieldRows(kind, rows) {
-  insertRows(STATE_FIELD_TABLES[kind], STATE_FIELD_COLUMNS, rows);
+  const preparedRows = kind === 'character'
+    ? rows.map((row) => ({ ...row, nearby_enabled: row.nearby_enabled ?? 1 }))
+    : rows;
+  insertRows(STATE_FIELD_TABLES[kind], STATE_FIELD_COLUMNS[kind], preparedRows);
 }
 
 /** kind: 'world' | 'character' | 'persona'；runtime_value_json 不传即为 NULL */
