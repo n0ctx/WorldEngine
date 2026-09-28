@@ -5,11 +5,14 @@
 import { listWorldStateFields } from '../../backend/services/world-state-fields.js';
 import { listCharacterStateFields } from '../../backend/services/character-state-fields.js';
 import { getPersonaStateFieldsByWorldId } from '../../backend/services/persona-state-fields.js';
+import { RESERVED_WORLD_FIELD_LABELS } from '../../backend/memory/state-memory-schema.js';
 import {
   normalizeString, normalizeEntityId, normalizeMode, normalizeStringArrayOrNull,
 } from './proposal-values.js';
 
 const VALID_TRIGGER_TYPES = new Set(['always', 'keyword', 'llm', 'state']);
+// 当前时间、当前地点由世界档案管理，不落库为普通字段，这里补进条件候选，让条件能引用 世界.时间 / 世界.地点。
+const [RESERVED_WORLD_TIME_LABEL, RESERVED_WORLD_LOCATION_LABEL] = RESERVED_WORLD_FIELD_LABELS;
 const VALID_RUNTIME_ENTRY_CONDITION_OPERATORS = new Set(['>', '<', '=', '>=', '<=', '!=', '包含', '等于', '不包含']);
 const CONDITION_OPERATOR_ALIASES = {
   eq: 'eq',
@@ -42,6 +45,9 @@ function buildWorldConditionContext(worldId, stateFieldOps = []) {
       type: typeof field.type === 'string' ? field.type : 'text',
     });
   };
+
+  pushScopedField('世界', { label: RESERVED_WORLD_TIME_LABEL, type: 'datetime' });
+  pushScopedField('世界', { label: RESERVED_WORLD_LOCATION_LABEL, type: 'text' });
 
   if (worldId) {
     listWorldStateFields(worldId).forEach((field) => pushScopedField('世界', field));
