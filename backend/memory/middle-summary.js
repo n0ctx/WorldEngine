@@ -65,8 +65,8 @@ export function planEviction(rounds, coveredTo, budget, latestRound) {
   };
 }
 
-/** 会话的用户名 / 角色名，缺省分别为「玩家」「角色」（取法与 turn-summarizer.js 一致） */
-function resolveNames(session) {
+/** 会话的用户名 / 角色名，缺省分别为「玩家」「角色」 */
+export function resolveNames(session) {
   const character = session?.character_id ? getCharacterById(session.character_id) : null;
   const worldId = character?.world_id ?? session?.world_id;
   const persona = worldId ? getOrCreatePersona(worldId) : null;

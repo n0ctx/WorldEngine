@@ -33,11 +33,10 @@ import {
   TURN_SUMMARY_CAST_MAX,
 } from '../utils/constants.js';
 import { renderBackendPrompt } from '../prompts/prompt-loader.js';
-import { getOrCreatePersona } from '../services/personas.js';
 import { captureFullSnapshot } from './state-rollback.js';
 import { readTablesRaw } from '../services/table-memory.js';
 import { splitRounds } from '../utils/session-rounds.js';
-import { computeMiddleSummary } from './middle-summary.js';
+import { computeMiddleSummary, resolveNames } from './middle-summary.js';
 import { resolveAuxScope } from '../utils/aux-scope.js';
 import { countTokens } from '../utils/token-counter.js';
 import { stripThinkBlocksFromText } from '../utils/turn-dialogue.js';
@@ -93,19 +92,6 @@ function findRoundMessages(rounds, roundIndex) {
   const asstCandidates = round.messages.filter((msg) => msg.role === 'assistant');
   const asstMsg = asstCandidates[asstCandidates.length - 1] ?? null;
   return { userMsg, asstMsg };
-}
-
-// guard-allow(duplication): 与 middle-summary.js 的 resolveNames 取法一致（该模块注释也如此说明），
-// 两个轮后任务模块各自独立解析，不引入跨模块依赖
-/** 会话的用户名 / 角色名，缺省分别为「玩家」「角色」 */
-function resolveNames(session) {
-  const character = session?.character_id ? getCharacterById(session.character_id) : null;
-  const worldId = character?.world_id ?? session?.world_id;
-  const persona = worldId ? getOrCreatePersona(worldId) : null;
-  return {
-    userName: persona?.name?.trim() || '玩家',
-    characterName: character?.name?.trim() || '角色',
-  };
 }
 
 const log = createLogger('turn-sum');
