@@ -126,7 +126,6 @@ export async function createTurnRecord(sessionId) {
 
   const character = session.character_id ? getCharacterById(session.character_id) : null;
   const worldId = character?.world_id ?? session.world_id;
-  const isWriting = session.mode === 'writing';
 
   const middle = await computeMiddleSummary(sessionId, round_index);
   log.info(`MIDDLE  ${formatMeta({
@@ -140,8 +139,7 @@ export async function createTurnRecord(sessionId) {
     failed: middle.failed,
   })}`);
 
-  // 写作模式即使没有 nearby 角色也要写入空层，回滚时才能清掉目标轮中已不存在的角色状态；chat 保持旧记录兼容。
-  const snapshot = captureTurnSnapshot(sessionId, worldId, session.character_id, isWriting);
+  const snapshot = captureTurnSnapshot(sessionId, worldId, session.character_id);
 
   const record = upsertTurnRecord({
     session_id: sessionId,
@@ -172,9 +170,9 @@ export async function createTurnRecord(sessionId) {
   }
 }
 
-function captureTurnSnapshot(sessionId, worldId, characterId, isWriting) {
+function captureTurnSnapshot(sessionId, worldId, characterId) {
   if (!worldId) return null;
-  return captureFullSnapshot(sessionId, worldId, characterId ? [characterId] : [], isWriting);
+  return captureFullSnapshot(sessionId, worldId, characterId ? [characterId] : []);
 }
 
 /**
