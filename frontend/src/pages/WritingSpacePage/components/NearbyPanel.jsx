@@ -5,8 +5,7 @@ import PanelCard from '../../../components/ui/PanelCard.jsx';
 import SessionStatePanel from '../../../components/state/SessionStatePanel.jsx';
 import useEntitySections from '../../../components/state/useEntitySections.jsx';
 import AddEntityFromCardModal from './AddEntityFromCardModal.jsx';
-import { useStateMemory, useStateMemorySchema } from '../../../core/hooks/useStateMemory.js';
-import { useEntityDiff } from '../../../core/hooks/useEntityDiff.js';
+import { useStateMemoryPanelData } from '../../../core/hooks/useStateMemory.js';
 import { RefreshIcon } from '../../../components/state/panel-parts.jsx';
 
 const CLASS_NAMES = {
@@ -77,13 +76,8 @@ export default function NearbyPanel({
   const [addModalOpen, setAddModalOpen] = useState(false);
 
   const {
-    data: stateMemory,
-    error: stateMemoryError,
-    loading: stateMemoryLoading,
-    reload: reloadStateMemory,
-  } = useStateMemory(sessionId, stateTick);
-  const { schema: stateMemorySchema } = useStateMemorySchema();
-  const entityDiff = useEntityDiff(stateMemory?.entities, sessionId);
+    stateMemory, stateMemoryError, stateMemoryLoading, reloadStateMemory, stateMemorySchema, entityDiff,
+  } = useStateMemoryPanelData(sessionId, stateTick);
 
   const { sections: npcSections, modals: npcModals } = useEntitySections({
     sessionId,

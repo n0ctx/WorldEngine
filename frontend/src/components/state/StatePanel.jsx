@@ -3,8 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 
 import useStore from '../../core/state/index.js';
 import { resetSessionCharacterStateValues } from '../../core/api/session-state-values.js';
-import { useStateMemory, useStateMemorySchema } from '../../core/hooks/useStateMemory.js';
-import { useEntityDiff } from '../../core/hooks/useEntityDiff.js';
+import { useStateMemoryPanelData } from '../../core/hooks/useStateMemory.js';
 import SessionStatePanel from './SessionStatePanel.jsx';
 import StateChangeCard from './StateChangeCard.jsx';
 import StateMemoryDynamicState from './StateMemoryDynamicState.jsx';
@@ -55,9 +54,9 @@ export default function StatePanel({ sessionId, character, worldId, persona, onD
   const failedTick = useStore((s) => s.stateFailedTick);
   const [charResetting, setCharResetting] = useState(false);
 
-  const { data: stateMemory, reload: reloadStateMemory } = useStateMemory(sessionId, tick);
-  const { schema } = useStateMemorySchema();
-  const entityDiff = useEntityDiff(stateMemory?.entities, sessionId);
+  const {
+    stateMemory, reloadStateMemory, stateMemorySchema: schema, entityDiff,
+  } = useStateMemoryPanelData(sessionId, tick);
   const mainCharacterEntity = stateMemory?.entities?.find((e) => e.card_id === character?.id) ?? null;
 
   const { sections: npcSections, modals: npcModals } = useEntitySections({

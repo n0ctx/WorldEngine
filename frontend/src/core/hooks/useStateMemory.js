@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { fetchStateMemory, fetchStateMemorySchema } from '../api/state-memory.js';
+import { useEntityDiff } from './useEntityDiff.js';
 
 /**
  * 拉取会话的状态记忆聚合视图（实体 / 关系 / 事项 / 世界事实 / 在场名单）。
@@ -60,4 +61,15 @@ export function useStateMemorySchema() {
   }, []);
 
   return { schema, error };
+}
+
+/**
+ * 状态栏面板（对话 StatePanel、写作 NearbyPanel）共用的状态记忆数据：聚合视图、schema 与本轮实体变化，
+ * 每个面板只拉取一次，再分发给 SessionStatePanel 与 NPC 页签。
+ */
+export function useStateMemoryPanelData(sessionId, tick) {
+  const { data, error, loading, reload } = useStateMemory(sessionId, tick);
+  const { schema } = useStateMemorySchema();
+  const entityDiff = useEntityDiff(data?.entities, sessionId);
+  return { stateMemory: data, stateMemoryError: error, stateMemoryLoading: loading, reloadStateMemory: reload, stateMemorySchema: schema, entityDiff };
 }
