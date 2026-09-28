@@ -9,14 +9,11 @@ import { useEscapeKey } from '../../core/hooks/useEscapeKey.js';
 const TYPE_LABEL = { text: '文本', number: '数值', boolean: '布尔', enum: '枚举', list: '列表', datetime: '时间', table: '表格' };
 const UPDATE_LABEL = { manual: '手动', llm_auto: 'LLM自动', system_rule: '系统规则' };
 
-const DIARY_TIME_FIELD_KEY = 'diary_time';
-
 /**
  * StateFieldList — 状态字段模板列表
  * Props:
  *   scope         — 'world' | 'character'
  *   worldId       — 所属世界 ID
- *   diaryDateMode — 'virtual' | 'real'（仅 scope='world' 时有意义，用于 diary_time 特殊 UI）
  *   listFn        — async (worldId) => fields[]
  *   createFn      — async (worldId, data) => field
  *   updateFn      — async (id, patch) => field
@@ -24,7 +21,7 @@ const DIARY_TIME_FIELD_KEY = 'diary_time';
  *   reorderFn     — async (worldId, orderedIds) => void
  */
 export default function StateFieldList({
-  scope, worldId, diaryDateMode, listFn, createFn, updateFn, deleteFn, reorderFn,
+  scope, worldId, listFn, createFn, updateFn, deleteFn, reorderFn,
 }) {
   const [fields, setFields] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -68,18 +65,12 @@ export default function StateFieldList({
     await load();
   }
 
-  const diaryField = fields.find(f => f.field_key === DIARY_TIME_FIELD_KEY);
-  const sortableFields = fields.filter(f => f.field_key !== DIARY_TIME_FIELD_KEY);
-
   function handleReorder(newItems) {
-    setFields(diaryField ? [diaryField, ...newItems] : newItems);
+    setFields(newItems);
   }
 
   async function handleReorderEnd(finalItems) {
-    const allIds = diaryField
-      ? [diaryField.id, ...finalItems.map(f => f.id)]
-      : finalItems.map(f => f.id);
-    await reorderFn(worldId, allIds);
+    await reorderFn(worldId, finalItems.map(f => f.id));
   }
 
   return (
@@ -102,30 +93,19 @@ export default function StateFieldList({
         <p className="text-xs text-[var(--we-color-text-secondary)] opacity-35 italic py-3 text-center">暂无字段</p>
       ) : (
         <div className="flex flex-col gap-2">
-          {diaryField && (
-            <FieldRow
-              field={diaryField}
-              isDiaryTime={true}
-              onEdit={() => { setEditingField(diaryField); setShowEditor(true); }}
-              onDelete={() => setDeletingId(diaryField.id)}
-            />
-          )}
-          {sortableFields.length > 0 && (
-            <SortableList
-              items={sortableFields}
-              onReorder={handleReorder}
-              onReorderEnd={handleReorderEnd}
-              renderItem={(f) => (
-                <FieldRow
-                  field={f}
-                  isDiaryTime={false}
-                  onEdit={() => { setEditingField(f); setShowEditor(true); }}
-                  onDelete={() => setDeletingId(f.id)}
-                />
-              )}
-              className="flex flex-col gap-2"
-            />
-          )}
+          <SortableList
+            items={fields}
+            onReorder={handleReorder}
+            onReorderEnd={handleReorderEnd}
+            renderItem={(f) => (
+              <FieldRow
+                field={f}
+                onEdit={() => { setEditingField(f); setShowEditor(true); }}
+                onDelete={() => setDeletingId(f.id)}
+              />
+            )}
+            className="flex flex-col gap-2"
+          />
         </div>
       )}
 
@@ -133,7 +113,6 @@ export default function StateFieldList({
         <StateFieldEditor
           field={editingField}
           scope={scope}
-          diaryDateMode={editingField?.field_key === DIARY_TIME_FIELD_KEY ? diaryDateMode : undefined}
           onSave={handleSave}
           onClose={() => setShowEditor(false)}
         />
@@ -149,18 +128,13 @@ export default function StateFieldList({
   );
 }
 
-function FieldRow({ field, isDiaryTime, onEdit, onDelete }) {
+function FieldRow({ field, onEdit, onDelete }) {
   return (
-    <div
-      className={`we-field-row group flex items-center gap-2 px-3 py-2 select-none${isDiaryTime ? '' : ' cursor-grab active:cursor-grabbing'}`}
-    >
-      <DragHandle className={`flex-shrink-0${isDiaryTime ? ' opacity-0' : ' opacity-25 group-hover:opacity-50'}`} />
+    <div className="we-field-row group flex items-center gap-2 px-3 py-2 select-none cursor-grab active:cursor-grabbing">
+      <DragHandle className="flex-shrink-0 opacity-25 group-hover:opacity-50" />
 
       <div className="flex-1 min-w-0 flex items-center gap-2">
         <span className="text-sm text-[var(--we-color-text-primary)] font-medium truncate">{field.label}</span>
-        {isDiaryTime && (
-          <span className="text-xs opacity-40 flex-shrink-0" title="日记时间字段，由系统管理">§</span>
-        )}
         <span className="text-xs text-[var(--we-color-text-secondary)] opacity-50 [font-family:var(--we-font-mono)] truncate">{field.field_key}</span>
         <span className="ml-auto flex gap-1 flex-shrink-0">
           <Badge label={TYPE_LABEL[field.type] ?? field.type} />
@@ -172,11 +146,9 @@ function FieldRow({ field, isDiaryTime, onEdit, onDelete }) {
         <button onClick={onEdit}
           className="w-6 h-6 flex items-center justify-center rounded text-[var(--we-color-text-secondary)] hover:text-[var(--we-color-text-primary)] hover:bg-[var(--we-color-bg-subtle)] transition-colors text-xs"
           title="编辑">✎</button>
-        {!isDiaryTime && (
-          <button onClick={onDelete}
-            className="w-6 h-6 flex items-center justify-center rounded text-[var(--we-color-text-secondary)] hover:text-[var(--we-color-text-danger)] hover:bg-[var(--we-color-bg-subtle)] transition-colors text-xs"
-            title="删除">✕</button>
-        )}
+        <button onClick={onDelete}
+          className="w-6 h-6 flex items-center justify-center rounded text-[var(--we-color-text-secondary)] hover:text-[var(--we-color-text-danger)] hover:bg-[var(--we-color-bg-subtle)] transition-colors text-xs"
+          title="删除">✕</button>
       </div>
     </div>
   );

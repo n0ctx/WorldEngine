@@ -3,7 +3,6 @@ import { createWorld, getWorld, updateWorld } from '../../core/api/worlds';
 import { getConfig } from '../../core/api/config';
 import { useCreateDraftIdentity } from '../../core/hooks/useCreateDraftIdentity.js';
 import { useWorldUpdateReload } from '../../core/hooks/useWorldUpdateReload.js';
-import { syncDiaryTimeField } from '../../core/api/world-state-fields';
 import { log } from '../../core/utils/logger.js';
 
 function readCreateDraft() {
@@ -32,7 +31,6 @@ export default function useWorldEditPage({ worldId, isCreate, isOverlay, navigat
 
   useEffect(() => {
     if (isCreate || !worldId) return;
-    syncDiaryTimeField(worldId).catch(() => {});
     getConfig().then((config) => setDiaryChatDateMode(config.diary?.chat?.date_mode ?? 'virtual')).catch(() => {});
   }, [worldId, isCreate]);
 

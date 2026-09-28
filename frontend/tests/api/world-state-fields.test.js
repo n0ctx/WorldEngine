@@ -5,7 +5,6 @@ import {
   createWorldStateField,
   listWorldStateFields,
   reorderWorldStateFields,
-  syncDiaryTimeField,
   updateWorldStateField,
 } from '../../src/core/api/world-state-fields.js';
 
@@ -19,7 +18,6 @@ describe('world state fields api', () => {
     await createWorldStateField('world-1', { field_key: 'weather' });
     await updateWorldStateField('field-1', { label: '天气' });
     await reorderWorldStateFields('world-1', ['field-1']);
-    await syncDiaryTimeField('world-1');
     await clearAllDiaries();
 
     expect(fetch).toHaveBeenNthCalledWith(1, '/api/worlds/world-1/world-state-fields', expect.any(Object));
@@ -35,7 +33,6 @@ describe('world state fields api', () => {
       method: 'PUT',
       body: JSON.stringify({ orderedIds: ['field-1'] }),
     }));
-    expect(fetch).toHaveBeenNthCalledWith(5, '/api/worlds/world-1/sync-diary', { method: 'POST' });
-    expect(fetch).toHaveBeenNthCalledWith(6, '/api/worlds/clear-all-diaries', { method: 'POST' });
+    expect(fetch).toHaveBeenNthCalledWith(5, '/api/worlds/clear-all-diaries', { method: 'POST' });
   });
 });

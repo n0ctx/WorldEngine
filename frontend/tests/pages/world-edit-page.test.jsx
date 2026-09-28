@@ -12,7 +12,6 @@ const mocks = vi.hoisted(() => ({
   getConfig: vi.fn(),
   getWorldStateValues: vi.fn(),
   updateWorldStateValue: vi.fn(),
-  syncDiaryTimeField: vi.fn(),
   uploadWorldCover: vi.fn(),
   extractAccentColorFromFile: vi.fn(),
   extractAccentColorFromImageSrc: vi.fn(),
@@ -46,7 +45,6 @@ vi.mock('../../src/core/api/world-state-fields', () => ({
   updateWorldStateField: vi.fn(),
   deleteWorldStateField: vi.fn(),
   reorderWorldStateFields: vi.fn(),
-  syncDiaryTimeField: (...args) => mocks.syncDiaryTimeField(...args),
 }));
 vi.mock('../../src/core/api/world-state-values.js', () => ({
   getWorldStateValues: (...args) => mocks.getWorldStateValues(...args),
@@ -111,7 +109,6 @@ describe('WorldEditPage', () => {
     mocks.extractAccentColorFromFile.mockReset();
     mocks.extractAccentColorFromImageSrc.mockReset();
     mocks.updateWorldStateValue.mockReset();
-    mocks.syncDiaryTimeField.mockReset();
     mocks.loadedWorld = {
       id: 'world-1',
       name: '群星海',
@@ -146,7 +143,6 @@ describe('WorldEditPage', () => {
     mocks.extractAccentColorFromFile.mockResolvedValue('#123456');
     mocks.extractAccentColorFromImageSrc.mockResolvedValue('#789abc');
     mocks.updateWorldStateValue.mockResolvedValue({ success: true });
-    mocks.syncDiaryTimeField.mockResolvedValue(undefined);
   });
 
   it('加载失败时显示错误而不是空表单，重试后恢复', async () => {
@@ -192,7 +188,6 @@ describe('WorldEditPage', () => {
       max_tokens: 1024,
     }));
     expect(mocks.useNavigate).toHaveBeenCalledWith(-1);
-    expect(mocks.syncDiaryTimeField).toHaveBeenCalledWith('world-1');
   });
 
   it('保存 LLM 参数时保留数值转换', async () => {

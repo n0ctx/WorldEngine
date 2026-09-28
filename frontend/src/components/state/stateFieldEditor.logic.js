@@ -1,6 +1,15 @@
 const COLUMN_KEY_RE = /^[a-zA-Z0-9_]+$/;
 export const ISO_DATETIME_RE = /^\d+-\d{2}-\d{2}T\d{2}:\d{2}$/;
 
+const DEFAULT_RESERVED_WORLD_FIELD_LABELS = ['时间', '地点'];
+
+/** 世界字段的 label 是否属于系统保留名（时间/地点），只有 scope='world' 时才受限 */
+export function isReservedWorldFieldLabel(scope, label, reservedWorldFieldLabels) {
+  if (scope !== 'world') return false;
+  const labels = reservedWorldFieldLabels?.length ? reservedWorldFieldLabels : DEFAULT_RESERVED_WORLD_FIELD_LABELS;
+  return labels.includes((label ?? '').trim());
+}
+
 export function createStateFieldForm(field) {
   let listDefaults = [];
   if (field?.type === 'list' && field?.default_value) {
@@ -46,10 +55,47 @@ export function updateStateFieldForm(setForm, key, value) {
   setForm((form) => ({ ...form, [key]: value }));
 }
 
-function validateStateFieldForm(form) {
+const APPEARANCE_GROUP = '外貌';
+const APPEARANCE_GROUP_FIELDS_LABEL = '身高、体型、发型、眼睛、显著特征';
+// guard-allow(duplication): backend/memory/state-memory-schema.js 的同义词匹配规则前端镜像，必须逐字一致
+const CHAR_FIELD_KEY_SUFFIX = '_char';
+
+function normalizeForSynonymMatch(text) {
+  return (text ?? '').trim().toLowerCase();
+}
+
+function stripCharFieldKeySuffix(fieldKey) {
+  const normalized = fieldKey ?? '';
+  return normalized.endsWith(CHAR_FIELD_KEY_SUFFIX)
+    ? normalized.slice(0, -CHAR_FIELD_KEY_SUFFIX.length)
+    : normalized;
+}
+
+/**
+ * 角色字段勾选「对 NPC 生效」时，若 label 或 field_key 与某个角色档案字段同义，
+ * 返回该档案字段应展示的中文名（外貌组命中时返回组内各字段名），用于提示「将取代档案字段」。
+ * 匹配规则需与后端 backend/memory/state-memory-schema.js 的 resolveActiveProfileFields 保持一致。
+ */
+export function findReplacedProfileFieldLabel(schema, scope, form) {
+  if (scope !== 'character' || !schema || form.nearby_enabled === 0) return '';
+  const label = normalizeForSynonymMatch(form.label);
+  const key = normalizeForSynonymMatch(stripCharFieldKeySuffix(form.field_key));
+  const profileFields = schema.profileFields?.character ?? [];
+  const matched = profileFields.find((profileField) => {
+    const synonyms = profileField.synonyms ?? [];
+    if (synonyms.length === 0) return false;
+    const synonymSet = new Set(synonyms.map(normalizeForSynonymMatch));
+    return synonymSet.has(label) || synonymSet.has(key);
+  });
+  if (!matched) return '';
+  return matched.group === APPEARANCE_GROUP ? APPEARANCE_GROUP_FIELDS_LABEL : matched.label;
+}
+
+function validateStateFieldForm(form, scope, reservedWorldFieldLabels) {
   if (!form.field_key.trim()) return 'field_key 为必填项';
   if (!form.label.trim()) return 'label 为必填项';
   if (!form.type) return 'type 为必填项';
+  if (isReservedWorldFieldLabel(scope, form.label, reservedWorldFieldLabels)) return '该名称已由系统管理';
   if (form.type === 'datetime' && form.default_value && !ISO_DATETIME_RE.test(form.default_value)) {
     return '默认值格式必须为 YYYY-MM-DDTHH:mm（年份为正整数，月/日/时/分各 2 位）';
   }
@@ -127,8 +173,8 @@ function buildTableDefaultValue(form) {
   return Object.keys(values).length ? JSON.stringify(values) : null;
 }
 
-export async function saveStateField(form, scope, onSave, onClose, setError, setSaving) {
-  const validationError = validateStateFieldForm(form);
+export async function saveStateField(form, scope, reservedWorldFieldLabels, onSave, onClose, setError, setSaving) {
+  const validationError = validateStateFieldForm(form, scope, reservedWorldFieldLabels);
   if (validationError) {
     setError(validationError);
     return;

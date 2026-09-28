@@ -50,7 +50,6 @@ vi.mock('react-router-dom', () => ({
 vi.mock('../../src/core/api/characters.js', () => ({ getCharacter: (...args) => mocks.getCharacter(...args) }));
 vi.mock('../../src/core/api/personas.js', () => ({ getPersona: (...args) => mocks.getPersona(...args) }));
 vi.mock('../../src/core/api/worlds.js', () => ({ getWorld: (...args) => mocks.getWorld(...args) }));
-vi.mock('../../src/core/api/world-state-fields.js', () => ({ syncDiaryTimeField: vi.fn(async () => ({})) }));
 vi.mock('../../src/core/api/config.js', () => ({ getConfig: vi.fn(async () => ({ ui: {}, llm: {} })) }));
 vi.mock('../../src/core/api/chat.js', () => ({
   sendMessage: (...args) => mocks.sendMessage(...args),
