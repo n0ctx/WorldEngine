@@ -33,6 +33,8 @@ export function useMessageEditing(message, { onEdit, onEditAssistant }) {
 
   return {
     editing, draft, setDraft, startEdit, confirmEdit, cancelEdit, handleKeyDown,
-    editingAI, aiDraft, setAiDraft, startEditAI, confirmEditAI, cancelEditAI, handleKeyDownAI,
+    editingAI, aiDraft, setAiDraft, confirmEditAI, cancelEditAI, handleKeyDownAI,
+    // 没有 onEditAssistant 时该条 AI 回复不可编辑，不给编辑入口
+    startEditAI: onEditAssistant ? startEditAI : undefined,
   };
 }

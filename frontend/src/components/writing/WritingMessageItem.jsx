@@ -68,6 +68,20 @@ function CopyBtn({ getText }) {
   );
 }
 
+// 没有编辑动作（该条消息不可编辑）时不渲染
+function EditBtn({ onClick }) {
+  if (!onClick) return null;
+  return (
+    <button onClick={onClick}>
+      <Icon size={16}>
+        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+      </Icon>
+      编辑
+    </button>
+  );
+}
+
 function DeleteBtn({ onDelete }) {
   const { confirming, handleClick } = useDeleteConfirmation(onDelete);
 
@@ -171,13 +185,7 @@ export default function WritingMessageItem({
             ) : (
               <>
                 <CopyBtn getText={() => content} />
-                <button onClick={startEdit}>
-                  <Icon size={16}>
-                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                  </Icon>
-                  编辑
-                </button>
+                <EditBtn onClick={startEdit} />
                 {onDelete && <DeleteBtn onDelete={() => onDelete(message.id)} />}
               </>
             )}
@@ -277,13 +285,7 @@ export default function WritingMessageItem({
                           </Icon>
                           重新生成
                         </button>
-                        <button onClick={startEditAI}>
-                          <Icon size={16}>
-                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                          </Icon>
-                          编辑
-                        </button>
+                        <EditBtn onClick={startEditAI} />
                         {onDelete && <DeleteBtn onDelete={() => onDelete(message.id)} />}
                       </div>
                     )}
