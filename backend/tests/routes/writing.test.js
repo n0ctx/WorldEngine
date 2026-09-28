@@ -8,6 +8,7 @@ import { CHAPTER_MESSAGE_SIZE } from '../../utils/constants.js';
 import {
   insertMessage,
   insertSession,
+  insertSessionWorldStateValue,
   insertTurnRecord,
   insertWorld,
 } from '../helpers/fixtures.js';
@@ -261,6 +262,37 @@ test('写作 continue 重做最后一轮：不新建消息、turn record 按续�
   ).all(session.id);
   assert.deepEqual(afterRecords.map((r) => r.round_index), [1], '续写重做最后一轮：round_index 不变、不新增行');
   assert.equal(afterRecords[0].asst_message_id, assistantId, 'turn record 指向续写后的同一条 assistant 消息');
+});
+
+test('写作 continue 先把状态回退到上一轮快照，再重建本轮 turn record', async () => {
+  resetMockEnv();
+  process.env.MOCK_LLM_STREAM_CHUNKS = JSON.stringify(['续写内容']);
+
+  const world = insertWorld(ctx.sandbox.db, { name: '续写回退世界' });
+  const session = insertSession(ctx.sandbox.db, { world_id: world.id, mode: 'writing' });
+  const snapshot = (weather) => JSON.stringify({ world: { weather }, persona: {}, character: {}, nearby: [] });
+  insertSessionWorldStateValue(ctx.sandbox.db, session.id, world.id, { field_key: 'weather', runtime_value_json: '"暴雨"' });
+  insertMessage(ctx.sandbox.db, session.id, { role: 'user', content: 'u1', created_at: 1 });
+  insertMessage(ctx.sandbox.db, session.id, { role: 'assistant', content: 'a1', created_at: 2 });
+  insertMessage(ctx.sandbox.db, session.id, { role: 'user', content: 'u2', created_at: 3 });
+  const asst2 = insertMessage(ctx.sandbox.db, session.id, { role: 'assistant', content: 'a2', created_at: 4 });
+  insertTurnRecord(ctx.sandbox.db, session.id, { round_index: 1, summary: '第一轮', state_snapshot: snapshot('"晴"') });
+  insertTurnRecord(ctx.sandbox.db, session.id, { round_index: 2, summary: '第二轮', state_snapshot: snapshot('"暴雨"') });
+
+  const res = await ctx.request(`/api/worlds/${world.id}/writing-sessions/${session.id}/continue`, { method: 'POST' });
+  assert.equal(res.status, 200);
+  await res.text();
+
+  const weather = ctx.sandbox.db.prepare(
+    'SELECT runtime_value_json FROM session_world_state_values WHERE session_id = ? AND field_key = ?',
+  ).get(session.id, 'weather');
+  assert.equal(weather.runtime_value_json, '"晴"', '续写前应回到第一轮结束时的状态，不叠加第二轮结果');
+
+  const records = ctx.sandbox.db.prepare(
+    'SELECT round_index, summary, asst_message_id FROM turn_records WHERE session_id = ? ORDER BY round_index ASC',
+  ).all(session.id);
+  assert.deepEqual(records.map((r) => [r.round_index, r.summary]), [[1, '第一轮'], [2, '']]);
+  assert.equal(records[1].asst_message_id, asst2.id);
 });
 
 test('写作 generate 在 session 不存在时返回 404', async () => {
