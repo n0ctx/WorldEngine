@@ -2,8 +2,15 @@ import test, { after } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { createTestSandbox, freshImport, resetMockEnv, waitFor } from '../helpers/test-env.js';
-import { insertCharacter, insertMessage, insertSession, insertTurnRecord, insertWorld } from '../helpers/fixtures.js';
-import { enqueue } from '../../utils/async-queue.js';
+import {
+  insertCharacter,
+  insertMessage,
+  insertSession,
+  insertSessionWorldStateValue,
+  insertTurnRecord,
+  insertWorld,
+} from '../helpers/fixtures.js';
+import { enqueue, waitForQueueIdle } from '../../utils/async-queue.js';
 
 const sandbox = createTestSandbox('chat-route-suite', {
   global_system_prompt: '系统提示',
@@ -412,6 +419,46 @@ test('POST /continue 在最后一条 assistant 前没有 user 消息时返回 40
 
   assert.equal(response.status, 400);
   assert.deepEqual(await response.json(), { error: '当前会话没有可续写的用户-助手轮次' });
+});
+
+test('POST /edit-assistant 编辑最后一条 AI 回复：先把状态回退到上一轮快照，再重建本轮 turn record', async () => {
+  resetMockEnv();
+
+  const appServer = await ensureServer();
+  const world = insertWorld(sandbox.db, { name: '编辑回退城' });
+  const character = insertCharacter(sandbox.db, world.id, { name: '编辑者' });
+  const session = insertSession(sandbox.db, { character_id: character.id });
+  const snapshot = (weather) => JSON.stringify({ world: { weather }, persona: {}, character: {}, nearby: [] });
+  insertSessionWorldStateValue(sandbox.db, session.id, world.id, { field_key: 'weather', runtime_value_json: '"暴雨"' });
+  insertMessage(sandbox.db, session.id, { role: 'user', content: 'u1', created_at: 1 });
+  insertMessage(sandbox.db, session.id, { role: 'assistant', content: 'a1', created_at: 2 });
+  insertMessage(sandbox.db, session.id, { role: 'user', content: 'u2', created_at: 3 });
+  const asst2 = insertMessage(sandbox.db, session.id, { role: 'assistant', content: 'a2', created_at: 4 });
+  insertTurnRecord(sandbox.db, session.id, { round_index: 1, summary: '第一轮', state_snapshot: snapshot('"晴"') });
+  insertTurnRecord(sandbox.db, session.id, { round_index: 2, summary: '第二轮', state_snapshot: snapshot('"暴雨"') });
+  const port = appServer.address().port;
+
+  const response = await fetch(`http://127.0.0.1:${port}/api/sessions/${session.id}/edit-assistant`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ messageId: asst2.id, content: '改过的第二轮回复' }),
+  });
+  assert.equal(response.status, 200);
+  await waitForQueueIdle(session.id);
+
+  const weather = sandbox.db.prepare(
+    'SELECT runtime_value_json FROM session_world_state_values WHERE session_id = ? AND field_key = ?',
+  ).get(session.id, 'weather');
+  assert.equal(weather.runtime_value_json, '"晴"', '编辑前应先回到第一轮结束时的状态，不叠加第二轮结果');
+
+  const records = sandbox.db.prepare(
+    'SELECT round_index, summary, asst_message_id FROM turn_records WHERE session_id = ? ORDER BY round_index ASC',
+  ).all(session.id);
+  assert.deepEqual(records.map((r) => [r.round_index, r.summary]), [[1, '第一轮'], [2, '']]);
+  assert.equal(records[1].asst_message_id, asst2.id);
+
+  const row = sandbox.db.prepare('SELECT content FROM messages WHERE id = ?').get(asst2.id);
+  assert.equal(row.content, '改过的第二轮回复');
 });
 
 test('POST /regenerate 会删除 afterMessageId 之后的消息并按新回答重建 turn record', async () => {

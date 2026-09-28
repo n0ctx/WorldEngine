@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 
 import { createRouteTestContext } from '../helpers/http.js';
 import { resetMockEnv, waitFor } from '../helpers/test-env.js';
-import { enqueue } from '../../utils/async-queue.js';
+import { enqueue, waitForQueueIdle } from '../../utils/async-queue.js';
 import { CHAPTER_MESSAGE_SIZE } from '../../utils/constants.js';
 import {
   insertMessage,
@@ -287,6 +287,40 @@ test('写作 continue 先把状态回退到上一轮快照，再重建本轮 tur
     'SELECT runtime_value_json FROM session_world_state_values WHERE session_id = ? AND field_key = ?',
   ).get(session.id, 'weather');
   assert.equal(weather.runtime_value_json, '"晴"', '续写前应回到第一轮结束时的状态，不叠加第二轮结果');
+
+  const records = ctx.sandbox.db.prepare(
+    'SELECT round_index, summary, asst_message_id FROM turn_records WHERE session_id = ? ORDER BY round_index ASC',
+  ).all(session.id);
+  assert.deepEqual(records.map((r) => [r.round_index, r.summary]), [[1, '第一轮'], [2, '']]);
+  assert.equal(records[1].asst_message_id, asst2.id);
+});
+
+test('写作 edit-assistant 编辑最后回复：先回退状态再重建 turn record', async () => {
+  resetMockEnv();
+  const snapshot = (w) => JSON.stringify({ world: { weather: w }, persona: {}, character: {}, nearby: [] });
+
+  const world = insertWorld(ctx.sandbox.db, { name: '编辑回退' });
+  const session = insertSession(ctx.sandbox.db, { world_id: world.id, mode: 'writing' });
+  insertSessionWorldStateValue(ctx.sandbox.db, session.id, world.id, { field_key: 'weather', runtime_value_json: '"暴雨"' });
+  insertMessage(ctx.sandbox.db, session.id, { role: 'user', content: 'u1', created_at: 1 });
+  insertMessage(ctx.sandbox.db, session.id, { role: 'assistant', content: 'a1', created_at: 2 });
+  insertMessage(ctx.sandbox.db, session.id, { role: 'user', content: 'u2', created_at: 3 });
+  const asst2 = insertMessage(ctx.sandbox.db, session.id, { role: 'assistant', content: 'a2', created_at: 4 });
+  insertTurnRecord(ctx.sandbox.db, session.id, { round_index: 1, summary: '第一轮', state_snapshot: snapshot('"晴"') });
+  insertTurnRecord(ctx.sandbox.db, session.id, { round_index: 2, summary: '第二轮', state_snapshot: snapshot('"暴雨"') });
+
+  const res = await ctx.request(`/api/worlds/${world.id}/writing-sessions/${session.id}/edit-assistant`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ messageId: asst2.id, content: '改过的回复' }),
+  });
+  assert.equal(res.status, 200);
+  await waitForQueueIdle(session.id);
+
+  const weather = ctx.sandbox.db
+    .prepare('SELECT runtime_value_json v FROM session_world_state_values WHERE session_id=? AND field_key=?')
+    .get(session.id, 'weather');
+  assert.equal(weather.v, '"晴"');
 
   const records = ctx.sandbox.db.prepare(
     'SELECT round_index, summary, asst_message_id FROM turn_records WHERE session_id = ? ORDER BY round_index ASC',

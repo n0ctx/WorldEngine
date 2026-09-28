@@ -85,12 +85,52 @@ test('写作 /edit-assistant：参数校验 + session 校验 + 成功路径', as
 
   const row = ctx.sandbox.db.prepare('SELECT content FROM messages WHERE id = ?').get(asst.id);
   assert.equal(row.content, '新内容');
+});
 
-  // 命中「非最后一条 assistant」分支：再插一轮后编辑老的
+test('写作 /edit-assistant：非最后一条 assistant 返回 409', async () => {
+  resetMockEnv();
+  const { world, session } = await createWritingSession('写作编辑城2');
+  const base = `/api/worlds/${world.id}/writing-sessions/${session.id}/edit-assistant`;
+
+  insertMessage(ctx.sandbox.db, session.id, { role: 'user', content: 'q1', created_at: 1 });
+  const asst = insertMessage(ctx.sandbox.db, session.id, { role: 'assistant', content: 'a1', created_at: 2 });
   insertMessage(ctx.sandbox.db, session.id, { role: 'user', content: 'q2', created_at: 3 });
   insertMessage(ctx.sandbox.db, session.id, { role: 'assistant', content: 'a2', created_at: 4 });
-  const ok2 = await postJson(base, { messageId: asst.id, content: '改老的' });
-  assert.equal(ok2.status, 200);
+
+  const res = await postJson(base, { messageId: asst.id, content: '改老的' });
+  assert.equal(res.status, 409);
+
+  const row = ctx.sandbox.db.prepare('SELECT content FROM messages WHERE id = ?').get(asst.id);
+  assert.equal(row.content, 'a1', '被拒绝时内容不应被修改');
+});
+
+test('写作 /edit-assistant：末尾是失败残留的 user 消息时返回 409', async () => {
+  resetMockEnv();
+  const { world, session } = await createWritingSession('写作编辑城3');
+  const base = `/api/worlds/${world.id}/writing-sessions/${session.id}/edit-assistant`;
+
+  insertMessage(ctx.sandbox.db, session.id, { role: 'user', content: 'q1', created_at: 1 });
+  const asst = insertMessage(ctx.sandbox.db, session.id, { role: 'assistant', content: 'a1', created_at: 2 });
+  insertMessage(ctx.sandbox.db, session.id, { role: 'user', content: 'q2（失败残留）', created_at: 3 });
+
+  const res = await postJson(base, { messageId: asst.id, content: '改老的' });
+  assert.equal(res.status, 409);
+});
+
+test('写作 /edit-assistant：开场白（无 user 消息）只改内容，不建 turn record', async () => {
+  resetMockEnv();
+  const { world, session } = await createWritingSession('写作编辑城4');
+  const base = `/api/worlds/${world.id}/writing-sessions/${session.id}/edit-assistant`;
+  const opening = insertMessage(ctx.sandbox.db, session.id, { role: 'assistant', content: '开场白', created_at: 1 });
+
+  const res = await postJson(base, { messageId: opening.id, content: '改过的开场白' });
+  assert.equal(res.status, 200);
+
+  const row = ctx.sandbox.db.prepare('SELECT content FROM messages WHERE id = ?').get(opening.id);
+  assert.equal(row.content, '改过的开场白');
+
+  const records = ctx.sandbox.db.prepare('SELECT id FROM turn_records WHERE session_id = ?').all(session.id);
+  assert.equal(records.length, 0, '开场白编辑不应建 turn record');
 });
 
 test('写作 /edit-assistant：触发 message:edited hook', async () => {

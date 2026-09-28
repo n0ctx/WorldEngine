@@ -59,7 +59,7 @@ test('POST /edit-assistant：参数校验 + session 校验 + 成功路径', asyn
   const world = insertWorld(ctx.sandbox.db, { name: '编辑城' });
   const character = insertCharacter(ctx.sandbox.db, world.id, { name: '编辑者' });
   const session = insertSession(ctx.sandbox.db, { character_id: character.id, world_id: world.id });
-  const userMsg = insertMessage(ctx.sandbox.db, session.id, { role: 'user', content: 'q', created_at: 1 });
+  insertMessage(ctx.sandbox.db, session.id, { role: 'user', content: 'q', created_at: 1 });
   const asst = insertMessage(ctx.sandbox.db, session.id, { role: 'assistant', content: 'a', created_at: 2 });
 
   const bad1 = await postJson(`/api/sessions/${session.id}/edit-assistant`, {});
@@ -76,16 +76,78 @@ test('POST /edit-assistant：参数校验 + session 校验 + 成功路径', asyn
   assert.equal(ok.status, 200);
   const body = await ok.json();
   assert.equal(body.success, true);
+  const row = ctx.sandbox.db.prepare('SELECT content FROM messages WHERE id = ?').get(asst.id);
+  assert.equal(row.content, '新内容');
+});
 
-  // 命中"非最后一条 assistant"分支：再插入一条 assistant 消息后编辑老的
+test('POST /edit-assistant：非最后一条 assistant 返回 409', async () => {
+  resetMockEnv();
+  const world = insertWorld(ctx.sandbox.db, { name: '编辑城2' });
+  const character = insertCharacter(ctx.sandbox.db, world.id, { name: '编辑者2' });
+  const session = insertSession(ctx.sandbox.db, { character_id: character.id, world_id: world.id });
+  insertMessage(ctx.sandbox.db, session.id, { role: 'user', content: 'q1', created_at: 1 });
+  const asst = insertMessage(ctx.sandbox.db, session.id, { role: 'assistant', content: 'a1', created_at: 2 });
   insertMessage(ctx.sandbox.db, session.id, { role: 'user', content: 'q2', created_at: 3 });
-  const newer = insertMessage(ctx.sandbox.db, session.id, { role: 'assistant', content: 'a2', created_at: 4 });
-  const ok2 = await postJson(`/api/sessions/${session.id}/edit-assistant`, { messageId: asst.id, content: '改老的' });
-  assert.equal(ok2.status, 200);
+  insertMessage(ctx.sandbox.db, session.id, { role: 'assistant', content: 'a2', created_at: 4 });
 
-  // 引用 newer 防止 unused
-  assert.ok(userMsg.id);
-  assert.ok(newer.id);
+  const res = await postJson(`/api/sessions/${session.id}/edit-assistant`, { messageId: asst.id, content: '改老的' });
+  assert.equal(res.status, 409);
+
+  const row = ctx.sandbox.db.prepare('SELECT content FROM messages WHERE id = ?').get(asst.id);
+  assert.equal(row.content, 'a1', '被拒绝时内容不应被修改');
+});
+
+test('POST /edit-assistant：末尾是失败残留的 user 消息时返回 409', async () => {
+  resetMockEnv();
+  const world = insertWorld(ctx.sandbox.db, { name: '编辑城3' });
+  const character = insertCharacter(ctx.sandbox.db, world.id, { name: '编辑者3' });
+  const session = insertSession(ctx.sandbox.db, { character_id: character.id, world_id: world.id });
+  insertMessage(ctx.sandbox.db, session.id, { role: 'user', content: 'q1', created_at: 1 });
+  const asst = insertMessage(ctx.sandbox.db, session.id, { role: 'assistant', content: 'a1', created_at: 2 });
+  insertMessage(ctx.sandbox.db, session.id, { role: 'user', content: 'q2（失败残留）', created_at: 3 });
+
+  const res = await postJson(`/api/sessions/${session.id}/edit-assistant`, { messageId: asst.id, content: '改老的' });
+  assert.equal(res.status, 409);
+});
+
+test('POST /edit-assistant：开场白（无 user 消息）只改内容，不建 turn record', async () => {
+  resetMockEnv();
+  const world = insertWorld(ctx.sandbox.db, { name: '编辑城4' });
+  const character = insertCharacter(ctx.sandbox.db, world.id, { name: '编辑者4' });
+  const session = insertSession(ctx.sandbox.db, { character_id: character.id, world_id: world.id });
+  const opening = insertMessage(ctx.sandbox.db, session.id, { role: 'assistant', content: '开场白', created_at: 1 });
+
+  const res = await postJson(`/api/sessions/${session.id}/edit-assistant`, { messageId: opening.id, content: '改过的开场白' });
+  assert.equal(res.status, 200);
+
+  const row = ctx.sandbox.db.prepare('SELECT content FROM messages WHERE id = ?').get(opening.id);
+  assert.equal(row.content, '改过的开场白');
+
+  const records = ctx.sandbox.db.prepare('SELECT id FROM turn_records WHERE session_id = ?').all(session.id);
+  assert.equal(records.length, 0, '开场白编辑不应建 turn record');
+});
+
+test('POST /edit-assistant：重做最后一轮时日记任务不因 isUpdate 被跳过', async () => {
+  // editAssistant 用 turnRecordOpts: { isUpdate: true } 调 buildTurnPostgenTasks；
+  // diary 任务已不再按 isUpdate 门控（§3.7），这里直接核对任务清单，与路由是否真正入队一致
+  const { buildTurnPostgenTasks } = await freshImport('backend/app/shared/postgen/build-turn-postgen-tasks.js');
+  const { chatMode } = await freshImport('backend/app/modes/chat-mode.js');
+
+  const tasks = buildTurnPostgenTasks({
+    mode: chatMode,
+    sessionId: 'fake-session',
+    worldId: 'fake-world',
+    characterIds: [],
+    session: { id: 'fake-session', title: '已有标题' },
+    messages: [],
+    turnRecordOpts: { isUpdate: true },
+    includeSessionTitle: false,
+    includeChapterTitle: false,
+  });
+
+  const diaryTask = tasks.find((task) => task.label === 'diary');
+  assert.ok(diaryTask, '任务清单应包含 diary');
+  assert.notEqual(diaryTask.condition, false, 'diary 任务不应被 isUpdate 门控跳过');
 });
 
 test('POST /retitle：session 不存在 → 404；正常路径返回 title', async () => {
