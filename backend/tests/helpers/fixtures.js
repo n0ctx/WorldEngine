@@ -67,8 +67,8 @@ export function insertSession(db, patch = {}) {
   const id = patch.id ?? crypto.randomUUID();
   const now = nowTs(patch.created_at);
   db.prepare(`
-    INSERT INTO sessions (id, character_id, world_id, persona_id, mode, title, compressed_context, diary_date_mode, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO sessions (id, character_id, world_id, persona_id, mode, title, diary_date_mode, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     id,
     patch.character_id ?? null,
@@ -76,7 +76,6 @@ export function insertSession(db, patch = {}) {
     patch.persona_id ?? null,
     patch.mode ?? 'chat',
     patch.title ?? null,
-    patch.compressed_context ?? null,
     patch.diary_date_mode ?? null,
     now,
     patch.updated_at ?? now,
@@ -88,15 +87,14 @@ export function insertMessage(db, sessionId, patch = {}) {
   const id = patch.id ?? crypto.randomUUID();
   const now = nowTs(patch.created_at);
   db.prepare(`
-    INSERT INTO messages (id, session_id, role, content, attachments, is_compressed, created_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO messages (id, session_id, role, content, attachments, created_at)
+    VALUES (?, ?, ?, ?, ?, ?)
   `).run(
     id,
     sessionId,
     patch.role ?? 'user',
     patch.content ?? '',
     patch.attachments ? JSON.stringify(patch.attachments) : null,
-    patch.is_compressed ?? 0,
     now,
   );
   return { id, session_id: sessionId, ...patch, created_at: now };

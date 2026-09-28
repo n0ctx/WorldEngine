@@ -36,7 +36,7 @@ import { fileURLToPath } from 'node:url';
 import { getSessionById } from '../db/queries/sessions.js';
 import { getCharacterById } from '../db/queries/characters.js';
 import { getWorldById } from '../db/queries/worlds.js';
-import { getUncompressedMessagesBySessionId } from '../db/queries/messages.js';
+import { getMessagesBySessionId } from '../db/queries/messages.js';
 import { getLatestTurnRecord } from '../db/queries/turn-records.js';
 import {
   getAllWorldEntries,
@@ -372,7 +372,7 @@ export async function buildPrompt(sessionId, options = {}) {
   if (systemContent) messages.push({ role: 'system', content: systemContent });
 
   // [12] 历史消息：短期窗口边界由中期覆盖范围决定。
-  const uncompressedMessages = getUncompressedMessagesBySessionId(sessionId);
+  const uncompressedMessages = getMessagesBySessionId(sessionId, null, 0);
   const shortTermBudget = config.short_term_token_budget ?? 8000;
   const history = sliceHistoryAfterRound(uncompressedMessages, coveredTo, { keepLatestUser: continuation, budget: shortTermBudget });
   // 历史里不回灌旧的 <next_prompt> 选项块：它们会变成同格式的 few-shot 示范，
@@ -571,7 +571,7 @@ export async function buildWritingPrompt(sessionId, options = {}) {
   if (systemContent) messages.push({ role: 'system', content: systemContent });
 
   // [12] 历史消息：短期窗口边界由中期覆盖范围决定；turn records 仅用于摘要/时间线。
-  const uncompressedMessages = getUncompressedMessagesBySessionId(sessionId);
+  const uncompressedMessages = getMessagesBySessionId(sessionId, null, 0);
   const shortTermBudget = writing.short_term_token_budget ?? config.short_term_token_budget ?? 8000;
   const history = sliceHistoryAfterRound(
     uncompressedMessages,

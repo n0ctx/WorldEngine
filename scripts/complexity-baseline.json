@@ -16,7 +16,7 @@
     "backend/app/shared/http/create-turn-handlers.js#createStreamHandlers": 32,
     "backend/app/shared/http/create-turn-handlers.js#createTurnHandlers": 48,
     "backend/db/queries/provider-safety-events.js#insertProviderSafetyEvent": 33,
-    "backend/db/schema.js#initSchema": 81,
+    "backend/db/schema.js#initSchema": 80,
     "backend/db/schema.js#migrateStateFieldSchema": 40,
     "backend/llm/providers/_shared/provider-safety-signals.js#extractOpenAICompatibleSignal": 70,
     "backend/llm/providers/anthropic/index.js#streamAnthropic": 31,
