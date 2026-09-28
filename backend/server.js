@@ -45,6 +45,7 @@ import assistantRoutes from '../assistant/server/routes.js';
 import clientLogsRoutes from './routes/client-logs.js';
 import providerSafetyEventsRoutes from './routes/provider-safety-events.js';
 import { resolveUploadPath } from './services/state-values.js';
+import { removeLegacyMemoryData } from './services/legacy-memory-cleanup.js';
 import { createLogger, formatMeta, logBootBanner } from './utils/logger.js';
 import { requestIdMiddleware } from './middleware/request-id.js';
 import { DATA_ROOT, UPLOADS_DIR } from './utils/data-dir.js';
@@ -98,6 +99,7 @@ for (const dir of dataDirs) {
 
 // 初始化数据库表结构
 initSchema(db);
+removeLegacyMemoryData();
 const { hydrateAssistantTasks } = await import('../assistant/server/task-store.js');
 hydrateAssistantTasks();
 const { hydrateSessionStreamTasks } = await import('./services/session-stream-task-store.js');
