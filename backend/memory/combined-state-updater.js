@@ -9,33 +9,27 @@ import * as llm from '../llm/index.js';
 import { getMessagesBySessionId } from '../services/sessions.js';
 import { getWorldById } from '../db/queries/worlds.js';
 
-import { upsertSessionWorldStateValue, upsertSessionWorldStateValues } from '../db/queries/session-world-state-values.js';
+import { upsertSessionWorldStateValues } from '../db/queries/session-world-state-values.js';
 import { upsertSessionCharacterStateValues } from '../db/queries/session-character-state-values.js';
 import { upsertSessionPersonaStateValues } from '../db/queries/session-persona-state-values.js';
 
-import { ALL_MESSAGES_LIMIT, LLM_TASK_TEMPERATURE, LLM_STATE_UPDATE_MAX_TOKENS, DIARY_TIME_FIELD_KEY, STATE_UPDATE_JSON_RETRY_MAX, LLM_BACKGROUND_TASK_TIMEOUT_MS } from '../utils/constants.js';
-import { getSessionById, setSessionStateBaselineIfAbsent } from '../db/queries/sessions.js';
-import { captureFullSnapshot } from './state-rollback.js';
+import { ALL_MESSAGES_LIMIT, LLM_TASK_TEMPERATURE, LLM_STATE_UPDATE_MAX_TOKENS, STATE_UPDATE_JSON_RETRY_MAX, LLM_BACKGROUND_TASK_TIMEOUT_MS } from '../utils/constants.js';
+import { getSessionById } from '../db/queries/sessions.js';
 import { createLogger, formatMeta, previewText, shouldLogRaw } from '../utils/logger.js';
 import { renderBackendPrompt } from '../prompts/prompt-loader.js';
 import { resolveAuxScope } from '../utils/aux-scope.js';
 import { validateValue } from '../utils/state-field-validate.js';
 import { extractJsonPatch } from './state-update-json.js';
 import { compressOverLimitFields } from './state-update-compress.js';
-import { applyNearbyResult, buildNearbyContext, appendNearbyPromptSection } from './nearby-state-apply.js';
-import { loadStateUpdateTargets, buildEntityStateSections } from './state-update-context.js';
+import {
+  loadStateUpdateTargets, buildEntityStateSections,
+  buildStateMemoryProfileFieldsSchema, buildNpcApplicableFieldsSchema,
+  captureBaselineIfAbsent, resolveCurrentRound, resolveBaseEntities,
+  writeRealDateWorldTime, resolveRelevantEntityIds, buildRuntimeUserPrompt,
+} from './state-update-context.js';
+import { applyStateMemoryOps, applyEntityFields } from './state-memory-apply.js';
 
 const log = createLogger('all-state');
-
-/**
- * 格式化当前时间为日记时间字符串（上海时区），ISO 局部时间 "YYYY-MM-DDTHH:mm"
- */
-function formatRealTimeDiaryStr() {
-  const now = new Date();
-  const local = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Shanghai' }));
-  const pad = (n, w = 2) => String(n).padStart(w, '0');
-  return `${pad(local.getFullYear(), 4)}-${pad(local.getMonth() + 1)}-${pad(local.getDate())}T${pad(local.getHours())}:${pad(local.getMinutes())}`;
-}
 
 // ── 辅助函数（模块级） ──────────────────────────────────────────────────────
 
@@ -119,9 +113,28 @@ function buildStateUpdateExampleKeys(worldActiveFields, charactersWithFields, pe
     worldActiveFields.length > 0 ? '"world": {"date": "第三纪元第101年"}' : null,
     charactersWithFields[0] ? '"char_0": {"mood": "开心"}' : null,
     personaActiveFields.length > 0 ? '"persona": {"health": 85}' : null,
+    '"entity_fields": {"e3": {"favor": 60}}',
+    '"memory": [{"op": "set_present", "entities": ["e1", "e3"]}, {"op": "set_world", "key": "time", "value": "1000-03-15T14:30"}]',
   ]
     .filter(Boolean)
     .join(', ');
+}
+
+/**
+ * 组装状态更新调用的稳定前缀（cacheableSystem）：通用指令 + 各字段 schema 定义 + 状态记忆规则/
+ * 档案字段清单。只依赖字段定义与会话所在世界的 schema，逐字节稳定，不含轮次/实体目录等动态内容。
+ * 单独抽出供测试直接断言 system 内容，不必经过 LLM 调用。
+ */
+function buildCacheableSystemPrompt(worldId, targets, { schemaSections, responseKeys }) {
+  const { worldActiveFields, charactersWithFields, personaActiveFields } = targets;
+  const exampleKeys = buildStateUpdateExampleKeys(worldActiveFields, charactersWithFields, personaActiveFields);
+  return renderBackendPrompt('state-update.md', {
+    SCHEMA: schemaSections.join('\n\n'),
+    RESPONSE_KEYS: responseKeys.join('、'),
+    EXAMPLE_KEYS: exampleKeys,
+    STATE_MEMORY_PROFILE_FIELDS: buildStateMemoryProfileFieldsSchema(worldId) || '（无）',
+    STATE_MEMORY_NPC_FIELDS: buildNpcApplicableFieldsSchema(worldId) || '（无）',
+  });
 }
 
 /**
@@ -195,7 +208,7 @@ function writePersonaState(patch, { sessionId, worldId, world, personaActiveFiel
   upsertSessionPersonaStateValues(sessionId, worldId, values);
 }
 
-async function writeStatePatch(patch, { sid, sessionId, worldId, world, targets, valueMaps, nearbyContext, charWorldId }) {
+async function writeStatePatch(patch, { sid, sessionId, worldId, world, targets, valueMaps, round, turnText, realDate, mainCharacterEntityId }) {
   const { worldActiveFields, charSchemaFields, charactersWithFields, personaActiveFields } = targets;
   const { worldValueMap, charValueMaps, personaValueMap } = valueMaps;
 
@@ -211,17 +224,20 @@ async function writeStatePatch(patch, { sid, sessionId, worldId, world, targets,
   writeCharacterStates(patch, { sessionId, charSchemaFields, charactersWithFields, charValueMaps });
   writePersonaState(patch, { sessionId, worldId, world, personaActiveFields, personaValueMap });
 
-  // ── 写作模式：应用 nearby_characters 输出 ──
-  if (nearbyContext) {
-    applyNearbyResult({
-      sessionId,
-      worldId: charWorldId,
-      fields: nearbyContext.nearbyEnabledFields,
-      nearby_characters: patch.nearby_characters,
-      pool: nearbyContext.nearbyPool,
-      playerName: nearbyContext.nearbyPlayerName,
-    });
-  }
+  // ── 状态记忆：实体档案/动态状态/关系/事项/世界事实（memory）+ NPC 用户字段补丁（entity_fields） ──
+  const memoryResult = applyStateMemoryOps({
+    sessionId, worldId, round, ops: patch.memory, turnText, realDate, mainCharacterEntityId,
+  });
+  const entityFieldsResult = applyEntityFields({
+    sessionId, worldId, entityFields: patch.entity_fields, mainCharacterEntityId,
+  });
+  log.info(`STATE MEMORY  ${formatMeta({
+    session: sid,
+    memoryApplied: memoryResult.applied,
+    memoryRejected: memoryResult.rejected.length,
+    entityFieldsApplied: entityFieldsResult.applied,
+    entityFieldsRejected: entityFieldsResult.rejected.length,
+  })}`);
 }
 
 /**
@@ -237,43 +253,27 @@ export async function updateAllStates(worldId, characterIds, sessionId) {
   log.info(`START  ${formatMeta({ session: sid, worldId: worldId ?? null, characterIds })}`);
 
   const session = getSessionById(sessionId);
+  const isWriting = session?.mode === 'writing';
+  captureBaselineIfAbsent(sessionId, worldId, characterIds, isWriting);
 
-  // ── 首轮前状态基线捕获（回滚锚点）──
-  // 在本轮任何状态写入之前、且仅当基线尚未存在时，把当前 session 状态（= 用户首轮前手动预设）
-  // 不可变地存为基线。重生成第一轮会把所有 turn record 删光，届时回滚拿不到轮次快照，
-  // 改用此基线还原，既保住手动预设，又丢弃被重生成轮次的状态污染。
-  // gate 必须是「基线不存在」而非「无 turn record」——重生成首轮时 turn record 已被删空，
-  // 但此时 session 状态仍是污染态，setSessionStateBaselineIfAbsent 的 IS NULL 条件保证不会被覆盖。
-  if (worldId) {
-    const isWriting = session?.mode === 'writing';
-    const baseline = captureFullSnapshot(sessionId, worldId, characterIds || [], isWriting);
-    setSessionStateBaselineIfAbsent(sessionId, JSON.stringify(baseline));
-  }
-
-  // 真实日期模式：直接写入当前系统时间（在 early-return 之前执行，确保每轮都更新）
-  if (session?.diary_date_mode === 'real' && worldId) {
-    const timeStr = formatRealTimeDiaryStr();
-    upsertSessionWorldStateValue(sessionId, worldId, DIARY_TIME_FIELD_KEY, JSON.stringify(timeStr));
-    log.info(`REAL TIME  ${formatMeta({ session: sid, time: timeStr })}`);
-  }
-
+  // 状态记忆常开：只要会话有消息就调用，不再按「是否有活跃用户字段」提前返回。
   const messages = getMessagesBySessionId(sessionId, ALL_MESSAGES_LIMIT, 0);
   if (messages.length === 0) return;
+  const { round, turnText } = resolveCurrentRound(messages);
 
   // ── 确定各类活跃字段 ──
   const targets = loadStateUpdateTargets(worldId, characterIds, world);
   const {
-    worldActiveFields, characters, charWorldId, charSchemaFields,
+    worldActiveFields, characters, charSchemaFields,
     charactersWithFields, personaActiveFields,
   } = targets;
 
-  if (worldActiveFields.length === 0 && charactersWithFields.length === 0 && personaActiveFields.length === 0) {
-    log.info(`SKIP  ${formatMeta({ session: sid, reason: 'no-active-fields' })}`);
-    return;
-  }
+  const { playerEntityId, mainCharacterEntityId } = resolveBaseEntities({
+    session, worldId, sessionId, round, characters, isWriting,
+  });
 
-  // 对话标注用名（用第一个角色名，没有则"角色"）
-  const primaryName = characters[0]?.name ?? '角色';
+  const realDate = session?.diary_date_mode === 'real';
+  writeRealDateWorldTime({ realDate, worldId, sessionId, round, sid });
 
   // ── 组装 prompt 各节 ──
   // schemaSections：字段定义（逐字节稳定，进 cacheableSystem 前缀）
@@ -283,35 +283,21 @@ export async function updateAllStates(worldId, characterIds, sessionId) {
     worldValueMap, charValueMaps, personaValueMap,
   } = buildEntityStateSections(targets, { world, worldId, sessionId, session });
 
-  // ── 写作模式：组装 nearby pool 段（位置：character 段之后，在玩家段之后追加亦可，
-  //    spec 描述为"character 段之后"，这里在 sections 末尾追加，与 persona 并列） ──
-  const isWriting = session?.mode === 'writing';
-  const nearbyContext = isWriting && charWorldId
-    ? buildNearbyContext(sessionId, charWorldId, session?.persona_id)
-    : null;
-  if (nearbyContext) {
-    appendNearbyPromptSection(valueSections, responseKeys, nearbyContext);
-  }
+  responseKeys.push(
+    '"entity_fields"（NPC 用户字段补丁，无更新时返回 {}）',
+    '"memory"（状态记忆操作数组，无变化时返回 []）',
+  );
 
-  // 对话上下文：取最近 4 条（2 轮），分"上一轮"/"本轮"打标签
-  const dialogue = buildStateDialogue(messages, primaryName);
-
-  const exampleKeys = buildStateUpdateExampleKeys(worldActiveFields, charactersWithFields, personaActiveFields);
+  // 对话上下文：取最近 4 条（2 轮），分"上一轮"/"本轮"打标签（用第一个角色名，没有则"角色"）
+  const dialogue = buildStateDialogue(messages, characters[0]?.name ?? '角色');
 
   // ── 切分稳定前缀 / 动态后缀（prompt caching） ──
-  // 稳定前缀（cacheableSystem）：通用指令 + 各字段 schema 定义。
-  //   只依赖字段定义与会话内固定的 world.name/char.name，逐字节稳定，无 timestamp/随机。
-  //   必须逐字成为 system 消息内容的前缀，provider 层据此切出可缓存段（参考 assembler.js）。
-  // 动态后缀（user 段）：各字段当前取值 + nearby 池 + 本轮对话，逐轮变化，不进缓存。
-  const cacheableSystem = renderBackendPrompt('state-update.md', {
-    SCHEMA: schemaSections.join('\n\n'),
-    RESPONSE_KEYS: responseKeys.join('、'),
-    EXAMPLE_KEYS: exampleKeys,
-  });
-  const runtimeUser = renderBackendPrompt('state-update-runtime.md', {
-    VALUES: valueSections.join('\n\n'),
-    DIALOGUE: dialogue,
-    RESPONSE_KEYS: responseKeys.join('、'),
+  // 必须逐字成为 system 消息内容的前缀，provider 层据此切出可缓存段（参考 assembler.js）。
+  // 动态后缀（user 段）：各字段当前取值 + 实体目录/世界事实/相关实体详情 + 本轮对话，逐轮变化，不进缓存。
+  const cacheableSystem = buildCacheableSystemPrompt(worldId, targets, { schemaSections, responseKeys });
+  const relevantIds = resolveRelevantEntityIds(sessionId, messages, { playerEntityId, mainCharacterEntityId });
+  const runtimeUser = buildRuntimeUserPrompt({
+    sessionId, worldId, mainCharacterEntityId, valueSections, dialogue, responseKeys, round, relevantIds,
   });
 
   const prompt = [
@@ -336,7 +322,7 @@ export async function updateAllStates(worldId, characterIds, sessionId) {
   await writeStatePatch(patch, {
     sid, sessionId, worldId, world, targets,
     valueMaps: { worldValueMap, charValueMaps, personaValueMap },
-    nearbyContext, charWorldId,
+    round, turnText, realDate, mainCharacterEntityId,
   });
 }
 
@@ -346,4 +332,5 @@ export async function updateAllStates(worldId, characterIds, sessionId) {
 export const __testables = {
   applyStatePatch,
   validateValue,
+  buildCacheableSystemPrompt,
 };

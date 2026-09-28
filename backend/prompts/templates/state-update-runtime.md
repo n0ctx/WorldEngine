@@ -2,6 +2,17 @@
 
 {{VALUES}}
 
+本轮轮号：{{ROUND}}
+
+【实体目录】
+{{ENTITY_DIRECTORY}}
+
+【世界事实】
+{{WORLD_FACTS}}
+
+【相关实体详情】
+{{ENTITY_DETAILS}}
+
 对话内容：
 {{DIALOGUE}}
 

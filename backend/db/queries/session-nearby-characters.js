@@ -70,15 +70,6 @@ export function updateNearbyIsSaved(id, isSaved) {
   ).run(isSaved ? 1 : 0, Date.now(), id);
 }
 
-export function touchNearbyRows(ids) {
-  const list = Array.isArray(ids) ? ids : [];
-  if (list.length === 0) return;
-  const placeholders = list.map(() => '?').join(',');
-  db.prepare(
-    `UPDATE session_nearby_characters SET updated_at = ? WHERE id IN (${placeholders})`,
-  ).run(Date.now(), ...list);
-}
-
 export function deleteNearbyById(id) {
   db.prepare(`DELETE FROM session_nearby_characters WHERE id = ?`).run(id);
 }
