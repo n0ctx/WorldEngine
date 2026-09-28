@@ -170,8 +170,8 @@ describe('流式书写', () => {
   });
 
   it('写作页隐藏思考块时仍显示其中断标记', () => {
-    const showThinking = useDisplaySettingsStore.getState().showThinking;
-    useDisplaySettingsStore.setState({ showThinking: false });
+    const writingShowThinking = useDisplaySettingsStore.getState().writingShowThinking;
+    useDisplaySettingsStore.setState({ writingShowThinking: false });
     try {
       const { container } = render(
         <WritingMessageItem
@@ -183,7 +183,7 @@ describe('流式书写', () => {
       expect(container.querySelector('[role="status"][aria-label="生成已中断"]')).not.toBeNull();
       expect(container.textContent).not.toContain('尚未完成的思考');
     } finally {
-      useDisplaySettingsStore.setState({ showThinking });
+      useDisplaySettingsStore.setState({ writingShowThinking });
     }
   });
 });
