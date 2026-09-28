@@ -10,31 +10,35 @@ import { ALL_MESSAGES_LIMIT } from '../../../utils/constants.js';
 import { formatMeta } from '../../../utils/logger.js';
 import { restoreStateFromSnapshot } from '../../../memory/state-rollback.js';
 import { deleteDiaryFile } from '../../../memory/diary-generator.js';
-import { restoreLtmFromTurnRecord } from '../../../services/long-term-memory.js';
 import { restoreTablesFromTurnRecord } from '../../../services/table-memory.js';
 
 /**
  * 回滚一个会话：等队列空闲后执行 truncateMessages 截断消息，再按剩余轮次截断轮次记录，
- * 还原长期记忆 / 表格记忆 / 日记 / 状态快照。重生成、编辑消息、删除消息只在截断方式上不同。
+ * 还原表格记忆 / 日记 / 状态快照。重生成、编辑消息、删除消息只在截断方式上不同。
  *
  * 模式差异只剩「世界与角色怎么解析」，由 mode.resolveScope 吃掉。
+ *
+ * @param {{ redoLatestRound?: boolean }} [opts] - redoLatestRound 为 true 时，末尾即使是 AI 回复
+ *   也把最后一轮算作待重做（续写、编辑最后一条 AI 回复要重做该轮）。
  */
-export async function rollbackSession(mode, sessionId, truncateMessages) {
+export async function rollbackSession(mode, sessionId, truncateMessages, { redoLatestRound = false } = {}) {
   const log = mode.log;
   const sid = sessionId.slice(0, 8);
 
   await waitForQueueIdle(sessionId);
   await truncateMessages();
 
-  // 只保留已完成的轮次：末尾是用户消息（重生成 / 编辑）时该轮待重做，末尾是 AI 回复（删除消息后）时各轮都完整
+  // 只保留已完成的轮次：末尾是用户消息（重生成 / 编辑）时该轮待重做，末尾是 AI 回复（删除消息后）时各轮都完整；
+  // redoLatestRound 时末尾即使是 AI 回复也算最后一轮待重做
   const remaining = mode.session.getMessages(sessionId, ALL_MESSAGES_LIMIT, 0);
   const roundCount = remaining.filter((message) => message.role === 'user').length;
-  const keptRounds = remaining.at(-1)?.role === 'assistant' ? roundCount : Math.max(0, roundCount - 1);
+  const keptRounds = !redoLatestRound && remaining.at(-1)?.role === 'assistant'
+    ? roundCount
+    : Math.max(0, roundCount - 1);
 
   deleteTurnRecordsAfterRound(sessionId, keptRounds);
   log.info(`TURN-RECORD TRUNCATE  ${formatMeta({ session: sid, keepUntilRound: keptRounds })}`);
 
-  restoreLtmFromTurnRecord(sessionId, keptRounds === 0 ? null : getLatestTurnRecord(sessionId));
   restoreTablesFromTurnRecord(sessionId, keptRounds === 0 ? null : getLatestTurnRecord(sessionId));
 
   for (const entry of getDailyEntriesAfterRound(sessionId, keptRounds + 1)) {
