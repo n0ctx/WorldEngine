@@ -5,7 +5,7 @@ import { getCharactersByWorld } from '../../../core/api/characters.js';
 import { createEntityFromCard } from '../../../core/api/state-memory.js';
 import { log } from '../../../core/utils/logger.js';
 
-/** 从角色卡添加实体：建立置顶关联卡片的角色实体，取代原「保存到附近角色池」 */
+/** 从角色卡添加实体：建立置顶、关联卡片的角色实体 */
 export default function AddEntityFromCardModal({ worldId, sessionId, entities, onAdded, onClose }) {
   const [chars, setChars] = useState(null); // null = loading, [] = empty
   const [adding, setAdding] = useState(null);

@@ -17,8 +17,7 @@
  *   3. 删除旧表 session_nearby_characters / session_nearby_character_state_values、
  *      turn_records.table_memory_snapshot 列（存在时）。
  *
- * 旧表格快照文件读取用 fs 直接读 JSON，不依赖表格记忆服务（已下线）；读到损坏 JSON 时
- * 不捕获异常，让迁移失败回滚，而不是静默丢弃旧数据。
+ * 旧表格快照文件用 fs 直接读 JSON；读到损坏 JSON 时不捕获异常，让迁移失败回滚，而不是静默丢弃旧数据。
  *
  * 除 migrateToStateMemory() 外，其余导出函数只为按迁移阶段拆分成独立的可测/可读单元，
  * 不是给其他模块调用的公共接口。
@@ -60,12 +59,14 @@ import {
   nextThreadSeq,
 } from '../db/queries/state-memory.js';
 import { upsertEntityStateValues } from '../db/queries/session-entity-state-values.js';
+import { getPersonaById, getPersonaByWorldId } from '../db/queries/personas.js';
 
 const TABLE_MEMORY_DIR = path.join(DATA_ROOT, 'table_memory');
 const MIGRATION_ROUND = 0;
 const MIGRATION_EVIDENCE = '迁移';
 const CHAR_SUFFIX = '_char';
 const WORLD_TIME_EMPTY_DEFAULT = '1000-01-01T00:00';
+const PLAYER_LITERAL_NAME = '玩家';
 
 const NEARBY_DEFAULT_FIELD_KEYS = ['personality', 'age', 'appearance', 'identity', 'outfit'];
 const NEARBY_TO_PROFILE_FIELD = {
@@ -177,6 +178,7 @@ function createEntityRegistry(sessionId) {
       type: rec.type,
       name: rec.name,
       aliasesJson: JSON.stringify([...rec.aliases]),
+      cardId: rec.cardId,
       pinned: rec.pinned,
     }, MIGRATION_ROUND);
   }
@@ -185,11 +187,11 @@ function createEntityRegistry(sessionId) {
     return byNormalizedName.get(normalize(name)) ?? null;
   }
 
-  function create(type, name, { pinned = false } = {}) {
+  function create(type, name, { pinned = false, cardId = null } = {}) {
     const entityId = crypto.randomUUID();
     const seq = nextEntitySeq(sessionId);
     const cleanName = truncateText(name, STATE_TEXT_FIELD_MAX) || String(name ?? '');
-    byId.set(entityId, { type, name: cleanName, aliases: new Set(), pinned, seq });
+    byId.set(entityId, { type, name: cleanName, aliases: new Set(), pinned, seq, cardId });
     byNormalizedName.set(normalize(name), entityId);
     flush(entityId);
     return entityId;
@@ -221,7 +223,24 @@ function createEntityRegistry(sessionId) {
     }
   }
 
-  return { findByName, findOrCreate, addAliases, markPinned };
+  return { findByName, findOrCreate, create, addAliases, markPinned };
+}
+
+/**
+ * 旧数据按名字指代玩家（人设名或字面「玩家」）和对话模式的主角色：先建好这两个实体
+ * （命名与 ensureBaseEntities 一致），后续按名字匹配时落到它们身上，而不是另建同名角色。
+ */
+function seedBaseEntities(session, registry) {
+  const persona = session.persona_id
+    ? getPersonaById(session.persona_id)
+    : (session.world_id ? getPersonaByWorldId(session.world_id) : null);
+  const playerName = persona?.name?.trim() || PLAYER_LITERAL_NAME;
+  const playerEntityId = registry.create('player', playerName);
+  if (playerName !== PLAYER_LITERAL_NAME) registry.addAliases(playerEntityId, [PLAYER_LITERAL_NAME]);
+
+  if (session.mode !== 'writing' && session.character_id) {
+    registry.create('character', session.character_name?.trim() || '角色', { cardId: session.character_id });
+  }
 }
 
 // ============================
@@ -232,6 +251,7 @@ function migrateAllSessions() {
   const sessions = listAllSessions();
   for (const session of sessions) {
     const registry = createEntityRegistry(session.id);
+    seedBaseEntities(session, registry);
     migrateSessionNearbyCharacters(session.id, registry);
     migrateSessionTableMemory(session.id, registry);
     migrateSessionWorldProfile(session.id, session.world_id, registry);

@@ -115,7 +115,7 @@ export async function analyzeEntityForCard(sessionId, entityId) {
   return {
     name: entity.name,
     system_prompt: typeof parsed.system_prompt === 'string' ? parsed.system_prompt : '',
-    // description 直接采用实体档案文本；LLM 不再生成 description 字段
+    // description 直接采用实体档案文本，LLM 不生成该字段
     description: profileText,
     first_message: typeof parsed.first_message === 'string' ? parsed.first_message : '',
   };

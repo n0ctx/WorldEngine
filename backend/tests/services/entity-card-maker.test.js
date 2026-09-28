@@ -56,7 +56,7 @@ test('analyzeEntityForCard：返回 LLM 草稿（name 透传 + LLM 两字段 + d
   insertMessage(sandbox.db, sessionId, { role: 'user', content: '你好啊' });
   insertMessage(sandbox.db, sessionId, { role: 'assistant', content: '你好。' });
 
-  // mock LLM 返回固定 JSON（不再包含 description；description 由档案文本决定）
+  // mock LLM 返回固定 JSON（不含 description；description 由档案文本决定）
   process.env.MOCK_LLM_COMPLETE = JSON.stringify({
     system_prompt: '阿绪性格沉静，言语克制，习惯先观察再开口。',
     first_message: '（轻轻点头）你好。',

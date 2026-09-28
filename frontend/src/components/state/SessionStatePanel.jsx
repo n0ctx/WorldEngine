@@ -244,7 +244,7 @@ function PlayerTab({
  *
  * `stateMemory` / `reloadStateMemory` / `stateMemorySchema` / `entityDiff`
  * 由调用方（StatePanel / NearbyPanel）各自调用 useStateMemory / useEntityDiff
- * 后传入，这里不再重复拉取——调用方本来就要用同一份状态记忆搭 NPC 页签
+ * 后传入，这里不自行拉取——调用方本来就要用同一份状态记忆搭 NPC 页签
  * （见 useEntitySections），两边各拉一次会打两遍 GET state-memory。
  */
 export default function SessionStatePanel({

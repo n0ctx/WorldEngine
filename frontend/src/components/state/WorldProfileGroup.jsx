@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import DatetimeSplitInput from './DatetimeSplitInput.jsx';
 import StateMemoryProfileField from './StateMemoryProfileField.jsx';
+import { formatDatetimeChinese } from './state-value-format.js';
 import { isImeComposing } from '../../core/utils/ime.js';
 import { createStateFact, deleteStateFact, updateStateEntity, updateStateWorld } from '../../core/api/state-memory.js';
 import { log } from '../../core/utils/logger.js';
@@ -18,7 +19,7 @@ function WorldTimeField({ time, onCommit }) {
           className={`we-status-value we-status-editable${time ? '' : ' we-status-null'}`}
           onClick={() => { setDraft(time ?? ''); setEditing(true); }}
         >
-          {time || '未设定'}
+          {time ? formatDatetimeChinese(time) : '未设定'}
         </span>
       </div>
     );

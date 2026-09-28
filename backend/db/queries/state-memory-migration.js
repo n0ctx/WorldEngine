@@ -50,10 +50,14 @@ function hasLegacyNearbyTables() {
   return tableExists('session_nearby_characters');
 }
 
-/** 全部会话及其所属 world_id（chat 会话经 character_id 关联，writing 会话直接挂 world_id）。 */
+/**
+ * 全部会话及其所属 world_id（chat 会话经 character_id 关联，writing 会话直接挂 world_id），
+ * 附带会话的 mode、persona_id 与主角色（character_id、character_name）。
+ */
 export function listAllSessions() {
   return db.prepare(`
-    SELECT s.id AS id, COALESCE(s.world_id, c.world_id) AS world_id
+    SELECT s.id AS id, COALESCE(s.world_id, c.world_id) AS world_id, s.mode AS mode,
+           s.persona_id AS persona_id, s.character_id AS character_id, c.name AS character_name
     FROM sessions s
     LEFT JOIN characters c ON c.id = s.character_id
   `).all();

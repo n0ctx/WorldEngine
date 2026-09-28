@@ -256,7 +256,7 @@ export async function updateAllStates(worldId, characterIds, sessionId) {
   const isWriting = session?.mode === 'writing';
   captureBaselineIfAbsent(sessionId, worldId, characterIds);
 
-  // 状态记忆常开：只要会话有消息就调用，不再按「是否有活跃用户字段」提前返回。
+  // 状态记忆常开：只要会话有消息就调用。
   const messages = getMessagesBySessionId(sessionId, ALL_MESSAGES_LIMIT, 0);
   if (messages.length === 0) return;
   const { round, turnText } = resolveCurrentRound(messages);

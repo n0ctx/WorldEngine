@@ -14,6 +14,8 @@ import {
   insertWorldEntry,
   insertEntryCondition,
   insertTurnRecord,
+  insertPersona,
+  insertCharacter,
 } from '../helpers/fixtures.js';
 
 const sandbox = createTestSandbox('state-memory-migration');
@@ -34,7 +36,7 @@ const { default: db } = await freshImport('backend/db/index.js');
 test.after(() => sandbox.cleanup());
 
 /**
- * schema.js 已不再建这两张旧表：迁移测试需要在沙箱库里自行按删除前的结构建出旧表，
+ * schema.js 不建这两张旧表：迁移测试需要在沙箱库里自行按删除前的结构建出旧表，
  * 再插入旧数据，才能验证迁移读取旧表并清理的行为。
  */
 function createLegacyNearbyTables() {
@@ -372,6 +374,23 @@ test('完整旧数据迁移：附近角色、四张表、世界档案、条件�
 
   insertTurnRecord(db, session.id, { round_index: 1, table_memory_snapshot: '{"legacy":true}' });
 
+  // 对话会话：旧表格用人设名、字面「玩家」和主角色名指代玩家与主角色
+  const persona = insertPersona(db, world.id, { name: '顾遥' });
+  const character = insertCharacter(db, world.id, { name: '苏禾' });
+  const chatSession = insertSession(db, { character_id: character.id, persona_id: persona.id, mode: 'chat' });
+  writeTablesJson(chatSession.id, JSON.stringify({
+    version: 1,
+    tables: {
+      relations: {
+        rows: [
+          { id: 1, 主体A: '玩家', 主体B: '苏禾', 关系类型: '同伴' },
+          { id: 2, 主体A: '顾遥', 主体B: '陈伯', 关系类型: '邻居' },
+        ],
+        nextId: 3,
+      },
+    },
+  }));
+
   migrateToStateMemory();
 
   // 第零步：五个默认字段（含自定义 mood 字段不受影响）
@@ -473,8 +492,21 @@ test('完整旧数据迁移：附近角色、四张表、世界档案、条件�
   // 归档行不迁移
   assert.equal(entityByName(session.id, '已归档甲'), undefined);
 
-  // 实体总数：沈彦、路人甲、林乔、银戒指、神秘匕首、旧港仓库、黑潮会 = 7
-  assert.equal(currentEntities(session.id).length, 7);
+  // 实体总数：玩家（世界人设顾遥）、沈彦、路人甲、林乔、银戒指、神秘匕首、旧港仓库、黑潮会 = 8
+  assert.equal(currentEntities(session.id).length, 8);
+
+  // 对话会话：人设名与字面「玩家」都落到 player 实体，主角色名落到带 card_id 的主角色实体，不另建同名角色
+  const chatEntities = currentEntities(chatSession.id);
+  const player = chatEntities.find((e) => e.type === 'player');
+  assert.equal(player.name, '顾遥');
+  assert.deepEqual(JSON.parse(player.aliases_json), ['玩家']);
+  const mainCharacter = chatEntities.find((e) => e.card_id === character.id);
+  assert.equal(mainCharacter.name, '苏禾');
+  assert.deepEqual(chatEntities.map((e) => e.name).sort(), ['苏禾', '陈伯', '顾遥'].sort());
+  const chatRelations = relationsOf(chatSession.id);
+  assert.equal(chatRelations.length, 2);
+  assert.ok(chatRelations.every((r) => r.subject_id === player.entity_id));
+  assert.equal(chatRelations.find((r) => r.predicate === '同伴').object_id, mainCharacter.entity_id);
 
   // 第零步 A：世界档案与地点关联
   const worldProfile = worldProfileOf(session.id);
@@ -515,5 +547,5 @@ test('完整旧数据迁移：附近角色、四张表、世界档案、条件�
 
   // 重复执行不做第二次
   migrateToStateMemory();
-  assert.equal(currentEntities(session.id).length, 7);
+  assert.equal(currentEntities(session.id).length, 8);
 });

@@ -20,7 +20,7 @@ const { default: db } = await freshImport('backend/db/index.js');
 test.after(() => sandbox.cleanup());
 
 /**
- * schema.js 已不再建这两张旧表：迁移测试需要在沙箱库里自行按删除前的结构建出旧表，
+ * schema.js 不建这两张旧表：迁移测试需要在沙箱库里自行按删除前的结构建出旧表，
  * 再插入旧数据，才能验证迁移失败时旧表与数据原样保留。
  */
 function createLegacyNearbyTables() {
