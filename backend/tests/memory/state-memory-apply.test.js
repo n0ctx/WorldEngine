@@ -427,6 +427,24 @@ test('set_world location 写入明确地名时自动建 location 实体', () => 
   assert.equal(profile.location_entity_id, location.entity_id);
 });
 
+test('角色「位置」只关联已有地点实体，不自动建实体', () => {
+  const { world, session } = setupSession();
+  makeEntity(session.id, { name: '沈彦', seq: 1 });
+  makeEntity(session.id, { name: '旧港仓库', seq: 2, type: 'location' });
+  const result = applyStateMemoryOps({
+    sessionId: session.id, worldId: world.id, round: 1,
+    ops: [
+      { op: 'set_state', entity: 'e1', key: '位置', value: '走廊' },
+      { op: 'set_state', entity: 'e1', key: '位置', value: 'e2' },
+    ],
+    ...noop,
+  });
+  assert.equal(result.applied, 2);
+  assert.equal(listCurrentEntities(session.id).length, 2);
+  const entityId = listCurrentEntities(session.id)[0].entity_id;
+  assert.equal(getEntityDetails(session.id, [entityId])[entityId].dynamic['位置'], '旧港仓库');
+});
+
 // ─── retire_entity ─────────────────────────────────────────────
 
 test('retire_entity 关闭其参与的关系，但不关闭事项', () => {

@@ -192,8 +192,12 @@ function createNewEntity(ctx, { name, type, aliases, cardId = null }) {
   return entity;
 }
 
-/** 地点解析：能对应到 location 实体时存其 ID 和名字；否则明确地名时自动建实体；只存文字也可。 */
-function resolveLocationValue(rawValue, ctx) {
+/**
+ * 地点解析：能对应到 location 实体时存其 ID 和名字；否则只存文字。
+ * createIfMissing 时（世界当前地点），明确地名还会自动建 location 实体；角色「位置」常是走廊、床边这类
+ * 不值得建档的小地点，只关联已有实体。
+ */
+function resolveLocationValue(rawValue, ctx, { createIfMissing }) {
   if (isPlaceholderValue(rawValue)) return null;
   const refId = resolveEntityRef(rawValue, ctx.index);
   if (refId) {
@@ -202,10 +206,11 @@ function resolveLocationValue(rawValue, ctx) {
   }
   const text = truncateText(String(rawValue).trim());
   if (!text) return null;
-  const looksLikePlaceName = text.length <= PLACE_NAME_MAX_LENGTH && !SENTENCE_PUNCTUATION_RE.test(text);
-  if (!looksLikePlaceName) return { text, locationEntityId: null };
   const existing = ctx.index.byNameOrAlias.get(text);
-  const entity = (existing && existing.type === 'location') ? existing : createNewEntity(ctx, { name: text, type: 'location', aliases: [] });
+  if (existing?.type === 'location') return { text: existing.name, locationEntityId: existing.entity_id };
+  const looksLikePlaceName = text.length <= PLACE_NAME_MAX_LENGTH && !SENTENCE_PUNCTUATION_RE.test(text);
+  if (!createIfMissing || !looksLikePlaceName) return { text, locationEntityId: null };
+  const entity = createNewEntity(ctx, { name: text, type: 'location', aliases: [] });
   return { text: entity.name, locationEntityId: entity.entity_id };
 }
 
@@ -433,7 +438,7 @@ const handleSetState = withResolvedEntity((op, ctx, entity) => {
     return { ok: false, reason: `字段已由用户状态字段负责: ${key}` };
   }
   if (key === DYNAMIC_LOCATION_KEY) {
-    const resolved = resolveLocationValue(op.value, ctx);
+    const resolved = resolveLocationValue(op.value, ctx, { createIfMissing: false });
     if (!resolved) return { ok: false, reason: '占位值或地点解析失败' };
     upsertDynamicState(ctx.sessionId, entity.entity_id, DYNAMIC_LOCATION_KEY, resolved.text, ctx.round);
     return { ok: true };
@@ -554,7 +559,7 @@ function handleSetWorld(op, ctx) {
     return { ok: true };
   }
   if (op.key === 'location') {
-    const resolved = resolveLocationValue(op.value, ctx);
+    const resolved = resolveLocationValue(op.value, ctx, { createIfMissing: true });
     if (!resolved) return { ok: false, reason: '占位值或地点解析失败' };
     upsertWorldProfile(ctx.sessionId, 'location', resolved.text, resolved.locationEntityId, ctx.round);
     ctx.worldProfile.location = resolved.text;

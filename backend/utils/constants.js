@@ -123,25 +123,18 @@ export const LLM_TOOL_RESOLUTION_MAX_ITERATIONS = 25;
 // 状态记忆（memory-v2 第二阶段）
 // ============================
 /** 当前有效的世界事实条数上限 */
-// guard-allow(dead-code): memory-v2-p2 后续节点使用
 export const STATE_WORLD_FACTS_MAX = 20;
 /** 状态更新提示词里「实体目录」段的 token 预算 */
-// guard-allow(dead-code): memory-v2-p2 后续节点使用
 export const STATE_DIRECTORY_BUDGET = 3000;
 /** 档案文本字段最大字数 */
-// guard-allow(dead-code): memory-v2-p2 后续节点使用
 export const STATE_TEXT_FIELD_MAX = 60;
 /** 档案 list 字段单项最大字数 */
-// guard-allow(dead-code): memory-v2-p2 后续节点使用
 export const STATE_LIST_ITEM_MAX = 30;
 /** 档案证据原文最短字符数 */
-// guard-allow(dead-code): memory-v2-p2 后续节点使用
 export const STATE_EVIDENCE_MIN = 4;
 /** 档案证据原文最长字符数 */
-// guard-allow(dead-code): memory-v2-p2 后续节点使用
 export const STATE_EVIDENCE_MAX = 80;
 /** 按名字/别名匹配实体时的最短字数 */
-// guard-allow(dead-code): memory-v2-p2 后续节点使用
 export const STATE_NAME_MATCH_MIN = 2;
 
 // ============================
