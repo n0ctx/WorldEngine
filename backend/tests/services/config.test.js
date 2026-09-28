@@ -28,13 +28,11 @@ test('缺少配置文件时写入默认值并返回独立对象', () => {
 test('对话和写作的行为配置分别保存', () => {
   fs.rmSync(sandbox.configPath, { force: true });
   updateConfig({
-    table_memory_row_limits: { relations: 12 },
     memory_recall_max_sessions: 3,
     long_term_index_budget: 6000,
     danmaku: { enabled: true, count: 4, speed: 'slow' },
     ui: { show_thinking: false },
     writing: {
-      table_memory_row_limits: { relations: 25 },
       memory_recall_max_sessions: 8,
       long_term_index_budget: 30000,
       danmaku: { enabled: false, count: 9, speed: 'fast' },
@@ -42,8 +40,6 @@ test('对话和写作的行为配置分别保存', () => {
     },
   });
   const config = getConfig();
-  assert.equal(config.table_memory_row_limits.relations, 12);
-  assert.equal(config.writing.table_memory_row_limits.relations, 25);
   assert.equal(config.memory_recall_max_sessions, 3);
   assert.equal(config.writing.memory_recall_max_sessions, 8);
   assert.equal(config.long_term_index_budget, 6000);
@@ -60,20 +56,27 @@ test('updateConfig：非法预算值规范到默认值/null，合法值按范围
   const config = updateConfig({
     short_term_token_budget: 'abc',
     long_term_index_budget: 1,
+    state_injection_token_budget: 'abc',
     writing: { short_term_token_budget: 'abc' },
   });
   assert.equal(config.short_term_token_budget, 8000);
   assert.equal(config.long_term_index_budget, 2000);
+  assert.equal(config.state_injection_token_budget, 3000);
   assert.equal(config.writing.short_term_token_budget, null);
 
   const clamped = updateConfig({
     short_term_token_budget: 999999,
     long_term_index_budget: 999999999,
+    state_injection_token_budget: 999999,
     writing: { short_term_token_budget: 500 },
   });
   assert.equal(clamped.short_term_token_budget, 200000);
   assert.equal(clamped.long_term_index_budget, 500000);
+  assert.equal(clamped.state_injection_token_budget, 50000);
   assert.equal(clamped.writing.short_term_token_budget, 1000);
+
+  const lowClamped = updateConfig({ state_injection_token_budget: 1 });
+  assert.equal(lowClamped.state_injection_token_budget, 500);
 
   const inherited = updateConfig({ writing: { short_term_token_budget: null } });
   assert.equal(inherited.writing.short_term_token_budget, null);
@@ -94,7 +97,6 @@ test('读取旧配置时迁移共享密钥并持久化规范化结果', () => {
     diary: { chat: { enabled: true } },
     assistant: { model_source: 'writing' },
     danmaku: false,
-    table_memory_row_limits: { relations: 6, items: '3.8', unknown: 99 },
   });
 
   const config = getConfig();
@@ -129,24 +131,24 @@ test('读取旧配置时迁移共享密钥并持久化规范化结果', () => {
     writing: { enabled: false, date_mode: 'virtual' },
   });
   assert.deepEqual(config.danmaku, { enabled: false, count: 5, speed: 'normal' });
-  assert.deepEqual(config.table_memory_row_limits, {
-    relations: 6,
-    items: 3,
-    places: 30,
-    factions: 20,
-  });
+  assert.equal('table_memory_row_limits' in config, false);
   assert.deepEqual(sandbox.readConfig(), config);
 });
 
-test('旧配置含六个废弃键时，迁移后全部消失并持久化', () => {
+test('旧配置含废弃键时，迁移后全部消失并持久化', () => {
   sandbox.writeConfig({
     context_compress_rounds: 7,
     context_history_rounds: 10,
     long_term_memory_enabled: true,
     embedding: { provider: 'openai', model: 'text-embedding-3-small' },
+    table_memory_enabled: true,
+    table_memory_row_limits: { relations: 6 },
     writing: {
       context_history_rounds: 5,
       long_term_memory_enabled: true,
+      saved_nearby_recall_enabled: true,
+      table_memory_enabled: true,
+      table_memory_row_limits: { relations: 6 },
     },
   });
 
@@ -156,8 +158,13 @@ test('旧配置含六个废弃键时，迁移后全部消失并持久化', () =>
   assert.equal('context_history_rounds' in config, false);
   assert.equal('long_term_memory_enabled' in config, false);
   assert.equal('embedding' in config, false);
+  assert.equal('table_memory_enabled' in config, false);
+  assert.equal('table_memory_row_limits' in config, false);
   assert.equal('context_history_rounds' in config.writing, false);
   assert.equal('long_term_memory_enabled' in config.writing, false);
+  assert.equal('saved_nearby_recall_enabled' in config.writing, false);
+  assert.equal('table_memory_enabled' in config.writing, false);
+  assert.equal('table_memory_row_limits' in config.writing, false);
   assert.deepEqual(sandbox.readConfig(), config);
 });
 

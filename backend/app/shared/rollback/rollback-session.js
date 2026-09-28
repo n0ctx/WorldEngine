@@ -1,20 +1,19 @@
 import { deleteDailyEntriesAfterRound, getDailyEntriesAfterRound } from '../../../db/queries/daily-entries.js';
 import {
   deleteTurnRecordsAfterRound,
-  getLatestTurnRecord,
   getLatestTurnRecordWithSnapshot,
 } from '../../../db/queries/turn-records.js';
 import { getSessionStateBaseline } from '../../../db/queries/sessions.js';
+import { rollbackStateMemory } from '../../../db/queries/state-memory.js';
 import { clearPending, waitForQueueIdle } from '../../../utils/async-queue.js';
 import { ALL_MESSAGES_LIMIT } from '../../../utils/constants.js';
 import { formatMeta } from '../../../utils/logger.js';
 import { restoreStateFromSnapshot } from '../../../memory/state-rollback.js';
 import { deleteDiaryFile } from '../../../memory/diary-generator.js';
-import { restoreTablesFromTurnRecord } from '../../../services/table-memory.js';
 
 /**
  * 回滚一个会话：等队列空闲后执行 truncateMessages 截断消息，再按剩余轮次截断轮次记录，
- * 还原表格记忆 / 日记 / 状态快照。重生成、编辑消息、删除消息只在截断方式上不同。
+ * 还原状态记忆（多版本表 + 实体字段值）/ 日记 / 状态快照。重生成、编辑消息、删除消息只在截断方式上不同。
  *
  * 模式差异只剩「世界与角色怎么解析」，由 mode.resolveScope 吃掉。
  *
@@ -39,7 +38,7 @@ export async function rollbackSession(mode, sessionId, truncateMessages, { redoL
   deleteTurnRecordsAfterRound(sessionId, keptRounds);
   log.info(`TURN-RECORD TRUNCATE  ${formatMeta({ session: sid, keepUntilRound: keptRounds })}`);
 
-  restoreTablesFromTurnRecord(sessionId, keptRounds === 0 ? null : getLatestTurnRecord(sessionId));
+  rollbackStateMemory(sessionId, keptRounds);
 
   for (const entry of getDailyEntriesAfterRound(sessionId, keptRounds + 1)) {
     deleteDiaryFile(sessionId, entry.date_str);

@@ -1,5 +1,4 @@
 import { getChapterTitle, upsertChapterTitle } from '../../db/queries/chapter-titles.js';
-import { getLastTurnMessages } from '../../db/queries/messages.js';
 import { generateChapterTitle } from '../../memory/chapter-title-generator.js';
 import { getConfig, getEffectiveChapterTurnSize, getWritingLlmConfig } from '../../services/config.js';
 import {
@@ -61,8 +60,6 @@ export const writingMode = {
 
   postgen: {
     titleLabel: 'session-title',
-    tableMemoryEnabled: () => getConfig().writing?.table_memory_enabled === true,
-    lastTurnMessages: (sessionId) => getLastTurnMessages(sessionId),
 
     /**
      * 章节标题槽位：仅在本轮跨入新章、且该章尚无标题时入队。

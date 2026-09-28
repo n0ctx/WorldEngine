@@ -20,7 +20,6 @@ import {
   deleteWorldStateField,
   listWorldStateFields,
   reorderWorldStateFields,
-  syncDiaryTimeField,
   updateWorldStateField,
 } from '../../src/core/api/world-state-fields.js';
 
@@ -29,7 +28,7 @@ describe('state fields extra api', () => {
     global.fetch = vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => ({ ok: true }) });
   });
 
-  it('覆盖 persona / character / world state field wrappers 以及 diary 接口', async () => {
+  it('覆盖 persona / character / world state field wrappers 以及清空日记接口', async () => {
     await listPersonaStateFields('world-1');
     await createPersonaStateField('world-1', { field_key: 'hp' });
     await updatePersonaStateField('pf-1', { label: 'HP' });
@@ -47,13 +46,11 @@ describe('state fields extra api', () => {
     await updateWorldStateField('wf-1', { label: '天气' });
     await deleteWorldStateField('wf-1');
     await reorderWorldStateFields('world-1', ['wf-1']);
-    await syncDiaryTimeField('world-1');
     await clearAllDiaries();
 
     expect(fetch).toHaveBeenCalledWith('/api/worlds/world-1/persona-state-fields', expect.any(Object));
     expect(fetch).toHaveBeenCalledWith('/api/worlds/world-1/character-state-fields', expect.any(Object));
     expect(fetch).toHaveBeenCalledWith('/api/worlds/world-1/world-state-fields', expect.any(Object));
-    expect(fetch).toHaveBeenCalledWith('/api/worlds/world-1/sync-diary', { method: 'POST' });
     expect(fetch).toHaveBeenCalledWith('/api/worlds/clear-all-diaries', { method: 'POST' });
   });
 });

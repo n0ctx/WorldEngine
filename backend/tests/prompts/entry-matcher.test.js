@@ -66,6 +66,22 @@ test('matchByKeywords keyword_scope 限定为 user 时 assistant 中的关键词
   assert.equal(__testables.matchByKeywords(entry, 'has x', ''), true);
 });
 
+test('applyWorldProfileToStateMap：写入世界档案时间/地点，并在与用户字段同名时 log.warn 后以档案值覆盖', async () => {
+  const world = insertWorld(sandbox.db, { name: '档案覆盖测试' });
+  const character = insertCharacter(sandbox.db, world.id);
+  const session = insertSession(sandbox.db, { character_id: character.id, world_id: world.id, mode: 'chat' });
+  const { upsertWorldProfile } = await freshImport('backend/db/queries/state-memory.js');
+  upsertWorldProfile(session.id, 'time', '1005-03-15T08:00', null, 1);
+  upsertWorldProfile(session.id, 'location', '旧港仓库', null, 1);
+
+  const { applyWorldProfileToStateMap } = await freshImport('backend/prompts/entry-matcher.js');
+  const map = new Map([['世界.时间', '用户字段旧值']]);
+  applyWorldProfileToStateMap(map, session.id);
+
+  assert.equal(map.get('世界.时间'), '1005-03-15T08:00', '冲突时以世界档案时间为准');
+  assert.equal(map.get('世界.地点'), '旧港仓库');
+});
+
 test('matchEntries 在 LLM 失败时降级到关键词匹配', async () => {
   const world = insertWorld(sandbox.db);
   const character = insertCharacter(sandbox.db, world.id);
@@ -262,6 +278,60 @@ describe('matchEntries — state 类型条件评估', () => {
     const { matchEntries } = await freshImport('backend/prompts/entry-matcher.js');
     const matched = await matchEntries(session.id, [{ ...entry }], world.id);
     assert.ok(!matched.has(entry.id), '无条件的 state 条目不应触发');
+  });
+
+  test('世界.时间 条件按世界档案触发，支持年份部分比较', async () => {
+    const world = insertWorld(sandbox.db, { name: '状态条目世界-时间' });
+    const character = insertCharacter(sandbox.db, world.id, { name: '测试角色-时间' });
+    const session = insertSession(sandbox.db, { character_id: character.id, world_id: world.id, mode: 'chat' });
+
+    const { upsertWorldProfile } = await freshImport('backend/db/queries/state-memory.js');
+    upsertWorldProfile(session.id, 'time', '1005-03-15T08:00', null, 1);
+
+    const entry = insertWorldEntry(sandbox.db, world.id, { title: '时间到了', trigger_type: 'state', content: '...' });
+    insertEntryCondition(sandbox.db, entry.id, { target_field: '世界.时间', operator: '>', value: 'year:1000' });
+
+    resetMockEnv();
+    const { matchEntries } = await freshImport('backend/prompts/entry-matcher.js');
+    const matched = await matchEntries(session.id, [{ ...entry }], world.id);
+    assert.ok(matched.has(entry.id), '世界档案时间年份 1005 > 1000，应命中');
+  });
+
+  test('世界.地点 等值条件按世界档案触发', async () => {
+    const world = insertWorld(sandbox.db, { name: '状态条目世界-地点' });
+    const character = insertCharacter(sandbox.db, world.id, { name: '测试角色-地点' });
+    const session = insertSession(sandbox.db, { character_id: character.id, world_id: world.id, mode: 'chat' });
+
+    const { upsertWorldProfile } = await freshImport('backend/db/queries/state-memory.js');
+    upsertWorldProfile(session.id, 'location', '旧港仓库', null, 1);
+
+    const entry = insertWorldEntry(sandbox.db, world.id, { title: '到达仓库', trigger_type: 'state', content: '...' });
+    insertEntryCondition(sandbox.db, entry.id, { target_field: '世界.地点', operator: '等于', value: '旧港仓库' });
+
+    resetMockEnv();
+    const { matchEntries } = await freshImport('backend/prompts/entry-matcher.js');
+    const matched = await matchEntries(session.id, [{ ...entry }], world.id);
+    assert.ok(matched.has(entry.id), '世界档案地点等于旧港仓库，应命中');
+  });
+
+  test('用户世界字段标签也叫"时间"时，条件评估以世界档案为准', async () => {
+    const world = insertWorld(sandbox.db, { name: '状态条目世界-冲突' });
+    const character = insertCharacter(sandbox.db, world.id, { name: '测试角色-冲突' });
+    const session = insertSession(sandbox.db, { character_id: character.id, world_id: world.id, mode: 'chat' });
+
+    insertWorldStateField(sandbox.db, world.id, { field_key: 'legacy_time', label: '时间', type: 'text', sort_order: 0 });
+    insertSessionWorldStateValue(sandbox.db, session.id, world.id, { field_key: 'legacy_time', runtime_value_json: '"用户字段旧值"' });
+
+    const { upsertWorldProfile } = await freshImport('backend/db/queries/state-memory.js');
+    upsertWorldProfile(session.id, 'time', '1005-03-15T08:00', null, 1);
+
+    const entry = insertWorldEntry(sandbox.db, world.id, { title: '以档案为准', trigger_type: 'state', content: '...' });
+    insertEntryCondition(sandbox.db, entry.id, { target_field: '世界.时间', operator: '>', value: 'year:1000' });
+
+    resetMockEnv();
+    const { matchEntries } = await freshImport('backend/prompts/entry-matcher.js');
+    const matched = await matchEntries(session.id, [{ ...entry }], world.id);
+    assert.ok(matched.has(entry.id), '同名用户字段存在时，仍应以世界档案时间值触发');
   });
 });
 

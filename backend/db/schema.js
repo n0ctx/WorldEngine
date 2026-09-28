@@ -85,27 +85,6 @@ CREATE TABLE IF NOT EXISTS sessions (
   updated_at          INTEGER NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS session_nearby_characters (
-  id          TEXT PRIMARY KEY,
-  session_id  TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
-  name        TEXT NOT NULL,
-  persona     TEXT NOT NULL DEFAULT '',
-  is_saved    INTEGER NOT NULL DEFAULT 0,
-  created_at  INTEGER NOT NULL,
-  updated_at  INTEGER NOT NULL,
-  UNIQUE(session_id, name)
-);
-
-CREATE TABLE IF NOT EXISTS session_nearby_character_state_values (
-  id                 TEXT PRIMARY KEY,
-  session_id         TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
-  nearby_id          TEXT NOT NULL REFERENCES session_nearby_characters(id) ON DELETE CASCADE,
-  field_key          TEXT NOT NULL,
-  runtime_value_json TEXT,
-  updated_at         INTEGER NOT NULL,
-  UNIQUE(nearby_id, field_key)
-);
-
 CREATE TABLE IF NOT EXISTS messages (
   id             TEXT PRIMARY KEY,
   session_id     TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
@@ -366,6 +345,108 @@ CREATE TABLE IF NOT EXISTS provider_safety_events (
   output_hash TEXT,
   raw_provider_meta_redacted_json TEXT
 );
+
+CREATE TABLE IF NOT EXISTS state_entities (
+  row_id           TEXT PRIMARY KEY,
+  entity_id        TEXT NOT NULL,
+  session_id       TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+  seq              INTEGER NOT NULL,
+  type             TEXT NOT NULL,
+  name             TEXT NOT NULL,
+  aliases_json     TEXT NOT NULL DEFAULT '[]',
+  card_id          TEXT REFERENCES characters(id) ON DELETE SET NULL,
+  pinned           INTEGER NOT NULL DEFAULT 0,
+  status           TEXT NOT NULL DEFAULT 'active',
+  valid_from_round INTEGER NOT NULL,
+  valid_to_round   INTEGER
+);
+
+CREATE TABLE IF NOT EXISTS state_profile_fields (
+  row_id           TEXT PRIMARY KEY,
+  session_id       TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+  entity_id        TEXT NOT NULL,
+  field_key        TEXT NOT NULL,
+  value_json       TEXT NOT NULL,
+  evidence         TEXT,
+  valid_from_round INTEGER NOT NULL,
+  valid_to_round   INTEGER
+);
+
+CREATE TABLE IF NOT EXISTS state_dynamic (
+  row_id           TEXT PRIMARY KEY,
+  session_id       TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+  entity_id        TEXT NOT NULL,
+  key              TEXT NOT NULL,
+  value            TEXT NOT NULL,
+  valid_from_round INTEGER NOT NULL,
+  valid_to_round   INTEGER
+);
+
+CREATE TABLE IF NOT EXISTS state_relations (
+  row_id           TEXT PRIMARY KEY,
+  relation_id      TEXT NOT NULL,
+  session_id       TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+  seq              INTEGER NOT NULL,
+  subject_id       TEXT NOT NULL,
+  predicate        TEXT NOT NULL,
+  object_id        TEXT,
+  object_value     TEXT,
+  note             TEXT NOT NULL DEFAULT '',
+  valid_from_round INTEGER NOT NULL,
+  valid_to_round   INTEGER
+);
+
+CREATE TABLE IF NOT EXISTS state_threads (
+  row_id             TEXT PRIMARY KEY,
+  thread_id          TEXT NOT NULL,
+  session_id         TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+  seq                INTEGER NOT NULL,
+  kind               TEXT NOT NULL,
+  participants_json  TEXT NOT NULL DEFAULT '[]',
+  content            TEXT NOT NULL,
+  status             TEXT NOT NULL DEFAULT 'active',
+  opened_round       INTEGER NOT NULL,
+  valid_from_round   INTEGER NOT NULL,
+  valid_to_round     INTEGER
+);
+
+CREATE TABLE IF NOT EXISTS state_world_profile (
+  row_id             TEXT PRIMARY KEY,
+  session_id         TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+  key                TEXT NOT NULL,
+  value              TEXT,
+  location_entity_id TEXT,
+  valid_from_round   INTEGER NOT NULL,
+  valid_to_round     INTEGER
+);
+
+CREATE TABLE IF NOT EXISTS state_world_facts (
+  row_id           TEXT PRIMARY KEY,
+  fact_id          TEXT NOT NULL,
+  session_id       TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+  seq              INTEGER NOT NULL,
+  text             TEXT NOT NULL,
+  evidence         TEXT,
+  valid_from_round INTEGER NOT NULL,
+  valid_to_round   INTEGER
+);
+
+CREATE TABLE IF NOT EXISTS state_presence (
+  session_id       TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+  round_index      INTEGER NOT NULL,
+  entity_ids_json  TEXT NOT NULL DEFAULT '[]',
+  PRIMARY KEY (session_id, round_index)
+);
+
+CREATE TABLE IF NOT EXISTS session_entity_state_values (
+  id                 TEXT PRIMARY KEY,
+  session_id         TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+  entity_id          TEXT NOT NULL,
+  field_key          TEXT NOT NULL,
+  runtime_value_json TEXT,
+  updated_at         INTEGER NOT NULL,
+  UNIQUE(entity_id, field_key)
+);
 `;
 
 const INDEXES = `
@@ -393,6 +474,14 @@ CREATE INDEX IF NOT EXISTS idx_session_stream_tasks_status_updated_at ON session
 CREATE INDEX IF NOT EXISTS idx_sessions_world_id ON sessions(world_id);
 CREATE INDEX IF NOT EXISTS idx_sessions_character_id ON sessions(character_id);
 CREATE INDEX IF NOT EXISTS idx_messages_session_id_created_at ON messages(session_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_state_entities_session_valid ON state_entities(session_id, valid_to_round);
+CREATE INDEX IF NOT EXISTS idx_state_entities_session_entity ON state_entities(session_id, entity_id);
+CREATE INDEX IF NOT EXISTS idx_state_profile_fields_session_valid ON state_profile_fields(session_id, valid_to_round);
+CREATE INDEX IF NOT EXISTS idx_state_dynamic_session_valid ON state_dynamic(session_id, valid_to_round);
+CREATE INDEX IF NOT EXISTS idx_state_relations_session_valid ON state_relations(session_id, valid_to_round);
+CREATE INDEX IF NOT EXISTS idx_state_threads_session_valid ON state_threads(session_id, valid_to_round);
+CREATE INDEX IF NOT EXISTS idx_state_world_profile_session_valid ON state_world_profile(session_id, valid_to_round);
+CREATE INDEX IF NOT EXISTS idx_state_world_facts_session_valid ON state_world_facts(session_id, valid_to_round);
 `;
 
 export function initSchema(db) {
@@ -410,7 +499,7 @@ export function initSchema(db) {
   migrateSortOrders(db);
   migrateStateFieldSchema(db);
   migratePromptActivationSchema(db);
-  migrateNearbyCharacterSchema(db);
+  migrateNearbyEnabledColumn(db);
   migrateWritingSessionPersonaSchema(db);
   migrateWorldAppearanceSchema(db);
 }
@@ -518,7 +607,6 @@ function migrateTurnRecordsAndDiary(db) {
   // turn_records 逐步补列：
   //   user_message_id / asst_message_id — 指针模式，替代已移除的复制内容字段
   //   state_snapshot — 该轮结束时的三层状态，用于 regenerate/删除/编辑后的状态回滚
-  //   table_memory_snapshot — 该轮结束时 tables.json 全文，用于回滚时同步还原表格记忆
   //   scene / cast_json — 摘要锚点：场景与在场角色，只用于召回时定位
   //   middle_summary / middle_covered_to — 该轮结束时的滚动中期摘要及其覆盖到的轮次，NULL 表示旧数据未生成
   const turnRecordCols = new Set(db.pragma('table_info(turn_records)').map((col) => col.name));
@@ -526,7 +614,6 @@ function migrateTurnRecordsAndDiary(db) {
     ['user_message_id', 'TEXT'],
     ['asst_message_id', 'TEXT'],
     ['state_snapshot', 'TEXT'],
-    ['table_memory_snapshot', 'TEXT'],
     ['scene', 'TEXT'],
     ['cast_json', 'TEXT'],
     ['middle_summary', 'TEXT'],
@@ -626,21 +713,9 @@ function migratePromptActivationSchema(db) {
   try { db.exec(`ALTER TABLE sessions ADD COLUMN keyword_active_state TEXT NOT NULL DEFAULT '{}'`); } catch {}
 }
 
-function migrateNearbyCharacterSchema(db) {
+function migrateNearbyEnabledColumn(db) {
   // 附近角色：character_state_fields 新增 nearby_enabled 列；旧行由 SQLite 默认值自动填 1
   try { db.exec(`ALTER TABLE character_state_fields ADD COLUMN nearby_enabled INTEGER NOT NULL DEFAULT 1`); } catch {}
-  // 附近角色：两张新表的检索索引
-  try { db.exec(`CREATE INDEX IF NOT EXISTS idx_session_nearby_characters_session_id ON session_nearby_characters(session_id)`); } catch {}
-  // 附近角色：memory 列改名为 persona（语义从"与玩家一句话交互总结"改为"一句话人物设定"）
-  try {
-    const cols = db.prepare(`PRAGMA table_info(session_nearby_characters)`).all();
-    const hasMemory = cols.some((c) => c.name === 'memory');
-    const hasPersona = cols.some((c) => c.name === 'persona');
-    if (hasMemory && !hasPersona) {
-      db.exec(`ALTER TABLE session_nearby_characters RENAME COLUMN memory TO persona`);
-    }
-  } catch {}
-  try { db.exec(`CREATE INDEX IF NOT EXISTS idx_session_nearby_character_state_values_nearby_id ON session_nearby_character_state_values(nearby_id, field_key)`); } catch {}
 }
 
 function migrateWritingSessionPersonaSchema(db) {

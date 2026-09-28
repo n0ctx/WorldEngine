@@ -260,6 +260,7 @@ function insertImportedStateFields(kind, worldId, fields, now) {
     unit: field.unit ?? '',
     table_columns: field.table_columns != null ? JSON.stringify(field.table_columns) : null,
     sort_order: field.sort_order ?? 0,
+    nearby_enabled: field.nearby_enabled,
     created_at: now,
     updated_at: now,
   })));

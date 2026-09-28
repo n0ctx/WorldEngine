@@ -70,18 +70,52 @@ test('initSchema upgrades legacy sessions and recreates their indexes', () => {
     assert.deepEqual(sessionIndexes, ['idx_sessions_character_id', 'idx_sessions_world_id']);
     assert.deepEqual(db.pragma('foreign_key_check'), []);
     assert.equal(db.inTransaction, false);
+
+    const stateMemoryTables = [
+      'state_entities', 'state_profile_fields', 'state_dynamic', 'state_relations',
+      'state_threads', 'state_world_profile', 'state_world_facts', 'state_presence',
+      'session_entity_state_values',
+    ];
+    const existingTables = db.prepare(
+      `SELECT name FROM sqlite_master WHERE type = 'table'`,
+    ).all().map((row) => row.name);
+    for (const table of stateMemoryTables) {
+      assert.ok(existingTables.includes(table), `旧库升级后应存在状态记忆表 ${table}`);
+    }
   } finally {
     db.close();
   }
 });
 
-test('initSchema 为新建的空库创建含 middle_summary / middle_covered_to 列的 turn_records，且不创建旧上下文压缩结构', () => {
+test('initSchema 为新建的空库创建含 middle_summary / middle_covered_to 列的 turn_records、全部 9 张状态记忆表，且不创建旧上下文压缩结构', () => {
   const db = new Database(':memory:');
   try {
     initSchema(db);
     const columns = db.pragma('table_info(turn_records)').map((column) => column.name);
     assert.ok(columns.includes('middle_summary'));
     assert.ok(columns.includes('middle_covered_to'));
+    assert.ok(!columns.includes('table_memory_snapshot'));
+
+    assert.equal(
+      db.prepare(`SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'session_nearby_characters'`).get(),
+      undefined,
+    );
+    assert.equal(
+      db.prepare(`SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'session_nearby_character_state_values'`).get(),
+      undefined,
+    );
+
+    const stateMemoryTables = [
+      'state_entities', 'state_profile_fields', 'state_dynamic', 'state_relations',
+      'state_threads', 'state_world_profile', 'state_world_facts', 'state_presence',
+      'session_entity_state_values',
+    ];
+    const existingTables = db.prepare(
+      `SELECT name FROM sqlite_master WHERE type = 'table'`,
+    ).all().map((row) => row.name);
+    for (const table of stateMemoryTables) {
+      assert.ok(existingTables.includes(table), `新库应存在状态记忆表 ${table}`);
+    }
 
     const messageColumns = db.pragma('table_info(messages)').map((column) => column.name);
     const sessionColumns = db.pragma('table_info(sessions)').map((column) => column.name);

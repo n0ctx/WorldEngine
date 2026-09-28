@@ -10,11 +10,9 @@ it('按当前模式保存行为设置，切换后读取各自的值', async () =
 
   await act(async () => {
     await result.current.promptProps.onSaveMemoryRecallMaxSessions(8);
-    await result.current.promptProps.onSaveTableMemoryRowLimit('relations', 12);
     await result.current.promptProps.onToggleDanmaku(true);
   });
   expect(patchConfig).toHaveBeenCalledWith({ writing: { memory_recall_max_sessions: 8 } });
-  expect(patchConfig).toHaveBeenCalledWith({ writing: { table_memory_row_limits: { relations: 12 } } });
   expect(patchConfig).toHaveBeenCalledWith({ writing: { danmaku: { enabled: true } } });
   expect(result.current.promptProps.memoryRecallMaxSessions).toBe(8);
   expect(result.current.promptProps.danmakuEnabled).toBe(true);

@@ -6,7 +6,6 @@ import {
   getAllWorlds,
   updateWorld,
   deleteWorld,
-  ensureDiaryTimeField,
   clearAllDiaryData,
   reorderWorlds,
 } from '../services/worlds.js';
@@ -93,14 +92,6 @@ router.post('/:id/cover', upload.single('cover'), async (req, res) => {
   }
   const updated = updateWorld(req.params.id, patch);
   res.json({ cover_path: updated.cover_path, accent_color: updated.accent_color, accent_source: updated.accent_source });
-});
-
-// POST /api/worlds/:id/sync-diary — 根据当前日记配置同步 diary_time 字段
-router.post('/:id/sync-diary', (req, res) => {
-  const existing = getWorldById(req.params.id);
-  if (!assertExists(res, existing, '世界不存在')) return;
-  ensureDiaryTimeField(req.params.id);
-  res.json({ ok: true });
 });
 
 export default router;

@@ -2,7 +2,6 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createLogger, formatMeta } from '../utils/logger.js';
-import { DEFAULT_ROW_LIMITS, resolveRowLimits } from './table-memory-schema.js';
 
 const log = createLogger('svc', 'green');
 
@@ -53,11 +52,10 @@ const DEFAULT_CONFIG = {
   global_system_prompt: '',
   global_post_prompt: '',
   memory_expansion_enabled: true,
-  table_memory_enabled: false,
-  table_memory_row_limits: structuredClone(DEFAULT_ROW_LIMITS),
   memory_recall_max_sessions: 5,
   short_term_token_budget: 8000,
   long_term_index_budget: 20000,
+  state_injection_token_budget: 3000,
   suggestion_enabled: false,
   log_prompt: false,
   logging: {
@@ -79,13 +77,10 @@ const DEFAULT_CONFIG = {
     short_term_token_budget: null,
     suggestion_enabled: false,
     memory_expansion_enabled: true,
-    table_memory_enabled: false,
-    table_memory_row_limits: structuredClone(DEFAULT_ROW_LIMITS),
     memory_recall_max_sessions: 5,
     long_term_index_budget: 20000,
     danmaku: { enabled: false, count: 5, speed: 'normal' },
     ui: { show_thinking: true, auto_collapse_thinking: true, show_token_usage: false },
-    saved_nearby_recall_enabled: true,
     llm: {
       provider: null,
       provider_models: {},
@@ -116,13 +111,10 @@ const DEFAULT_WRITING = {
   short_term_token_budget: null,
   suggestion_enabled: false,
   memory_expansion_enabled: true,
-  table_memory_enabled: false,
-  table_memory_row_limits: structuredClone(DEFAULT_ROW_LIMITS),
   memory_recall_max_sessions: 5,
   long_term_index_budget: 20000,
   danmaku: { enabled: false, count: 5, speed: 'normal' },
   ui: { show_thinking: true, auto_collapse_thinking: true, show_token_usage: false },
-  saved_nearby_recall_enabled: true,
   llm: {
     provider: null,
     provider_models: {},
@@ -245,13 +237,15 @@ function normalizeConfigForPersist(config) {
     DEFAULT_CONFIG.long_term_index_budget,
     { min: 2000, max: 500000 },
   );
+  normalized.state_injection_token_budget = normalizePositiveInteger(
+    normalized.state_injection_token_budget,
+    DEFAULT_CONFIG.state_injection_token_budget,
+    { min: 500, max: 50000 },
+  );
   // writing 侧为 null 时继承 chat 顶层预算：null 原样保留，非法值同样回退 null
   normalized.writing.short_term_token_budget = normalized.writing.short_term_token_budget == null
     ? null
     : normalizePositiveInteger(normalized.writing.short_term_token_budget, null, { min: 1000, max: 200000 });
-  // 行数上限：缺失 key 补默认、非法值清洗、未知 key 丢弃（单字段编辑不会抹掉其余 4 表）
-  normalized.table_memory_row_limits = resolveRowLimits(normalized.table_memory_row_limits);
-  normalized.writing.table_memory_row_limits = resolveRowLimits(normalized.writing.table_memory_row_limits);
   normalized.writing.memory_recall_max_sessions = normalizePositiveInteger(
     normalized.writing.memory_recall_max_sessions, DEFAULT_WRITING.memory_recall_max_sessions,
   );
@@ -292,8 +286,16 @@ const LEGACY_CONFIG_KEYS = [
   'context_history_rounds',
   'long_term_memory_enabled',
   'embedding',
+  'table_memory_enabled',
+  'table_memory_row_limits',
 ];
-const LEGACY_WRITING_KEYS = ['context_history_rounds', 'long_term_memory_enabled'];
+const LEGACY_WRITING_KEYS = [
+  'context_history_rounds',
+  'long_term_memory_enabled',
+  'saved_nearby_recall_enabled',
+  'table_memory_enabled',
+  'table_memory_row_limits',
+];
 
 function migrateConfig(config) {
   let dirty = false;
@@ -455,12 +457,6 @@ function normalizeConfigSections(config) {
     dirty = true;
   }
 
-  // 行数上限：缺失 key 补默认、非法清洗、未知 key 丢弃
-  const rowLimits = resolveRowLimits(config.table_memory_row_limits);
-  if (JSON.stringify(rowLimits) !== JSON.stringify(config.table_memory_row_limits)) {
-    config.table_memory_row_limits = rowLimits;
-    dirty = true;
-  }
   return dirty;
 }
 

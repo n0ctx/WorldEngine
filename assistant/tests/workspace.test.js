@@ -22,7 +22,7 @@ test('create world 切换当前世界，后续资源默认建在新世界', asyn
 
   const view = JSON.parse(ws.read('world'));
   assert.equal(view.name, '雾港');
-  assert.ok(view.fields.persona.some((line) => line.includes('性格')), '新世界自带默认字段');
+  assert.ok(view.fields.world.some((line) => line.includes('天气')), '新世界自带默认字段');
 });
 
 test('create world 参数覆盖目标世界但不切换会话，删除当前世界会清空会话', async () => {
@@ -106,6 +106,7 @@ test('character / persona：state 用标签写原生值，类型不符给出可�
   const ws = createWorkspace({});
   await ws.create('world', { name: 'card-world' });
   await ws.create('field', { target: 'character', label: '好感度', type: 'number', min: 0, max: 100 });
+  await ws.create('field', { target: 'character', label: '性格', type: 'list' });
 
   const charRef = refOf(await ws.create('character', {
     name: '沈渡', system_prompt: '沈渡是一名医师。', state: { 好感度: 40, 性格: ['冷静'] },
@@ -119,6 +120,7 @@ test('character / persona：state 用标签写原生值，类型不符给出可�
   await assert.rejects(() => ws.setState(charRef, { 好感度: 200 }), /不符合类型 number/);
   await assert.rejects(() => ws.setState(charRef, { 魔力: 1 }), /没有字段 "魔力"。可用字段/);
 
+  await ws.create('field', { target: 'persona', label: '年龄', type: 'number' });
   const personaMsg = await ws.create('persona', { name: '旅人', state: { 年龄: 20 } });
   const personaRef = refOf(personaMsg, 'persona');
   assert.equal(JSON.parse(ws.read('persona')).ref, personaRef, '新玩家卡成为当前激活玩家卡');
@@ -192,6 +194,7 @@ test('工具层：失败以 { success:false, error } 返回并去掉内部前缀
 test('persona：新世界只有一张空白玩家卡时直接填写它，不再多建一张', async () => {
   const ws = createWorkspace({});
   await ws.create('world', { name: 'blank-persona-world' });
+  await ws.create('field', { target: 'persona', label: '年龄', type: 'number' });
   const before = JSON.parse(ws.read('personas'));
   assert.equal(before.length, 1);
 

@@ -4,7 +4,7 @@ import { useMemoryIndicators } from './useMemoryIndicators.js';
 
 export function useConversationPageState() {
   const [summaryOpen, setSummaryOpen] = useState(false);
-  const [tmOpen, setTmOpen] = useState(false);
+  const [stateMemoryOpen, setStateMemoryOpen] = useState(false);
   const [pageInfo, setPageInfo] = useState({ totalPages: 1, currentPage: 0 });
   const inputBoxRef = useRef(null);
   const messageListRef = useRef(null);
@@ -16,8 +16,8 @@ export function useConversationPageState() {
   return {
     summaryOpen,
     setSummaryOpen,
-    tmOpen,
-    setTmOpen,
+    stateMemoryOpen,
+    setStateMemoryOpen,
     pageInfo,
     setPageInfo,
     inputBoxRef,

@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import { useAppModeStore } from '../../../core/state/appMode.js';
 import { SETTINGS_MODE } from '../../../core/constants/settings';
 import { refreshCustomCss } from '../../../core/api/custom-css-snippets.js';
-import { syncDiaryTimeField } from '../../../core/api/world-state-fields.js';
 import { getPersona, getPersonaById } from '../../../core/api/personas.js';
 import useStore from '../../../core/state/index.js';
 import useCurrentStoryStore from '../../../core/state/currentStory.js';
@@ -40,7 +39,6 @@ export function useWritingSpaceLifecycle({ worldId, stream, log }) {
       // writing session 自带 persona_id；session 加载完成后再由专门 effect 同步 persona 头像
       // 此处先按世界 active persona 兜底渲染，避免顶栏闪空
       getPersona(worldId).then(setPersona).catch(() => {});
-      syncDiaryTimeField(worldId).catch(() => {});
     }, 0);
     return () => clearTimeout(timeoutId);
     // clearOptionsState 为流 hook 内的命令式重置入口，跟随 worldId 触发即可，不需要进 deps

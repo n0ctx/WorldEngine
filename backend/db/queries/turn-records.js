@@ -101,15 +101,6 @@ export function getAllTurnRecordsBySessionId(sessionId) {
 }
 
 /**
- * 写入指定 turn record 的表格记忆文件快照（tables.json 全文）。
- * 用于在创建/更新 turn record 后回填该轮表格状态，供回滚时还原。
- */
-export function updateTurnRecordTableSnapshot(id, snapshot) {
-  db.prepare('UPDATE turn_records SET table_memory_snapshot = ? WHERE id = ?')
-    .run(snapshot ?? null, id);
-}
-
-/**
  * 更新会话最新一条 turn record 的中期摘要正文（人工编辑用）。
  *
  * @param {string} sessionId

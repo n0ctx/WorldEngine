@@ -9,7 +9,7 @@ import {
 } from '../services/characters.js';
 import { getWorldById } from '../services/worlds.js';
 import { assertExists } from '../utils/route-helpers.js';
-import { createCharacterFromNearby } from '../services/nearby-card-maker.js';
+import { createCharacterFromEntity } from '../services/entity-card-maker.js';
 import { createImageUpload, requireUploadedFile } from '../utils/image-upload.js';
 import { createLogger, formatMeta } from '../utils/logger.js';
 
@@ -28,17 +28,17 @@ router.get('/worlds/:worldId/characters', (req, res) => {
   res.json(characters);
 });
 
-// POST /api/worlds/:worldId/characters/from-nearby — 把 nearby 角色制成公共角色卡
-router.post('/worlds/:worldId/characters/from-nearby', (req, res) => {
+// POST /api/worlds/:worldId/characters/from-entity — 把状态记忆实体制成公共角色卡
+router.post('/worlds/:worldId/characters/from-entity', (req, res) => {
   const { worldId } = req.params;
   const world = getWorldById(worldId);
   if (!assertExists(res, world, '世界不存在')) return;
-  const { session_id, nearby_id, name, system_prompt, description, first_message } = req.body ?? {};
+  const { session_id, entity_id, name, system_prompt, description, first_message } = req.body ?? {};
   try {
-    const id = createCharacterFromNearby({
+    const id = createCharacterFromEntity({
       worldId,
       sessionId: session_id,
-      nearbyId: nearby_id,
+      entityId: entity_id,
       name,
       system_prompt,
       description,
@@ -47,11 +47,11 @@ router.post('/worlds/:worldId/characters/from-nearby', (req, res) => {
     res.status(201).json({ id });
   } catch (err) {
     const code = err?.code;
-    if (code === 'NEARBY_NOT_FOUND' || code === 'SESSION_NOT_FOUND') {
+    if (code === 'ENTITY_NOT_FOUND' || code === 'SESSION_NOT_FOUND') {
       log.warn(`characters.not_found ${formatMeta({ method: req.method, path: req.path, reason: err.message, code })}`);
       return res.status(404).json({ error: err.message });
     }
-    if (code === 'NEARBY_SESSION_MISMATCH' || code === 'SESSION_WORLD_MISMATCH') {
+    if (code === 'SESSION_WORLD_MISMATCH') {
       log.warn(`characters.bad_request ${formatMeta({ method: req.method, path: req.path, reason: err.message, code })}`);
       return res.status(400).json({ error: err.message });
     }

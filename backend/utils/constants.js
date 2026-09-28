@@ -69,12 +69,6 @@ export const WORLD_TIMELINE_RECENT_LIMIT = 5;
 // ============================
 // 日记系统（T155）
 // ============================
-/** 日记时间字段的保留 field_key（不可修改）*/
-export const DIARY_TIME_FIELD_KEY = 'diary_time';
-/** 虚拟日期模式下的固定 update_instruction */
-export const DIARY_TIME_UPDATE_INSTRUCTION = '每轮对话必须更新此字段。根据本轮内容判断时间流逝了多少（几分钟/几小时/几天均可），在当前运行时值基础上推进，不得重复上一轮的值。格式必须严格为 ISO 局部时间 YYYY-MM-DDTHH:mm（年份为正整数、可任意位数；月/日/时/分各 2 位，例：1000-03-15T14:30 或 238-04-20T00:00），不得省略任何部分，不得使用其他格式。';
-/** 日记时间字段的内置 description（用于 LLM 理解字段用途）*/
-export const DIARY_TIME_DESCRIPTION = '故事世界中当前的时间节点（世界内时间，非现实时间）';
 /** 日记 LLM 生成最大 token 数 */
 export const LLM_DIARY_MAX_TOKENS = 2000;
 
@@ -98,8 +92,8 @@ export const LLM_TASK_TEMPERATURE = 0.3;
 export const LLM_TITLE_MAX_TOKENS = 30;
 /** 轮次索引生成最大 token 数（输出 JSON 包装 + scene + cast + 80 字摘要，900 留出余量避免被截） */
 export const LLM_TURN_SUMMARY_MAX_TOKENS = 900;
-/** 状态更新（combined-state-updater）最大 token 数 */
-export const LLM_STATE_UPDATE_MAX_TOKENS = 2048;
+/** 状态更新（combined-state-updater）最大 token 数：状态记忆写入并入该调用后输出增加操作列表，上限相应调大 */
+export const LLM_STATE_UPDATE_MAX_TOKENS = 4096;
 /** 状态更新 JSON 解析失败时，额外重新调用 LLM 的最大次数（共 1+N 次机会） */
 export const STATE_UPDATE_JSON_RETRY_MAX = 2;
 /** 状态压缩（state-compress）最大 token 数 */
@@ -118,6 +112,24 @@ export const STATE_LIST_MAX_ITEMS = 10;
 export const STATE_LIST_TRIM_TARGET = 8;
 /** 工具调用循环（complete-with-tools）最大轮数：写卡助手 dispatch_subagent 多步派发场景需要更大上限，原硬编码 5 在多步任务下会让模型未消化的 tool_use 漏到普通文本里（产生 <｜DSML｜...> 泄漏） */
 export const LLM_TOOL_RESOLUTION_MAX_ITERATIONS = 25;
+
+// ============================
+// 状态记忆（memory-v2 第二阶段）
+// ============================
+/** 当前有效的世界事实条数上限 */
+export const STATE_WORLD_FACTS_MAX = 20;
+/** 状态更新提示词里「实体目录」段的 token 预算 */
+export const STATE_DIRECTORY_BUDGET = 3000;
+/** 档案文本字段最大字数 */
+export const STATE_TEXT_FIELD_MAX = 60;
+/** 档案 list 字段单项最大字数 */
+export const STATE_LIST_ITEM_MAX = 30;
+/** 档案证据原文最短字符数 */
+export const STATE_EVIDENCE_MIN = 4;
+/** 档案证据原文最长字符数 */
+export const STATE_EVIDENCE_MAX = 80;
+/** 按名字/别名匹配实体时的最短字数 */
+export const STATE_NAME_MATCH_MIN = 2;
 
 // ============================
 // Anthropic / Gemini extended thinking budget

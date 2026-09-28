@@ -1,18 +1,30 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { render, screen, waitFor, within, fireEvent } from '@testing-library/react';
 
 const mocks = vi.hoisted(() => ({
-  fetchNearby: vi.fn(),
-  setNearbySaved: vi.fn(),
-  removeNearby: vi.fn(),
+  fetchStateMemory: vi.fn(),
+  fetchStateMemorySchema: vi.fn(),
+  updateStateEntity: vi.fn(),
+  deleteStateEntity: vi.fn(),
+  createEntityFromCard: vi.fn(),
+  analyzeEntityForCard: vi.fn(),
+  createCharacterFromEntity: vi.fn(),
+  getCharactersByWorld: vi.fn(),
   getWorld: vi.fn(),
   getConfig: vi.fn(),
 }));
 
-vi.mock('../../../src/core/api/session-nearby.js', () => ({
-  fetchNearby: (...a) => mocks.fetchNearby(...a),
-  setNearbySaved: (...a) => mocks.setNearbySaved(...a),
-  removeNearby: (...a) => mocks.removeNearby(...a),
+vi.mock('../../../src/core/api/state-memory.js', () => ({
+  fetchStateMemory: (...a) => mocks.fetchStateMemory(...a),
+  fetchStateMemorySchema: (...a) => mocks.fetchStateMemorySchema(...a),
+  updateStateEntity: (...a) => mocks.updateStateEntity(...a),
+  deleteStateEntity: (...a) => mocks.deleteStateEntity(...a),
+  createEntityFromCard: (...a) => mocks.createEntityFromCard(...a),
+  analyzeEntityForCard: (...a) => mocks.analyzeEntityForCard(...a),
+  createCharacterFromEntity: (...a) => mocks.createCharacterFromEntity(...a),
+}));
+vi.mock('../../../src/core/api/characters.js', () => ({
+  getCharactersByWorld: (...a) => mocks.getCharactersByWorld(...a),
 }));
 vi.mock('../../../src/core/api/worlds.js', () => ({ getWorld: (...a) => mocks.getWorld(...a) }));
 vi.mock('../../../src/core/api/config.js', () => ({ getConfig: (...a) => mocks.getConfig(...a) }));
@@ -21,6 +33,9 @@ vi.mock('../../../src/core/api/session-state-values.js', () => ({
   resetSessionWorldStateValues: vi.fn(),
   resetSessionPersonaStateValues: vi.fn(),
   patchSessionStateValue: vi.fn(),
+}));
+vi.mock('../../../src/core/utils/logger.js', () => ({
+  log: { warn: vi.fn(), error: vi.fn(), info: vi.fn(), success: vi.fn() },
 }));
 // stateData 的引用必须稳定：真实 hook 只在数据变化时换对象，每次渲染换新对象会让
 // useStateDiff 的 layout effect 无限自触发
@@ -37,21 +52,22 @@ vi.mock('../../../src/core/hooks/useSessionState.js', () => {
   };
   return { useSessionState: () => sessionState };
 });
-vi.mock('../../../src/core/utils/logger.js', () => ({
-  log: { warn: vi.fn(), error: vi.fn(), info: vi.fn(), success: vi.fn() },
+vi.mock('../../../src/components/state/WorldProfileGroup.jsx', () => ({
+  default: () => <div />,
+  PlayerProfileGroup: () => null,
 }));
-
-// 面板自身的状态机是被测对象，子组件一律换成轻量替身
-vi.mock('../../../src/components/state/StatusSection.jsx', () => ({ default: () => <div /> }));
-vi.mock('../../../src/components/ui/PanelCard.jsx', () => ({ default: ({ children }) => <div>{children}</div> }));
-vi.mock('../../../src/pages/WritingSpacePage/components/NearbyCharacterBlock.jsx', () => ({ default: () => <div /> }));
-vi.mock('../../../src/pages/WritingSpacePage/components/AddSavedNearbyModal.jsx', () => ({ default: () => <div /> }));
-vi.mock('../../../src/pages/WritingSpacePage/components/MakeCardModal.jsx', () => ({ default: () => <div /> }));
+vi.mock('../../../src/components/state/StateChangeCard.jsx', () => ({ default: () => null }));
+// 面板自身的 NPC 页签装配是被测对象，SectionTabs 换成把每个 tab 的 label/actions/content
+// 都摊平渲染的轻量替身，方便按 tab 分区查询
 vi.mock('../../../src/components/ui/SectionTabs.jsx', () => ({
-  default: ({ sections }) => (
+  default: ({ sections, globalActions }) => (
     <div>
+      <div data-testid="global-actions">{globalActions}</div>
       {sections.map((s) => (
-        <span key={s.key} data-testid="tab" data-key={s.key}>{s.label}</span>
+        <div key={s.key} data-testid="tab" data-key={s.key} data-label={s.label}>
+          <div data-testid="tab-actions">{s.actions}</div>
+          <div data-testid="tab-content">{s.content}</div>
+        </div>
       ))}
     </div>
   ),
@@ -59,164 +75,150 @@ vi.mock('../../../src/components/ui/SectionTabs.jsx', () => ({
 
 import NearbyPanel from '../../../src/pages/WritingSpacePage/components/NearbyPanel.jsx';
 
-const saved = (id, name) => ({ id, name, persona: '', is_saved: 1 });
-const transient = (id, name) => ({ id, name, persona: '', is_saved: 0 });
-
-/** 顶部 tab 里出现的角色名（即「完整 state 展开」的角色） */
-function expandedTabLabels() {
-  return screen.getAllByTestId('tab')
-    .filter((el) => !['player', 'diary', 'nearby'].includes(el.getAttribute('data-key')))
-    .map((el) => el.textContent);
+function entity(overrides = {}) {
+  return {
+    entity_id: 'e1',
+    type: 'character',
+    status: 'active',
+    name: '未命名',
+    card_id: null,
+    pinned: false,
+    profile: {},
+    dynamic: {},
+    fields: [],
+    activeProfileFields: [],
+    aliases: [],
+    card_description: null,
+    ...overrides,
+  };
 }
 
-/** 底部「已保存角色」列表里处于收起态的角色名（收起态才有「展示」按钮） */
-function collapsedNames() {
-  return screen.getAllByRole('listitem')
-    .filter((li) => li.querySelector('[aria-label="展示"]'))
-    .map((li) => li.querySelector('.we-saved-nearby-name').textContent);
+function stateMemory({ entities = [], presentIds = [] } = {}) {
+  return { entities, relations: [], facts: [], world: {}, presentIds };
 }
 
 async function renderPanel(props = {}) {
   const view = render(
     <NearbyPanel worldId="w1" sessionId="s1" persona={{ name: '玩家甲' }} {...props} />,
   );
-  await waitFor(() => expect(mocks.fetchNearby).toHaveBeenCalled());
+  await waitFor(() => expect(mocks.fetchStateMemory).toHaveBeenCalled());
   return view;
 }
 
+/** 「玩家」和「日记」两个固定 tab 与被测的 NPC 页签装配无关，排除掉再比较 */
+function tabLabels() {
+  return screen.getAllByTestId('tab')
+    .filter((el) => !['player', 'diary'].includes(el.getAttribute('data-key')))
+    .map((el) => el.getAttribute('data-label'));
+}
+
+function tabByKey(key) {
+  return screen.getAllByTestId('tab').find((el) => el.getAttribute('data-key') === key);
+}
+
 beforeEach(() => {
-  mocks.fetchNearby.mockReset();
+  mocks.fetchStateMemory.mockReset();
+  mocks.fetchStateMemorySchema.mockReset().mockResolvedValue({ profileFields: { player: [], character: [] } });
+  mocks.updateStateEntity.mockReset().mockResolvedValue({});
+  mocks.deleteStateEntity.mockReset().mockResolvedValue({});
+  mocks.createEntityFromCard.mockReset();
+  mocks.getCharactersByWorld.mockReset().mockResolvedValue([]);
   mocks.getWorld.mockReset().mockResolvedValue({ name: '测试世界' });
   mocks.getConfig.mockReset().mockResolvedValue({ diary: { writing: { enabled: false } } });
 });
 
-describe('NearbyPanel 的 saved 角色收起状态机', () => {
-  it('默认全部展开：saved 角色同时出现在顶部 tab 与底部列表，且无「展示」按钮', async () => {
-    mocks.fetchNearby.mockResolvedValue([saved('s-1', '甲'), saved('s-2', '乙'), transient('t-1', '丙')]);
+describe('NearbyPanel 的在场 + 置顶实体页签', () => {
+  it('在场的排在前面，其余（仅置顶）按原有顺序排在后面', async () => {
+    mocks.fetchStateMemory.mockResolvedValue(stateMemory({
+      entities: [
+        entity({ entity_id: 'e-pinned', name: '仅置顶', pinned: true }),
+        entity({ entity_id: 'e-present', name: '仅在场' }),
+      ],
+      presentIds: ['e-present'],
+    }));
+
     await renderPanel();
 
-    await waitFor(() => expect(expandedTabLabels()).toEqual(['甲', '乙', '丙']));
-    expect(screen.getByText('已保存角色')).toBeTruthy();
-    expect(collapsedNames()).toEqual([]);
+    await waitFor(() => expect(tabLabels()).toEqual(['仅在场', '仅置顶']));
   });
 
-  it('savedRecallTick 推进时按 hits 重算：命中的展开，未命中的收起', async () => {
-    mocks.fetchNearby.mockResolvedValue([saved('s-1', '甲'), saved('s-2', '乙'), saved('s-3', '丙')]);
-    const { rerender } = await renderPanel({ savedRecallTick: 0, savedRecallHits: null });
-    await waitFor(() => expect(expandedTabLabels()).toEqual(['甲', '乙', '丙']));
-
-    rerender(
-      <NearbyPanel
-        worldId="w1" sessionId="s1" persona={{ name: '玩家甲' }}
-        savedRecallTick={1} savedRecallHits={['s-2']}
-      />,
-    );
-
-    await waitFor(() => expect(expandedTabLabels()).toEqual(['乙']));
-    expect(collapsedNames()).toEqual(['甲', '丙']);
-  });
-
-  it('新一轮 hits 会把上一轮收起的角色重新展开', async () => {
-    mocks.fetchNearby.mockResolvedValue([saved('s-1', '甲'), saved('s-2', '乙')]);
-    const { rerender } = await renderPanel({ savedRecallTick: 0, savedRecallHits: null });
-    await waitFor(() => expect(expandedTabLabels()).toEqual(['甲', '乙']));
-
-    const draw = (tick, hits) => rerender(
-      <NearbyPanel
-        worldId="w1" sessionId="s1" persona={{ name: '玩家甲' }}
-        savedRecallTick={tick} savedRecallHits={hits}
-      />,
-    );
-
-    draw(1, ['s-1']);
-    await waitFor(() => expect(expandedTabLabels()).toEqual(['甲']));
-
-    draw(2, ['s-2']);
-    await waitFor(() => expect(expandedTabLabels()).toEqual(['乙']));
-    expect(collapsedNames()).toEqual(['甲']);
-  });
-
-  it('同一个 tick 不会被重复应用', async () => {
-    mocks.fetchNearby.mockResolvedValue([saved('s-1', '甲'), saved('s-2', '乙')]);
-    const { rerender } = await renderPanel({ savedRecallTick: 0, savedRecallHits: null });
-    const draw = (tick, hits) => rerender(
-      <NearbyPanel
-        worldId="w1" sessionId="s1" persona={{ name: '玩家甲' }}
-        savedRecallTick={tick} savedRecallHits={hits}
-      />,
-    );
-
-    draw(1, ['s-1']);
-    await waitFor(() => expect(expandedTabLabels()).toEqual(['甲']));
-
-    // 手动展开「乙」后，重复推送同一个 tick 不应把它再收起
-    fireEvent.click(screen.getAllByLabelText('展示')[0]);
-    await waitFor(() => expect(expandedTabLabels()).toEqual(['甲', '乙']));
-
-    draw(1, ['s-1']);
-    await waitFor(() => expect(expandedTabLabels()).toEqual(['甲', '乙']));
-  });
-
-  it('切换会话会清空收起集合，并忽略上个会话的陈旧 hits', async () => {
-    mocks.fetchNearby.mockResolvedValue([saved('s-1', '甲'), saved('s-2', '乙')]);
-    const { rerender } = await renderPanel({ savedRecallTick: 0, savedRecallHits: null });
-
-    rerender(
-      <NearbyPanel
-        worldId="w1" sessionId="s1" persona={{ name: '玩家甲' }}
-        savedRecallTick={1} savedRecallHits={['s-1']}
-      />,
-    );
-    await waitFor(() => expect(expandedTabLabels()).toEqual(['甲']));
-
-    // 切到新会话：hits 仍是上个会话的 s-1，但不应触发任何收起
-    rerender(
-      <NearbyPanel
-        worldId="w1" sessionId="s2" persona={{ name: '玩家甲' }}
-        savedRecallTick={1} savedRecallHits={['s-1']}
-      />,
-    );
-    await waitFor(() => expect(expandedTabLabels()).toEqual(['甲', '乙']));
-    expect(collapsedNames()).toEqual([]);
-  });
-
-  it('角色不再是 saved 时，脏 id 会从收起集合里被清掉', async () => {
-    mocks.fetchNearby.mockResolvedValue([saved('s-1', '甲'), saved('s-2', '乙')]);
-    const { rerender } = await renderPanel({ savedRecallTick: 0, savedRecallHits: null });
-
-    rerender(
-      <NearbyPanel
-        worldId="w1" sessionId="s1" persona={{ name: '玩家甲' }}
-        savedRecallTick={1} savedRecallHits={['s-1']}
-      />,
-    );
-    await waitFor(() => expect(collapsedNames()).toEqual(['乙']));
-
-    // 「乙」被取消保存后重新拉取：它应回到完整展开区，不再残留在收起集合里
-    mocks.fetchNearby.mockResolvedValue([saved('s-1', '甲'), transient('s-2', '乙')]);
-    rerender(
-      <NearbyPanel
-        worldId="w1" sessionId="s1" persona={{ name: '玩家甲' }}
-        stateTick={1} savedRecallTick={1} savedRecallHits={['s-1']}
-      />,
-    );
-
-    await waitFor(() => expect(expandedTabLabels()).toEqual(['甲', '乙']));
-    expect(collapsedNames()).toEqual([]);
-  });
-
-  it('没有 saved 角色时不渲染底部列表', async () => {
-    mocks.fetchNearby.mockResolvedValue([transient('t-1', '丙')]);
+  it('没有在场或置顶角色时回落到空态占位 tab', async () => {
+    mocks.fetchStateMemory.mockResolvedValue(stateMemory());
     await renderPanel();
-    await waitFor(() => expect(expandedTabLabels()).toEqual(['丙']));
-    expect(screen.queryByText('已保存角色')).toBeNull();
+
+    await waitFor(() => expect(tabLabels()).toEqual(['附近']));
+    expect(screen.getByText('AI 记录到的在场角色和你置顶的角色会显示在这里')).toBeInTheDocument();
   });
 
-  it('nearby 为空时回落到「附近」占位 tab', async () => {
-    mocks.fetchNearby.mockResolvedValue([]);
+  it('置顶操作调用置顶接口并刷新', async () => {
+    mocks.fetchStateMemory.mockResolvedValue(stateMemory({
+      entities: [entity({ entity_id: 'e1', name: '甲' })],
+      presentIds: ['e1'],
+    }));
     await renderPanel();
-    await waitFor(() => {
-      expect(screen.getAllByTestId('tab').map((el) => el.getAttribute('data-key'))).toEqual(['player', 'nearby']);
-    });
+    await waitFor(() => expect(tabLabels()).toEqual(['甲']));
+
+    fireEvent.click(within(tabByKey('e1')).getByRole('button', { name: '置顶' }));
+
+    await waitFor(() => expect(mocks.updateStateEntity).toHaveBeenCalledWith('s1', 'e1', { pinned: true }));
+    await waitFor(() => expect(mocks.fetchStateMemory).toHaveBeenCalledTimes(2));
+  });
+
+  it('删除操作确认后调用删除接口并刷新', async () => {
+    mocks.fetchStateMemory.mockResolvedValue(stateMemory({
+      entities: [entity({ entity_id: 'e1', name: '甲' })],
+      presentIds: ['e1'],
+    }));
+    await renderPanel();
+    await waitFor(() => expect(tabLabels()).toEqual(['甲']));
+
+    fireEvent.click(within(tabByKey('e1')).getByRole('button', { name: '删除' }));
+    await screen.findByText('删除该角色？');
+    const confirmLayer = document.querySelector('.we-tm-confirm-layer');
+    fireEvent.click(within(confirmLayer).getByRole('button', { name: '删除' }));
+
+    await waitFor(() => expect(mocks.deleteStateEntity).toHaveBeenCalledWith('s1', 'e1'));
+    await waitFor(() => expect(mocks.fetchStateMemory).toHaveBeenCalledTimes(2));
+  });
+
+  it('从角色卡添加：成功后关闭弹窗并刷新', async () => {
+    mocks.fetchStateMemory.mockResolvedValue(stateMemory());
+    mocks.getCharactersByWorld.mockResolvedValue([{ id: 'char-1', name: '路人甲' }]);
+    mocks.createEntityFromCard.mockResolvedValue({});
+    await renderPanel();
+    await waitFor(() => expect(tabLabels()).toEqual(['附近']));
+
+    fireEvent.click(screen.getByRole('button', { name: '从角色卡添加' }));
+    fireEvent.click(await screen.findByRole('button', { name: '添加' }));
+
+    await waitFor(() => expect(mocks.createEntityFromCard).toHaveBeenCalledWith('s1', 'char-1'));
+    await waitFor(() => expect(screen.queryByText('从角色卡添加')).not.toBeInTheDocument());
+    await waitFor(() => expect(mocks.fetchStateMemory).toHaveBeenCalledTimes(2));
+  });
+
+  it('从角色卡添加：409 时提示已在状态记忆中', async () => {
+    const { log } = await import('../../../src/core/utils/logger.js');
+    mocks.fetchStateMemory.mockResolvedValue(stateMemory());
+    mocks.getCharactersByWorld.mockResolvedValue([{ id: 'char-1', name: '路人甲' }]);
+    mocks.createEntityFromCard.mockRejectedValue({ status: 409 });
+    await renderPanel();
+    await waitFor(() => expect(tabLabels()).toEqual(['附近']));
+
+    fireEvent.click(screen.getByRole('button', { name: '从角色卡添加' }));
+    fireEvent.click(await screen.findByRole('button', { name: '添加' }));
+
+    await waitFor(() => expect(log.error).toHaveBeenCalledWith(
+      'nearby.add.duplicate',
+      expect.anything(),
+      expect.objectContaining({ toast: '该角色已在状态记忆中' }),
+    ));
+  });
+
+  it('一次挂载只发一次 GET state-memory', async () => {
+    mocks.fetchStateMemory.mockResolvedValue(stateMemory());
+    await renderPanel();
+    await waitFor(() => expect(tabLabels()).toEqual(['附近']));
+
+    expect(mocks.fetchStateMemory).toHaveBeenCalledTimes(1);
   });
 });

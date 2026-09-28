@@ -509,11 +509,12 @@ function StatusField({
   onCommit,
   onCancel,
   onSetEditingKey,
+  changed,
 }) {
   const type = row.field_type ?? row.type;
   const editable = canEditRow(row, onSave);
   const short = gridLayout && isShortField(row);
-  const fieldExtra = gridLayout ? (short ? ' we-status-field--short' : ' we-status-field--long') : '';
+  const fieldExtra = `${gridLayout ? (short ? ' we-status-field--short' : ' we-status-field--long') : ''}${changed ? ' we-status-field--changed' : ''}`;
 
   if (type === 'table') {
     return <StatusTableField row={row} index={index} fieldExtra={fieldExtra} editable={editable} onSave={onSave} />;
@@ -563,6 +564,7 @@ export default function StatusSection({
   headerless = false,
   gridLayout = false,
   emptyContent = null,
+  changedKeys = null,
 }) {
   const [open, setOpen] = useState(defaultOpen);
   const [editingKey, setEditingKey] = useState(null);
@@ -617,6 +619,7 @@ export default function StatusSection({
                 onCommit={handleCommit}
                 onCancel={closeEditor}
                 onSetEditingKey={setEditingKey}
+                changed={changedKeys?.has(row.field_key) ?? false}
               />
             );
           })}

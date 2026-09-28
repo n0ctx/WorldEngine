@@ -4,7 +4,7 @@
  * 对外暴露：
  *   captureStateSnapshot(sessionId, worldId, characterIds)      → snapshot 对象
  *   restoreStateFromSnapshot(sessionId, worldId, characterIds, snapshot)
- *     snapshot=null 时保留现状（首轮重生成场景：用户手动加的 nearby / state 是显式意图，不能清）
+ *     snapshot=null 时保留现状（首轮重生成场景：用户手动加的 state 是显式意图，不能清）
  */
 
 import {
@@ -23,11 +23,11 @@ import {
   clearSessionCharacterStateValuesByCharacterIds,
 } from '../db/queries/session-character-state-values.js';
 import {
-  listNearbyBySessionId,
-  deleteNearbyBySessionId,
-  createNearbyCharacters,
-} from '../db/queries/session-nearby-characters.js';
-import { upsertNearbyStateValues, getStateValuesByNearbyIds } from '../db/queries/session-nearby-character-state-values.js';
+  upsertEntityStateValues,
+  getEntityStateValues,
+  clearEntityStateValuesBySession,
+} from '../db/queries/session-entity-state-values.js';
+import { listCurrentEntities } from '../db/queries/state-memory.js';
 import { withSessionStateTransaction } from '../db/queries/session-state-batch.js';
 
 function withoutNullValues(valueMap) {
@@ -62,28 +62,21 @@ export function captureStateSnapshot(sessionId, worldId, characterIds) {
 }
 
 /**
- * 捕获「完整」快照：三层状态 + （写作模式）nearby 层。
- * 与 createTurnRecord 写入 turn record 的快照口径一致，供基线捕获与轮次快照共用，
- * 避免回滚时 nearby 缺失被 restoreStateFromSnapshot 清空。
+ * 捕获「完整」快照：三层状态 + 实体字段值层（entityValues）。
+ * 与 createTurnRecord 写入 turn record 的快照口径一致，供基线捕获与轮次快照共用。
  *
  * @param {string} sessionId
  * @param {string} worldId
  * @param {string[]} characterIds
- * @param {boolean} includeNearby  写作模式传 true
+ * @returns {{ world: object, persona: object, character: object, entityValues: object }}
  */
-export function captureFullSnapshot(sessionId, worldId, characterIds, includeNearby) {
+export function captureFullSnapshot(sessionId, worldId, characterIds) {
   const snapshot = captureStateSnapshot(sessionId, worldId, characterIds);
-  if (includeNearby) {
-    const rows = listNearbyBySessionId(sessionId);
-    const valuesByNearby = getStateValuesByNearbyIds(rows.map((r) => r.id));
-    snapshot.nearby = rows.map((r) => {
-      const state = {};
-      for (const s of valuesByNearby.get(r.id)) {
-        if (s.runtime_value_json != null) state[s.field_key] = s.runtime_value_json;
-      }
-      return { id: r.id, name: r.name, persona: r.persona, is_saved: r.is_saved, state };
-    });
-  }
+  const entityIds = listCurrentEntities(sessionId).map((entity) => entity.entity_id);
+  const entityValuesByEntity = getEntityStateValues(sessionId, entityIds);
+  snapshot.entityValues = Object.fromEntries(
+    entityIds.map((entityId) => [entityId, withoutNullValues(entityValuesByEntity[entityId])]),
+  );
   return snapshot;
 }
 
@@ -98,8 +91,8 @@ export function captureFullSnapshot(sessionId, worldId, characterIds, includeNea
 export function restoreStateFromSnapshot(sessionId, worldId, characterIds, snapshot) {
   if (!snapshot) {
     // 无 turn record 检查点（典型场景：重生成首轮对话）。
-    // 当前 session state / nearby 是用户在首轮前的手动配置，是显式意图，必须保留。
-    // 早期实现会清空回 default，导致用户从角色卡添加的"附近角色"被静默删除。
+    // 当前 session state 是用户在首轮前的手动配置，是显式意图，必须保留。
+    // 早期实现会清空回 default，导致用户手动配置被静默删除。
     return;
   }
 
@@ -124,23 +117,19 @@ export function restoreStateFromSnapshot(sessionId, worldId, characterIds, snaps
     }
     upsertSessionCharacterStateValues(sessionId, characterValues);
 
-    // 删除旧行以级联清理状态值，再按快照重建 nearby 并批量写入状态。
-    deleteNearbyBySessionId(sessionId);
-    const nearbyArr = Array.isArray(snapshot.nearby) ? snapshot.nearby : [];
-    const validNearby = nearbyArr.filter((nearby) => nearby && typeof nearby.name === 'string' && nearby.name);
-    const nearbyIds = createNearbyCharacters(validNearby.map((nearby) => ({
-      sessionId,
-      name: nearby.name,
-      persona: nearby.persona ?? nearby.memory ?? '',
-      isSaved: nearby.is_saved ? 1 : 0,
-    })));
-    const nearbyValues = [];
-    for (let index = 0; index < validNearby.length; index++) {
-      const state = validNearby[index].state ?? {};
-      for (const [fieldKey, valueJson] of Object.entries(state)) {
-        nearbyValues.push({ sessionId, nearbyId: nearbyIds[index], fieldKey, valueJson });
+    // 实体字段值：旧快照没有 entityValues 层时不动现状；有则先清空本会话全部实体字段值，
+    // 再只写回快照中、且实体仍存在于 state_entities 的值（已被回滚清掉的实体不写回）。
+    if (snapshot.entityValues) {
+      clearEntityStateValuesBySession(sessionId);
+      const currentEntityIds = new Set(listCurrentEntities(sessionId).map((entity) => entity.entity_id));
+      const entityValueRows = [];
+      for (const [entityId, state] of Object.entries(snapshot.entityValues)) {
+        if (!currentEntityIds.has(entityId)) continue;
+        for (const [fieldKey, runtimeValueJson] of Object.entries(state ?? {})) {
+          entityValueRows.push({ entityId, fieldKey, runtimeValueJson });
+        }
       }
+      upsertEntityStateValues(sessionId, entityValueRows);
     }
-    upsertNearbyStateValues(nearbyValues);
   });
 }

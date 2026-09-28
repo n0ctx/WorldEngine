@@ -5,6 +5,7 @@
 import {
   normalizeString, normalizeEntityId, normalizeEnabled, normalizeNumberOrNull, normalizeStringArrayOrNull, pickAllowed,
 } from './proposal-values.js';
+import { RESERVED_WORLD_FIELD_LABELS } from '../../backend/memory/state-memory-schema.js';
 
 const VALID_STATE_TYPES = new Set(['number', 'text', 'enum', 'list', 'boolean', 'datetime', 'table']);
 const COLUMN_KEY_RE = /^[a-zA-Z0-9_]+$/;
@@ -63,6 +64,7 @@ function normalizeStateFieldUpdate(raw, idx, op, target) {
   const normalized = { op, target, id };
   if ('type' in data && VALID_STATE_TYPES.has(data.type)) normalized.type = data.type;
   normalizeStateFieldCommonProperties(data, normalized, false);
+  assertNotReservedWorldLabel(target, normalized.label);
   normalizeStateFieldConstraints(data, normalized, idx);
   normalizeNearbyEnabled(data, normalized, target, idx);
   // 仅在本次 update 显式带上 type 时校验类型相关约束；缺省时留给后续业务层。
@@ -79,12 +81,21 @@ function normalizeStateFieldCreate(raw, idx, op, target) {
   if (!fieldKey) throw new Error(`提案格式错误：stateFieldOps[${idx}].field_key 缺失`);
   if (!label) throw new Error(`提案格式错误：stateFieldOps[${idx}].label 缺失`);
   if (!VALID_STATE_TYPES.has(fieldType)) throw new Error(`提案格式错误：stateFieldOps[${idx}].type 非法`);
+  assertNotReservedWorldLabel(target, label);
   const normalized = { op, target, field_key: fieldKey, label, type: fieldType };
   normalizeStateFieldCommonProperties(raw, normalized, true);
   normalizeStateFieldConstraints(raw, normalized, idx);
   normalizeNearbyEnabled(raw, normalized, target, idx);
   validateStateFieldType(normalized, fieldType, idx, true, 'create');
   return normalized;
+}
+
+/** label 是否是保留给世界档案（时间/地点）的名称，仅 target='world' 时校验 */
+function assertNotReservedWorldLabel(target, label) {
+  if (target !== 'world' || label == null) return;
+  if (RESERVED_WORLD_FIELD_LABELS.includes(String(label).trim())) {
+    throw new Error('该名称已由系统管理');
+  }
 }
 
 function normalizeStateFieldCommonProperties(data, normalized, includeDefaults) {

@@ -19,8 +19,6 @@ import {
   insertCharacterStateField,
   insertCharacterStateValue,
   insertMessage,
-  insertNearbyCharacter,
-  insertNearbyStateValue,
   insertPersona,
   insertPersonaStateField,
   insertPersonaStateValue,
@@ -45,13 +43,11 @@ const BASE_CONFIG = {
   global_post_prompt: 'GOLDEN 后置提示 {{char}}',
   memory_expansion_enabled: true,
   suggestion_enabled: true,
-  table_memory_enabled: false,
   writing: {
     global_system_prompt: 'GOLDEN 写作全局 {{world}}',
     global_post_prompt: 'GOLDEN 写作后置',
     suggestion_enabled: true,
     memory_expansion_enabled: true,
-    table_memory_enabled: false,
     llm: {
       provider: null,
       provider_models: {},
@@ -148,7 +144,14 @@ test('buildPrompt / buildWritingPrompt 的输出逐字节稳定', async () => {
   const cases = {};
 
   const { buildPrompt, buildWritingPrompt } = await freshImport('backend/prompts/assembler.js');
-  const { writeTables } = await freshImport('backend/services/table-memory.js');
+  const { upsertEntity, upsertProfileField, upsertDynamicState, nextEntitySeq } = await freshImport('backend/db/queries/state-memory.js');
+
+  /** 建一个置顶实体，保证无论会话内容如何都会被 selectRelevantEntities 选中，产出稳定的 <story_state> */
+  function seedPinnedEntity(sessionId, { id, name, cardId = null, round = 1 }) {
+    upsertEntity(sessionId, {
+      entityId: id, seq: nextEntitySeq(sessionId), type: 'character', name, cardId, pinned: true,
+    }, round);
+  }
 
   // ── 1 / 2：chat base 与 continuation（同一会话）────────────────────
   {
@@ -162,6 +165,10 @@ test('buildPrompt / buildWritingPrompt 的输出逐字节稳定', async () => {
     insertCharacterStateValue(sandbox.db, character.id, { id: 'cv-chat-base', field_key: 'stance', default_value_json: '"守望"' });
     const session = insertSession(sandbox.db, { id: 'sess-chat-base', created_at: SESSION_TS, character_id: character.id, world_id: world.id, title: '金标聊天会话' });
     seedHistory(session.id, 'chat-base', 1000);
+    seedPinnedEntity(session.id, { id: 'entity-chat-base-main', name: '金标角色', cardId: character.id });
+    seedPinnedEntity(session.id, { id: 'entity-chat-base-side', name: '金标配角' });
+    upsertDynamicState(session.id, 'entity-chat-base-main', '位置', '旧港仓库', 1);
+    upsertProfileField(session.id, 'entity-chat-base-side', 'occupation', '"码头搬运工"', '金标配角的职业设定', 1);
 
     sandbox.writeConfig(createTestConfig(BASE_CONFIG));
     process.env.MOCK_LLM_COMPLETE_QUEUE = JSON.stringify([JSON.stringify({ turns: [1] })]);
@@ -189,31 +196,25 @@ test('buildPrompt / buildWritingPrompt 的输出逐字节稳定', async () => {
     cases['3-chat-no-suggestion-no-expand'] = await buildPrompt(session.id, { onRecallEvent() {} });
   }
 
-  // ── 4：chat 关记忆展开 + 开表格记忆 ─────────────────────────────────
+  // ── 4：chat 关记忆展开 + 状态记忆预算裁剪 ───────────────────────────
   {
-    const world = buildWorld('chat-table');
+    const world = buildWorld('chat-budget');
     const character = insertCharacter(sandbox.db, world.id, {
-      id: 'char-chat-table', name: '表格角色', system_prompt: '表格人设 {{char}}',
+      id: 'char-chat-budget', name: '预算角色', system_prompt: '预算人设 {{char}}',
     });
-    const session = insertSession(sandbox.db, { id: 'sess-chat-table', created_at: SESSION_TS, character_id: character.id, world_id: world.id, title: '表格会话' });
-    seedHistory(session.id, 'chat-table', 3000);
-
-    writeTables(session.id, {
-      tables: {
-        relations: { rows: [{ id: 1, 主体A: '金标玩家', 主体B: '表格角色', 关系类型: '同盟', '信任/敌意': '高信任' }], nextId: 2 },
-        items: { rows: [{ id: 1, 物品: '断刃', '持有人/位置': '表格角色', 状态: '完好' }], nextId: 2 },
-        places: { rows: [], nextId: 1 },
-        factions: { rows: [], nextId: 1 },
-      },
-      archive: {},
-    });
+    const session = insertSession(sandbox.db, { id: 'sess-chat-budget', created_at: SESSION_TS, character_id: character.id, world_id: world.id, title: '预算会话' });
+    seedHistory(session.id, 'chat-budget', 3000);
+    seedPinnedEntity(session.id, { id: 'entity-chat-budget-1', name: '预算甲' });
+    upsertProfileField(session.id, 'entity-chat-budget-1', 'occupation', '"游走于各国之间的密探，身负多重使命，行踪飘忽不定"', '预算甲的职业设定', 1);
+    seedPinnedEntity(session.id, { id: 'entity-chat-budget-2', name: '预算乙' });
+    upsertProfileField(session.id, 'entity-chat-budget-2', 'occupation', '"隐居山林的铁匠，只为故人打造兵刃"', '预算乙的职业设定', 1);
 
     sandbox.writeConfig(createTestConfig({
       ...BASE_CONFIG,
       memory_expansion_enabled: false,
-      table_memory_enabled: true,
+      state_injection_token_budget: 40,
     }));
-    cases['4-chat-table-memory'] = await buildPrompt(session.id, { onRecallEvent() {} });
+    cases['4-chat-state-budget'] = await buildPrompt(session.id, { onRecallEvent() {} });
   }
 
   // ── 5：writing base ────────────────────────────────────────────────
@@ -223,58 +224,58 @@ test('buildPrompt / buildWritingPrompt 的输出逐字节稳定', async () => {
       id: 'sess-writing-base', created_at: SESSION_TS, world_id: world.id, mode: 'writing', title: '金标写作会话',
     });
     seedHistory(session.id, 'writing-base', 4000);
+    seedPinnedEntity(session.id, { id: 'entity-writing-base-main', name: '写作主角' });
+    upsertProfileField(session.id, 'entity-writing-base-main', 'occupation', '"流浪剑客"', '写作主角的职业设定', 1);
 
     sandbox.writeConfig(createTestConfig(BASE_CONFIG));
     process.env.MOCK_LLM_COMPLETE_QUEUE = JSON.stringify([JSON.stringify({ turns: [1] })]);
     cases['5-writing-base'] = await buildWritingPrompt(session.id, { diaryInjection: '写作日记内容', onRecallEvent() {} });
   }
 
-  // ── 6：writing nearby，saved 不足阈值走 all-in ─────────────────────
+  // ── 6：writing 多实体状态记忆（多个在场角色）────────────────────────
   {
-    const world = buildWorld('writing-allin');
+    const world = buildWorld('writing-multi');
     const session = insertSession(sandbox.db, {
-      id: 'sess-writing-allin', created_at: SESSION_TS, world_id: world.id, mode: 'writing', title: '全量召回会话',
+      id: 'sess-writing-multi', created_at: SESSION_TS, world_id: world.id, mode: 'writing', title: '多实体会话',
     });
-    seedHistory(session.id, 'writing-allin', 5000);
+    seedHistory(session.id, 'writing-multi', 5000);
 
-    insertNearbyCharacter(sandbox.db, session.id, { id: 'nb-allin-t1', name: '临时甲', persona: '临时甲人设 {{char}}', is_saved: 0, created_at: 5010 });
-    insertNearbyCharacter(sandbox.db, session.id, { id: 'nb-allin-t2', name: '临时乙', persona: '临时乙人设', is_saved: 0, created_at: 5011 });
-    insertNearbyCharacter(sandbox.db, session.id, { id: 'nb-allin-s1', name: '已存丙', persona: '已存丙人设', is_saved: 1, created_at: 5012 });
-    insertNearbyCharacter(sandbox.db, session.id, { id: 'nb-allin-s2', name: '已存丁', persona: '已存丁人设', is_saved: 1, created_at: 5013 });
-    insertNearbyStateValue(sandbox.db, session.id, 'nb-allin-t1', { id: 'nv-allin-1', field_key: 'stance', runtime_value_json: '"戒备"' });
-    insertNearbyStateValue(sandbox.db, session.id, 'nb-allin-s1', { id: 'nv-allin-2', field_key: 'stance', runtime_value_json: '"中立"' });
+    seedPinnedEntity(session.id, { id: 'entity-writing-multi-1', name: '临时甲' });
+    seedPinnedEntity(session.id, { id: 'entity-writing-multi-2', name: '临时乙' });
+    seedPinnedEntity(session.id, { id: 'entity-writing-multi-3', name: '已存丙' });
+    seedPinnedEntity(session.id, { id: 'entity-writing-multi-4', name: '已存丁' });
+    upsertProfileField(session.id, 'entity-writing-multi-1', 'occupation', '"游侠"', '临时甲的职业设定', 1);
+    upsertProfileField(session.id, 'entity-writing-multi-3', 'occupation', '"商人"', '已存丙的职业设定', 1);
 
     sandbox.writeConfig(createTestConfig({
       ...BASE_CONFIG,
       writing: { ...BASE_CONFIG.writing, memory_expansion_enabled: false },
     }));
-    cases['6-writing-nearby-all-in'] = await buildWritingPrompt(session.id, { onRecallEvent() {} });
+    cases['6-writing-multi-entity'] = await buildWritingPrompt(session.id, { onRecallEvent() {} });
   }
 
-  // ── 7：writing nearby，saved 达阈值走 judge ────────────────────────
+  // ── 7：writing 非角色实体（地点/物品）状态记忆 ──────────────────────
   {
-    const world = buildWorld('writing-judge');
+    const world = buildWorld('writing-nonchar');
     const session = insertSession(sandbox.db, {
-      id: 'sess-writing-judge', created_at: SESSION_TS, world_id: world.id, mode: 'writing', title: '判定召回会话',
+      id: 'sess-writing-nonchar', created_at: SESSION_TS, world_id: world.id, mode: 'writing', title: '非角色实体会话',
     });
-    seedHistory(session.id, 'writing-judge', 6000);
+    seedHistory(session.id, 'writing-nonchar', 6000);
 
-    insertNearbyCharacter(sandbox.db, session.id, { id: 'nb-judge-t1', name: '临时戊', persona: '临时戊人设', is_saved: 0, created_at: 6010 });
-    for (let i = 1; i <= 5; i += 1) {
-      insertNearbyCharacter(sandbox.db, session.id, {
-        id: `nb-judge-s${i}`, name: `已存${i}号`, persona: `已存${i}号人设`, is_saved: 1, created_at: 6010 + i,
-      });
-    }
-    insertNearbyStateValue(sandbox.db, session.id, 'nb-judge-s2', { id: 'nv-judge-1', field_key: 'stance', runtime_value_json: '"潜伏"' });
+    upsertEntity(session.id, {
+      entityId: 'entity-writing-nonchar-loc', seq: nextEntitySeq(session.id), type: 'location', name: '旧港仓库', pinned: true,
+    }, 1);
+    upsertEntity(session.id, {
+      entityId: 'entity-writing-nonchar-item', seq: nextEntitySeq(session.id), type: 'item', name: '断刃', pinned: true,
+    }, 1);
+    upsertProfileField(session.id, 'entity-writing-nonchar-loc', 'description', '"废弃已久的码头仓库"', '仓库的概述', 1);
+    upsertProfileField(session.id, 'entity-writing-nonchar-item', 'description', '"一柄缺了刃口的旧刀"', '断刃的概述', 1);
 
     sandbox.writeConfig(createTestConfig({
       ...BASE_CONFIG,
       writing: { ...BASE_CONFIG.writing, memory_expansion_enabled: false },
     }));
-    process.env.MOCK_LLM_COMPLETE_QUEUE = JSON.stringify([
-      JSON.stringify({ recall: ['nb-judge-s2', 'nb-judge-s4'] }),
-    ]);
-    cases['7-writing-nearby-judge'] = await buildWritingPrompt(session.id, { onRecallEvent() {} });
+    cases['7-writing-non-character-entity'] = await buildWritingPrompt(session.id, { onRecallEvent() {} });
   }
 
   // ── 8：writing continuation + skipWritingInstructions ──────────────

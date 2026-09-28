@@ -6,6 +6,7 @@ const harness = vi.hoisted(() => ({
   state: null,
   setStateData: vi.fn(),
   retryStateLoad: vi.fn(),
+  reloadStateMemory: vi.fn(),
   getWorld: vi.fn(),
   getConfig: vi.fn(),
   patchStateValue: vi.fn(),
@@ -20,12 +21,19 @@ vi.mock('../../../core/api/session-state-values.js', () => ({
   resetSessionPersonaStateValues: vi.fn(),
   patchSessionStateValue: harness.patchStateValue,
 }));
+vi.mock('../../../core/api/state-memory.js', () => ({
+  updateStateEntity: vi.fn(),
+  createStateFact: vi.fn(),
+  deleteStateFact: vi.fn(),
+  updateStateWorld: vi.fn(),
+}));
 vi.mock('../../../core/hooks/useSessionState.js', () => ({
   useSessionState: () => harness.state,
 }));
 vi.mock('../../../core/hooks/useStateDiff.js', () => ({
-  useStateDiff: () => ({ diff: { world: [], persona: [] }, ready: true }),
+  useStateDiff: () => ({ diff: { world: [], persona: [], character: [] }, ready: true }),
 }));
+vi.mock('../WorldProfileGroup.jsx', () => ({ default: () => <div />, PlayerProfileGroup: () => null }));
 vi.mock('../../ui/SectionTabs.jsx', () => {
   function MockSectionTabs({ sections, defaultKey }) {
     const [activeKey, setActiveKey] = useState(defaultKey ?? sections[0]?.key);
@@ -91,6 +99,10 @@ function props() {
     ticks: { state: 0, diary: 0, queued: 0, failed: 0 },
     diaryScope: 'chat',
     classNames,
+    stateMemory: { world: { time: null, location: null, location_entity_id: null }, entities: [], facts: [] },
+    reloadStateMemory: harness.reloadStateMemory,
+    stateMemorySchema: { profileFields: { player: [], character: [] } },
+    entityDiff: new Set(),
   };
 }
 

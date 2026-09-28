@@ -3,19 +3,7 @@ import { useEffect, useState } from 'react';
 import { fetchDiaryContent } from '../../core/api/daily-entries.js';
 import { log } from '../../core/utils/logger.js';
 
-const DIARY_TIME_FIELD_KEY = 'diary_time';
-
 export const DIARY_RECENT_LIMIT = 5;
-
-/** 将 diary_time 行排到首位，其余行顺序不变 */
-export function pinDiaryTimeFirst(rows) {
-  if (!Array.isArray(rows)) return rows;
-  const idx = rows.findIndex((r) => r.field_key === DIARY_TIME_FIELD_KEY);
-  if (idx <= 0) return rows;
-  const result = [...rows];
-  result.unshift(result.splice(idx, 1)[0]);
-  return result;
-}
 
 /** 日记按时间倒序切成「最近若干条 + 其余」 */
 export function splitDiaryEntries(diaryEntries, limit = DIARY_RECENT_LIMIT) {

@@ -26,6 +26,7 @@ import sessionsRoutes from './routes/sessions.js';
 import chatRoutes from './routes/chat.js';
 import promptEntriesRoutes from './routes/prompt-entries.js';
 import stateFieldsRoutes from './routes/state-fields.js';
+import stateMemorySchemaRoutes from './routes/state-memory-schema.js';
 import worldStateValuesRoutes from './routes/world-state-values.js';
 import characterStateValuesRoutes from './routes/character-state-values.js';
 import importExportRoutes from './routes/import-export.js';
@@ -40,12 +41,13 @@ import sessionTimelineRoutes from './routes/session-timeline.js';
 import dailyEntriesRoutes from './routes/daily-entries.js';
 import sessionStateValuesRoutes from './routes/session-state-values.js';
 import middleSummaryRoutes from './routes/middle-summary.js';
-import tableMemoryRoutes from './routes/table-memory.js';
+import stateMemoryRoutes from './routes/state-memory.js';
 import assistantRoutes from '../assistant/server/routes.js';
 import clientLogsRoutes from './routes/client-logs.js';
 import providerSafetyEventsRoutes from './routes/provider-safety-events.js';
 import { resolveUploadPath } from './services/state-values.js';
 import { removeLegacyMemoryData } from './services/legacy-memory-cleanup.js';
+import { migrateToStateMemory } from './services/state-memory-migration.js';
 import { createLogger, formatMeta, logBootBanner } from './utils/logger.js';
 import { requestIdMiddleware } from './middleware/request-id.js';
 import { DATA_ROOT, UPLOADS_DIR } from './utils/data-dir.js';
@@ -98,6 +100,7 @@ for (const dir of dataDirs) {
 
 // 初始化数据库表结构
 initSchema(db);
+migrateToStateMemory();
 removeLegacyMemoryData();
 const { hydrateAssistantTasks } = await import('../assistant/server/task-store.js');
 hydrateAssistantTasks();
@@ -163,9 +166,10 @@ export function createApp() {
   app.use('/api/sessions', dailyEntriesRoutes);
   app.use('/api/sessions', sessionStateValuesRoutes);
   app.use('/api/sessions', middleSummaryRoutes);
-  app.use('/api/sessions', tableMemoryRoutes);
+  app.use('/api/sessions', stateMemoryRoutes);
   app.use('/api', promptEntriesRoutes);
   app.use('/api', stateFieldsRoutes);
+  app.use('/api', stateMemorySchemaRoutes);
   app.use('/api', worldStateValuesRoutes);
   app.use('/api', characterStateValuesRoutes);
   app.use('/api', importExportRoutes);

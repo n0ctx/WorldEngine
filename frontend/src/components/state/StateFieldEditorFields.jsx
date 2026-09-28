@@ -3,7 +3,13 @@ import Select from '../ui/Select';
 import MarkdownEditor from '../ui/MarkdownEditor';
 import DatetimeSplitInput from './DatetimeSplitInput';
 import { handleTagInputKeyDown } from '../../core/utils/tag-input.js';
-import { ISO_DATETIME_RE, updateStateFieldForm } from './stateFieldEditor.logic.js';
+import { useStateMemorySchema } from '../../core/hooks/useStateMemory.js';
+import {
+  ISO_DATETIME_RE,
+  findReplacedProfileFieldLabel,
+  isReservedWorldFieldLabel,
+  updateStateFieldForm,
+} from './stateFieldEditor.logic.js';
 
 const TYPE_OPTIONS = [
   { value: 'text', label: '文本' },
@@ -25,7 +31,8 @@ const labelCls = 'we-dialog-label';
 
 const requiredMark = <span className="we-state-field-required">*</span>;
 
-export function StateFieldIdentityFields({ field, form, setForm }) {
+export function StateFieldIdentityFields({ field, form, setForm, scope, reservedWorldFieldLabels }) {
+  const isReserved = isReservedWorldFieldLabel(scope, form.label, reservedWorldFieldLabels);
   return (
     <div className="grid grid-cols-2 gap-3">
       <div>
@@ -40,11 +47,14 @@ export function StateFieldIdentityFields({ field, form, setForm }) {
           onChange={(event) => updateStateFieldForm(setForm, 'field_key', event.target.value.replace(/\s/g, '_'))}
           placeholder="唯一标识符" disabled={!!field} />
       </div>
+      {isReserved && (
+        <p className="col-span-2 we-state-field-error">该名称已由系统管理</p>
+      )}
     </div>
   );
 }
 
-export function StateFieldTypeFields({ form, setForm, lockedColumnKeys, isDiaryTime, isRealDiary }) {
+export function StateFieldTypeFields({ form, setForm, lockedColumnKeys }) {
   return (
     <>
       <div>
@@ -53,16 +63,8 @@ export function StateFieldTypeFields({ form, setForm, lockedColumnKeys, isDiaryT
           value={form.type}
           onChange={(value) => updateStateFieldForm(setForm, 'type', value)}
           options={TYPE_OPTIONS}
-          disabled={isDiaryTime}
         />
       </div>
-      {isDiaryTime && (
-        <p className="we-state-field-hint">
-          {isRealDiary
-            ? <>当前为<strong>真实日期</strong>模式，此字段由系统每轮自动写入当前时间。</>
-            : <>虚拟日期模式：设置故事的初始时间，由 AI 每轮自动推进。</>}
-        </p>
-      )}
       {form.type === 'enum' && <EnumOptionsEditor form={form} setForm={setForm} />}
       {form.type === 'list' && <ListDefaultsEditor form={form} setForm={setForm} />}
       {form.type === 'table' && (
@@ -71,13 +73,15 @@ export function StateFieldTypeFields({ form, setForm, lockedColumnKeys, isDiaryT
       {form.type === 'number' && <NumberSettings form={form} setForm={setForm} />}
       {form.type === 'datetime' && <DateTimePrefix form={form} setForm={setForm} />}
       {form.type !== 'list' && form.type !== 'table' && (
-        <DefaultValueField form={form} setForm={setForm} isRealDiary={isRealDiary} />
+        <DefaultValueField form={form} setForm={setForm} />
       )}
     </>
   );
 }
 
 export function StateFieldMetadataFields({ form, setForm, scope }) {
+  const { schema } = useStateMemorySchema();
+  const replacedProfileFieldLabel = findReplacedProfileFieldLabel(schema, scope, form);
   return (
     <>
       <div>
@@ -99,19 +103,22 @@ export function StateFieldMetadataFields({ form, setForm, scope }) {
       </div>
       {scope === 'character' && (
         <div>
-          <label className={labelCls}>登场角色启用</label>
+          <label className={labelCls}>对 NPC 生效</label>
           <label className="flex items-center gap-2">
             <input
               type="checkbox"
               checked={form.nearby_enabled !== 0}
               onChange={(event) => updateStateFieldForm(setForm, 'nearby_enabled', event.target.checked ? 1 : 0)}
-              aria-label="登场角色启用"
+              aria-label="对 NPC 生效"
               className="accent-[var(--we-color-accent-deep)]"
             />
             <span className="text-xs text-[var(--we-color-text-tertiary)]">
-              关闭后，该字段不会出现在登场角色面板与自动状态更新中
+              对话与写作中由 AI 记录的角色都会带上这个字段；只有设为 AI 自动更新时才由 AI 填写。NPC 的身份、外貌、穿着、性格、年龄已由档案自动记录，不必为此建字段。
             </span>
           </label>
+          {replacedProfileFieldLabel && (
+            <p className="we-state-field-hint">该字段将取代 NPC 档案中的『{replacedProfileFieldLabel}』</p>
+          )}
         </div>
       )}
       {form.update_mode === 'llm_auto' && (
@@ -352,7 +359,7 @@ function DateTimePrefix({ form, setForm }) {
   );
 }
 
-function DefaultValueField({ form, setForm, isRealDiary }) {
+function DefaultValueField({ form, setForm }) {
   return (
     <div>
       <label className={labelCls}>默认值</label>
@@ -360,7 +367,6 @@ function DefaultValueField({ form, setForm, isRealDiary }) {
         <DatetimeSplitInput
           value={ISO_DATETIME_RE.test(form.default_value) ? form.default_value : ''}
           onChange={(value) => updateStateFieldForm(setForm, 'default_value', value)}
-          disabled={isRealDiary}
         />
       ) : form.type === 'enum' ? (
         <Select

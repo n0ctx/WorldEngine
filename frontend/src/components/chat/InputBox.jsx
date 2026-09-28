@@ -24,7 +24,7 @@ const InputBox = forwardRef(function InputBox({
   onRetry,
   onTitle,
   onMiddleSummary = null,
-  onTableMemory = null,
+  onStateMemory = null,
   pagerSlot = null,
 }, ref) {
   const m = useMotion();
@@ -136,7 +136,7 @@ const InputBox = forwardRef(function InputBox({
         onContinue={onContinue}
         onImpersonate={onImpersonate}
         onMiddleSummary={onMiddleSummary}
-        onTableMemory={onTableMemory}
+        onStateMemory={onStateMemory}
       />
 
       <InputBoxComposer

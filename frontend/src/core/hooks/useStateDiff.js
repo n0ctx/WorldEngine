@@ -1,5 +1,6 @@
 import { useLayoutEffect, useRef, useState } from 'react';
 import { stateRowKey } from '../../components/state/state-value-format.js';
+import { didSessionChange } from './useSessionResetGuard.js';
 
 const EMPTY = { world: [], persona: [], character: [] };
 const EMPTY_RESULT = { diff: EMPTY, ready: false };
@@ -35,6 +36,10 @@ function diffSection(prevRows, nextRows) {
  * 副作用：用户手动编辑字段也会被记成"变化"——这在语义上是对的（值确实变了），
  * 只是不严格等价于"AI 生成的这一轮"，先如实说明，不引入额外的"是否为用户编辑"
  * 标记（后端没有这个信号，伪造会更复杂也更不可靠）。
+ *
+ * 状态记忆实体（档案 / 现状）的行级 diff 是独立的 useEntityDiff（见同目录），
+ * 不在这里处理——两者的数据源（session_*_state_values 与 state-memory
+ * entities）互不相干，合在一起只会让调用方多传一份不需要的数据。
  */
 export function useStateDiff(stateData, sessionId) {
   const prevDataRef = useRef(null);
@@ -46,8 +51,7 @@ export function useStateDiff(stateData, sessionId) {
   // ref 的读写全部留在 effect 里，不在渲染期访问——渲染期读写 ref 是本项目
   // react-hooks/refs 规则明确禁止的模式。
   useLayoutEffect(() => {
-    if (prevSessionRef.current !== sessionId) {
-      prevSessionRef.current = sessionId;
+    if (didSessionChange(prevSessionRef, sessionId)) {
       prevDataRef.current = null;
       setResult(EMPTY_RESULT);
       return; // 会话切换的这一轮先不比较，等新会话的第一份 stateData 落地后再开始 diff

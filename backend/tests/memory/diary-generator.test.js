@@ -30,14 +30,8 @@ after(() => {
 
 // ── 帮助函数 ────────────────────────────────────────────────────────────
 
-/** 构造 state_snapshot JSON，_diary_time 值为 runtime_value_json（即 JSON 编码的字符串） */
-function makeSnapshot(dateStr) {
-  if (!dateStr) return null;
-  return JSON.stringify({ world: { 'diary_time': JSON.stringify(dateStr) } });
-}
-
 /** 创建一对 user+assistant 消息，并插入 turn_record 记录 */
-function makeRound(db, sessionId, { round_index, userContent, asstContent, snapshot, created_at }) {
+function makeRound(db, sessionId, { round_index, userContent, asstContent, created_at }) {
   const user = insertMessage(db, sessionId, { role: 'user', content: userContent, created_at: created_at ?? round_index * 100 });
   const asst = insertMessage(db, sessionId, { role: 'assistant', content: asstContent, created_at: (created_at ?? round_index * 100) + 1 });
   const rec = insertTurnRecord(db, sessionId, {
@@ -45,10 +39,15 @@ function makeRound(db, sessionId, { round_index, userContent, asstContent, snaps
     summary: `第${round_index}轮`,
     user_message_id: user.id,
     asst_message_id: asst.id,
-    state_snapshot: snapshot ?? null,
     created_at: created_at ?? round_index * 100,
   });
   return { user, asst, rec };
+}
+
+/** 写入某一轮世界档案「时间」值（虚拟日期模式，供 checkAndGenerateDiary 按轮读取） */
+async function setWorldTime(sessionId, round, isoStr) {
+  const { upsertWorldProfile } = await freshImport('backend/db/queries/state-memory.js');
+  upsertWorldProfile(sessionId, 'time', isoStr, null, round);
 }
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -105,11 +104,10 @@ test('checkAndGenerateDiary：摘要提取会清洗模板标签', async () => {
   const world = insertWorld(sandbox.db);
   const session = insertSession(sandbox.db, { world_id: world.id, diary_date_mode: 'virtual' });
 
-  const snap1 = makeSnapshot('1000-03-15T14:00');
-  const snap2 = makeSnapshot('1000-03-16T08:00');
-
-  makeRound(sandbox.db, session.id, { round_index: 1, userContent: '第一天的探索', asstContent: '你踏入了森林。', snapshot: snap1 });
-  makeRound(sandbox.db, session.id, { round_index: 2, userContent: '新的一天', asstContent: '黎明破晓。', snapshot: snap2 });
+  makeRound(sandbox.db, session.id, { round_index: 1, userContent: '第一天的探索', asstContent: '你踏入了森林。' });
+  makeRound(sandbox.db, session.id, { round_index: 2, userContent: '新的一天', asstContent: '黎明破晓。' });
+  await setWorldTime(session.id, 1, '1000-03-15T14:00');
+  await setWorldTime(session.id, 2, '1000-03-16T08:00');
 
   const { checkAndGenerateDiary } = await freshImport('backend/memory/diary-generator.js');
   await checkAndGenerateDiary(session.id, 2);
@@ -151,9 +149,10 @@ test('checkAndGenerateDiary：虚拟日期相同时不生成日记', async () =>
   resetMockEnv();
   const world = insertWorld(sandbox.db);
   const session = insertSession(sandbox.db, { world_id: world.id, diary_date_mode: 'virtual' });
-  const snap = makeSnapshot('1000-03-15T00:00');
-  makeRound(sandbox.db, session.id, { round_index: 1, userContent: 'u1', asstContent: 'a1', snapshot: snap });
-  makeRound(sandbox.db, session.id, { round_index: 2, userContent: 'u2', asstContent: 'a2', snapshot: snap });
+  makeRound(sandbox.db, session.id, { round_index: 1, userContent: 'u1', asstContent: 'a1' });
+  makeRound(sandbox.db, session.id, { round_index: 2, userContent: 'u2', asstContent: 'a2' });
+  await setWorldTime(session.id, 1, '1000-03-15T00:00');
+  await setWorldTime(session.id, 2, '1000-03-15T00:00');
 
   const { checkAndGenerateDiary } = await freshImport('backend/memory/diary-generator.js');
   await checkAndGenerateDiary(session.id, 2);
@@ -166,10 +165,9 @@ test('checkAndGenerateDiary：虚拟日期缺失时跳过', async () => {
   resetMockEnv();
   const world = insertWorld(sandbox.db);
   const session = insertSession(sandbox.db, { world_id: world.id, diary_date_mode: 'virtual' });
-  // state_snapshot 中无 _diary_time
-  const noTimesnap = JSON.stringify({ world: { other_field: '"value"' } });
-  makeRound(sandbox.db, session.id, { round_index: 1, userContent: 'u1', asstContent: 'a1', snapshot: noTimesnap });
-  makeRound(sandbox.db, session.id, { round_index: 2, userContent: 'u2', asstContent: 'a2', snapshot: noTimesnap });
+  // 未写入世界档案「时间」
+  makeRound(sandbox.db, session.id, { round_index: 1, userContent: 'u1', asstContent: 'a1' });
+  makeRound(sandbox.db, session.id, { round_index: 2, userContent: 'u2', asstContent: 'a2' });
 
   const { checkAndGenerateDiary } = await freshImport('backend/memory/diary-generator.js');
   await checkAndGenerateDiary(session.id, 2);
@@ -191,11 +189,10 @@ test('checkAndGenerateDiary：虚拟日期跨日时生成日记文件 + DB 条�
   const world = insertWorld(sandbox.db);
   const session = insertSession(sandbox.db, { world_id: world.id, diary_date_mode: 'virtual' });
 
-  const snap1 = makeSnapshot('1000-03-15T14:00');
-  const snap2 = makeSnapshot('1000-03-16T08:00');
-
-  makeRound(sandbox.db, session.id, { round_index: 1, userContent: '第一天的探索', asstContent: '你踏入了森林。', snapshot: snap1 });
-  makeRound(sandbox.db, session.id, { round_index: 2, userContent: '新的一天', asstContent: '黎明破晓。', snapshot: snap2 });
+  makeRound(sandbox.db, session.id, { round_index: 1, userContent: '第一天的探索', asstContent: '你踏入了森林。' });
+  makeRound(sandbox.db, session.id, { round_index: 2, userContent: '新的一天', asstContent: '黎明破晓。' });
+  await setWorldTime(session.id, 1, '1000-03-15T14:00');
+  await setWorldTime(session.id, 2, '1000-03-16T08:00');
 
   const { checkAndGenerateDiary } = await freshImport('backend/memory/diary-generator.js');
   await checkAndGenerateDiary(session.id, 2);
@@ -226,10 +223,10 @@ test('checkAndGenerateDiary：LLM 失败时不抛出且不写文件', async () =
 
   const world = insertWorld(sandbox.db);
   const session = insertSession(sandbox.db, { world_id: world.id, diary_date_mode: 'virtual' });
-  const snap1 = makeSnapshot('1000-04-01T14:00');
-  const snap2 = makeSnapshot('1000-04-02T08:00');
-  makeRound(sandbox.db, session.id, { round_index: 1, userContent: 'u', asstContent: 'a', snapshot: snap1 });
-  makeRound(sandbox.db, session.id, { round_index: 2, userContent: 'u2', asstContent: 'a2', snapshot: snap2 });
+  makeRound(sandbox.db, session.id, { round_index: 1, userContent: 'u', asstContent: 'a' });
+  makeRound(sandbox.db, session.id, { round_index: 2, userContent: 'u2', asstContent: 'a2' });
+  await setWorldTime(session.id, 1, '1000-04-01T14:00');
+  await setWorldTime(session.id, 2, '1000-04-02T08:00');
 
   const { checkAndGenerateDiary } = await freshImport('backend/memory/diary-generator.js');
   await assert.doesNotReject(() => checkAndGenerateDiary(session.id, 2));

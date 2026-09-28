@@ -3311,80 +3311,6 @@
   border-top: none;
 }
 
-/* writing: 已保存角色 —— 顶部 tab 仅显示当前登场，已保存角色折叠到底部紧凑列表 */
-.we-saved-nearby {
-  margin-top: var(--we-space-md);
-  padding: var(--we-space-sm) var(--we-space-md);
-  border-top: 1px solid var(--we-color-border-subtle);
-}
-.we-saved-nearby-title {
-  font-size: 11px;
-  color: var(--we-color-text-tertiary);
-  letter-spacing: 0.04em;
-  margin-bottom: var(--we-space-xs);
-}
-.we-saved-nearby-list {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-.we-saved-nearby-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--we-space-sm);
-  padding: 2px 0;
-}
-.we-saved-nearby-name {
-  font-size: 13px;
-  color: var(--we-color-text-secondary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.we-saved-nearby-cancel {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 20px;
-  height: 20px;
-  border: none;
-  background: transparent;
-  color: var(--we-color-text-tertiary);
-  cursor: pointer;
-  border-radius: var(--we-radius-sm);
-}
-.we-saved-nearby-cancel:hover,
-.we-saved-nearby-cancel:focus-visible {
-  color: var(--we-color-text-primary);
-  background: var(--we-color-bg-subtle);
-}
-.we-saved-nearby-actions {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--we-space-xs);
-  flex-shrink: 0;
-}
-.we-saved-nearby-expand {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 20px;
-  height: 20px;
-  border: none;
-  background: transparent;
-  color: var(--we-color-text-tertiary);
-  cursor: pointer;
-  border-radius: var(--we-radius-sm);
-}
-.we-saved-nearby-expand:hover,
-.we-saved-nearby-expand:focus-visible {
-  color: var(--we-color-text-primary);
-  background: var(--we-color-bg-subtle);
-}
 /* ── PanelCard variant: headerless（无 header，内容直接开始） ─── */
 .we-panel-card--headerless {
   background: transparent;
@@ -3608,112 +3534,223 @@
   color: var(--we-color-text-primary);
 }
 
-/* ── 表格记忆（TableMemoryModal）：横向滚动的完整表格 ─── */
-.we-tm-body-wrap {
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-}
-.we-tm-scroll {
-  overflow-x: auto;
-  overflow-y: hidden;
-  border: 1px solid color-mix(in srgb, var(--we-base-ink-900) 12%, transparent);
-  border-radius: var(--we-radius-sm, 6px);
-}
-.we-tm-grid {
-  display: grid;
-  /* N 个内容列 + 别名列 + 操作列；fit-content 让列宽随内容自适应，上限 12rem，
-     字少则自动收窄、字多则封顶换行，靠容器横向滚动 */
-  grid-template-columns:
-    repeat(var(--we-tm-cols, 1), fit-content(12rem))
-    fit-content(12rem)
-    44px;
-  width: max-content;
-  min-width: 100%;
-}
-.we-tm-row {
-  display: contents;
-}
-.we-tm-cell {
-  display: flex;
-  align-items: center;
-  padding: var(--we-space-xs) 8px; /* 8px: design exact */
-  min-width: 0;
-  min-height: 44px; /* 触控目标 ≥44px */
-  border-top: 1px solid color-mix(in srgb, var(--we-base-ink-900) 8%, transparent);
-}
-.we-tm-cell + .we-tm-cell {
-  border-left: 1px solid color-mix(in srgb, var(--we-base-ink-900) 8%, transparent);
-}
-.we-tm-head .we-tm-head-cell {
-  position: sticky;
-  top: 0;
-  border-top: none;
-  font-family: var(--we-font-display);
-  font-size: var(--we-text-xs);
-  letter-spacing: var(--we-tracking-caps);
-  color: var(--we-color-text-tertiary);
-  background: color-mix(in srgb, var(--we-base-ink-900) 5%, var(--we-color-bg-surface));
-}
-.we-tm-value {
-  font-family: var(--we-font-prose);
-  font-size: var(--we-text-sm);
-  color: var(--we-color-text-secondary);
-  line-height: var(--we-leading-tight);
-  width: 100%;
-  word-break: break-word;
-}
-.we-tm-alias {
-  color: var(--we-color-text-tertiary);
-  font-size: var(--we-text-xs);
-}
-.we-tm-input {
-  width: 100%;
-  font-size: var(--we-text-sm);
-}
-.we-tm-action-cell {
-  justify-content: center;
-  padding-left: 0;
-  padding-right: 0;
-}
-.we-tm-delete {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 44px;  /* 触控目标 ≥44px：命中区铺满操作列 */
-  height: 44px;
-  border-radius: var(--we-radius-sm, 6px);
-  color: var(--we-color-text-tertiary);
-  cursor: pointer;
-  transition: color var(--we-duration-fast) var(--we-easing-sharp), background var(--we-duration-fast) var(--we-easing-sharp);
-}
-.we-tm-delete:hover {
-  color: var(--we-color-text-danger);
-  background: color-mix(in srgb, var(--we-base-ink-900) 8%, transparent);
-}
-.we-tm-empty {
-  grid-column: 1 / -1;
-  padding: var(--we-space-md, 16px);
-  text-align: center;
-  font-size: var(--we-text-sm);
-  color: var(--we-color-text-tertiary);
-  border-top: 1px solid color-mix(in srgb, var(--we-base-ink-900) 8%, transparent);
-}
-.we-tm-skeleton {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  padding: var(--we-space-sm, 12px) 0;
-}
-.we-tm-skeleton-line {
-  height: 16px;
-  border-radius: 4px;
-}
-/* 放弃确认浮层：高于表格 Modal（--we-z-modal），脱离其 transform 上下文 */
+/* 二级确认浮层：高于当前 Modal（--we-z-modal），脱离其 transform 上下文；
+   MiddleSummaryModal 与 StateMemoryModal 共用 */
 .we-tm-confirm-layer {
   position: fixed;
   inset: 0;
   z-index: calc(var(--we-z-modal) + 1);
+}
+
+/* ── 状态记忆（StateMemoryModal）：实体列表 + 详情两栏 ─── */
+.we-sm-body-wrap {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.we-sm-entity-tab {
+  display: grid;
+  grid-template-columns: minmax(0, 13rem) minmax(0, 1fr);
+  gap: var(--we-space-lg);
+  min-height: 0;
+}
+.we-sm-entity-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--we-space-xs);
+  max-height: 60vh;
+  overflow-y: auto;
+  padding-right: var(--we-space-xs);
+}
+.we-sm-search {
+  margin-bottom: var(--we-space-xs);
+}
+.we-sm-entity-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--we-space-xs);
+  width: 100%;
+  padding: var(--we-space-xs) var(--we-space-sm);
+  border-radius: var(--we-radius-sm, 6px);
+  font-size: var(--we-text-sm);
+  color: var(--we-color-text-secondary);
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--we-duration-fast) var(--we-easing-sharp), color var(--we-duration-fast) var(--we-easing-sharp);
+}
+.we-sm-entity-item:hover {
+  background: var(--we-color-ink-wash);
+}
+.we-sm-entity-item.active {
+  background: var(--we-color-ink-wash-md);
+  color: var(--we-color-text-primary);
+}
+.we-sm-entity-retired {
+  font-size: var(--we-text-2xs);
+  color: var(--we-color-text-tertiary);
+}
+.we-sm-entity-detail-pane {
+  max-height: 60vh;
+  overflow-y: auto;
+  padding-right: var(--we-space-xs);
+}
+.we-sm-detail-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--we-space-sm);
+}
+.we-sm-pin {
+  display: flex;
+  align-items: center;
+  gap: var(--we-space-xxs);
+  font-size: var(--we-text-xs);
+  color: var(--we-color-text-secondary);
+}
+.we-sm-card-note {
+  padding: var(--we-space-sm);
+  border-radius: var(--we-radius-sm, 6px);
+  background: var(--we-color-ink-wash);
+}
+.we-sm-detail-footer {
+  margin-top: var(--we-space-md, 16px);
+}
+.we-sm-profile-field .we-status-key {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--we-space-xxs);
+}
+.we-sm-age {
+  display: flex;
+  align-items: center;
+  gap: var(--we-space-xs);
+}
+.we-sm-age-input {
+  width: 6rem;
+}
+.we-sm-dynamic-add {
+  display: flex;
+  gap: var(--we-space-xs);
+  margin-top: var(--we-space-xs);
+}
+.we-sm-relation-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--we-space-xs);
+  margin-bottom: var(--we-space-md, 16px);
+}
+.we-sm-relation-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--we-space-xs);
+}
+.we-sm-relation-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--we-space-sm);
+  padding: var(--we-space-xs) 0;
+  border-top: 1px solid color-mix(in srgb, var(--we-base-ink-900) 8%, transparent);
+  font-size: var(--we-text-sm);
+  color: var(--we-color-text-secondary);
+}
+.we-sm-thread-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--we-space-sm);
+  margin-bottom: var(--we-space-md, 16px);
+}
+.we-sm-thread-item {
+  padding: var(--we-space-sm);
+  border-radius: var(--we-radius-sm, 6px);
+  background: var(--we-color-ink-wash);
+}
+.we-sm-thread-head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--we-space-xs);
+  margin-bottom: var(--we-space-xxs);
+}
+.we-sm-thread-kind {
+  font-family: var(--we-font-display);
+  font-size: var(--we-text-xs);
+  color: var(--we-color-text-primary);
+}
+.we-sm-thread-content {
+  width: 100%;
+  resize: vertical;
+}
+.we-sm-thread-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--we-space-xs);
+  margin-top: var(--we-space-xs);
+}
+
+/* ── 状态栏：世界档案组 / NPC 档案区块（EntityStateBlock、WorldProfileGroup）── */
+
+/* 本轮变化的档案/现状行：左侧描一道强调色，与 StateChangeCard 的强调色一致 */
+.we-status-field--changed {
+  box-shadow: inset 2px 0 0 var(--we-color-accent);
+  padding-left: var(--we-space-xs);
+}
+
+.we-sm-facts-wrap {
+  margin-top: var(--we-space-sm, 12px);
+}
+.we-sm-fact-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--we-space-xxs);
+  margin-top: var(--we-space-xxs);
+}
+.we-sm-fact-row {
+  display: flex;
+  align-items: baseline;
+  gap: var(--we-space-xs);
+}
+.we-sm-fact-text {
+  flex: 1;
+  font-family: var(--we-font-prose);
+  font-size: var(--we-text-sm);
+  color: var(--we-color-text-secondary);
+}
+.we-sm-fact-round {
+  font-size: var(--we-text-2xs);
+  color: var(--we-color-text-tertiary);
+  white-space: nowrap;
+}
+.we-sm-fact-delete {
+  color: var(--we-color-text-tertiary);
+  transition: color var(--we-duration-fast) var(--we-easing-sharp);
+}
+.we-sm-fact-delete:hover {
+  color: var(--we-color-accent);
+}
+
+.we-sm-card-summary {
+  color: var(--we-color-text-secondary);
+  margin-bottom: var(--we-space-xs);
+}
+
+.we-sm-derived {
+  margin-top: var(--we-space-xs);
+}
+
+/* 「现状」小节是 AI 随手记录，不是用户字段，标一个轻量后缀提示 */
+.we-entity-dynamic .we-state-section-title .we-section-label::after {
+  content: '· AI 记录';
+  margin-left: var(--we-space-xxs);
+  font-size: var(--we-text-2xs);
+  color: var(--we-color-text-tertiary);
+  letter-spacing: normal;
+  text-transform: none;
+}
+
+.we-main-character-edit-link {
+  margin-left: var(--we-space-xs);
 }
 
 /* ── 动效组件（components/motion/，移植自 Rare UI）───────────────── */

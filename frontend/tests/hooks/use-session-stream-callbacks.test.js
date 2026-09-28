@@ -66,7 +66,7 @@ function createHarness() {
     sessionIdHint: 'session-1',
     continuationToken,
     ...state,
-    extraCallbacks: { onChapterTitleUpdated: vi.fn(), onSavedRecallDone: vi.fn() },
+    extraCallbacks: { onChapterTitleUpdated: vi.fn() },
     mode: 'chat',
     finalizeStream,
   });

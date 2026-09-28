@@ -6,6 +6,7 @@ import {
   insertCharacter,
   insertPersona,
   insertPersonaStateField,
+  insertSession,
   insertWorld,
   insertWorldEntry,
 } from '../helpers/fixtures.js';
@@ -207,6 +208,51 @@ test('PUT /api/characters/reorder 校验 items 必填', async () => {
     body: JSON.stringify({ items: [{ id: c1.id, sort_order: 0 }] }),
   });
   assert.equal(ok.status, 200);
+});
+
+test('POST /api/worlds/:worldId/characters/from-entity 把状态记忆实体制成角色卡并回写 card_id；实体不存在 404；session 不属于 world 400', async () => {
+  const world = insertWorld(ctx.sandbox.db, { name: '路由-from-entity' });
+  const session = insertSession(ctx.sandbox.db, { world_id: world.id, mode: 'writing' });
+
+  const createEntityRes = await ctx.request(`/api/sessions/${session.id}/state-memory/entities`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ type: 'character', name: '阿绪' }),
+  });
+  assert.equal(createEntityRes.status, 200);
+  const entity = await createEntityRes.json();
+
+  const res = await ctx.request(`/api/worlds/${world.id}/characters/from-entity`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      session_id: session.id, entity_id: entity.entity_id,
+      name: '阿绪', system_prompt: 'sp', description: 'desc', first_message: 'fm',
+    }),
+  });
+  assert.equal(res.status, 201);
+  const created = await res.json();
+  assert.ok(created.id);
+
+  const character = ctx.sandbox.db.prepare('SELECT * FROM characters WHERE id = ?').get(created.id);
+  assert.equal(character.name, '阿绪');
+  assert.equal(character.system_prompt, 'sp');
+
+  const entityRow = ctx.sandbox.db.prepare(
+    'SELECT card_id FROM state_entities WHERE session_id = ? AND entity_id = ? AND valid_to_round IS NULL',
+  ).get(session.id, entity.entity_id);
+  assert.equal(entityRow.card_id, created.id);
+
+  const notFound = await ctx.request(`/api/worlds/${world.id}/characters/from-entity`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ session_id: session.id, entity_id: 'no-such', name: 'X' }),
+  });
+  assert.equal(notFound.status, 404);
+
+  const otherWorld = insertWorld(ctx.sandbox.db, { name: '路由-from-entity-别的世界' });
+  const worldMismatch = await ctx.request(`/api/worlds/${otherWorld.id}/characters/from-entity`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ session_id: session.id, entity_id: entity.entity_id, name: 'X' }),
+  });
+  assert.equal(worldMismatch.status, 400);
 });
 
 // ─── prompt-entries routes ──────────────────────────────────────────

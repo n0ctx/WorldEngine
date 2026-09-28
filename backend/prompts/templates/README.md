@@ -31,7 +31,7 @@
 - `entry-preflight-user.md`
   判断 Prompt 条目是否命中的 user 模板。
 - `state-update.md`
-  批量更新世界 / 玩家 / 角色状态的模板。
+  批量更新世界 / 玩家 / 角色状态并写入状态记忆的模板。
 - `chat-impersonate.md`
   聊天模式和写作模式共用的代拟用户输入的模板。
 - `shared-suggestion.md`

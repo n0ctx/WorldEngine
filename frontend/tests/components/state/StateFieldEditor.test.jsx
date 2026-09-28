@@ -17,6 +17,22 @@ vi.mock('../../../src/components/ui/MarkdownEditor', () => ({
   ),
 }));
 
+vi.mock('../../../src/core/api/state-memory.js', () => ({
+  fetchStateMemorySchema: vi.fn().mockResolvedValue({
+    reservedWorldFieldLabels: ['时间', '地点'],
+    profileFields: {
+      character: [
+        { key: 'core_traits', label: '核心性格', group: '人格', synonyms: ['性格', '个性', 'personality'] },
+        { key: 'height', label: '身高', group: '外貌', synonyms: ['外貌', 'appearance'] },
+        { key: 'build', label: '体型', group: '外貌', synonyms: ['外貌', 'appearance'] },
+        { key: 'hair', label: '发型', group: '外貌', synonyms: ['外貌', 'appearance'] },
+        { key: 'eyes', label: '眼睛', group: '外貌', synonyms: ['外貌', 'appearance'] },
+        { key: 'distinguishing_features', label: '显著特征', group: '外貌', synonyms: ['外貌', 'appearance'] },
+      ],
+    },
+  }),
+}));
+
 import StateFieldEditor from '../../../src/components/state/StateFieldEditor.jsx';
 
 describe('StateFieldEditor', () => {
@@ -107,11 +123,11 @@ describe('StateFieldEditor', () => {
     expect(onSave).not.toHaveBeenCalled();
   });
 
-  it('rejects malformed datetime values and locks the system diary time controls', () => {
+  it('rejects malformed datetime values', () => {
     const onSave = vi.fn();
-    const { unmount } = render(
+    render(
       <StateFieldEditor
-        field={{ field_key: 'when', label: '时间', type: 'datetime', default_value: '2024-1-01T09:00' }}
+        field={{ field_key: 'when', label: '截止时间', type: 'datetime', default_value: '2024-1-01T09:00' }}
         onSave={onSave}
         onClose={vi.fn()}
       />,
@@ -119,17 +135,6 @@ describe('StateFieldEditor', () => {
     fireEvent.click(screen.getByText('保存'));
     expect(screen.getByText(/默认值格式必须为 YYYY-MM-DDTHH:mm/)).toBeInTheDocument();
     expect(onSave).not.toHaveBeenCalled();
-
-    unmount();
-    render(
-      <StateFieldEditor
-        field={{ field_key: 'diary_time', label: '日记时间', type: 'datetime', default_value: '2024-01-01T09:00' }}
-        diaryDateMode="real"
-        onSave={onSave}
-        onClose={vi.fn()}
-      />,
-    );
-    expect(screen.getByPlaceholderText('YYYY')).toBeDisabled();
   });
 
   it('restores the save button and shows the parent error when saving fails', async () => {
@@ -148,5 +153,42 @@ describe('StateFieldEditor', () => {
     expect(screen.getByText('保存中…')).toBeDisabled();
     await waitFor(() => expect(screen.getByText('保存')).toBeEnabled());
     expect(screen.getByText('保存失败')).toBeInTheDocument();
+  });
+
+  it('blocks saving a world field whose label is reserved by the system', async () => {
+    const onSave = vi.fn();
+    render(
+      <StateFieldEditor field={null} scope="world" onSave={onSave} onClose={vi.fn()} />,
+    );
+    fireEvent.change(screen.getByPlaceholderText('唯一标识符'), { target: { value: 'time' } });
+    fireEvent.change(screen.getByPlaceholderText('显示名称'), { target: { value: '时间' } });
+
+    await waitFor(() => expect(screen.getByText('该名称已由系统管理')).toBeInTheDocument());
+    expect(screen.getByText('保存')).toBeDisabled();
+
+    fireEvent.click(screen.getByText('保存'));
+    expect(onSave).not.toHaveBeenCalled();
+  });
+
+  it('renames the character nearby toggle to 对 NPC 生效 and hints when it replaces a profile field', async () => {
+    render(
+      <StateFieldEditor field={null} scope="character" onSave={vi.fn()} onClose={vi.fn()} />,
+    );
+
+    expect(screen.getByText('对 NPC 生效')).toBeInTheDocument();
+    expect(screen.getByLabelText('对 NPC 生效')).toBeChecked();
+
+    fireEvent.change(screen.getByPlaceholderText('显示名称'), { target: { value: '性格' } });
+    await waitFor(() => expect(
+      screen.getByText('该字段将取代 NPC 档案中的『核心性格』'),
+    ).toBeInTheDocument());
+
+    fireEvent.change(screen.getByPlaceholderText('显示名称'), { target: { value: '外貌' } });
+    await waitFor(() => expect(
+      screen.getByText('该字段将取代 NPC 档案中的『身高、体型、发型、眼睛、显著特征』'),
+    ).toBeInTheDocument());
+
+    fireEvent.click(screen.getByLabelText('对 NPC 生效'));
+    expect(screen.queryByText(/该字段将取代 NPC 档案中的/)).not.toBeInTheDocument();
   });
 });

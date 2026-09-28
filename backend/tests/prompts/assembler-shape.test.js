@@ -255,6 +255,14 @@ test('buildPrompt / buildWritingPrompt 的结构锚点顺序保持稳定', async
     created_at: 16,
   });
 
+  const { upsertEntity, nextEntitySeq } = await freshImport('backend/db/queries/state-memory.js');
+  upsertEntity(chatSession.id, {
+    entityId: 'entity-shape-chat', seq: nextEntitySeq(chatSession.id), type: 'item', name: 'ANCHOR_[6.5]_STORY_STATE_CHAT', pinned: true,
+  }, 1);
+  upsertEntity(writingSession.id, {
+    entityId: 'entity-shape-writing', seq: nextEntitySeq(writingSession.id), type: 'item', name: 'ANCHOR_[6.5]_STORY_STATE_WRITING', pinned: true,
+  }, 1);
+
   process.env.MOCK_LLM_COMPLETE_QUEUE = JSON.stringify([
     JSON.stringify({ turns: [1] }),
     JSON.stringify({ turns: [1] }),
@@ -278,7 +286,7 @@ test('buildPrompt / buildWritingPrompt 的结构锚点顺序保持稳定', async
       messages: extractMessageShape(chatResult.messages, {
         0: [
           'ANCHOR_[1]_CHAT_GLOBAL', 'ANCHOR_[3.5]_CACHED_TITLE', 'ANCHOR_[3.5]_CACHED_BODY', 'ANCHOR_[2]_PERSONA', 'ANCHOR_[3]_CHAR_ALPHA',
-          'ANCHOR_[4]_WORLD_STATE', 'ANCHOR_[5]_PERSONA_STATE', 'ANCHOR_[6]_CHAR_STATE', 'ANCHOR_[7]_ENTRY_TITLE', 'ANCHOR_[7]_ENTRY_BODY',
+          'ANCHOR_[4]_WORLD_STATE', 'ANCHOR_[5]_PERSONA_STATE', 'ANCHOR_[6]_CHAR_STATE', 'ANCHOR_[6.5]_STORY_STATE_CHAT', 'ANCHOR_[7]_ENTRY_TITLE', 'ANCHOR_[7]_ENTRY_BODY',
           'ANCHOR_[8.5]_STORY_CHAT', '<expanded_dialogues>', 'ANCHOR_[10]_RECALL_CHAT_USER', 'ANCHOR_[10]_RECALL_CHAT_ASST', 'ANCHOR_[11]_DIARY_CHAT',
         ],
         1: ['旧轮用户消息'],
@@ -295,7 +303,7 @@ test('buildPrompt / buildWritingPrompt 的结构锚点顺序保持稳定', async
         0: [
           'ANCHOR_[1]_WRITING_GLOBAL', 'ANCHOR_[3.5]_CACHED_TITLE', 'ANCHOR_[3.5]_CACHED_BODY', 'ANCHOR_[2]_PERSONA',
           // 写作模式不再注入 [3] 角色 system_prompt / [6] 角色状态段
-          'ANCHOR_[4]_WORLD_STATE', 'ANCHOR_[5]_PERSONA_STATE',
+          'ANCHOR_[4]_WORLD_STATE', 'ANCHOR_[5]_PERSONA_STATE', 'ANCHOR_[6.5]_STORY_STATE_WRITING',
           'ANCHOR_[7]_ENTRY_TITLE', 'ANCHOR_[7]_ENTRY_BODY', 'ANCHOR_[8.5]_STORY_WRITING', '<expanded_dialogues>', 'ANCHOR_[10]_RECALL_WRITING_USER', 'ANCHOR_[10]_RECALL_WRITING_ASST', 'ANCHOR_[11]_DIARY_WRITING',
         ],
         1: ['旧写作用户消息'],
@@ -305,6 +313,10 @@ test('buildPrompt / buildWritingPrompt 的结构锚点顺序保持稳定', async
     },
   };
 
+  if (process.env.WE_UPDATE_SNAPSHOTS === '1') {
+    fs.writeFileSync(SNAPSHOT_PATH, snapshotShape(shape), 'utf-8');
+    return;
+  }
   const expected = fs.readFileSync(SNAPSHOT_PATH, 'utf-8');
   assert.equal(snapshotShape(shape), expected);
 });

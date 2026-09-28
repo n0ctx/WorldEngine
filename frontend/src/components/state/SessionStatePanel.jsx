@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import SectionTabs from '../ui/SectionTabs.jsx';
 import PanelCard from '../ui/PanelCard.jsx';
 import StateChangeCard from './StateChangeCard.jsx';
+import WorldProfileGroup, { PlayerProfileGroup } from './WorldProfileGroup.jsx';
 import {
   DiaryEntry,
   ResetAction,
@@ -11,7 +12,6 @@ import {
 } from './panel-parts.jsx';
 import {
   DIARY_RECENT_LIMIT,
-  pinDiaryTimeFirst,
   splitDiaryEntries,
   useDiarySelection,
 } from './panel-utils.js';
@@ -156,6 +156,84 @@ function DiaryTab({
   );
 }
 
+/** 世界区块：档案组（WorldProfileGroup）+ 用户字段组（StateChangeCard，按字段定义顺序展示） */
+function WorldTab({
+  worldName, worldResetting, handleResetWorld, stateError, renderLoadError,
+  sessionId, stateMemory, reloadStateMemory, worldRows, stateDiff, stateDiffReady, saveStateValue, templateCtx,
+}) {
+  return (
+    <section className="we-state-block we-state-block--world">
+      <header className="we-state-block-head">
+        <span className="we-state-block-label">{worldName || '世界'}</span>
+        <span className="we-section-rule" />
+        <ResetAction onClick={handleResetWorld} busy={worldResetting} />
+      </header>
+      {stateError ? renderLoadError('世界状态加载失败') : (
+        <>
+          <WorldProfileGroup
+            sessionId={sessionId}
+            world={stateMemory?.world}
+            entities={stateMemory?.entities}
+            facts={stateMemory?.facts}
+            reload={reloadStateMemory}
+          />
+          <div className="we-state-section-title">
+            <span className="we-section-label">用户字段</span>
+          </div>
+          <StateChangeCard
+            className="we-status-world"
+            rows={worldRows}
+            changes={stateDiff.world}
+            hasBaseline={stateDiffReady}
+            onSave={(fieldKey, valueJson) => saveStateValue('world', fieldKey, valueJson)}
+            templateCtx={templateCtx}
+            emptyContent={<StateEmpty hint="世界状态会随剧情逐步记录" />}
+          />
+        </>
+      )}
+    </section>
+  );
+}
+
+/** 玩家页签：档案组（穿着）+ 用户字段组（StateChangeCard） */
+function PlayerTab({
+  stateError, renderLoadError, sessionId, stateMemory, stateMemorySchema, entityDiff,
+  stateDiff, stateDiffReady, reloadStateMemory, stateData, saveStateValue, templateCtx,
+}) {
+  const playerEntity = stateMemory?.entities?.find((e) => e.type === 'player') ?? null;
+  const playerOutfitDef = stateMemorySchema?.profileFields?.player?.find((d) => d.key === 'outfit') ?? null;
+
+  return (
+    <div className="we-panel-tab-body">
+      <PanelCard variant="headerless">
+        {stateError ? renderLoadError('玩家状态加载失败') : (
+          <>
+            <PlayerProfileGroup
+              sessionId={sessionId}
+              playerEntity={playerEntity}
+              outfitDef={playerOutfitDef}
+              diffKeys={entityDiff}
+              reload={reloadStateMemory}
+            />
+            <div className="we-state-section-title">
+              <span className="we-section-label">用户字段</span>
+            </div>
+            <StateChangeCard
+              className="we-status-player"
+              rows={stateData?.persona ?? null}
+              changes={stateDiff.persona}
+              hasBaseline={stateDiffReady}
+              onSave={(fieldKey, valueJson) => saveStateValue('persona', fieldKey, valueJson)}
+              templateCtx={templateCtx}
+              emptyContent={<StateEmpty hint="玩家状态会随剧情逐步记录" />}
+            />
+          </>
+        )}
+      </PanelCard>
+    </div>
+  );
+}
+
 /**
  * 会话状态面板的公共壳：世界区块 + 玩家区块 + 日记区块 + 整理中浮层。
  *
@@ -163,6 +241,11 @@ function DiaryTab({
  * - `extraSections`：插在玩家与日记之间的区块（对话是角色，写作是附近角色）
  * - `classNames`：两套外观类名（对话 we-state-*，写作 we-cast-*）
  * - `belowTabs` / `globalActions`：写作侧的已保存角色列表与「从角色卡添加」
+ *
+ * `stateMemory` / `reloadStateMemory` / `stateMemorySchema` / `entityDiff`
+ * 由调用方（StatePanel / NearbyPanel）各自调用 useStateMemory / useEntityDiff
+ * 后传入，这里不自行拉取——调用方本来就要用同一份状态记忆搭 NPC 页签
+ * （见 useEntitySections），两边各拉一次会打两遍 GET state-memory。
  */
 export default function SessionStatePanel({
   sessionId,
@@ -172,6 +255,10 @@ export default function SessionStatePanel({
   ticks,
   diaryScope,
   classNames,
+  stateMemory,
+  reloadStateMemory,
+  stateMemorySchema,
+  entityDiff,
   extraSections,
   globalActions = null,
   belowTabs = null,
@@ -190,7 +277,7 @@ export default function SessionStatePanel({
 
   const { diff: stateDiff, ready: stateDiffReady } = useStateDiff(stateData, sessionId);
 
-  const worldRows = useMemo(() => pinDiaryTimeFirst(stateData?.world ?? null), [stateData?.world]);
+  const worldRows = stateData?.world ?? null;
 
   const [worldResetting, setWorldResetting] = useState(false);
   const [personaResetting, setPersonaResetting] = useState(false);
@@ -251,42 +338,38 @@ export default function SessionStatePanel({
   const renderLoadError = (message) => <StateLoadError message={message} onRetry={retryStateLoad} />;
 
   const worldTab = (
-    <section className="we-state-block we-state-block--world">
-      <header className="we-state-block-head">
-        <span className="we-state-block-label">{worldName || '世界'}</span>
-        <span className="we-section-rule" />
-        <ResetAction onClick={handleResetWorld} busy={worldResetting} />
-      </header>
-      {stateError ? renderLoadError('世界状态加载失败') : (
-        <StateChangeCard
-          className="we-status-world"
-          rows={worldRows}
-          changes={stateDiff.world}
-          hasBaseline={stateDiffReady}
-          onSave={(fieldKey, valueJson) => saveStateValue('world', fieldKey, valueJson)}
-          templateCtx={templateCtx}
-          emptyContent={<StateEmpty hint="世界状态会随剧情逐步记录" />}
-        />
-      )}
-    </section>
+    <WorldTab
+      worldName={worldName}
+      worldResetting={worldResetting}
+      handleResetWorld={handleResetWorld}
+      stateError={stateError}
+      renderLoadError={renderLoadError}
+      sessionId={sessionId}
+      stateMemory={stateMemory}
+      reloadStateMemory={reloadStateMemory}
+      worldRows={worldRows}
+      stateDiff={stateDiff}
+      stateDiffReady={stateDiffReady}
+      saveStateValue={saveStateValue}
+      templateCtx={templateCtx}
+    />
   );
 
   const playerTab = (
-    <div className="we-panel-tab-body">
-      <PanelCard variant="headerless">
-        {stateError ? renderLoadError('玩家状态加载失败') : (
-          <StateChangeCard
-            className="we-status-player"
-            rows={stateData?.persona ?? null}
-            changes={stateDiff.persona}
-            hasBaseline={stateDiffReady}
-            onSave={(fieldKey, valueJson) => saveStateValue('persona', fieldKey, valueJson)}
-            templateCtx={templateCtx}
-            emptyContent={<StateEmpty hint="玩家状态会随剧情逐步记录" />}
-          />
-        )}
-      </PanelCard>
-    </div>
+    <PlayerTab
+      stateError={stateError}
+      renderLoadError={renderLoadError}
+      sessionId={sessionId}
+      stateMemory={stateMemory}
+      stateMemorySchema={stateMemorySchema}
+      entityDiff={entityDiff}
+      stateDiff={stateDiff}
+      stateDiffReady={stateDiffReady}
+      reloadStateMemory={reloadStateMemory}
+      stateData={stateData}
+      saveStateValue={saveStateValue}
+      templateCtx={templateCtx}
+    />
   );
 
   const diaryTab = (

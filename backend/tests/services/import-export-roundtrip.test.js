@@ -452,7 +452,7 @@ test('导入世界卡不会被 createWorld 的默认状态字段种子污染', a
   const imported = importWorld(exported);
 
   // 导入路径走裸 SQL（INSERT INTO worlds），不经过 services/worlds.js 的 createWorld，
-  // 因此不应种下 location/weather/personality/age/appearance/outfit/identity 等默认字段。
+  // 因此不应种下 location/weather 等默认字段。
   const worldFieldCount = sandbox.db.prepare(
     'SELECT COUNT(*) AS c FROM world_state_fields WHERE world_id = ?',
   ).get(imported.id).c;
@@ -466,4 +466,30 @@ test('导入世界卡不会被 createWorld 的默认状态字段种子污染', a
   assert.equal(worldFieldCount, 0);
   assert.equal(personaFieldCount, 0);
   assert.equal(characterFieldCount, 0);
+});
+
+test('世界卡 round-trip 保持角色字段的 nearby_enabled；旧文件缺该键时导入按 1 处理', async () => {
+  const world = insertWorld(sandbox.db, { name: '附近字段世界' });
+  insertPersona(sandbox.db, world.id, { name: '旅者' });
+  insertCharacterStateField(sandbox.db, world.id, { field_key: 'mood', label: '心情' });
+  sandbox.db.prepare(`
+    UPDATE character_state_fields SET nearby_enabled = 0 WHERE world_id = ? AND field_key = 'mood'
+  `).run(world.id);
+
+  const exported = exportWorld(world.id);
+  assert.equal(exported.character_state_fields[0].nearby_enabled, 0);
+
+  const imported = importWorld(exported);
+  const importedField = sandbox.db.prepare(`
+    SELECT nearby_enabled FROM character_state_fields WHERE world_id = ? AND field_key = 'mood'
+  `).get(imported.id);
+  assert.equal(importedField.nearby_enabled, 0);
+
+  // 旧文件缺 nearby_enabled 键时，导入应回落为 1
+  delete exported.character_state_fields[0].nearby_enabled;
+  const importedLegacy = importWorld(exported);
+  const legacyField = sandbox.db.prepare(`
+    SELECT nearby_enabled FROM character_state_fields WHERE world_id = ? AND field_key = 'mood'
+  `).get(importedLegacy.id);
+  assert.equal(legacyField.nearby_enabled, 1);
 });

@@ -16,11 +16,11 @@ export default function ChatPage() {
   const { characterId } = useParams();
   const navigate = useNavigate();
 
-  const { tableMemoryEnabled, chapterTurnSize, pageTurnSize } = usePageConfig();
+  const { chapterTurnSize, pageTurnSize } = usePageConfig();
   const { currentSessionId, setCurrentSessionId, setCurrentCharacterId } = useStore();
   const { character, persona } = useChatPageCharacter(characterId);
   const {
-    summaryOpen, setSummaryOpen, tmOpen, setTmOpen, pageInfo, setPageInfo,
+    summaryOpen, setSummaryOpen, stateMemoryOpen, setStateMemoryOpen, pageInfo, setPageInfo,
     inputBoxRef, messageListRef, memory,
   } = useConversationPageState();
   const { memoryRecalling, memoryWriting, recallSummary } = memory;
@@ -70,9 +70,9 @@ export default function ChatPage() {
           persona={persona}
           currentSession={stream.currentSession}
           currentSessionId={currentSessionId}
-          config={{ tableMemoryEnabled, chapterTurnSize, pageTurnSize }}
+          config={{ chapterTurnSize, pageTurnSize }}
           pageState={{
-            summaryOpen, setSummaryOpen, tmOpen, setTmOpen, pageInfo, setPageInfo,
+            summaryOpen, setSummaryOpen, stateMemoryOpen, setStateMemoryOpen, pageInfo, setPageInfo,
             inputBoxRef, messageListRef,
           }}
           stream={stream}

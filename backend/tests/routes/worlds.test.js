@@ -95,17 +95,6 @@ test('GET / PUT / DELETE /api/worlds/:id 命中与 404 分支', async () => {
   assert.equal(delMiss.status, 404);
 });
 
-test('POST /api/worlds/:id/sync-diary 命中与 404', async () => {
-  const world = insertWorld(ctx.sandbox.db, { name: 'sync-diary' });
-  const ok = await ctx.request(`/api/worlds/${world.id}/sync-diary`, { method: 'POST' });
-  assert.equal(ok.status, 200);
-  const body = await ok.json();
-  assert.equal(body.ok, true);
-
-  const miss = await ctx.request('/api/worlds/no-such/sync-diary', { method: 'POST' });
-  assert.equal(miss.status, 404);
-});
-
 test('POST /api/worlds/clear-all-diaries 返回 ok', async () => {
   const res = await ctx.request('/api/worlds/clear-all-diaries', { method: 'POST' });
   assert.equal(res.status, 200);

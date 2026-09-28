@@ -1,7 +1,7 @@
 import ToggleSwitch from '../ui/ToggleSwitch';
 import Input from '../ui/Input';
 import FormGroup from '../ui/FormGroup';
-import { SETTINGS_MODE, DIARY_DATE_MODE, TABLE_MEMORY_TABLES } from '../../core/constants/settings';
+import { SETTINGS_MODE, DIARY_DATE_MODE } from '../../core/constants/settings';
 
 const DIARY_DATE_OPTIONS = [
   { value: DIARY_DATE_MODE.VIRTUAL, label: '虚拟日期' },
@@ -53,11 +53,9 @@ function MemorySettings({
   writingShortTermTokenBudget, setWritingShortTermTokenBudget, onSaveWritingShortTermTokenBudget,
   memoryExpansionEnabled, onToggleMemoryExpansion,
   writingMemoryExpansionEnabled, onToggleWritingMemoryExpansion,
-  tableMemoryEnabled, onToggleTableMemory,
-  writingTableMemoryEnabled, onToggleWritingTableMemory,
-  tableMemoryRowLimits, setTableMemoryRowLimits, onSaveTableMemoryRowLimit,
   memoryRecallMaxSessions, setMemoryRecallMaxSessions, onSaveMemoryRecallMaxSessions,
   longTermIndexBudget, setLongTermIndexBudget, onSaveLongTermIndexBudget,
+  stateInjectionTokenBudget, setStateInjectionTokenBudget, onSaveStateInjectionTokenBudget,
   chatDiaryEnabled, onToggleChatDiaryEnabled,
   chatDateMode, onChangeChatDateMode,
   writingDiaryEnabled, onToggleWritingDiaryEnabled,
@@ -66,8 +64,6 @@ function MemorySettings({
   const isChat = settingsMode === SETTINGS_MODE.CHAT;
   const expansionEnabled = isChat ? memoryExpansionEnabled : writingMemoryExpansionEnabled;
   const onToggleExpansion = isChat ? onToggleMemoryExpansion : onToggleWritingMemoryExpansion;
-  const tableMemoryEnabledCurrent = isChat ? tableMemoryEnabled : writingTableMemoryEnabled;
-  const onToggleTableMemoryCurrent = isChat ? onToggleTableMemory : onToggleWritingTableMemory;
   const diaryEnabled = isChat ? chatDiaryEnabled : writingDiaryEnabled;
   const onToggleDiary = isChat ? onToggleChatDiaryEnabled : onToggleWritingDiaryEnabled;
   const dateMode = isChat ? chatDateMode : writingDateMode;
@@ -149,46 +145,36 @@ function MemorySettings({
         </FormGroup>
       </div>
 
+      <div className="we-settings-field-group">
+        <FormGroup
+          label="状态注入预算"
+          hint="对话与写作共用"
+          variant="settings"
+        >
+          <div className="we-settings-inline-field">
+            <Input
+              type="number"
+              min={500}
+              max={50000}
+              className="we-settings-number-short"
+              aria-label="状态注入预算"
+              value={stateInjectionTokenBudget ?? ''}
+              onChange={(event) => setStateInjectionTokenBudget(event.target.value === '' ? '' : Number(event.target.value))}
+              onBlur={() => onSaveStateInjectionTokenBudget(stateInjectionTokenBudget)}
+            />
+            <span className="we-settings-inline-hint">
+              每轮注入给模型的人物与事物设定上限（token）。超出时按相关度从后往前省略，人物身份与说话方式始终保留。
+            </span>
+          </div>
+        </FormGroup>
+      </div>
+
       <ToggleRow
         label="长期召回"
         hint="每轮生成前由辅助模型按历史目录挑选相关轮次原文，会增加首字等待"
         checked={expansionEnabled}
         onChange={onToggleExpansion}
       />
-
-      <ToggleRow
-        label="表格记忆"
-        hint="每轮自动维护关系/物品/地点/剧情线/势力/资源 6 张表并注入提示词；关闭仅停止更新与注入，已有表格保留"
-        checked={tableMemoryEnabledCurrent}
-        onChange={onToggleTableMemoryCurrent}
-      />
-
-      {tableMemoryEnabledCurrent && (
-        <div className="we-settings-field-group">
-          <p className="we-settings-toggle-hint we-settings-rowlimit-hint">
-            每张表的行数上限（0 = 不限制）。表满后 AI 新增前会先归档最不重要的旧行；若 AI 未归档，系统兜底归档最旧的行。
-          </p>
-          {TABLE_MEMORY_TABLES.map(({ key, name }) => (
-            <div key={key} className="we-settings-inline-field we-settings-rowlimit-item">
-              <span className="we-settings-toggle-label we-settings-rowlimit-label">{name}</span>
-              <Input
-                type="number"
-                min={0}
-                max={1000}
-                className="we-settings-number-short"
-                aria-label={name + '行数上限'}
-                value={tableMemoryRowLimits?.[key] ?? ''}
-                onChange={(event) => setTableMemoryRowLimits((previous) => ({
-                  ...previous,
-                  [key]: event.target.value === '' ? '' : Number(event.target.value),
-                }))}
-                onBlur={() => onSaveTableMemoryRowLimit(key, tableMemoryRowLimits?.[key])}
-              />
-              <span className="we-settings-inline-hint">行，0 = 不限制</span>
-            </div>
-          ))}
-        </div>
-      )}
 
       <ToggleRow
         label={isChat ? '对话日记' : '写作日记'}
@@ -413,11 +399,9 @@ export default function FeaturesConfigPanel({
   writingPageTurnSize, setWritingPageTurnSize, onSaveWritingPageTurnSize,
   memoryExpansionEnabled, onToggleMemoryExpansion,
   writingMemoryExpansionEnabled, onToggleWritingMemoryExpansion,
-  tableMemoryEnabled, onToggleTableMemory,
-  writingTableMemoryEnabled, onToggleWritingTableMemory,
-  tableMemoryRowLimits, setTableMemoryRowLimits, onSaveTableMemoryRowLimit,
   memoryRecallMaxSessions, setMemoryRecallMaxSessions, onSaveMemoryRecallMaxSessions,
   longTermIndexBudget, setLongTermIndexBudget, onSaveLongTermIndexBudget,
+  stateInjectionTokenBudget, setStateInjectionTokenBudget, onSaveStateInjectionTokenBudget,
   chatDiaryEnabled, onToggleChatDiaryEnabled,
   chatDateMode, onChangeChatDateMode,
   writingDiaryEnabled, onToggleWritingDiaryEnabled,
@@ -437,11 +421,9 @@ export default function FeaturesConfigPanel({
     writingShortTermTokenBudget, setWritingShortTermTokenBudget, onSaveWritingShortTermTokenBudget,
     memoryExpansionEnabled, onToggleMemoryExpansion,
     writingMemoryExpansionEnabled, onToggleWritingMemoryExpansion,
-    tableMemoryEnabled, onToggleTableMemory,
-    writingTableMemoryEnabled, onToggleWritingTableMemory,
-    tableMemoryRowLimits, setTableMemoryRowLimits, onSaveTableMemoryRowLimit,
     memoryRecallMaxSessions, setMemoryRecallMaxSessions, onSaveMemoryRecallMaxSessions,
     longTermIndexBudget, setLongTermIndexBudget, onSaveLongTermIndexBudget,
+    stateInjectionTokenBudget, setStateInjectionTokenBudget, onSaveStateInjectionTokenBudget,
     chatDiaryEnabled, onToggleChatDiaryEnabled,
     chatDateMode, onChangeChatDateMode,
     writingDiaryEnabled, onToggleWritingDiaryEnabled,

@@ -17,7 +17,6 @@ import { getCharacterById } from '../db/queries/characters.js';
 import { getMessagesBySessionId } from '../db/queries/messages.js';
 import {
   upsertTurnRecord,
-  updateTurnRecordTableSnapshot,
   updateTurnRecordIndex,
   getLatestTurnRecord,
   getUnindexedTurnRecords,
@@ -34,7 +33,6 @@ import {
 } from '../utils/constants.js';
 import { renderBackendPrompt } from '../prompts/prompt-loader.js';
 import { captureFullSnapshot } from './state-rollback.js';
-import { readTablesRaw } from '../services/table-memory.js';
 import { splitRounds } from '../utils/session-rounds.js';
 import { computeMiddleSummary, resolveNames } from './middle-summary.js';
 import { resolveAuxScope } from '../utils/aux-scope.js';
@@ -126,7 +124,6 @@ export async function createTurnRecord(sessionId) {
 
   const character = session.character_id ? getCharacterById(session.character_id) : null;
   const worldId = character?.world_id ?? session.world_id;
-  const isWriting = session.mode === 'writing';
 
   const middle = await computeMiddleSummary(sessionId, round_index);
   log.info(`MIDDLE  ${formatMeta({
@@ -140,8 +137,7 @@ export async function createTurnRecord(sessionId) {
     failed: middle.failed,
   })}`);
 
-  // 写作模式即使没有 nearby 角色也要写入空层，回滚时才能清掉目标轮中已不存在的角色状态；chat 保持旧记录兼容。
-  const snapshot = captureTurnSnapshot(sessionId, worldId, session.character_id, isWriting);
+  const snapshot = captureTurnSnapshot(sessionId, worldId, session.character_id);
 
   const record = upsertTurnRecord({
     session_id: sessionId,
@@ -156,15 +152,6 @@ export async function createTurnRecord(sessionId) {
     middle_covered_to: middle.coveredTo,
   });
 
-  // tables.json 依赖 priority 2 的 table-memory 任务先写入。
-  if (record) {
-    try {
-      updateTurnRecordTableSnapshot(record.id, readTablesRaw(sessionId));
-    } catch (err) {
-      log.warn(`TABLE SNAPSHOT FAIL  ${formatMeta({ session: sid, error: err.message })}`);
-    }
-  }
-
   log.info(`DONE  ${formatMeta({ session: sid, round: round_index, recordId: record?.id ?? null })}`);
 
   if (middle.failed) {
@@ -172,9 +159,9 @@ export async function createTurnRecord(sessionId) {
   }
 }
 
-function captureTurnSnapshot(sessionId, worldId, characterId, isWriting) {
+function captureTurnSnapshot(sessionId, worldId, characterId) {
   if (!worldId) return null;
-  return captureFullSnapshot(sessionId, worldId, characterId ? [characterId] : [], isWriting);
+  return captureFullSnapshot(sessionId, worldId, characterId ? [characterId] : []);
 }
 
 /**

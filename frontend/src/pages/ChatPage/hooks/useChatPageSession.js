@@ -4,7 +4,6 @@ import { getCharacter } from '../../../core/api/characters.js';
 import { getPersona } from '../../../core/api/personas.js';
 import { getSession, createSession } from '../../../core/api/sessions.js';
 import { chatSessionListBridge } from '../../../core/utils/session-list-bridge.js';
-import { syncDiaryTimeField } from '../../../core/api/world-state-fields.js';
 import { log } from '../../../core/utils/logger.js';
 
 export function useChatPageCharacter(characterId) {
@@ -28,9 +27,6 @@ export function useChatPageCharacter(characterId) {
           }
         }).catch((err) => {
           log.error('chat.persona.load_failed', err, { toast: '加载玩家信息失败' });
-        });
-        syncDiaryTimeField(loadedCharacter.world_id).catch((err) => {
-          log.warn('chat.diary.sync_failed', err);
         });
       }
     }).catch((err) => {

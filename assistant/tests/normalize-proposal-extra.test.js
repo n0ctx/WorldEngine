@@ -11,7 +11,7 @@ sandbox.setEnv();
 const { normalizeProposal } = await freshImport('assistant/server/normalize-proposal.js');
 const { applyProposal } = await freshImport('assistant/server/apply-proposal.js');
 const { normalizeStateFieldOps } = await freshImport('assistant/server/proposal-state-ops.js');
-const { normalizeEntryOps } = await freshImport('assistant/server/proposal-entry-ops.js');
+const { normalizeEntryOps, buildWorldConditionContext } = await freshImport('assistant/server/proposal-entry-ops.js');
 
 after(() => sandbox.cleanup());
 
@@ -195,6 +195,24 @@ test('stateFieldOps create non-table 不允许 table_columns', () => {
   }], 'world-card'), /仅 type='table' 时允许使用/);
 });
 
+test('stateFieldOps 拒绝在 world 层用保留名（时间/地点）create/update', () => {
+  assert.throws(() => normalizeStateFieldOps([{
+    op: 'create', target: 'world', field_key: 'x', label: '时间', type: 'datetime',
+  }], 'world-card'), /该名称已由系统管理/);
+  assert.throws(() => normalizeStateFieldOps([{
+    op: 'create', target: 'world', field_key: 'x', label: '地点', type: 'text',
+  }], 'world-card'), /该名称已由系统管理/);
+  assert.throws(() => normalizeStateFieldOps([{
+    op: 'update', target: 'world', id: 'sf-1', label: '地点',
+  }], 'world-card'), /该名称已由系统管理/);
+
+  // persona/character 层不受限，且非保留名的 world 字段正常通过
+  const ok = normalizeStateFieldOps([{
+    op: 'create', target: 'persona', field_key: 'x', label: '地点', type: 'text',
+  }], 'world-card');
+  assert.equal(ok[0].label, '地点');
+});
+
 test('normalizeEntryOps: keyword 类型缺关键词产生 warning', () => {
   const warnings = [];
   const ops = normalizeEntryOps([
@@ -304,6 +322,19 @@ test('同提案创建 persona 字段 + state 条件用裸键引用可解析（�
   });
   assert.equal(proposal.stateFieldOps[0].field_key, 'affection_user');
   assert.equal(proposal.entryOps[0].conditions[0].target_field, '玩家.好感度');
+});
+
+test('条件上下文固定包含保留字段 世界.时间 / 世界.地点，条件引用它们可通过校验', () => {
+  const context = buildWorldConditionContext(null);
+  assert.ok(context.byScopedLabel.has('世界.时间'));
+  assert.ok(context.byScopedLabel.has('世界.地点'));
+
+  const ops = normalizeEntryOps([{
+    op: 'create', title: '深夜事件', content: 'x', trigger_type: 'state',
+    conditions: [{ target_field: '世界.时间', operator: '>', value: '2024-01-01T00:00' }],
+  }], { allowTriggerType: true, conditionContext: context });
+  assert.equal(ops[0].conditions[0].target_field, '世界.时间');
+  assert.equal(ops[0].conditions[0].operator, '>');
 });
 
 test('applyProposal world-card update without entityId 抛错', async () => {

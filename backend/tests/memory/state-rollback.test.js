@@ -21,8 +21,7 @@ function countStateStatementExecutions(db, action) {
     'session_world_state_values',
     'session_persona_state_values',
     'session_character_state_values',
-    'session_nearby_characters',
-    'session_nearby_character_state_values',
+    'session_entity_state_values',
   ];
   let count = 0;
   const prepare = db.prepare;
@@ -73,7 +72,7 @@ test('captureStateSnapshot 只捕获非空 runtime 值，并按角色拆分', as
   });
 });
 
-test('restoreStateFromSnapshot 在 snapshot=null 时保留当前会话的三层状态与 nearby', async () => {
+test('restoreStateFromSnapshot 在 snapshot=null 时保留当前会话的三层状态与实体字段值', async () => {
   const world = insertWorld(sandbox.db, { name: '回滚世界-保留' });
   const character = insertCharacter(sandbox.db, world.id, { name: '丙' });
   const session = insertSession(sandbox.db, { character_id: character.id });
@@ -82,10 +81,11 @@ test('restoreStateFromSnapshot 在 snapshot=null 时保留当前会话的三层�
   insertSessionPersonaStateValue(sandbox.db, session.id, world.id, { field_key: 'trust', runtime_value_json: '3' });
   insertSessionCharacterStateValue(sandbox.db, session.id, character.id, { field_key: 'hp', runtime_value_json: '20' });
 
-  const { createNearbyCharacter, listNearbyBySessionId } = await freshImport('backend/db/queries/session-nearby-characters.js');
-  const { upsertNearbyStateValue, getStateValuesByNearbyId } = await freshImport('backend/db/queries/session-nearby-character-state-values.js');
-  const nearbyId = createNearbyCharacter({ sessionId: session.id, name: '用户加的人', persona: '手动添加', isSaved: 1 });
-  upsertNearbyStateValue({ sessionId: session.id, nearbyId, fieldKey: 'mood', valueJson: '"友好"' });
+  const { upsertEntity } = await freshImport('backend/db/queries/state-memory.js');
+  const { upsertEntityStateValues, getEntityStateValues } = await freshImport('backend/db/queries/session-entity-state-values.js');
+  const entityId = 'entity-manual';
+  upsertEntity(session.id, { entityId, seq: 1, type: 'character', name: '用户手动加的人' }, 0);
+  upsertEntityStateValues(session.id, [{ entityId, fieldKey: 'mood', runtimeValueJson: '"友好"' }]);
 
   const { restoreStateFromSnapshot } = await freshImport('backend/memory/state-rollback.js');
   restoreStateFromSnapshot(session.id, world.id, [character.id], null);
@@ -98,13 +98,9 @@ test('restoreStateFromSnapshot 在 snapshot=null 时保留当前会话的三层�
   };
   assert.deepEqual(counts, { world: 1, persona: 1, character: 1 });
 
-  // nearby 与其 state 也保留（首轮重生成场景：character card 添加的附近角色不能丢）
-  const nearbyRows = listNearbyBySessionId(session.id);
-  assert.equal(nearbyRows.length, 1);
-  assert.equal(nearbyRows[0].name, '用户加的人');
-  assert.equal(nearbyRows[0].is_saved, 1);
-  const nearbyState = getStateValuesByNearbyId(nearbyId);
-  assert.deepEqual(nearbyState.map((r) => [r.field_key, r.runtime_value_json]), [['mood', '"友好"']]);
+  // 实体字段值也保留（首轮重生成场景：用户在首轮前手动配置的实体字段不能丢）
+  const entityValues = getEntityStateValues(session.id, [entityId]);
+  assert.deepEqual(entityValues[entityId], { mood: '"友好"' });
 });
 
 test('restoreStateFromSnapshot 会清空旧值并仅恢复快照中存在的字段', async () => {
@@ -145,92 +141,60 @@ test('restoreStateFromSnapshot 会清空旧值并仅恢复快照中存在的字�
   }]);
 });
 
-test('restoreStateFromSnapshot 还原 snapshot.nearby 层（name/persona/is_saved/state）', async () => {
-  const world = insertWorld(sandbox.db, { name: '回滚世界-nearby' });
+test('restoreStateFromSnapshot 还原 snapshot.entityValues 层，且只写回仍存在于 state_entities 的实体', async () => {
+  const world = insertWorld(sandbox.db, { name: '回滚世界-entity' });
   const character = insertCharacter(sandbox.db, world.id, { name: '己' });
   const session = insertSession(sandbox.db, { character_id: character.id });
 
-  const { createNearbyCharacter, listNearbyBySessionId } = await freshImport('backend/db/queries/session-nearby-characters.js');
-  const { upsertNearbyStateValue, getStateValuesByNearbyId } = await freshImport('backend/db/queries/session-nearby-character-state-values.js');
+  const { upsertEntity } = await freshImport('backend/db/queries/state-memory.js');
+  const { upsertEntityStateValues, getEntityStateValues } = await freshImport('backend/db/queries/session-entity-state-values.js');
 
-  // 预置一个旧 nearby（应被清空）
-  const oldId = createNearbyCharacter({ sessionId: session.id, name: '旧人', persona: '旧人设', isSaved: 0 });
-  upsertNearbyStateValue({ sessionId: session.id, nearbyId: oldId, fieldKey: 'mood', valueJson: '"焦虑"' });
+  // 预置一个旧值（应被清空）
+  upsertEntity(session.id, { entityId: 'entity-kept', seq: 1, type: 'character', name: '路人甲' }, 1);
+  upsertEntityStateValues(session.id, [{ entityId: 'entity-kept', fieldKey: 'mood', runtimeValueJson: '"焦虑"' }]);
 
   const { restoreStateFromSnapshot } = await freshImport('backend/memory/state-rollback.js');
   restoreStateFromSnapshot(session.id, world.id, [character.id], {
     world: {},
     persona: {},
     character: { [character.id]: {} },
-    nearby: [
-      {
-        id: 'snapshot-id-ignored',
-        name: '路人甲',
-        persona: '街角小贩',
-        is_saved: 0,
-        state: { hp: '50', mood: '"警惕"' },
-      },
-      {
-        id: 'snapshot-id-ignored-2',
-        name: '路人乙',
-        persona: '',
-        is_saved: 1,
-        state: {},
-      },
-    ],
+    entityValues: {
+      'entity-kept': { hp: '50', mood: '"警惕"' },
+      'entity-gone': { hp: '1' }, // 已不在 state_entities 中，不应写回
+    },
   });
 
-  const rows = listNearbyBySessionId(session.id);
-  assert.equal(rows.length, 2);
+  const keptValues = getEntityStateValues(session.id, ['entity-kept']);
+  assert.deepEqual(keptValues['entity-kept'], { hp: '50', mood: '"警惕"' });
 
-  // listNearby 排序：is_saved DESC, created_at ASC → 先 路人乙(is_saved=1)，再 路人甲
-  const byName = Object.fromEntries(rows.map((r) => [r.name, r]));
-  assert.ok(byName['路人甲'] && byName['路人乙']);
-  assert.equal(byName['路人甲'].persona, '街角小贩');
-  assert.equal(byName['路人甲'].is_saved, 0);
-  assert.equal(byName['路人乙'].is_saved, 1);
-  // 旧 id 不复用
-  assert.notEqual(byName['路人甲'].id, 'snapshot-id-ignored');
-
-  // state values 重建
-  const state甲 = getStateValuesByNearbyId(byName['路人甲'].id);
-  const state甲Map = Object.fromEntries(state甲.map((s) => [s.field_key, s.runtime_value_json]));
-  assert.deepEqual(state甲Map, { hp: '50', mood: '"警惕"' });
-
-  const state乙 = getStateValuesByNearbyId(byName['路人乙'].id);
-  assert.equal(state乙.length, 0);
-
-  // 旧 nearby 已删除（CASCADE 清掉旧 state value）
-  const oldStateRows = sandbox.db.prepare(
-    'SELECT COUNT(*) AS c FROM session_nearby_character_state_values WHERE nearby_id = ?',
-  ).get(oldId).c;
-  assert.equal(oldStateRows, 0);
+  const goneValues = sandbox.db.prepare(
+    'SELECT COUNT(*) AS c FROM session_entity_state_values WHERE session_id = ? AND entity_id = ?',
+  ).get(session.id, 'entity-gone').c;
+  assert.equal(goneValues, 0);
 });
 
-test('restoreStateFromSnapshot 在 snapshot 缺 nearby 字段时清空 nearby（向下兼容）', async () => {
-  const world = insertWorld(sandbox.db, { name: '回滚世界-nearby-legacy' });
+test('restoreStateFromSnapshot 在 snapshot 缺 entityValues 字段时不动实体字段值（向下兼容旧快照）', async () => {
+  const world = insertWorld(sandbox.db, { name: '回滚世界-legacy' });
   const character = insertCharacter(sandbox.db, world.id, { name: '庚' });
   const session = insertSession(sandbox.db, { character_id: character.id });
 
-  const { createNearbyCharacter, listNearbyBySessionId } = await freshImport('backend/db/queries/session-nearby-characters.js');
-  const { upsertNearbyStateValue } = await freshImport('backend/db/queries/session-nearby-character-state-values.js');
+  const { upsertEntity } = await freshImport('backend/db/queries/state-memory.js');
+  const { upsertEntityStateValues, getEntityStateValues } = await freshImport('backend/db/queries/session-entity-state-values.js');
 
-  const nid = createNearbyCharacter({ sessionId: session.id, name: '残留', persona: '', isSaved: 0 });
-  upsertNearbyStateValue({ sessionId: session.id, nearbyId: nid, fieldKey: 'hp', valueJson: '1' });
+  upsertEntity(session.id, { entityId: 'entity-legacy', seq: 1, type: 'character', name: '残留' }, 1);
+  upsertEntityStateValues(session.id, [{ entityId: 'entity-legacy', fieldKey: 'hp', runtimeValueJson: '1' }]);
 
   const { restoreStateFromSnapshot } = await freshImport('backend/memory/state-rollback.js');
-  restoreStateFromSnapshot(session.id, world.id, [character.id], {
+  assert.doesNotThrow(() => restoreStateFromSnapshot(session.id, world.id, [character.id], {
     world: {},
     persona: {},
     character: { [character.id]: {} },
-    // 缺 nearby
-  });
+    nearby: [{ name: '旧快照残留字段', state: {} }],
+    // 缺 entityValues
+  }));
 
-  assert.equal(listNearbyBySessionId(session.id).length, 0);
-  const stateCount = sandbox.db.prepare(
-    'SELECT COUNT(*) AS c FROM session_nearby_character_state_values WHERE session_id = ?',
-  ).get(session.id).c;
-  assert.equal(stateCount, 0);
+  const values = getEntityStateValues(session.id, ['entity-legacy']);
+  assert.deepEqual(values['entity-legacy'], { hp: '1' });
 });
 
 test('restoreStateFromSnapshot：状态数增加时按表批量执行，并在任一表失败时整体回滚', async () => {
@@ -238,32 +202,36 @@ test('restoreStateFromSnapshot：状态数增加时按表批量执行，并在�
   const character = insertCharacter(sandbox.db, world.id, { name: '批量角色' });
   const session = insertSession(sandbox.db, { character_id: character.id, world_id: world.id });
   const { restoreStateFromSnapshot } = await freshImport('backend/memory/state-rollback.js');
+  const { upsertEntity } = await freshImport('backend/db/queries/state-memory.js');
   const { default: db } = await freshImport('backend/db/index.js');
-  const makeSnapshot = (size) => ({
-    world: Object.fromEntries(Array.from({ length: size }, (_, index) => [`world-${index}`, String(index)])),
-    persona: Object.fromEntries(Array.from({ length: size }, (_, index) => [`persona-${index}`, String(index)])),
-    character: {
-      [character.id]: Object.fromEntries(Array.from({ length: size }, (_, index) => [`character-${index}`, String(index)])),
-    },
-    nearby: Array.from({ length: size }, (_, index) => ({
-      name: `附近角色${index}`,
-      persona: `记忆${index}`,
-      is_saved: index % 2,
-      state: { hp: String(index), mood: JSON.stringify(`心情${index}`) },
-    })),
-  });
+
+  const makeSnapshot = (size) => {
+    const entityValues = {};
+    for (let index = 0; index < size; index++) {
+      const entityId = `batch-entity-${index}`;
+      upsertEntity(session.id, { entityId, seq: index + 1, type: 'character', name: `批量实体${index}` }, 1);
+      entityValues[entityId] = { hp: String(index), mood: JSON.stringify(`心情${index}`) };
+    }
+    return {
+      world: Object.fromEntries(Array.from({ length: size }, (_, index) => [`world-${index}`, String(index)])),
+      persona: Object.fromEntries(Array.from({ length: size }, (_, index) => [`persona-${index}`, String(index)])),
+      character: {
+        [character.id]: Object.fromEntries(Array.from({ length: size }, (_, index) => [`character-${index}`, String(index)])),
+      },
+      entityValues,
+    };
+  };
 
   const smallCount = countStateStatementExecutions(db, () =>
     restoreStateFromSnapshot(session.id, world.id, [character.id], makeSnapshot(1)));
   const largeCount = countStateStatementExecutions(db, () =>
     restoreStateFromSnapshot(session.id, world.id, [character.id], makeSnapshot(30)));
-  assert.equal(smallCount, 9);
+  assert.equal(smallCount, 8);
   assert.equal(largeCount, smallCount);
   assert.equal(sandbox.db.prepare('SELECT COUNT(*) AS c FROM session_world_state_values WHERE session_id = ?').get(session.id).c, 30);
   assert.equal(sandbox.db.prepare('SELECT COUNT(*) AS c FROM session_persona_state_values WHERE session_id = ?').get(session.id).c, 30);
   assert.equal(sandbox.db.prepare('SELECT COUNT(*) AS c FROM session_character_state_values WHERE session_id = ?').get(session.id).c, 30);
-  assert.equal(sandbox.db.prepare('SELECT COUNT(*) AS c FROM session_nearby_characters WHERE session_id = ?').get(session.id).c, 30);
-  assert.equal(sandbox.db.prepare('SELECT COUNT(*) AS c FROM session_nearby_character_state_values WHERE session_id = ?').get(session.id).c, 60);
+  assert.equal(sandbox.db.prepare('SELECT COUNT(*) AS c FROM session_entity_state_values WHERE session_id = ?').get(session.id).c, 60);
 
   const beforeWorld = sandbox.db.prepare(
     'SELECT field_key, runtime_value_json FROM session_world_state_values WHERE session_id = ? ORDER BY field_key',
@@ -304,24 +272,25 @@ test('setSessionStateBaselineIfAbsent 不可变：仅首次写入，后续调用
   assert.equal(getSessionStateBaseline(session.id), '{"world":{"a":1}}');
 });
 
-test('captureFullSnapshot 写作模式包含 nearby 层', async () => {
-  const world = insertWorld(sandbox.db, { name: '基线-nearby世界' });
+test('captureFullSnapshot 三层状态之外还包含当前会话全部实体的字段值层', async () => {
+  const world = insertWorld(sandbox.db, { name: '基线-entity世界' });
   const character = insertCharacter(sandbox.db, world.id, { name: '壬' });
   const session = insertSession(sandbox.db, { character_id: character.id, mode: 'writing' });
 
   insertSessionPersonaStateValue(sandbox.db, session.id, world.id, { field_key: 'mood', runtime_value_json: '"平静"' });
 
-  const { createNearbyCharacter } = await freshImport('backend/db/queries/session-nearby-characters.js');
-  const { upsertNearbyStateValue } = await freshImport('backend/db/queries/session-nearby-character-state-values.js');
-  const nid = createNearbyCharacter({ sessionId: session.id, name: '路人甲', persona: '商贩', isSaved: 0 });
-  upsertNearbyStateValue({ sessionId: session.id, nearbyId: nid, fieldKey: 'favor', valueJson: '5' });
+  const { upsertEntity } = await freshImport('backend/db/queries/state-memory.js');
+  const { upsertEntityStateValues } = await freshImport('backend/db/queries/session-entity-state-values.js');
+  const entityId = 'entity-npc-1';
+  upsertEntity(session.id, { entityId, seq: 1, type: 'character', name: '路人甲' }, 1);
+  upsertEntityStateValues(session.id, [
+    { entityId, fieldKey: 'favor', runtimeValueJson: '5' },
+    { entityId, fieldKey: 'stale', runtimeValueJson: null },
+  ]);
 
   const { captureFullSnapshot } = await freshImport('backend/memory/state-rollback.js');
-  const snap = captureFullSnapshot(session.id, world.id, [], true);
+  const snap = captureFullSnapshot(session.id, world.id, []);
 
   assert.equal(snap.persona.mood, '"平静"');
-  assert.ok(Array.isArray(snap.nearby));
-  assert.equal(snap.nearby.length, 1);
-  assert.equal(snap.nearby[0].name, '路人甲');
-  assert.deepEqual(snap.nearby[0].state, { favor: '5' });
+  assert.deepEqual(snap.entityValues, { [entityId]: { favor: '5' } });
 });

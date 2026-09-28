@@ -131,10 +131,6 @@ function handleChapterTitleUpdated(isSameSession, extraCallbacks, chapterIndex, 
   if (isSameSession()) extraCallbacks.onChapterTitleUpdated?.(chapterIndex, title);
 }
 
-function handleSavedRecallDone(isLive, extraCallbacks, evt) {
-  if (isLive()) extraCallbacks.onSavedRecallDone?.(evt);
-}
-
 function handleStreamEnd(isLive, isContinuation, runId, memory, finalizeStream) {
   if (!isLive()) {
     if (!isContinuation) memory.stopMemoryWriting(runId);
@@ -202,7 +198,6 @@ export function createSessionStreamCallbacks({
     },
     onMemoryRecallDone: (evt) => handleMemoryRecallDone(isLive, memory.stopMemoryRecalling, memory.setRecallSummary, evt),
     onChapterTitleUpdated: (chapterIndex, title) => handleChapterTitleUpdated(isSameSession, extraCallbacks, chapterIndex, title),
-    onSavedRecallDone: (evt) => handleSavedRecallDone(isLive, extraCallbacks, evt),
     onStreamEnd: () => handleStreamEnd(isLive, isContinuation, runId, memory, finalizeStream),
   };
 }

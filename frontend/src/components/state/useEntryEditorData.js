@@ -6,6 +6,12 @@ import { loadWorldContent } from '../../core/data/loadWorldContent.js';
 import { log } from '../../core/utils/logger.js';
 import { buildPrefillCondition, emptyCondition, parseTargetField } from './entryEditorRules.js';
 
+// 世界档案的时间/地点是保留条件字段，值来自世界档案而非用户自建字段，始终可作为条件候选。
+const RESERVED_WORLD_CONDITION_FIELDS = [
+  { label: '时间', type: 'datetime' },
+  { label: '地点', type: 'text' },
+];
+
 export default function useEntryEditorData({ worldId, entry, isNew, prefillCondition, triggerType }) {
   const [properNouns, setProperNouns] = useState([]);
   const [allStateFieldLabels, setAllStateFieldLabels] = useState([]);
@@ -50,7 +56,12 @@ export default function useEntryEditorData({ worldId, entry, isNew, prefillCondi
         setAllStateFieldLabels(labels);
         setProperNouns([...names, ...entryTitles]);
 
-        const fieldsByScope = { 世界: worldFields, 玩家: personaFields, 角色: charFields };
+        const reservedLabels = new Set(RESERVED_WORLD_CONDITION_FIELDS.map((field) => field.label));
+        const worldConditionFields = [
+          ...RESERVED_WORLD_CONDITION_FIELDS,
+          ...worldFields.filter((field) => !reservedLabels.has(field.label)),
+        ];
+        const fieldsByScope = { 世界: worldConditionFields, 玩家: personaFields, 角色: charFields };
         setRawFieldsByScope(fieldsByScope);
         const typeMap = new Map();
         const addFieldTypes = (scope, fields) => {
@@ -66,7 +77,7 @@ export default function useEntryEditorData({ worldId, entry, isNew, prefillCondi
             }
           }
         };
-        addFieldTypes('世界', worldFields);
+        addFieldTypes('世界', worldConditionFields);
         addFieldTypes('玩家', personaFields);
         addFieldTypes('角色', charFields);
         setFieldTypeMap(typeMap);

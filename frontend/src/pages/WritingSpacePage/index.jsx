@@ -26,7 +26,7 @@ export default function WritingSpacePage() {
   const { persona } = lifecycle;
   const {
     currentSession, setCurrentSession, setPendingDiaryInject, stateTick, diaryTick,
-    stateQueuedTick, stateFailedTick, savedRecallTick, savedRecallHits,
+    stateQueuedTick, stateFailedTick,
   } = stream;
 
   return (
@@ -70,8 +70,6 @@ export default function WritingSpacePage() {
           diaryTick={diaryTick}
           stateQueuedTick={stateQueuedTick}
           stateFailedTick={stateFailedTick}
-          savedRecallTick={savedRecallTick}
-          savedRecallHits={savedRecallHits}
           persona={persona}
           onDiaryInject={setPendingDiaryInject}
         />

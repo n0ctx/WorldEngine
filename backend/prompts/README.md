@@ -5,7 +5,7 @@
 边界：
 - 这里只放仓库内置模板，不放用户可配置 prompt
 - 用户配置的全局 / 世界 / 角色 / 玩家 / Prompt 条目仍然存于 `data/config.json` 和 SQLite
-- `assembler.js` / `entry-matcher.js` / `nearby-prompt.js` / `nearby-card-prompt.js` / `prompt-loader.js` 与模板同属 `backend/prompts/`
+- `assembler.js` / `entry-matcher.js` / `entity-card-prompt.js` / `prompt-loader.js` 与模板同属 `backend/prompts/`
 - 模板统一通过 `backend/prompts/prompt-loader.js` 从 `backend/prompts/templates/` 读取
 
 目录约定：
@@ -18,10 +18,8 @@
   负责聊天 / 写作 prompt 的 14 段组装顺序，是运行时拼装器，不是模板文件。
 - `entry-matcher.js`
   负责 Prompt 条目命中判断，会调用 `entry-preflight-*.md` 做 LLM 预判。
-- `nearby-prompt.js`
-  写作模式下，构建嵌入 `combined-state-updater` 主提示词的 nearby pool 段；chat 模式不参与。
-- `nearby-card-prompt.js`
-  写作模式"附近"角色制卡时，构建 `analyzeNearbyForCard` 用的 LLM 提示词；调用方：`backend/services/nearby-card-maker.js`。
+- `entity-card-prompt.js`
+  状态记忆实体制卡时，构建 `buildEntityCardAnalyzePrompt` 用的 LLM 提示词；调用方：`backend/services/entity-card-maker.js`。
 - `prompt-loader.js`
   负责读取 `templates/*.md`，并做 `{{变量}}` 替换。
 
@@ -71,14 +69,14 @@
 - `templates/writing-chapter-title-generation-retry.md`
   写作章节标题生成失败时的重试 prompt。
   调用方：`backend/memory/chapter-title-generator.js`
-- `templates/writing-nearby-card-analyze.md`
-  写作模式"附近"角色制卡的 LLM 提示词模板，输出 `{ system_prompt, description, first_message }` JSON。
-  调用方：`backend/prompts/nearby-card-prompt.js`（被 `backend/services/nearby-card-maker.js` 使用）
+- `templates/writing-entity-card-analyze.md`
+  状态记忆实体制卡的 LLM 提示词模板，输出 `{ system_prompt, description, first_message }` JSON。
+  调用方：`backend/prompts/entity-card-prompt.js`（被 `backend/services/entity-card-maker.js` 使用）
 
 ### 状态更新与压缩
 
 - `templates/state-update.md`
-  会话结束后批量更新世界 / 玩家 / 角色状态的 prompt。
+  每轮生成后批量更新世界 / 玩家 / 角色状态，并写入状态记忆（实体档案、现状、关系、线索、世界档案与事实）的 prompt。
   调用方：`backend/memory/combined-state-updater.js`
 - `templates/state-compress.md`
   状态字段（text / list 等）超出 token 阈值时的压缩 prompt。

@@ -504,7 +504,7 @@ test('normalizeProposal 接受字段编辑器存储的裸字符串 datetime 默�
     operation: 'update',
     entityId: 'world-123',
     stateFieldOps: [{
-      op: 'create', target: 'world', field_key: 'now', label: '时间', type: 'datetime', default_value: '1000-03-15T14:30',
+      op: 'create', target: 'world', field_key: 'now', label: '纪年', type: 'datetime', default_value: '1000-03-15T14:30',
     }],
   });
   assert.equal(proposal.stateFieldOps[0].default_value, '1000-03-15T14:30');

@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { ArrowDownToLine, BookMarked, FastForward, Table2, UserRoundPen } from 'lucide-react';
+import { ArrowDownToLine, BookMarked, Database, FastForward, UserRoundPen } from 'lucide-react';
 
 // 点击工具条按钮时不让输入框失焦；动作本身走 onClick，键盘 Enter/Space 同样可触发
 function keepInputFocus(e) {
@@ -15,7 +15,7 @@ export default function InputBoxToolbar({
   onContinue,
   onImpersonate,
   onMiddleSummary,
-  onTableMemory,
+  onStateMemory,
 }) {
   return (
     <div className="we-chat-input__toolbar">
@@ -69,17 +69,17 @@ export default function InputBoxToolbar({
             <BookMarked size={20} />
           </motion.button>
         )}
-        {onTableMemory && (
+        {onStateMemory && (
           <motion.button
             type="button"
             onMouseDown={keepInputFocus}
-            onClick={() => onTableMemory()}
+            onClick={() => onStateMemory()}
             className="we-chat-quick-btn"
-            title="表格记忆"
-            aria-label="表格记忆"
+            title="状态记忆"
+            aria-label="状态记忆"
             {...press}
           >
-            <Table2 size={20} />
+            <Database size={20} />
           </motion.button>
         )}
       </div>
