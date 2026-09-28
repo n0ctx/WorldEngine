@@ -18,10 +18,11 @@
           "ANCHOR_[6]_CHAR_STATE",
           "ANCHOR_[7]_ENTRY_TITLE",
           "ANCHOR_[7]_ENTRY_BODY",
-          "<recalled_memories>",
-          "ANCHOR_[8]_RECALL_CHAT",
+          "ANCHOR_[8.5]_STORY_CHAT",
           "<expanded_dialogues>",
-          "ANCHOR_[10]_DIARY_CHAT"
+          "ANCHOR_[10]_RECALL_CHAT_USER",
+          "ANCHOR_[10]_RECALL_CHAT_ASST",
+          "ANCHOR_[11]_DIARY_CHAT"
         ],
         "missingAnchors": []
       },
@@ -72,10 +73,11 @@
           "ANCHOR_[5]_PERSONA_STATE",
           "ANCHOR_[7]_ENTRY_TITLE",
           "ANCHOR_[7]_ENTRY_BODY",
-          "<recalled_memories>",
-          "ANCHOR_[8]_RECALL_WRITING",
+          "ANCHOR_[8.5]_STORY_WRITING",
           "<expanded_dialogues>",
-          "ANCHOR_[10]_DIARY_WRITING"
+          "ANCHOR_[10]_RECALL_WRITING_USER",
+          "ANCHOR_[10]_RECALL_WRITING_ASST",
+          "ANCHOR_[11]_DIARY_WRITING"
         ],
         "missingAnchors": []
       },

@@ -20,19 +20,6 @@ export function getRecentTurnSummaries(sessionId, limit) {
 }
 
 /**
- * 取会话最近 N 轮 turn record 的 id（round_index 降序）
- *
- * @param {string} sessionId
- * @param {number} limit
- * @returns {string[]}
- */
-export function getRecentTurnRecordIds(sessionId, limit) {
-  return db.prepare('SELECT id FROM turn_records WHERE session_id = ? ORDER BY round_index DESC LIMIT ?')
-    .all(sessionId, limit)
-    .map((r) => r.id);
-}
-
-/**
  * 插入或更新 turn record（按 session_id + round_index UPSERT）
  *
  * @param {object} data - { session_id, round_index, summary, scene, cast_json, user_message_id, asst_message_id, state_snapshot, middle_summary, middle_covered_to }
@@ -67,23 +54,6 @@ export function upsertTurnRecord({ session_id, round_index, summary, scene, cast
  */
 export function getTurnRecordById(id) {
   return db.prepare('SELECT * FROM turn_records WHERE id = ?').get(id);
-}
-
-/**
- * 一次取出多条 turn record，附带所属会话的 title / created_at（session_title / session_created_at），
- * 返回 Map<id, row>；查不到的 id 不在结果里。
- * @param {string[]} ids
- */
-export function getTurnRecordsWithSessionByIds(ids) {
-  if (ids.length === 0) return new Map();
-  const placeholders = ids.map(() => '?').join(', ');
-  const rows = db.prepare(
-    `SELECT tr.*, s.title AS session_title, s.created_at AS session_created_at
-     FROM turn_records tr
-     LEFT JOIN sessions s ON s.id = tr.session_id
-     WHERE tr.id IN (${placeholders})`,
-  ).all(...ids);
-  return new Map(rows.map((row) => [row.id, row]));
 }
 
 /**

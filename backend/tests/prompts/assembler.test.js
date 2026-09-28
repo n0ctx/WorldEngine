@@ -1,7 +1,7 @@
 import test, { after } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { createTestSandbox, freshImport, writeUploadFile } from '../helpers/test-env.js';
+import { createTestSandbox, freshImport, resetMockEnv, writeUploadFile } from '../helpers/test-env.js';
 import {
   insertCharacter,
   insertCharacterStateField,
@@ -17,6 +17,7 @@ import {
   insertWorldStateField,
   insertWorldStateValue,
 } from '../helpers/fixtures.js';
+import { countMessages } from '../../utils/token-counter.js';
 
 const sandbox = createTestSandbox('assembler-suite');
 sandbox.setEnv();
@@ -43,23 +44,46 @@ test('omitLatestUserMessage 在没有 user 消息时保持原数组', async () =
   assert.deepEqual(__testables.omitLatestUserMessage(input), input);
 });
 
-test('sliceCompletedHistoryByRounds keepLatestUser 控制是否摘除最后一条 user', async () => {
+test('sliceHistoryAfterRound keepLatestUser 控制是否摘除最后一条 user，coveredTo 有值时严格保留其后完整轮次', async () => {
   const { __testables } = await freshImport('backend/prompts/assembler.js');
   const msgs = [
     { role: 'user', content: 'u1' },
     { role: 'assistant', content: 'a1' },
     { role: 'user', content: 'u2' },
     { role: 'assistant', content: 'a2' },
+    { role: 'user', content: 'u3' },
   ];
-  // 默认（生成模式）：摘掉最后一条 user，历史末尾出现相邻 assistant
+  // 默认（生成模式）：先摘掉最后一条 user（本轮新输入），round_index > 1 的完整轮次只剩第 2 轮
   assert.deepEqual(
-    __testables.sliceCompletedHistoryByRounds(msgs, 12).map((m) => m.content),
-    ['u1', 'a1', 'a2'],
+    __testables.sliceHistoryAfterRound(msgs, 1).map((m) => m.content),
+    ['u2', 'a2'],
   );
-  // 续写模式 keepLatestUser=true：保留全窗口原序，末尾为待续写 assistant，轮次交替完整
+  // 续写模式 keepLatestUser=true：不摘除最后一条 user，第 3 轮（仅 u3）本身也 > coveredTo
   assert.deepEqual(
-    __testables.sliceCompletedHistoryByRounds(msgs, 12, { keepLatestUser: true }).map((m) => m.content),
-    ['u1', 'a1', 'u2', 'a2'],
+    __testables.sliceHistoryAfterRound(msgs, 1, { keepLatestUser: true }).map((m) => m.content),
+    ['u2', 'a2', 'u3'],
+  );
+});
+
+test('sliceHistoryAfterRound coveredTo 缺失（旧会话过渡）时按 token 预算从最新往最旧取完整轮次，至少保留最近一轮', async () => {
+  const { __testables } = await freshImport('backend/prompts/assembler.js');
+  const msgs = [
+    { role: 'user', content: '甲'.repeat(400) },
+    { role: 'assistant', content: '乙'.repeat(400) },
+    { role: 'user', content: '第二轮短消息' },
+    { role: 'assistant', content: '第二轮短回复' },
+    { role: 'user', content: '当前输入' },
+  ];
+  const recentRoundBudget = countMessages([msgs[2], msgs[3]]);
+  // 预算刚好放下最近一轮，放不下更早的第一轮
+  assert.deepEqual(
+    __testables.sliceHistoryAfterRound(msgs, null, { budget: recentRoundBudget }).map((m) => m.content),
+    ['第二轮短消息', '第二轮短回复'],
+  );
+  // 预算小于最近一轮本身的 token 数时，仍至少保留最近一轮，不因超预算而清空历史
+  assert.deepEqual(
+    __testables.sliceHistoryAfterRound(msgs, null, { budget: 1 }).map((m) => m.content),
+    ['第二轮短消息', '第二轮短回复'],
   );
 });
 
@@ -296,4 +320,92 @@ test('buildWritingPrompt 写作模式不注入 [4] 角色 system_prompt 与 [7] 
   assert.match(result.messages.at(-1).content, /写作后置：\{\{char\}\}/);
   assert.match(result.messages.at(-1).content, /当前场景/);
   assert.match(result.messages.at(-1).content, /next_prompt/i);
+});
+
+test('buildPrompt coveredTo 有值时：历史只保留其后完整轮次，剧情摘要注入 <story_summary>，历史轮次目录不泄漏进主 prompt', async () => {
+  sandbox.writeConfig({
+    ...sandbox.readConfig(),
+    global_system_prompt: '',
+    global_post_prompt: '',
+    suggestion_enabled: false,
+    memory_expansion_enabled: true,
+  });
+
+  const world = insertWorld(sandbox.db, { name: '覆盖世界' });
+  const character = insertCharacter(sandbox.db, world.id, { name: '覆盖角色' });
+  const session = insertSession(sandbox.db, { character_id: character.id });
+
+  const oldUser = insertMessage(sandbox.db, session.id, { role: 'user', content: '第一轮旧提问', created_at: 1 });
+  const oldAsst = insertMessage(sandbox.db, session.id, { role: 'assistant', content: '第一轮旧回答', created_at: 2 });
+  insertTurnRecord(sandbox.db, session.id, {
+    id: 'turn-covered-1',
+    round_index: 1,
+    summary: '旧轮摘要正文',
+    scene: '旧场景',
+    cast_json: JSON.stringify(['旧角色']),
+    user_message_id: oldUser.id,
+    asst_message_id: oldAsst.id,
+    created_at: 3,
+  });
+  insertMessage(sandbox.db, session.id, { role: 'user', content: '第二轮新提问', created_at: 4 });
+  const newAsst = insertMessage(sandbox.db, session.id, { role: 'assistant', content: '第二轮新回答', created_at: 5 });
+  insertTurnRecord(sandbox.db, session.id, {
+    id: 'turn-latest',
+    round_index: 2,
+    summary: '最近一轮摘要',
+    user_message_id: null,
+    asst_message_id: newAsst.id,
+    middle_summary: '这是更早剧情的中期摘要正文',
+    middle_covered_to: 1,
+    created_at: 6,
+  });
+  insertMessage(sandbox.db, session.id, { role: 'user', content: '第三轮当前提问', created_at: 7 });
+
+  process.env.MOCK_LLM_COMPLETE_QUEUE = JSON.stringify([JSON.stringify({ turns: [1] })]);
+  const { buildPrompt } = await freshImport('backend/prompts/assembler.js');
+  const result = await buildPrompt(session.id, { onRecallEvent() {} });
+  resetMockEnv();
+
+  // [8.5] 剧情摘要
+  assert.match(result.messages[0].content, /<story_summary>[\s\S]*这是更早剧情的中期摘要正文[\s\S]*<\/story_summary>/);
+  // [10] 长期召回原文命中第一轮原文
+  assert.match(result.messages[0].content, /<expanded_dialogues>[\s\S]*第一轮旧提问[\s\S]*第一轮旧回答[\s\S]*<\/expanded_dialogues>/);
+  assert.equal(result.recallHitCount, 1);
+  // 只发给 aux 召回模型的「历史轮次目录」索引行不应出现在主 prompt 里
+  assert.doesNotMatch(result.messages[0].content, /旧轮摘要正文/);
+  assert.doesNotMatch(result.messages[0].content, /旧场景/);
+  assert.doesNotMatch(result.messages[0].content, /历史轮次目录/);
+  // [12] 历史只含 round_index > coveredTo(1) 的完整轮次，不含第一轮
+  assert.equal(result.messages[1].content, '第二轮新提问');
+  assert.equal(result.messages[2].content, '第二轮新回答');
+  assert.doesNotMatch(result.messages[1].content, /第一轮/);
+});
+
+test('buildPrompt 旧会话过渡（coveredTo 不可用）时按 short_term_token_budget 截断历史，只保留最近完整轮次', async () => {
+  sandbox.writeConfig({
+    ...sandbox.readConfig(),
+    global_system_prompt: '',
+    global_post_prompt: '',
+    suggestion_enabled: false,
+    short_term_token_budget: 1000,
+  });
+
+  const world = insertWorld(sandbox.db, { name: '过渡世界' });
+  const character = insertCharacter(sandbox.db, world.id, { name: '过渡角色' });
+  const session = insertSession(sandbox.db, { character_id: character.id });
+
+  insertMessage(sandbox.db, session.id, { role: 'user', content: '甲'.repeat(3000), created_at: 1 });
+  insertMessage(sandbox.db, session.id, { role: 'assistant', content: '乙'.repeat(3000), created_at: 2 });
+  insertMessage(sandbox.db, session.id, { role: 'user', content: '第二轮短提问', created_at: 3 });
+  insertMessage(sandbox.db, session.id, { role: 'assistant', content: '第二轮短回答', created_at: 4 });
+  insertMessage(sandbox.db, session.id, { role: 'user', content: '当前提问', created_at: 5 });
+
+  const { buildPrompt } = await freshImport('backend/prompts/assembler.js');
+  const result = await buildPrompt(session.id);
+
+  assert.equal(result.recallHitCount, 0);
+  assert.equal(result.messages.length, 3);
+  assert.equal(result.messages[0].content, '第二轮短提问');
+  assert.equal(result.messages[1].content, '第二轮短回答');
+  assert.doesNotMatch(result.messages[0].content, /甲/);
 });

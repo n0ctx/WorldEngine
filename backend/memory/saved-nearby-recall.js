@@ -5,7 +5,7 @@
  *   decideSavedNearbyRecall({ sessionId, savedRows })
  *     → Promise<string[]>   返回 hit 的 nearby id 列表（按候选清单顺序），失败静默返回 []
  *
- * 镜像 summary-expander.decideExpansion 的范式：独立取最近 1 user + 1 assistant 上下文，
+ * 镜像 long-term-recall.recallTurns 的范式：独立取最近 1 user + 1 assistant 上下文，
  * 与候选清单一起喂给 aux 模型；输出严格 JSON `{"recall":["id1", ...]}`。
  */
 
