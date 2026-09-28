@@ -57,15 +57,6 @@ const PROVIDER_HINTS = {
   },
 };
 
-// 表格记忆的 4 张固定表（key + 中文名）。与后端 TABLE_SCHEMAS 一一对应，
-// 仅用于设置页渲染每表行数上限输入；若后端增删表需同步此处。
-export const TABLE_MEMORY_TABLES = [
-  { key: 'relations', name: '关系表' },
-  { key: 'items', name: '物品表' },
-  { key: 'places', name: '地点表' },
-  { key: 'factions', name: '势力表' },
-];
-
 export const NAV_KEY = {
   LLM: 'llm',
   FEATURES: 'features',

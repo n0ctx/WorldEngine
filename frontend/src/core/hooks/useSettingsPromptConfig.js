@@ -19,11 +19,9 @@ export function useSettingsPromptConfig(patchConfig) {
   const [suggestionEnabled, setSuggestionEnabled] = useState(false);
   const [writingSuggestionEnabled, setWritingSuggestionEnabled] = useState(false);
   const [writingMemoryExpansionEnabled, setWritingMemoryExpansionEnabled] = useState(true);
-  const [tableMemoryEnabled, setTableMemoryEnabled] = useState(false);
-  const [writingTableMemoryEnabled, setWritingTableMemoryEnabled] = useState(false);
-  const [tableMemoryRowLimits, setTableMemoryRowLimits] = useState({});
   const [memoryRecallMaxSessions, setMemoryRecallMaxSessions] = useState(5);
   const [longTermIndexBudget, setLongTermIndexBudget] = useState(20000);
+  const [stateInjectionTokenBudget, setStateInjectionTokenBudget] = useState(3000);
   const [danmakuEnabled, setDanmakuEnabled] = useState(false);
   const [danmakuCount, setDanmakuCount] = useState(5);
   const [danmakuSpeed, setDanmakuSpeedLocal] = useState('normal');
@@ -49,11 +47,9 @@ export function useSettingsPromptConfig(patchConfig) {
     setSuggestionEnabled(settings.suggestionEnabled);
     setWritingSuggestionEnabled(settings.writingSuggestionEnabled);
     setWritingMemoryExpansionEnabled(settings.writingMemoryExpansionEnabled);
-    setTableMemoryEnabled(settings.tableMemoryEnabled);
-    setWritingTableMemoryEnabled(settings.writingTableMemoryEnabled);
-    setTableMemoryRowLimits(settings.tableMemoryRowLimits);
     setMemoryRecallMaxSessions(settings.memoryRecallMaxSessions);
     setLongTermIndexBudget(settings.longTermIndexBudget);
+    setStateInjectionTokenBudget(settings.stateInjectionTokenBudget);
   }, []);
 
   const applyDanmakuSettings = useCallback((settings) => {
@@ -171,21 +167,6 @@ export function useSettingsPromptConfig(patchConfig) {
     await updateEnabledSetting(setWritingMemoryExpansionEnabled, enabled, 'memory_expansion_enabled', true);
   }
 
-  async function handleToggleTableMemory(enabled) {
-    await updateEnabledSetting(setTableMemoryEnabled, enabled, 'table_memory_enabled');
-  }
-
-  async function handleToggleWritingTableMemory(enabled) {
-    await updateEnabledSetting(setWritingTableMemoryEnabled, enabled, 'table_memory_enabled', true);
-  }
-
-  async function handleSaveTableMemoryRowLimit(key, value) {
-    const isEmpty = value === '' || value === null || value === undefined;
-    const n = isEmpty ? 0 : Math.min(1000, Math.max(0, Math.floor(Number(value) || 0)));
-    setTableMemoryRowLimits((prev) => ({ ...prev, [key]: n }));
-    await patchConfig({ table_memory_row_limits: { [key]: n } });
-  }
-
   async function handleSaveMemoryRecallMaxSessions(value) {
     const isEmpty = value === '' || value === null || value === undefined;
     const n = isEmpty ? 5 : Math.max(1, Math.floor(Number(value) || 5));
@@ -198,6 +179,13 @@ export function useSettingsPromptConfig(patchConfig) {
     const n = isEmpty ? 20000 : Math.min(500000, Math.max(2000, Math.floor(Number(value) || 20000)));
     setLongTermIndexBudget(n);
     await patchConfig({ long_term_index_budget: n });
+  }
+
+  async function handleSaveStateInjectionTokenBudget(value) {
+    const isEmpty = value === '' || value === null || value === undefined;
+    const n = isEmpty ? 3000 : Math.min(50000, Math.max(500, Math.floor(Number(value) || 3000)));
+    setStateInjectionTokenBudget(n);
+    await patchConfig({ state_injection_token_budget: n });
   }
 
   const applyImportedPromptSettings = useCallback((importedConfig) => {
@@ -230,19 +218,15 @@ export function useSettingsPromptConfig(patchConfig) {
       onChangeDanmakuSpeed: handleChangeDanmakuSpeed,
       writingMemoryExpansionEnabled,
       onToggleWritingMemoryExpansion: handleToggleWritingMemoryExpansion,
-      tableMemoryEnabled,
-      onToggleTableMemory: handleToggleTableMemory,
-      writingTableMemoryEnabled,
-      onToggleWritingTableMemory: handleToggleWritingTableMemory,
-      tableMemoryRowLimits,
-      setTableMemoryRowLimits,
-      onSaveTableMemoryRowLimit: handleSaveTableMemoryRowLimit,
       memoryRecallMaxSessions,
       setMemoryRecallMaxSessions,
       onSaveMemoryRecallMaxSessions: handleSaveMemoryRecallMaxSessions,
       longTermIndexBudget,
       setLongTermIndexBudget,
       onSaveLongTermIndexBudget: handleSaveLongTermIndexBudget,
+      stateInjectionTokenBudget,
+      setStateInjectionTokenBudget,
+      onSaveStateInjectionTokenBudget: handleSaveStateInjectionTokenBudget,
       onSave: handleSaveGeneral,
       saving,
       saved,

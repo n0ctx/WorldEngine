@@ -28,19 +28,15 @@ function createProps(overrides = {}) {
     onToggleMemoryExpansion: vi.fn(),
     writingMemoryExpansionEnabled: false,
     onToggleWritingMemoryExpansion: vi.fn(),
-    tableMemoryEnabled: false,
-    onToggleTableMemory: vi.fn(),
-    writingTableMemoryEnabled: true,
-    onToggleWritingTableMemory: vi.fn(),
-    tableMemoryRowLimits: { relations: 10, items: 20, places: 30, factions: 40 },
-    setTableMemoryRowLimits: vi.fn(),
-    onSaveTableMemoryRowLimit: vi.fn(),
     memoryRecallMaxSessions: 5,
     setMemoryRecallMaxSessions: vi.fn(),
     onSaveMemoryRecallMaxSessions: vi.fn(),
     longTermIndexBudget: 20000,
     setLongTermIndexBudget: vi.fn(),
     onSaveLongTermIndexBudget: vi.fn(),
+    stateInjectionTokenBudget: 3000,
+    setStateInjectionTokenBudget: vi.fn(),
+    onSaveStateInjectionTokenBudget: vi.fn(),
     chatDiaryEnabled: true,
     onToggleChatDiaryEnabled: vi.fn(),
     chatDateMode: DIARY_DATE_MODE.REAL,
@@ -79,19 +75,22 @@ describe('FeaturesConfigPanel', () => {
     expect(budgetInput).toHaveValue(8000);
     expect(screen.getByRole('spinbutton', { name: '每轮最多召回轮次' })).toHaveValue(5);
     expect(screen.getByRole('spinbutton', { name: '召回目录预算' })).toHaveValue(20000);
+    const stateBudgetInput = screen.getByRole('spinbutton', { name: '状态注入预算' });
+    expect(stateBudgetInput).toHaveValue(3000);
     expect(screen.getByText('长期召回')).toBeInTheDocument();
     expect(screen.getByText('每轮生成前由辅助模型按历史目录挑选相关轮次原文，会增加首字等待')).toBeInTheDocument();
     expect(screen.queryByText('长期记忆')).not.toBeInTheDocument();
     expect(screen.getByText('对话日记')).toBeInTheDocument();
     expect(screen.queryByText('写作日记')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: '真实日期' })).toHaveClass('we-settings-date-option--active');
+    expect(screen.queryByText('表格记忆')).not.toBeInTheDocument();
     expect(screen.queryByText('关系表')).not.toBeInTheDocument();
 
     const switches = screen.getAllByRole('switch');
     fireEvent.click(switches[0]);
     expect(props.onToggleMemoryExpansion).toHaveBeenCalledWith(false);
-    expect(switches[4]).toBeDisabled();
-    fireEvent.click(switches[4]);
+    expect(switches[3]).toBeDisabled();
+    fireEvent.click(switches[3]);
     expect(props.onToggleAutoCollapseThinking).not.toHaveBeenCalled();
 
     fireEvent.click(screen.getByRole('button', { name: '虚拟日期' }));
@@ -102,6 +101,12 @@ describe('FeaturesConfigPanel', () => {
     rerender(<FeaturesConfigPanel {...props} shortTermTokenBudget="9000" />);
     fireEvent.blur(budgetInput);
     expect(props.onSaveShortTermTokenBudget).toHaveBeenCalledWith('9000');
+
+    fireEvent.change(stateBudgetInput, { target: { value: '5000' } });
+    expect(props.setStateInjectionTokenBudget).toHaveBeenCalledWith(5000);
+    rerender(<FeaturesConfigPanel {...props} stateInjectionTokenBudget={5000} />);
+    fireEvent.blur(stateBudgetInput);
+    expect(props.onSaveStateInjectionTokenBudget).toHaveBeenCalledWith(5000);
   });
 
   it('uses writing overrides and preserves their memory, diary, and turn settings', () => {
@@ -115,14 +120,12 @@ describe('FeaturesConfigPanel', () => {
     expect(screen.getByRole('button', { name: '虚拟日期' })).toHaveClass('we-settings-date-option--active');
     expect(screen.getByRole('spinbutton', { name: '写作每章轮数' })).toHaveValue(20);
     expect(screen.getByRole('spinbutton', { name: '写作每页轮数' })).toHaveValue(null);
-    expect(screen.getByRole('spinbutton', { name: '关系表行数上限' })).toHaveValue(10);
+    expect(screen.queryByRole('spinbutton', { name: '关系表行数上限' })).not.toBeInTheDocument();
 
     const switches = screen.getAllByRole('switch');
     fireEvent.click(switches[0]);
     expect(props.onToggleWritingMemoryExpansion).toHaveBeenCalledWith(true);
-    fireEvent.click(switches[1]);
-    expect(props.onToggleWritingTableMemory).toHaveBeenCalledWith(false);
-    fireEvent.click(switches[7]);
+    fireEvent.click(switches[6]);
     expect(props.onToggleWritingSuggestion).toHaveBeenCalledWith(false);
 
     fireEvent.click(screen.getByRole('button', { name: '真实日期' }));
