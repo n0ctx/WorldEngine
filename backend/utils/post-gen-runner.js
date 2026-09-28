@@ -1,5 +1,5 @@
 import { enqueue } from './async-queue.js';
-import { trackStateUpdate } from './state-update-tracker.js';
+import { trackMemoryCommit } from './memory-commit-tracker.js';
 import { createLogger, formatMeta } from './logger.js';
 import { LLM_ERROR_REASON } from '../../shared/runtime-constants.mjs';
 
@@ -43,7 +43,8 @@ function classifyLlmError(err) {
  * @property {string}               [sseEvent]    — 完成后推送的 SSE event type（不设则不推）
  * @property {(result: any) => object} [ssePayload] — SSE payload 构造器（默认使用 { type: sseEvent }）
  * @property {boolean}              [keepSseAlive] — 是否将此任务加入 ssePromises 控制连接关闭时机
- * @property {boolean}              [tracksState]  — 是否调用 trackStateUpdate（state 任务专用）
+ * @property {boolean}              [tracksState]  — 失败时是否发 state_update_failed（state 任务专用）
+ * @property {boolean}              [blocksNextTurn] — 是否登记记忆提交等待点（trackMemoryCommit，turn-record 专用）
  *
  * @returns {{ hasSseWaits: boolean }}
  *   hasSseWaits=true 时调用方应立即 return（连接由 Promise.allSettled 关闭）
@@ -67,9 +68,9 @@ export function runPostGenTasks(sessionId, taskSpecs, { streamState: _streamStat
 
     const rawPromise = enqueue(sessionId, taskFn, spec.priority, spec.label);
 
-    // state 任务：记录 Promise，供下一轮 buildContext/buildWritingPrompt 前 await
-    if (spec.tracksState) {
-      trackStateUpdate(sessionId, rawPromise.catch(() => {}));
+    // 记忆提交任务：记录 Promise，供下一轮 buildContext/buildWritingPrompt 前 await
+    if (spec.blocksNextTurn) {
+      trackMemoryCommit(sessionId, rawPromise.catch(() => {}));
     }
 
     if (spec.keepSseAlive) {

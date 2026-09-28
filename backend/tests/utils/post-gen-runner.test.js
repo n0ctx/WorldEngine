@@ -141,6 +141,72 @@ test('混合 keepSseAlive 任务：只有 keepSseAlive=true 的任务控制连�
   assert.equal(ctx.emitted[0].type, 'sse_event');
 });
 
+test('blocksNextTurn=true 任务登记记忆提交等待点，可被 awaitMemoryCommit 等到', async () => {
+  const { runPostGenTasks } = await freshImport('backend/utils/post-gen-runner.js');
+  const { awaitMemoryCommit } = await freshImport('backend/utils/memory-commit-tracker.js');
+  const ctx = makeCtx();
+
+  let taskDone = false;
+  runPostGenTasks('runner-test-7', [
+    {
+      label: 'turn-record',
+      priority: 2,
+      fn: () => new Promise((resolve) => setTimeout(() => { taskDone = true; resolve(); }, 10)),
+      blocksNextTurn: true,
+      keepSseAlive: true,
+    },
+  ], ctx);
+
+  assert.equal(taskDone, false);
+  await awaitMemoryCommit('runner-test-7');
+  assert.equal(taskDone, true);
+});
+
+test('blocksNextTurn 任务失败时等待点照样放行（静默 catch）', async () => {
+  const { runPostGenTasks } = await freshImport('backend/utils/post-gen-runner.js');
+  const { awaitMemoryCommit } = await freshImport('backend/utils/memory-commit-tracker.js');
+  const ctx = makeCtx();
+
+  runPostGenTasks('runner-test-8', [
+    {
+      label: 'turn-record',
+      priority: 2,
+      fn: async () => { throw new Error('boom'); },
+      blocksNextTurn: true,
+      keepSseAlive: true,
+    },
+  ], ctx);
+
+  // 不应抛错、不应挂起
+  await awaitMemoryCommit('runner-test-8');
+
+  // 失败任务仍会推送 postprocess_failed（tracksState 未设时不走 state_update_failed 分支）
+  await ctx.endPromise;
+  assert.equal(ctx.emitted.length, 1);
+  assert.equal(ctx.emitted[0].type, 'postprocess_failed');
+  assert.equal(ctx.emitted[0].label, 'turn-record');
+});
+
+test('未设 blocksNextTurn 的任务不登记记忆提交等待点', async () => {
+  const { runPostGenTasks } = await freshImport('backend/utils/post-gen-runner.js');
+  const { awaitMemoryCommit } = await freshImport('backend/utils/memory-commit-tracker.js');
+  const ctx = makeCtx();
+
+  let taskDone = false;
+  runPostGenTasks('runner-test-9', [
+    {
+      label: 'turn-index',
+      priority: 3,
+      fn: () => new Promise((resolve) => setTimeout(() => { taskDone = true; resolve('ok'); }, 20)),
+      keepSseAlive: false,
+    },
+  ], ctx);
+
+  // 没有挂起的记忆提交，立即返回，不等待仍在运行的 turn-index 任务
+  await awaitMemoryCommit('runner-test-9');
+  assert.equal(taskDone, false);
+});
+
 test('多个 keepSseAlive=true 任务全部完成后才关闭连接', async () => {
   const { runPostGenTasks } = await freshImport('backend/utils/post-gen-runner.js');
   const ctx = makeCtx();

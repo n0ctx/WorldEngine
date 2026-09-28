@@ -54,7 +54,7 @@ test('postgen 任务的 label 序列保持稳定', async (t) => {
 
   assert.deepEqual(
     labels(buildTurnPostgenTasks({ mode: chatMode, sessionId: 's1', worldId: 'w1', session: { title: 't' } })),
-    ['title', 'all-state', 'table-memory', 'danmaku', 'turn-record', 'diary'],
+    ['title', 'all-state', 'table-memory', 'turn-record', 'danmaku', 'turn-index', 'diary'],
   );
 
   assert.deepEqual(
@@ -62,13 +62,31 @@ test('postgen 任务的 label 序列保持稳定', async (t) => {
       mode: writingMode, sessionId: 's1', worldId: 'w1', session: { title: 't' },
       messages: [], includeChapterTitle: false,
     })),
-    ['session-title', 'all-state', 'table-memory', 'danmaku', 'turn-record', 'diary'],
+    ['session-title', 'all-state', 'table-memory', 'turn-record', 'danmaku', 'turn-index', 'diary'],
   );
 });
 
-// 两侧复制后各自漂移过：对话侧有 isUpdate 守卫但不推 SSE，写作侧推 SSE 但无守卫。
-// 统一后取并集，两种模式都既有守卫也有事件。
-test('postgen diary 任务在两种模式下都带 isUpdate 守卫与 diary_updated 事件', async (t) => {
+// turn-record 是唯一登记记忆提交等待点的任务；turn-index 不阻塞下一轮。
+test('turn-record 任务登记 blocksNextTurn，其余任务不登记', async (t) => {
+  const sandbox = createTestSandbox('postgen-blocks-next-turn');
+  sandbox.setEnv();
+  t.after(() => { resetMockEnv(); sandbox.cleanup(); });
+
+  const { buildTurnPostgenTasks } = await freshImport('backend/app/shared/postgen/build-turn-postgen-tasks.js');
+  const { chatMode } = await freshImport('backend/app/modes/index.js');
+
+  const tasks = buildTurnPostgenTasks({ mode: chatMode, sessionId: 's1', worldId: 'w1', session: { title: 't' } });
+  const byLabel = (label) => tasks.find((t2) => t2.label === label);
+
+  assert.equal(byLabel('turn-record').blocksNextTurn, true);
+  for (const label of ['title', 'all-state', 'table-memory', 'danmaku', 'turn-index', 'diary']) {
+    assert.equal(byLabel(label).blocksNextTurn, undefined, `${label} 不应登记 blocksNextTurn`);
+  }
+});
+
+// diary 不再有 isUpdate 守卫：编辑最后一条回复走「回退到上一轮快照再重跑」（§5.6），
+// 重做时会先删掉本轮日记，需要重新生成，因此两种模式下都无条件生成 diary_updated。
+test('postgen diary 任务在两种模式下都无条件生成并推 diary_updated 事件', async (t) => {
   const sandbox = createTestSandbox('postgen-diary-union');
   sandbox.setEnv();
   t.after(() => { resetMockEnv(); sandbox.cleanup(); });
@@ -81,8 +99,8 @@ test('postgen diary 任务在两种模式下都带 isUpdate 守卫与 diary_upda
       buildTurnPostgenTasks({ mode, sessionId: 's1', worldId: 'w1', session: { title: 't' }, messages: [], turnRecordOpts })
         .find((task) => task.label === 'diary');
 
-    assert.equal(diaryOf({}).condition, true, `${mode.id}: 正常一轮应生成日记`);
-    assert.equal(diaryOf({ isUpdate: true }).condition, false, `${mode.id}: 编辑回复不应重复生成日记`);
+    assert.equal(diaryOf({}).condition, undefined, `${mode.id}: diary 不应再有条件`);
+    assert.equal(diaryOf({ isUpdate: true }).condition, undefined, `${mode.id}: isUpdate 不应再影响 diary`);
     assert.equal(diaryOf({}).sseEvent, 'diary_updated');
     assert.deepEqual(diaryOf({}).ssePayload(), { type: 'diary_updated' });
   }
