@@ -6,12 +6,12 @@ import { DIARY_DATE_MODE, SETTINGS_MODE } from '../../../core/constants/settings
 function createProps(overrides = {}) {
   return {
     settingsMode: SETTINGS_MODE.CHAT,
-    contextRounds: 8,
-    setContextRounds: vi.fn(),
-    onSaveContextRounds: vi.fn(),
-    writingContextRounds: null,
-    setWritingContextRounds: vi.fn(),
-    onSaveWritingContextRounds: vi.fn(),
+    shortTermTokenBudget: 8000,
+    setShortTermTokenBudget: vi.fn(),
+    onSaveShortTermTokenBudget: vi.fn(),
+    writingShortTermTokenBudget: null,
+    setWritingShortTermTokenBudget: vi.fn(),
+    onSaveWritingShortTermTokenBudget: vi.fn(),
     chapterTurnSize: null,
     setChapterTurnSize: vi.fn(),
     onSaveChapterTurnSize: vi.fn(),
@@ -28,10 +28,6 @@ function createProps(overrides = {}) {
     onToggleMemoryExpansion: vi.fn(),
     writingMemoryExpansionEnabled: false,
     onToggleWritingMemoryExpansion: vi.fn(),
-    longTermMemoryEnabled: false,
-    onToggleLongTermMemory: vi.fn(),
-    writingLongTermMemoryEnabled: false,
-    onToggleWritingLongTermMemory: vi.fn(),
     tableMemoryEnabled: false,
     onToggleTableMemory: vi.fn(),
     writingTableMemoryEnabled: true,
@@ -42,6 +38,9 @@ function createProps(overrides = {}) {
     memoryRecallMaxSessions: 5,
     setMemoryRecallMaxSessions: vi.fn(),
     onSaveMemoryRecallMaxSessions: vi.fn(),
+    longTermIndexBudget: 20000,
+    setLongTermIndexBudget: vi.fn(),
+    onSaveLongTermIndexBudget: vi.fn(),
     chatDiaryEnabled: true,
     onToggleChatDiaryEnabled: vi.fn(),
     chatDateMode: DIARY_DATE_MODE.REAL,
@@ -76,8 +75,13 @@ describe('FeaturesConfigPanel', () => {
     const props = createProps();
     const { rerender } = render(<FeaturesConfigPanel {...props} />);
 
-    const contextInput = screen.getByRole('spinbutton', { name: '上下文保留轮次' });
-    expect(contextInput).toHaveValue(8);
+    const budgetInput = screen.getByRole('spinbutton', { name: '短期记忆 token 预算' });
+    expect(budgetInput).toHaveValue(8000);
+    expect(screen.getByRole('spinbutton', { name: '每轮最多召回轮次' })).toHaveValue(5);
+    expect(screen.getByRole('spinbutton', { name: '召回目录预算' })).toHaveValue(20000);
+    expect(screen.getByText('长期召回')).toBeInTheDocument();
+    expect(screen.getByText('每轮生成前由辅助模型按历史目录挑选相关轮次原文，会增加首字等待')).toBeInTheDocument();
+    expect(screen.queryByText('长期记忆')).not.toBeInTheDocument();
     expect(screen.getByText('对话日记')).toBeInTheDocument();
     expect(screen.queryByText('写作日记')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: '真实日期' })).toHaveClass('we-settings-date-option--active');
@@ -86,27 +90,27 @@ describe('FeaturesConfigPanel', () => {
     const switches = screen.getAllByRole('switch');
     fireEvent.click(switches[0]);
     expect(props.onToggleMemoryExpansion).toHaveBeenCalledWith(false);
-    expect(switches[5]).toBeDisabled();
-    fireEvent.click(switches[5]);
+    expect(switches[4]).toBeDisabled();
+    fireEvent.click(switches[4]);
     expect(props.onToggleAutoCollapseThinking).not.toHaveBeenCalled();
 
     fireEvent.click(screen.getByRole('button', { name: '虚拟日期' }));
     expect(props.onChangeChatDateMode).toHaveBeenCalledWith(DIARY_DATE_MODE.VIRTUAL);
 
-    fireEvent.change(contextInput, { target: { value: '9' } });
-    expect(props.setContextRounds).toHaveBeenCalledWith('9');
-    rerender(<FeaturesConfigPanel {...props} contextRounds="9" />);
-    fireEvent.blur(contextInput);
-    expect(props.onSaveContextRounds).toHaveBeenCalledWith('9');
+    fireEvent.change(budgetInput, { target: { value: '9000' } });
+    expect(props.setShortTermTokenBudget).toHaveBeenCalledWith('9000');
+    rerender(<FeaturesConfigPanel {...props} shortTermTokenBudget="9000" />);
+    fireEvent.blur(budgetInput);
+    expect(props.onSaveShortTermTokenBudget).toHaveBeenCalledWith('9000');
   });
 
   it('uses writing overrides and preserves their memory, diary, and turn settings', () => {
-    const props = createProps({ settingsMode: SETTINGS_MODE.WRITING, writingContextRounds: '14' });
+    const props = createProps({ settingsMode: SETTINGS_MODE.WRITING, writingShortTermTokenBudget: '14000' });
     const { rerender } = render(<FeaturesConfigPanel {...props} />);
 
-    const contextInput = screen.getByRole('spinbutton', { name: '写作上下文保留轮次' });
-    expect(contextInput).toHaveValue(14);
-    expect(contextInput).toHaveAttribute('placeholder', '继承对话');
+    const budgetInput = screen.getByRole('spinbutton', { name: '写作短期记忆 token 预算' });
+    expect(budgetInput).toHaveValue(14000);
+    expect(budgetInput).toHaveAttribute('placeholder', '继承对话');
     expect(screen.getByText('写作日记')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '虚拟日期' })).toHaveClass('we-settings-date-option--active');
     expect(screen.getByRole('spinbutton', { name: '写作每章轮数' })).toHaveValue(20);
@@ -117,19 +121,17 @@ describe('FeaturesConfigPanel', () => {
     fireEvent.click(switches[0]);
     expect(props.onToggleWritingMemoryExpansion).toHaveBeenCalledWith(true);
     fireEvent.click(switches[1]);
-    expect(props.onToggleWritingLongTermMemory).toHaveBeenCalledWith(true);
-    fireEvent.click(switches[2]);
     expect(props.onToggleWritingTableMemory).toHaveBeenCalledWith(false);
-    fireEvent.click(switches[8]);
+    fireEvent.click(switches[7]);
     expect(props.onToggleWritingSuggestion).toHaveBeenCalledWith(false);
 
     fireEvent.click(screen.getByRole('button', { name: '真实日期' }));
     expect(props.onChangeWritingDateMode).toHaveBeenCalledWith(DIARY_DATE_MODE.REAL);
 
-    fireEvent.change(contextInput, { target: { value: '' } });
-    expect(props.setWritingContextRounds).toHaveBeenCalledWith(null);
-    rerender(<FeaturesConfigPanel {...props} writingContextRounds={null} />);
-    fireEvent.blur(contextInput);
-    expect(props.onSaveWritingContextRounds).toHaveBeenCalledWith(null);
+    fireEvent.change(budgetInput, { target: { value: '' } });
+    expect(props.setWritingShortTermTokenBudget).toHaveBeenCalledWith(null);
+    rerender(<FeaturesConfigPanel {...props} writingShortTermTokenBudget={null} />);
+    fireEvent.blur(budgetInput);
+    expect(props.onSaveWritingShortTermTokenBudget).toHaveBeenCalledWith(null);
   });
 });

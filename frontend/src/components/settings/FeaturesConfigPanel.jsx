@@ -49,16 +49,15 @@ function ToggleRow({ label, hint, checked, onChange, disabled = false }) {
 
 function MemorySettings({
   settingsMode,
-  contextRounds, setContextRounds, onSaveContextRounds,
-  writingContextRounds, setWritingContextRounds, onSaveWritingContextRounds,
+  shortTermTokenBudget, setShortTermTokenBudget, onSaveShortTermTokenBudget,
+  writingShortTermTokenBudget, setWritingShortTermTokenBudget, onSaveWritingShortTermTokenBudget,
   memoryExpansionEnabled, onToggleMemoryExpansion,
   writingMemoryExpansionEnabled, onToggleWritingMemoryExpansion,
-  longTermMemoryEnabled, onToggleLongTermMemory,
-  writingLongTermMemoryEnabled, onToggleWritingLongTermMemory,
   tableMemoryEnabled, onToggleTableMemory,
   writingTableMemoryEnabled, onToggleWritingTableMemory,
   tableMemoryRowLimits, setTableMemoryRowLimits, onSaveTableMemoryRowLimit,
   memoryRecallMaxSessions, setMemoryRecallMaxSessions, onSaveMemoryRecallMaxSessions,
+  longTermIndexBudget, setLongTermIndexBudget, onSaveLongTermIndexBudget,
   chatDiaryEnabled, onToggleChatDiaryEnabled,
   chatDateMode, onChangeChatDateMode,
   writingDiaryEnabled, onToggleWritingDiaryEnabled,
@@ -67,20 +66,18 @@ function MemorySettings({
   const isChat = settingsMode === SETTINGS_MODE.CHAT;
   const expansionEnabled = isChat ? memoryExpansionEnabled : writingMemoryExpansionEnabled;
   const onToggleExpansion = isChat ? onToggleMemoryExpansion : onToggleWritingMemoryExpansion;
-  const ltmEnabled = isChat ? longTermMemoryEnabled : writingLongTermMemoryEnabled;
-  const onToggleLtm = isChat ? onToggleLongTermMemory : onToggleWritingLongTermMemory;
   const tableMemoryEnabledCurrent = isChat ? tableMemoryEnabled : writingTableMemoryEnabled;
   const onToggleTableMemoryCurrent = isChat ? onToggleTableMemory : onToggleWritingTableMemory;
   const diaryEnabled = isChat ? chatDiaryEnabled : writingDiaryEnabled;
   const onToggleDiary = isChat ? onToggleChatDiaryEnabled : onToggleWritingDiaryEnabled;
   const dateMode = isChat ? chatDateMode : writingDateMode;
   const onDateMode = isChat ? onChangeChatDateMode : onChangeWritingDateMode;
-  const contextRoundsInput = inheritableNumberInput(
+  const shortTermTokenBudgetInput = inheritableNumberInput(
     isChat,
-    [contextRounds, setContextRounds, onSaveContextRounds],
-    [writingContextRounds, setWritingContextRounds, onSaveWritingContextRounds],
+    [shortTermTokenBudget, setShortTermTokenBudget, onSaveShortTermTokenBudget],
+    [writingShortTermTokenBudget, setWritingShortTermTokenBudget, onSaveWritingShortTermTokenBudget],
   );
-  const contextRoundsLabel = isChat ? '上下文保留轮次' : '写作上下文保留轮次';
+  const shortTermTokenBudgetLabel = isChat ? '短期记忆 token 预算' : '写作短期记忆 token 预算';
 
   return (
     <>
@@ -88,21 +85,22 @@ function MemorySettings({
 
       <div className="we-settings-field-group">
         <FormGroup
-          label={contextRoundsLabel}
-          hint={isChat ? '0 = 不限制' : '留空继承对话配置，0 = 不限制'}
+          label={shortTermTokenBudgetLabel}
+          hint={isChat ? '1000~200000' : '留空继承对话配置，1000~200000'}
           variant="settings"
         >
           <div className="we-settings-inline-field">
             <Input
               type="number"
-              min={0}
+              min={1000}
+              max={200000}
               className="we-settings-number-short"
-              aria-label={contextRoundsLabel}
-              {...contextRoundsInput}
+              aria-label={shortTermTokenBudgetLabel}
+              {...shortTermTokenBudgetInput}
               placeholder={isChat ? '' : '继承对话'}
             />
             <span className="we-settings-inline-hint">
-              {isChat ? '保留最近 N 轮，0 = 不限制' : '留空继承对话配置，0 = 不限制'}
+              {isChat ? '按 token 预算保留最近轮次原文，超出部分转入中期摘要' : '留空继承对话配置'}
             </span>
           </div>
         </FormGroup>
@@ -110,8 +108,8 @@ function MemorySettings({
 
       <div className="we-settings-field-group">
         <FormGroup
-          label="召回条目数量上限"
-          hint="向量召回历史 turn 摘要时返回的最大条数（topK），实际注入仍受 token 预算约束"
+          label="每轮最多召回轮次"
+          hint="长期召回时最多挑选的历史轮次数，实际注入仍受召回目录预算约束"
           variant="settings"
         >
           <div className="we-settings-inline-field">
@@ -119,28 +117,43 @@ function MemorySettings({
               type="number"
               min={1}
               className="we-settings-number-short"
-              aria-label="召回条目数量上限"
+              aria-label="每轮最多召回轮次"
               value={memoryRecallMaxSessions ?? ''}
               onChange={(event) => setMemoryRecallMaxSessions(event.target.value === '' ? '' : Number(event.target.value))}
               onBlur={() => onSaveMemoryRecallMaxSessions(memoryRecallMaxSessions)}
             />
-            <span className="we-settings-inline-hint">最多召回 N 条，默认 5</span>
+            <span className="we-settings-inline-hint">最多召回 N 轮，默认 5</span>
+          </div>
+        </FormGroup>
+      </div>
+
+      <div className="we-settings-field-group">
+        <FormGroup
+          label="召回目录预算"
+          hint="本地小上下文模型请调低；超出部分的早期轮次不参与召回"
+          variant="settings"
+        >
+          <div className="we-settings-inline-field">
+            <Input
+              type="number"
+              min={2000}
+              max={500000}
+              className="we-settings-number-short"
+              aria-label="召回目录预算"
+              value={longTermIndexBudget ?? ''}
+              onChange={(event) => setLongTermIndexBudget(event.target.value === '' ? '' : Number(event.target.value))}
+              onBlur={() => onSaveLongTermIndexBudget(longTermIndexBudget)}
+            />
+            <span className="we-settings-inline-hint">2000~500000</span>
           </div>
         </FormGroup>
       </div>
 
       <ToggleRow
-        label="记忆原文展开"
-        hint="召回历史摘要后允许 AI 读取原文，会略增加首包延迟"
+        label="长期召回"
+        hint="每轮生成前由辅助模型按历史目录挑选相关轮次原文，会增加首字等待"
         checked={expansionEnabled}
         onChange={onToggleExpansion}
-      />
-
-      <ToggleRow
-        label="长期记忆"
-        hint="每轮自动抽取关键事实写入长期记忆并注入提示词；关闭仅停止产出与注入，已有内容保留"
-        checked={ltmEnabled}
-        onChange={onToggleLtm}
       />
 
       <ToggleRow
@@ -392,20 +405,19 @@ function TurnSettings({
 
 export default function FeaturesConfigPanel({
   settingsMode,
-  contextRounds, setContextRounds, onSaveContextRounds,
-  writingContextRounds, setWritingContextRounds, onSaveWritingContextRounds,
+  shortTermTokenBudget, setShortTermTokenBudget, onSaveShortTermTokenBudget,
+  writingShortTermTokenBudget, setWritingShortTermTokenBudget, onSaveWritingShortTermTokenBudget,
   chapterTurnSize, setChapterTurnSize, onSaveChapterTurnSize,
   writingChapterTurnSize, setWritingChapterTurnSize, onSaveWritingChapterTurnSize,
   pageTurnSize, setPageTurnSize, onSavePageTurnSize,
   writingPageTurnSize, setWritingPageTurnSize, onSaveWritingPageTurnSize,
   memoryExpansionEnabled, onToggleMemoryExpansion,
   writingMemoryExpansionEnabled, onToggleWritingMemoryExpansion,
-  longTermMemoryEnabled, onToggleLongTermMemory,
-  writingLongTermMemoryEnabled, onToggleWritingLongTermMemory,
   tableMemoryEnabled, onToggleTableMemory,
   writingTableMemoryEnabled, onToggleWritingTableMemory,
   tableMemoryRowLimits, setTableMemoryRowLimits, onSaveTableMemoryRowLimit,
   memoryRecallMaxSessions, setMemoryRecallMaxSessions, onSaveMemoryRecallMaxSessions,
+  longTermIndexBudget, setLongTermIndexBudget, onSaveLongTermIndexBudget,
   chatDiaryEnabled, onToggleChatDiaryEnabled,
   chatDateMode, onChangeChatDateMode,
   writingDiaryEnabled, onToggleWritingDiaryEnabled,
@@ -421,16 +433,15 @@ export default function FeaturesConfigPanel({
 }) {
   const memorySettings = {
     settingsMode,
-    contextRounds, setContextRounds, onSaveContextRounds,
-    writingContextRounds, setWritingContextRounds, onSaveWritingContextRounds,
+    shortTermTokenBudget, setShortTermTokenBudget, onSaveShortTermTokenBudget,
+    writingShortTermTokenBudget, setWritingShortTermTokenBudget, onSaveWritingShortTermTokenBudget,
     memoryExpansionEnabled, onToggleMemoryExpansion,
     writingMemoryExpansionEnabled, onToggleWritingMemoryExpansion,
-    longTermMemoryEnabled, onToggleLongTermMemory,
-    writingLongTermMemoryEnabled, onToggleWritingLongTermMemory,
     tableMemoryEnabled, onToggleTableMemory,
     writingTableMemoryEnabled, onToggleWritingTableMemory,
     tableMemoryRowLimits, setTableMemoryRowLimits, onSaveTableMemoryRowLimit,
     memoryRecallMaxSessions, setMemoryRecallMaxSessions, onSaveMemoryRecallMaxSessions,
+    longTermIndexBudget, setLongTermIndexBudget, onSaveLongTermIndexBudget,
     chatDiaryEnabled, onToggleChatDiaryEnabled,
     chatDateMode, onChangeChatDateMode,
     writingDiaryEnabled, onToggleWritingDiaryEnabled,

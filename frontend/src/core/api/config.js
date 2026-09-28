@@ -18,7 +18,7 @@ export function updateConfig(patch) {
   });
 }
 
-/** 写入指定 provider 的 API Key 到顶层共享池（所有 LLM/Embedding section 共用） */
+/** 写入指定 provider 的 API Key 到顶层共享池（所有 LLM section 共用） */
 export function updateProviderKey(provider, key) {
   return request(`${BASE}/provider-key`, {
     method: 'PUT',
@@ -30,16 +30,8 @@ export function fetchModels() {
   return request(`${BASE}/models`);
 }
 
-export function fetchEmbeddingModels() {
-  return request(`${BASE}/embedding-models`);
-}
-
 export function testConnection() {
   return request(`${BASE}/test-connection`);
-}
-
-export function testEmbeddingConnection() {
-  return request(`${BASE}/test-embedding`);
 }
 
 export function fetchAuxModels() {

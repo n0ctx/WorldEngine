@@ -1,20 +1,15 @@
 import { useState } from 'react';
-import {
-  updateProviderKey,
-  fetchModels, fetchEmbeddingModels,
-  testConnection, testEmbeddingConnection,
-} from '../../core/api/config';
-import ProviderBlock from './ProviderBlock';
+import { updateProviderKey, fetchModels, testConnection } from '../../core/api/config';
 import MainLlmBlock from './MainLlmBlock';
 import AuxLlmBlock from './AuxLlmBlock';
 import AssistantModelBlock from './AssistantModelBlock';
 import FormGroup from '../ui/FormGroup';
 import Button from '../ui/Button';
 import Input from '../ui/Input';
-import { LLM_PROVIDERS, EMBEDDING_PROVIDERS, SETTINGS_MODE } from '../../core/constants/settings';
+import { LLM_PROVIDERS, SETTINGS_MODE } from '../../core/constants/settings';
 
 export default function LlmConfigPanel({
-  llm, embedding, onLlmChange, onEmbeddingChange,
+  llm, onLlmChange,
   settingsMode,
   writingLlm, onWritingLlmChange, onWritingApiKeySave, fetchWritingModels, testWritingConnection,
   auxLlm, onAuxLlmChange, onAuxApiKeySave, fetchAuxModels, testAuxConnection,
@@ -22,29 +17,8 @@ export default function LlmConfigPanel({
   assistantModelSource, onAssistantModelSourceChange,
   proxyUrl, onProxyUrlSave,
 }) {
-  const [embedTestStatus, setEmbedTestStatus] = useState('idle');
-  const [embedTestMsg, setEmbedTestMsg] = useState('');
   const [proxyInput, setProxyInput] = useState(proxyUrl ?? '');
   const [proxySaved, setProxySaved] = useState(false);
-
-  async function handleTestEmbedding() {
-    setEmbedTestStatus('testing');
-    setEmbedTestMsg('');
-    try {
-      const result = await testEmbeddingConnection();
-      if (result.success) {
-        setEmbedTestStatus('ok');
-        setEmbedTestMsg(`连接成功（${result.dimensions} 维）`);
-      } else {
-        setEmbedTestStatus('error');
-        setEmbedTestMsg(result.error || '连接失败');
-      }
-    } catch (e) {
-      setEmbedTestStatus('error');
-      setEmbedTestMsg(e.message);
-    }
-    setTimeout(() => setEmbedTestStatus('idle'), 5000);
-  }
 
   return (
     <div className="we-settings-llm-panel">
@@ -127,35 +101,9 @@ export default function LlmConfigPanel({
 
       <hr className="we-settings-divider" />
 
-      <ProviderBlock
-        title="Embedding 模型"
-        providers={EMBEDDING_PROVIDERS}
-        config={embedding}
-        onProviderChange={(v) => onEmbeddingChange('provider', v || null)}
-        onBaseUrlChange={(v) => onEmbeddingChange('base_url', v)}
-        onModelChange={(v) => onEmbeddingChange('model', v)}
-        onApiKeySave={updateProviderKey}
-        onApiKeySaved={() => onEmbeddingChange('has_key', true)}
-        loadModels={fetchEmbeddingModels}
-      />
-
-      {embedding.provider && (
-        <div className="we-settings-field-group">
-          <div className="we-settings-action-row">
-            <Button variant="default" onClick={handleTestEmbedding} disabled={embedTestStatus === 'testing'}>
-              {embedTestStatus === 'testing' ? '测试中…' : '测试 Embedding'}
-            </Button>
-            {embedTestStatus === 'ok' && <span className="we-settings-status-ok">{embedTestMsg}</span>}
-            {embedTestStatus === 'error' && <span className="we-settings-status-error">{embedTestMsg}</span>}
-          </div>
-        </div>
-      )}
-
-      <hr className="we-settings-divider" />
-
       <div className="we-settings-field-group">
         <p className="we-settings-subsection-title">网络代理</p>
-        <FormGroup label="HTTP 代理地址" hint="仅对 LLM / Embedding 网络请求生效，留空不使用代理。支持 http:// 和 socks5:// 协议，修改后立即生效。" variant="settings">
+        <FormGroup label="HTTP 代理地址" hint="仅对 LLM 网络请求生效，留空不使用代理。支持 http:// 和 socks5:// 协议，修改后立即生效。" variant="settings">
           <div className="we-settings-inline-field-row">
             <Input
               className="we-settings-inline-field-input"

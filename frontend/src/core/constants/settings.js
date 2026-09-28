@@ -21,7 +21,7 @@ export const LLM_PROVIDERS = [
   { value: 'llamacpp', label: 'llama.cpp（本地）' },
 ];
 
-export const PROVIDER_HINTS = {
+const PROVIDER_HINTS = {
   'kimi-coding': {
     links: [
       { label: '打开 Kimi Code 控制台', url: 'https://www.kimi.com/code/console' },
@@ -57,13 +57,6 @@ export const PROVIDER_HINTS = {
   },
 };
 
-export const EMBEDDING_PROVIDERS = [
-  { value: '', label: '不启用' },
-  { value: 'openai', label: 'OpenAI' },
-  { value: 'openai_compatible', label: 'OpenAI Compatible' },
-  { value: 'ollama', label: 'Ollama（本地）' },
-];
-
 // 表格记忆的 4 张固定表（key + 中文名）。与后端 TABLE_SCHEMAS 一一对应，
 // 仅用于设置页渲染每表行数上限输入；若后端增删表需同步此处。
 export const TABLE_MEMORY_TABLES = [
@@ -98,7 +91,7 @@ export const NAV_SECTIONS = [
 ];
 
 export const LOCAL_PROVIDERS = ['ollama', 'lmstudio', 'llamacpp'];
-export const NEEDS_BASE_URL_PROVIDERS = new Set([...LOCAL_PROVIDERS, 'openai_compatible', 'xiaomi']);
+const NEEDS_BASE_URL_PROVIDERS = new Set([...LOCAL_PROVIDERS, 'openai_compatible', 'xiaomi']);
 
 export const DEFAULT_BASE_URLS = {
   ollama: OLLAMA_DEFAULT_BASE_URL,
@@ -122,7 +115,7 @@ export const DIARY_DATE_MODE = { VIRTUAL: 'virtual', REAL: 'real' };
  *   thinking_enabled/disabled → thinking: { type } 或 reasoning: { enabled } 或 enable_thinking 开关
  *   qwen_*             → enable_thinking=true + thinking_budget 数值（Qwen / SiliconFlow）
  */
-export function getProviderThinkingOptions(provider) {
+function getProviderThinkingOptions(provider) {
   switch (provider) {
     case 'anthropic':
     case 'gemini':
