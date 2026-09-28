@@ -1,11 +1,14 @@
+import { useState } from 'react';
+import { getSessions, createSession } from '../../../core/api/sessions';
 import { createWritingSession } from '../../../core/api/writing-sessions';
 import { log } from '../../../core/utils/logger.js';
-import { useOpenStoryline } from '../../../core/hooks/storyline.js';
+import { useOpenStoryline, deleteStoryline } from '../../../core/hooks/storyline.js';
 
-// ── 故事线：打开已有条目 / 新建写作 ────────────────────────────────────────
+// ── 故事线：打开已有条目 / 新建写作 / 点角色进入对话 / 删除 ──────────────────────
 
-export function useStorylineActions(worldId, navigate, setCurrentWritingSessionId) {
+export function useStorylineActions(worldId, navigate, setCurrentWritingSessionId, setTimeline) {
   const handleStorylineClick = useOpenStoryline(worldId);
+  const [deletingStoryline, setDeletingStoryline] = useState(null);
 
   async function handleCreateStoryline() {
     try {
@@ -17,5 +20,34 @@ export function useStorylineActions(worldId, navigate, setCurrentWritingSessionI
     }
   }
 
-  return { handleStorylineClick, handleCreateStoryline };
+  // 点角色进入对话：有会话就回到最近一条，没有才新建（新建会自动带上开场白）
+  async function handleCharacterChat(character) {
+    try {
+      const [latest] = await getSessions(character.id, 1);
+      const session = latest || await createSession(character.id);
+      handleStorylineClick({ mode: 'chat', id: session.id, character_id: character.id });
+    } catch (err) {
+      log.error('storyline.chat_open_failed', err, { toast: `进入对话失败：${err.message}` });
+    }
+  }
+
+  async function handleDeleteStoryline() {
+    const item = deletingStoryline;
+    try {
+      await deleteStoryline(worldId, item);
+      setTimeline((prev) => prev.filter((it) => it.id !== item.id));
+    } catch (err) {
+      log.error('storyline.delete_failed', err, { toast: `删除失败：${err.message}` });
+    }
+    setDeletingStoryline(null);
+  }
+
+  return {
+    handleStorylineClick,
+    handleCreateStoryline,
+    handleCharacterChat,
+    deletingStoryline,
+    setDeletingStoryline,
+    handleDeleteStoryline,
+  };
 }

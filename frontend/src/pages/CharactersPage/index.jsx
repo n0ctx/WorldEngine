@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import useStore from '../../core/state/index';
 import { useMotion } from '../../core/hooks/useMotion.js';
+import { storylineTitle } from '../../core/hooks/storyline.js';
 import { useWorldHubData } from './hooks/useWorldHubData.js';
 import { useCardImport } from './hooks/useCardImport.js';
 import { useOnboardingGuide } from './hooks/useOnboardingGuide.js';
@@ -20,7 +21,6 @@ export default function CharactersPage() {
   const { worldId } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
-  const setCurrentCharacterId = useStore((s) => s.setCurrentCharacterId);
   const setCurrentWritingSessionId = useStore((s) => s.setCurrentWritingSessionId);
 
   const {
@@ -66,7 +66,9 @@ export default function CharactersPage() {
     worldId, world, setWorld, characters, entries, navigate, location,
   });
 
-  const { handleStorylineClick, handleCreateStoryline } = useStorylineActions(worldId, navigate, setCurrentWritingSessionId);
+  const {
+    handleStorylineClick, handleCreateStoryline, handleCharacterChat, deletingStoryline, setDeletingStoryline, handleDeleteStoryline,
+  } = useStorylineActions(worldId, navigate, setCurrentWritingSessionId, setTimeline);
 
   const { deletingChar, setDeletingChar, handleDeleteChar, handleCharReorderEnd } = useCharacterActions(worldId, setCharacters);
 
@@ -106,6 +108,7 @@ export default function CharactersPage() {
           charactersById={charactersById}
           onCreateStoryline={handleCreateStoryline}
           onStorylineClick={handleStorylineClick}
+          onStorylineDelete={setDeletingStoryline}
         />
 
         <CastColumn
@@ -119,7 +122,7 @@ export default function CharactersPage() {
           importingChar={importingChar}
           charImportRef={charImportRef}
           onImportCharFile={handleImportCharFile}
-          setCurrentCharacterId={setCurrentCharacterId}
+          onCharacterClick={handleCharacterChat}
           setDeletingChar={setDeletingChar}
         />
 
@@ -154,6 +157,10 @@ export default function CharactersPage() {
         deletingPersona={deletingPersona}
         onCloseDeletingPersona={() => setDeletingPersona(null)}
         onConfirmDeletePersona={handleDeletePersona}
+        deletingStoryline={deletingStoryline}
+        deletingStorylineTitle={deletingStoryline && storylineTitle(deletingStoryline, charactersById)}
+        onCloseDeletingStoryline={() => setDeletingStoryline(null)}
+        onConfirmDeleteStoryline={handleDeleteStoryline}
       />
     </div>
   );

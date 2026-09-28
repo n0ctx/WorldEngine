@@ -1,5 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import useStore from '../state/index.js';
+import { deleteSession } from '../api/sessions.js';
+import { deleteWritingSession } from '../api/writing-sessions.js';
 import { formatDateLiterary } from '../utils/date-format.js';
 
 /** 世界时间线条目的显示标题：无标题时按对话角色或写作创建日期生成 */
@@ -10,6 +12,11 @@ export function storylineTitle(item, charactersById) {
     return c ? `与 ${c.name} 的对话` : '对话';
   }
   return `${formatDateLiterary(item.created_at)}的写作`;
+}
+
+/** 删除时间线条目：写作与对话会话走各自的删除接口 */
+export function deleteStoryline(worldId, item) {
+  return item.mode === 'writing' ? deleteWritingSession(worldId, item.id) : deleteSession(item.id);
 }
 
 /** 返回打开时间线条目的函数：写作进入世界写作页，对话切到对应角色会话 */

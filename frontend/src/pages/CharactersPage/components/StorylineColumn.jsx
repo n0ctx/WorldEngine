@@ -3,7 +3,7 @@ import { StorylineItem, ContinueCard } from './StorylineItem.jsx';
 
 // ── 左栏：故事线 ─────────────────────────────────────────────────────────
 
-export function StorylineColumn({ loading, timeline, charactersById, onCreateStoryline, onStorylineClick }) {
+export function StorylineColumn({ loading, timeline, charactersById, onCreateStoryline, onStorylineClick, onStorylineDelete }) {
   const continueItem = timeline.length > 0 ? timeline[0] : null;
   const restTimeline = timeline.length > 1 ? timeline.slice(1) : [];
 
@@ -34,6 +34,7 @@ export function StorylineColumn({ loading, timeline, charactersById, onCreateSto
               item={continueItem}
               title={storylineTitle(continueItem, charactersById)}
               onClick={() => onStorylineClick(continueItem)}
+              onDelete={() => onStorylineDelete(continueItem)}
             />
           )}
           {restTimeline.length > 0 && (
@@ -44,6 +45,7 @@ export function StorylineColumn({ loading, timeline, charactersById, onCreateSto
                   item={item}
                   title={storylineTitle(item, charactersById)}
                   onClick={() => onStorylineClick(item)}
+                  onDelete={() => onStorylineDelete(item)}
                 />
               ))}
             </div>

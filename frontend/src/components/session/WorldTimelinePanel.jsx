@@ -9,9 +9,8 @@
  * 语义各自绑定当前页面上下文，跟世界层「+ 新建」（只能新建写作，因为没有角色上下文）不是一回事。
  * 所以头部的新建按钮由调用方通过 headerRight 传入，组件只负责渲染时间线本身。
  *
- * 编辑标题 / 删除会话：只对「与当前页面同模式」的条目提供内联操作——组件自己按 item.mode
- * 选对应的删除接口（chat 用 sessions.js 的 deleteSession，writing 用 writing-sessions.js 的
- * deleteWritingSession），重命名两种模式共用同一个通用接口（renameSession，按 session id 不分
+ * 编辑标题 / 删除会话：只对「与当前页面同模式」的条目提供内联操作——删除经 deleteStoryline
+ * 按 item.mode 选对应接口，重命名两种模式共用同一个通用接口（renameSession，按 session id 不分
  * mode）。跨模式条目不给内联编辑：点它们直接跳转过去，到了对应页面本来就能编辑/删除，
  * 「保留原有能力」不等于「所有能力都要能在同一个列表里对所有模式做」。
  *
@@ -22,16 +21,15 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import Icon from '../ui/Icon.jsx';
-import { getWorldTimeline, renameSession, deleteSession } from '../../core/api/sessions.js';
+import { getWorldTimeline, renameSession } from '../../core/api/sessions.js';
 import { getCharactersByWorld } from '../../core/api/characters.js';
-import { deleteWritingSession } from '../../core/api/writing-sessions.js';
 import { chatSessionListBridge, writingSessionListBridge } from '../../core/utils/session-list-bridge.js';
 import { relativeTime } from '../../core/utils/time.js';
 import { log } from '../../core/utils/logger.js';
 import { handleInlineRenameKeyDown } from '../../core/utils/inline-rename.js';
 import { STAGGER } from '../../core/utils/motion.js';
 import { useMotion } from '../../core/hooks/useMotion.js';
-import { storylineTitle, useOpenStoryline } from '../../core/hooks/storyline.js';
+import { storylineTitle, useOpenStoryline, deleteStoryline } from '../../core/hooks/storyline.js';
 
 const MotionDiv = motion.div;
 const MotionSpan = motion.span;
@@ -257,11 +255,7 @@ export default function WorldTimelinePanel({
 
   async function handleDeleteItem(item) {
     try {
-      if (item.mode === 'writing') {
-        await deleteWritingSession(worldId, item.id);
-      } else {
-        await deleteSession(item.id);
-      }
+      await deleteStoryline(worldId, item);
       setTimeline((prev) => prev.filter((it) => it.id !== item.id));
       if (item.mode === currentMode && item.id === currentSessionId) {
         onActiveSessionDeleted?.();

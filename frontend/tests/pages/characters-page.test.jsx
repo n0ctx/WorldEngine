@@ -22,7 +22,11 @@ const mocks = vi.hoisted(() => ({
   listWorldEntries: vi.fn(),
   listWorldStateFields: vi.fn(),
   getWorldTimeline: vi.fn(),
+  getSessions: vi.fn(),
+  createSession: vi.fn(),
+  deleteSession: vi.fn(),
   createWritingSession: vi.fn(),
+  deleteWritingSession: vi.fn(),
   setCurrentCharacterId: vi.fn(),
   setCurrentSessionId: vi.fn(),
   setCurrentWritingSessionId: vi.fn(),
@@ -66,9 +70,13 @@ vi.mock('../../src/core/api/world-state-fields', () => ({
 }));
 vi.mock('../../src/core/api/sessions', () => ({
   getWorldTimeline: (...args) => mocks.getWorldTimeline(...args),
+  getSessions: (...args) => mocks.getSessions(...args),
+  createSession: (...args) => mocks.createSession(...args),
+  deleteSession: (...args) => mocks.deleteSession(...args),
 }));
 vi.mock('../../src/core/api/writing-sessions', () => ({
   createWritingSession: (...args) => mocks.createWritingSession(...args),
+  deleteWritingSession: (...args) => mocks.deleteWritingSession(...args),
 }));
 vi.mock('../../src/core/state/index', () => ({
   default: (selector) => selector({
@@ -120,6 +128,7 @@ describe('CharactersPage', () => {
     mocks.listWorldEntries.mockResolvedValue([{ id: 'entry-1', title: '世界规则条目', trigger_type: 'always', token: 0, sort_order: 0 }]);
     mocks.listWorldStateFields.mockResolvedValue([{ field_key: 'hp' }, { field_key: 'mood' }]);
     mocks.getWorldTimeline.mockResolvedValue([]);
+    mocks.getSessions.mockResolvedValue([{ id: 'sess-latest', character_id: 'char-1' }]);
     mocks.deleteCharacter.mockResolvedValue({});
     mocks.listCharacterStateFields.mockResolvedValue([{ field_key: 'hp' }]);
     mocks.readJsonFile.mockResolvedValue({ character: { name: '新角色' }, character_state_values: [] });
@@ -173,8 +182,37 @@ describe('CharactersPage', () => {
 
     fireEvent.keyDown(card, { key: 'Enter' });
 
+    await waitFor(() => expect(mocks.navigate).toHaveBeenCalledWith('/characters/char-1/chat'));
     expect(mocks.setCurrentCharacterId).toHaveBeenCalledWith('char-1');
-    expect(mocks.navigate).toHaveBeenCalledWith('/characters/char-1/chat');
+  });
+
+  it('点击角色卡：有会话时进入最近一条，不新建', async () => {
+    render(<CharactersPage />);
+    await screen.findAllByText('阿塔');
+
+    const card = document.querySelector('.we-character-card');
+    fireEvent.mouseDown(card);
+    fireEvent.click(card);
+
+    await waitFor(() => expect(mocks.navigate).toHaveBeenCalledWith('/characters/char-1/chat'));
+    expect(mocks.getSessions).toHaveBeenCalledWith('char-1', 1);
+    expect(mocks.setCurrentSessionId).toHaveBeenCalledWith('sess-latest');
+    expect(mocks.createSession).not.toHaveBeenCalled();
+  });
+
+  it('点击角色卡：没有会话时新建一条并进入', async () => {
+    mocks.getSessions.mockResolvedValue([]);
+    mocks.createSession.mockResolvedValue({ id: 'sess-new', character_id: 'char-1' });
+    render(<CharactersPage />);
+    await screen.findAllByText('阿塔');
+
+    const card = document.querySelector('.we-character-card');
+    fireEvent.mouseDown(card);
+    fireEvent.click(card);
+
+    await waitFor(() => expect(mocks.navigate).toHaveBeenCalledWith('/characters/char-1/chat'));
+    expect(mocks.createSession).toHaveBeenCalledWith('char-1');
+    expect(mocks.setCurrentSessionId).toHaveBeenCalledWith('sess-new');
   });
 
   it('角色卡上 Space 键进入对话，内部按钮的按键不冒泡触发卡片', async () => {
@@ -183,7 +221,7 @@ describe('CharactersPage', () => {
 
     const card = document.querySelector('.we-character-card');
     fireEvent.keyDown(card, { key: ' ' });
-    expect(mocks.navigate).toHaveBeenCalledWith('/characters/char-1/chat');
+    await waitFor(() => expect(mocks.navigate).toHaveBeenCalledWith('/characters/char-1/chat'));
 
     mocks.navigate.mockClear();
     fireEvent.keyDown(screen.getByLabelText('编辑角色'), { key: 'Enter', bubbles: true });
@@ -254,6 +292,34 @@ describe('CharactersPage', () => {
 
     expect(mocks.setCurrentWritingSessionId).toHaveBeenCalledWith('sess-write-1');
     expect(mocks.navigate).toHaveBeenCalledWith('/worlds/world-1/writing');
+  });
+
+  it('故事线：删除按钮弹确认框，确认后按模式调用删除接口并移出列表，不触发跳转', async () => {
+    mocks.getWorldTimeline.mockResolvedValue([
+      { id: 'sess-chat-1', mode: 'chat', title: null, updated_at: 2000, character_id: 'char-1', last_message: '你好' },
+      { id: 'sess-write-1', mode: 'writing', title: '写作标题', updated_at: 1000, character_id: null, last_message: '片段' },
+    ]);
+    mocks.deleteSession.mockResolvedValue();
+    mocks.deleteWritingSession.mockResolvedValue({});
+    render(<CharactersPage />);
+    await screen.findByText('写作标题');
+
+    const [continueDelete, itemDelete] = screen.getAllByLabelText('删除故事线');
+    fireEvent.keyDown(itemDelete, { key: 'Enter' });
+    fireEvent.click(itemDelete);
+    expect(mocks.navigate).not.toHaveBeenCalled();
+    expect(screen.getByText('「写作标题」')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: '确认删除' }));
+
+    await waitFor(() => expect(mocks.deleteWritingSession).toHaveBeenCalledWith('world-1', 'sess-write-1'));
+    await waitFor(() => expect(screen.queryByText('写作标题')).not.toBeInTheDocument());
+
+    fireEvent.click(continueDelete);
+    fireEvent.click(screen.getByRole('button', { name: '确认删除' }));
+
+    await waitFor(() => expect(mocks.deleteSession).toHaveBeenCalledWith('sess-chat-1'));
+    expect(await screen.findByText(/还没有故事线/)).toBeInTheDocument();
+    expect(mocks.navigate).not.toHaveBeenCalled();
   });
 
   it('故事线：点击「+ 新建」创建写作会话并跳转', async () => {

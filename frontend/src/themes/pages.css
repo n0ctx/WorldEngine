@@ -1237,20 +1237,40 @@
   background: var(--we-color-ink-wash);
 }
 
-/* hover 时浮现「继续」快捷图标：装饰性，aria-hidden，不参与点击/布局 */
-.we-storyline-quick {
+/* 世界层故事线的删除按钮：悬停或键盘聚焦时浮现。列表条目里盖在时间上、时间同时淡出；
+   「继续上次」卡里靠右放在标题行 */
+.we-storyline-delete {
+  opacity: 0;
+  transition: opacity var(--we-duration-fast) var(--we-easing-sharp),
+              color var(--we-duration-fast) var(--we-easing-sharp),
+              background var(--we-duration-fast) var(--we-easing-sharp);
+}
+
+.we-storyline-item .we-storyline-delete {
   position: absolute;
   right: var(--we-space-md);
   top: 50%;
   transform: translateY(-50%);
-  color: var(--we-color-text-tertiary);
-  font-size: var(--we-text-md);
-  opacity: 0;
+}
+
+.we-storyline-continue-head .we-storyline-delete {
+  margin-left: auto;
+}
+
+.we-storyline-item:hover .we-storyline-delete,
+.we-storyline-item:focus-within .we-storyline-delete,
+.we-storyline-continue:hover .we-storyline-delete,
+.we-storyline-continue:focus-within .we-storyline-delete {
+  opacity: 1;
+}
+
+.we-storyline-body .we-storyline-item-time {
   transition: opacity var(--we-duration-fast) var(--we-easing-sharp);
 }
 
-.we-storyline-item:hover .we-storyline-quick {
-  opacity: 1;
+.we-storyline-body .we-storyline-item:hover .we-storyline-item-time,
+.we-storyline-body .we-storyline-item:focus-within .we-storyline-item-time {
+  opacity: 0;
 }
 
 /* 混编时间线在对话页/写作页复用时，当前打开的那一条打选中态：边框与未选中同一套，

@@ -1,6 +1,6 @@
 import { ConfirmModal } from '../../../components';
 
-// ── 删除角色 / 删除玩家卡确认弹窗 ────────────────────────────────────────────
+// ── 删除角色 / 删除玩家卡 / 删除故事线确认弹窗 ────────────────────────────────────────────
 
 export function DeleteConfirmModals({
   deletingChar,
@@ -9,6 +9,10 @@ export function DeleteConfirmModals({
   deletingPersona,
   onCloseDeletingPersona,
   onConfirmDeletePersona,
+  deletingStoryline,
+  deletingStorylineTitle,
+  onCloseDeletingStoryline,
+  onConfirmDeleteStoryline,
 }) {
   return (
     <>
@@ -51,6 +55,27 @@ export function DeleteConfirmModals({
           danger
           onConfirm={onConfirmDeletePersona}
           onClose={onCloseDeletingPersona}
+        />
+      )}
+
+      {/* 删除故事线确认 */}
+      {deletingStoryline && (
+        <ConfirmModal
+          title="确认删除"
+          message={
+            <>
+              <p className="we-confirm-msg-line">
+                即将删除故事线 <span className="we-confirm-msg-name">「{deletingStorylineTitle}」</span>。
+              </p>
+              <p className="we-confirm-msg-danger">
+                此操作将同时删除其中的所有消息，且无法恢复。
+              </p>
+            </>
+          }
+          confirmText="确认删除"
+          danger
+          onConfirm={onConfirmDeleteStoryline}
+          onClose={onCloseDeletingStoryline}
         />
       )}
     </>
