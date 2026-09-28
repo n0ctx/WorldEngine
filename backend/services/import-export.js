@@ -527,7 +527,7 @@ export function exportGlobalSettings(mode = 'chat') {
       writing: {
         global_system_prompt: writing.global_system_prompt ?? '',
         global_post_prompt: writing.global_post_prompt ?? '',
-        context_history_rounds: writing.context_history_rounds ?? null,
+        short_term_token_budget: writing.short_term_token_budget ?? null,
         llm: {
           provider: writingLlm.provider ?? null,
           provider_models: writingLlm.provider_models ?? {},
@@ -546,7 +546,7 @@ export function exportGlobalSettings(mode = 'chat') {
     config: {
       global_system_prompt: config.global_system_prompt ?? '',
       global_post_prompt: config.global_post_prompt ?? '',
-      context_history_rounds: config.context_history_rounds ?? 20,
+      short_term_token_budget: config.short_term_token_budget,
       memory_expansion_enabled: config.memory_expansion_enabled ?? true,
     },
   };
@@ -592,15 +592,15 @@ function buildPromptConfigPatch(config) {
 
 function buildChatConfigPatch(config) {
   const patch = buildPromptConfigPatch(config);
-  if (typeof config.context_history_rounds === 'number') patch.context_history_rounds = config.context_history_rounds;
+  if (typeof config.short_term_token_budget === 'number') patch.short_term_token_budget = config.short_term_token_budget;
   if (typeof config.memory_expansion_enabled === 'boolean') patch.memory_expansion_enabled = config.memory_expansion_enabled;
   return patch;
 }
 
 function buildWritingConfigPatch(writing) {
   const patch = buildPromptConfigPatch(writing);
-  if (writing.context_history_rounds === null || typeof writing.context_history_rounds === 'number') {
-    patch.context_history_rounds = writing.context_history_rounds;
+  if (writing.short_term_token_budget === null || typeof writing.short_term_token_budget === 'number') {
+    patch.short_term_token_budget = writing.short_term_token_budget;
   }
   if (writing.llm && typeof writing.llm === 'object') {
     const llmPatch = {};

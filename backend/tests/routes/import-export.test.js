@@ -159,7 +159,7 @@ test('全局设置导出导入会按 mode 替换资源并更新 config', async (
       ],
       writing: {
         global_system_prompt: '新的写作系统',
-        context_history_rounds: 6,
+        short_term_token_budget: 6000,
         llm: { model: 'writer-model', temperature: 0.9, max_tokens: 666 },
       },
     }),
@@ -168,7 +168,7 @@ test('全局设置导出导入会按 mode 替换资源并更新 config', async (
 
   const saved = ctx.sandbox.readConfig();
   assert.equal(saved.writing.global_system_prompt, '新的写作系统');
-  assert.equal(saved.writing.context_history_rounds, 6);
+  assert.equal(saved.writing.short_term_token_budget, 6000);
   assert.equal(saved.writing.llm.model, 'writer-model');
 });
 
