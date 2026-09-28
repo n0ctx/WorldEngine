@@ -3,8 +3,6 @@ import { afterEach, expect, it, vi } from 'vitest';
 
 vi.mock('../../../core/api/state-memory.js', () => ({
   updateStateEntity: vi.fn(),
-  createStateFact: vi.fn(),
-  deleteStateFact: vi.fn(),
   updateStateWorld: vi.fn(),
 }));
 
@@ -16,7 +14,6 @@ function renderGroup(time) {
       sessionId="session-1"
       world={{ time, location: null, location_entity_id: null }}
       entities={[]}
-      facts={[]}
       reload={vi.fn()}
     />,
   );

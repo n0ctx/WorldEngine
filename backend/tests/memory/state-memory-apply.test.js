@@ -19,7 +19,7 @@ const {
   applyStateMemoryOps, applyEntityFields, ensureBaseEntities,
 } = await freshImport('backend/memory/state-memory-apply.js');
 const {
-  listCurrentEntities, listCurrentRelations, listThreads, listCurrentWorldFacts,
+  listCurrentEntities, listCurrentRelations, listThreads,
   getCurrentWorldProfile, getEntityDetails, upsertEntity, upsertProfileField,
 } = await freshImport('backend/db/queries/state-memory.js');
 const { getEntityStateValues } = await freshImport('backend/db/queries/session-entity-state-values.js');
@@ -444,45 +444,27 @@ test('关联角色卡的实体与其他角色一样可写档案、outfit、动�
   assert.equal(details[cardEntity].dynamic['伤势'], '右臂受伤');
 });
 
-// ─── 世界事实 ─────────────────────────────────────────────
+// ─── 未了事项 ─────────────────────────────────────────────
 
-test('世界事实：证据不符拒绝，满 20 条时需先 remove 后 add 才能接受', () => {
+test('未了事项仅在收到结案操作时结束，支持失败结果', () => {
   const { world, session } = setupSession();
-  const ops = Array.from({ length: 20 }, (_, i) => ({ op: 'add_fact', text: `事实${i}`, evidence: `事实${i}的证据文本` }));
-  const turnText = ops.map((op) => op.evidence).join('。');
-  const filled = applyStateMemoryOps({
-    sessionId: session.id, worldId: world.id, round: 1, ops, turnText, realDate: false, mainCharacterEntityId: null,
+  applyStateMemoryOps({
+    sessionId: session.id, worldId: world.id, round: 1,
+    ops: [{ op: 'open_thread', kind: '任务', participants: [], content: '归还账本' }],
+    turnText: '需要归还账本', realDate: false, mainCharacterEntityId: null,
   });
-  assert.equal(filled.applied, 20);
-  assert.equal(listCurrentWorldFacts(session.id).length, 20);
-
-  const badEvidence = applyStateMemoryOps({
+  applyStateMemoryOps({
     sessionId: session.id, worldId: world.id, round: 2,
-    ops: [{ op: 'add_fact', text: '新事实', evidence: '编造的证据' }],
-    turnText: '毫不相关的文本', realDate: false, mainCharacterEntityId: null,
+    ops: [], turnText: '还在寻找账本', realDate: false, mainCharacterEntityId: null,
   });
-  assert.equal(badEvidence.applied, 0);
-  assert.match(badEvidence.rejected[0].reason, /证据核验失败/);
-
-  const overCap = applyStateMemoryOps({
+  assert.equal(listThreads(session.id)[0].status, 'active');
+  const ended = applyStateMemoryOps({
     sessionId: session.id, worldId: world.id, round: 3,
-    ops: [{ op: 'add_fact', text: '第21条事实', evidence: '第21条事实的证据文本' }],
-    turnText: '第21条事实的证据文本', realDate: false, mainCharacterEntityId: null,
+    ops: [{ op: 'resolve_thread', thread: 't1', outcome: 'failed' }],
+    turnText: '账本已经被烧毁', realDate: false, mainCharacterEntityId: null,
   });
-  assert.equal(overCap.applied, 0);
-  assert.match(overCap.rejected[0].reason, /已满/);
-
-  const removeTarget = listCurrentWorldFacts(session.id)[0];
-  const removeThenAdd = applyStateMemoryOps({
-    sessionId: session.id, worldId: world.id, round: 4,
-    ops: [
-      { op: 'remove_fact', fact: `f${removeTarget.seq}`, evidence: '事实0的证据文本' },
-      { op: 'add_fact', text: '第22条事实', evidence: '第22条事实的证据文本' },
-    ],
-    turnText: '事实0的证据文本。第22条事实的证据文本', realDate: false, mainCharacterEntityId: null,
-  });
-  assert.equal(removeThenAdd.applied, 2);
-  assert.equal(listCurrentWorldFacts(session.id).length, 20);
+  assert.equal(ended.applied, 1);
+  assert.equal(listThreads(session.id)[0].status, 'failed');
 });
 
 // ─── 世界档案：时间与地点 ─────────────────────────────────────────────

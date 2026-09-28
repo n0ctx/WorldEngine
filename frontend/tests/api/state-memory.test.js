@@ -5,11 +5,9 @@ import {
   createCharacterFromEntity,
   createEntityFromCard,
   createStateEntity,
-  createStateFact,
   createStateRelation,
   createStateThread,
   deleteStateEntity,
-  deleteStateFact,
   deleteStateRelation,
   fetchStateMemory,
   fetchStateMemorySchema,
@@ -102,17 +100,6 @@ describe('state-memory api', () => {
       method: 'PATCH',
       body: JSON.stringify({ status: 'resolved' }),
     }));
-  });
-
-  it('新建与删除世界事实', async () => {
-    await createStateFact('s1', '王城内禁止使用魔法');
-    expect(fetch).toHaveBeenCalledWith('/api/sessions/s1/state-memory/facts', expect.objectContaining({
-      method: 'POST',
-      body: JSON.stringify({ text: '王城内禁止使用魔法' }),
-    }));
-
-    await deleteStateFact('s1', 'f1');
-    expect(fetch).toHaveBeenCalledWith('/api/sessions/s1/state-memory/facts/f1', expect.objectContaining({ method: 'DELETE' }));
   });
 
   it('从实体制成角色卡', async () => {

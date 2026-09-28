@@ -23,7 +23,6 @@ vi.mock('../../../core/api/session-state-values.js', () => ({
 }));
 vi.mock('../../../core/api/state-memory.js', () => ({
   updateStateEntity: vi.fn(),
-  deleteStateFact: vi.fn(),
   updateStateWorld: vi.fn(),
 }));
 vi.mock('../../../core/hooks/useSessionState.js', () => ({
@@ -97,7 +96,7 @@ function props() {
     ticks: { state: 0, diary: 0, queued: 0, failed: 0 },
     diaryScope: 'chat',
     classNames,
-    stateMemory: { world: { time: null, location: null, location_entity_id: null }, entities: [], facts: [] },
+    stateMemory: { world: { time: null, location: null, location_entity_id: null }, entities: [] },
     reloadStateMemory: harness.reloadStateMemory,
     stateMemorySchema: { profileFields: { player: [], character: [] } },
     entityDiff: new Set(),

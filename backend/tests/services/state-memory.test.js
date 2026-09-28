@@ -13,7 +13,7 @@ after(() => sandbox.cleanup());
 
 const {
   getStateMemory, createEntity, updateEntity, retireEntity, updateEntityField, updateWorld,
-  createRelation, deleteRelation, createThread, updateThread, createFact, deleteFact,
+  createRelation, deleteRelation, createThread, updateThread,
   applyEntityBasicPatch, applyManualProfilePatch, applyManualDynamicPatch,
 } = await freshImport('backend/services/state-memory.js');
 const { upsertPresence, listCurrentEntities } = await freshImport('backend/db/queries/state-memory.js');
@@ -169,20 +169,7 @@ test('事项：新建、未知类型 400、更新内容与状态、未知状态 
   expectError(() => updateThread(session.id, 'no-such-thread', { status: 'active' }), 'not_found');
 });
 
-test('世界事实：新建、超过上限 400、删除', () => {
-  const { session } = setupSession();
-  const fact = createFact(session.id, { text: '北境已被黑潮会占领' });
-  assert.equal(fact.evidence, '手动编辑');
-  assert.equal(getStateMemory(session.id).facts.length, 1);
-
-  for (let i = 0; i < 19; i++) createFact(session.id, { text: `事实${i}` });
-  expectError(() => createFact(session.id, { text: '第 21 条' }), 'bad_request');
-
-  deleteFact(session.id, fact.fact_id);
-  expectError(() => deleteFact(session.id, fact.fact_id), 'not_found');
-});
-
-test('getStateMemory 返回 presentIds、facts、world、age，会话不存在 404', () => {
+test('getStateMemory 返回 presentIds、world、age，会话不存在 404', () => {
   const { session } = setupSession();
   const entity = createEntity(session.id, { type: 'character', name: '沈彦' });
   updateEntity(session.id, entity.entity_id, { profile: { birth_date: '980-01-01' } });

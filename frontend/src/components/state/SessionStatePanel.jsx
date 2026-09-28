@@ -161,7 +161,7 @@ function changedFieldKeys(changes) {
   return new Set(changes.map((change) => change.row.field_key));
 }
 
-/** 世界区块：现状（时间 / 地点 / 世界用户字段 / 世界事实） */
+/** 世界区块：现状（时间 / 地点 / 世界用户字段） */
 function WorldTab({
   worldName, worldResetting, handleResetWorld, stateError, renderLoadError,
   sessionId, stateMemory, reloadStateMemory, worldRows, stateDiff, saveStateValue, templateCtx,
@@ -178,7 +178,6 @@ function WorldTab({
           sessionId={sessionId}
           world={stateMemory?.world}
           entities={stateMemory?.entities}
-          facts={stateMemory?.facts}
           reload={reloadStateMemory}
         >
           {worldRows?.length !== 0 && (

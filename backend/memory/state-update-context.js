@@ -25,7 +25,7 @@ import { upsertWorldProfile } from '../db/queries/state-memory.js';
 
 import { ENTITY_TYPES, getProfileFieldDefinitions, resolveActiveProfileFields } from './state-memory-schema.js';
 import { ensureBaseEntities } from './state-memory-apply.js';
-import { selectRelevantEntities, renderEntityDirectory, renderWorldFactsForUpdate, renderEntityDetailsForUpdate, renderProfileGapsForUpdate } from './state-memory-render.js';
+import { selectRelevantEntities, renderEntityDirectory, renderRelevantThreadsForUpdate, renderEntityDetailsForUpdate, renderProfileGapsForUpdate } from './state-memory-render.js';
 import { captureFullSnapshot } from './state-rollback.js';
 import { splitRounds } from '../utils/session-rounds.js';
 import { renderBackendPrompt } from '../prompts/prompt-loader.js';
@@ -333,8 +333,8 @@ export function resolveRelevantEntityIds(sessionId, messages, { playerEntityId, 
   return relevantIds;
 }
 
-/** 状态更新调用的动态后缀（user 段）：各字段当前取值 + 实体目录/世界事实/相关实体详情 + 本轮对话，逐轮变化，不进缓存。 */
-export function buildRuntimeUserPrompt({ sessionId, worldId, mainCharacterEntityId, valueSections, dialogue, responseKeys, round, relevantIds }) {
+/** 状态更新调用的动态后缀（user 段）：各字段当前取值 + 实体目录/相关实体详情 + 本轮对话，逐轮变化，不进缓存。 */
+export function buildRuntimeUserPrompt({ sessionId, worldId, mainCharacterEntityId, valueSections, dialogue, turnText = dialogue, responseKeys, round, relevantIds }) {
   // 待补全的实体即使本轮没出场也带上详情，AI 才能按已有信息创作
   const gaps = renderProfileGapsForUpdate(sessionId, { worldId, priorityIds: relevantIds, mainCharacterEntityId });
   return renderBackendPrompt('state-update-runtime.md', {
@@ -343,7 +343,7 @@ export function buildRuntimeUserPrompt({ sessionId, worldId, mainCharacterEntity
     RESPONSE_KEYS: responseKeys.join('、'),
     ROUND: round,
     ENTITY_DIRECTORY: renderEntityDirectory(sessionId) || '（无）',
-    WORLD_FACTS: renderWorldFactsForUpdate(sessionId) || '（无）',
+    RELEVANT_THREADS: renderRelevantThreadsForUpdate(sessionId, turnText) || '（无）',
     ENTITY_DETAILS: renderEntityDetailsForUpdate(sessionId, [...new Set([...relevantIds, ...gaps.entityIds])], { worldId, mainCharacterEntityId }) || '（无）',
     PROFILE_GAPS: gaps.text || '（无）',
   });

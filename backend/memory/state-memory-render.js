@@ -4,14 +4,13 @@
  * 不调用模型，只读数据库当前视图。三类用途：
  *   1. selectRelevantEntities：按规则选出与当前轮相关的实体（供 renderStoryState 使用）；
  *   2. renderStoryState：渲染注入主模型的 `<story_state>` 段（受 token 预算约束）；
- *   3. 状态更新调用（下一节点使用）的辅助文本：renderEntityDirectory / renderWorldFactsForUpdate /
+ *   3. 状态更新调用（下一节点使用）的辅助文本：renderEntityDirectory /
  *      renderEntityDetailsForUpdate / renderEntityProfileText。
  *
  * 对外接口：
  *   selectRelevantEntities(sessionId, { userMessage, lastAssistant }) → [{ entityId, reason }]
  *   renderStoryState(sessionId, { worldId, userMessage, lastAssistant, budget }) → string
  *   renderEntityDirectory(sessionId, budget = STATE_DIRECTORY_BUDGET) → string
- *   renderWorldFactsForUpdate(sessionId) → string
  *   renderEntityDetailsForUpdate(sessionId, entityIds, { worldId, mainCharacterEntityId }) → string
  *   renderEntityProfileText(sessionId, entityId, { worldId }) → string
  */
@@ -21,7 +20,6 @@ import {
   getEntityDetails,
   listCurrentRelations,
   listActiveThreads,
-  listCurrentWorldFacts,
   getCurrentWorldProfile,
   getLatestPresence,
 } from '../db/queries/state-memory.js';
@@ -37,6 +35,7 @@ import {
 import { parseWorldDate, deriveAge } from '../utils/world-date.js';
 import { countTokens } from '../utils/token-counter.js';
 import { STATE_DIRECTORY_BUDGET, STATE_NAME_MATCH_MIN, STATE_PROFILE_FILL_PER_ROUND } from '../utils/constants.js';
+export { renderRelevantThreadsForUpdate } from './state-thread-relevance.js';
 
 const STORY_STATE_HINT = '以下是当前场景相关人物与事物的既定设定和现状。人物的身份、外貌、性格、说话方式必须与此一致；列出不代表必须登场。';
 const NON_CHARACTER_TYPE_LABELS = { location: '地点', item: '物品', faction: '组织', other: '其他' };
@@ -410,7 +409,7 @@ function finalizeCharacterBlock(state) {
 }
 
 // ============================
-// story_state：关系 / 事项 / 世界事实 / 玩家行
+// story_state：关系 / 事项 / 世界时间地点 / 玩家行
 // ============================
 
 function buildRelationLines(relations, nameOf) {
@@ -432,14 +431,11 @@ function buildThreadLines(threads, nameOf) {
   });
 }
 
-function buildWorldHeaderText(worldProfile, facts) {
-  const parts = [];
+function buildWorldHeaderText(worldProfile) {
   const bits = [];
   if (worldProfile.time) bits.push(`时间：${worldProfile.time}`);
   if (worldProfile.location) bits.push(`地点：${worldProfile.location}`);
-  if (bits.length) parts.push(bits.join('｜'));
-  if (facts.length) parts.push(['【世界事实】', ...facts.map((f) => f.text)].join('\n'));
-  return parts.join('\n');
+  return bits.join('｜');
 }
 
 /** 当前全部实体（含 retired）及按 entityId 查名字的索引，供渲染函数共用。 */
@@ -450,7 +446,7 @@ function buildEntityIndex(sessionId) {
 }
 
 /**
- * 玩家行（位置、穿着）：不受选取规则影响、不参与预算裁剪，固定跟在世界事实之后。
+ * 玩家行（位置、穿着）：不受选取规则影响、不参与预算裁剪，固定跟在世界时间地点之后。
  * 世界里有同义玩家字段（导致 outfit 停用）时不输出穿着。
  */
 function buildPlayerLine(sessionId, worldId, player) {
@@ -478,15 +474,14 @@ function buildRenderContext(sessionId, { worldId, selectedIds, worldProfile, nam
 }
 
 /**
- * 渲染注入主模型的 `<story_state>` 段。世界时间/地点/世界事实/玩家位置与穿着不受预算裁剪；
+ * 渲染注入主模型的 `<story_state>` 段。世界时间/地点/玩家位置与穿着不受预算裁剪；
  * 其余内容按优先级放入 budget（token 数）以内，超出时从末尾裁掉；角色的身份组核心字段
  * （性别/年龄/种族/职业）和说话方式永远保留。无任何内容时返回空串。
  */
 export function renderStoryState(sessionId, opts = {}) {
   const { worldId, userMessage, lastAssistant, budget = DEFAULT_STORY_STATE_BUDGET } = opts;
   const worldProfile = getCurrentWorldProfile(sessionId);
-  const facts = listCurrentWorldFacts(sessionId);
-  const headerText = buildWorldHeaderText(worldProfile, facts);
+  const headerText = buildWorldHeaderText(worldProfile);
 
   const { allEntities, byId, nameOf } = buildEntityIndex(sessionId);
   const activePlayer = allEntities.find((e) => e.type === 'player' && e.status === 'active') ?? null;
@@ -635,11 +630,6 @@ export function renderProfileGapsForUpdate(sessionId, { worldId, priorityIds, ma
   };
 }
 
-/** 当前全部世界事实：f<seq>｜内容。 */
-export function renderWorldFactsForUpdate(sessionId) {
-  return listCurrentWorldFacts(sessionId).map((f) => `f${f.seq}｜${f.text}`).join('\n');
-}
-
 function formatProfileValueForModel(field, def) {
   const value = decodeProfileValue(field);
   if (def.kind === 'list') return Array.isArray(value) ? value.join('、') : String(value ?? '');
@@ -699,12 +689,7 @@ export function renderEntityDetailsForUpdate(sessionId, entityIds, { worldId, ma
     `r${r.seq}｜${nameOf(r.subject_id)} —${r.predicate}→ ${r.object_id ? nameOf(r.object_id) : (r.object_value ?? '')}`
   ));
 
-  const threads = listActiveThreads(sessionId, ids);
-  const threadLines = threads.map((t) => (
-    `t${t.seq}｜［${t.kind}］${t.content}（${JSON.parse(t.participants_json || '[]').map(nameOf).join('、')}，第 ${t.opened_round} 轮起）`
-  ));
-
-  return [...blocks, ...relationLines, ...threadLines].filter(Boolean).join('\n');
+  return [...blocks, ...relationLines].filter(Boolean).join('\n');
 }
 
 /** 单实体档案纯文本（供制卡使用）：card_id 实体取卡片 description，其余按档案字段渲染（含穿着，不含现状/字段/关系）。 */

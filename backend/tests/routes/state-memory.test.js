@@ -40,7 +40,7 @@ test('GET /api/sessions/:sessionId/state-memory 会话不存在 404；空会话�
   assert.equal(res.status, 200);
   const data = await res.json();
   assert.deepEqual(data, {
-    entities: [], relations: [], threads: [], facts: [],
+    entities: [], relations: [], threads: [],
     world: { time: null, location: null, location_entity_id: null },
     presentIds: [],
   });
@@ -252,23 +252,5 @@ test('事项：POST 创建，未知类型 400，PATCH 改状态，未知事项 4
     `/api/sessions/${session.id}/state-memory/threads/no-such`,
     jsonInit('PATCH', { status: 'active' }),
   );
-  assert.equal(notFound.status, 404);
-});
-
-test('世界事实：POST 创建，DELETE 删除，缺内容 400', async () => {
-  const session = setupSession();
-
-  const badBody = await ctx.request(`/api/sessions/${session.id}/state-memory/facts`, jsonInit('POST', { text: '' }));
-  assert.equal(badBody.status, 400);
-
-  const created = await ctx.request(`/api/sessions/${session.id}/state-memory/facts`, jsonInit('POST', { text: '北境已被黑潮会占领' }));
-  assert.equal(created.status, 200);
-  const fact = await created.json();
-  assert.equal(fact.evidence, '手动编辑');
-
-  const deleted = await ctx.request(`/api/sessions/${session.id}/state-memory/facts/${fact.fact_id}`, { method: 'DELETE' });
-  assert.equal(deleted.status, 200);
-
-  const notFound = await ctx.request(`/api/sessions/${session.id}/state-memory/facts/${fact.fact_id}`, { method: 'DELETE' });
   assert.equal(notFound.status, 404);
 });

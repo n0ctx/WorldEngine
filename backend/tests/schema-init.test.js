@@ -73,7 +73,7 @@ test('initSchema upgrades legacy sessions and recreates their indexes', () => {
 
     const stateMemoryTables = [
       'state_entities', 'state_profile_fields', 'state_dynamic', 'state_relations',
-      'state_threads', 'state_world_profile', 'state_world_facts', 'state_presence',
+      'state_threads', 'state_world_profile', 'state_presence',
       'session_entity_state_values',
     ];
     const existingTables = db.prepare(
@@ -87,7 +87,7 @@ test('initSchema upgrades legacy sessions and recreates their indexes', () => {
   }
 });
 
-test('initSchema 为新建的空库创建含 middle_summary / middle_covered_to 列的 turn_records、全部 9 张状态记忆表，且不创建旧上下文压缩结构', () => {
+test('initSchema 为新建的空库创建含 middle_summary / middle_covered_to 列的 turn_records、状态记忆表，且不创建旧上下文压缩结构', () => {
   const db = new Database(':memory:');
   try {
     initSchema(db);
@@ -107,7 +107,7 @@ test('initSchema 为新建的空库创建含 middle_summary / middle_covered_to 
 
     const stateMemoryTables = [
       'state_entities', 'state_profile_fields', 'state_dynamic', 'state_relations',
-      'state_threads', 'state_world_profile', 'state_world_facts', 'state_presence',
+      'state_threads', 'state_world_profile', 'state_presence',
       'session_entity_state_values',
     ];
     const existingTables = db.prepare(

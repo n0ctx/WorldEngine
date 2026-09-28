@@ -36,8 +36,7 @@
 | U10 | **NPC「是谁」的信息（身份、外貌、穿着、性格、年龄、经历）由档案负责。**穿着作为锚定角色形象的字段放进档案（外貌组，可变性为 dynamic）。<br>新建世界不再预设 性格 / 年龄 / 外貌 / 身份 四个角色和玩家字段；「穿着」保留，但只给主角色和玩家用（`nearby_enabled=0`），因为这两者没有 AI 档案，穿着又会随剧情变化。<br>已有世界里这五个字段（按 `field_key` 识别）取消「对 NPC 生效」，NPC 身上已有的值迁移进档案。 |
 | U11 | **用户同义字段优先**：某世界里存在与档案字段同义、且勾选了「对 NPC 生效」的角色字段时，该档案字段在这个世界里停用（不写、不注入、不展示）。 |
 | U12 | **「对 NPC 生效」的字段里，只有「AI 自动更新」的由 AI 写**；手动字段只能由用户在界面上改。 |
-| U13 | **状态栏按「谁定义的」分两组**：<br>· 「档案」：系统预设、由状态记忆管理的内容，包括预设档案字段，以及最后一小节「现状」（AI 随手记录的动态状态，标「AI 记录」，可改可删）；<br>· 「用户字段」：用户在世界里定义的状态字段。<br>世界区块同样分组：档案组是「世界事实」，用户字段组是世界状态字段（包括时间、地点、天气这类系统预设但用户可改可删的字段）。 |
-| U14 | **世界层新增「世界事实」列表**：记录剧情中确立、当前仍有效的全局事实与规则（例如「北境已被黑潮会占领」「王城内禁止使用魔法」）。<br>AI 只能附证据增删单条，最多 20 条；与世界卡条目冲突时以条目为准。<br>它承接第一阶段删掉的长期记忆里「规则 / 契约 / 禁忌」这类内容。 |
+| U13 | **状态栏按「谁定义的」分两组**：<br>· 「档案」：系统预设、由状态记忆管理的内容，包括预设档案字段，以及最后一小节「现状」（AI 随手记录的动态状态，标「AI 记录」，可改可删）；<br>· 「用户字段」：用户在世界里定义的状态字段。世界区块显示当前时间、地点及世界状态字段。 |
 | U15 | **对话模式的状态栏也显示 NPC**（在场和置顶的），与写作模式共用同一个角色区块组件。 |
 | U16 | **修复世界卡导入丢失「对 NPC 生效」设置的问题**：本阶段依赖这个设置，属于必要修正。 |
 | U17 | **当前时间、当前地点改由世界档案管理，所有世界都有**，不再依赖日记开关或用户是否保留了字段。<br>NPC 档案的「现状」预设一项「位置」，指向地点实体。<br>已有世界的 `diary_time`、`location` 两个用户字段，值迁进档案后删除字段。<br>条目触发条件里的 `世界.时间`、`世界.地点` 变成系统保留名，照常可用。 |
@@ -201,10 +200,6 @@ state_world_profile(row_id PK, session_id, key TEXT, value TEXT, location_entity
 -- time 的 value 为 ISO 局部时间 "YYYY-MM-DDTHH:mm"（年份位数不限，与现有 datetime 字段同一格式）；
 -- location：能对应到地点实体时写 location_entity_id，value 同步存名字；否则只存 value 文本
 
--- 世界事实（多版本；remove 时关闭该行）
-state_world_facts(row_id PK, fact_id TEXT, session_id, seq INTEGER, text TEXT, evidence TEXT,
-  valid_from_round, valid_to_round)
-
 -- 在场名单（每轮一行，回滚时删除 round > K 的行）
 state_presence(session_id, round_index INTEGER, entity_ids_json TEXT, PRIMARY KEY(session_id, round_index))
 
@@ -288,12 +283,6 @@ session_entity_state_values(id PK, session_id, entity_id TEXT, field_key TEXT,
 - 它是预设键，不是 AI 随手起的键名：AI 写 `set_state key=位置` 时，走地点解析逻辑。
 - 状态栏的「现状」小节里，它总是排在第一。
 
-**世界事实（U14）**
-
-- 每条不超过 60 字，当前有效的最多 20 条（`STATE_WORLD_FACTS_MAX`）。
-- 只记剧情中新确立或改变的全局事实、规则、禁忌、契约，不复述世界卡已有设定。
-- 关于某个具体地点或组织的事实，优先写进该实体的档案或动态状态，不放在这里。所有定义放在新文件 `backend/memory/state-memory-schema.js`，作为单一来源供提示词、校验、渲染、界面使用；前端经接口 `GET /api/state-memory/schema` 获取，不在前端重复定义。
-
 `player` 实体与主角色实体：会话第一次运行状态写入时，自动为玩家（名字取人设名）和对话模式的主角色（`card_id` 指向卡片）建好实体，模型可以直接用它们作为关系和事项的参与方。
 
 ### 3.3 写入：并入状态更新调用
@@ -305,11 +294,11 @@ session_entity_state_values(id PK, session_id, entity_id TEXT, field_key TEXT,
 - 归属判断顺序：用户字段 → 档案 → 动态状态 → 关系 → 未完结事项 → 不写；
 - 修改档案要附证据原文，不得推测，不得写占位值。
 
-在 `state-update-runtime.md`（user）里追加两节：
+在 `state-update-runtime.md`（user）里加入三节：
 
 1. **实体目录**：`e<seq>｜类型｜名字｜别名`，全部当前有效实体，在 `STATE_DIRECTORY_BUDGET`（3000 token，从新到旧截取）以内。用于防止重复建实体。
-2. **世界事实**：当前全部条目，格式为 `f<seq>｜内容`。
-3. **相关实体详情**：按 §3.6 相同规则选出的实体，给出档案、动态状态、用户字段当前值、以及涉及它们的关系和进行中事项（带 `r<n>` / `t<seq>` 编号）。
+2. **本轮相关的未了事项**：按本轮文字提及的参与者或事项内容筛选，带 `t<seq>` 编号。
+3. **相关实体详情**：按 §3.6 相同规则选出的实体，给出档案、动态状态、用户字段当前值，以及涉及它们的关系（带 `r<n>` 编号）。
 
 输出 JSON 增加两个顶层键，写作模式的 `nearby_characters` 删除：
 
@@ -336,8 +325,6 @@ session_entity_state_values(id PK, session_id, entity_id TEXT, field_key TEXT,
     {"op":"retire_entity","entity":"e9","reason":"已死亡"},
     {"op":"set_world","key":"time","value":"1000-03-16T08:00"},
     {"op":"set_world","key":"location","value":"e5"},
-    {"op":"add_fact","text":"王城内禁止使用魔法","evidence":"……"},
-    {"op":"remove_fact","fact":"f2","evidence":"……"},
     {"op":"set_present","entities":["e1","e3","e7"]}
   ]
 }
@@ -360,11 +347,6 @@ session_entity_state_values(id PK, session_id, entity_id TEXT, field_key TEXT,
   - `time` 必须能被 `parseWorldDate` 解析，且不早于当前值（回退要走手动编辑）；
   - `location` 按上面的地点解析规则处理；
   - 两者都不需要证据。
-- **`add_fact` / `remove_fact`**：
-  - 两者都要证据（§3.4 的核验方法）；
-  - 当前已满 20 条时，`add_fact` 只有在同一批里先有 `remove_fact` 时才接受；
-  - 与已有事实去掉空白后完全相同的，丢弃。
-  - 提示词里的世界事实用 `f<seq>` 引用。
 - **`entity_fields`**：只接受同时满足以下条件的字段：
   - 目标是角色实体，且不是 `player`、也不是对话模式的主角色（主角色的字段仍然走 `char_0`）；
   - 字段 `update_mode='llm_auto'` 且 `nearby_enabled=1`（U12；现有附近角色不区分手动还是自动，这里是行为变化）。
@@ -414,7 +396,7 @@ session_entity_state_values(id PK, session_id, entity_id TEXT, field_key TEXT,
 
 `player` 实体不注入（玩家信息已在人设段里）。对话模式的主角色只注入动态状态、关系和事项（档案已由卡片注入）。
 
-世界档案总是注入，放在 `<story_state>` 开头：先是一行「时间：……｜地点：……」，然后是【世界事实】一节。这部分不受选取规则影响，也不参与预算裁剪。
+世界时间和地点总是注入，放在 `<story_state>` 开头，不受选取规则影响，也不参与预算裁剪。
 
 **渲染**：新段落 `<story_state>`，位置在 [7]。对话模式放在 `<char_state>` 之后；写作模式取代 `<nearby_characters>`。同时删除 [8.6] `<table_memory>` 和 [10.5] `<recalled_characters>`。示例：
 
@@ -470,7 +452,6 @@ session_entity_state_values(id PK, session_id, entity_id TEXT, field_key TEXT,
 - 档案组：
   - 当前时间：可编辑，沿用现有 datetime 编辑控件 `DatetimeSplitInput`；
   - 当前地点：可编辑，可以从地点实体里选，也可以直接输入文字；
-  - 世界事实：逐条列出，显示「第 N 轮」，可以手动新增或删除。
 - 用户字段组：世界状态字段，现有的 `StateChangeCard` 不变，但不再有 `diary_time` 置顶的特殊处理。
 
 **页签**
@@ -510,7 +491,7 @@ session_entity_state_values(id PK, session_id, entity_id TEXT, field_key TEXT,
 
 常量（`backend/utils/constants.js`）：
 
-- 新增：`STATE_WORLD_FACTS_MAX=20`、`STATE_DIRECTORY_BUDGET=3000`、`STATE_TEXT_FIELD_MAX=60`、`STATE_LIST_ITEM_MAX=30`、`STATE_LIST_MAX_ITEMS=10`（已有同名常量时直接复用）、`STATE_EVIDENCE_MIN=4`、`STATE_EVIDENCE_MAX=80`、`STATE_NAME_MATCH_MIN=2`。
+- 新增：`STATE_DIRECTORY_BUDGET=3000`、`STATE_TEXT_FIELD_MAX=60`、`STATE_LIST_ITEM_MAX=30`、`STATE_LIST_MAX_ITEMS=10`（已有同名常量时直接复用）、`STATE_EVIDENCE_MIN=4`、`STATE_EVIDENCE_MAX=80`、`STATE_NAME_MATCH_MIN=2`。
 - 状态更新调用的 `LLM_STATE_UPDATE_MAX_TOKENS` 需要评估：输出多了操作列表，按实测把上限调大。
 
 `services/config.js` 的旧键清理，沿用第一阶段 §5.10 的写法。
@@ -594,8 +575,7 @@ session_entity_state_values(id PK, session_id, entity_id TEXT, field_key TEXT,
   - `POST /entities/:entityId/analyze`：制成角色卡的草稿，取代 nearby analyze；
   - 关系：`POST /relations`、`DELETE /relations/:relationId`；
   - 事项：`POST /threads`、`PATCH /threads/:threadId`（改内容或状态）；
-  - 世界事实：`POST /facts`、`DELETE /facts/:factId`；
-  - `GET /` 的返回里加上 `facts`、每个实体的 `activeProfileFields`（§3.2 停用规则的结果），以及 `presentIds`（最新在场名单），供状态栏使用。
+  - `GET /` 的返回里加上每个实体的 `activeProfileFields`（§3.2 停用规则的结果），以及 `presentIds`（最新在场名单），供状态栏使用。
 - `routes/characters.js` 的 `from-nearby` 改为 `from-entity`：body 从 `nearby_id` 改为 `entity_id`；建卡后把实体的 `card_id` 设为新卡片。`services/nearby-card-maker.js` 改名为 `entity-card-maker.js`，人设来源从 `persona` 改为档案渲染文本。
 - 删除 `routes/writing.js:106-196` 的 nearby 路由、`routes/table-memory.js`，以及 `services/writing-sessions.js` 里的 nearby 函数。
 - `routes/session-state-values.js:82` 的注释和返回值随 nearby 下线同步调整。
@@ -610,7 +590,7 @@ session_entity_state_values(id PK, session_id, entity_id TEXT, field_key TEXT,
   - **关系**：列表，可新增或删除；
   - **事项**：进行中和已结束两组，可修改状态。
 - **入口按钮**：保留在 `InputBox` / `InputBoxToolbar` 现在「表格记忆」的位置，改名为「状态记忆」，不再依赖开关。
-- **状态栏**：按 §3.9 新建 `EntityStateBlock.jsx`，改造 `SessionStatePanel.jsx`（世界区块加世界事实组）、`StatePanel.jsx`（对话模式加 NPC 页签，主角色页签加 AI 动态状态）。
+- **状态栏**：按 §3.9 新建 `EntityStateBlock.jsx`，改造 `SessionStatePanel.jsx`（世界区块）、`StatePanel.jsx`（对话模式加 NPC 页签，主角色页签加 AI 动态状态）。
 - **写作模式侧栏**：`NearbyPanel.jsx` 改为显示「在场 + 置顶」的角色实体。
   - 用 `EntityStateBlock` 取代 `NearbyCharacterBlock`，并删除后者；
   - 「保存」对应置顶；
@@ -746,7 +726,6 @@ session_nearby  is_saved  addSavedFromCharacter
 | U10 | 新建世界的角色和玩家字段只有「穿着」，且角色层 `nearby_enabled=0`；迁移后旧世界五个默认字段 `nearby_enabled=0`，NPC 的对应值出现在档案里；关联卡片的实体可写 `outfit`、不可写其他档案字段 |
 | U11 | 世界里有勾选「对 NPC 生效」的「职业」字段时，`occupation` 不出现在提示词 schema、注入内容和接口返回里，相关操作被丢弃 |
 | U12 | 「对 NPC 生效」但手动更新的字段，`entity_fields` 写入被丢弃 |
-| U14 | 世界事实：证据不符时拒绝；满 20 条时单独的 `add_fact` 被拒绝，先 remove 后 add 可以接受；回滚后世界事实回到目标轮；每轮都注入 |
 | U16 | 世界卡导出再导入后，`nearby_enabled=0` 保持不变 |
 | U17 | 没开日记的世界也有当前时间，年龄可以推算；时间回退的 `set_world` 被拒绝；`世界.时间 > X` 的条件照常触发；迁移后旧条件的 `target_field` 被改写并照常生效；日记按世界档案的时间正确判断跨日；回滚后时间和地点回到目标轮；在世界字段里新建「时间」被拒绝 |
 

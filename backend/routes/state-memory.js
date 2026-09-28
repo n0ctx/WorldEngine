@@ -2,7 +2,7 @@
  * state-memory.js — 状态记忆 HTTP 接口（手动编辑 + 只读聚合）
  *
  * 前缀 `/api/sessions/:sessionId/state-memory`：
- *   GET    /                              → { entities, relations, threads, facts, world, presentIds }
+ *   GET    /                              → { entities, relations, threads, world, presentIds }
  *   POST   /entities                      body: { type, name, aliases?, pinned? }
  *   POST   /entities/from-card            body: { character_id }，从角色卡建置顶关联实体
  *   PATCH  /entities/:entityId            body: { name?, aliases?, pinned?, profile?, dynamic? }
@@ -14,8 +14,6 @@
  *   DELETE /relations/:relationId
  *   POST   /threads                       body: { kind, participants, content }
  *   PATCH  /threads/:threadId             body: { content?, status? }
- *   POST   /facts                         body: { text }
- *   DELETE /facts/:factId
  *
  * 业务逻辑在 services/state-memory.js；这里只做参数透传与错误码映射
  * （service 抛出的 Error.code：'not_found' → 404，'conflict' → 409，其余 → 400）。
@@ -24,7 +22,7 @@
 import { Router } from 'express';
 import {
   getStateMemory, createEntity, createEntityFromCard, updateEntity, retireEntity, updateEntityField, updateWorld,
-  createRelation, deleteRelation, createThread, updateThread, createFact, deleteFact,
+  createRelation, deleteRelation, createThread, updateThread,
 } from '../services/state-memory.js';
 import { analyzeEntityForCard } from '../services/entity-card-maker.js';
 import { createLogger, formatMeta } from '../utils/logger.js';
@@ -97,12 +95,6 @@ router.post('/:sessionId/state-memory/threads', handle((req) => createThread(req
 
 router.patch('/:sessionId/state-memory/threads/:threadId', handle((req) => (
   updateThread(req.params.sessionId, req.params.threadId, req.body)
-)));
-
-router.post('/:sessionId/state-memory/facts', handle((req) => createFact(req.params.sessionId, req.body)));
-
-router.delete('/:sessionId/state-memory/facts/:factId', handle((req) => (
-  deleteFact(req.params.sessionId, req.params.factId)
 )));
 
 export default router;

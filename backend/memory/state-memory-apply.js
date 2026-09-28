@@ -25,10 +25,10 @@ import crypto from 'node:crypto';
 import {
   upsertEntity, upsertProfileField, upsertDynamicState, closeDynamicState,
   upsertRelation, closeRelation, upsertThread, upsertWorldProfile,
-  upsertWorldFact, closeWorldFact, upsertPresence,
-  nextEntitySeq, nextThreadSeq, nextRelationSeq, nextFactSeq,
+  upsertPresence,
+  nextEntitySeq, nextThreadSeq, nextRelationSeq,
   listCurrentEntities, getEntityDetails, listCurrentRelations, listThreads,
-  listCurrentWorldFacts, getCurrentWorldProfile,
+  getCurrentWorldProfile,
 } from '../db/queries/state-memory.js';
 import { withSessionStateTransaction } from '../db/queries/session-state-batch.js';
 import { upsertEntityStateValues } from '../db/queries/session-entity-state-values.js';
@@ -40,7 +40,7 @@ import {
 import { parseWorldDate, compareWorldDate } from '../utils/world-date.js';
 import { validateValue } from '../utils/state-field-validate.js';
 import {
-  STATE_WORLD_FACTS_MAX, STATE_TEXT_FIELD_MAX, STATE_LIST_ITEM_MAX, STATE_LIST_MAX_ITEMS,
+  STATE_TEXT_FIELD_MAX, STATE_LIST_ITEM_MAX, STATE_LIST_MAX_ITEMS,
   STATE_EVIDENCE_MIN, STATE_EVIDENCE_MAX,
 } from '../utils/constants.js';
 import { createLogger, formatMeta } from '../utils/logger.js';
@@ -172,7 +172,6 @@ function buildApplyContext({ sessionId, worldId, round, turnText, realDate, main
     sessionId, worldId, round, realDate, mainCharacterEntityId, index,
     relations: listCurrentRelations(sessionId),
     threads: listThreads(sessionId),
-    facts: listCurrentWorldFacts(sessionId),
     worldProfile: getCurrentWorldProfile(sessionId),
     highBarUsed: new Set(),
     profileValues, profileFieldCache, allCharacterFields, nearbyCharacterFields,
@@ -514,7 +513,6 @@ function handleUpsertRelation(op, ctx) {
 function handleRetireRelation(op, ctx) {
   const relationId = resolveSeqRef(op.relation, 'r', ctx.relations, 'relation_id');
   if (!relationId) return { ok: false, reason: '关系引用解析失败' };
-  // guard-allow(duplication): 与 handleRemoveFact 的「关表 + 从内存列表过滤 + 返回」结构相同，但作用于不同的表和字段，抽象成通用函数反而要多传两个回调，增加间接层
   closeRelation(ctx.sessionId, relationId, ctx.round);
   ctx.relations = ctx.relations.filter((r) => r.relation_id !== relationId);
   return { ok: true };
@@ -594,32 +592,6 @@ function handleSetWorld(op, ctx) {
   return { ok: false, reason: `未知世界档案键: ${op.key}` };
 }
 
-function handleAddFact(op, ctx) {
-  if (!ctx.verifyEvidence(op.evidence)) return { ok: false, reason: '证据核验失败' };
-  const text = typeof op.text === 'string' ? op.text.trim() : '';
-  if (!text) return { ok: false, reason: '缺少内容' };
-  const normalized = text.replace(/\s+/g, '');
-  if (ctx.facts.some((fact) => fact.text.replace(/\s+/g, '') === normalized)) {
-    return { ok: false, reason: '与已有事实重复' };
-  }
-  if (ctx.facts.length >= STATE_WORLD_FACTS_MAX) return { ok: false, reason: '世界事实已满' };
-  const factId = crypto.randomUUID();
-  const seq = nextFactSeq(ctx.sessionId);
-  const truncated = truncateText(text);
-  upsertWorldFact(ctx.sessionId, { factId, seq, text: truncated, evidence: op.evidence }, ctx.round);
-  ctx.facts.push({ fact_id: factId, seq, text: truncated, evidence: op.evidence });
-  return { ok: true };
-}
-
-function handleRemoveFact(op, ctx) {
-  if (!ctx.verifyEvidence(op.evidence)) return { ok: false, reason: '证据核验失败' };
-  const factId = resolveSeqRef(op.fact, 'f', ctx.facts, 'fact_id');
-  if (!factId) return { ok: false, reason: '事实引用解析失败' };
-  closeWorldFact(ctx.sessionId, factId, ctx.round);
-  ctx.facts = ctx.facts.filter((fact) => fact.fact_id !== factId);
-  return { ok: true };
-}
-
 function handleSetPresent(op, ctx) {
   const entityIds = resolveEntityRefList(op.entities, ctx);
   upsertPresence(ctx.sessionId, ctx.round, entityIds);
@@ -644,8 +616,6 @@ const OP_HANDLERS = {
   resolve_thread: handleResolveThread,
   retire_entity: handleRetireEntity,
   set_world: handleSetWorld,
-  add_fact: handleAddFact,
-  remove_fact: handleRemoveFact,
   set_present: handleSetPresent,
 };
 

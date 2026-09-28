@@ -25,13 +25,13 @@ async function loadDeps() {
   return { stateMemory, entityValues, stateRollback, rollbackSessionModule, modes, sessionsService };
 }
 
-test('rollbackSession 回滚后：实体改名、关系排他谓词换手、事项关闭、世界事实增删、时间地点推进、实体字段值全部回到第 N-1 轮，实体 ID 不变', async () => {
+test('rollbackSession 回滚后：实体改名、关系排他谓词换手、事项关闭、时间地点推进、实体字段值全部回到第 N-1 轮，实体 ID 不变', async () => {
   const {
     stateMemory: {
       upsertEntity, listCurrentEntities, upsertRelation, closeRelation, listCurrentRelations,
-      upsertThread, listThreads, upsertWorldFact, closeWorldFact, listCurrentWorldFacts,
+      upsertThread, listThreads,
       upsertWorldProfile, getCurrentWorldProfile, upsertPresence, getLatestPresence,
-      nextRelationSeq, nextThreadSeq, nextFactSeq,
+      nextRelationSeq, nextThreadSeq,
     },
     entityValues: { upsertEntityStateValues, getEntityStateValues },
     stateRollback: { captureFullSnapshot },
@@ -51,7 +51,6 @@ test('rollbackSession 回滚后：实体改名、关系排他谓词换手、事�
     threadId: 't1', seq: nextThreadSeq(session.id), kind: '承诺', participantsJson: '[]',
     content: '帮她找到丢失的钥匙', status: 'active', openedRound: 1,
   }, 1);
-  upsertWorldFact(session.id, { factId: 'f1', seq: nextFactSeq(session.id), text: '王城最近在闹饥荒', evidence: '据点' }, 1);
   upsertWorldProfile(session.id, 'time', '1000-01-01T08:00', null, 1);
   upsertWorldProfile(session.id, 'location', '集市', null, 1);
   upsertPresence(session.id, 1, ['e1', 'e2']);
@@ -66,7 +65,7 @@ test('rollbackSession 回滚后：实体改名、关系排他谓词换手、事�
   });
 
   // ── 第 2 轮：改名、关系换手（持有者是排他谓词，新关系顶替旧关系）、事项结清、
-  //    事实新增+移除、时间地点推进、实体字段值变化 ──
+  //    时间地点推进、实体字段值变化 ──
   upsertEntity(session.id, { entityId: 'e1', seq: 1, type: 'character', name: '沈砚' }, 2);
   closeRelation(session.id, 'r1', 2);
   upsertRelation(session.id, { relationId: 'r2', seq: nextRelationSeq(session.id), subjectId: 'e1', predicate: '持有者', objectValue: '钥匙' }, 2);
@@ -74,8 +73,6 @@ test('rollbackSession 回滚后：实体改名、关系排他谓词换手、事�
     threadId: 't1', seq: 1, kind: '承诺', participantsJson: '[]',
     content: '帮她找到丢失的钥匙', status: 'resolved', openedRound: 1,
   }, 2);
-  upsertWorldFact(session.id, { factId: 'f2', seq: nextFactSeq(session.id), text: '钥匙已经找到', evidence: '据点2' }, 2);
-  closeWorldFact(session.id, 'f1', 2);
   upsertWorldProfile(session.id, 'time', '1000-01-02T09:00', null, 2);
   upsertWorldProfile(session.id, 'location', '城堡', null, 2);
   upsertPresence(session.id, 2, ['e1']);
@@ -110,7 +107,6 @@ test('rollbackSession 回滚后：实体改名、关系排他谓词换手、事�
   assert.equal(threads.length, 1);
   assert.equal(threads[0].status, 'active');
 
-  assert.deepEqual(listCurrentWorldFacts(session.id).map((f) => f.fact_id), ['f1']);
   const worldProfile = getCurrentWorldProfile(session.id);
   assert.equal(worldProfile.time, '1000-01-01T08:00');
   assert.equal(worldProfile.location, '集市');

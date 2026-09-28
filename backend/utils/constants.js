@@ -115,8 +115,6 @@ export const LLM_TOOL_RESOLUTION_MAX_ITERATIONS = 25;
 // ============================
 // 状态记忆（memory-v2 第二阶段）
 // ============================
-/** 当前有效的世界事实条数上限 */
-export const STATE_WORLD_FACTS_MAX = 20;
 /** 状态更新提示词里「实体目录」段的 token 预算 */
 export const STATE_DIRECTORY_BUDGET = 3000;
 /** 档案文本字段最大字数 */

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import DatetimeSplitInput from './DatetimeSplitInput.jsx';
 import { formatDatetimeChinese } from './state-value-format.js';
 import { isImeComposing } from '../../core/utils/ime.js';
-import { deleteStateFact, updateStateWorld } from '../../core/api/state-memory.js';
+import { updateStateWorld } from '../../core/api/state-memory.js';
 import { log } from '../../core/utils/logger.js';
 
 /** 当前时间：DatetimeSplitInput 点击编辑，空值显示「未设定」 */
@@ -87,36 +87,8 @@ function WorldLocationField({ location, locationOptions, onCommit }) {
   );
 }
 
-function WorldFactRow({ fact, onDelete }) {
-  return (
-    <div className="we-sm-fact-row">
-      <span className="we-sm-fact-text">{fact.text}</span>
-      <span className="we-sm-fact-round">第 {fact.valid_from_round} 轮</span>
-      <button type="button" className="we-sm-fact-delete" onClick={onDelete} aria-label={`删除事实：${fact.text}`}>×</button>
-    </div>
-  );
-}
-
-function WorldFacts({ facts, onDelete }) {
-  return (
-    <div className="we-sm-facts">
-      {facts.length === 0 ? (
-        <p className="we-section-empty">暂无世界事实</p>
-      ) : (
-        <div className="we-sm-fact-list">
-          {facts.map((fact) => (
-            <WorldFactRow key={fact.fact_id} fact={fact} onDelete={() => onDelete(fact.fact_id)} />
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-/**
- * 世界现状：当前时间 / 当前地点（状态记忆的 world）+ 世界用户字段（children，由调用方渲染）+ 世界事实。
- */
-export default function WorldProfileGroup({ sessionId, world, entities, facts, reload, children }) {
+/** 世界现状：当前时间 / 当前地点（状态记忆的 world）+ 世界用户字段。 */
+export default function WorldProfileGroup({ sessionId, world, entities, reload, children }) {
   async function handleTimeCommit(time) {
     try {
       await updateStateWorld(sessionId, { time });
@@ -132,15 +104,6 @@ export default function WorldProfileGroup({ sessionId, world, entities, facts, r
       reload();
     } catch (err) {
       log.error('state.world.location_update_failed', err, { toast: err?.message || '更新当前地点失败' });
-    }
-  }
-
-  async function handleFactDelete(factId) {
-    try {
-      await deleteStateFact(sessionId, factId);
-      reload();
-    } catch (err) {
-      log.error('state.world.fact_delete_failed', err, { toast: err?.message || '删除世界事实失败' });
     }
   }
 
@@ -160,10 +123,6 @@ export default function WorldProfileGroup({ sessionId, world, entities, facts, r
         />
       </div>
       {children}
-      <div className="we-sm-facts-wrap">
-        <span className="we-status-key">世界事实</span>
-        <WorldFacts facts={facts ?? []} onDelete={handleFactDelete} />
-      </div>
     </div>
   );
 }

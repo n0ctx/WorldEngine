@@ -78,17 +78,6 @@ export function updateStateThread(sessionId, threadId, body) {
   });
 }
 
-export function createStateFact(sessionId, text) {
-  return request(`${stateMemoryBase(sessionId)}/facts`, {
-    method: 'POST',
-    body: JSON.stringify({ text }),
-  });
-}
-
-export function deleteStateFact(sessionId, factId) {
-  return request(`${stateMemoryBase(sessionId)}/facts/${factId}`, { method: 'DELETE' });
-}
-
 export function createCharacterFromEntity(worldId, payload) {
   return request(`${BASE}/worlds/${worldId}/characters/from-entity`, {
     method: 'POST',

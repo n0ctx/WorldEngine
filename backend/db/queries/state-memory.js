@@ -12,16 +12,15 @@
  *     listCurrentRelations(sessionId, entityIds?) → Array
  *     listActiveThreads(sessionId, entityIds?) → Array（status='active'）
  *     listThreads(sessionId) → Array（含已结束）
- *     listCurrentWorldFacts(sessionId) → Array
  *     getCurrentWorldProfile(sessionId) → { time, location, location_entity_id }
  *     getLatestPresence(sessionId) → { round_index, entity_ids } | null
  *     getWorldProfileAtRound(sessionId, key, round) → { value, location_entity_id } | null
  *   写入：
  *     upsertEntity / upsertProfileField / upsertDynamicState / upsertRelation /
- *     upsertThread / upsertWorldProfile / upsertWorldFact（均为 closeAndInsert 版本）
- *     closeDynamicState / closeRelation / closeWorldFact / closeProfileField（关闭当前行，不插入新版本）
+ *     upsertThread / upsertWorldProfile（均为 closeAndInsert 版本）
+ *     closeDynamicState / closeRelation / closeProfileField（关闭当前行，不插入新版本）
  *     upsertPresence(sessionId, round, entityIds)
- *   取号：nextEntitySeq / nextThreadSeq / nextRelationSeq / nextFactSeq(sessionId)
+ *   取号：nextEntitySeq / nextThreadSeq / nextRelationSeq(sessionId)
  *   回滚：rollbackStateMemory(sessionId, keptRounds)
  */
 
@@ -36,7 +35,6 @@ const MULTI_VERSION_TABLES = [
   'state_relations',
   'state_threads',
   'state_world_profile',
-  'state_world_facts',
 ];
 
 // ============================
@@ -215,30 +213,6 @@ export function upsertWorldProfile(sessionId, key, value, locationEntityId, roun
 }
 
 // ============================
-// 写入：state_world_facts
-// ============================
-
-export function upsertWorldFact(sessionId, fact, round) {
-  return closeAndInsertRow(
-    'state_world_facts',
-    ['fact_id', 'session_id', 'seq', 'text', 'evidence'],
-    ['session_id', 'fact_id'],
-    {
-      fact_id: fact.factId,
-      session_id: sessionId,
-      seq: fact.seq,
-      text: fact.text,
-      evidence: fact.evidence ?? null,
-    },
-    round,
-  );
-}
-
-export function closeWorldFact(sessionId, factId, round) {
-  return closeCurrentRow('state_world_facts', ['session_id', 'fact_id'], [sessionId, factId], round);
-}
-
-// ============================
 // 写入：state_presence
 // ============================
 
@@ -270,10 +244,6 @@ export function nextThreadSeq(sessionId) {
 
 export function nextRelationSeq(sessionId) {
   return nextSeq('state_relations', sessionId);
-}
-
-export function nextFactSeq(sessionId) {
-  return nextSeq('state_world_facts', sessionId);
 }
 
 // ============================
@@ -348,13 +318,6 @@ export function listActiveThreads(sessionId, entityIds) {
 /** 当前有效的全部事项（含已结束）。 */
 export function listThreads(sessionId) {
   return currentThreadsByStatus(sessionId, null);
-}
-
-/** 当前有效的世界事实，按 seq 升序。 */
-export function listCurrentWorldFacts(sessionId) {
-  return db.prepare(`
-    SELECT * FROM state_world_facts WHERE session_id = ? AND valid_to_round IS NULL ORDER BY seq ASC
-  `).all(sessionId);
 }
 
 /** 当前世界档案（时间、地点）。 */

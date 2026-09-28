@@ -8,7 +8,7 @@
  * 供路由层映射到 404 / 400 / 409。
  *
  * 对外接口：
- *   getStateMemory(sessionId) → { entities, relations, threads, facts, world, presentIds }
+ *   getStateMemory(sessionId) → { entities, relations, threads, world, presentIds }
  *   createEntity(sessionId, { type, name, aliases?, pinned? }) → entity 视图
  *   createEntityFromCard(sessionId, { character_id }) → entity 视图，从角色卡建置顶关联实体
  *     并把该世界 nearby_enabled=1 的字段在该卡片上的默认值复制到实体的用户字段运行时值
@@ -20,8 +20,6 @@
  *   deleteRelation(sessionId, relationId) → { ok: true }
  *   createThread(sessionId, { kind, participants, content }) → thread
  *   updateThread(sessionId, threadId, { content?, status? }) → thread
- *   createFact(sessionId, { text }) → fact
- *   deleteFact(sessionId, factId) → { ok: true }
  *
  * updateEntity 的三个分支单独导出（供圈复杂度按独立单元计分，也便于单测）：
  *   applyEntityBasicPatch(sessionId, entity, body, round) → void，改名/别名/置顶
@@ -33,10 +31,10 @@ import crypto from 'node:crypto';
 
 import {
   upsertEntity, upsertProfileField, closeProfileField, upsertDynamicState, closeDynamicState,
-  upsertRelation, closeRelation, upsertThread, upsertWorldProfile, upsertWorldFact, closeWorldFact,
-  nextEntitySeq, nextThreadSeq, nextRelationSeq, nextFactSeq,
+  upsertRelation, closeRelation, upsertThread, upsertWorldProfile,
+  nextEntitySeq, nextThreadSeq, nextRelationSeq,
   listCurrentEntities, getEntityDetails, listCurrentRelations, listThreads,
-  listCurrentWorldFacts, getCurrentWorldProfile, getLatestPresence,
+  getCurrentWorldProfile, getLatestPresence,
 } from '../db/queries/state-memory.js';
 import { withSessionStateTransaction } from '../db/queries/session-state-batch.js';
 import { getEntityStateValues, upsertEntityStateValues } from '../db/queries/session-entity-state-values.js';
@@ -53,7 +51,6 @@ import {
   ENTITY_TYPES, THREAD_KINDS, DYNAMIC_LOCATION_KEY,
   getProfileFieldDefinitions, resolveActiveProfileFields, isPlaceholderValue,
 } from '../memory/state-memory-schema.js';
-import { STATE_WORLD_FACTS_MAX } from '../utils/constants.js';
 
 const THREAD_STATUSES = ['active', 'resolved', 'failed'];
 
@@ -182,17 +179,12 @@ export function getStateMemory(sessionId) {
   const ctx = buildEntityViewContext(sessionId, worldId, allEntities.map((e) => e.entity_id), worldProfile);
   const entities = allEntities.map((entity) => buildEntityView(entity, ctx));
 
-  // guard-allow(duplication): 与 daily-entries 路由的行转字段子集是不同领域的巧合同形，不是业务重复
-  const facts = listCurrentWorldFacts(sessionId).map((f) => ({
-    fact_id: f.fact_id, seq: f.seq, text: f.text, evidence: f.evidence, valid_from_round: f.valid_from_round,
-  }));
   const presence = getLatestPresence(sessionId);
 
   return {
     entities,
     relations: listCurrentRelations(sessionId),
     threads: listThreads(sessionId).map(toThreadView),
-    facts,
     world: worldProfile,
     presentIds: presence ? presence.entity_ids : [],
   };
@@ -526,30 +518,4 @@ export function updateThread(sessionId, threadId, body = {}) {
     content, status, openedRound: thread.opened_round,
   }, round);
   return toThreadView({ ...thread, content, status });
-}
-
-// ============================
-// 世界事实
-// ============================
-
-export function createFact(sessionId, body = {}) {
-  requireSession(sessionId);
-  const text = typeof body.text === 'string' ? body.text.trim() : '';
-  if (!text) throw serviceError('bad_request', '缺少内容');
-  if (listCurrentWorldFacts(sessionId).length >= STATE_WORLD_FACTS_MAX) throw serviceError('bad_request', '世界事实已满');
-
-  const round = resolveManualRound(sessionId);
-  const factId = crypto.randomUUID();
-  const seq = nextFactSeq(sessionId);
-  const truncated = truncateText(text);
-  upsertWorldFact(sessionId, { factId, seq, text: truncated, evidence: '手动编辑' }, round);
-  return { fact_id: factId, seq, text: truncated, evidence: '手动编辑', valid_from_round: round };
-}
-
-export function deleteFact(sessionId, factId) {
-  requireSession(sessionId);
-  const fact = listCurrentWorldFacts(sessionId).find((f) => f.fact_id === factId);
-  if (!fact) throw serviceError('not_found', '世界事实不存在');
-  closeWorldFact(sessionId, factId, resolveManualRound(sessionId));
-  return { ok: true };
 }

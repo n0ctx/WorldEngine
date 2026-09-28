@@ -91,7 +91,7 @@ function entity(overrides = {}) {
 }
 
 function stateMemory({ entities = [], presentIds = [] } = {}) {
-  return { entities, relations: [], facts: [], world: {}, presentIds };
+  return { entities, relations: [], world: {}, presentIds };
 }
 
 async function renderPanel(props = {}) {

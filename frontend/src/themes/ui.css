@@ -4013,39 +4013,6 @@
 /* ── 状态栏：世界档案组 / NPC 档案区块（EntityStateBlock、WorldProfileGroup）── */
 
 /* 本轮变化的档案/现状行：左侧描一道强调色，与 StateChangeCard 的强调色一致 */
-.we-sm-facts-wrap {
-  margin-top: var(--we-space-sm, 12px);
-}
-.we-sm-fact-list {
-  display: flex;
-  flex-direction: column;
-  gap: var(--we-space-xxs);
-  margin-top: var(--we-space-xxs);
-}
-.we-sm-fact-row {
-  display: flex;
-  align-items: baseline;
-  gap: var(--we-space-xs);
-}
-.we-sm-fact-text {
-  flex: 1;
-  font-family: var(--we-font-prose);
-  font-size: var(--we-text-sm);
-  color: var(--we-color-text-secondary);
-}
-.we-sm-fact-round {
-  font-size: var(--we-text-2xs);
-  color: var(--we-color-text-tertiary);
-  white-space: nowrap;
-}
-.we-sm-fact-delete {
-  color: var(--we-color-text-tertiary);
-  transition: color var(--we-duration-fast) var(--we-easing-sharp);
-}
-.we-sm-fact-delete:hover {
-  color: var(--we-color-accent);
-}
-
 .we-sm-derived {
   margin-top: var(--we-space-xs);
 }

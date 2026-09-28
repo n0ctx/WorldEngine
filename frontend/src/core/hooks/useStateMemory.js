@@ -3,7 +3,7 @@ import { fetchStateMemory, fetchStateMemorySchema } from '../api/state-memory.js
 import { useEntityDiff } from './useEntityDiff.js';
 
 /**
- * 拉取会话的状态记忆聚合视图（实体 / 关系 / 事项 / 世界事实 / 在场名单）。
+ * 拉取会话的状态记忆聚合视图（实体 / 关系 / 事项 / 在场名单）。
  * sessionId 或 tick 变化时重新拉取；reload() 供编辑后手动刷新，setData 供本地乐观更新。
  */
 export function useStateMemory(sessionId, tick) {

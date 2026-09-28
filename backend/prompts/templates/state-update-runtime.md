@@ -7,8 +7,8 @@
 【实体目录】
 {{ENTITY_DIRECTORY}}
 
-【世界事实】
-{{WORLD_FACTS}}
+【本轮相关的未了事项】
+{{RELEVANT_THREADS}}
 
 【相关实体详情】
 {{ENTITY_DETAILS}}

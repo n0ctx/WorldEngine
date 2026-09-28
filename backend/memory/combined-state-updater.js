@@ -250,7 +250,7 @@ async function writeStatePatch(patch, { sid, sessionId, worldId, world, targets,
   writeCharacterStates(patch, { sessionId, charSchemaFields, charactersWithFields, charValueMaps });
   writePersonaState(patch, { sessionId, worldId, world, personaActiveFields, personaValueMap });
 
-  // ── 状态记忆：实体档案/动态状态/关系/事项/世界事实（memory）+ NPC 用户字段补丁（entity_fields） ──
+  // ── 状态记忆：实体档案/动态状态/关系/事项（memory）+ NPC 用户字段补丁（entity_fields） ──
   const memoryResult = applyStateMemoryOps({
     sessionId, worldId, round, ops: patch.memory, turnText, realDate, mainCharacterEntityId,
   });
@@ -319,14 +319,14 @@ export async function updateAllStates(worldId, characterIds, sessionId) {
 
   // ── 切分稳定前缀 / 动态后缀（prompt caching） ──
   // 必须逐字成为 system 消息内容的前缀，provider 层据此切出可缓存段（参考 assembler.js）。
-  // 动态后缀（user 段）：各字段当前取值 + 实体目录/世界事实/相关实体详情 + 本轮对话，逐轮变化，不进缓存。
+  // 动态后缀（user 段）：各字段当前取值 + 实体目录/相关实体详情 + 本轮对话，逐轮变化，不进缓存。
   const persona = resolvePersona(session, worldId);
   const worldSetting = buildWorldSettingText(world, persona?.name);
   const personaSetting = buildPersonaSettingText(world, persona);
   const cacheableSystem = buildCacheableSystemPrompt(worldId, targets, { schemaSections, responseKeys, worldSetting, personaSetting });
   const relevantIds = resolveRelevantEntityIds(sessionId, messages, { playerEntityId, mainCharacterEntityId });
   const runtimeUser = buildRuntimeUserPrompt({
-    sessionId, worldId, mainCharacterEntityId, valueSections, dialogue, responseKeys, round, relevantIds,
+    sessionId, worldId, mainCharacterEntityId, valueSections, dialogue, turnText, responseKeys, round, relevantIds,
   });
 
   const prompt = [

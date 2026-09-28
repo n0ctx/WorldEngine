@@ -422,17 +422,6 @@ CREATE TABLE IF NOT EXISTS state_world_profile (
   valid_to_round     INTEGER
 );
 
-CREATE TABLE IF NOT EXISTS state_world_facts (
-  row_id           TEXT PRIMARY KEY,
-  fact_id          TEXT NOT NULL,
-  session_id       TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
-  seq              INTEGER NOT NULL,
-  text             TEXT NOT NULL,
-  evidence         TEXT,
-  valid_from_round INTEGER NOT NULL,
-  valid_to_round   INTEGER
-);
-
 CREATE TABLE IF NOT EXISTS state_presence (
   session_id       TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
   round_index      INTEGER NOT NULL,
@@ -483,7 +472,6 @@ CREATE INDEX IF NOT EXISTS idx_state_dynamic_session_valid ON state_dynamic(sess
 CREATE INDEX IF NOT EXISTS idx_state_relations_session_valid ON state_relations(session_id, valid_to_round);
 CREATE INDEX IF NOT EXISTS idx_state_threads_session_valid ON state_threads(session_id, valid_to_round);
 CREATE INDEX IF NOT EXISTS idx_state_world_profile_session_valid ON state_world_profile(session_id, valid_to_round);
-CREATE INDEX IF NOT EXISTS idx_state_world_facts_session_valid ON state_world_facts(session_id, valid_to_round);
 `;
 
 export function initSchema(db) {

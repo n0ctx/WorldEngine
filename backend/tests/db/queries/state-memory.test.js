@@ -18,20 +18,16 @@ const {
   closeRelation,
   upsertThread,
   upsertWorldProfile,
-  upsertWorldFact,
-  closeWorldFact,
   closeProfileField,
   upsertPresence,
   nextEntitySeq,
   nextThreadSeq,
   nextRelationSeq,
-  nextFactSeq,
   listCurrentEntities,
   getEntityDetails,
   listCurrentRelations,
   listActiveThreads,
   listThreads,
-  listCurrentWorldFacts,
   getCurrentWorldProfile,
   getLatestPresence,
   getWorldProfileAtRound,
@@ -186,18 +182,6 @@ test('事项状态更新写入新版本；listActiveThreads 只返回 active，l
   assert.equal(all[0].status, 'resolved');
 });
 
-test('世界事实：新增、去重容量与移除', () => {
-  const sessionId = setupSession();
-  upsertWorldFact(sessionId, { factId: 'fact-1', seq: nextFactSeq(sessionId), text: '王城内禁止使用魔法', evidence: '王城颁布禁令' }, 1);
-  upsertWorldFact(sessionId, { factId: 'fact-2', seq: nextFactSeq(sessionId), text: '北境已被黑潮会占领', evidence: '黑潮会占领北境' }, 2);
-
-  const facts = listCurrentWorldFacts(sessionId);
-  assert.deepEqual(facts.map((f) => f.text), ['王城内禁止使用魔法', '北境已被黑潮会占领']);
-
-  closeWorldFact(sessionId, 'fact-1', 3);
-  assert.deepEqual(listCurrentWorldFacts(sessionId).map((f) => f.text), ['北境已被黑潮会占领']);
-});
-
 test('世界档案：当前时间与地点、按轮取历史值', () => {
   const sessionId = setupSession();
   upsertWorldProfile(sessionId, 'time', '1000-03-15T08:00', null, 1);
@@ -246,18 +230,16 @@ test('rollbackStateMemory 回滚到第 K 轮后，当前视图与第 K 轮时一
     threadId: 't-roll', seq: nextThreadSeq(sessionId), kind: '承诺', participantsJson: '[]',
     content: '第一版', status: 'active', openedRound: 1,
   }, 1);
-  upsertWorldFact(sessionId, { factId: 'f-roll', seq: nextFactSeq(sessionId), text: '第一版事实', evidence: '据点' }, 1);
   upsertWorldProfile(sessionId, 'time', '1000-01-01T00:00', null, 1);
   upsertPresence(sessionId, 1, [entityId]);
 
-  // 第 2 轮：改名、关闭关系、事项标记 resolved、新增事实、推进时间、更新在场
+  // 第 2 轮：改名、关闭关系、事项标记 resolved、推进时间、更新在场
   upsertEntity(sessionId, { entityId, seq, type: 'character', name: '沈砚' }, 2);
   closeRelation(sessionId, 'r-roll', 2);
   upsertThread(sessionId, {
     threadId: 't-roll', seq, kind: '承诺', participantsJson: '[]',
     content: '第一版', status: 'resolved', openedRound: 1,
   }, 2);
-  upsertWorldFact(sessionId, { factId: 'f-roll-2', seq: nextFactSeq(sessionId), text: '第二版事实', evidence: '据点2' }, 2);
   upsertWorldProfile(sessionId, 'time', '1000-01-02T00:00', null, 2);
   upsertPresence(sessionId, 2, [entityId, 'e-extra']);
 
@@ -275,7 +257,6 @@ test('rollbackStateMemory 回滚到第 K 轮后，当前视图与第 K 轮时一
   assert.equal(threads.length, 1);
   assert.equal(threads[0].status, 'active');
 
-  assert.deepEqual(listCurrentWorldFacts(sessionId).map((f) => f.fact_id), ['f-roll']);
   assert.equal(getCurrentWorldProfile(sessionId).time, '1000-01-01T00:00');
 
   const presenceAfterRollback = getLatestPresence(sessionId);
@@ -294,7 +275,6 @@ test('删除会话级联清空状态记忆各表', () => {
     threadId: 't-cascade', seq: nextThreadSeq(sessionId), kind: '承诺', participantsJson: '[]',
     content: '内容', status: 'active', openedRound: 1,
   }, 1);
-  upsertWorldFact(sessionId, { factId: 'f-cascade', seq: nextFactSeq(sessionId), text: '事实', evidence: '证据' }, 1);
   upsertWorldProfile(sessionId, 'time', '1000-01-01T00:00', null, 1);
   upsertPresence(sessionId, 1, [entityId]);
 
@@ -302,7 +282,7 @@ test('删除会话级联清空状态记忆各表', () => {
 
   for (const table of [
     'state_entities', 'state_profile_fields', 'state_dynamic', 'state_relations',
-    'state_threads', 'state_world_profile', 'state_world_facts', 'state_presence',
+    'state_threads', 'state_world_profile', 'state_presence',
   ]) {
     const count = db.prepare(`SELECT COUNT(*) AS n FROM ${table} WHERE session_id = ?`).get(sessionId);
     assert.equal(count.n, 0, `${table} 应在会话删除后清空`);

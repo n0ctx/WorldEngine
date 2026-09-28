@@ -27,7 +27,7 @@ function countRows(table, sessionId) {
 
 const STATE_MEMORY_TABLES = [
   'state_entities', 'state_profile_fields', 'state_dynamic',
-  'state_relations', 'state_threads', 'state_world_profile', 'state_world_facts',
+  'state_relations', 'state_threads', 'state_world_profile',
 ];
 
 function snapshotStateMemoryCounts(sessionId) {
@@ -115,23 +115,48 @@ test('没有任何用户字段的世界也会调用模型并写状态记忆', as
   const world = insertWorld(sandbox.db, { name: '无字段世界' });
   const character = insertCharacter(sandbox.db, world.id, { name: '空白' });
   const session = insertSession(sandbox.db, { character_id: character.id, world_id: world.id });
-  insertMessage(sandbox.db, session.id, { role: 'user', content: '这座城市禁止携带武器进入。', created_at: 1 });
-  insertMessage(sandbox.db, session.id, { role: 'assistant', content: '守卫检查了你的行李。', created_at: 2 });
+  insertMessage(sandbox.db, session.id, { role: 'user', content: '船长承诺归还账本。', created_at: 1 });
+  insertMessage(sandbox.db, session.id, { role: 'assistant', content: '船长答应明天归还。', created_at: 2 });
 
   process.env.MOCK_LLM_COMPLETE = JSON.stringify({
     entity_fields: {},
-    memory: [
-      { op: 'add_fact', text: '城市禁止携带武器进入', evidence: '这座城市禁止携带武器进入' },
-    ],
+    memory: [{ op: 'open_thread', kind: '承诺', content: '船长承诺归还账本', participants: [] }],
   });
 
   const { updateAllStates } = await freshImport('backend/memory/combined-state-updater.js');
   await updateAllStates(world.id, [character.id], session.id);
 
-  const { listCurrentWorldFacts } = await freshImport('backend/db/queries/state-memory.js');
-  const facts = listCurrentWorldFacts(session.id);
-  assert.equal(facts.length, 1);
-  assert.equal(facts[0].text, '城市禁止携带武器进入');
+  const { listThreads } = await freshImport('backend/db/queries/state-memory.js');
+  assert.equal(listThreads(session.id)[0].content, '船长承诺归还账本');
+});
+
+test('本轮明确完成的无参与者事项进入更新输入并可自动结案', async () => {
+  resetMockEnv();
+  const world = insertWorld(sandbox.db, { name: '港口' });
+  const character = insertCharacter(sandbox.db, world.id, { name: '船长' });
+  const session = insertSession(sandbox.db, { character_id: character.id, world_id: world.id });
+  const { upsertThread, nextThreadSeq, listActiveThreads, listThreads } = await freshImport('backend/db/queries/state-memory.js');
+  upsertThread(session.id, {
+    threadId: 'return-book', seq: nextThreadSeq(session.id), kind: '任务', participantsJson: '[]',
+    content: '归还账本', status: 'active', openedRound: 1,
+  }, 1);
+  insertMessage(sandbox.db, session.id, { role: 'user', content: '账本已经归还。', created_at: 1 });
+  insertMessage(sandbox.db, session.id, { role: 'assistant', content: '船长收下了账本。', created_at: 2 });
+  const { buildRuntimeUserPrompt } = await freshImport('backend/memory/state-update-context.js');
+  const prompt = buildRuntimeUserPrompt({
+    sessionId: session.id, worldId: world.id, mainCharacterEntityId: null,
+    valueSections: [], dialogue: '【本轮】账本已经归还。', turnText: '账本已经归还。',
+    responseKeys: [], round: 2, relevantIds: new Set(),
+  });
+  assert.match(prompt, /【本轮相关的未了事项】\nt1｜［任务］归还账本/);
+
+  process.env.MOCK_LLM_COMPLETE = JSON.stringify({ entity_fields: {}, memory: [
+    { op: 'resolve_thread', thread: 't1', outcome: 'resolved' },
+  ] });
+  const { updateAllStates } = await freshImport('backend/memory/combined-state-updater.js');
+  await updateAllStates(world.id, [character.id], session.id);
+  assert.equal(listActiveThreads(session.id).length, 0);
+  assert.equal(listThreads(session.id)[0].status, 'resolved');
 });
 
 test('连续 50 轮全是占位值/空操作时，状态记忆各表无新增行（除首轮建的 player/主角色外）', async () => {
@@ -255,7 +280,7 @@ test('两轮调用之间 system 内容逐字节相同', async () => {
   process.env.MOCK_LLM_COMPLETE = JSON.stringify({
     world: { weather: '晴朗' },
     entity_fields: {},
-    memory: [{ op: 'add_fact', text: '本地货币是银币', evidence: '本地货币是银币' }],
+    memory: [],
   });
   insertMessage(sandbox.db, session.id, { role: 'assistant', content: '本地货币是银币，请注意携带。', created_at: 2 });
   await updateAllStates(world.id, [character.id], session.id);

@@ -42,7 +42,6 @@ const baseData = {
   entities: baseEntities,
   relations: [{ relation_id: 'r1', seq: 1, subject_id: 'e1', predicate: '持有者', object_id: null, object_value: '一把旧钥匙', note: '' }],
   threads: [{ thread_id: 't1', seq: 1, kind: '承诺', participants: ['e1'], content: '三日内归还账本', status: 'active', opened_round: 4 }],
-  facts: [],
   world: { time: null, location: null, location_entity_id: null },
   presentIds: ['e1'],
 };

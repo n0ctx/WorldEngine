@@ -13,12 +13,13 @@ after(() => sandbox.cleanup());
 
 const {
   upsertEntity, upsertProfileField, upsertDynamicState, upsertRelation, upsertThread,
-  upsertWorldProfile, upsertWorldFact, upsertPresence, nextEntitySeq, nextThreadSeq, nextRelationSeq, nextFactSeq,
+  upsertWorldProfile, upsertPresence, nextEntitySeq, nextThreadSeq, nextRelationSeq,
 } = await freshImport('backend/db/queries/state-memory.js');
 const {
-  selectRelevantEntities, renderStoryState, renderEntityDirectory, renderWorldFactsForUpdate,
+  selectRelevantEntities, renderStoryState, renderEntityDirectory,
   renderEntityDetailsForUpdate, renderEntityProfileText, renderProfileGapsForUpdate,
 } = await freshImport('backend/memory/state-memory-render.js');
+const { renderRelevantThreadsForUpdate } = await freshImport('backend/memory/state-thread-relevance.js');
 
 function setupSession() {
   const world = insertWorld(sandbox.db);
@@ -146,16 +147,12 @@ test('预算极小时身份组四要素与说话方式仍保留，其余内容�
   assert.ok(!text.includes('伤势'), '现状应因预算被裁掉');
 });
 
-test('世界事实与时间地点每轮都注入，不受预算影响', () => {
+test('世界时间地点不受预算影响', () => {
   const { sessionId, worldId } = setupSession();
   upsertWorldProfile(sessionId, 'time', '1000-03-16T08:00', null, 1);
   upsertWorldProfile(sessionId, 'location', '旧港仓库', null, 1);
-  upsertWorldFact(sessionId, { factId: 'f-1', seq: nextFactSeq(sessionId), text: '王城内禁止使用魔法', evidence: '证据' }, 1);
-
   const text = renderStoryState(sessionId, { worldId, budget: 0 });
   assert.match(text, /时间：1000-03-16T08:00｜地点：旧港仓库/);
-  assert.match(text, /【世界事实】/);
-  assert.match(text, /王城内禁止使用魔法/);
 });
 
 test('世界里有 nearby_enabled=1 的同义「职业」字段时，occupation 不渲染', () => {
@@ -294,17 +291,9 @@ test('renderEntityDirectory：含 player，预算内从新到旧截取后按 seq
   void first;
 });
 
-// ─── renderWorldFactsForUpdate ─────────────────────────────────────────────
-
-test('renderWorldFactsForUpdate：f<seq>｜内容', () => {
-  const { sessionId } = setupSession();
-  upsertWorldFact(sessionId, { factId: 'f-1', seq: nextFactSeq(sessionId), text: '北境已被黑潮会占领', evidence: '证据' }, 1);
-  assert.equal(renderWorldFactsForUpdate(sessionId), 'f1｜北境已被黑潮会占领');
-});
-
 // ─── renderEntityDetailsForUpdate ─────────────────────────────────────────────
 
-test('renderEntityDetailsForUpdate：带 e/r/t 编号，档案附可变性标注', () => {
+test('renderEntityDetailsForUpdate：档案与关系；相关事项单独渲染避免重复', () => {
   const { sessionId, worldId } = setupSession();
   const a = createEntity(sessionId, { name: '沈彦', round: 1 });
   const b = createEntity(sessionId, { name: '林乔', round: 1 });
@@ -318,7 +307,23 @@ test('renderEntityDetailsForUpdate：带 e/r/t 编号，档案附可变性标注
   const text = renderEntityDetailsForUpdate(sessionId, [a, b], { worldId });
   assert.match(text, /gender=男（immutable）/);
   assert.match(text, /r1｜沈彦 —盟友→ 林乔/);
-  assert.match(text, /t1｜［承诺］三日内归还账本（沈彦、林乔，第 1 轮起）/);
+  assert.doesNotMatch(text, /三日内归还账本/);
+  assert.match(renderRelevantThreadsForUpdate(sessionId, '沈彦收到账本'), /t1｜［承诺］三日内归还账本（沈彦、林乔）/);
+});
+
+test('无参与者事项按本轮内容命中；无关事项不注入', () => {
+  const { sessionId } = setupSession();
+  upsertThread(sessionId, {
+    threadId: 'orphan', seq: nextThreadSeq(sessionId), kind: '任务', participantsJson: '[]',
+    content: '归还账本', status: 'active', openedRound: 1,
+  }, 1);
+  upsertThread(sessionId, {
+    threadId: 'other', seq: nextThreadSeq(sessionId), kind: '任务', participantsJson: '[]',
+    content: '寻找宝石', status: 'active', openedRound: 1,
+  }, 1);
+  const text = renderRelevantThreadsForUpdate(sessionId, '账本已经归还');
+  assert.match(text, /归还账本/);
+  assert.doesNotMatch(text, /寻找宝石/);
 });
 
 test('renderEntityDetailsForUpdate：player 输出档案与现状（含位置）', () => {
