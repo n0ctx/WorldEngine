@@ -81,7 +81,7 @@ function normalizeProposalContent(proposal, raw, changes) {
       normalizeCardStateOps(proposal, raw);
       break;
     case 'global-config':
-      proposal.changes = deepOmit(normalizeObject(changes), ['api_key', 'llm.api_key', 'embedding.api_key']);
+      proposal.changes = deepOmit(normalizeObject(changes), ['api_key', 'llm.api_key']);
       break;
     case 'css-snippet':
       proposal.changes = normalizeCssProposalChanges(changes, proposal.operation);

@@ -234,7 +234,7 @@ async function updatePersonaProposal(proposal, { entityId, changes }) {
 }
 
 function applyGlobalConfigProposal(changes) {
-  const safeChanges = deepOmit(changes, ['api_key', 'llm.api_key', 'embedding.api_key']);
+  const safeChanges = deepOmit(changes, ['api_key', 'llm.api_key']);
   return Object.keys(safeChanges).length > 0 ? updateConfig(safeChanges) : null;
 }
 

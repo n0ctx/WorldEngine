@@ -62,12 +62,6 @@ export function createTestConfig(patch = {}) {
       temperature: 0.6,
       thinking_level: null,
     },
-    embedding: {
-      provider: null,
-      provider_models: {},
-      base_url: '',
-      model: '',
-    },
     ui: {
       theme: 'classic-parchment',
       font_size: 16,

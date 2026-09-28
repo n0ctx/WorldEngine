@@ -36,8 +36,6 @@ export const SUGGESTION_TOKEN_RESERVE = 200;     // 选项生成预留输出空�
 // 记忆召回
 // ============================
 export const MEMORY_RECALL_MAX_SESSIONS = 5;
-export const MEMORY_RECALL_SIMILARITY_THRESHOLD = 0.75;       // 跨 session 阈值
-export const MEMORY_RECALL_SAME_SESSION_THRESHOLD = 0.6;     // 同 session 内阈值
 /** turn 摘要锚点中 cast 人物名条数上限（与 memory-turn-summary*.md 模板中的 4 个一致） */
 export const TURN_SUMMARY_CAST_MAX = 4;
 

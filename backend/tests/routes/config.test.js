@@ -18,7 +18,6 @@ test('GET /api/config 会隐藏真实 provider_keys 并暴露 has_key', async ()
   const data = await res.json();
 
   assert.equal(data.llm.has_key, true);
-  assert.equal(data.embedding.has_key, true);
   assert.equal(data.provider_keys.mock, true);
   assert.equal(data.provider_keys.openai, true);
 });
