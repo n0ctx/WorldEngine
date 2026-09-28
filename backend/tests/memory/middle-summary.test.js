@@ -175,10 +175,11 @@ test('computeMiddleSummary：二次压缩仍超长时失败，coveredTo 不推�
   const result = await computeMiddleSummary(session.id, 2);
 
   assert.equal(result.failed, true);
-  assert.ok(result.error);
+  assert.equal(result.error, '中期摘要超出长度限制');
   assert.equal(result.coveredTo, 0);
   assert.equal(result.text, '');
   assert.deepEqual(result.evicted, [1, 1]);
+  assert.equal(result.windowRounds, 2);
 });
 
 test('computeMiddleSummary：二次压缩输出为空时失败', async () => {
@@ -195,6 +196,7 @@ test('computeMiddleSummary：二次压缩输出为空时失败', async () => {
   const result = await computeMiddleSummary(session.id, 2);
 
   assert.equal(result.failed, true);
+  assert.equal(result.error, '中期摘要输出为空');
   assert.equal(result.coveredTo, 0);
   assert.equal(result.text, '');
 });

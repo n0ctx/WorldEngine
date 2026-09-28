@@ -220,6 +220,21 @@ export async function computeMiddleSummary(sessionId, roundIndex) {
   const recordsByRound = new Map(allRecords.map((r) => [r.round_index, r]));
   const items = buildMaterialItems(evictedRounds, recordsByRound, userName, characterName);
 
+  // 失败时覆盖范围不推进，下一轮的短期窗口仍是滑出前的完整窗口
+  const failedResult = (error) => {
+    const unevicted = planEviction(rounds, baseCoveredTo, Infinity, roundIndex);
+    return {
+      text: baseText,
+      coveredTo: baseCoveredTo,
+      evicted: evictedRange,
+      failed: true,
+      error,
+      windowTokens: unevicted.windowTokens,
+      windowRounds: unevicted.windowRounds,
+      middleTokens: countTokens(baseText),
+    };
+  };
+
   try {
     let summaryText = await mergeMaterial(sessionId, userName, characterName, baseText, items);
 
@@ -228,16 +243,7 @@ export async function computeMiddleSummary(sessionId, roundIndex) {
     }
 
     if (!summaryText || countTokens(summaryText) > MIDDLE_SUMMARY_MAX_TOKENS) {
-      return {
-        text: baseText,
-        coveredTo: baseCoveredTo,
-        evicted: evictedRange,
-        failed: true,
-        error: '中期摘要超出长度限制',
-        windowTokens: plan.windowTokens,
-        windowRounds: plan.windowRounds,
-        middleTokens: countTokens(baseText),
-      };
+      return failedResult(summaryText ? '中期摘要超出长度限制' : '中期摘要输出为空');
     }
 
     return {
@@ -251,16 +257,7 @@ export async function computeMiddleSummary(sessionId, roundIndex) {
       middleTokens: countTokens(summaryText),
     };
   } catch (err) {
-    return {
-      text: baseText,
-      coveredTo: baseCoveredTo,
-      evicted: evictedRange,
-      failed: true,
-      error: err.message,
-      windowTokens: plan.windowTokens,
-      windowRounds: plan.windowRounds,
-      middleTokens: countTokens(baseText),
-    };
+    return failedResult(err.message);
   }
 }
 
