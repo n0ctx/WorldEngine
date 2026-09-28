@@ -20,6 +20,7 @@ const {
   upsertWorldProfile,
   upsertWorldFact,
   closeWorldFact,
+  closeProfileField,
   upsertPresence,
   nextEntitySeq,
   nextThreadSeq,
@@ -102,10 +103,25 @@ test('getEntityDetails 返回当前档案与动态状态', () => {
   const details = getEntityDetails(sessionId, [entityId]);
   assert.equal(details[entityId].profile.gender.value_json, '"女"');
   assert.equal(details[entityId].profile.gender.evidence, '沈彦其实是女人');
+  assert.equal(details[entityId].profile.gender.valid_from_round, 2);
   assert.equal(details[entityId].dynamic['伤势'], '右臂受伤');
 
   const empty = getEntityDetails(sessionId, []);
   assert.deepEqual(empty, {});
+});
+
+test('closeProfileField 关闭当前档案字段行且不插入新版本', () => {
+  const sessionId = setupSession();
+  const entityId = 'entity-close-profile';
+  upsertProfileField(sessionId, entityId, 'gender', '"男"', '沈彦是个男人', 1);
+  closeProfileField(sessionId, entityId, 'gender', 2);
+
+  const rows = db.prepare(`SELECT * FROM state_profile_fields WHERE session_id = ? AND entity_id = ?`).all(sessionId, entityId);
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].valid_to_round, 2);
+
+  const details = getEntityDetails(sessionId, [entityId]);
+  assert.deepEqual(details[entityId].profile, {});
 });
 
 test('closeDynamicState 关闭当前动态状态行且不插入新版本', () => {

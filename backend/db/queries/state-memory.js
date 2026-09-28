@@ -19,7 +19,7 @@
  *   写入：
  *     upsertEntity / upsertProfileField / upsertDynamicState / upsertRelation /
  *     upsertThread / upsertWorldProfile / upsertWorldFact（均为 closeAndInsert 版本）
- *     closeDynamicState / closeRelation / closeWorldFact（关闭当前行，不插入新版本）
+ *     closeDynamicState / closeRelation / closeWorldFact / closeProfileField（关闭当前行，不插入新版本）
  *     upsertPresence(sessionId, round, entityIds)
  *   取号：nextEntitySeq / nextThreadSeq / nextRelationSeq / nextFactSeq(sessionId)
  *   回滚：rollbackStateMemory(sessionId, keptRounds)
@@ -125,6 +125,11 @@ export function upsertProfileField(sessionId, entityId, fieldKey, valueJson, evi
     { session_id: sessionId, entity_id: entityId, field_key: fieldKey, value_json: valueJson, evidence: evidence ?? null },
     round,
   );
+}
+
+/** 关闭当前有效的档案字段行（删除该档案字段），不插入新版本。 */
+export function closeProfileField(sessionId, entityId, fieldKey, round) {
+  return closeCurrentRow('state_profile_fields', ['session_id', 'entity_id', 'field_key'], [sessionId, entityId, fieldKey], round);
 }
 
 // ============================
@@ -284,7 +289,7 @@ export function listCurrentEntities(sessionId) {
 
 /**
  * 指定实体的当前档案与动态状态。
- * @returns {{ [entityId: string]: { profile: Record<string, {value_json: string, evidence: string|null}>, dynamic: Record<string, string> } }}
+ * @returns {{ [entityId: string]: { profile: Record<string, {value_json: string, evidence: string|null, valid_from_round: number}>, dynamic: Record<string, string> } }}
  */
 export function getEntityDetails(sessionId, entityIds) {
   const details = Object.fromEntries(entityIds.map((id) => [id, { profile: {}, dynamic: {} }]));
@@ -292,11 +297,13 @@ export function getEntityDetails(sessionId, entityIds) {
   const placeholders = entityIds.map(() => '?').join(', ');
 
   const profileRows = db.prepare(`
-    SELECT entity_id, field_key, value_json, evidence FROM state_profile_fields
+    SELECT entity_id, field_key, value_json, evidence, valid_from_round FROM state_profile_fields
     WHERE session_id = ? AND valid_to_round IS NULL AND entity_id IN (${placeholders})
   `).all(sessionId, ...entityIds);
   for (const row of profileRows) {
-    details[row.entity_id].profile[row.field_key] = { value_json: row.value_json, evidence: row.evidence };
+    details[row.entity_id].profile[row.field_key] = {
+      value_json: row.value_json, evidence: row.evidence, valid_from_round: row.valid_from_round,
+    };
   }
 
   const dynamicRows = db.prepare(`
