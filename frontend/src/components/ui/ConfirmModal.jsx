@@ -54,6 +54,7 @@ export default function ConfirmModal({
           transition={m.transition('overlay')}
           onClick={(e) => e.stopPropagation()}
         >
+          <span className="we-panel-edge" aria-hidden="true" />
           <h2 className="we-confirm-title">{title}</h2>
           <div className="we-confirm-message">{message}</div>
           <div className="flex justify-end gap-3">

@@ -1,4 +1,5 @@
 import { motion } from 'framer-motion';
+import { useTouchFx } from '../motion/useTouchFx.jsx';
 import { useMotion } from '../../core/hooks/useMotion.js';
 
 const sizeCls = {
@@ -12,10 +13,12 @@ export default function Button({
   size = 'md',
   disabled = false,
   className = '',
+  onPointerDown,
   children,
   ...props
 }) {
   const m = useMotion();
+  const touch = useTouchFx({ onPointerDown });
   return (
     <motion.button
       disabled={disabled}
@@ -26,9 +29,11 @@ export default function Button({
         className,
       ].filter(Boolean).join(' ')}
       {...m.gesture('press', { disabled })}
+      onPointerDown={touch.handlers.onPointerDown}
       {...props}
     >
       {children}
+      {touch.fx}
     </motion.button>
   );
 }

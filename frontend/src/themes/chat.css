@@ -12,7 +12,7 @@
   from, to { opacity: 1; }
 }
 
-/* 大面板墨水浮现：编辑页等整页容器。不带模糊——模糊入场会让文字在合成层上抖一下 */
+/* 大面板淡入上浮：信号锁定的大面板入场（--we-fx-panel）。不带模糊——模糊入场会让文字在合成层上抖一下 */
 @keyframes we-panel-rise {
   from { opacity: 0; transform: translateY(8px); }
   to   { opacity: 1; transform: none; }
@@ -366,7 +366,7 @@
   background: var(--we-pane-center-bg);
   border-radius: var(--we-radius-lg);
   box-shadow: var(--we-material-shadow);
-  animation: we-panel-fade var(--we-duration-normal) var(--we-easing-ink) both;
+  animation: var(--we-fx-panel);
 }
 
 /* 纸面：::before 是压在底色上、正文下的静态纸纹；::after 是纸边——
@@ -1467,7 +1467,7 @@
   inset: var(--we-topbar-height) 0 0 0;
   z-index: calc(var(--we-z-modal) - 1);
   background: color-mix(in srgb, var(--we-color-bg-overlay) 40%, transparent);
-  animation: we-panel-fade var(--we-duration-fast) var(--we-easing-ink) both;
+  animation: var(--we-fx-scrim);
 }
 
 .we-asst-drawer {
@@ -1725,11 +1725,6 @@
 
 .we-asst-new-msg-btn:active {
   transform: translateY(1px);
-}
-
-@keyframes we-bounce-arrow {
-  0%, 100% { transform: translateY(0); }
-  50%       { transform: translateY(3px); }
 }
 
 .we-asst-new-msg-arrow {
@@ -2147,11 +2142,6 @@
 
 /* — 打字三点 ─ */
 /* 三个点依次亮起；形状与节奏由动效包决定 */
-@keyframes we-typing-dot {
-  0%, 33%   { opacity: 1; }
-  34%, 100% { opacity: 0.2; }
-}
-
 .typing-dot {
   display: inline-block;
   width: 6px;

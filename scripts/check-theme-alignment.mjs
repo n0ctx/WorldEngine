@@ -37,7 +37,6 @@ const SKIP_PREFIXES = [
   '--we-z-',           // z-index，不在主题范围
   '--we-space-',       // 间距，结构性，主题不改
   '--we-topbar-height',// 顶栏高度，结构尺寸，主题不改
-  '--we-skeleton-pulse-duration', // 骨架呼吸时长，动效节奏，随动效包而不是主题
   '--we-range-',       // 功能性渐变（JS 动态变量）
   '--we-status-table-',// JS 运行时 token
   '--we-worlds-grid-', // JS 运行时 token

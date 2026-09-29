@@ -81,6 +81,22 @@ describe('DeleteButton 原地确认', () => {
   });
 });
 
+describe('SectionTabs 切换标记', () => {
+  const sections = [
+    { key: 'a', label: '基础', content: <p>基础内容</p> },
+    { key: 'b', label: '模型', content: <p>模型内容</p> },
+  ];
+
+  it('刚挂载（如展开侧栏）不带切换标记，切换过页签后才带，动效包只在真正切换时强调当前页签', () => {
+    const { container } = render(<SectionTabs sections={sections} defaultKey="a" />);
+    const root = container.querySelector('.we-section-tabs');
+    expect(root).not.toHaveClass('we-section-tabs--switched');
+
+    fireEvent.click(screen.getByRole('tab', { name: '模型' }));
+    expect(root).toHaveClass('we-section-tabs--switched');
+  });
+});
+
 describe('SectionTabs variant="gooey"', () => {
   const sections = [
     { key: 'a', label: '基础', content: <p>基础内容</p> },

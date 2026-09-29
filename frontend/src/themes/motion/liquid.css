@@ -19,6 +19,9 @@
   --we-fx-nudge: we-ink-bob 1.4s var(--ink-flow) infinite;
   --we-fx-spin: we-tool-spin 0.9s cubic-bezier(0.5, 0.1, 0.5, 0.9) infinite;
   --we-fx-typing: we-ink-bead-rise var(--we-duration-loop) var(--ink-flow) infinite;
+  /* 遮罩底色从中央洇开；大面板托起、冲过一截再回落，不带光晕（弹窗面板走 packs/liquid.js 的 overlayEnter） */
+  --we-fx-scrim: we-ink-pool 900ms var(--ink-surface) backwards;
+  --we-fx-panel: we-ink-lift 900ms var(--ink-spring) backwards;
 }
 
 /* ── 浮现 / 沉没 ───────────────────────────────────────── */
@@ -273,16 +276,106 @@
   to   { transform: translate(8%, 6%) rotate(10deg) scale(1.12); }
 }
 
+/* ── 大面板：遮罩从中央洇开，面板从下方托起 ─── */
+/* 遮罩：墨落在页面中央，羽化的墨晕向外洇开占满；只作用于遮罩底色（见 ui.css），不带着面板一起动。
+   300vmax 保证洇到最后连屏幕四角也盖住 */
+@keyframes we-ink-pool {
+  from {
+    -webkit-mask-image: radial-gradient(circle closest-side, #000 70%, transparent);
+    mask-image: radial-gradient(circle closest-side, #000 70%, transparent);
+    -webkit-mask-position: 50% 45%;
+    mask-position: 50% 45%;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-size: 0 0;
+    mask-size: 0 0;
+  }
+  to {
+    -webkit-mask-image: radial-gradient(circle closest-side, #000 70%, transparent);
+    mask-image: radial-gradient(circle closest-side, #000 70%, transparent);
+    -webkit-mask-position: 50% 45%;
+    mask-position: 50% 45%;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-size: 300vmax 300vmax;
+    mask-size: 300vmax 300vmax;
+  }
+}
+/* 面板托起：与 packs/liquid.js 的 overlayEnter 同一动作（28px，--ink-spring 冲过再回落）；不缩放、不模糊 */
+@keyframes we-ink-lift {
+  from { opacity: 0; translate: 0 28px; }
+  30%  { opacity: 1; }
+}
+
+/* ── 剧情选项：墨从点下的位置洇满选中项，其余项像被退开的墨沉下去 ─── */
+/* 选中：墨从触点（--px / --py，OptionCard 写入；键盘选中时从中心）洇开直到填满，垫在文字下面；
+   文字与外沿先是湿墨色，再慢慢干成选中色 */
+:where(:root[data-motion="liquid"]) .we-option-list > .we-option-btn--selected {
+  overflow: hidden;
+  isolation: isolate;
+  /* guard-allow(literals): 湿墨色干掉的时长，墨流材质的一部分 */
+  animation: we-ink-option-dry 1600ms var(--ink-flow);
+}
+:where(:root[data-motion="liquid"]) .we-option-list > .we-option-btn--selected::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: var(--we-z-behind);
+  pointer-events: none;
+  background: color-mix(in srgb, var(--we-color-accent) 22%, transparent);
+  /* guard-allow(literals): 墨洇满一项的时长，墨流材质的一部分 */
+  animation: we-ink-option-fill 900ms var(--ink-surface) both;
+}
+@keyframes we-ink-option-fill {
+  from { clip-path: circle(0 at var(--px, 50%) var(--py, 50%)); }
+  to   { clip-path: circle(160% at var(--px, 50%) var(--py, 50%)); }
+}
+@keyframes we-ink-option-dry {
+  from { color: var(--ink-wet); box-shadow: 0 0 18px -2px var(--ink-glow); }
+}
+/* 其余项：由近及远（--d）依次沉下去、变淡、微微发糊；只位移不缩放，文字不抖 */
+:where(:root[data-motion="liquid"]) .we-option-list > .we-option-btn--dismissed {
+  opacity: 0.38;
+  filter: blur(1px);
+  translate: 0 6px;
+  /* guard-allow(literals): 退开的墨沉得比界面过渡慢，时长是这种材质的一部分 */
+  transition:
+    opacity 760ms var(--ink-surface) calc(var(--d) * var(--we-duration-fast) / 2),
+    filter 760ms var(--ink-surface) calc(var(--d) * var(--we-duration-fast) / 2),
+    translate 900ms var(--ink-spring-soft) calc(var(--d) * var(--we-duration-fast) / 2);
+}
+
 /* ── 交互反馈：按下像按进水面，松手弹回 ───────────────────────────────
-   framer 驱动的按钮（Button、发送、卡片）走 JS 手势；这里补上普通可点元素。
-   用独立的 scale 属性，不碰各自的 transform；按下快、松手走弹簧 */
+   带字的东西一律不缩放（字会抖），只按进去再弹回；只有图标的小按钮和开关轨道才压扁。
+   framer 驱动的按钮（Button、顶栏、发送、入口卡片）走 JS 手势，这里补上普通可点元素。
+   用独立的 translate / scale 属性，不碰各自的 transform；按下快、松手走弹簧。
+   --mx / --my 是指针在元素里的位置，由 useTouchFx 与 Input / Textarea 写入；登记成长度才能带着黏滞过渡 */
+@property --mx { syntax: '<length-percentage>'; inherits: true; initial-value: 50%; }
+@property --my { syntax: '<length-percentage>'; inherits: true; initial-value: 50%; }
+@property --ink-r { syntax: '<length>'; inherits: false; initial-value: 0px; }
+@property --ink-a { syntax: '<percentage>'; inherits: false; initial-value: 0%; }
+
+:root[data-motion="liquid"] {
+  /* 按下：墨面被按进去的一下要跟手 */
+  --ink-press-in: 90ms;
+  --ink-press-in-ease: ease-out;
+  /* 松手：弹簧弹回，带过冲 */
+  --ink-press-out: 620ms;
+  /* 湿墨从触点洇开、再干掉 */
+  --ink-bloom: 900ms;
+  --ink-ring: 1100ms;
+  --ink-dry: 1600ms;
+  /* 光晕追指针：慢半拍 */
+  --ink-trail: 520ms;
+  /* 开关、滑块的圆钮 */
+  --ink-knob: 680ms;
+}
+
 :where(:root[data-motion="liquid"]) :is(
-  .we-section-tab, .we-select-option, .we-settings-nav-item, .we-chat-slash-item,
-  .we-topbar-item, .we-chat-quick-btn, .we-sm-chip,
-  .we-character-card-action-btn, .we-world-card-action-btn, .we-toggle-track
+  .we-section-tab, .we-select-option, .we-settings-nav-item, .we-chat-slash-item, .we-sm-chip
 ) {
   transition:
-    scale var(--ink-press-time, 560ms) var(--ink-press-ease, var(--ink-spring)),
+    translate var(--ink-press-out) var(--ink-spring),
     color var(--we-duration-fast) var(--we-easing-sharp),
     background-color var(--we-duration-fast) var(--we-easing-sharp),
     border-color var(--we-duration-fast) var(--we-easing-sharp),
@@ -290,15 +383,341 @@
     opacity var(--we-duration-fast) var(--we-easing-sharp);
 
   &:active {
-    --ink-press-time: 90ms;
-    --ink-press-ease: ease-out;
-    scale: 1.03 0.9;
+    translate: 0 2px;
+    transition-duration: var(--ink-press-in);
+    transition-timing-function: var(--ink-press-in-ease);
   }
 }
-/* 开关的圆钮：被弹过去，冲过一点再回来 */
-:where(:root[data-motion="liquid"]) .we-toggle-thumb {
-  transition: transform 560ms var(--ink-spring);
+:where(:root[data-motion="liquid"]) :is(
+  .we-chat-quick-btn, .we-character-card-action-btn, .we-world-card-action-btn, .we-toggle-track
+) {
+  transition:
+    scale var(--ink-press-out) var(--ink-spring),
+    color var(--we-duration-fast) var(--we-easing-sharp),
+    background-color var(--we-duration-fast) var(--we-easing-sharp),
+    border-color var(--we-duration-fast) var(--we-easing-sharp),
+    box-shadow var(--we-duration-fast) var(--we-easing-sharp),
+    opacity var(--we-duration-fast) var(--we-easing-sharp);
+
+  &:active {
+    scale: 1.03 0.9;
+    transition-duration: var(--ink-press-in);
+    transition-timing-function: var(--ink-press-in-ease);
+  }
 }
+
+/* 按钮（Button）：framer 负责浮起、按进和弹回；这里是按下时外沿一圈湿边，和从触点在按钮里洇开的一滴墨 */
+:where(:root[data-motion="liquid"]) .we-btn {
+  transition:
+    background var(--we-duration-fast) var(--we-easing-sharp),
+    border-color var(--we-duration-fast) var(--we-easing-sharp),
+    color var(--we-duration-fast) var(--we-easing-sharp),
+    box-shadow var(--ink-dry) var(--ink-flow);
+}
+:where(:root[data-motion="liquid"]) .we-btn:active:not(:disabled) {
+  box-shadow: 0 0 0 4px var(--ink-glow);
+  transition-duration: var(--we-duration-fast), var(--we-duration-fast), var(--we-duration-fast), var(--ink-press-in);
+}
+:where(:root[data-motion="liquid"]) .we-btn > .we-touch-fx {
+  display: block;
+}
+:where(:root[data-motion="liquid"]) .we-btn .we-touch-fx__ripple {
+  background: radial-gradient(circle, var(--ink-wet) 0 28%, var(--ink-glow) 52%, transparent 72%);
+  animation: we-ink-bloom var(--ink-bloom) var(--ink-surface) both;
+}
+@keyframes we-ink-bloom {
+  from { transform: scale(1);  opacity: 0.55; }
+  to   { transform: scale(24); opacity: 0; }
+}
+
+/* ── 卡片悬停与按下（Card、角色卡、世界入口卡片） ─── */
+/* 卡片不弹不缩：湿墨光晕追着指针在卡面里游走（慢半拍），悬停浮起、卡底透出一层湿墨投影；
+   按下从触点洇开一圈墨晕，卡片按进纸里、投影收拢，松手带着过冲弹回。
+   世界入口卡片的浮起与按进由 framer 的 portal 手势负责，这里只给光晕和墨晕 */
+:where(:root[data-motion="liquid"]) :is(.we-card:not(.we-card-flat), .we-character-card, .we-world-card) {
+  transition:
+    --mx var(--ink-trail) var(--ink-surface),
+    --my var(--ink-trail) var(--ink-surface),
+    translate var(--ink-press-out) var(--ink-spring),
+    border-color var(--we-duration-normal) var(--we-easing-sharp),
+    box-shadow var(--we-duration-slow) var(--ink-surface);
+}
+:where(:root[data-motion="liquid"]) :is(.we-card:not(.we-card-flat), .we-character-card) {
+  position: relative;
+}
+:where(:root[data-motion="liquid"]) :is(.we-card:not(.we-card-flat), .we-character-card):hover {
+  translate: 0 -4px;
+  border-color: color-mix(in srgb, var(--we-color-accent) 40%, var(--we-color-border-default));
+  box-shadow: 0 14px 28px -16px var(--ink-glow), 0 4px 10px -6px var(--we-color-shadow-md);
+}
+:where(:root[data-motion="liquid"]) :is(.we-card:not(.we-card-flat), .we-character-card):active {
+  translate: 0 2px;
+  box-shadow: 0 1px 2px var(--we-color-shadow-sm);
+  transition-duration: var(--ink-trail), var(--ink-trail), var(--ink-press-in), var(--we-duration-normal), var(--ink-press-in);
+  transition-timing-function: var(--ink-surface), var(--ink-surface), var(--ink-press-in-ease), var(--we-easing-sharp), var(--ink-press-in-ease);
+}
+:where(:root[data-motion="liquid"]) :is(.we-card:not(.we-card-flat), .we-character-card, .we-world-card) > .we-touch-fx {
+  display: block;
+  opacity: 0;
+  background: radial-gradient(
+    200px circle at var(--mx) var(--my),
+    color-mix(in srgb, var(--we-color-accent) 15%, transparent),
+    transparent 72%
+  );
+  transition: opacity var(--we-duration-extended) var(--ink-surface);
+}
+:where(:root[data-motion="liquid"]) .we-world-card > .we-touch-fx {
+  z-index: var(--we-z-card-overlay);
+}
+:where(:root[data-motion="liquid"]) :is(.we-card:not(.we-card-flat), .we-character-card, .we-world-card):hover > .we-touch-fx {
+  opacity: 1;
+}
+:where(:root[data-motion="liquid"]) :is(.we-card:not(.we-card-flat), .we-character-card, .we-world-card) .we-touch-fx__ripple {
+  background: radial-gradient(
+    circle,
+    transparent 48%,
+    color-mix(in srgb, var(--we-color-accent) 38%, transparent) 60%,
+    transparent 72%
+  );
+  animation: we-ink-ripple var(--ink-ring) var(--ink-surface) both;
+}
+@keyframes we-ink-ripple {
+  from { transform: scale(1);  opacity: 1; }
+  to   { transform: scale(44); opacity: 0; }
+}
+
+/* ── 输入框聚焦：墨从按下的那一点渗进纸里 ─── */
+/* 输入框装不下伪元素：框内的淡墨画在自己的背景最上层，是从触点长大的一个圆（--ink-r），随后干掉（--ink-a）；
+   底色保持主题原样（多数主题是半透明的，不能在它下面再垫别的颜色）。描边先是湿墨色、外沿带光晕，
+   再慢慢干成常态的聚焦色与聚焦环。键盘聚焦没有触点，从左侧光标处洇开。行内编辑面（状态表格）不画。 */
+:where(:root[data-motion="liquid"]) :is(.we-input, .we-textarea):not(.we-status-inline-surface *) {
+  caret-color: var(--ink-wet);
+}
+:where(:root[data-motion="liquid"]) :is(.we-input, .we-textarea):focus:not(.we-status-inline-surface *) {
+  --ink-at: var(--mx, 14px) var(--my, 50%);
+  background:
+    radial-gradient(circle at var(--ink-at), color-mix(in srgb, var(--we-color-accent) calc(var(--ink-a) * 0.18), transparent), transparent var(--ink-r)) padding-box,
+    var(--we-color-ink-wash);
+  box-shadow: var(--we-shadow-paper-indent), var(--we-focus-ring);
+  animation:
+    we-ink-seep var(--ink-bloom) var(--ink-surface) both,
+    we-ink-field-dry var(--ink-dry) var(--ink-flow) both;
+}
+@keyframes we-ink-seep {
+  from { --ink-r: 0px; }
+  to   { --ink-r: 560px; }
+}
+@keyframes we-ink-field-dry {
+  0%, 40% { --ink-a: 100%; border-color: var(--ink-wet); box-shadow: var(--we-shadow-paper-indent), 0 0 18px -2px var(--ink-glow); }
+  100%    { --ink-a: 0%;   border-color: var(--we-color-border-focus); box-shadow: var(--we-shadow-paper-indent), var(--we-focus-ring); }
+}
+
+/* ── 开关：圆钮像一滴墨被甩过去 ─── */
+/* 出发时被拉长、到位后压扁回弹；轨道被墨从圆钮那一侧染满，到位时向外晕开一圈。
+   data-touched 由 ToggleSwitch 在用户拨过之后打上，页面刚加载时不播 */
+:where(:root[data-motion="liquid"]) .we-toggle-track {
+  background-color: var(--we-color-border-default);
+  background-image: linear-gradient(var(--we-color-accent), var(--we-color-accent));
+  background-repeat: no-repeat;
+  background-position: left center;
+  background-size: 0% 100%;
+  transition:
+    scale var(--ink-press-out) var(--ink-spring),
+    background-size var(--ink-knob) var(--ink-surface);
+}
+:where(:root[data-motion="liquid"]) .we-toggle-track--enabled {
+  background-size: 100% 100%;
+}
+:where(:root[data-motion="liquid"]) .we-toggle-thumb {
+  transition: transform var(--ink-knob) var(--ink-spring-soft);
+}
+:where(:root[data-motion="liquid"]) [data-touched] > .we-toggle-thumb--enabled {
+  transform-origin: 0 50%;
+  animation: we-ink-knob-stretch var(--ink-knob) var(--ink-surface);
+}
+:where(:root[data-motion="liquid"]) [data-touched] > .we-toggle-thumb:not(.we-toggle-thumb--enabled) {
+  transform-origin: 100% 50%;
+  animation: we-ink-knob-stretch var(--ink-knob) var(--ink-surface);
+}
+@keyframes we-ink-knob-stretch {
+  0%   { scale: 1 1; }
+  28%  { scale: 1.75 0.8; }
+  62%  { scale: 0.92 1.08; }
+  100% { scale: 1 1; }
+}
+:where(:root[data-motion="liquid"]) .we-toggle-track--enabled[data-touched] {
+  animation: we-ink-halo var(--ink-ring) var(--ink-surface);
+}
+@keyframes we-ink-halo {
+  from { box-shadow: 0 0 0 0 var(--ink-glow); }
+  to   { box-shadow: 0 0 0 10px transparent; }
+}
+
+/* ── 滑块：按住时圆钮胀大、带着光晕，松手后光晕慢慢干掉 ─── */
+:where(:root[data-motion="liquid"]) .we-range::-webkit-slider-thumb {
+  transition:
+    transform var(--ink-press-out) var(--ink-spring-soft),
+    box-shadow var(--ink-ring) var(--ink-surface);
+}
+:where(:root[data-motion="liquid"]) .we-range:active::-webkit-slider-thumb {
+  transform: scale(1.3);
+  box-shadow: var(--we-shadow-range-thumb-active), 0 0 0 8px var(--ink-glow);
+  transition-duration: var(--we-duration-fast), var(--we-duration-normal);
+}
+:where(:root[data-motion="liquid"]) .we-range::-moz-range-thumb {
+  transition:
+    transform var(--ink-press-out) var(--ink-spring-soft),
+    box-shadow var(--ink-ring) var(--ink-surface);
+}
+:where(:root[data-motion="liquid"]) .we-range:active::-moz-range-thumb {
+  transform: scale(1.3);
+  box-shadow: var(--we-shadow-range-thumb-active), 0 0 0 8px var(--ink-glow);
+  transition-duration: var(--we-duration-fast), var(--we-duration-normal);
+}
+
+/* ── 删除确认按钮 ─── */
+/* 确认删除：整颗按钮被往下拽着沉没，再从水面浮回，露出湿墨色的对勾；
+   取消：墨从垃圾桶那一格洇开一圈淡墨，慢慢化开（确认条这时已经收起） */
+:where(:root[data-motion="liquid"]) .we-delete-btn[data-status="deleted"] {
+  animation:
+    we-ink-sink var(--we-duration-slow) var(--ink-sink) both,
+    we-ink-resurface var(--ink-knob) var(--ink-spring) var(--we-duration-extended) forwards;
+}
+@keyframes we-ink-resurface {
+  0%   { opacity: 0; transform: translateY(14px) scale(0.82, 1.24); filter: blur(4px); }
+  30%  { opacity: 1; filter: blur(0); }
+  100% { opacity: 1; transform: none; filter: none; }
+}
+:where(:root[data-motion="liquid"]) .we-delete-btn[data-status="deleted"] .we-delete-btn__done {
+  animation: we-ink-mark-dry var(--ink-dry) var(--ink-flow) var(--we-duration-extended) both;
+}
+@keyframes we-ink-mark-dry {
+  from { color: var(--ink-wet); filter: drop-shadow(0 0 4px var(--ink-glow)); }
+  to   { filter: drop-shadow(0 0 0 transparent); }
+}
+:where(:root[data-motion="liquid"]) .we-delete-btn[data-status="kept"] .we-delete-btn__trigger::after {
+  content: '';
+  position: absolute;
+  inset: 3px;
+  border-radius: 50%;
+  pointer-events: none;
+  background: radial-gradient(circle, var(--ink-glow) 0 30%, color-mix(in srgb, var(--we-color-accent) 20%, transparent) 55%, transparent 72%);
+  animation: we-ink-kept-bloom var(--ink-ring) var(--ink-surface) both;
+}
+@keyframes we-ink-kept-bloom {
+  from { transform: scale(0.6); opacity: 0.9; }
+  to   { transform: scale(3.6); opacity: 0; }
+}
+
+/* ── 拖拽排序：拿起浮出水面，放下像一滴墨落回纸面 ─── */
+/* 拿起：条目浮起 8px、投下一片影子；放下：带着过冲压回纸面，湿墨描边慢慢干掉，边缘溅开一圈墨晕。
+   列表条目（SortableList）的状态在 data-sort 上；网格（SortableGrid）只有跟手副本 .we-sortable-overlay */
+:where(:root[data-motion="liquid"]) .we-sortable-item {
+  /* guard-allow(literals): 墨流材质的回弹时长，与 --ink-spring 的采样长度配套 */
+  transition: translate 760ms var(--ink-spring);
+}
+:where(:root[data-motion="liquid"]) .we-sortable-item > :first-child {
+  /* guard-allow(literals): 墨流材质的浮起时长，与 --ink-surface 配套 */
+  transition: box-shadow 760ms var(--ink-surface);
+}
+:where(:root[data-motion="liquid"]) .we-sortable-item[data-sort="drag"] {
+  translate: 0 -8px;
+  transition: translate var(--we-duration-fast) var(--ink-surface);
+}
+:where(:root[data-motion="liquid"]) :is(.we-sortable-item[data-sort="drag"], .we-sortable-overlay) > :first-child {
+  box-shadow: 0 14px 28px -10px var(--we-color-shadow-lg);
+  transition: box-shadow var(--we-duration-fast) var(--ink-surface);
+}
+:where(:root[data-motion="liquid"]) .we-sortable-overlay > :first-child {
+  translate: 0 -8px;
+}
+:where(:root[data-motion="liquid"]) .we-sortable-item[data-sort="drop"] > :first-child {
+  /* guard-allow(literals): 湿墨干掉的时长，是墨流材质的一部分 */
+  animation: we-sort-settle-ink 1400ms var(--ink-flow);
+}
+@keyframes we-sort-settle-ink {
+  from {
+    color: var(--ink-wet);
+    box-shadow: 0 0 0 1px var(--ink-wet), 0 0 24px -4px var(--ink-glow);
+  }
+}
+:where(:root[data-motion="liquid"]) .we-sortable-item::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: var(--we-radius-md);
+  pointer-events: none;
+  opacity: 0;
+}
+:where(:root[data-motion="liquid"]) .we-sortable-item[data-sort="drop"]::after {
+  /* guard-allow(literals): 墨晕溅开的时长与延迟，是墨流材质的一部分 */
+  animation: we-ink-sort-splash 900ms var(--ink-surface) 120ms both;
+}
+@keyframes we-ink-sort-splash {
+  from { opacity: 1; box-shadow: 0 0 0 0 var(--ink-glow); }
+  to   { opacity: 1; box-shadow: 0 0 0 14px transparent; }
+}
+
+/* ── 徽标与空状态入场 ─── */
+/* 徽标像墨滴一颗颗坠下，冲过一点再弹回（只位移，不压扁文字），先是湿墨色再干成本色，落地时身下溅开一道墨晕；
+   空状态标题用「洇开」，说明与按钮随后浮上来（本包的 --we-fx-enter） */
+:where(:root[data-motion="liquid"]) .we-badge {
+  --badge-delay: 0ms;
+  position: relative;
+  /* guard-allow(literals): 墨滴坠落与干掉的时长，是墨流材质的一部分 */
+  animation:
+    we-ink-badge-fall 760ms var(--ink-spring) var(--badge-delay) both,
+    we-ink-badge-dry 1500ms var(--ink-flow) var(--badge-delay) both;
+}
+/* 同一排里的徽标一颗接一颗落下 */
+:where(:root[data-motion="liquid"]) .we-badge:nth-child(2) { --badge-delay: 110ms; }
+:where(:root[data-motion="liquid"]) .we-badge:nth-child(n + 3) { --badge-delay: 220ms; }
+@keyframes we-ink-badge-fall {
+  from { opacity: 0; translate: 0 -24px; filter: blur(4px); }
+  30%  { opacity: 1; filter: blur(0); }
+  to   { opacity: 1; translate: 0 0; filter: none; }
+}
+@keyframes we-ink-badge-dry {
+  from {
+    color: var(--ink-wet);
+    border-color: var(--ink-wet);
+    box-shadow: 0 0 14px -2px var(--ink-glow);
+  }
+}
+:where(:root[data-motion="liquid"]) .we-badge::after {
+  content: '';
+  position: absolute;
+  left: -20%;
+  right: -20%;
+  bottom: -5px;
+  height: 8px;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, var(--ink-glow), transparent);
+  pointer-events: none;
+  /* guard-allow(literals): 墨晕溅开的时长与落地时刻，是墨流材质的一部分 */
+  animation: we-ink-badge-splash 820ms var(--ink-surface) calc(var(--badge-delay) + 160ms) both;
+}
+@keyframes we-ink-badge-splash {
+  from { opacity: 1; transform: scaleX(0.25); }
+  to   { opacity: 0; transform: scaleX(1.3); }
+}
+:where(:root[data-motion="liquid"]) .we-empty-state__title {
+  -webkit-mask-image: linear-gradient(90deg, #000 0 40%, transparent 60% 100%);
+  mask-image: linear-gradient(90deg, #000 0 40%, transparent 60% 100%);
+  -webkit-mask-size: 260% 100%;
+  mask-size: 260% 100%;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  /* guard-allow(literals): 洇开的时长与起点，是墨流材质的一部分 */
+  animation: we-ink-spread 1000ms var(--ink-surface) 460ms both;
+}
+:where(:root[data-motion="liquid"]) :is(.we-empty-state__hint, .we-empty-state__actions) {
+  animation: var(--we-fx-enter);
+  /* guard-allow(literals): 等标题洇开一半再浮上来 */
+  animation-delay: 820ms;
+}
+/* guard-allow(literals): 按钮跟在说明后面一拍 */
+:where(:root[data-motion="liquid"]) .we-empty-state__actions { animation-delay: 940ms; }
 
 /* ── 循环：打字点、骨架、转圈、箭头、小墨珠 ─── */
 :where(:root[data-motion="liquid"]) .typing-dot {
@@ -347,11 +766,32 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  :root[data-motion="liquid"] {
+    --ink-press-in: 0ms;
+    --ink-press-out: 0ms;
+    --ink-bloom: 0ms;
+    --ink-ring: 0ms;
+    --ink-dry: 0ms;
+    --ink-trail: 0ms;
+    --ink-knob: 0ms;
+  }
+  :where(:root[data-motion="liquid"]) :is(.we-input, .we-textarea, .we-toggle-track, .we-toggle-thumb, .we-delete-btn, .we-delete-btn__done),
+  :where(:root[data-motion="liquid"]) .we-delete-btn__trigger::after,
   :where(:root[data-motion="liquid"]) .we-stream-char > .we-fx-glyph__face,
   :where(:root[data-motion="liquid"]) .we-stream-char--caret::after,
   :where(:root[data-motion="liquid"]) .we-stream-caret,
   :where(:root[data-motion="liquid"]) :is(.we-state-change-overlay, .we-cast-state-overlay)::after,
+  :where(:root[data-motion="liquid"]) :is(.we-sortable-item > :first-child, .we-badge, .we-empty-state__title, .we-empty-state__hint, .we-empty-state__actions),
+  :where(:root[data-motion="liquid"]) .we-sortable-item::after,
+  :where(:root[data-motion="liquid"]) .we-badge::after,
   .we-ink-bead::before {
     animation: none;
+  }
+  :where(:root[data-motion="liquid"]) :is(.we-sortable-item, .we-sortable-item > :first-child) {
+    transition: none;
+  }
+  :where(:root[data-motion="liquid"]) .we-empty-state__title {
+    -webkit-mask-image: none;
+    mask-image: none;
   }
 }

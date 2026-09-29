@@ -24,8 +24,28 @@
   border-radius: var(--we-radius-full);
 }
 
+/* ── 触点反馈层（useTouchFx）：铺满宿主、裁在宿主圆角里；默认不显示，由动效包按宿主决定要不要、长什么样 ── */
+.we-touch-fx {
+  display: none;
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border-radius: inherit;
+  pointer-events: none;
+}
+.we-touch-fx__ripple {
+  position: absolute;
+  left: var(--rx);
+  top: var(--ry);
+  width: 12px;
+  height: 12px;
+  margin: -6px 0 0 -6px;
+  border-radius: 50%;
+}
+
 /* ── Button ── */
 .we-btn {
+  position: relative;
   font-family: var(--we-font-prose);
   font-size: var(--we-text-control);
   padding: var(--we-space-sm) var(--we-space-lg);
@@ -302,6 +322,19 @@
   background: var(--we-color-accent-bg);
 }
 
+/* ── SortableList 条目 ── */
+/* 拿起、放下的样子由动效包按 data-sort 决定；__slot 是停在条目当前落点上的占位框，默认不显示 */
+.we-sortable-item {
+  position: relative;
+}
+.we-sortable-item__slot {
+  display: none;
+  position: absolute;
+  inset: 0;
+  z-index: var(--we-z-behind);
+  pointer-events: none;
+}
+
 /* ── Dialog Panel ── */
 /* 弹窗与确认框：半透明面板压在模糊的场景上，场景仍隐约可见，不跳出成一张后台表单 */
 .we-dialog-panel {
@@ -313,8 +346,25 @@
 
 /* ── ModalShell ── */
 .we-modal-backdrop {
-  background: var(--we-color-bg-overlay);
   backdrop-filter: blur(var(--we-blur-scrim));
+}
+
+/* 遮罩的底色画在 ::before 上：入场（--we-fx-scrim，由动效包决定）只作用于底色，不带着上面的面板一起动；
+   模糊留在遮罩本身。三种遮罩都是 fixed，自成层叠上下文，底色垫在面板之下 */
+:is(.we-modal-backdrop, .we-dialog-overlay, .we-settings-overlay)::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: var(--we-z-behind);
+  background: var(--we-color-bg-overlay);
+  pointer-events: none;
+  animation: var(--we-fx-scrim);
+}
+
+/* 大面板与导航圆点上的动效装饰层（如信号锁定的锁定括号）：默认不显示，由动效包的样式决定 */
+.we-panel-edge,
+.we-bounce-rail__lock {
+  display: none;
 }
 
 .we-modal {
@@ -637,6 +687,7 @@
   border: 1px solid var(--we-color-border-default);
   border-radius: var(--we-radius-sm);
   padding: 7px var(--we-space-md); /* 7px: design exact */
+  position: relative;
   font-family: var(--we-font-prose);
   font-size: var(--we-text-sm);
   color: var(--we-color-text-primary);
@@ -645,6 +696,13 @@
               border-color var(--we-duration-fast) var(--we-easing-sharp),
               transform var(--we-duration-fast) var(--we-easing-quill);
   line-height: var(--we-leading-snug);
+}
+/* 剧情选项逐项错开入场，入场本身由动效包决定（--we-fx-enter）；--i 是第几项，由 OptionCard 写入。
+   选中那一下与其余项退开的样子也由动效包决定（--selected / --dismissed，--d 是离选中项的远近） */
+.we-option-list > .we-option-btn {
+  animation: var(--we-fx-enter);
+  animation-fill-mode: backwards;
+  animation-delay: calc(var(--i) * var(--we-duration-fast) / 2);
 }
 .we-option-btn:hover:not(.we-option-btn--disabled) {
   background: var(--we-color-accent-bg);
@@ -1895,7 +1953,6 @@
 .we-dialog-overlay {
   position: fixed;
   inset: 0;
-  background: var(--we-color-bg-overlay);
   backdrop-filter: blur(var(--we-blur-scrim));
   z-index: var(--we-z-modal);
   display: flex;
@@ -2576,6 +2633,11 @@
 /* =========================================================
    Range 滑条 — 全平台定制
    ========================================================= */
+
+.we-range-field {
+  position: relative;
+  display: grid;
+}
 
 .we-range {
   -webkit-appearance: none;

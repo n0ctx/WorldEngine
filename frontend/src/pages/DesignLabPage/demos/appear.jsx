@@ -1,14 +1,14 @@
 import { useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import MessageBubbles from '../../../components/chat/MessageBubbles.jsx';
+import OptionCard from '../../../components/chat/OptionCard.jsx';
 import SpeakerStage from '../../../components/chat/SpeakerStage.jsx';
 import CodeBlock from '../../../components/motion/CodeBlock.jsx';
 import Button from '../../../components/ui/Button.jsx';
 import ChatErrorBubble from '../../ChatPage/components/ChatErrorBubble.jsx';
 import { useMotion } from '../../../core/hooks/useMotion.js';
-import OptionCardCompare from '../sketch/OptionCardSketch.jsx';
 import SlotSection from '../SlotSection.jsx';
-import { CARDS, CHAT, CODE, SPEAKERS } from './fixtures.js';
+import { CARDS, CHAT, CODE, OPTIONS, SPEAKERS } from './fixtures.js';
 
 const noop = () => {};
 
@@ -63,6 +63,10 @@ export function MessageDemo() {
         character={{ name: '艾拉' }}
         persona={{ name: '玩家' }}
         options={[]}
+        onEditMessage={noop}
+        onRegenerateMessage={noop}
+        onEditAssistantMessage={noop}
+        onDeleteMessage={noop}
       />
     </SlotSection>
   );
@@ -134,7 +138,9 @@ export function OptionCardDemo() {
       id="option-card"
       actions={<Button variant="secondary" size="sm" onClick={() => setRun((n) => n + 1)}>重播</Button>}
     >
-      <OptionCardCompare key={run} />
+      <div className="we-chat-center-pane we-design-lab__canvas-strip">
+        <OptionCard key={run} options={OPTIONS} streaming={false} onSelect={noop} />
+      </div>
     </SlotSection>
   );
 }

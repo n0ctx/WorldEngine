@@ -2,7 +2,8 @@
  * Copyright (c) 2026 Swami Malode，许可见同目录 RAREUI_LICENSE。
  * 竖向导航左侧的指示圆点：当前项变化时，圆点沿一段向左鼓出的弧线弹到新项旁边；
  * 墨流包下不走弧线，圆点沿竖线拉成一截墨：朝目标那一端先冲过去、另一端被拖着跟上，到位后收回成圆点。
- * 只画圆点，不接管导航本身：容器里带 data-bounce-item 的元素是导航项，aria-current 标记当前项。 */
+ * 只画圆点，不接管导航本身：容器里带 data-bounce-item 的元素是导航项，aria-current 标记当前项。
+ * 弧线跳到位后在落点放一个锁定锚点（we-bounce-rail__lock），由动效包的样式决定是否画准星。 */
 import { useEffect, useRef, useState } from 'react';
 import { animate, motion, useMotionValue, useTransform } from 'framer-motion';
 import { useMotion } from '../../core/hooks/useMotion.js';
@@ -47,6 +48,8 @@ export default function BounceRail({ containerRef, activeKey }) {
   const length = useTransform(() => `${end.get() - y.get() + DOT}px`);
   const placed = useRef(null);
   const [visible, setVisible] = useState(false);
+  // 最近一次落点：每落一次换一个 key，锚点重新挂载，准星动画重播
+  const [lock, setLock] = useState(null);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -78,6 +81,7 @@ export default function BounceRail({ containerRef, activeKey }) {
         y.set(p.y);
         end.set(p.y);
       },
+      onComplete: () => setLock((prev) => ({ x: to.x + DOT / 2, y: to.y + DOT / 2, key: (prev?.key ?? 0) + 1 })),
     });
     return () => hop.stop();
   }, [containerRef, activeKey, reduced, pack, x, y, end]);
@@ -99,10 +103,20 @@ export default function BounceRail({ containerRef, activeKey }) {
   }, [containerRef, x, y, end]);
 
   return (
-    <motion.span
-      aria-hidden
-      className={`we-bounce-rail${visible ? ' is-visible' : ''}`}
-      style={{ x, y, '--we-bounce-rail-length': length }}
-    />
+    <>
+      <motion.span
+        aria-hidden
+        className={`we-bounce-rail${visible ? ' is-visible' : ''}`}
+        style={{ x, y, '--we-bounce-rail-length': length }}
+      />
+      {lock && (
+        <span
+          key={lock.key}
+          aria-hidden
+          className="we-bounce-rail__lock"
+          style={{ translate: `${lock.x}px ${lock.y}px` }}
+        />
+      )}
+    </>
   );
 }

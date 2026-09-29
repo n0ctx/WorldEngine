@@ -1,11 +1,9 @@
 import { motion } from 'framer-motion';
 import DeleteButton from '../../../components/motion/DeleteButton.jsx';
+import { useTouchFx } from '../../../components/motion/useTouchFx.jsx';
 import Button from '../../../components/ui/Button.jsx';
 import Card from '../../../components/ui/Card.jsx';
-import PanelCard from '../../../components/ui/PanelCard.jsx';
 import { useMotion } from '../../../core/hooks/useMotion.js';
-import Compare from '../sketch/Compare.jsx';
-import Touch from '../sketch/Touch.jsx';
 import SlotSection from '../SlotSection.jsx';
 
 const noop = () => {};
@@ -23,20 +21,34 @@ export function PressDemo() {
   );
 }
 
+// 入口卡片的真身是世界卡（带封面、拖动），这里只借它的类名和手势，样子一样
 export function PortalDemo() {
   const m = useMotion();
+  const touch = useTouchFx();
   return (
     <SlotSection id="portal">
-      <motion.button type="button" className="we-design-lab__card we-material" {...m.gesture('portal')}>进入世界</motion.button>
+      <div className="we-design-lab__row">
+        <div className="we-world-card-shell we-design-lab__portal">
+          <motion.button type="button" className="we-world-card we-material" {...m.gesture('portal')} {...touch.handlers}>
+            {touch.fx}
+            <span className="we-world-card-foot"><span className="we-world-card-name">进入世界</span></span>
+          </motion.button>
+        </div>
+      </div>
     </SlotSection>
   );
 }
 
+// 真实的发送键在输入框里，这里借它的类名、手势与按下反馈
 export function SinkDemo() {
   const m = useMotion();
+  const touch = useTouchFx();
   return (
     <SlotSection id="sink">
-      <motion.button type="button" className="we-design-lab__send" aria-label="发送" {...m.gesture('sink')}>↑</motion.button>
+      <motion.button type="button" className="we-chat-send-btn" aria-label="发送" {...m.gesture('sink')} {...touch.handlers}>
+        ↑
+        {touch.fx}
+      </motion.button>
     </SlotSection>
   );
 }
@@ -52,20 +64,11 @@ export function DeleteButtonDemo() {
 export function CardHoverDemo() {
   return (
     <SlotSection id="card-hover">
-      <Compare sketchClass="we-sketch-card">
-        <div className="we-design-lab__row">
-          {['contained', 'ring', 'whisper'].map((elevation) => (
-            <Touch key={elevation}>
-              <Card elevation={elevation} className="we-design-lab__card-sample">{elevation}</Card>
-            </Touch>
-          ))}
-        </div>
-        <Touch>
-          <PanelCard title="面板卡片" actions={<Button variant="ghost" size="sm">操作</Button>}>
-            <p className="we-design-lab__note">悬停整块面板。</p>
-          </PanelCard>
-        </Touch>
-      </Compare>
+      <div className="we-design-lab__row">
+        {['contained', 'ring', 'whisper'].map((elevation) => (
+          <Card key={elevation} elevation={elevation} className="we-design-lab__card-sample">{elevation}</Card>
+        ))}
+      </div>
     </SlotSection>
   );
 }

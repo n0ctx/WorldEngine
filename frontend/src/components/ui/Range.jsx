@@ -24,10 +24,14 @@ const RANGE_PCT_CLASS = {
   100: '[--range-pct:100%]',
 };
 
-function calculatePercentage(value, min, max) {
-  if (max <= min) return 0;
+function rangeFraction(value, min, max) {
+  if (Number(max) <= Number(min)) return 0;
   const normalized = (Number(value) - Number(min)) / (Number(max) - Number(min));
-  return Math.round(Math.max(0, Math.min(1, normalized)) * 100 / 5) * 5;
+  return Math.max(0, Math.min(1, normalized));
+}
+
+function calculatePercentage(value, min, max) {
+  return Math.round(rangeFraction(value, min, max) * 100 / 5) * 5;
 }
 
 export default function Range({
@@ -42,16 +46,19 @@ export default function Range({
   const pct = useMemo(() => calculatePercentage(value, min, max), [value, min, max]);
   const pctClass = RANGE_PCT_CLASS[pct] || RANGE_PCT_CLASS[0];
 
+  // 外层给动效包挂圆钮上的准星：--range-v 是不取整的 0–1 位置，准星要贴着圆钮走
   return (
-    <input
-      type="range"
-      value={value}
-      min={min}
-      max={max}
-      step={step}
-      onChange={onChange}
-      className={`we-range ${pctClass} ${className}`.trim()}
-      {...props}
-    />
+    <span className="we-range-field" style={{ '--range-v': rangeFraction(value, min, max) }}>
+      <input
+        type="range"
+        value={value}
+        min={min}
+        max={max}
+        step={step}
+        onChange={onChange}
+        className={`we-range ${pctClass} ${className}`.trim()}
+        {...props}
+      />
+    </span>
   );
 }

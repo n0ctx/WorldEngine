@@ -8,13 +8,25 @@ import SectionTabs from '../../../components/ui/SectionTabs.jsx';
 import SlotSection from '../SlotSection.jsx';
 import { NAV } from './fixtures.js';
 
+const TAB_COPY = {
+  世界规则: '雨夜不停。拳场只收现金，欠债的人不能上台。',
+  状态字段: '生命、好感度、金钱、位置，每轮由剧情改写。',
+  开场白: '你推开拳场的铁门，潮气和汗味一起涌出来。',
+  写作风格: '短句，冷色调，少形容词，多动作。',
+};
+
+const TABS = NAV.map((label) => ({
+  key: label,
+  label,
+  content: <p className="we-design-lab__note">{TAB_COPY[label]}</p>,
+}));
+
 export function TabsDemo() {
-  const tabs = NAV.map((label) => ({ key: label, label, content: <p className="we-design-lab__note">{label}的内容</p> }));
   return (
     <SlotSection id="tabs">
       <div className="we-design-lab__grid">
-        <SectionTabs sections={tabs} />
-        <SectionTabs sections={tabs} variant="gooey" />
+        <SectionTabs sections={TABS} />
+        <SectionTabs sections={TABS} variant="gooey" />
       </div>
     </SlotSection>
   );

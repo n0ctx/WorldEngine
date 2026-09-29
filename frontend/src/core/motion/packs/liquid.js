@@ -21,6 +21,8 @@ const RISE = spring(260, 19);
 const ENTER = { ...RISE, opacity: { duration: 0.32, ease: SURFACE }, filter: { duration: 0.42, ease: SURFACE } };
 const EXIT = { duration: 0.28, ease: SINK };
 const PANEL = { ...spring(220, 22), opacity: { duration: PANEL_FADE, ease: SURFACE } };
+// 大面板托起：阻尼比约 0.5，冲过位置一截再回落（与 liquid.css 的 we-ink-lift / --ink-spring 同一手感）
+const LIFT = { ...spring(220, 15), opacity: { duration: PANEL_FADE, ease: SURFACE } };
 
 export default {
   id: 'liquid',
@@ -44,11 +46,12 @@ export default {
       visible: { opacity: 1, y: 0, scaleX: 1, scaleY: 1, filter: CLEAR },
       exit:    { opacity: 0, y: 14, scaleY: 0.96, filter: BLUR_EXIT, transition: EXIT },
     },
-    // 大面板入场：整块托起再落稳；不加模糊，大块模糊会让文字在合成层上抖一下
+    // 大面板入场：从下方托起，冲过位置一截再回落。不缩放（面板里有字，缩放会抖），
+    // 不加模糊（大块模糊会让文字在合成层上抖一下）；与 liquid.css 的 we-ink-lift 同一动作
     overlayEnter: {
-      hidden:  { opacity: 0, y: 32, scale: 0.97 },
-      visible: { opacity: 1, y: 0, scale: 1 },
-      exit:    { opacity: 0, y: 18, scale: 0.985, transition: EXIT },
+      hidden:  { opacity: 0, y: 28 },
+      visible: { opacity: 1, y: 0, transition: LIFT },
+      exit:    { opacity: 0, y: 18, transition: EXIT },
     },
     // 页签内容：顺着指示条移动的方向流进来；custom 传方向（1 向右、-1 向左）
     tabEnter: {
@@ -83,9 +86,10 @@ export default {
   // 位移、尺寸、形状的变化：同样的名义时长，换成带回弹的弹簧
   flow: (duration) => ({ type: 'spring', visualDuration: duration * 1.25, bounce: 0.28 }),
   gestures: {
-    // 悬停微微浮起；按下压扁、松手弹回
-    press:  { whileHover: { y: -2 }, whileTap: { y: 1, scaleX: 1.06, scaleY: 0.9 } },
-    portal: { whileHover: { y: -5, scale: 1.015 }, whileTap: { scale: 0.97 } },
+    // 带字的按钮和卡片不缩放（字会抖）：悬停浮起，按下按进纸里，松手带过冲弹回；湿墨从触点洇开见 liquid.css
+    press:  { whileHover: { y: -2 }, whileTap: { y: 2 } },
+    portal: { whileHover: { y: -4 }, whileTap: { y: 2 } },
+    // 发送键只有图标：按下压扁、松手弹回
     sink:   { whileTap: { y: 3, scaleX: 1.06, scaleY: 0.92 } },
   },
   // 流式输出：一滴墨落下、砸开、回弹；湿墨色在之后慢慢干掉

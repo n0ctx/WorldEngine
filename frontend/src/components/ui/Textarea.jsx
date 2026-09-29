@@ -1,6 +1,8 @@
 import { useCallback } from 'react';
+import { clearTouchPoint, setTouchPoint } from '../motion/useTouchFx.jsx';
 
-export default function Textarea({ className = '', onMouseDown, ...props }) {
+// 聚焦时动效包从按下的位置（--mx / --my）开始画描边；失焦清掉，键盘聚焦从左侧开始
+export default function Textarea({ className = '', onMouseDown, onPointerDown, onBlur, ...props }) {
   const handleMouseDown = useCallback((e) => {
     const el = e.currentTarget;
     const rect = el.getBoundingClientRect();
@@ -31,6 +33,8 @@ export default function Textarea({ className = '', onMouseDown, ...props }) {
     <textarea
       className={['we-textarea', className].filter(Boolean).join(' ')}
       onMouseDown={handleMouseDown}
+      onPointerDown={(e) => { setTouchPoint(e); onPointerDown?.(e); }}
+      onBlur={(e) => { clearTouchPoint(e); onBlur?.(e); }}
       {...props}
     />
   );

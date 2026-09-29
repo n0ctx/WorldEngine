@@ -13,7 +13,7 @@ const MOVE = { duration: DURATION.quick, ease: EASE.ink };
 
 // 闪两下亮起：亮起、回落、再亮起
 const FLASH = [0, 1, 0.3, 1];
-// 大面板与页签内容的上浮起点
+// 大面板的上浮起点
 const RISE_Y = 8;
 
 export default {
@@ -40,10 +40,10 @@ export default {
       visible: { opacity: 1, y: 0 },
       exit:    { opacity: 0, y: 6 },
     },
-    // 页签内容：与大面板一样淡入上浮，不看切换方向
+    // 页签内容：原地闪两下亮起后锁定，不上浮、不看切换方向（页签本身的括号锁定见 signal.css）
     tabEnter: {
-      hidden:  { opacity: 0, y: RISE_Y },
-      visible: { opacity: 1, y: 0 },
+      hidden:  { opacity: 0 },
+      visible: { opacity: FLASH, transition: ENTER },
     },
     // 遮罩：平滑亮起 / 熄灭
     overlayBackdrop: {
@@ -80,9 +80,10 @@ export default {
   flow: (duration) => ({ duration, ease: EASE.ink }),
   // 手势目标值，transition 由 useMotion().gesture 配上 press
   gestures: {
-    press:  { whileTap: { scale: 0.96 } },
-    // 入口面积大：悬停上移让位；按下只压缩
-    portal: { whileHover: { y: -2 }, whileTap: { scale: 0.98 } },
+    // 带字的按钮和卡片不缩放：按下硬切下沉；提亮与括号见 signal.css
+    press:  { whileTap: { y: 1 } },
+    // 入口面积大：悬停上移让位，按下落回原位
+    portal: { whileHover: { y: -2 }, whileTap: { y: 0 } },
     // 发送：按下陷落
     sink:   { whileTap: { y: 1.5 } },
   },

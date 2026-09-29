@@ -57,9 +57,9 @@ export default function SectionTabs({ sections, defaultKey, variant, globalActio
   const active = sections.some((s) => s.key === storedActive) ? storedActive : sections[0]?.key;
   const current = sections.find(s => s.key === active);
   const activeIndex = sections.findIndex(s => s.key === active);
-  // 切换方向：新内容顺着指示条移动的方向进来
-  const [shown, setShown] = useState({ index: activeIndex, dir: 1 });
-  if (shown.index !== activeIndex) setShown({ index: activeIndex, dir: activeIndex >= shown.index ? 1 : -1 });
+  // 切换方向：新内容顺着指示条移动的方向进来；switched 标记挂载后切换过，动效包只在真正切换时给当前页签做强调
+  const [shown, setShown] = useState({ index: activeIndex, dir: 1, switched: false });
+  if (shown.index !== activeIndex) setShown({ index: activeIndex, dir: activeIndex >= shown.index ? 1 : -1, switched: true });
 
   const listRef = useRef(null);
   const tabRefs = useRef({});
@@ -121,7 +121,7 @@ export default function SectionTabs({ sections, defaultKey, variant, globalActio
   ));
 
   return (
-    <div className={`we-section-tabs${variant ? ` we-section-tabs--${variant}` : ''}`}>
+    <div className={`we-section-tabs${variant ? ` we-section-tabs--${variant}` : ''}${shown.switched ? ' we-section-tabs--switched' : ''}`}>
       <div className="we-section-tabs-bar">
         <div className="we-section-tabs-row">
         <div

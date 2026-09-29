@@ -8,6 +8,7 @@ import WorldSceneArt from '../../components/ui/WorldSceneArt.jsx';
 import { getAvatarUrl } from '../../core/utils/avatar';
 import { relativeTime } from '../../core/utils/time';
 import { useMotion } from '../../core/hooks/useMotion.js';
+import { useTouchFx } from '../../components/motion/useTouchFx.jsx';
 import { STAGGER } from '../../core/utils/motion.js';
 
 const ENTER_STAGGER_CAP = 8;
@@ -77,6 +78,7 @@ function WorldCard({
   // 首位取 SortableGrid 的实时 index，拖动时大门随卡片一起移动。
   const isFeature = index === 0;
   const hiddenCast = world.character_count - world.cast.length;
+  const touch = useTouchFx();
 
   return (
     <div
@@ -116,6 +118,7 @@ function WorldCard({
         initial={isDragging ? false : 'hidden'}
         animate="visible"
         {...motionConfig.gesture('portal', { disabled: isDragging })}
+        {...touch.handlers}
       >
         {world.cover_path ? (
           <img src={`${getAvatarUrl(world.cover_path)}?t=${reloadKey}`} alt="" className="we-world-card-bg" />
@@ -123,6 +126,7 @@ function WorldCard({
           <WorldSceneArt name={world.name} className="we-world-card-bg we-world-card-scene" />
         )}
         <div className="we-world-card-overlay" />
+        {touch.fx}
         {showGlow && !isDragging ? <PortalGlow /> : null}
 
         <div className="we-world-card-foot">

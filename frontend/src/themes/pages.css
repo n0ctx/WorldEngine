@@ -1685,8 +1685,8 @@
   /* 遮罩是定高 flex 容器，100% 即遮罩高度。96px 按 52px 顶栏写死，桌面顶栏 30px 时会把底部裁掉 */
   max-height: calc(100% - var(--we-space-xl) - var(--we-space-2xl));
   overflow-y: auto;
-  /* 入场：墨水浮现（单次挂载，不随更新重放）。大面板不走信号锁定，横向抖动会把整页内容拽偏 */
-  animation: we-panel-rise var(--we-duration-slow) var(--we-easing-ink) both;
+  /* 入场由动效包决定（单次挂载，不随更新重放） */
+  animation: var(--we-fx-panel);
 }
 
 .we-edit-header {
@@ -2166,13 +2166,11 @@
   z-index: var(--we-z-sticky);
   display: flex;
   flex-direction: column;
-  background: var(--we-color-bg-overlay);
+  /* 底色与入场在 ::before 上，见 ui.css 的遮罩底色 */
   backdrop-filter: blur(var(--we-blur-scrim));
   overflow: hidden;
   padding: 0 var(--we-space-xl) var(--we-space-xl);
   box-sizing: border-box;
-  /* 背景遮罩淡入，与面板同步登场；遮罩只变透明度，保持平滑，不跟信号锁定一起分格跳 */
-  animation: we-panel-fade var(--we-duration-normal) var(--we-easing-ink) both;
 }
 
 .we-settings-loading {
@@ -4760,11 +4758,6 @@
 }
 
 /* ── Skeleton Loading 占位 ── */
-@keyframes we-skeleton-pulse {
-  0%, 100% { opacity: 0.6; }
-  50%      { opacity: 1.0; }
-}
-
 .we-skeleton-block {
   height: 16px;
   border-radius: var(--we-radius-sm);
@@ -4921,14 +4914,9 @@
   text-align: left;
   cursor: pointer;
 }
-.we-design-lab__send {
-  width: 36px;
-  height: 36px;
-  border: 0;
-  border-radius: var(--we-radius-full);
-  background: var(--we-color-accent);
-  color: var(--we-color-text-inverse);
-  cursor: pointer;
+.we-design-lab__portal {
+  width: 240px;
+  height: 150px;
 }
 .we-design-lab__note {
   padding-top: var(--we-space-sm);

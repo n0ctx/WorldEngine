@@ -11,6 +11,8 @@ const MotionDiv = motion.div;
  * - 蒙版：半透背景 + 微 blur，聚焦主体内容
  * - 容器：抬升表面 + 大圆角 + 接地投影，入场走 overlay 弹簧
  * - 无内置 padding，由子组件自行控制布局
+ * - 容器自己裁掉溢出，动效包的装饰层（we-panel-edge，如信号锁定的锁定括号）要画在容器外沿，
+ *   所以放在外面一层入场壳里，与容器同大
  */
 export default function ModalShell({ children, onClose, maxWidth = 'max-w-xl' }) {
   // 记录 mousedown 是否发生在背景本身（而非弹窗内容）
@@ -21,18 +23,16 @@ export default function ModalShell({ children, onClose, maxWidth = 'max-w-xl' })
   return createPortal(
     <MotionDiv
       className="we-modal-backdrop fixed inset-0 z-[var(--we-z-modal)] flex items-center justify-center"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{   opacity: 0 }}
+      variants={m.variant('overlayBackdrop')}
+      initial="hidden"
+      animate="visible"
+      exit="hidden"
       transition={m.transition('backdrop')}
       onMouseDown={(e) => { mouseDownOnBackdrop.current = e.target === e.currentTarget; }}
       onClick={() => { if (mouseDownOnBackdrop.current) onClose(); }}
     >
       <MotionDiv
-        className={[
-          'we-modal we-material w-full mx-4 flex flex-col max-h-[90vh] overflow-hidden',
-          maxWidth,
-        ].join(' ')}
+        className={['relative w-full mx-4', maxWidth].join(' ')}
         variants={m.variant('overlayEnter')}
         initial="hidden"
         animate="visible"
@@ -40,7 +40,10 @@ export default function ModalShell({ children, onClose, maxWidth = 'max-w-xl' })
         transition={m.transition('overlay')}
         onClick={(e) => e.stopPropagation()}
       >
-        {children}
+        <div className="we-modal we-material flex flex-col max-h-[90vh] overflow-hidden">
+          {children}
+        </div>
+        <span className="we-panel-edge" aria-hidden="true" />
       </MotionDiv>
     </MotionDiv>,
     document.body

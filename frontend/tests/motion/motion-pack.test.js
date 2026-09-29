@@ -43,11 +43,15 @@ describe('动效包', () => {
     }
   });
 
-  it('手势只含目标值不含 transition，按下是压缩或陷落', () => {
+  it('手势只含目标值不含 transition；按钮与入口卡片带字，按下是下沉而不是缩放', () => {
+    const SCALE_KEYS = ['scale', 'scaleX', 'scaleY'];
     for (const pack of Object.values(MOTION_PACKS)) {
       for (const gesture of Object.values(pack.gestures)) expect(gesture.transition).toBeUndefined();
-      const press = pack.gestures.press.whileTap;
-      expect(press.scaleY ?? press.scale).toBeLessThan(1);
+      for (const key of ['press', 'portal']) {
+        const { whileHover = {}, whileTap } = pack.gestures[key];
+        for (const state of [whileHover, whileTap]) expect(Object.keys(state).filter((k) => SCALE_KEYS.includes(k))).toEqual([]);
+      }
+      expect(pack.gestures.press.whileTap.y).toBeGreaterThan(0);
       expect(pack.gestures.sink.whileTap.y).toBeGreaterThan(0);
     }
   });

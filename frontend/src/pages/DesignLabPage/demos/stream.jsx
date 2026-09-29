@@ -91,9 +91,7 @@ export function LoopsDemo() {
           <span className="we-skel we-skel-line" />
         </div>
         <span aria-label="打字三点">
-          {[0, 1, 2].map((i) => (
-            <span key={i} className="typing-dot typing-dot-accent" style={{ animationDelay: `${i * 0.4}s` }} />
-          ))}
+          {[0, 1, 2].map((i) => <span key={i} className="typing-dot typing-dot-accent" />)}
         </span>
         <span className="we-asst-tool__spinner we-design-lab__spinner" aria-label="运行中" />
         <span className="we-asst-new-msg-arrow" aria-label="新消息">↓</span>

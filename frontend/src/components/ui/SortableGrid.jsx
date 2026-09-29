@@ -41,6 +41,8 @@ import { DURATION, EASE } from '../../core/utils/motion.js';
  *                         index 是该卡在拖动中列表里的实时位置，用于按位次决定样式（如首位大格）
  *   className          — 容器 className（外部 grid 样式）
  *   activationDistance — 进入拖拽态的指针位移阈值（默认 8px，<阈值走原生 click）
+ *
+ * 跟手副本拿在手里的样子归动效包（themes/motion/*.css 的「拖拽排序」小节，挂在 .we-sortable-overlay 上）。
  */
 const dropAnimation = {
   duration: DURATION.base * 1000,
@@ -137,11 +139,11 @@ export default function SortableGrid({
           ))}
         </div>
       </SortableContext>
-      <DragOverlay dropAnimation={dropAnimation}>
+      <DragOverlay className="we-sortable-overlay" dropAnimation={dropAnimation}>
         {activeItem
           ? renderItem(activeItem, {
               setNodeRef: () => {},
-              style: { cursor: 'grabbing', boxShadow: '0 16px 32px var(--we-color-shadow-lg)' },
+              style: { cursor: 'grabbing' },
               isDragging: true,
               index: activeIndex,
               attributes: {},

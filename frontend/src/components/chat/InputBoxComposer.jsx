@@ -2,6 +2,7 @@ import { motion } from 'framer-motion';
 import { ArrowUp, ImagePlus, Square } from 'lucide-react';
 import { MAX_ATTACHMENTS_PER_MESSAGE } from '../../core/utils/constants.js';
 import MotionOrb from '../motion/MotionOrb.jsx';
+import { useTouchFx } from '../motion/useTouchFx.jsx';
 import { SLASH_LISTBOX_ID, slashOptionId } from './useSlashCommands.js';
 import SlashCommandMenu from './SlashCommandMenu.jsx';
 import AttachmentThumbs from './AttachmentThumbs.jsx';
@@ -25,6 +26,8 @@ export default function InputBoxComposer({
   onStop,
   handleSend,
 }) {
+  // 发送 / 停止同一时刻只显示一个，共用一份按下反馈
+  const sendTouch = useTouchFx();
   return (
     <>
       {/* 图片缩略图 */}
@@ -94,8 +97,10 @@ export default function InputBoxComposer({
             title="停止生成"
             aria-label="停止生成"
             {...m.gesture('sink')}
+            {...sendTouch.handlers}
           >
             <Square size={16} fill="currentColor" />
+            {sendTouch.fx}
           </motion.button>
         ) : (
           <motion.button
@@ -105,8 +110,10 @@ export default function InputBoxComposer({
             title="发送 (Enter)"
             aria-label="发送消息"
             {...m.gesture('sink', { disabled: !text.trim() })}
+            {...sendTouch.handlers}
           >
             <ArrowUp size={20} strokeWidth={2} />
+            {sendTouch.fx}
           </motion.button>
         )}
       </div>

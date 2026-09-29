@@ -1,3 +1,5 @@
+import { useTouchFx } from '../motion/useTouchFx.jsx';
+
 const elevationCls = {
   flat:      'we-card-flat',
   contained: '',
@@ -8,9 +10,12 @@ const elevationCls = {
 export default function Card({
   elevation = 'contained',
   className = '',
+  onPointerDown,
+  onPointerMove,
   children,
   ...props
 }) {
+  const touch = useTouchFx({ onPointerDown, onPointerMove });
   return (
     <div
       className={[
@@ -18,9 +23,11 @@ export default function Card({
         elevationCls[elevation] ?? '',
         className,
       ].filter(Boolean).join(' ')}
+      {...touch.handlers}
       {...props}
     >
       {children}
+      {touch.fx}
     </div>
   );
 }

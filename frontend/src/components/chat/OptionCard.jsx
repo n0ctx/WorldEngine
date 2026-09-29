@@ -11,7 +11,25 @@ const MotionDiv = motion.div;
  * onSelect(text, index) — 第二个参数是所选选项的索引。
  * initialCollapsed — 新选项出现时的初始折叠状态（用于保留上一轮的折叠偏好）。
  * onCollapsedChange(collapsed) — 折叠状态变化时回调。
+ * 入场、选中、其余项退开的动效由动效包的样式决定：--i 是第几项（逐项错开），--d 是离选中项的远近，
+ * --px / --py 是点下的位置（墨流从这里洇开；键盘选中时没有触点，从中心开始）。
  */
+function markTouchPoint(event) {
+  if (!event.detail) return;
+  const box = event.currentTarget.getBoundingClientRect();
+  event.currentTarget.style.setProperty('--px', `${event.clientX - box.left}px`);
+  event.currentTarget.style.setProperty('--py', `${event.clientY - box.top}px`);
+}
+
+function optionClass({ disabled, selected, dismissed }) {
+  return [
+    'we-option-btn',
+    disabled && 'we-option-btn--disabled',
+    selected && 'we-option-btn--selected',
+    dismissed && 'we-option-btn--dismissed',
+  ].filter(Boolean).join(' ');
+}
+
 export default function OptionCard({ options, streaming, onSelect, initialCollapsed, onCollapsedChange }) {
   const [collapsed, setCollapsed] = useState(!!initialCollapsed);
   const [selectedIndex, setSelectedIndex] = useState(-1);
@@ -58,8 +76,10 @@ export default function OptionCard({ options, streaming, onSelect, initialCollap
                 return (
                   <button
                     key={i}
-                    className={`we-option-btn${disabled ? ' we-option-btn--disabled' : ''}${isSelected ? ' we-option-btn--selected' : ''}`}
-                    onClick={disabled ? undefined : () => {
+                    className={optionClass({ disabled, selected: isSelected, dismissed: hasSelected && !isSelected })}
+                    style={{ '--i': i, '--d': hasSelected ? Math.abs(i - selectedIndex) : 0 }}
+                    onClick={disabled ? undefined : (event) => {
+                      markTouchPoint(event);
                       setSelectedIndex(i);
                       onSelect(opt, i);
                     }}
