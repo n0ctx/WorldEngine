@@ -19,6 +19,7 @@
  *     upsertEntity / upsertProfileField / upsertDynamicState / upsertRelation /
  *     upsertThread / upsertWorldProfile（均为 closeAndInsert 版本）
  *     closeDynamicState / closeRelation / closeProfileField（关闭当前行，不插入新版本）
+ *     replaceThreadRows(sessionId, threads, round)（一次替换若干事项的当前行）
  *     upsertPresence(sessionId, round, entityIds)
  *   取号：nextEntitySeq / nextThreadSeq / nextRelationSeq(sessionId)
  *   回滚：rollbackStateMemory(sessionId, keptRounds)
@@ -74,6 +75,28 @@ function closeAndInsertRow(table, dataColumns, matchColumns, row, round) {
     rowId, ...dataColumns.map((column) => row[column]), round, null,
   );
   return rowId;
+}
+
+/** 一次替换若干事项的当前行。调用方已经在事务里。 */
+export function replaceThreadRows(sessionId, threads, round) {
+  if (!threads.length) return;
+  const ids = threads.map((thread) => thread.thread_id);
+  db.prepare(`
+    UPDATE state_threads SET valid_to_round = ?
+    WHERE session_id = ? AND thread_id IN (${ids.map(() => '?').join(', ')}) AND valid_to_round IS NULL
+  `).run(round, sessionId, ...ids);
+  const columns = [
+    'row_id', 'thread_id', 'session_id', 'seq', 'kind', 'participants_json', 'content',
+    'status', 'opened_round', 'last_touched_round', 'valid_from_round', 'valid_to_round',
+  ];
+  const rowPlaceholder = `(${columns.map(() => '?').join(', ')})`;
+  db.prepare(`
+    INSERT INTO state_threads (${columns.join(', ')}) VALUES ${threads.map(() => rowPlaceholder).join(', ')}
+  `).run(...threads.flatMap((thread) => [
+    crypto.randomUUID(), thread.thread_id, sessionId, thread.seq, thread.kind,
+    thread.participants_json, thread.content, thread.status, thread.opened_round,
+    thread.last_touched_round ?? thread.opened_round, round, null,
+  ]));
 }
 
 /** 关闭 matchColumns 定位到的当前有效行，不插入新版本；未命中时返回 null。 */

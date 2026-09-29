@@ -24,7 +24,7 @@ import crypto from 'node:crypto';
 
 import {
   upsertEntity, upsertProfileField, upsertDynamicState, closeDynamicState,
-  upsertRelation, closeRelation, upsertThread, upsertWorldProfile,
+  upsertRelation, closeRelation, upsertThread, replaceThreadRows, upsertWorldProfile,
   upsertPresence,
   nextEntitySeq, nextThreadSeq, nextRelationSeq,
   listCurrentEntities, getEntityDetails, listCurrentRelations, listThreads,
@@ -637,17 +637,16 @@ const OP_HANDLERS = {
   set_present: handleSetPresent,
 };
 
-/** 进行中事项连续多轮没被对话碰到时搁置。不刷新上次触碰轮次，否则搁置看起来像刚被提到。 */
+/** 进行中事项连续多轮没被对话碰到时搁置。一次查出再写入，不刷新上次触碰轮次。 */
 function dormantUntouchedThreads(ctx) {
   const names = new Map([...ctx.index.byId.values()].map((entity) => [entity.entity_id, entity.name]));
-  for (const thread of ctx.threads) {
-    if (thread.status !== 'active') continue;
+  const stale = ctx.threads.filter((thread) => {
+    if (thread.status !== 'active') return false;
     const lastTouched = thread.last_touched_round ?? thread.opened_round ?? 0;
-    if (ctx.round - lastTouched < THREAD_DORMANT_AFTER_ROUNDS) continue;
-    if (threadMatchesTurn(thread, ctx.turnText, names)) continue;
-    upsertThread(ctx.sessionId, buildThreadRow(thread, { status: 'dormant' }), ctx.round);
-    thread.status = 'dormant';
-  }
+    return ctx.round - lastTouched >= THREAD_DORMANT_AFTER_ROUNDS && !threadMatchesTurn(thread, ctx.turnText, names);
+  });
+  replaceThreadRows(ctx.sessionId, stale.map((thread) => ({ ...thread, status: 'dormant' })), ctx.round);
+  for (const thread of stale) thread.status = 'dormant';
 }
 
 // ============================

@@ -494,7 +494,6 @@ export function initSchema(db) {
   migrateProfileDefaultsColumns(db);
   migrateWritingSessionPersonaSchema(db);
   migrateWorldAppearanceSchema(db);
-  migrateThreadTouchSchema(db);
 }
 
 function migrateInitialLegacyColumns(db) {
@@ -727,12 +726,6 @@ function migrateWritingSessionPersonaSchema(db) {
   migrateBackfillWritingSessionPersonaId(db);
 }
 
-function migrateThreadTouchSchema(db) {
-  // 事项上次被对话碰到的轮次。旧行用立案轮次回填，不回放历史对话。
-  try { db.exec(`ALTER TABLE state_threads ADD COLUMN last_touched_round INTEGER NOT NULL DEFAULT 0`); } catch {}
-  db.exec(`UPDATE state_threads SET last_touched_round = opened_round WHERE last_touched_round = 0`);
-}
-
 function migrateWorldAppearanceSchema(db) {
   // 设定条目分组：触发机制从左栏分类维度降级为条目属性，条目改按用户自定义分组导航。
   // 可空，默认 NULL（未分组）；不按 trigger_type 回填，避免"换个名字继续当分类"。
@@ -755,6 +748,12 @@ function migrateWorldAppearanceSchema(db) {
 // guard-allow(perf-shape): 一次性数据迁移，由 internal_meta 标记保证只跑一次
 function migrateBackfillWritingSessionPersonaId(db) {
   const key = 'migration:writing_session_persona_id_backfill';
+  // 事项上次被对话碰到的轮次。旧行用立案轮次回填，不回放历史对话。判断放在这里，避免抬高 initSchema。
+  const threadColumns = db.prepare('PRAGMA table_info(state_threads)').all();
+  if (!threadColumns.some((column) => column.name === 'last_touched_round')) {
+    db.exec('ALTER TABLE state_threads ADD COLUMN last_touched_round INTEGER NOT NULL DEFAULT 0');
+    db.exec('UPDATE state_threads SET last_touched_round = opened_round');
+  }
   if (db.prepare('SELECT value FROM internal_meta WHERE key = ?').get(key)?.value === '1') return;
 
   const now = Date.now();
