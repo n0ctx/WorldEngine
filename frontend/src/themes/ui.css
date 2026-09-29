@@ -831,35 +831,60 @@
   transform: rotate(180deg);
 }
 
+/* 下拉列表挂在 body 上，位置、字号、字体由 Select 按触发框写入行内样式 */
 .we-select-dropdown {
-  position: absolute;
-  z-index: var(--we-z-dropdown);
-  left: 0;
-  right: 0;
-  background: var(--we-color-bg-canvas);
+  position: fixed;
+  z-index: var(--we-z-tooltip);
+  box-sizing: border-box;
+  margin: 0;
+  padding: 4px; /* design exact: 选项行与面板边缘的留白 */
+  list-style: none;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  line-height: var(--we-leading-snug);
+  background: var(--we-color-bg-elevated);
   border: 1px solid var(--we-color-border-default);
   border-radius: var(--we-radius-sm);
-  box-shadow: 0 4px 16px var(--we-color-shadow-md);
-  overflow-y: auto;
-  max-height: 12rem;
-  padding: var(--we-space-xs) 0;
-  list-style: none;
-  margin: 0;
+  box-shadow: inset 0 1px 0 var(--we-material-sheen), var(--we-material-shadow-near), var(--we-material-shadow-far);
+}
+/* 列表展开时持有焦点，当前行的高亮就是焦点位置 */
+.we-select-dropdown:focus {
+  outline: none;
 }
 .we-select-option {
-  padding: 7px 14px; /* design exact */
-  font-family: var(--we-font-prose);
-  font-size: var(--we-text-body);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75em;
+  padding: 0.45em 0.7em;
+  border-radius: var(--we-radius-xs);
   color: var(--we-color-text-secondary);
+  white-space: nowrap;
   cursor: pointer;
   user-select: none;
-  transition: background var(--we-duration-fast) var(--we-easing-sharp);
+  transition: background-color var(--we-duration-fast) var(--we-easing-sharp), color var(--we-duration-fast) var(--we-easing-sharp);
 }
-.we-select-option:hover {
-  background: var(--we-color-bg-surface);
+.we-select-option__label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
-.we-select-option--active {
+.we-select-option--empty {
+  color: var(--we-color-text-tertiary);
+}
+/* 悬停与键盘选中共用一种高亮 */
+.we-select-option.is-active {
+  color: var(--we-color-text-primary);
+  background: color-mix(in srgb, var(--we-color-text-primary) 8%, transparent);
+}
+.we-select-option--selected,
+.we-select-option--selected.is-active {
   color: var(--we-color-accent);
+}
+.we-select-option__check {
+  width: 1em;
+  height: 1em;
+  flex-shrink: 0;
 }
 
 /* ── ConfirmModal 确认弹窗 ── */

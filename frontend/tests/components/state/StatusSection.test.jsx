@@ -291,7 +291,8 @@ describe('StatusSection', () => {
     );
 
     fireEvent.click(screen.getByText('晴朗'));
-    expect(screen.getByRole('button', { name: '晴朗' })).toBeInTheDocument();
+    // 进入编辑即展开选项
+    expect(screen.getByRole('button', { name: '晴朗' })).toHaveAttribute('aria-expanded', 'true');
 
     fireEvent.mouseDown(document.body);
 

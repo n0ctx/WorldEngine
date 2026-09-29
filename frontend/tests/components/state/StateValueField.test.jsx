@@ -85,7 +85,7 @@ describe('StateValueField', () => {
     );
 
     fireEvent.click(screen.getByRole('button'));
-    fireEvent.mouseDown(screen.getByText('—'));
+    fireEvent.mouseDown(screen.getByRole('option', { name: '—' }));
 
     expect(onSave).toHaveBeenCalledWith('weather', 'null');
   });

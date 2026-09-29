@@ -146,6 +146,8 @@ function EnumInlineEditor({ row, draft, setDraft, commit, onCancel, readDisplay 
               onChange={(value) => { setDraft(value); commit(value); }}
               options={[{ value: '', label: '—' }, ...options.map((option) => ({ value: option, label: option }))]}
               className="we-status-inline-select"
+              autoOpen
+              onEscape={onCancel}
             />
           </div>
         )}

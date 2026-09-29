@@ -245,10 +245,10 @@ describe('StateMemoryModal', () => {
     const form = document.querySelector('.we-sm-relation-form');
     const [subjectSelect, objectSelect] = form.querySelectorAll('.we-select-trigger');
     fireEvent.click(subjectSelect);
-    fireEvent.mouseDown(within(form.querySelector('.we-select-dropdown')).getByText('沈彦'));
+    fireEvent.mouseDown(screen.getByRole('option', { name: '沈彦' }));
     fireEvent.change(within(form).getByLabelText('关系'), { target: { value: '师父' } });
     fireEvent.click(objectSelect);
-    fireEvent.mouseDown(within(form).getByText('其他（手动填写）'));
+    fireEvent.mouseDown(screen.getByRole('option', { name: '其他（手动填写）' }));
     fireEvent.change(within(form).getByLabelText('对象文字'), { target: { value: '老船长' } });
 
     expect(within(form).getByText('将记录：沈彦 —师父→ 老船长')).toBeInTheDocument();
