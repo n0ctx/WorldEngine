@@ -1,8 +1,9 @@
 /* 动效包「墨流」：整套动效是同一种材质——墨在水中。
  *   浮现 / 沉没：出现时从柔焦的深处浮上来，带着惯性冲过一点再回落；离开时加速下沉、化开。
  *   黏滞流动：会移动的东西都有质量。前沿先冲出去、后沿被拖着跟上，行进中拉长，到位后回弹收拢。
- *   洇开：世界状态被改写时，字透过扰动的水面显形，墨从一侧洇开，脚下漾开水纹。
- * 主角是流式输出：每个字是一滴落进纸里的墨，砸开、回弹、晕出湿边，身后的字慢慢干成正文色。
+ *   洇开：世界状态被改写时，字透过扰动的水面显形；新值被拉长着拽上来、收缩落定。
+ *   引力：落下的东西会被拉长，落地压扁再弹回；离开时被往下拽着沉没。
+ * 主角是流式输出：每个字是一滴落进纸里的墨，落下、回弹、晕出湿边，身后的字慢慢干成正文色。
  * 样式与关键帧见 themes/motion/liquid.css；畸变滤镜见 components/motion/InkWarp.jsx。 */
 
 // 浮现：长尾收住；沉没：先慢后快坠下去
@@ -32,6 +33,11 @@ export default {
       hidden:  { opacity: 0, y: 32, scale: 0.97 },
       visible: { opacity: 1, y: 0, scale: 1 },
       exit:    { opacity: 0, y: 18, scale: 0.985, transition: EXIT },
+    },
+    // 页签内容：顺着指示条移动的方向流进来；custom 传方向（1 向右、-1 向左）
+    tabEnter: {
+      hidden:  (dir = 1) => ({ opacity: 0, x: dir * 40, scaleX: 1.04, filter: 'blur(6px)' }),
+      visible: { opacity: 1, x: 0, scaleX: 1, filter: 'blur(0px)' },
     },
     overlayBackdrop: {
       hidden:  { opacity: 0 },
@@ -67,7 +73,8 @@ export default {
   // 位移、尺寸、形状的变化：同样的名义时长，换成带回弹的弹簧
   flow: (duration) => ({ type: 'spring', visualDuration: duration * 1.25, bounce: 0.28 }),
   gestures: {
-    press:  { whileTap: { scaleX: 1.04, scaleY: 0.93 } },
+    // 悬停微微浮起；按下压扁、松手弹回
+    press:  { whileHover: { y: -2 }, whileTap: { y: 1, scaleX: 1.06, scaleY: 0.9 } },
     portal: { whileHover: { y: -5, scale: 1.015 }, whileTap: { scale: 0.97 } },
     sink:   { whileTap: { y: 3, scaleX: 1.06, scaleY: 0.92 } },
   },

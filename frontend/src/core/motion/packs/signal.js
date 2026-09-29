@@ -27,6 +27,11 @@ export default {
       visible: { opacity: 1, y: 0 },
       exit:    { opacity: 0, y: 6 },
     },
+    // 页签内容：与大面板一样淡入上浮，不看切换方向
+    tabEnter: {
+      hidden:  { opacity: 0, y: 8 },
+      visible: { opacity: 1, y: 0 },
+    },
     // 遮罩：平滑亮起 / 熄灭
     overlayBackdrop: {
       hidden:  { opacity: 0 },

@@ -1,13 +1,26 @@
 import React from 'react';
-import { render, renderHook, screen } from '@testing-library/react';
+import { act, render, renderHook, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const mocks = vi.hoisted(() => ({ reduced: false }));
+const mocks = vi.hoisted(() => ({ reduced: false, running: [] }));
 
+// animate 由测试手动推进：记下每段动画，finishAnimations() 把它们一次走完
 vi.mock('framer-motion', async (importOriginal) => ({
   ...(await importOriginal()),
   useReducedMotion: () => mocks.reduced,
+  animate: (from, to, options) => {
+    mocks.running.push({ to, options });
+    return { stop() {} };
+  },
 }));
+
+function finishAnimations() {
+  const running = mocks.running.splice(0);
+  for (const { to, options } of running) {
+    options?.onUpdate?.(to);
+    options?.onComplete?.();
+  }
+}
 
 import ChangeText from '../../../src/components/motion/ChangeText.jsx';
 import { useChangeBurst } from '../../../src/components/motion/useChangeBurst.js';
@@ -23,6 +36,7 @@ class ResizeObserverMock {
 beforeEach(() => {
   global.ResizeObserver = ResizeObserverMock;
   mocks.reduced = false;
+  mocks.running = [];
 });
 
 describe('ChangeText 信号故障文字', () => {
@@ -60,6 +74,15 @@ describe('ChangeText 信号故障文字', () => {
       expect(warp).toHaveAttribute('style', expect.stringContaining(`url(#${filterId})`));
       expect(warp.querySelector('feDisplacementMap')).not.toBeNull();
       expect(warp.querySelector('.we-fx-burst')).toHaveTextContent('62');
+    });
+
+    it('畸变平静后撤掉滤镜，但文字不重新挂载（入场动画不会再播一遍）', () => {
+      const { container } = render(<ChangeText text="62" playKey={1} />);
+      const text = container.querySelector('.we-fx-burst');
+      act(() => finishAnimations());
+      expect(container.querySelector('filter')).toBeNull();
+      expect(container.querySelector('.we-ink-warp').style.filter).toBe('');
+      expect(container.querySelector('.we-fx-burst')).toBe(text);
     });
 
     it('减少动态效果时不加滤镜', () => {

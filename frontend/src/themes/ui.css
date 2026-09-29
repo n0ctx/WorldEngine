@@ -4202,7 +4202,7 @@
   top: 0;
   left: 0;
   width: 6px;
-  height: 6px;
+  height: var(--we-bounce-rail-length, 6px);
   border-radius: var(--we-radius-full);
   background: var(--we-color-accent);
   opacity: 0;

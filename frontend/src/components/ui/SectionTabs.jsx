@@ -57,6 +57,9 @@ export default function SectionTabs({ sections, defaultKey, variant, globalActio
   const active = sections.some((s) => s.key === storedActive) ? storedActive : sections[0]?.key;
   const current = sections.find(s => s.key === active);
   const activeIndex = sections.findIndex(s => s.key === active);
+  // 切换方向：新内容顺着指示条移动的方向进来
+  const [shown, setShown] = useState({ index: activeIndex, dir: 1 });
+  if (shown.index !== activeIndex) setShown({ index: activeIndex, dir: activeIndex >= shown.index ? 1 : -1 });
 
   const listRef = useRef(null);
   const tabRefs = useRef({});
@@ -144,11 +147,12 @@ export default function SectionTabs({ sections, defaultKey, variant, globalActio
       {staticMotion ? (
         <div>{current?.content}</div>
       ) : (
-        // 旧内容立即换下、只让新内容淡入：等旧内容离场完再进场会在连点时空一拍。
-        // 页签内容是整块面板，不走信号锁定，横向抖动会把表单拽偏
+        // 旧内容立即换下、只让新内容进场：等旧内容离场完再进场会在连点时空一拍。
+        // 进场方式由动效包的 tabEnter 决定，custom 给出切换方向
         <MotionDiv
           key={active}
-          variants={motionPrefs.variant('overlayEnter')}
+          variants={motionPrefs.variant('tabEnter')}
+          custom={shown.dir}
           initial={motionPrefs.reduced ? false : 'hidden'}
           animate="visible"
           transition={motionPrefs.transition('overlay')}

@@ -28,8 +28,9 @@
   40%  { opacity: 1; filter: blur(0); }
   to   { opacity: 1; transform: none; filter: none; }
 }
+/* 被引力往下拽：越往下越拉长、越化开 */
 @keyframes we-ink-sink {
-  to { opacity: 0; transform: translateY(14px) scale(1.02, 0.94); filter: blur(8px); }
+  to { opacity: 0; transform: translateY(22px) scale(0.92, 1.14); filter: blur(8px); }
 }
 
 /* ── 流式输出：一滴墨落进纸里 ───────────────────────────────────────── */
@@ -142,75 +143,53 @@
   100% { -webkit-mask-position: 0 0; mask-position: 0 0; text-shadow: 0 0 0 transparent; filter: none; }
 }
 
-/* 数值换新：新值从下方冲上来、回落定住，湿墨色带光；脚下漾开两圈水纹 */
+/* 数值换新：新值被从下方拉上来——先拉长成一滴冲过位置，再收缩着落定，湿墨色随后干掉。
+   畸变由外层的 InkWarp 负责，这里不再加别的装饰 */
 :where(:root[data-motion="liquid"]) .we-fx-burst {
-  position: relative;
   display: inline-block;
   max-width: 100%;
   transform-origin: 50% 100%;
   animation:
-    we-ink-rise calc(var(--we-fx-burst) * 0.8) var(--ink-spring) both,
+    we-ink-rise calc(var(--we-fx-burst) * 0.85) var(--ink-spring) both,
     we-ink-dry var(--we-fx-burst) var(--ink-flow) both;
 }
-:where(:root[data-motion="liquid"]) .we-fx-burst::before,
-:where(:root[data-motion="liquid"]) .we-fx-burst::after {
-  content: '';
-  position: absolute;
-  left: -20%;
-  right: -20%;
-  bottom: -0.25em;
-  height: 0.7em;
-  border: 1.5px solid color-mix(in srgb, var(--we-color-accent) 70%, transparent);
-  border-radius: 50%;
-  opacity: 0;
-  pointer-events: none;
-  animation: we-ink-ripple calc(var(--we-fx-burst) * 1.4) cubic-bezier(0.2, 0.7, 0.3, 1) calc(var(--we-fx-burst) * 0.12) both;
-}
-:where(:root[data-motion="liquid"]) .we-fx-burst::after {
-  animation-delay: calc(var(--we-fx-burst) * 0.32);
-}
+/* 弹簧冲过终点时竖向拉伸会反过来变成压扁：落地那一下自然收缩 */
 @keyframes we-ink-rise {
-  0%   { opacity: 0; transform: translateY(0.7em) scale(0.8, 1.25); filter: blur(5px); }
-  35%  { opacity: 1; filter: blur(0); }
+  0%   { opacity: 0; transform: translateY(0.8em) scale(0.7, 1.45); filter: blur(4px); }
+  30%  { opacity: 1; filter: blur(0); }
   100% { opacity: 1; transform: none; filter: none; }
 }
-@keyframes we-ink-ripple {
-  0%   { opacity: 0.85; transform: scale(0.2, 0.35); }
-  100% { opacity: 0;    transform: scale(1.25, 1.1); }
-}
 
-/* 变化标签：一枚圆头墨签，从数值旁的一点晕开、冲过一点再收回；上升从下往上浮，下降从上往下落 */
+/* 变化标签：像一滴墨被从数值里拽出来——先被拉成细长一条，挣脱后缩回圆头墨签；
+   上升从下方拽出，下降从上方拽出 */
 :where(:root[data-motion="liquid"]) .we-change-tag {
   padding: 0 0.65em;
   border-radius: var(--we-radius-full);
   transform-origin: 0 50%;
 }
 :where(:root[data-motion="liquid"]) .we-change-tag--play {
-  animation:
-    we-ink-bloom calc(var(--we-fx-burst) * 0.6) var(--ink-surface) calc(var(--we-fx-burst) * 0.28) both,
-    we-ink-pop calc(var(--we-fx-burst) * 0.85) var(--ink-spring) calc(var(--we-fx-burst) * 0.28) both;
+  animation: we-ink-pull calc(var(--we-fx-burst) * 0.9) var(--ink-spring) calc(var(--we-fx-burst) * 0.3) both;
 }
 :where(:root[data-motion="liquid"]) .we-change-tag--up.we-change-tag--play {
-  animation-name: we-ink-bloom, we-ink-pop-up;
+  animation-name: we-ink-pull-up;
 }
 :where(:root[data-motion="liquid"]) .we-change-tag--down.we-change-tag--play {
-  animation-name: we-ink-bloom, we-ink-pop-down;
+  animation-name: we-ink-pull-down;
 }
-@keyframes we-ink-bloom {
-  from { clip-path: circle(0 at 0 50%); filter: blur(3px); }
-  to   { clip-path: circle(150% at 0 50%); filter: none; }
+@keyframes we-ink-pull {
+  0%   { opacity: 0; transform: translateX(-1em) scale(0.2, 0.5); filter: blur(3px); }
+  25%  { opacity: 1; filter: blur(0); }
+  100% { opacity: 1; transform: none; filter: none; }
 }
-@keyframes we-ink-pop {
-  from { transform: scale(0.4); }
-  to   { transform: none; }
+@keyframes we-ink-pull-up {
+  0%   { opacity: 0; transform: translate(-1em, 8px) scale(0.2, 0.5); filter: blur(3px); }
+  25%  { opacity: 1; filter: blur(0); }
+  100% { opacity: 1; transform: none; filter: none; }
 }
-@keyframes we-ink-pop-up {
-  from { transform: translateY(10px) scale(0.5, 1.3); }
-  to   { transform: none; }
-}
-@keyframes we-ink-pop-down {
-  from { transform: translateY(-10px) scale(0.5, 1.3); }
-  to   { transform: none; }
+@keyframes we-ink-pull-down {
+  0%   { opacity: 0; transform: translate(-1em, -8px) scale(0.2, 0.5); filter: blur(3px); }
+  25%  { opacity: 1; filter: blur(0); }
+  100% { opacity: 1; transform: none; filter: none; }
 }
 
 /* 提示条：整条浮现、沉没已经足够醒目，里面的文字和类型标签不再单独动 */
@@ -221,13 +200,9 @@
   mask-image: none;
 }
 
-/* ── 章节开场：一滴墨从上方坠下、砸在中点，向两侧冲开成分隔线；整块标题随后浮现 ─── */
-:where(:root[data-motion="liquid"]) .we-chapter-header.we-chapter-header--visible {
-  animation: we-ink-surface calc(var(--we-fx-decode, 0ms) * 0.9) var(--ink-spring-soft) both;
-}
-:where(:root[data-motion="liquid"]) .we-chapter-title .we-fx-glyph--block > .we-fx-glyph__face {
-  animation-delay: calc(var(--we-fx-decode) * 0.25);
-}
+/* ── 章节开场：一个连贯的动作 ───────────────────────────────────────────
+   墨滴坠下（0–640ms）→ 砸在中点的一瞬，两条线向两侧冲开（260ms 起）→
+   章节号、标题依次从中点向两边洇出（380ms / 480ms 起）。整块标题本身不再单独入场 */
 :where(:root[data-motion="liquid"]) .we-chapter-fleuron-mark {
   width: 7px;
   height: 7px;
@@ -237,16 +212,16 @@
   opacity: 0;
 }
 :where(:root[data-motion="liquid"]) .we-chapter-header--visible .we-chapter-fleuron-mark {
-  animation: we-ink-fall 700ms var(--ink-spring) 120ms both;
+  animation: we-ink-fall 640ms var(--ink-spring) both;
 }
 @keyframes we-ink-fall {
-  0%   { opacity: 0; transform: translateY(-28px) scale(0.5, 1.8); }
-  25%  { opacity: 1; }
+  0%   { opacity: 0; transform: translateY(-36px) scale(0.45, 2); }
+  20%  { opacity: 1; }
   100% { opacity: 1; transform: none; }
 }
 /* 两条线从墨点向外冲出，冲过头一点再收回，远端羽化 */
 :where(:root[data-motion="liquid"]) .we-chapter-fleuron-line {
-  transition: transform 1100ms var(--ink-spring) 340ms;
+  transition: transform 1000ms var(--ink-spring) 260ms;
 }
 :where(:root[data-motion="liquid"]) .we-chapter-fleuron-line:first-child {
   transform-origin: right;
@@ -256,8 +231,24 @@
   transform-origin: left;
   background: linear-gradient(to right, var(--we-color-gold), transparent);
 }
+/* 文字从中点向两边洇出：先是一道细窄的湿痕，横向铺开成整行 */
+:where(:root[data-motion="liquid"]) .we-chapter-header .we-fx-glyph--block > .we-fx-glyph__face {
+  -webkit-mask-image: radial-gradient(closest-side, #000 55%, transparent 100%);
+  mask-image: radial-gradient(closest-side, #000 55%, transparent 100%);
+  -webkit-mask-position: 50% 50%;
+  mask-position: 50% 50%;
+  animation: we-ink-spread-out 820ms var(--ink-surface) 380ms both;
+}
+:where(:root[data-motion="liquid"]) .we-chapter-title .we-fx-glyph--block > .we-fx-glyph__face {
+  animation-delay: 480ms;
+}
+@keyframes we-ink-spread-out {
+  0%   { -webkit-mask-size: 8% 40%; mask-size: 8% 40%; color: var(--ink-wet); text-shadow: 0 0 0.5em var(--ink-glow); filter: blur(3px); }
+  55%  { color: var(--ink-wet); text-shadow: 0 0 0.35em var(--ink-glow); filter: blur(0); }
+  100% { -webkit-mask-size: 320% 320%; mask-size: 320% 320%; text-shadow: 0 0 0 transparent; filter: none; }
+}
 
-/* ── 完成确认：一滴墨坠下、砸开，两圈墨晕扩散，文字浮现，停留后下沉化开 ─── */
+/* ── 完成确认：一滴墨坠下，落地压扁再弹回，停留后被引力拉长着沉下去 ─── */
 :where(:root[data-motion="liquid"]) .we-done-confirm {
   border-radius: var(--we-radius-md);
   transform-origin: 50% 100%;
@@ -267,27 +258,10 @@
     we-ink-splash calc(var(--we-fx-burst) * 1.1) var(--ink-spring) both,
     we-ink-sink var(--we-fx-off) var(--ink-sink) calc(var(--we-fx-stamp) - var(--we-fx-off)) forwards;
 }
-:where(:root[data-motion="liquid"]) .we-done-confirm--play::before,
-:where(:root[data-motion="liquid"]) .we-done-confirm--play::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border: 1.5px solid color-mix(in srgb, var(--we-color-accent) 70%, transparent);
-  border-radius: inherit;
-  pointer-events: none;
-  animation: we-ink-ring calc(var(--we-fx-burst) * 1.5) cubic-bezier(0.2, 0.7, 0.3, 1) calc(var(--we-fx-burst) * 0.2) both;
-}
-:where(:root[data-motion="liquid"]) .we-done-confirm--play::after {
-  animation-delay: calc(var(--we-fx-burst) * 0.45);
-}
 @keyframes we-ink-splash {
-  0%   { opacity: 0; transform: translateY(-40px) scale(0.6, 1.4); filter: blur(8px); }
+  0%   { opacity: 0; transform: translateY(-48px) scale(0.72, 1.4); filter: blur(8px); }
   30%  { opacity: 1; filter: blur(0); }
   100% { opacity: 1; transform: none; filter: none; }
-}
-@keyframes we-ink-ring {
-  0%   { opacity: 0.8; transform: scale(0.95); }
-  100% { opacity: 0;   transform: scale(1.5, 2.1); }
 }
 
 /* ── 状态整理遮罩：柔焦的水面下，两团墨云缓缓翻涌 ─── */
@@ -310,6 +284,36 @@
 @keyframes we-ink-cloud {
   from { transform: translate(-8%, -4%) rotate(-6deg) scale(1); }
   to   { transform: translate(8%, 6%) rotate(10deg) scale(1.12); }
+}
+
+/* ── 交互反馈：按下像按进水面，松手弹回 ───────────────────────────────
+   framer 驱动的按钮（Button、发送、卡片）走 JS 手势；这里补上普通可点元素。
+   用独立的 scale 属性，不碰各自的 transform；按下快、松手走弹簧 */
+:where(:root[data-motion="liquid"]) :is(
+  .we-section-tab, .we-select-option, .we-settings-nav-item, .we-chat-slash-item,
+  .we-session-item, .we-topbar-item, .we-chat-quick-btn, .we-sm-chip,
+  .we-character-card-action-btn, .we-world-card-action-btn, .we-motion-lab__chip, .we-toggle-track
+) {
+  transition:
+    scale var(--ink-press-time, 560ms) var(--ink-press-ease, var(--ink-spring)),
+    color var(--we-duration-fast) var(--we-easing-sharp),
+    background-color var(--we-duration-fast) var(--we-easing-sharp),
+    border-color var(--we-duration-fast) var(--we-easing-sharp),
+    box-shadow var(--we-duration-fast) var(--we-easing-sharp),
+    opacity var(--we-duration-fast) var(--we-easing-sharp);
+}
+:where(:root[data-motion="liquid"]) :is(
+  .we-section-tab, .we-select-option, .we-settings-nav-item, .we-chat-slash-item,
+  .we-session-item, .we-topbar-item, .we-chat-quick-btn, .we-sm-chip,
+  .we-character-card-action-btn, .we-world-card-action-btn, .we-motion-lab__chip, .we-toggle-track
+):active {
+  --ink-press-time: 90ms;
+  --ink-press-ease: ease-out;
+  scale: 1.03 0.9;
+}
+/* 开关的圆钮：被弹过去，冲过一点再回来 */
+:where(:root[data-motion="liquid"]) .we-toggle-thumb {
+  transition: transform 560ms var(--ink-spring);
 }
 
 /* ── 循环：打字点、骨架、转圈、箭头、小墨珠 ─── */

@@ -1,9 +1,10 @@
 /* 移植自 Rare UI bounce-sidebar — https://rareui.com
  * Copyright (c) 2026 Swami Malode，许可见同目录 RAREUI_LICENSE。
- * 竖向导航左侧的指示圆点：当前项变化时，圆点沿一段向左鼓出的弧线弹到新项旁边。
+ * 竖向导航左侧的指示圆点：当前项变化时，圆点沿一段向左鼓出的弧线弹到新项旁边；
+ * 墨流包下不走弧线，圆点沿竖线拉成一截墨：朝目标那一端先冲过去、另一端被拖着跟上，到位后收回成圆点。
  * 只画圆点，不接管导航本身：容器里带 data-bounce-item 的元素是导航项，aria-current 标记当前项。 */
 import { useEffect, useRef, useState } from 'react';
-import { animate, motion, useMotionValue } from 'framer-motion';
+import { animate, motion, useMotionValue, useTransform } from 'framer-motion';
 import { useMotion } from '../../core/hooks/useMotion.js';
 
 const DOT = 6;
@@ -41,6 +42,9 @@ export default function BounceRail({ containerRef, activeKey }) {
   const { reduced, pack } = useMotion();
   const x = useMotionValue(0);
   const y = useMotionValue(0);
+  // 墨流拉伸时的下端；平时与 y 相同
+  const end = useMotionValue(0);
+  const length = useTransform(() => `${end.get() - y.get() + DOT}px`);
   const placed = useRef(null);
   const [visible, setVisible] = useState(false);
 
@@ -55,7 +59,16 @@ export default function BounceRail({ containerRef, activeKey }) {
     if (reduced || !from || (from.x === to.x && from.y === to.y)) {
       x.set(to.x);
       y.set(to.y);
+      end.set(to.y);
       return undefined;
+    }
+    if (pack.id === 'liquid') {
+      x.set(to.x);
+      const down = to.y > y.get();
+      const { move, moveTrail } = pack.transitions;
+      const top = animate(y, to.y, down ? moveTrail : move);
+      const bottom = animate(end, to.y, down ? move : moveTrail);
+      return () => { top.stop(); bottom.stop(); };
     }
     const hop = animate(0, 1, {
       ...pack.flow(HOP_DURATION),
@@ -63,10 +76,11 @@ export default function BounceRail({ containerRef, activeKey }) {
         const p = arcPoint(from, to, t);
         x.set(p.x);
         y.set(p.y);
+        end.set(p.y);
       },
     });
     return () => hop.stop();
-  }, [containerRef, activeKey, reduced, pack, x, y]);
+  }, [containerRef, activeKey, reduced, pack, x, y, end]);
 
   // 布局变化（窗口缩放、列表增减）时直接落到新位置，不走弧线
   useEffect(() => {
@@ -78,16 +92,17 @@ export default function BounceRail({ containerRef, activeKey }) {
       placed.current = to;
       x.set(to.x);
       y.set(to.y);
+      end.set(to.y);
     });
     observer.observe(container);
     return () => observer.disconnect();
-  }, [containerRef, x, y]);
+  }, [containerRef, x, y, end]);
 
   return (
     <motion.span
       aria-hidden
       className={`we-bounce-rail${visible ? ' is-visible' : ''}`}
-      style={{ x, y }}
+      style={{ x, y, '--we-bounce-rail-length': length }}
     />
   );
 }
