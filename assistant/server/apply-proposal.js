@@ -38,7 +38,6 @@ import {
   updateRegexRule,
   deleteRegexRule,
 } from '../../backend/db/queries/regex-rules.js';
-import { applyAssistantThemeOp } from '../../backend/services/themes.js';
 import {
   replaceEntryConditions,
 } from '../../backend/db/queries/entry-conditions.js';
@@ -76,7 +75,6 @@ async function applyProposal(proposal, worldRefId = null) {
       return updatePersonaProposal(proposal, { entityId, changes });
     case 'global-config': return applyGlobalConfigProposal(changes);
     case 'css-snippet': return applyCssSnippetProposal({ operation, entityId, changes });
-    case 'theme': return applyThemeProposal({ operation, entityId, changes });
     case 'regex-rule': return applyRegexRuleProposal({ operation, entityId, changes });
 
     default:
@@ -254,11 +252,6 @@ function applyCssSnippetProposal({ operation, entityId, changes }) {
     mode: changes.mode || 'chat',
     enabled: changes.enabled ?? 1,
   });
-}
-
-function applyThemeProposal({ operation, entityId, changes }) {
-  if (!entityId) throw new Error('theme 提案缺少 entityId');
-  return applyAssistantThemeOp({ id: entityId, operation, changes });
 }
 
 function applyRegexRuleProposal({ operation, entityId, changes }) {

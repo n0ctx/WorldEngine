@@ -22,7 +22,6 @@ const RESOURCE_NAMES = {
   character: '角色卡', characters: '角色卡列表',
   persona: '玩家卡', personas: '玩家卡列表',
   css: '样式片段', regex: '正则规则',
-  theme: '主题', themes: '主题列表',
   config: '全局设置', doc: '参考文档', docs: '参考文档列表',
 };
 
@@ -49,7 +48,7 @@ export function formatToolSummary(summary, toolName) {
 
 export function formatToolError(error) {
   const text = String(error ?? '').trim();
-  const missing = text.match(/^(玩家卡|角色|条目|CSS 片段|正则规则|主题|世界|文档)\s+(?:persona|character|entry|css|regex|theme|world|doc):[^\s；。]+\s+不存在/);
+  const missing = text.match(/^(玩家卡|角色|条目|CSS 片段|正则规则|世界|文档)\s+(?:persona|character|entry|css|regex|world|doc):[^\s；。]+\s+不存在/);
   if (missing) {
     const name = missing[1] === '角色' ? '角色卡' : missing[1];
     if (name === '玩家卡') return '找不到这张玩家卡。请让助手重新查找当前世界的玩家卡后重试。';

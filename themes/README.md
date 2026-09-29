@@ -1,6 +1,6 @@
 # WorldEngine 主题开发指引
 
-`themes/` 存放内置/开发者主题；用户从前端导入的主题存放在 `data/themes/`。
+`themes/` 存放全部主题，均为仓库内置、只读：应用内只能查看列表和切换，不能导入、导出、删除或由写卡助手创建。新增主题只能由开发者在此目录添加。
 
 ## 分层职责
 
@@ -53,7 +53,7 @@ themes/{theme_id}/
   theme.css
 ```
 
-复制 `_template/` 后，只改 `theme.json` 和 `theme.css`。目录名、`theme.json.id`、导出包里的 `theme.id` 必须一致。
+复制 `_template/` 后，只改 `theme.json` 和 `theme.css`。目录名必须与 `theme.json.id` 一致。
 
 ## 推荐覆盖顺序
 
@@ -113,7 +113,7 @@ cp -R themes/_template themes/my-theme
 
 - 组件结构和布局：左右栏、卡片内部排布、是否渲染某个区域
 - 组件选择器：`.we-world-card`、`.we-chat-message` 之类的规则
-- 数据逻辑：路由、状态、加载、导入导出流程
+- 数据逻辑：路由、状态、加载流程
 - 私有 DOM 依赖：`nth-child`、深层级选择器、临时 hack
 
 ## 内置主题
@@ -121,31 +121,6 @@ cp -R themes/_template themes/my-theme
 `nocturne/` 是默认内置主题（暗色）。`classic-parchment/`（亮色，保留羊皮纸色板、书脊阴影、印章/纸张阴影、卡片边框与旧化质感）与 `neon-noir/`（暗色，高对比霓虹路线）是另外两个内置主题。
 
 三个内置主题都只能覆盖 token，不能直接改结构。
-
-## 版本与导入导出
-
-前端导入/导出使用 `.wetheme.json`，格式保持不变：
-
-```json
-{
-  "format": "worldengine-theme-v1",
-  "theme": {
-    "id": "my-theme",
-    "name": "我的主题",
-    "version": "1.0.0",
-    "author": "",
-    "description": "",
-    "preview": {
-      "paper": "#f7f7f4",
-      "accent": "#7d766f",
-      "ink": "#171717"
-    }
-  },
-  "css": ":root { --we-color-bg-canvas: #f7f7f4; }"
-}
-```
-
-开发者内置主题放在 `themes/`；用户导入主题由后端转换为 `data/themes/{id}/theme.json + theme.css`。
 
 ## 验收清单
 

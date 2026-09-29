@@ -141,7 +141,7 @@ test('edit：old_text 未找到 / 出现多次 / 唯一匹配', async () => {
   assert.equal(JSON.parse(ws.read(ref)).system_prompt, '她很安静，但她很安静。');
 });
 
-test('style：正则 /…/flags 拆分并校验可编译，主题只能覆写已有 token', async () => {
+test('style：正则 /…/flags 拆分并校验可编译，片段只能引用已有 token，助手不再管理主题', async () => {
   const world = insertWorld(sandbox.db, { name: 'style-world' });
   const ws = createWorkspace({ worldId: world.id });
 
@@ -153,13 +153,8 @@ test('style：正则 /…/flags 拆分并校验可编译，主题只能覆写已
   await assert.rejects(() => ws.create('regex', { name: '坏', pattern: '(' }), /正则无法编译/);
 
   await assert.rejects(() => ws.create('css', { name: 'x', content: '.a { color: var(--we-not-a-token); }' }), /不存在的 token/);
-  await assert.rejects(() => ws.create('theme', { name: 'Dusk', css: '.a { color: red; }' }), /只能包含 :root/);
-  await assert.rejects(() => ws.create('theme', { name: 'Dusk', css: ':root { color: red; }' }), /只能覆写 --we-\* 变量/);
-  const themeMsg = await ws.create('theme', { name: 'Dusk Harbor', css: ':root { --we-color-accent: #336699; }' });
-  assert.match(themeMsg, /theme:dusk-harbor/);
-  await ws.edit('theme:dusk-harbor', 'css', '#336699', '#224466');
-  assert.match(JSON.parse(ws.read('theme:dusk-harbor')).css, /#224466/);
-  await ws.remove('theme:dusk-harbor');
+  await assert.rejects(() => ws.create('theme', { name: 'Dusk', css: ':root {}' }), /kind 只能是/);
+  assert.throws(() => ws.read('theme:nocturne'), /无法识别的 ref/);
 });
 
 test('config：读取隐去密钥，写入密钥字段被拒绝', async () => {

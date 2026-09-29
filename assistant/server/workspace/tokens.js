@@ -57,20 +57,6 @@ function assertKnown(names) {
   if (unknown.length > 0) fail(`不存在的 token：${unknown.join(', ')}。read("doc:theme-tokens") 查看可用 token`);
 }
 
-// 主题 CSS 只允许在 :root 下覆写已有 --we-* token。
-export function assertThemeCss(css) {
-  const body = stripComments(css);
-  const rest = body.replace(/:root\s*\{[^{}]*\}/g, '').trim();
-  if (rest) fail(`主题 CSS 只能包含 :root { --we-*: … } 变量覆盖，不能有其它选择器或 @ 规则。多余内容：${rest.slice(0, 80)}`);
-  const declarations = [...body.matchAll(/:root\s*\{([^{}]*)\}/g)]
-    .flatMap((m) => m[1].split(';'))
-    .map((decl) => decl.split(':')[0].trim())
-    .filter(Boolean);
-  const nonToken = declarations.filter((name) => !name.startsWith('--we-'));
-  if (nonToken.length > 0) fail(`主题 CSS 只能覆写 --we-* 变量，发现：${[...new Set(nonToken)].join(', ')}`);
-  assertKnown(declarations);
-}
-
 // CSS 片段里引用或覆写的 --we-* token 必须真实存在。
 export function assertSnippetTokens(css) {
   const body = stripComments(css);

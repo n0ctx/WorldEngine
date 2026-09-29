@@ -4,7 +4,7 @@ import { SETTINGS_MODE } from '../constants/settings';
 const BASE = '/api';
 
 /** 把 JSON 数据作为文件下载到本地 */
-export function downloadJson(data, filename) {
+function downloadJson(data, filename) {
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');

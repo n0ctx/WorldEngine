@@ -164,12 +164,13 @@ test('custom-css-snippets 完整 CRUD + reorder', async () => {
 
 // ─── themes ────────────────────────────────────────────────────────
 
-test('themes API 支持列表、切换、CSS、导入、导出、删除', async () => {
+test('themes API 支持列表、切换、CSS，且不再提供导入、导出、删除', async () => {
   const list = await ctx.request('/api/themes');
   assert.equal(list.status, 200);
   const listed = await list.json();
   assert.equal(listed.activeTheme, 'classic-parchment');
-  assert.ok(listed.themes.some((theme) => theme.id === 'classic-parchment' && theme.builtin));
+  assert.ok(listed.themes.some((theme) => theme.id === 'classic-parchment'));
+  assert.ok(listed.themes.every((theme) => !('builtin' in theme) && !('source' in theme)));
 
   const css = await ctx.request('/api/themes/classic-parchment/css');
   assert.equal(css.status, 200);
@@ -178,36 +179,25 @@ test('themes API 支持列表、切换、CSS、导入、导出、删除', async 
   const missingCss = await ctx.request('/api/themes/no-such/css');
   assert.equal(missingCss.status, 404);
 
-  const imported = await ctx.request('/api/themes/import', {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      format: 'worldengine-theme-v1',
-      theme: { id: 'route-theme', name: '路由主题', version: '1.0.0' },
-      css: ':root { --we-base-paper-100: white; }',
-    }),
-  });
-  assert.equal(imported.status, 201);
-
   const switched = await ctx.request('/api/themes/active', {
     method: 'PUT', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ id: 'route-theme' }),
+    body: JSON.stringify({ id: 'neon-noir' }),
   });
   assert.equal(switched.status, 200);
-  assert.equal(ctx.sandbox.readConfig().ui.theme, 'route-theme');
+  assert.equal(ctx.sandbox.readConfig().ui.theme, 'neon-noir');
 
-  const exported = await ctx.request('/api/themes/route-theme/export');
-  assert.equal(exported.status, 200);
-  const pkg = await exported.json();
-  assert.equal(pkg.format, 'worldengine-theme-v1');
-  assert.equal(pkg.theme.id, 'route-theme');
+  const missingActive = await ctx.request('/api/themes/active', {
+    method: 'PUT', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id: 'no-such' }),
+  });
+  assert.equal(missingActive.status, 400);
 
-  const deleteBuiltin = await ctx.request('/api/themes/classic-parchment', { method: 'DELETE' });
-  assert.equal(deleteBuiltin.status, 400);
-
-  const deleted = await ctx.request('/api/themes/route-theme', { method: 'DELETE' });
-  assert.equal(deleted.status, 204);
-  // 回退目标是 backend/services/themes.js 的 DEFAULT_THEME_ID（生产默认主题），而非起始 sandbox 值。
-  assert.equal(ctx.sandbox.readConfig().ui.theme, 'nocturne');
+  const imported = await ctx.request('/api/themes/import', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+  assert.equal(imported.status, 404);
+  const exported = await ctx.request('/api/themes/neon-noir/export');
+  assert.equal(exported.status, 404);
+  const deleted = await ctx.request('/api/themes/neon-noir', { method: 'DELETE' });
+  assert.equal(deleted.status, 404);
 });
 
 // ─── daily-entries ──────────────────────────────────────────────────

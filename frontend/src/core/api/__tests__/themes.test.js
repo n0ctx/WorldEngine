@@ -1,9 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
-  deleteTheme,
-  exportTheme,
   fetchThemeCss,
-  importTheme,
   listThemes,
   refreshThemeCss,
   setActiveTheme,
@@ -22,20 +19,14 @@ describe('themes api', () => {
     globalThis.fetch = vi.fn(async (url, init) => {
       if (url === '/api/themes') return jsonResponse({ themes: [], activeTheme: 'classic-parchment' });
       if (url === '/api/themes/active') return jsonResponse({ activeTheme: JSON.parse(init.body).id });
-      if (url === '/api/themes/import') return jsonResponse({ id: JSON.parse(init.body).theme.id }, { status: 201 });
-      if (url === '/api/themes/demo/export') return jsonResponse({ format: 'worldengine-theme-v1' });
-      if (url === '/api/themes/demo') return new Response(null, { status: 204 });
       if (url === '/api/themes/demo/css') return new Response(':root { --we-color-bg-canvas: red; }', { status: 200 });
       return jsonResponse({ error: 'nope' }, { status: 404 });
     });
   });
 
-  it('封装 list/switch/import/export/delete 请求', async () => {
+  it('封装 list/switch 请求', async () => {
     expect(await listThemes()).toEqual({ themes: [], activeTheme: 'classic-parchment' });
     expect(await setActiveTheme('demo')).toEqual({ activeTheme: 'demo' });
-    expect(await importTheme({ format: 'worldengine-theme-v1', theme: { id: 'demo' }, css: '' })).toEqual({ id: 'demo' });
-    expect(await exportTheme('demo')).toEqual({ format: 'worldengine-theme-v1' });
-    expect(await deleteTheme('demo')).toBeNull();
   });
 
   it('fetchThemeCss 返回 CSS 文本', async () => {

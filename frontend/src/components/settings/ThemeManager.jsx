@@ -1,18 +1,13 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
-  deleteTheme,
-  downloadTheme,
   DEFAULT_THEME_ID,
-  importTheme,
   listThemes,
   refreshThemeCss,
   setActiveTheme,
 } from '../../core/api/themes.js';
 import { refreshCustomCss } from '../../core/api/custom-css-snippets.js';
-import { readJsonFile } from '../../core/api/import-export.js';
 import { useAppModeStore } from '../../core/state/appMode.js';
 import Button from '../ui/Button.jsx';
-import DeleteButton from '../motion/DeleteButton.jsx';
 import { log } from '../../core/utils/logger.js';
 
 export default function ThemeManager() {
@@ -20,7 +15,6 @@ export default function ThemeManager() {
   const [activeTheme, setActiveThemeState] = useState(DEFAULT_THEME_ID);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState(null);
-  const fileInputRef = useRef(null);
   const appMode = useAppModeStore((s) => s.appMode);
 
   const load = useCallback(async () => {
@@ -61,106 +55,34 @@ export default function ThemeManager() {
     }
   }
 
-  async function handleImport(e) {
-    const file = e.target.files?.[0];
-    e.target.value = '';
-    if (!file) return;
-    setBusyId('__import__');
-    try {
-      const imported = await importTheme(await readJsonFile(file));
-      await load();
-      await switchTheme(imported.id);
-    } catch (err) {
-      log.error('themes.import_failed', err, { toast: `导入失败：${err.message}` });
-    } finally {
-      setBusyId(null);
-    }
-  }
-
-  async function handleDelete(id) {
-    setBusyId(id);
-    try {
-      await deleteTheme(id);
-      await load();
-      if (activeTheme === id) {
-        await refreshThemeCss(DEFAULT_THEME_ID);
-        await refreshCustomCss(appMode);
-        setActiveThemeState(DEFAULT_THEME_ID);
-      }
-    } catch (err) {
-      log.error('themes.delete_failed', err, { toast: `删除失败：${err.message}` });
-    } finally {
-      setBusyId(null);
-    }
-  }
+  if (loading) return <p className="we-theme-empty">加载中…</p>;
 
   return (
-    <div className="we-theme-manager">
-      <div className="we-theme-toolbar">
-        <div>
-          <p className="we-theme-current-label">当前主题</p>
-          <p className="we-theme-current-value">{themes.find((t) => t.id === activeTheme)?.name || activeTheme}</p>
-        </div>
-        <div className="we-theme-toolbar-actions">
-          <input
-            ref={fileInputRef}
-            className="we-visually-hidden"
-            type="file"
-            accept=".json,.wetheme.json,application/json"
-            onChange={handleImport}
-          />
-          <Button
-            variant="ghost"
-            size="sm"
-            disabled={busyId === '__import__'}
-            onClick={() => fileInputRef.current?.click()}
-          >
-            导入主题
-          </Button>
-        </div>
-      </div>
-
-      {loading ? (
-        <p className="we-theme-empty">加载中…</p>
-      ) : themes.length === 0 ? (
-        <p className="we-theme-empty">暂无主题</p>
-      ) : (
-        <div className="we-theme-list">
-          {themes.map((theme) => {
-            const active = theme.id === activeTheme;
-            const busy = busyId === theme.id;
-            return (
-              <article key={theme.id} className={`we-theme-card${active ? ' active' : ''}`}>
-                <div className="we-theme-card-main">
-                  <ThemeSwatch theme={theme} />
-                  <div className="we-theme-meta">
-                    <div className="we-theme-title-row">
-                      <h3 className="we-theme-name">{theme.name}</h3>
-                      <span className="we-theme-badge">{theme.builtin ? '内置' : '用户'}</span>
-                      {active && <span className="we-theme-badge we-theme-badge-active">使用中</span>}
-                    </div>
-                    <p className="we-theme-desc">{theme.description || `${theme.id} · ${theme.version}`}</p>
-                  </div>
+    <div className="we-theme-list">
+      {themes.map((theme) => {
+        const active = theme.id === activeTheme;
+        return (
+          <article key={theme.id} className={`we-theme-card${active ? ' active' : ''}`}>
+            <div className="we-theme-card-main">
+              <ThemeSwatch theme={theme} />
+              <div className="we-theme-meta">
+                <div className="we-theme-title-row">
+                  <h3 className="we-theme-name">{theme.name}</h3>
+                  {active && <span className="we-theme-badge we-theme-badge-active">使用中</span>}
                 </div>
-                <div className="we-theme-actions">
-                  <Button variant="ghost" size="sm" onClick={() => downloadTheme(theme.id)} disabled={busy}>
-                    导出
-                  </Button>
-                  {!active && (
-                    <Button variant="ghost" size="sm" onClick={() => switchTheme(theme.id)} disabled={busy}>
-                      切换
-                    </Button>
-                  )}
-                  {!theme.builtin && (
-                    <DeleteButton label={`删除主题「${theme.name}」`} onConfirm={() => handleDelete(theme.id)} disabled={busy} />
-                  )}
-                </div>
-              </article>
-            );
-          })}
-        </div>
-      )}
-
+                <p className="we-theme-desc">{theme.description || `${theme.id} · ${theme.version}`}</p>
+              </div>
+            </div>
+            {!active && (
+              <div className="we-theme-actions">
+                <Button variant="ghost" size="sm" onClick={() => switchTheme(theme.id)} disabled={busyId === theme.id}>
+                  切换
+                </Button>
+              </div>
+            )}
+          </article>
+        );
+      })}
     </div>
   );
 }

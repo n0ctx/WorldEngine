@@ -1,22 +1,18 @@
-// CSS 片段、正则规则、主题包。
+// CSS 片段、正则规则。
 //
 // 后端补齐：CSS 片段 / 正则的默认模式与启用状态、正则 /…/flags 写法拆分与可编译校验、
-// "仅当前世界" 转世界 id、主题 id 与版本号；主题与片段只允许使用已有 --we-* token。
-
-import { randomUUID } from 'node:crypto';
+// "仅当前世界" 转世界 id；片段只允许使用已有 --we-* token。
 
 import { getCustomCssSnippetById, listCustomCssSnippets } from '../../../backend/db/queries/custom-css-snippets.js';
 import { getRegexRuleById, listRegexRules } from '../../../backend/db/queries/regex-rules.js';
-import { getThemeSnapshot, listThemes } from '../../../backend/services/themes.js';
 
 import { normalizeProposal } from '../normalize-proposal.js';
 import { applyProposal } from '../apply-proposal.js';
 import { compact, fail, pickKnown, requireObjectKeys, requireText } from './common.js';
-import { assertSnippetTokens, assertThemeCss } from './tokens.js';
+import { assertSnippetTokens } from './tokens.js';
 
 export const CSS_FIELDS = ['name', 'content', 'mode', 'enabled'];
 export const REGEX_FIELDS = ['name', 'pattern', 'replacement', 'flags', 'scope', 'world_only', 'mode', 'enabled'];
-export const THEME_FIELDS = ['name', 'description', 'author', 'version', 'css'];
 const MODES = ['chat', 'writing'];
 const REGEX_SCOPES = ['display_only', 'ai_output', 'user_input', 'prompt_only'];
 
@@ -153,72 +149,4 @@ export async function removeRegex(id) {
   const rule = loadRegex(id);
   await applyProposal(normalizeProposal({ type: 'regex-rule', operation: 'delete', entityId: id }));
   return `已删除 regex:${id}（${rule.name}）`;
-}
-
-// ─── 主题包 ─────────────────────────────────────────────
-
-export function loadTheme(id) {
-  try {
-    return getThemeSnapshot(id);
-  } catch {
-    return fail(`主题 theme:${id} 不存在；read("themes") 查看全部主题`);
-  }
-}
-
-export function viewTheme(theme) {
-  return compact({
-    ref: `theme:${theme.id}`,
-    name: theme.name,
-    description: theme.description,
-    author: theme.author,
-    version: theme.version,
-    builtin: theme.builtin ? '内置主题，修改时自动复制为用户主题' : undefined,
-    active: listThemes().activeTheme === theme.id ? true : undefined,
-    css: theme.css,
-  });
-}
-
-export function listThemeRefs() {
-  const { activeTheme, themes } = listThemes();
-  return themes.map((t) => `theme:${t.id} ${t.name}${t.id === activeTheme ? '（当前使用）' : ''}${t.builtin ? '（内置）' : ''}`);
-}
-
-function themeIdFrom(name) {
-  const existing = new Set(listThemes().themes.map((t) => t.id));
-  const slug = String(name).trim().toLowerCase().replace(/[\s_]+/g, '-').replace(/[^a-z0-9-]/g, '').replace(/^[^a-z]+/, '');
-  const base = slug.length >= 2 ? slug.slice(0, 48) : `theme-${randomUUID().slice(0, 6)}`;
-  let id = base;
-  for (let n = 2; existing.has(id); n += 1) id = `${base}-${n}`;
-  return id;
-}
-
-function prepareTheme(data) {
-  const input = pickKnown(data, THEME_FIELDS, 'theme');
-  if ('css' in input) assertThemeCss(requireText(input.css, 'css'));
-  return input;
-}
-
-export async function createTheme(data) {
-  const changes = prepareTheme(data);
-  requireText(changes.name, 'name');
-  requireText(changes.css, 'css');
-  const id = themeIdFrom(changes.name);
-  await applyProposal(normalizeProposal({
-    type: 'theme', operation: 'create', entityId: id, changes: { version: '1.0.0', ...changes },
-  }));
-  return `已创建 theme:${id}（${changes.name}）。是否启用由用户在设置中切换`;
-}
-
-export async function updateTheme(id, data) {
-  const changes = prepareTheme(data);
-  requireObjectKeys(changes, 'theme 没有要修改的字段');
-  loadTheme(id);
-  await applyProposal(normalizeProposal({ type: 'theme', operation: 'update', entityId: id, changes }));
-  return `已更新 theme:${id}`;
-}
-
-export async function removeTheme(id) {
-  const theme = loadTheme(id);
-  await applyProposal(normalizeProposal({ type: 'theme', operation: 'delete', entityId: id }));
-  return `已删除 theme:${id}（${theme.name}）`;
 }

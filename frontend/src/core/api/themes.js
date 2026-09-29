@@ -1,4 +1,3 @@
-import { downloadJson } from './import-export.js';
 import { assertOk, request } from './request.js';
 
 const BASE = '/api/themes';
@@ -21,26 +20,6 @@ export function setActiveTheme(id) {
     method: 'PUT',
     body: JSON.stringify({ id }),
   });
-}
-
-export function importTheme(data) {
-  return request(`${BASE}/import`, {
-    method: 'POST',
-    body: JSON.stringify(data),
-  });
-}
-
-export function exportTheme(id) {
-  return request(`${BASE}/${encodeURIComponent(id)}/export`);
-}
-
-export function deleteTheme(id) {
-  return request(`${BASE}/${encodeURIComponent(id)}`, { method: 'DELETE' });
-}
-
-export async function downloadTheme(id, filename) {
-  const data = await exportTheme(id);
-  downloadJson(data, filename || `${id}.wetheme.json`);
 }
 
 if (import.meta.hot) {

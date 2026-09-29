@@ -5,7 +5,7 @@ import { ENTRY_FIELDS } from '../workspace/entries.js';
 import { FIELD_FIELDS } from '../workspace/fields.js';
 import { CHARACTER_FIELDS, PERSONA_FIELDS } from '../workspace/cards.js';
 import { WORLD_FIELDS } from '../workspace/world.js';
-import { CSS_FIELDS, REGEX_FIELDS, THEME_FIELDS } from '../workspace/style.js';
+import { CSS_FIELDS, REGEX_FIELDS } from '../workspace/style.js';
 import { REF_HELP } from '../workspace/refs.js';
 import { wrapToolEvents } from './adapter.js';
 
@@ -17,7 +17,6 @@ const DATA_FIELDS_HELP = [
   `persona: ${PERSONA_FIELDS.join(', ')}（state: { 字段标签: 原生值 }）`,
   `css: ${CSS_FIELDS.join(', ')}`,
   `regex: ${REGEX_FIELDS.join(', ')}（scope: display_only/ai_output/user_input/prompt_only）`,
-  `theme: ${THEME_FIELDS.join(', ')}`,
   'config: 全局设置的局部补丁，如 { "global_system_prompt": "…" }',
 ].join('\n');
 

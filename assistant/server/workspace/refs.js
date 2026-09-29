@@ -1,21 +1,21 @@
 // 资源引用（ref）解析。
 //
 // 单个资源：world[:id] / entry:<id> / field:<world|persona|character>.<key或标签> /
-//           character:<id> / persona[:id] / css:<id> / regex:<id> / theme:<id> / config / doc:<name>
-// 列表：worlds / entries / fields / characters / personas / css / regex / themes / docs
+//           character:<id> / persona[:id] / css:<id> / regex:<id> / config / doc:<name>
+// 列表：worlds / entries / fields / characters / personas / css / regex / docs
 // 与世界相关的 ref 可加 @<worldId> 指定世界，省略时用当前世界。
 
 import { fail } from './common.js';
 
-const LIST_KINDS = ['worlds', 'entries', 'fields', 'characters', 'personas', 'css', 'regex', 'themes', 'docs'];
-const ITEM_KINDS = ['world', 'entry', 'field', 'character', 'persona', 'css', 'regex', 'theme', 'config', 'doc'];
+const LIST_KINDS = ['worlds', 'entries', 'fields', 'characters', 'personas', 'css', 'regex', 'docs'];
+const ITEM_KINDS = ['world', 'entry', 'field', 'character', 'persona', 'css', 'regex', 'config', 'doc'];
 const ID_OPTIONAL = new Set(['world', 'persona', 'config']);
 const LIST_OF = {
-  entry: 'entries', field: 'fields', character: 'characters', css: 'css', regex: 'regex', theme: 'themes', doc: 'docs',
+  entry: 'entries', field: 'fields', character: 'characters', css: 'css', regex: 'regex', doc: 'docs',
 };
 export const FIELD_TARGETS = ['world', 'persona', 'character'];
 
-export const REF_HELP = '可用 ref：world、entry:<id>、field:persona.<字段>、character:<id>、persona、css:<id>、regex:<id>、theme:<id>、config、doc:<名称>；'
+export const REF_HELP = '可用 ref：world、entry:<id>、field:persona.<字段>、character:<id>、persona、css:<id>、regex:<id>、config、doc:<名称>；'
   + `列表：${LIST_KINDS.join(' / ')}`;
 
 export function parseRef(raw) {

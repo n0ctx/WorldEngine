@@ -21,12 +21,11 @@ import {
 import {
   loadCss, viewCss, listCss, createCss, updateCss, removeCss,
   loadRegex, viewRegex, listRegex, createRegex, updateRegex, removeRegex,
-  loadTheme, viewTheme, listThemeRefs, createTheme, updateTheme, removeTheme,
 } from './style.js';
 import { viewConfig, updateConfig } from './config.js';
 import { listDocs, readDoc, searchDocs } from './docs.js';
 
-export const CREATE_KINDS = ['world', 'entry', 'field', 'character', 'persona', 'css', 'regex', 'theme'];
+export const CREATE_KINDS = ['world', 'entry', 'field', 'character', 'persona', 'css', 'regex'];
 const MAX_FIND_HITS = 30;
 
 function readList(ref, session) {
@@ -38,7 +37,6 @@ function readList(ref, session) {
     case 'personas': return listPersonaRefs(worldIdOf(ref, session));
     case 'css': return listCss();
     case 'regex': return listRegex();
-    case 'themes': return listThemeRefs();
     case 'docs': return listDocs();
     default: return fail(`未知列表 ${ref.kind}`);
   }
@@ -53,7 +51,6 @@ function readItem(ref, session) {
     case 'persona': return viewPersona(loadPersona(ref, ref.worldId ?? session.worldId));
     case 'css': return viewCss(loadCss(ref.id));
     case 'regex': return viewRegex(loadRegex(ref.id));
-    case 'theme': return viewTheme(loadTheme(ref.id));
     case 'config': return viewConfig();
     default: return fail(`未知资源 ${ref.kind}`);
   }
@@ -103,7 +100,6 @@ async function createWorkspaceResource(session, kind, data, world = null) {
     case 'persona': return createPersona(targetWorld(), data);
     case 'css': return createCss(data);
     case 'regex': return createRegex(data, worldRef?.worldId ?? session.worldId);
-    case 'theme': return createTheme(data);
     default: return fail(`kind 只能是 ${CREATE_KINDS.join(' / ')}`);
   }
 }
@@ -119,7 +115,6 @@ async function updateWorkspaceResource(session, rawRef, data) {
     case 'persona': return updatePersona(loadPersona(ref, ref.worldId ?? session.worldId), data);
     case 'css': return updateCss(ref.id, data);
     case 'regex': return updateRegex(ref.id, data, session.worldId);
-    case 'theme': return updateTheme(ref.id, data);
     case 'config': return updateConfig(data);
     default: return fail(`${ref.kind} 不支持修改`);
   }
@@ -157,7 +152,6 @@ async function removeWorkspaceResource(session, rawRef) {
     case 'character': return removeCharacter(ref.id);
     case 'css': return removeCss(ref.id);
     case 'regex': return removeRegex(ref.id);
-    case 'theme': return removeTheme(ref.id);
     default: return fail(`${ref.kind} 不支持删除`);
   }
 }

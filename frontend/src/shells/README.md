@@ -12,7 +12,7 @@ core   (frontend/src/core, pages, components/ui, components/{domain})
    ↓ composes routes & page content
 shell  (frontend/src/shells/<shell-id>)
    ↓ wraps app with global frame (top bar, transitions, panels)
-theme  (themes/, data/themes/)
+theme  (themes/)
    ↓ overrides --we-* tokens only
 ```
 

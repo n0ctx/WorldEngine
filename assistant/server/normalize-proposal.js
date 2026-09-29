@@ -2,7 +2,6 @@
  * 提案归一化：校验并归一化原始 LLM 提案，落库见 apply-proposal.js。
  */
 
-import { assertThemeId } from '../../backend/services/themes.js';
 import { buildWorldConditionContext, normalizeEntryOps } from './proposal-entry-ops.js';
 import { normalizeStateFieldOps, normalizeStateValueOps } from './proposal-state-ops.js';
 import {
@@ -25,7 +24,6 @@ const PROPOSAL_ALLOWED_OPERATIONS = {
   'global-config': new Set(['update']),
   'css-snippet': new Set(['create', 'update', 'delete']),
   'regex-rule': new Set(['create', 'update', 'delete']),
-  'theme': new Set(['create', 'update', 'delete']),
 };
 
 function normalizeProposal(raw, locked = {}) {
@@ -54,17 +52,10 @@ function normalizeProposal(raw, locked = {}) {
 
 function normalizeProposalIdentity(proposal, raw, locked) {
   const { type, operation } = proposal;
-  const requiresEntityId = ['world-card', 'character-card', 'persona-card', 'theme'].includes(type)
+  const requiresEntityId = ['world-card', 'character-card', 'persona-card'].includes(type)
     || (['css-snippet', 'regex-rule'].includes(type) && operation !== 'create');
   if (!requiresEntityId) return;
   proposal.entityId = normalizeEntityId(locked.entityId ?? raw?.entityId);
-  if (type !== 'theme') return;
-  if (!proposal.entityId) throw new Error('提案格式错误：theme 必须提供 entityId（主题 id）');
-  try {
-    assertThemeId(proposal.entityId);
-  } catch (err) {
-    throw new Error(`提案格式错误：${err.message}`);
-  }
 }
 
 function normalizeProposalContent(proposal, raw, changes) {
@@ -88,9 +79,6 @@ function normalizeProposalContent(proposal, raw, changes) {
       break;
     case 'regex-rule':
       proposal.changes = normalizeRegexProposalChanges(changes, proposal.operation);
-      break;
-    case 'theme':
-      proposal.changes = proposal.operation === 'delete' ? {} : normalizeThemeChanges(changes, proposal.operation);
       break;
     default:
       break;
@@ -191,34 +179,6 @@ function normalizeCssSnippetChanges(changes) {
     mode: normalizeMode(picked.mode),
     enabled: normalizeEnabled(picked.enabled),
   };
-}
-
-function normalizeThemeChanges(changes, operation) {
-  const picked = pickAllowed(changes, ['name', 'version', 'author', 'description', 'preview', 'css']);
-  const normalized = {};
-  if ('name' in picked) normalized.name = String(picked.name ?? '').trim();
-  if ('version' in picked) normalized.version = String(picked.version ?? '').trim();
-  if ('author' in picked) normalized.author = String(picked.author ?? '');
-  if ('description' in picked) normalized.description = String(picked.description ?? '');
-  if ('preview' in picked) {
-    if (picked.preview && typeof picked.preview === 'object' && !Array.isArray(picked.preview)) {
-      normalized.preview = picked.preview;
-    } else {
-      throw new Error('提案格式错误：theme.changes.preview 必须是对象');
-    }
-  }
-  if ('css' in picked) {
-    if (typeof picked.css !== 'string') throw new Error('提案格式错误：theme.changes.css 必须是字符串');
-    const trimmed = picked.css.trim();
-    if (!trimmed) throw new Error('提案格式错误：theme.changes.css 不能为空');
-    normalized.css = picked.css;
-  }
-  if (operation === 'create') {
-    if (!normalized.name) throw new Error('提案格式错误：theme create 必须提供 name');
-    if (!normalized.version) throw new Error('提案格式错误：theme create 必须提供 version');
-    if (typeof normalized.css !== 'string') throw new Error('提案格式错误：theme create 必须提供 css');
-  }
-  return normalized;
 }
 
 function normalizeRegexRuleChanges(changes) {
