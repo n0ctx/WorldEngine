@@ -209,7 +209,7 @@ export default function SettingsPage() {
             )}
             {activeSection === NAV_KEY.THEME && (
               <div className="we-settings-section">
-                <h2 className="we-settings-section-title">主题</h2>
+                <h2 className="we-settings-section-title">视觉</h2>
                 <ThemeManager />
                 <h2 className="we-settings-section-title we-settings-section-title--sub">动效</h2>
                 <MotionPackPicker />

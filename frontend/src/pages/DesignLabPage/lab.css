@@ -1,0 +1,88 @@
+/* 实验室专用：把整页布局里的东西收进固定尺寸的盒子。contain: layout paint 让盒内 fixed 元素只铺满盒子。 */
+.we-design-lab__shell-box {
+  display: flex;
+  flex-direction: column;
+  height: 320px;
+  contain: layout paint;
+  border-radius: var(--we-radius-md);
+  background: var(--we-page-canvas-bg);
+}
+
+.we-design-lab__pane {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: var(--we-space-lg);
+  overflow: hidden;
+}
+
+.we-design-lab__pane--composer {
+  min-height: 200px;
+  justify-content: flex-end;
+}
+
+.we-design-lab__drawer-list {
+  display: grid;
+  gap: var(--we-space-sm);
+  margin: 0;
+  padding: var(--we-space-md);
+  list-style: none;
+  font-size: var(--we-text-sm);
+  color: var(--we-color-text-secondary);
+}
+
+.we-design-lab__fx-box {
+  position: relative;
+  height: 240px;
+  margin-top: var(--we-space-md);
+  padding: var(--we-space-lg);
+  contain: layout paint;
+  border-radius: var(--we-radius-md);
+  background: var(--we-page-canvas-bg);
+}
+
+.we-design-lab__canvas-strip {
+  min-height: 96px;
+  margin-top: var(--we-space-lg);
+  padding-block: var(--we-space-lg);
+  border-radius: var(--we-radius-md);
+  background-color: var(--we-page-canvas-bg);
+}
+
+.we-design-lab__page-box {
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  gap: var(--we-space-xl);
+  padding: var(--we-space-xl);
+  overflow: hidden;
+  border-radius: var(--we-radius-md);
+  background-color: var(--we-page-canvas-bg);
+  background-image: var(--we-canvas-texture-image);
+}
+
+.we-design-lab__worlds {
+  container-type: inline-size;
+  display: grid;
+  gap: var(--we-space-xl);
+}
+
+.we-design-lab__worlds .we-worlds-grid {
+  --we-worlds-grid-cols: 3;
+}
+
+.we-design-lab__cols {
+  flex: none;
+  flex-direction: column;
+  gap: var(--we-space-xl);
+  overflow: visible;
+}
+
+.we-design-lab__cols > * {
+  flex: none;
+  min-width: 0;
+  max-width: none;
+  overflow: visible;
+}

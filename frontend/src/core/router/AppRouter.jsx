@@ -29,7 +29,7 @@ const WritingSpacePage = lazy(() => import('../../pages/WritingSpacePage'));
 const RulesPage = lazy(() => import('../../pages/RulesPage'));
 const AssistantPanel = lazy(() => import('../features/assistant/AssistantPanelHost.jsx'));
 // 开发用动效实验室：生产构建里整条分支被剔除
-const MotionLabPage = import.meta.env.DEV ? lazy(() => import('../../pages/MotionLabPage.jsx')) : null;
+const DesignLabPage = import.meta.env.DEV ? lazy(() => import('../../pages/DesignLabPage/index.jsx')) : null;
 
 function RedirectToRules() {
   const { worldId } = useParams();
@@ -134,7 +134,7 @@ export default function AppRouter() {
           <Route path="/worlds/:worldId/config" element={<RedirectToRules />} />
           <Route path="/worlds/:worldId/state-workshop" element={<RedirectToRulesState />} />
           <Route path="/settings" element={<SettingsPage />} />
-          {MotionLabPage && <Route path="/dev/motion" element={<MotionLabPage />} />}
+          {DesignLabPage && <Route path="/dev/design" element={<DesignLabPage />} />}
         </Routes>
       </Suspense>
 

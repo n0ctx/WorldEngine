@@ -292,7 +292,7 @@
 :where(:root[data-motion="liquid"]) :is(
   .we-section-tab, .we-select-option, .we-settings-nav-item, .we-chat-slash-item,
   .we-session-item, .we-topbar-item, .we-chat-quick-btn, .we-sm-chip,
-  .we-character-card-action-btn, .we-world-card-action-btn, .we-motion-lab__chip, .we-toggle-track
+  .we-character-card-action-btn, .we-world-card-action-btn, .we-design-lab__chip, .we-toggle-track
 ) {
   transition:
     scale var(--ink-press-time, 560ms) var(--ink-press-ease, var(--ink-spring)),
@@ -305,7 +305,7 @@
 :where(:root[data-motion="liquid"]) :is(
   .we-section-tab, .we-select-option, .we-settings-nav-item, .we-chat-slash-item,
   .we-session-item, .we-topbar-item, .we-chat-quick-btn, .we-sm-chip,
-  .we-character-card-action-btn, .we-world-card-action-btn, .we-motion-lab__chip, .we-toggle-track
+  .we-character-card-action-btn, .we-world-card-action-btn, .we-design-lab__chip, .we-toggle-track
 ):active {
   --ink-press-time: 90ms;
   --ink-press-ease: ease-out;
