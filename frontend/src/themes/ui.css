@@ -208,8 +208,8 @@
 .we-datetime-split .we-input {
   width: auto;
   text-align: center;
-  padding-left: 4px;
-  padding-right: 4px;
+  padding-left: var(--we-space-xs);
+  padding-right: var(--we-space-xs);
 }
 .we-textarea {
   resize: vertical;
@@ -289,7 +289,7 @@
   border: 1px solid var(--we-color-border-default);
   background: transparent;
   color: var(--we-color-text-tertiary);
-  letter-spacing: 0.05em;
+  letter-spacing: var(--we-tracking-normal);
 }
 .we-badge-accent {
   color: var(--we-color-accent);
@@ -343,7 +343,7 @@
   font-weight: 600;
   color: var(--we-color-text-primary);
   margin: 0;
-  letter-spacing: 0.02em;
+  letter-spacing: var(--we-tracking-tight);
 }
 
 .we-dialog-body {
@@ -368,7 +368,7 @@
   font-style: italic;
   color: var(--we-color-text-secondary);
   margin-bottom: 6px;
-  letter-spacing: 0.02em;
+  letter-spacing: var(--we-tracking-tight);
 }
 
 /* ── State Extract Preview（AI 提取状态字段建议值弹窗）── */
@@ -443,7 +443,7 @@
 .we-extract-badge {
   font-family: var(--we-font-display);
   font-size: var(--we-text-2xs);
-  letter-spacing: 0.05em;
+  letter-spacing: var(--we-tracking-normal);
   padding: 1px var(--we-space-xs);
   border-radius: var(--we-radius-none);
   border: 1px solid var(--we-color-border-default);
@@ -513,7 +513,7 @@
   font-family: var(--we-font-prose);
   font-size: var(--we-text-2xs);
   color: var(--we-color-accent);
-  letter-spacing: 0.02em;
+  letter-spacing: var(--we-tracking-tight);
 }
 
 .we-tag-input .we-tag {
@@ -1733,7 +1733,7 @@
 .we-regex-scope-title {
   font-family: var(--we-font-display);
   font-size: var(--we-text-xs);
-  letter-spacing: 0.18em;
+  letter-spacing: var(--we-tracking-caps);
   text-transform: uppercase;
   color: var(--we-color-text-tertiary);
 }
@@ -2029,7 +2029,7 @@
 
 .we-md-toolbar button:hover {
   color: var(--we-color-text-secondary);
-  background: color-mix(in srgb, var(--we-base-ink-900) 5%, transparent);
+  background: color-mix(in srgb, var(--we-color-text-primary) 5%, transparent);
 }
 
 .we-md-toolbar button.active {
@@ -2749,13 +2749,13 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
-  padding-top: 2px;
+  padding-top: var(--we-space-xxs);
 }
 
 .we-status-skeleton-key {
   height: 8px;
   width: 30%;
-  margin-bottom: 4px;
+  margin-bottom: var(--we-space-xs);
 }
 
 .we-status-skeleton-value {
@@ -3007,10 +3007,10 @@
 .we-status-table {
   display: grid;
   grid-template-columns: repeat(var(--we-status-table-cols, 1), minmax(0, 1fr));
-  margin-top: 4px;
+  margin-top: var(--we-space-xs);
   gap: 0;
-  border-top: 1px solid color-mix(in srgb, var(--we-base-ink-900) 12%, transparent);
-  border-bottom: 1px solid color-mix(in srgb, var(--we-base-ink-900) 12%, transparent);
+  border-top: 1px solid color-mix(in srgb, var(--we-color-text-primary) 12%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--we-color-text-primary) 12%, transparent);
 }
 .we-status-table-row {
   display: contents;
@@ -3034,7 +3034,7 @@
   align-items: stretch;
 }
 .we-status-table-cell + .we-status-table-cell {
-  border-left: 1px solid color-mix(in srgb, var(--we-base-ink-900) 8%, transparent);
+  border-left: 1px solid color-mix(in srgb, var(--we-color-text-primary) 8%, transparent);
 }
 .we-status-table-head-cell {
   font-family: var(--we-font-display);
@@ -3043,7 +3043,7 @@
   text-transform: uppercase;
   color: var(--we-color-text-tertiary);
   opacity: 0.75;
-  background: color-mix(in srgb, var(--we-base-ink-900) 4%, transparent);
+  background: color-mix(in srgb, var(--we-color-text-primary) 4%, transparent);
 }
 .we-status-table-body-cell .we-status-table-value {
   font-family: var(--we-font-prose);
@@ -3282,7 +3282,7 @@
   align-items: center;
   gap: 3px; /* design exact */
   border: 1px solid color-mix(in srgb, var(--we-color-border-default) 70%, transparent);
-  background: color-mix(in srgb, var(--we-base-paper-100, #ede3d0) 60%, transparent);
+  background: color-mix(in srgb, var(--we-color-bg-canvas) 60%, transparent);
   padding: 2px 7px; /* 2px: design exact, 7px: design exact */
   border-radius: var(--we-radius-xs);
   font-family: var(--we-font-display);
@@ -3578,7 +3578,7 @@
   display: inline-flex;
   align-items: center;
   gap: var(--we-space-xxs);
-  padding: 2px var(--we-space-sm);
+  padding: var(--we-space-xxs) var(--we-space-sm);
   border-radius: var(--we-radius-xs);
   font-size: var(--we-text-sm);
   color: var(--we-color-text-secondary);
@@ -3667,7 +3667,7 @@
   pointer-events: none;
 }
 .we-sm-search-input {
-  padding-left: 32px;
+  padding-left: var(--we-space-2xl);
 }
 .we-sm-entity-group {
   display: flex;
@@ -3971,7 +3971,7 @@
 .we-sm-thread-content {
   margin-left: calc(-1 * var(--we-space-sm));
   width: calc(100% + 2 * var(--we-space-sm));
-  padding: 4px var(--we-space-sm);
+  padding: var(--we-space-xs) var(--we-space-sm);
   border: 1px solid transparent;
   border-radius: var(--we-radius-xs);
   background: transparent;
@@ -4001,7 +4001,7 @@
   align-items: center;
   gap: var(--we-space-xxs);
   margin-bottom: var(--we-space-sm);
-  padding: 2px var(--we-space-xs) 2px 0;
+  padding: var(--we-space-xxs) var(--we-space-xs) var(--we-space-xxs) 0;
   font-size: var(--we-text-sm);
   color: var(--we-color-text-tertiary);
   cursor: pointer;
@@ -4256,7 +4256,7 @@
   display: flex;
   flex-shrink: 0;
   align-items: center;
-  gap: 12px;
+  gap: var(--we-space-md);
   height: 36px;
   padding-inline: 14px 6px;
   border-bottom: 1px solid var(--we-color-border-subtle);
@@ -4298,7 +4298,7 @@
   min-height: 0;
   flex: 1;
   overflow: auto;
-  padding-block: 12px;
+  padding-block: var(--we-space-md);
   scrollbar-width: thin;
 }
 .we-code-block__viewport:focus-visible {
@@ -4313,7 +4313,7 @@
   min-width: 100%;
   margin: 0;
   font-family: var(--we-font-mono, ui-monospace, monospace);
-  font-size: 13px;
+  font-size: var(--we-text-sm);
   line-height: 1.5rem;
   tab-size: 4;
 }
@@ -4324,7 +4324,7 @@
 }
 .we-code-block__gutter {
   flex-shrink: 0;
-  margin-right: 16px;
+  margin-right: var(--we-space-lg);
   text-align: right;
   color: var(--we-color-text-tertiary);
   user-select: none;
@@ -4410,7 +4410,7 @@
 .we-folder__flap {
   width: 321px;
   height: 241px;
-  margin-top: 16px;
+  margin-top: var(--we-space-lg);
   transform-origin: bottom center;
   transform-style: preserve-3d;
 }

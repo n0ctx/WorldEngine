@@ -315,7 +315,7 @@
   display: inline-block;
   width: 0.6em;
   height: 2px;
-  margin-left: 2px;
+  margin-left: var(--we-space-xxs);
   vertical-align: -0.12em;
   background: var(--we-color-accent);
   animation: we-stream-caret var(--we-duration-loop) steps(1, jump-end) infinite;
@@ -327,7 +327,7 @@
   width: 0.55em;
   height: 2px;
   background: var(--we-color-accent);
-  margin-left: 2px;
+  margin-left: var(--we-space-xxs);
   vertical-align: -0.12em;
   animation: we-stream-caret var(--we-duration-loop) steps(1, jump-end) infinite;
 }

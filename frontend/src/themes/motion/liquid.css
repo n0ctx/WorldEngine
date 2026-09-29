@@ -89,7 +89,7 @@
   pointer-events: none;
 }
 :where(:root[data-motion="liquid"]) .we-stream-caret {
-  margin: 0 calc(-0.38em - 4px) 0 4px;
+  margin: 0 calc(-0.38em - var(--we-space-xs)) 0 var(--we-space-xs);
   animation: we-ink-breathe var(--we-stream-caret-duration) var(--ink-flow) infinite;
 }
 :where(:root[data-motion="liquid"]) :is(.we-chat-empty-state__cursor, .we-asst-stream-cursor) {

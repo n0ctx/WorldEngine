@@ -171,8 +171,8 @@
   font-family: var(--we-font-display);
   color: var(--we-color-text-primary);
   font-weight: 400;
-  letter-spacing: 0.02em;
-  line-height: 1.3;
+  letter-spacing: var(--we-tracking-tight);
+  line-height: var(--we-leading-tight);
   margin: 0.9em 0 0.35em;
 }
 .we-message-content h1 {
@@ -210,7 +210,7 @@
   border-collapse: collapse;
   margin: 0.75em 0;
   font-size: 0.9em;
-  line-height: 1.5;
+  line-height: var(--we-leading-snug);
 }
 .we-message-content th {
   background: var(--we-color-bg-surface);
@@ -274,7 +274,7 @@
   left: 1px;
   font-size: 9px; /* no token */
   color: var(--we-color-bg-canvas);
-  line-height: 1;
+  line-height: var(--we-leading-flush);
 }
 
 .we-inline-code {
@@ -589,7 +589,7 @@
   gap: 0.6em;
   font-size: 0.72em;
   color: var(--we-color-text-secondary);
-  margin-top: 4px;
+  margin-top: var(--we-space-xs);
   opacity: 0.15;
   /* mono 字体族普遍不含中文字形（各主题包覆盖 --we-font-mono 时也未加中文回退），
      数字/单位走等宽对齐，"命中"/"写入" 等中文标签逐字形回退到 --we-font-prose，
@@ -649,7 +649,7 @@
   font-family: var(--we-font-display);
   font-style: italic;
   font-size: 10px; /* no token */
-  letter-spacing: 0.12em;
+  letter-spacing: var(--we-tracking-wider);
   color: var(--we-color-text-tertiary);
   background: none;
   border: none;
@@ -710,7 +710,7 @@
 /* 与功能按钮同行时与按钮字号对齐（按钮 10px） */
 .we-message-actions .we-activated-entries-inline {
   font-size: var(--we-text-xs);
-  letter-spacing: 0.05em;
+  letter-spacing: var(--we-tracking-normal);
 }
 
 /* token 行内：靠右对齐，right 边界固定供 JS 测量 */
@@ -859,7 +859,7 @@
 /* ── Chapter grouping ──────────────────────────────────── */
 
 .we-chapter {
-  margin-bottom: 8px;
+  margin-bottom: var(--we-space-sm);
 }
 
 .we-chapter-num {
@@ -935,7 +935,7 @@
 }
 
 .we-writing-annotation .we-message-actions {
-  margin-top: 4px;
+  margin-top: var(--we-space-xs);
   justify-content: center;
 }
 
@@ -1666,7 +1666,7 @@
 /* 拖拽调宽手柄：hover / 聚焦 / 拖动时显出一条中性细线 */
 .we-resize-handle {
   position: absolute;
-  z-index: 10;
+  z-index: var(--we-z-action);
   touch-action: none;
   outline: none;
 }
@@ -1718,7 +1718,7 @@
   position: absolute;
   bottom: var(--we-space-md);
   right: var(--we-space-lg);
-  z-index: 10;
+  z-index: var(--we-z-action);
   display: inline-flex;
   align-items: center;
   gap: var(--we-space-xs);
@@ -1995,11 +1995,11 @@
   font-family: var(--we-font-display);
   font-style: italic;
   font-size: var(--we-text-xs);
-  letter-spacing: 0.08em;
+  letter-spacing: var(--we-tracking-wide);
   color: var(--we-color-text-tertiary);
   background: none;
   border: 1px solid transparent;
-  padding: 2px var(--we-space-sm);
+  padding: var(--we-space-xxs) var(--we-space-sm);
   border-radius: var(--we-radius-sm);
   cursor: pointer;
   transition:
@@ -2323,7 +2323,7 @@
 .we-chapter-fleuron-line {
   width: 40px;
   height: 1px;
-  background: color-mix(in srgb, var(--we-base-gold-600) 70%, transparent);
+  background: color-mix(in srgb, var(--we-color-gold) 70%, transparent);
   display: block;
 }
 
@@ -2579,7 +2579,7 @@
   margin-right: 2.6rem;
   font-size: 0.9rem;
   font-weight: 600;
-  line-height: 1;
+  line-height: var(--we-leading-flush);
   color: var(--we-danmaku-color);
   text-shadow:
     0 1px 2px var(--we-danmaku-shadow),

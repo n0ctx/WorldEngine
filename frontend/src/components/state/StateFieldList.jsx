@@ -76,7 +76,7 @@ export default function StateFieldList({
   return (
     <div>
       <div className="flex items-center justify-between mb-2">
-        <span className="text-xs font-medium text-[var(--we-color-text-secondary)] uppercase tracking-wider opacity-60">
+        <span className="text-xs font-medium text-[var(--we-color-text-secondary)] uppercase [letter-spacing:var(--we-tracking-normal)] opacity-60">
           {scope === 'world' ? '世界状态字段' : scope === 'persona' ? '玩家状态字段' : '角色状态字段'}
         </span>
         <button
@@ -184,7 +184,7 @@ function DeleteConfirm({ onConfirm, onClose }) {
         <h2 className="mb-3 text-[17px] font-normal italic text-[var(--we-color-text-primary)] [font-family:var(--we-font-display)]">
           确认删除字段
         </h2>
-        <p className="mb-5 text-[13px] text-[var(--we-color-accent)] [font-family:var(--we-font-prose)]">
+        <p className="mb-5 [font-size:var(--we-text-sm)] text-[var(--we-color-accent)] [font-family:var(--we-font-prose)]">
           此操作无法撤销。
         </p>
         <div className="flex justify-end gap-3">

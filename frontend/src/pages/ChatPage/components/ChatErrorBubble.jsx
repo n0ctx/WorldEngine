@@ -26,7 +26,7 @@ export default function ChatErrorBubble({ character, errorBubble, generating, on
                   </div>
                 )}
                 <div className="flex items-center gap-2 mt-1">
-                  <span className="text-xs px-2 py-1 rounded-full bg-[var(--we-color-accent-bg)] text-[var(--we-color-text-danger)] border border-[var(--we-color-border-focus)]">
+                  <span className="text-xs px-2 py-1 rounded-[var(--we-radius-full)] bg-[var(--we-color-accent-bg)] text-[var(--we-color-text-danger)] border border-[var(--we-color-border-focus)]">
                     生成失败：{errorBubble.errorMsg}
                   </span>
                   <button
