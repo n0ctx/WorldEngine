@@ -45,6 +45,7 @@ import {
 } from './import-export-constants.js';
 import { UPLOADS_DIR } from '../utils/data-dir.js';
 import { parseProfileDefaults, sanitizeProfileDefaults } from '../memory/state-memory-schema.js';
+import { sanitizeWorldProfileDefaults } from './world-profile-defaults.js';
 
 const log = createLogger('svc', 'green');
 
@@ -230,6 +231,7 @@ function insertImportedWorldBase(data, worldId, now) {
     cover_path: coverPath,
     accent_color: data.world.accent_color ?? null,
     accent_source: data.world.accent_source ?? null,
+    profile_defaults_json: JSON.stringify(sanitizeWorldProfileDefaults(data.world.profile_defaults)),
     created_at: now,
     updated_at: now,
   });
@@ -485,6 +487,7 @@ export function exportWorld(worldId) {
       max_tokens: world.max_tokens ?? null,
       accent_color: world.accent_color ?? null,
       accent_source: world.accent_source ?? null,
+      profile_defaults: sanitizeWorldProfileDefaults(parseProfileDefaults(world.profile_defaults_json)),
       ...(coverBase64 ? { cover_base64: coverBase64, cover_mime: coverMime } : {}),
     },
     personas,

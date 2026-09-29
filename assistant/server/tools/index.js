@@ -10,11 +10,11 @@ import { REF_HELP } from '../workspace/refs.js';
 import { wrapToolEvents } from './adapter.js';
 
 const DATA_FIELDS_HELP = [
-  `world: ${WORLD_FIELDS.join(', ')}`,
+  `world: ${WORLD_FIELDS.join(', ')}（profile: { "时间": "YYYY-MM-DD", "地点": "开场地点" }，新会话开始时带入）`,
   `entry: ${ENTRY_FIELDS.join(', ')}（trigger: always/keyword/llm/state；conditions: [{ field: "玩家.生命", op: "<", value: 30 }]）`,
   `field: ${FIELD_FIELDS.join(', ')}（target: world/persona/character；type: number/text/enum/list/boolean/datetime/table；default 写原生值）`,
-  `character: ${CHARACTER_FIELDS.join(', ')}`,
-  `persona: ${PERSONA_FIELDS.join(', ')}（state: { 字段标签: 原生值 }）`,
+  `character: ${CHARACTER_FIELDS.join(', ')}（profile: { 档案字段标签: 文本或文本列表 }，如 { "性别": "女", "核心性格": ["冷静"] }；state: { 状态字段标签: 原生值 }）`,
+  `persona: ${PERSONA_FIELDS.join(', ')}（profile 同角色卡，没有人格组；state: { 字段标签: 原生值 }）`,
   `css: ${CSS_FIELDS.join(', ')}`,
   `regex: ${REGEX_FIELDS.join(', ')}（scope: display_only/ai_output/user_input/prompt_only）`,
   'config: 全局设置的局部补丁，如 { "global_system_prompt": "…" }',
@@ -98,7 +98,7 @@ export function buildTools(workspace) {
     ),
     defineTool(
       'set_state',
-      '设置角色卡或玩家卡的初始状态值。values 的键写字段标签或 key，值写原生值（数字、数组、布尔…），null 表示清空。',
+      '设置角色卡或玩家卡的现状初始值（用户自建状态字段）。档案字段（性别、出身、穿着、核心性格等）用 create/update 的 profile 写，不走这里。values 的键写字段标签或 key，值写原生值，null 表示清空。',
       {
         ref: { type: 'string', description: 'character:<id>，或 persona（当前激活玩家卡）/ persona:<id>' },
         values: { type: 'object' },

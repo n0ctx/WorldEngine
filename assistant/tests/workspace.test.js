@@ -202,3 +202,33 @@ test('persona：新世界只有一张空白玩家卡时直接填写它，不再�
   await ws.create('persona', { name: '第二位' });
   assert.equal(JSON.parse(ws.read('personas')).length, 2);
 });
+
+test('character / persona：profile 写入档案初始值，未知字段和错误类型在建卡前拒绝', async () => {
+  const ws = createWorkspace({});
+  await ws.create('world', { name: 'profile-world' });
+
+  await assert.rejects(
+    () => ws.create('character', { name: '不该建成', profile: { 魔力: '高' } }),
+    /没有档案字段 "魔力"/,
+  );
+  assert.equal(JSON.parse(ws.read('characters')).length, 0);
+
+  const charRef = refOf(await ws.create('character', {
+    name: '沈渡',
+    profile: { 性别: '男', 出生日期: '0978-03-12', 核心性格: ['冷静', '嘴硬心软'] },
+  }), 'character');
+  const profile = JSON.parse(ws.read(charRef)).profile;
+  assert.equal(profile.性别, '男');
+  assert.equal(profile.出生日期, '0978-03-12');
+  assert.deepEqual(profile.核心性格, ['冷静', '嘴硬心软']);
+  await assert.rejects(() => ws.update(charRef, { profile: { 年龄: 27 } }), /没有档案字段 "年龄"/);
+
+  const personaRef = refOf(await ws.create('persona', {
+    name: '旅人', profile: { 职业: '信使', 穿着: ['斗篷'] },
+  }), 'persona');
+  const persona = JSON.parse(ws.read(personaRef));
+  assert.equal(persona.profile.职业, '信使');
+  assert.deepEqual(persona.profile.穿着, ['斗篷']);
+  assert.equal('核心性格' in persona.profile, false);
+  await assert.rejects(() => ws.update(personaRef, { profile: { 核心性格: ['温和'] } }), /没有档案字段 "核心性格"/);
+});

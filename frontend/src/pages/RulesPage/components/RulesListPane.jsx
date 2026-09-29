@@ -60,6 +60,25 @@ export default function RulesListPane({
         <span>{fieldScope.label}字段</span>
         <button className="we-btn we-btn-sm we-btn-secondary" onClick={() => setCreatingField(true)}>+ 添加</button>
       </div>
+      {fieldScope.key === 'world' && (
+        <div className="we-entry-section-list">
+          <div
+            role="button"
+            tabIndex={0}
+            data-testid="world-profile-defaults"
+            className={`we-entry-section-row we-entry-section-row--selectable${selectedFieldKey === 'profile' ? ' is-selected' : ''}`}
+            onClick={() => setSelectedFieldKey('profile')}
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelectedFieldKey('profile'); } }}
+          >
+            <div className="we-entry-section-main">
+              <div className="we-entry-section-title-line">
+                <span className="we-entry-section-name">档案默认值</span>
+                <span className="we-entry-section-badge">时间 / 地点</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       {fields.length === 0 ? (
         <div className="we-entry-section-empty">暂无字段</div>
       ) : (

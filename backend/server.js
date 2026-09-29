@@ -30,6 +30,7 @@ import stateMemorySchemaRoutes from './routes/state-memory-schema.js';
 import worldStateValuesRoutes from './routes/world-state-values.js';
 import characterStateValuesRoutes from './routes/character-state-values.js';
 import profileDefaultsRoutes from './routes/profile-defaults.js';
+import worldProfileDefaultsRoutes from './routes/world-profile-defaults.js';
 import importExportRoutes from './routes/import-export.js';
 import customCssSnippetsRoutes from './routes/custom-css-snippets.js';
 import themesRoutes from './routes/themes.js';
@@ -174,6 +175,7 @@ export function createApp() {
   app.use('/api', worldStateValuesRoutes);
   app.use('/api', characterStateValuesRoutes);
   app.use('/api', profileDefaultsRoutes);
+  app.use('/api/worlds', worldProfileDefaultsRoutes);
   app.use('/api', importExportRoutes);
   app.use('/api', customCssSnippetsRoutes);
   app.use('/api', themesRoutes);

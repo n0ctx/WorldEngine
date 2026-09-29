@@ -175,9 +175,9 @@ function findWorkspaceResources(session, query) {
       }
     }
     for (const c of getCharactersByWorldId(worldId)) {
-      scan(`character:${c.id}`, c.name, [c.name, c.description, c.system_prompt, c.post_prompt, c.first_message]);
+      scan(`character:${c.id}`, c.name, [c.name, c.description, c.system_prompt, c.post_prompt, c.first_message, c.profile_defaults_json]);
     }
-    for (const p of listPersonas(worldId)) scan(`persona:${p.id}`, p.name, [p.name, p.description, p.system_prompt]);
+    for (const p of listPersonas(worldId)) scan(`persona:${p.id}`, p.name, [p.name, p.description, p.system_prompt, p.profile_defaults_json]);
   }
   for (const s of listCustomCssSnippets()) scan(`css:${s.id}`, s.name, [s.name, s.content]);
   for (const r of listRegexRules()) scan(`regex:${r.id}`, r.name, [r.name, r.pattern, r.replacement]);

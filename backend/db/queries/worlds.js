@@ -55,6 +55,11 @@ export function updateWorld(id, patch) {
   return updateRowFields('worlds', id, patch, ['name', 'description', 'temperature', 'max_tokens', 'cover_path', 'accent_color', 'accent_source', 'onboarding_dismissed']);
 }
 
+/** 写入世界卡的档案默认值（已校验的 { time?, location? } JSON）。 */
+export function setWorldProfileDefaults(id, profileDefaultsJson) {
+  db.prepare('UPDATE worlds SET profile_defaults_json = ?, updated_at = ? WHERE id = ?').run(profileDefaultsJson, Date.now(), id);
+}
+
 /**
  * 硬删除世界（SQLite 外键级联自动处理子数据）
  */

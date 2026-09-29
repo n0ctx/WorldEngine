@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 
-const ISO_RE = /^(\d+)-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/;
+const ISO_RE = /^(\d+)-(\d{2})-(\d{2})(?:T(\d{2}):(\d{2}))?$/;
 const MAX_YEAR_DIGITS = 9;
 
 function parse(value) {
@@ -14,15 +14,18 @@ function parse(value) {
 
 function compose(parts) {
   const { y, mo, d, h, mi } = parts;
-  if (y === '' || mo === '' || d === '' || h === '' || mi === '') return '';
+  if (y === '' || mo === '' || d === '') return '';
+  const dateOnly = h === '' && mi === '';
+  if (!dateOnly && (h === '' || mi === '')) return '';
   const yi = parseInt(y, 10);
   const moi = parseInt(mo, 10);
   const di = parseInt(d, 10);
-  const hi = parseInt(h, 10);
-  const mii = parseInt(mi, 10);
+  const hi = dateOnly ? 0 : parseInt(h, 10);
+  const mii = dateOnly ? 0 : parseInt(mi, 10);
   if (![yi, moi, di, hi, mii].every(Number.isFinite)) return '';
   if (yi < 1 || moi < 1 || moi > 12 || di < 1 || di > 31 || hi < 0 || hi > 23 || mii < 0 || mii > 59) return '';
-  return `${String(yi)}-${String(moi).padStart(2, '0')}-${String(di).padStart(2, '0')}T${String(hi).padStart(2, '0')}:${String(mii).padStart(2, '0')}`;
+  const date = `${String(yi)}-${String(moi).padStart(2, '0')}-${String(di).padStart(2, '0')}`;
+  return dateOnly ? date : `${date}T${String(hi).padStart(2, '0')}:${String(mii).padStart(2, '0')}`;
 }
 
 const SEG_DEFS = [
@@ -50,7 +53,7 @@ const COMPACT_SEG_WIDTHS = {
  *   - 在空段按 Backspace 自动跳回上一段
  *
  * Props:
- *   value      — 字符串 "YYYY-MM-DDTHH:mm"，或空字符串
+ *   value      — "YYYY-MM-DD" 或 "YYYY-MM-DDTHH:mm"，或空字符串
  *   onChange   — (composed: string) => void；composed 合法时为规范化字符串，否则为 ""
  *   onBlur     — 整个组件失焦（焦点未移入子元素）时触发
  *   onKeyDown  — 透传到容器，事件冒泡可被外部捕获（如 Enter 提交）

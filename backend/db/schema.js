@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS worlds (
   active_persona_id     TEXT,
   sort_order            INTEGER NOT NULL DEFAULT 0,
   onboarding_dismissed  INTEGER NOT NULL DEFAULT 0,
+  profile_defaults_json TEXT NOT NULL DEFAULT '{}',
   created_at            INTEGER NOT NULL,
   updated_at            INTEGER NOT NULL
 );
@@ -711,9 +712,10 @@ function migrateNearbyEnabledColumn(db) {
 }
 
 function migrateProfileDefaultsColumns(db) {
-  // 角色卡 / 人设的档案初始值（身份、外貌、人格），{字段key: 值}
+  // 角色卡 / 人设的档案初始值（身份、外貌、人格），以及世界卡的开场时间、开场地点，{字段key: 值}
   try { db.exec(`ALTER TABLE characters ADD COLUMN profile_defaults_json TEXT NOT NULL DEFAULT '{}'`); } catch {}
   try { db.exec(`ALTER TABLE personas ADD COLUMN profile_defaults_json TEXT NOT NULL DEFAULT '{}'`); } catch {}
+  try { db.exec(`ALTER TABLE worlds ADD COLUMN profile_defaults_json TEXT NOT NULL DEFAULT '{}'`); } catch {}
 }
 
 function migrateWritingSessionPersonaSchema(db) {

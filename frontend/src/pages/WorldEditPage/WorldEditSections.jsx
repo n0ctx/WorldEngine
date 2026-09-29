@@ -1,4 +1,5 @@
 import StateFieldList from '../../components/state/StateFieldList';
+import WorldProfileDefaultsFields from '../../components/state/WorldProfileDefaultsFields.jsx';
 import AvatarUpload from '../../components/ui/AvatarUpload';
 import Button from '../../components/ui/Button';
 import FormGroup from '../../components/ui/FormGroup';
@@ -198,6 +199,7 @@ function StateTemplatesSection({ worldId, navigate, diaryChatDateMode }) {
           前往这个世界的规则 →
         </button>
       </p>
+      <WorldProfileDefaultsFields worldId={worldId} />
       <StateFieldList
         scope="world"
         worldId={worldId}

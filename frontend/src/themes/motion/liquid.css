@@ -465,30 +465,45 @@
 }
 
 /* ── 卡片悬停与按下（Card、角色卡、世界入口卡片） ─── */
-/* 卡片不弹不缩：湿墨光晕追着指针在卡面里游走（慢半拍），悬停浮起、卡底透出一层湿墨投影；
-   按下从触点洇开一圈墨晕，卡片按进纸里、投影收拢，松手带着过冲弹回。
+/* 普通卡片：湿墨光晕追着指针在卡面里游走（慢半拍），悬停浮起、卡底透出一层湿墨投影；
+   按下从触点洇开一圈墨晕，卡片按进纸里、投影收拢，松手直接回到原位。
+   角色卡不浮起：按下整体缓缓微缩，松手用同一段缓动回到原尺寸。
    世界入口卡片的浮起与按进由 framer 的 portal 手势负责，这里只给光晕和墨晕 */
 :where(:root[data-motion="liquid"]) :is(.we-card:not(.we-card-flat), .we-character-card, .we-world-card) {
   transition:
     --mx var(--ink-trail) var(--ink-surface),
     --my var(--ink-trail) var(--ink-surface),
-    translate var(--ink-press-out) var(--ink-spring),
+    translate var(--we-duration-normal) var(--we-easing-out),
+    scale var(--ink-press-out) var(--ink-spring),
     border-color var(--we-duration-normal) var(--we-easing-sharp),
     box-shadow var(--we-duration-slow) var(--ink-surface);
 }
 :where(:root[data-motion="liquid"]) :is(.we-card:not(.we-card-flat), .we-character-card) {
   position: relative;
 }
-:where(:root[data-motion="liquid"]) :is(.we-card:not(.we-card-flat), .we-character-card):hover {
+:where(:root[data-motion="liquid"]) .we-card:not(.we-card-flat):hover {
   translate: 0 -4px;
   border-color: color-mix(in srgb, var(--we-color-accent) 40%, var(--we-color-border-default));
   box-shadow: 0 14px 28px -16px var(--ink-glow), 0 4px 10px -6px var(--we-color-shadow-md);
 }
-:where(:root[data-motion="liquid"]) :is(.we-card:not(.we-card-flat), .we-character-card):active {
+:where(:root[data-motion="liquid"]) .we-character-card {
+  transition:
+    --mx var(--ink-trail) var(--ink-surface),
+    --my var(--ink-trail) var(--ink-surface),
+    border-color var(--we-duration-slow) var(--we-easing-page),
+    scale var(--we-duration-slow) var(--we-easing-page);
+}
+:where(:root[data-motion="liquid"]) .we-character-card:hover {
+  border-color: color-mix(in srgb, var(--we-color-accent) 40%, var(--we-color-border-default));
+}
+:where(:root[data-motion="liquid"]) .we-card:not(.we-card-flat):active {
   translate: 0 2px;
   box-shadow: 0 1px 2px var(--we-color-shadow-sm);
-  transition-duration: var(--ink-trail), var(--ink-trail), var(--ink-press-in), var(--we-duration-normal), var(--ink-press-in);
-  transition-timing-function: var(--ink-surface), var(--ink-surface), var(--ink-press-in-ease), var(--we-easing-sharp), var(--ink-press-in-ease);
+  transition-duration: var(--ink-trail), var(--ink-trail), var(--ink-press-in), var(--ink-press-out), var(--we-duration-normal), var(--ink-press-in);
+  transition-timing-function: var(--ink-surface), var(--ink-surface), var(--ink-press-in-ease), var(--ink-spring), var(--we-easing-sharp), var(--ink-press-in-ease);
+}
+:where(:root[data-motion="liquid"]) .we-character-card:active {
+  scale: 0.985;
 }
 :where(:root[data-motion="liquid"]) :is(.we-card:not(.we-card-flat), .we-character-card, .we-world-card) > .we-touch-fx {
   display: block;
@@ -821,8 +836,11 @@
   .we-ink-bead::before {
     animation: none;
   }
-  :where(:root[data-motion="liquid"]) :is(.we-sortable-item, .we-sortable-item > :first-child) {
+  :where(:root[data-motion="liquid"]) :is(.we-sortable-item, .we-sortable-item > :first-child, .we-character-card) {
     transition: none;
+  }
+  :where(:root[data-motion="liquid"]) .we-character-card:active {
+    scale: none;
   }
   :where(:root[data-motion="liquid"]) .we-empty-state__title {
     -webkit-mask-image: none;

@@ -30,6 +30,7 @@ import {
   listCurrentEntities, getEntityDetails, listCurrentRelations, listThreads,
   getCurrentWorldProfile,
 } from '../db/queries/state-memory.js';
+import { getWorldById } from '../db/queries/worlds.js';
 import { withSessionStateTransaction } from '../db/queries/session-state-batch.js';
 import { upsertEntityStateValues } from '../db/queries/session-entity-state-values.js';
 import { getCharacterStateFieldsByWorldId } from '../db/queries/character-state-fields.js';
@@ -732,6 +733,23 @@ export function applyEntityFields({ sessionId, worldId, entityFields, mainCharac
 
 const PROFILE_DEFAULT_EVIDENCE = '初始值';
 
+/** 世界卡上的开场时间、开场地点。只保留合法日期和地点文本。 */
+function parseWorldProfileDefaults(profileDefaultsJson) {
+  const parsed = parseProfileDefaults(profileDefaultsJson);
+  const defaults = {};
+  if (!isPlaceholderValue(parsed.time) && parseWorldDate(parsed.time)) defaults.time = parsed.time;
+  if (!isPlaceholderValue(parsed.location)) defaults.location = parsed.location;
+  return defaults;
+}
+
+/** 新会话还没有世界档案时，把世界卡的开场时间、开场地点带入。已有值不覆盖。 */
+function seedWorldProfileDefaults(sessionId, worldId, round) {
+  const defaults = parseWorldProfileDefaults(getWorldById(worldId)?.profile_defaults_json);
+  const current = getCurrentWorldProfile(sessionId);
+  if (defaults.time && !current.time) upsertWorldProfile(sessionId, 'time', defaults.time, null, round);
+  if (defaults.location && !current.location) upsertWorldProfile(sessionId, 'location', defaults.location, null, round);
+}
+
 /**
  * 把角色卡 / 人设的档案初始值带入会话实体：只写本世界启用、会话里还没有记录的字段，已有值不覆盖。
  */
@@ -780,6 +798,8 @@ export function ensureBaseEntities({ sessionId, worldId, round, persona, mainCha
         entityId: mainCharacterEntityId, entityType: 'character', worldId, profileDefaultsJson: mainCharacter.profile_defaults_json, round,
       });
     }
+
+    seedWorldProfileDefaults(sessionId, worldId, round);
 
     return { playerEntityId, mainCharacterEntityId };
   });

@@ -11,13 +11,14 @@ import { validateStateValue } from '../../../backend/services/state-values.js';
 
 import { normalizeProposal } from '../normalize-proposal.js';
 import { applyProposal } from '../apply-proposal.js';
+import { applyProfileValues, assertProfileValues, profileView } from '../profile-defaults.js';
 import {
   compact, fail, parseStoredValue, pickKnown, requireObjectKeys, requireText,
 } from './common.js';
 import { listFieldRows } from './fields.js';
 
-export const CHARACTER_FIELDS = ['name', 'description', 'system_prompt', 'post_prompt', 'first_message', 'state'];
-export const PERSONA_FIELDS = ['name', 'description', 'system_prompt', 'state'];
+export const CHARACTER_FIELDS = ['name', 'description', 'system_prompt', 'post_prompt', 'first_message', 'profile', 'state'];
+export const PERSONA_FIELDS = ['name', 'description', 'system_prompt', 'profile', 'state'];
 
 export function loadCharacter(id) {
   const character = getCharacterById(id);
@@ -51,6 +52,7 @@ export function viewCharacter(character) {
     system_prompt: character.system_prompt,
     post_prompt: character.post_prompt,
     first_message: character.first_message,
+    profile: profileView(character.world_id, 'character', character.profile_defaults_json),
     state: stateView(getCharacterStateValuesWithFields(character.id)),
   });
 }
@@ -62,6 +64,7 @@ export function viewPersona(persona) {
     name: persona.name,
     description: persona.description,
     system_prompt: persona.system_prompt,
+    profile: profileView(persona.world_id, 'player', persona.profile_defaults_json),
     state: stateView(getPersonaStateValuesWithFieldsByPersonaId(persona.id, persona.world_id)),
   });
 }
@@ -95,29 +98,38 @@ function toStateValueOps(worldId, target, values) {
   return ops;
 }
 
-function splitState(input) {
-  const { state, ...changes } = input;
-  return { state, changes };
+function splitCardValues(input) {
+  const { state, profile, ...changes } = input;
+  return { state, profile, changes };
+}
+
+function saveCardProfile(kind, id, worldId, entityType, profile) {
+  if (profile) applyProfileValues(kind, id, worldId, entityType, profile);
 }
 
 export async function createCharacter(worldId, data) {
-  const { state, changes } = splitState(pickKnown(data, CHARACTER_FIELDS, 'character'));
+  const { state, profile, changes } = splitCardValues(pickKnown(data, CHARACTER_FIELDS, 'character'));
   requireText(changes.name, 'name');
+  assertProfileValues(worldId, 'character', profile);
   const stateValueOps = state ? toStateValueOps(worldId, 'character', state) : [];
   const character = await applyProposal(normalizeProposal({
     type: 'character-card', operation: 'create', changes: { ...changes, world_id: worldId }, stateValueOps,
   }), worldId);
+  saveCardProfile('character', character.id, worldId, 'character', profile);
   return `已创建 character:${character.id}（${character.name}）`;
 }
 
 export async function updateCharacter(id, data) {
-  const { state, changes } = splitState(pickKnown(data, CHARACTER_FIELDS, 'character'));
+  const { state, profile, changes } = splitCardValues(pickKnown(data, CHARACTER_FIELDS, 'character'));
   const character = loadCharacter(id);
   const stateValueOps = state ? toStateValueOps(character.world_id, 'character', state) : [];
-  requireObjectKeys({ ...changes, ...(stateValueOps.length ? { state } : {}) }, 'character 没有要修改的字段');
-  await applyProposal(normalizeProposal({
-    type: 'character-card', operation: 'update', entityId: id, changes, stateValueOps,
-  }));
+  requireObjectKeys({ ...changes, ...(stateValueOps.length ? { state } : {}), ...(profile ? { profile } : {}) }, 'character 没有要修改的字段');
+  if (Object.keys(changes).length > 0 || stateValueOps.length > 0) {
+    await applyProposal(normalizeProposal({
+      type: 'character-card', operation: 'update', entityId: id, changes, stateValueOps,
+    }));
+  }
+  saveCardProfile('character', id, character.world_id, 'character', profile);
   return `已更新 character:${id}`;
 }
 
@@ -130,8 +142,9 @@ export async function removeCharacter(id) {
 const isBlankPersona = (p) => !p.name?.trim() && !p.description?.trim() && !p.system_prompt?.trim();
 
 export async function createPersona(worldId, data) {
-  const { state, changes } = splitState(pickKnown(data, PERSONA_FIELDS, 'persona'));
+  const { state, profile, changes } = splitCardValues(pickKnown(data, PERSONA_FIELDS, 'persona'));
   requireText(changes.name, 'name');
+  assertProfileValues(worldId, 'player', profile);
   // 新世界自带一张空白玩家卡：只有它一张时直接填写，避免留下多余的空卡。
   const existing = listPersonas(worldId);
   if (existing.length === 1 && isBlankPersona(existing[0])) {
@@ -142,16 +155,20 @@ export async function createPersona(worldId, data) {
   const persona = await applyProposal(normalizeProposal({
     type: 'persona-card', operation: 'create', entityId: worldId, changes: { ...changes, world_id: worldId }, stateValueOps,
   }));
+  saveCardProfile('persona', persona.id, worldId, 'player', profile);
   return `已创建 persona:${persona.id}（${persona.name}），并设为当前激活玩家卡`;
 }
 
 export async function updatePersona(persona, data) {
-  const { state, changes } = splitState(pickKnown(data, PERSONA_FIELDS, 'persona'));
+  const { state, profile, changes } = splitCardValues(pickKnown(data, PERSONA_FIELDS, 'persona'));
   const stateValueOps = state ? toStateValueOps(persona.world_id, 'persona', state) : [];
-  requireObjectKeys({ ...changes, ...(stateValueOps.length ? { state } : {}) }, 'persona 没有要修改的字段');
-  await applyProposal({
-    ...normalizeProposal({ type: 'persona-card', operation: 'update', entityId: persona.world_id, changes, stateValueOps }),
-    personaId: persona.id,
-  });
+  requireObjectKeys({ ...changes, ...(stateValueOps.length ? { state } : {}), ...(profile ? { profile } : {}) }, 'persona 没有要修改的字段');
+  if (Object.keys(changes).length > 0 || stateValueOps.length > 0) {
+    await applyProposal({
+      ...normalizeProposal({ type: 'persona-card', operation: 'update', entityId: persona.world_id, changes, stateValueOps }),
+      personaId: persona.id,
+    });
+  }
+  saveCardProfile('persona', persona.id, persona.world_id, 'player', profile);
   return `已更新 persona:${persona.id}`;
 }

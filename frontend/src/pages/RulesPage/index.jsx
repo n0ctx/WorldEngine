@@ -20,14 +20,14 @@ export default function RulesPage() {
   const [creatingEntry, setCreatingEntry] = useState(false);
 
   // ── 状态字段 ──
+  // 顶层导航：'entries'（设定条目）| 'fields'（状态字段）。旧的 /state-workshop
+  // 路由重定向到 ?tab=state，落在状态字段视图；世界档案默认值在「世界状态」里。
+  const opensStateTab = searchParams.get('tab') === 'state';
   const [fieldScopeKey, setFieldScopeKey] = useState('character');
   const [selectedFieldKey, setSelectedFieldKey] = useState(null);
   const [creatingField, setCreatingField] = useState(false);
   const [wizardOpen, setWizardOpen] = useState(false);
-
-  // 顶层导航：'entries'（设定条目）| 'fields'（状态字段）。旧的 /state-workshop
-  // 路由重定向到 ?tab=state，落在这里默认打开状态字段视图。
-  const [navMode, setNavMode] = useState(searchParams.get('tab') === 'state' ? 'fields' : 'entries');
+  const [navMode, setNavMode] = useState(opensStateTab ? 'fields' : 'entries');
 
   const {
     entries, setEntries, refreshEntries,
@@ -59,7 +59,7 @@ export default function RulesPage() {
   function selectFieldScope(key) {
     setNavMode('fields');
     setFieldScopeKey(key);
-    setSelectedFieldKey(fieldsByScope[key]?.[0]?.field_key ?? null);
+    setSelectedFieldKey(key === 'world' ? 'profile' : (fieldsByScope[key]?.[0]?.field_key ?? null));
     setCreatingField(false);
   }
 

@@ -686,3 +686,23 @@ test('ensureBaseEntities 把人设与主角色卡的档案初始值带入还空�
   const after = getEntityDetails(session.id, [mainCharacterEntityId])[mainCharacterEntityId];
   assert.equal(JSON.parse(after.profile.occupation.value_json), '捕快');
 });
+
+test('ensureBaseEntities 把世界卡的开场时间、开场地点带入还空着的世界档案，已有值不覆盖', () => {
+  const { world, session, character, persona } = setupSession();
+  sandbox.db.prepare('UPDATE worlds SET profile_defaults_json = ? WHERE id = ?')
+    .run(JSON.stringify({ time: '1005-03-15', location: '旧港', weather: '雨' }), world.id);
+
+  ensureBaseEntities({ sessionId: session.id, worldId: world.id, round: 1, persona, mainCharacter: character });
+  assert.deepEqual(getCurrentWorldProfile(session.id), {
+    time: '1005-03-15', location: '旧港', location_entity_id: null,
+  });
+
+  applyStateMemoryOps({
+    sessionId: session.id, worldId: world.id, round: 2,
+    ops: [{ op: 'set_world', key: 'location', value: '王都' }],
+    turnText: '', realDate: false, mainCharacterEntityId: null,
+  });
+  ensureBaseEntities({ sessionId: session.id, worldId: world.id, round: 3, persona, mainCharacter: character });
+  assert.equal(getCurrentWorldProfile(session.id).location, '王都');
+  assert.equal(getCurrentWorldProfile(session.id).time, '1005-03-15');
+});

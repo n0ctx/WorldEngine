@@ -89,6 +89,9 @@ vi.mock('../../src/components/state/StateFieldEditor', () => ({
 vi.mock('../../src/components/state/StateValueField', () => ({
   default: () => <div data-testid="state-value-field" />,
 }));
+vi.mock('../../src/components/state/WorldProfileDefaultsFields.jsx', () => ({
+  default: () => <div data-testid="world-profile-defaults-fields">开场时间</div>,
+}));
 
 import RulesPage from '../../src/pages/RulesPage/index.jsx';
 
@@ -142,6 +145,16 @@ describe('RulesPage', () => {
     expect(screen.getByTestId('nav-fields-world')).toHaveTextContent('世界状态0');
     expect(screen.getByTestId('nav-fields-character')).toHaveTextContent('角色状态0');
     expect(screen.getByTestId('nav-fields-persona')).toHaveTextContent('玩家状态0');
+  });
+
+  it('世界状态列出档案默认值，点开后可填开场时间和地点', async () => {
+    render(<RulesPage />);
+    await waitFor(() => expect(mocks.listWorldStateFields).toHaveBeenCalledWith('world-1'));
+
+    fireEvent.click(screen.getByTestId('nav-fields-world'));
+
+    expect(screen.getByTestId('world-profile-defaults')).toHaveTextContent('档案默认值');
+    expect(screen.getByTestId('world-profile-defaults-fields')).toBeInTheDocument();
   });
 
   it('点击机制后中栏只显示该机制条目，不受旧手动分组影响', async () => {
