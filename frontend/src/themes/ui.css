@@ -317,7 +317,7 @@
 /* ── ModalShell ── */
 .we-modal-backdrop {
   background: var(--we-color-bg-overlay);
-  backdrop-filter: blur(6px);
+  backdrop-filter: blur(var(--we-blur-scrim));
 }
 
 .we-modal {
@@ -588,6 +588,7 @@
   pointer-events: none;
   background: color-mix(in srgb, var(--we-color-bg-subtle) 92%, transparent);
   font-size: var(--we-text-xs);
+  /* guard-allow(literals): 行高紧贴 10px 圆形按钮高度，刻意保留 px */
   line-height: 10px; /* 紧贴 10px 圆形按钮高度，刻意保留 px */
   border-radius: var(--we-radius-full);
 }
@@ -1065,7 +1066,7 @@
 .we-atmosphere {
   position: fixed;
   inset: 0;
-  z-index: -1;
+  z-index: var(--we-z-behind);
   pointer-events: none;
   background:
     radial-gradient(
@@ -1107,7 +1108,7 @@
 }
 
 .we-material::before {
-  z-index: -1;
+  z-index: var(--we-z-behind);
   opacity: var(--we-material-grain);
   background-image: var(--we-grain-image);
   background-size: 160px 160px;
@@ -1351,7 +1352,7 @@
   background: var(--we-color-text-tertiary);
 }
 .we-trigger-dot--keyword {
-  border-radius: 2px;
+  border-radius: var(--we-radius-none);
   background: var(--we-color-text-tertiary);
   transform: rotate(45deg);
 }
@@ -1658,7 +1659,7 @@
 .we-regex-test-label {
   font-family: var(--we-font-display);
   font-size: var(--we-text-xs);
-  letter-spacing: 0.2em;
+  letter-spacing: var(--we-tracking-caps);
   color: var(--we-color-text-tertiary);
   font-style: italic;
 }
@@ -1901,7 +1902,7 @@
   position: fixed;
   inset: 0;
   background: var(--we-color-bg-overlay);
-  backdrop-filter: blur(6px);
+  backdrop-filter: blur(var(--we-blur-scrim));
   z-index: var(--we-z-modal);
   display: flex;
   align-items: center;
@@ -2377,7 +2378,7 @@
 /* 标题行样式 */
 .cm-line.cm-md-h1 {
   font-family: var(--we-font-display);
-  font-size: 1.35rem;
+  font-size: var(--we-text-lg);
   font-weight: 400;
   color: var(--we-color-text-primary);
   letter-spacing: var(--we-tracking-tight);
@@ -2388,7 +2389,7 @@
 
 .cm-line.cm-md-h2 {
   font-family: var(--we-font-display);
-  font-size: 1.15rem;
+  font-size: var(--we-text-md);
   font-weight: 400;
   color: var(--we-color-text-primary);
   letter-spacing: var(--we-tracking-tight);
@@ -2397,7 +2398,7 @@
 
 .cm-line.cm-md-h3 {
   font-family: var(--we-font-display);
-  font-size: 1.02rem;
+  font-size: var(--we-text-base);
   font-weight: 400;
   color: var(--we-color-text-primary);
   letter-spacing: var(--we-tracking-tight);
@@ -2406,7 +2407,7 @@
 
 /* 引用块行样式 */
 .cm-line.cm-md-blockquote {
-  background: color-mix(in srgb, var(--we-base-paper-400) 15%, transparent);
+  background: color-mix(in srgb, var(--we-color-bg-muted) 15%, transparent);
   color: var(--we-color-text-secondary);
   padding-left: 14px;
   font-style: italic;
@@ -2428,7 +2429,7 @@
   color: var(--we-color-text-secondary);
   font-family: var(--we-font-mono);
   font-size: 0.82em;
-  border: 1px solid color-mix(in srgb, var(--we-base-paper-300) 60%, transparent);
+  border: 1px solid color-mix(in srgb, var(--we-color-border-default) 60%, transparent);
   border-radius: var(--we-radius-none);
   padding: 1px 5px; /* 1px: design exact, 5px: design exact */
 }
@@ -2961,6 +2962,7 @@
   font-size: var(--we-text-2xs);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
+  /* guard-allow(literals): 行高即标签高度 18px，design exact */
   line-height: 18px; /* design exact: 标签高度 */
   white-space: nowrap;
   color: var(--change-tone, var(--we-color-text-secondary));
@@ -4314,7 +4316,7 @@
   margin: 0;
   font-family: var(--we-font-mono, ui-monospace, monospace);
   font-size: var(--we-text-sm);
-  line-height: 1.5rem;
+  line-height: var(--we-leading-normal);
   tab-size: 4;
 }
 .we-code-block__line {
@@ -4417,8 +4419,8 @@
 .we-folder__flap-glass {
   position: absolute;
   inset: 0;
-  -webkit-backdrop-filter: blur(6px);
-  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(var(--we-blur-scrim));
+  backdrop-filter: blur(var(--we-blur-scrim));
   backface-visibility: hidden;
 }
 .we-folder__flap-shape {

@@ -58,7 +58,7 @@ const MessageList = forwardRef(function MessageList({
     <div className="relative flex-1 min-h-0">
     <div ref={listRef} className="we-chat-area absolute inset-0 overflow-y-auto px-3 pt-2 pb-4">
       {messages.length > 0 && (
-        <div className="text-center text-xs opacity-25 py-2">— 对话开始 —</div>
+        <div className="text-center [font-size:var(--we-text-xs)] opacity-25 py-2">— 对话开始 —</div>
       )}
 
       {messages.length === 0 && !generating && (

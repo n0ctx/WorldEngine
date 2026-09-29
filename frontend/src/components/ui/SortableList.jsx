@@ -66,7 +66,7 @@ function SortableItem({ item, onDragEnd, renderItem, useHandle }) {
       onDragEnd={onDragEnd}
       dragListener={!useHandle}
       dragControls={useHandle ? controls : undefined}
-      whileDrag={{ boxShadow: '0 8px 24px rgba(0,0,0,0.12)', zIndex: 'var(--we-z-action)', position: 'relative' }}
+      whileDrag={{ boxShadow: '0 8px 24px var(--we-color-shadow-md)', zIndex: 'var(--we-z-action)', position: 'relative' }}
     >
       {renderItem(item, dragHandleProps)}
     </Reorder.Item>

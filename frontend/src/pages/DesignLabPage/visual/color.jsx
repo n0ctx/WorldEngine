@@ -45,6 +45,7 @@ export function WashColorsDemo() {
         <SwatchGroup title="墨色透明层" prefix="--we-color-" names={['ink-wash', 'ink-wash-md', 'ink-wash-strong', 'ink-secondary-wash', 'ink-secondary-wash-sm']} />
         <SwatchGroup title="投影与遮罩" prefix="--we-color-" names={['shadow-sm', 'shadow-md', 'shadow-lg', 'shadow-xl', 'overlay-medium', 'overlay-heavy']} />
         <SwatchGroup title="纸面与高光" prefix="--we-color-" names={['paper-wash', 'paper-tint', 'paper-overlay', 'white-wash', 'white-sheen-sm', 'white-sheen-md']} />
+        <SwatchGroup title="恒定纯白与封面黑" prefix="--we-color-" names={['white', 'cover-scrim']} />
         <SwatchGroup title="头像占位" prefix="--we-color-" names={['avatar-placeholder', 'avatar-text']} />
       </div>
     </VisualSection>

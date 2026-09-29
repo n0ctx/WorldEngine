@@ -221,7 +221,7 @@
   font-weight: 600;
   color: var(--we-color-text-primary);
   text-align: left;
-  letter-spacing: 0.03em;
+  letter-spacing: var(--we-tracking-tight);
 }
 .we-message-content td {
   border: 1px solid var(--we-color-paper-tint);
@@ -272,7 +272,7 @@
   position: absolute;
   top: -2px;
   left: 1px;
-  font-size: 9px; /* no token */
+  font-size: var(--we-text-2xs);
   color: var(--we-color-bg-canvas);
   line-height: var(--we-leading-flush);
 }
@@ -310,8 +310,8 @@
 
 .we-code-block-lang,
 .we-code-block-copy {
-  font-size: 10px; /* no token */
-  letter-spacing: 0.1em;
+  font-size: var(--we-text-2xs);
+  letter-spacing: var(--we-tracking-wide);
 }
 
 .we-code-block-lang {
@@ -341,7 +341,7 @@
   scrollbar-color: var(--we-color-border-default) transparent;
   font-family: var(--we-font-mono);
   font-size: var(--we-text-2xs);
-  line-height: 1.65;
+  line-height: var(--we-leading-normal);
   color: var(--we-color-text-secondary);
   background: color-mix(in srgb, var(--we-color-bg-canvas) 36%, transparent);
 }
@@ -385,7 +385,7 @@
 }
 
 .we-chat-center-pane::before {
-  z-index: -1;
+  z-index: var(--we-z-behind);
   opacity: var(--we-material-grain);
   background-image: var(--we-grain-image);
   background-size: 160px 160px;
@@ -648,7 +648,7 @@
 .we-message-actions span.we-action-time {
   font-family: var(--we-font-display);
   font-style: italic;
-  font-size: 10px; /* no token */
+  font-size: var(--we-text-2xs);
   letter-spacing: var(--we-tracking-wider);
   color: var(--we-color-text-tertiary);
   background: none;
@@ -673,7 +673,7 @@
   font-family: var(--we-font-prose);
   font-size: 1em;
   color: var(--we-color-text-tertiary);
-  line-height: 1.4;
+  line-height: var(--we-leading-snug);
   min-width: 0;
   overflow: hidden;
 }
@@ -730,7 +730,7 @@
   font-family: var(--we-font-prose);
   font-style: italic;
   font-size: var(--we-text-xs);
-  letter-spacing: 0.24em;
+  letter-spacing: var(--we-tracking-caps);
   opacity: 0.7;
   user-select: none;
   pointer-events: none;
@@ -809,7 +809,7 @@
   font-family: var(--we-font-display);
   font-style: italic;
   font-size: var(--we-text-xs);
-  letter-spacing: 0.1em;
+  letter-spacing: var(--we-tracking-wide);
   padding: var(--we-space-xs) var(--we-space-md);
   border: 1px solid var(--we-color-border-default);
   border-radius: var(--we-radius-none);
@@ -862,15 +862,6 @@
   margin-bottom: var(--we-space-sm);
 }
 
-.we-chapter-num {
-  font-family: var(--we-font-display);
-  font-size: var(--we-text-xs);
-  letter-spacing: 0.5em;
-  text-transform: uppercase;
-  color: var(--we-color-text-tertiary);
-  margin-bottom: var(--we-space-xs);
-}
-
 .we-chapter-title {
   font-family: var(--we-font-display);
   font-style: italic;
@@ -886,7 +877,7 @@
   justify-content: center;
   gap: 10px; /* design exact */
   color: var(--we-color-gold);
-  font-size: 16px; /* no token */
+  font-size: var(--we-text-base);
   margin-bottom: 20px; /* design exact */
 }
 
@@ -1000,7 +991,7 @@
   font-family: var(--we-font-prose);
   font-size: var(--we-text-2xs);
   color: var(--we-color-text-tertiary);
-  line-height: 1.7;
+  line-height: var(--we-leading-normal);
 }
 
 .we-message-actions button.we-message-action-danger {
@@ -1295,7 +1286,7 @@
   border: none;
   font-family: var(--we-font-prose);
   font-size: var(--we-text-base);
-  line-height: 1.65;
+  line-height: var(--we-leading-normal);
   color: var(--we-color-text-primary);
   resize: none;
   outline: none;
@@ -1422,7 +1413,7 @@
   font-family: var(--we-font-prose);
   font-size: var(--we-text-xs);
   color: var(--we-color-text-tertiary);
-  line-height: 1.7;
+  line-height: var(--we-leading-normal);
 }
 
 .we-message-row-inner {
@@ -1829,7 +1820,7 @@
   align-items: center;
   gap: var(--we-space-sm);
   font-size: var(--we-text-sm);
-  line-height: 1.4;
+  line-height: var(--we-leading-snug);
 }
 
 .we-asst-entry__title {
@@ -1881,7 +1872,7 @@
 
 .we-asst-entry__body {
   font-size: var(--we-text-sm);
-  line-height: 1.7;
+  line-height: var(--we-leading-normal);
   color: var(--we-color-text-primary);
   word-break: break-word;
 }
@@ -1890,7 +1881,7 @@
 .we-asst-entry__body p:last-child { margin: 0; }
 .we-asst-entry__body ul,
 .we-asst-entry__body ol { margin: var(--we-space-xs) 0; padding-left: var(--we-space-lg); }
-.we-asst-entry__body li { margin-bottom: 2px; line-height: 1.6; }
+.we-asst-entry__body li { margin-bottom: 2px; line-height: var(--we-leading-snug); }
 .we-asst-entry__body code {
   font-family: var(--we-font-mono);
   font-size: 0.92em;
@@ -1935,7 +1926,7 @@
   font-style: italic;
   font-size: var(--we-text-sm);
   color: var(--we-color-text-tertiary);
-  line-height: 1.6;
+  line-height: var(--we-leading-snug);
   background: none;
   border: none;
   text-align: left;
@@ -1963,7 +1954,7 @@
   font-style: normal;
   font-family: var(--we-font-display);
   font-size: var(--we-text-xs);
-  letter-spacing: 0.16em;
+  letter-spacing: var(--we-tracking-caps);
   color: var(--we-color-text-tertiary);
 }
 
@@ -1982,7 +1973,7 @@
   font-style: italic;
   font-size: var(--we-text-sm);
   color: var(--we-color-text-tertiary);
-  line-height: 1.7;
+  line-height: var(--we-leading-normal);
 }
 
 .we-asst-think-line__body p { margin: 0 0 var(--we-space-xs); }
@@ -2043,7 +2034,7 @@
   max-width: 240px;
   font-family: var(--we-font-prose);
   font-size: var(--we-text-sm);
-  line-height: 1.6;
+  line-height: var(--we-leading-snug);
   color: var(--we-color-text-tertiary);
 }
 
@@ -2068,7 +2059,7 @@
   padding: var(--we-space-sm) var(--we-space-md);
   font-family: var(--we-font-prose);
   font-size: var(--we-text-sm);
-  line-height: 1.7;
+  line-height: var(--we-leading-normal);
   animation: var(--we-fx-enter);
 }
 
@@ -2095,7 +2086,7 @@
 .we-asst-bubble__body p:last-child { margin: 0; }
 .we-asst-bubble__body ul,
 .we-asst-bubble__body ol { margin: var(--we-space-xs) 0; padding-left: var(--we-space-lg); }
-.we-asst-bubble__body li { margin-bottom: 2px; line-height: 1.6; }
+.we-asst-bubble__body li { margin-bottom: 2px; line-height: var(--we-leading-snug); }
 .we-asst-bubble__body code {
   font-family: var(--we-font-mono);
   font-size: 0.92em;
@@ -2203,7 +2194,7 @@
 .we-chapter-num {
   font-family: var(--we-font-display);
   font-size: var(--we-text-xs);
-  letter-spacing: 0.5em;
+  letter-spacing: var(--we-tracking-display);
   text-transform: uppercase;
   color: var(--we-color-text-tertiary);
   margin-bottom: 6px; /* design exact */
@@ -2577,7 +2568,7 @@
 .we-danmaku-bullet {
   /* 每条自带右间距 → 复制两份后整条轨道严格周期，平移 -50% 无缝衔接不跳帧 */
   margin-right: 2.6rem;
-  font-size: 0.9rem;
+  font-size: var(--we-text-body);
   font-weight: 600;
   line-height: var(--we-leading-flush);
   color: var(--we-danmaku-color);

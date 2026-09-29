@@ -11,7 +11,7 @@
   --ink-surface: cubic-bezier(0.16, 1, 0.3, 1);
   --ink-sink: cubic-bezier(0.7, 0, 0.84, 0);
   --ink-flow: cubic-bezier(0.65, 0, 0.35, 1);
-  --ink-wet: color-mix(in oklab, var(--we-color-accent) 72%, white);
+  --ink-wet: color-mix(in oklab, var(--we-color-accent) 72%, var(--we-color-white));
   --ink-glow: color-mix(in srgb, var(--we-color-accent) 55%, transparent);
 
   --we-fx-enter: we-ink-surface 720ms var(--ink-spring-soft) both;

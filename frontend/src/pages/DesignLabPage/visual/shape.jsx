@@ -36,6 +36,9 @@ export function MaterialDemo() {
         <div className="we-design-lab__backdrop">
           <div className="we-design-lab__shape we-design-lab__glass">glass</div>
         </div>
+        <div className="we-design-lab__backdrop">
+          <div className="we-design-lab__shape we-design-lab__glass we-design-lab__glass--scrim">scrim</div>
+        </div>
         <div className="we-design-lab__shape we-design-lab__stage-surface">stage</div>
       </div>
     </VisualSection>

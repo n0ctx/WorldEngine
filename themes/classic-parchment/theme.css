@@ -69,6 +69,8 @@
   --we-color-accent-deep: #7c2a20;
   --we-color-gold:        #a0833f;
   --we-color-gold-pale:   #c9a85a;
+  --we-color-white: #ffffff;
+  --we-color-cover-scrim: rgb(0 0 0);
 
   --we-color-white-wash:     rgba(255, 255, 255, 0.05);
   --we-color-white-sheen-sm: rgba(255, 255, 255, 0.12);
@@ -128,6 +130,7 @@
   --we-stage-surface: var(--we-color-bg-surface);
   --we-glass-bg: var(--we-color-bg-surface);
   --we-glass-blur: 16px;
+  --we-blur-scrim: 6px;
   --we-pane-gap: var(--we-space-md);
   --we-pane-center-bg: color-mix(in srgb, var(--we-color-bg-canvas) 80%, transparent);
   --we-pane-side-bg: color-mix(in srgb, var(--we-color-bg-canvas) 22%, transparent);

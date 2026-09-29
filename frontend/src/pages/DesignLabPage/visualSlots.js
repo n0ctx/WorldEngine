@@ -41,7 +41,7 @@ export const VISUAL_SLOTS = [
     id: 'wash-colors', category: 'color', title: '透明层与投影色', status: 'ready',
     tokens: [
       '--we-color-ink-*', '--we-color-shadow-*', '--we-color-overlay-*', '--we-color-paper-*',
-      '--we-color-white-*', '--we-color-avatar-*',
+      '--we-color-white', '--we-color-white-*', '--we-color-cover-*', '--we-color-avatar-*',
     ],
     usedIn: ['输入框底、悬停底、遮罩、阴影、头像占位'],
   },
@@ -71,7 +71,7 @@ export const VISUAL_SLOTS = [
   },
   {
     id: 'material', category: 'shape', title: '表面材料', status: 'ready',
-    tokens: ['--we-material-*', '--we-grain-*', '--we-glass-*', '--we-stage-surface'],
+    tokens: ['--we-material-*', '--we-grain-*', '--we-glass-*', '--we-blur-*', '--we-stage-surface'],
     usedIn: ['世界入口、台前、消息、输入胶囊、弹窗'],
   },
 

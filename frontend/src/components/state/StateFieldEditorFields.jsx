@@ -112,7 +112,7 @@ export function StateFieldMetadataFields({ form, setForm, scope }) {
               aria-label="对 NPC 生效"
               className="accent-[var(--we-color-accent-deep)]"
             />
-            <span className="text-xs text-[var(--we-color-text-tertiary)]">
+            <span className="[font-size:var(--we-text-xs)] text-[var(--we-color-text-tertiary)]">
               对话与写作中由 AI 记录的角色都会带上这个字段；只有设为 AI 自动更新时才由 AI 填写。NPC 的身份、外貌、穿着、性格、年龄已由档案自动记录，不必为此建字段。
             </span>
           </label>

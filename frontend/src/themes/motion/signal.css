@@ -50,7 +50,7 @@
   content: attr(data-text);
   position: absolute;
   inset: 0;
-  z-index: -1;
+  z-index: var(--we-z-behind);
   white-space: inherit;
   pointer-events: none;
   opacity: 0;
@@ -75,7 +75,7 @@
   --slice-order-a: 0;
   --slice-order-b: 1;
   --slice-order-c: 2;
-  --slice-bright: color-mix(in srgb, var(--we-color-accent) 35%, white);
+  --slice-bright: color-mix(in srgb, var(--we-color-accent) 35%, var(--we-color-white));
   position: relative;
 }
 /* 整段文字（ChangeText decode）：按块排版，三层与真字同宽同换行；时长取 --we-fx-decode */
@@ -177,7 +177,7 @@
 }
 /* 整字定住：闪一次高光 */
 @keyframes we-slice-char-flash {
-  from, to { color: white; text-shadow: 0 0 10px var(--we-color-accent), 0 0 2px var(--slice-bright); }
+  from, to { color: var(--we-color-white); text-shadow: 0 0 10px var(--we-color-accent), 0 0 2px var(--slice-bright); }
 }
 
 @keyframes we-glitch-jolt {

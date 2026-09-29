@@ -54,12 +54,12 @@ export default function WritingSpaceConversationPane({ worldId, navigate, config
         </div>
 
         {isInitializing ? (
-          <div className="flex-1 flex items-center justify-center text-sm text-[var(--we-color-text-secondary)] opacity-60">
+          <div className="flex-1 flex items-center justify-center [font-size:var(--we-text-body)] text-[var(--we-color-text-secondary)] opacity-60">
             正在准备写作空间…
           </div>
         ) : initError ? (
           <div className="flex-1 flex flex-col items-center justify-center gap-3 px-6 text-center">
-            <p className="text-sm text-[var(--we-color-text-danger)]">{initError}</p>
+            <p className="[font-size:var(--we-text-body)] text-[var(--we-color-text-danger)]">{initError}</p>
             <button
               type="button"
               className="we-panel-card-action we-panel-card-action--chip"

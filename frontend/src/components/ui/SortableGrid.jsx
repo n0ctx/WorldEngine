@@ -141,7 +141,7 @@ export default function SortableGrid({
         {activeItem
           ? renderItem(activeItem, {
               setNodeRef: () => {},
-              style: { cursor: 'grabbing', boxShadow: '0 16px 32px rgba(0,0,0,0.18)' },
+              style: { cursor: 'grabbing', boxShadow: '0 16px 32px var(--we-color-shadow-lg)' },
               isDragging: true,
               index: activeIndex,
               attributes: {},

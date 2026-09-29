@@ -46,6 +46,8 @@
   --we-color-gold: #8b867e;
   --we-color-gold-pale: #b3aea5;
   --we-color-avatar-placeholder: #f0c4a4;
+  --we-color-white: #ffffff;                             /* 恒定纯白：漂白强调色、动效高亮，不随主题翻转 */
+  --we-color-cover-scrim: rgb(0 0 0);                    /* 世界卡封面图上的恒定黑：文字投影、头像圈描边 */
 
   --we-color-ink-wash: rgba(23, 23, 23, 0.035);
   --we-color-ink-wash-md: rgba(23, 23, 23, 0.06);
@@ -141,6 +143,7 @@
   --we-stage-surface: transparent;                  /* 页面内容区的底；浅色纸面主题可铺实底 */
   --we-glass-bg: rgba(255, 255, 255, 0.8);          /* 侧栏/设置/弹窗/输入胶囊的半透明底 */
   --we-glass-blur: 18px;
+  --we-blur-scrim: 6px;                             /* 遮罩、半透明小块背后的轻模糊 */
   --we-pane-gap: var(--we-space-md);                /* 会话页三块悬浮面板之间与四周的缝隙 */
   --we-pane-center-bg: color-mix(in srgb, var(--we-color-bg-canvas) 94%, transparent);    /* 中栏正文纸面：最实 */
   --we-pane-side-bg: color-mix(in srgb, var(--we-color-bg-elevated) 40%, transparent);    /* 两侧磨砂玻璃：更透，模糊沿用 --we-glass-blur */

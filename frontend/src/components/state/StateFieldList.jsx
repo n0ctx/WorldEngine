@@ -76,21 +76,21 @@ export default function StateFieldList({
   return (
     <div>
       <div className="flex items-center justify-between mb-2">
-        <span className="text-xs font-medium text-[var(--we-color-text-secondary)] uppercase [letter-spacing:var(--we-tracking-normal)] opacity-60">
+        <span className="[font-size:var(--we-text-xs)] font-medium text-[var(--we-color-text-secondary)] uppercase [letter-spacing:var(--we-tracking-normal)] opacity-60">
           {scope === 'world' ? '世界状态字段' : scope === 'persona' ? '玩家状态字段' : '角色状态字段'}
         </span>
         <button
           onClick={() => { setEditingField(null); setShowEditor(true); }}
-          className="text-xs px-3 py-1 bg-[var(--we-color-accent)] text-[var(--we-color-text-inverse)] rounded-[var(--we-radius-lg)] hover:opacity-90 transition-opacity"
+          className="[font-size:var(--we-text-xs)] px-3 py-1 bg-[var(--we-color-accent)] text-[var(--we-color-text-inverse)] rounded-[var(--we-radius-lg)] hover:opacity-90 transition-opacity"
         >
           + 添加
         </button>
       </div>
 
       {loading ? (
-        <p className="text-xs text-[var(--we-color-text-secondary)] opacity-50 py-3 text-center">加载中…</p>
+        <p className="[font-size:var(--we-text-xs)] text-[var(--we-color-text-secondary)] opacity-50 py-3 text-center">加载中…</p>
       ) : fields.length === 0 ? (
-        <p className="text-xs text-[var(--we-color-text-secondary)] opacity-35 italic py-3 text-center">暂无字段</p>
+        <p className="[font-size:var(--we-text-xs)] text-[var(--we-color-text-secondary)] opacity-35 italic py-3 text-center">暂无字段</p>
       ) : (
         <div className="flex flex-col gap-2">
           <SortableList
@@ -134,8 +134,8 @@ function FieldRow({ field, onEdit, onDelete }) {
       <DragHandle className="flex-shrink-0 opacity-25 group-hover:opacity-50" />
 
       <div className="flex-1 min-w-0 flex items-center gap-2">
-        <span className="text-sm text-[var(--we-color-text-primary)] font-medium truncate">{field.label}</span>
-        <span className="text-xs text-[var(--we-color-text-secondary)] opacity-50 [font-family:var(--we-font-mono)] truncate">{field.field_key}</span>
+        <span className="[font-size:var(--we-text-body)] text-[var(--we-color-text-primary)] font-medium truncate">{field.label}</span>
+        <span className="[font-size:var(--we-text-xs)] text-[var(--we-color-text-secondary)] opacity-50 [font-family:var(--we-font-mono)] truncate">{field.field_key}</span>
         <span className="ml-auto flex gap-1 flex-shrink-0">
           <Badge label={TYPE_LABEL[field.type] ?? field.type} />
           <Badge label={UPDATE_LABEL[field.update_mode] ?? field.update_mode} dim />
@@ -144,10 +144,10 @@ function FieldRow({ field, onEdit, onDelete }) {
 
       <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
         <button onClick={onEdit}
-          className="w-6 h-6 flex items-center justify-center rounded text-[var(--we-color-text-secondary)] hover:text-[var(--we-color-text-primary)] hover:bg-[var(--we-color-bg-subtle)] transition-colors text-xs"
+          className="w-6 h-6 flex items-center justify-center rounded-[var(--we-radius-xs)] text-[var(--we-color-text-secondary)] hover:text-[var(--we-color-text-primary)] hover:bg-[var(--we-color-bg-subtle)] transition-colors [font-size:var(--we-text-xs)]"
           title="编辑">✎</button>
         <button onClick={onDelete}
-          className="w-6 h-6 flex items-center justify-center rounded text-[var(--we-color-text-secondary)] hover:text-[var(--we-color-text-danger)] hover:bg-[var(--we-color-bg-subtle)] transition-colors text-xs"
+          className="w-6 h-6 flex items-center justify-center rounded-[var(--we-radius-xs)] text-[var(--we-color-text-secondary)] hover:text-[var(--we-color-text-danger)] hover:bg-[var(--we-color-bg-subtle)] transition-colors [font-size:var(--we-text-xs)]"
           title="删除">✕</button>
       </div>
     </div>
@@ -176,12 +176,12 @@ function DeleteConfirm({ onConfirm, onClose }) {
   }
   return createPortal(
     <div
-      className="fixed inset-0 z-[var(--we-z-modal)] flex items-center justify-center bg-black/60"
+      className="fixed inset-0 z-[var(--we-z-modal)] flex items-center justify-center we-modal-backdrop"
       onMouseDown={(e) => { mouseDownOnBackdropRef.current = e.target === e.currentTarget; }}
       onClick={() => { if (mouseDownOnBackdropRef.current && !deleting) onClose(); }}
     >
       <div className="we-dialog-panel mx-4 w-full max-w-sm p-6">
-        <h2 className="mb-3 text-[17px] font-normal italic text-[var(--we-color-text-primary)] [font-family:var(--we-font-display)]">
+        <h2 className="mb-3 [font-size:var(--we-text-md)] font-normal italic text-[var(--we-color-text-primary)] [font-family:var(--we-font-display)]">
           确认删除字段
         </h2>
         <p className="mb-5 [font-size:var(--we-text-sm)] text-[var(--we-color-accent)] [font-family:var(--we-font-prose)]">

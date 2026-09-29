@@ -66,7 +66,7 @@ export default function NewSystemWizard({ worldId, scope, scopeKey, onClose, onF
 function WizardShell({ title, step, children, footer, onClose }) {
   useEscapeKey(onClose);
   return (
-    <div className="fixed inset-0 z-[var(--we-z-modal)] flex items-center justify-center bg-black/60 px-4">
+    <div className="fixed inset-0 z-[var(--we-z-modal)] flex items-center justify-center we-modal-backdrop px-4">
       <div className="we-dialog-panel w-full max-w-2xl flex flex-col max-h-[90vh]">
         <div className="we-dialog-header flex items-center justify-between">
           <h2 className="flex items-center gap-3">新建系统<StepTrack steps={3} current={step - 1} /></h2>

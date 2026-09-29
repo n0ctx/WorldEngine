@@ -16,14 +16,14 @@ const svgFiber = `<svg xmlns='http://www.w3.org/2000/svg' width='128' height='12
   <rect width='128' height='128' filter='url(%23fiber)'/>
 </svg>`;
 
-export default function ParchmentTexture({ opacity = 0.7, blendMode = 'multiply', zIndex = 20 }) {
+export default function ParchmentTexture({ opacity = 0.7, blendMode = 'multiply', zIndex = 'var(--we-z-texture)' }) {
   const textureVars = {
     '--parchment-noise-image': `url("data:image/svg+xml,${svgNoise}")`,
     '--parchment-fiber-image': `url("data:image/svg+xml,${svgFiber}")`,
     '--parchment-opacity': opacity,
     '--parchment-blend': blendMode,
     '--parchment-z': zIndex,
-    '--parchment-fiber-z': zIndex + 1,
+    '--parchment-fiber-z': `calc(${zIndex} + 1)`,
   };
 
   return (

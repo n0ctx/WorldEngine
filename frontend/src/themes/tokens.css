@@ -12,7 +12,7 @@
  * B 层 · 语义 token（--we-color-* / --we-danmaku-*）
  *   从 A 层派生、组件必须使用的一套。禁止跳过这一层直接引用基础色。
  *
- * C 层 · 结构 token（--we-space-* / --we-radius-* / --we-z-* / --we-duration-* /
+ * C 层 · 结构 token（--we-space-* / --we-radius-* / --we-blur-* / --we-z-* / --we-duration-* /
  *   --we-easing-* / --we-text-* / --we-leading-* / --we-tracking-* / --we-focus-ring）
  *   间距、层级、动效节奏（easing）、字号字距等骨架量，跟视觉风格无关，主题不该改这几类。
  *   例外：--we-radius-* / --we-duration-* / --we-focus-ring 是既有主题包
@@ -86,6 +86,9 @@
      不能复用 text-inverse —— text-inverse 在深色主题里会为了「主色按钮文字」
      场景反转成深色，套到头像色板上会导致深字压深底、初始字母不可读。 */
   --we-color-avatar-text:    var(--we-base-white);
+  /* 恒定纯白：把强调色往白色漂白、动效高亮用。不随主题翻转，
+     不能复用 text-inverse（深色主题里它会翻成深色，漂白方向就反了）。 */
+  --we-color-white:          var(--we-base-white);
 
   /* 浏览器原生配色方案：决定标签页复原/滚动越界时浏览器自己那层底色，以及
      原生滚动条、表单控件、自动填充的明暗。必须跟本主题画布明暗一致，
@@ -134,6 +137,9 @@
   --we-color-shadow-xl:         rgba(23, 23, 23, 0.30);
   --we-color-overlay-medium:    rgba(23, 23, 23, 0.35);
   --we-color-overlay-heavy:     rgba(23, 23, 23, 0.60);
+  /* 世界卡封面图上的恒定黑：文字投影、头像圈描边。封面图明暗与主题无关，
+     所以不能用随主题变化的 overlay / shadow；用法：color-mix(in srgb, var(--we-color-cover-scrim) N%, transparent) */
+  --we-color-cover-scrim:       rgb(0 0 0);
 
   /* 白色透明叠加（用于高光）*/
   /* 255,255,255 = --we-base-white 的 RGB */
@@ -224,13 +230,18 @@
   --we-radius-xl:   28px;
   --we-radius-full: 9999px;
 
+  /* === 模糊半径 === */
+  --we-blur-scrim: 6px;  /* 遮罩、半透明小块背后的轻模糊（玻璃面板用 --we-glass-blur） */
+
   /* === Z-index Scale === */
   --we-topbar-height: 30px; /* 顶栏高度：贴在顶栏下方的固定层（写卡助手抽屉）以此为起点 */
+  --we-z-behind:       -1; /* 隔离堆叠上下文里垫在父内容之后的伪元素 */
   --we-z-card-bg:      0;  /* 卡片：封面图层（最底） */
   --we-z-card-overlay: 1;  /* 卡片：渐变蒙版/内容容器层 */
   --we-z-card-content: 2;  /* 卡片：标题/操作/元信息层（最前） */
   --we-z-spine:    2;   /* 书脊装饰层（panel 内部层级） */
   --we-z-action:   10;  /* 快速操作浮层按钮 */
+  --we-z-texture:  20;  /* 羊皮纸纹理层（纤维层在其上 +1） */
   --we-z-panel:    30;  /* 侧面板（chat center / state panel） */
   --we-z-dropdown: 50;
   --we-z-sticky:   60;
