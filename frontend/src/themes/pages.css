@@ -571,7 +571,7 @@
   font-size: var(--we-text-sm);
   color: var(--we-page-canvas-fg-muted);
   margin-top: var(--we-space-sm);
-  line-height: var(--we-leading-snug);
+  line-height: var(--we-leading-relaxed);
 }
 
 .we-onboarding-guide-skip {
@@ -649,7 +649,7 @@
   font-family: var(--we-font-prose);
   font-size: var(--we-text-xs);
   color: var(--we-page-canvas-fg-muted);
-  line-height: var(--we-leading-snug);
+  line-height: var(--we-leading-relaxed);
 }
 
 .we-onboarding-step-action {
@@ -1153,7 +1153,7 @@
 .we-storyline-continue-label {
   font-family: var(--we-font-display);
   font-size: var(--we-text-xs);
-  letter-spacing: var(--we-tracking-caps);
+  letter-spacing: var(--we-tracking-airy);
   text-transform: uppercase;
   color: var(--we-color-text-tertiary);
 }
@@ -1799,7 +1799,7 @@
 
 .we-edit-hint-settings {
   font-size: var(--we-text-sm);
-  line-height: var(--we-leading-snug);
+  line-height: var(--we-leading-relaxed);
   color: var(--we-color-text-tertiary);
   opacity: 1;
   margin-top: var(--we-space-sm);
@@ -2433,7 +2433,7 @@
   font-family: var(--we-font-prose);
   font-size: var(--we-text-sm);
   color: var(--we-color-text-tertiary);
-  line-height: var(--we-leading-snug);
+  line-height: var(--we-leading-relaxed);
   font-style: normal;
   margin: 0;
 }
@@ -2527,7 +2527,7 @@
   font-size: var(--we-text-sm);
   color: var(--we-color-text-tertiary);
   font-style: normal;
-  line-height: var(--we-leading-snug);
+  line-height: var(--we-leading-relaxed);
   margin: 0 0 var(--we-space-md);
 }
 
@@ -2617,7 +2617,7 @@
   margin: 0;
   font-family: var(--we-font-prose);
   font-size: var(--we-text-sm);
-  line-height: var(--we-leading-normal);
+  line-height: var(--we-leading-relaxed);
   color: var(--we-color-text-secondary);
 }
 
@@ -2660,7 +2660,7 @@
   font-family: var(--we-font-prose);
   font-size: var(--we-text-sm);
   font-style: normal;
-  line-height: var(--we-leading-snug);
+  line-height: var(--we-leading-relaxed);
   color: var(--we-color-text-tertiary);
 }
 
@@ -2688,7 +2688,7 @@
   font-style: normal;
   color: var(--we-color-text-tertiary);
   font-family: var(--we-font-prose);
-  line-height: var(--we-leading-snug);
+  line-height: var(--we-leading-relaxed);
 }
 
 .we-settings-body-copy {
@@ -2709,7 +2709,7 @@
   margin: 0;
   font-family: var(--we-font-prose);
   font-size: var(--we-text-sm);
-  line-height: var(--we-leading-snug);
+  line-height: var(--we-leading-relaxed);
 }
 
 .we-settings-message--ok {
@@ -2762,7 +2762,7 @@
   font-size: var(--we-text-sm);
   color: var(--we-color-text-tertiary);
   font-family: var(--we-font-prose);
-  line-height: var(--we-leading-snug);
+  line-height: var(--we-leading-relaxed);
 }
 
 .we-state-field-error {
@@ -2972,7 +2972,7 @@
   border-radius: var(--we-radius-md);
   color: var(--we-color-text-primary);
   font-size: var(--we-text-sm);
-  line-height: var(--we-leading-snug);
+  line-height: var(--we-leading-relaxed);
   white-space: pre-wrap;
   opacity: 0.6;
 }
@@ -3820,7 +3820,7 @@
 
 .we-parchment-texture-fiber {
   z-index: var(--parchment-fiber-z);
-  opacity: var(--we-parchment-fiber-opacity, 0.22);
+  opacity: var(--we-parchment-fiber-opacity);
   mix-blend-mode: var(--parchment-blend);
   background-image: var(--parchment-fiber-image);
   background-repeat: repeat;
@@ -4515,7 +4515,7 @@
 }
 .we-provider-safety-banner__key {
   color: var(--we-color-text-tertiary);
-  font-family: var(--we-font-mono, ui-monospace, monospace);
+  font-family: var(--we-font-mono);
 }
 .we-provider-safety-banner__val {
   margin: 0;
@@ -4523,7 +4523,7 @@
   word-break: break-all;
 }
 .we-provider-safety-banner__row--evt-id .we-provider-safety-banner__val {
-  font-family: var(--we-font-mono, ui-monospace, monospace);
+  font-family: var(--we-font-mono);
   color: var(--we-color-text-tertiary);
 }
 
@@ -4534,7 +4534,7 @@
   margin: var(--we-space-sm) 0 var(--we-space-lg) 0;
   font-size: var(--we-text-xs);
   color: var(--we-color-text-secondary);
-  line-height: var(--we-leading-snug);
+  line-height: var(--we-leading-relaxed);
 }
 .we-provider-safety-panel__error {
   margin: var(--we-space-sm) 0;
@@ -4693,7 +4693,7 @@
   color: var(--we-color-status-warning);
 }
 .we-provider-safety-row__name {
-  font-family: var(--we-font-mono, ui-monospace, monospace);
+  font-family: var(--we-font-mono);
   color: var(--we-color-text-primary);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -4727,7 +4727,7 @@
 }
 .we-provider-safety-row__meta-item dt {
   color: var(--we-color-text-tertiary);
-  font-family: var(--we-font-mono, ui-monospace, monospace);
+  font-family: var(--we-font-mono);
 }
 .we-provider-safety-row__meta-item dd {
   margin: 0;

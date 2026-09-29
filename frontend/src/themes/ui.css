@@ -1653,7 +1653,7 @@
 .we-regex-test-label {
   font-family: var(--we-font-display);
   font-size: var(--we-text-xs);
-  letter-spacing: var(--we-tracking-caps);
+  letter-spacing: var(--we-tracking-airy);
   color: var(--we-color-text-tertiary);
   font-style: italic;
 }
@@ -4264,7 +4264,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-family: var(--we-font-mono, ui-monospace, monospace);
+  font-family: var(--we-font-mono);
   font-size: var(--we-text-xs);
   color: var(--we-color-text-secondary);
 }
@@ -4308,7 +4308,7 @@
   width: max-content;
   min-width: 100%;
   margin: 0;
-  font-family: var(--we-font-mono, ui-monospace, monospace);
+  font-family: var(--we-font-mono);
   font-size: var(--we-text-sm);
   line-height: var(--we-leading-normal);
   tab-size: 4;

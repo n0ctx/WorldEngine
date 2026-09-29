@@ -285,6 +285,7 @@
   --we-leading-flush:  1;
   --we-leading-tight:  1.3;
   --we-leading-snug:   1.5;
+  --we-leading-relaxed: 1.6;
   --we-leading-normal: 1.75;
   --we-leading-loose:  1.95;
 
@@ -296,12 +297,14 @@
      会话页消息流（含头像列）与写作模式正文共用同一读宽。 */
   --we-text-width-prose: 40em;
 
-  /* 字距 Scale（letter-spacing）— 走 token，避免散写 0.04/0.06/0.08/0.12em 等 */
+  /* 字距 Scale（letter-spacing）— 走 token，避免散写 0.04/0.06/0.08/0.1/0.12em 等 */
   --we-tracking-tight:   0.02em;  /* 标题微调 */
   --we-tracking-normal:  0.05em;  /* 内文/按钮 */
   --we-tracking-wide:    0.08em;  /* 装饰副标题 */
+  --we-tracking-roomy:   0.1em;   /* 小标签、时间戳 */
   --we-tracking-wider:   0.12em;  /* 卡片标题 */
   --we-tracking-caps:    0.18em;  /* 全大写小标签 */
+  --we-tracking-airy:    0.2em;   /* 更疏的标签、章节副标 */
   --we-tracking-display: 0.34em;  /* 区块标题 / 章节号 */
 
   /* 统一焦点环：可与 box-shadow 叠加（如 input 的 paper-indent + focus-ring） */

@@ -7,8 +7,8 @@ const FONTS = [
   { token: '--we-font-mono', label: '等宽字体', sample: '{ "severity": "medium" }' },
 ];
 const SIZES = ['hero', 'xl', 'lg', 'md', 'base', 'prose', 'control', 'body', 'sm', '2xs', 'xs'];
-const LEADINGS = ['flush', 'tight', 'snug', 'normal', 'loose', 'prose'];
-const TRACKINGS = ['tight', 'normal', 'wide', 'wider', 'caps', 'display'];
+const LEADINGS = ['flush', 'tight', 'snug', 'relaxed', 'normal', 'loose', 'prose'];
+const TRACKINGS = ['tight', 'normal', 'wide', 'roomy', 'wider', 'caps', 'airy', 'display'];
 const PARAGRAPH = '雨从傍晚一直下到后半夜。你推开拳场的铁门，潮气和汗味一起涌出来，灯泡在头顶晃。';
 
 export function FontsDemo() {

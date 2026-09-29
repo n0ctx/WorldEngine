@@ -21,7 +21,7 @@ export default function ChatErrorBubble({ character, errorBubble, generating, on
               <div className="flex flex-col gap-1 max-w-[75%]">
                 <span className="[font-size:var(--we-text-xs)] opacity-50">{character?.name}</span>
                 {errorBubble.partialContent && (
-                  <div className="px-4 py-3 rounded-[var(--we-radius-lg)] rounded-tl-[var(--we-radius-xs)] bg-[var(--we-color-bg-surface)] border border-[var(--we-color-border-default)] text-[var(--we-color-text-primary)] [font-size:var(--we-text-body)] [line-height:var(--we-leading-normal)] whitespace-pre-wrap opacity-60">
+                  <div className="px-4 py-3 rounded-[var(--we-radius-lg)] rounded-tl-[var(--we-radius-xs)] bg-[var(--we-color-bg-surface)] border border-[var(--we-color-border-default)] text-[var(--we-color-text-primary)] [font-size:var(--we-text-body)] [line-height:var(--we-leading-relaxed)] whitespace-pre-wrap opacity-60">
                     {errorBubble.partialContent}
                   </div>
                 )}
