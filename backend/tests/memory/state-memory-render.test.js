@@ -341,6 +341,23 @@ test('相关的搁置事项进入结案输入并标明搁置，不相关的不�
   assert.doesNotMatch(text, /寻找宝石/);
 });
 
+test('有进行中事项时提示可以推进或收束，没有时不提示', () => {
+  const { sessionId, worldId } = setupSession();
+  const quiet = renderStoryState(sessionId, { worldId, budget: 3000 });
+  assert.doesNotMatch(quiet, /可以推进一步或收束/);
+
+  const actor = createEntity(sessionId, { name: '置顶角色', pinned: true });
+  upsertThread(sessionId, {
+    threadId: 'open', seq: nextThreadSeq(sessionId), kind: '任务',
+    participantsJson: JSON.stringify([actor]), content: '归还账本',
+    status: 'active', openedRound: 1, lastTouchedRound: 1,
+  }, 1);
+  const text = renderStoryState(sessionId, { worldId, budget: 3000 });
+  assert.match(text, /进行中：［任务］归还账本/);
+  assert.match(text, /这轮可以推进一步或收束/);
+  assert.match(text, /不要硬插/);
+});
+
 test('搁置事项不进入剧情提醒，也不把参与者拉进相关实体', () => {
   const { sessionId, worldId } = setupSession();
   const pinned = createEntity(sessionId, { name: '置顶角色', pinned: true });

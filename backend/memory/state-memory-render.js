@@ -38,6 +38,7 @@ import { STATE_DIRECTORY_BUDGET, STATE_NAME_MATCH_MIN, STATE_PROFILE_FILL_PER_RO
 export { renderRelevantThreadsForUpdate } from './state-thread-relevance.js';
 
 const STORY_STATE_HINT = '以下是当前场景相关人物与事物的既定设定和现状。人物的身份、外貌、性格、说话方式必须与此一致；列出不代表必须登场。';
+const THREAD_HINT = '在场人物相关的进行中事项，这轮可以推进一步或收束；用户这轮明确在做别的事时顺着用户，不要硬插。';
 const NON_CHARACTER_TYPE_LABELS = { location: '地点', item: '物品', faction: '组织', other: '其他' };
 const AFFILIATION_PREDICATES = ['成员', '持有者'];
 const DEFAULT_STORY_STATE_BUDGET = 3000;
@@ -536,7 +537,8 @@ export function renderStoryState(sessionId, opts = {}) {
   const entityTexts = selectedIds.map((id) => entityOutput.get(id)).filter(Boolean);
   const body = [headerText, playerLine, ...entityTexts, ...resultRelations, ...resultThreads]
     .filter(Boolean).join('\n');
-  return body ? `<story_state hint="${STORY_STATE_HINT}">\n${body}\n</story_state>` : '';
+  const hint = resultThreads.length ? `${STORY_STATE_HINT}${THREAD_HINT}` : STORY_STATE_HINT;
+  return body ? `<story_state hint="${hint}">\n${body}\n</story_state>` : '';
 }
 
 // ============================
