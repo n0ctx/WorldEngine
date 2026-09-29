@@ -11,7 +11,7 @@ vi.mock('framer-motion', () => ({
 }));
 
 import { useMotion } from '../../src/core/hooks/useMotion.js';
-import { GESTURE, SPRING, STREAM, variants } from '../../src/core/utils/motion.js';
+import { GESTURE, GLITCH, STREAM, transitions, variants } from '../../src/core/utils/motion.js';
 
 describe('useMotion', () => {
   beforeEach(() => {
@@ -25,7 +25,8 @@ describe('useMotion', () => {
     expect(result.current.reduced).toBe(false);
     expect(result.current.duration(0.3)).toBe(0.3);
     expect(result.current.ease([1, 2, 3])).toEqual([1, 2, 3]);
-    expect(result.current.blur('2px')).toBe('2px');
+    expect(result.current.transition('signal')).toBe(transitions.signal);
+    expect(result.current.transition('signal', { delay: 0.3 })).toEqual({ ...transitions.signal, delay: 0.3 });
   });
 
   it('在 reduced motion 下清零动效', () => {
@@ -35,47 +36,47 @@ describe('useMotion', () => {
     expect(result.current.reduced).toBe(true);
     expect(result.current.duration(0.3)).toBe(0);
     expect(result.current.ease([1, 2, 3])).toBe('linear');
-    expect(result.current.blur('2px')).toBe('0px');
+    expect(result.current.transition('signal', { delay: 0.3 })).toMatchObject({ duration: 0, delay: 0 });
   });
 
-  it('普通模式下返回命名弹簧、手势与入场 variants', () => {
+  it('普通模式下按压瞬时到位，入场用信号锁定', () => {
     mocks.useReducedMotion.mockReturnValue(false);
     const { result } = renderHook(() => useMotion());
 
-    expect(result.current.spring('portal')).toBe(SPRING.portal);
-    expect(result.current.gesture('press')).toEqual({ ...GESTURE.press, transition: SPRING.press });
-    expect(result.current.variant('messageEnter')).toBe(variants.messageEnter);
-    // 禁用时去掉手势目标，但保留弹簧，按下后变禁用的按钮仍能回弹
-    expect(result.current.gesture('press', { disabled: true })).toEqual({ transition: SPRING.press });
-    expect(result.current.follow('glowFade')).toBe(SPRING.glowFade);
+    expect(result.current.gesture('press')).toEqual({ ...GESTURE.press, transition: transitions.press });
+    // 禁用时去掉手势目标，但保留 transition，按下后变禁用的按钮仍能复原
+    expect(result.current.gesture('press', { disabled: true })).toEqual({ transition: transitions.press });
+    expect(result.current.variant('signalIn')).toBe(variants.signalIn);
   });
 
-  it('reduced motion 下关闭回弹、手势与位移缩放', () => {
+  it('reduced motion 下关闭手势，信号锁定只留终值、离场瞬时', () => {
     mocks.useReducedMotion.mockReturnValue(true);
     const { result } = renderHook(() => useMotion());
 
-    expect(result.current.spring('portal')).toEqual({ duration: 0 });
     expect(result.current.gesture('portal')).toEqual({});
-    expect(result.current.gesture('portal', { disabled: true })).toEqual({});
-    expect(result.current.gesture('sink')).toEqual({});
-    expect(result.current.follow('glowFade')).toBeNull();
-    expect(result.current.variant('sceneEnter')).toEqual({
+    expect(result.current.gesture('sink', { disabled: true })).toEqual({});
+    expect(result.current.variant('signalIn')).toEqual({
       hidden: { opacity: 0 },
       visible: { opacity: 1 },
+      exit: { opacity: 0, transition: { ...variants.signalIn.exit.transition, duration: 0 } },
     });
   });
 
-  it('流式书写的时长缓动以 CSS 变量给出，reduced motion 下为 null', () => {
+  it('流式输出与信号故障的时长以 CSS 变量给出，reduced motion 下为 null', () => {
     mocks.useReducedMotion.mockReturnValue(false);
     const { result } = renderHook(() => useMotion());
-    expect(result.current.stream()).toMatchObject({
+    expect(result.current.stream()).toEqual({
       '--we-stream-char-duration': `${STREAM.char.duration * 1000}ms`,
-      '--we-stream-caret-ease': `cubic-bezier(${STREAM.caret.ease.join(', ')})`,
-      '--we-stream-caret-out-duration': `${STREAM.caretOut.duration * 1000}ms`,
+      '--we-stream-rain-duration': `${STREAM.rain.duration * 1000}ms`,
+      '--we-stream-trail-duration': `${STREAM.trail.duration * 1000}ms`,
+      '--we-stream-caret-duration': `${STREAM.caret.duration * 1000}ms`,
+      '--we-stream-caret-out-duration': `${Math.round(STREAM.caretOut.duration * 1000)}ms`,
     });
+    expect(result.current.glitch()).toMatchObject({ '--we-glitch-burst': `${GLITCH.burst * 1000}ms` });
 
     mocks.useReducedMotion.mockReturnValue(true);
     const { result: reduced } = renderHook(() => useMotion());
     expect(reduced.current.stream()).toBeNull();
+    expect(reduced.current.glitch()).toBeNull();
   });
 });

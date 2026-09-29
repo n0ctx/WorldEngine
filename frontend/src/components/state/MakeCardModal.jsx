@@ -57,7 +57,7 @@ export default function MakeCardModal({ worldId, sessionId, entity, onClose, onC
         description: draft.description,
         first_message: draft.first_message,
       });
-      log.info('card.create.success', null, { toast: '已保存为角色卡' });
+      log.success('card.create.success', null, { toast: '已保存为角色卡' });
       onCreated?.();
     } catch (e) {
       if (e?.status === 409) log.error('card.name.duplicate', e, { toast: '该名字已被占用' });

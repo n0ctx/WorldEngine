@@ -265,7 +265,7 @@
   color: var(--we-color-text-tertiary);
   opacity: 0.6;
 }
-.we-empty-state__icon:has(.we-fluid-orb) {
+.we-empty-state__icon:has(.we-matrix-orb) {
   opacity: 1;
 }
 .we-empty-state__title {
@@ -2011,7 +2011,7 @@
   height: 1.5px;
   background: var(--we-color-accent);
   transform: scaleX(0);
-  transition: transform var(--we-duration-fast) var(--we-easing-ink);
+  transition: transform var(--we-duration-fast) steps(4, jump-end);
   opacity: 0;
 }
 
@@ -2628,7 +2628,7 @@
   display: block;
   border-radius: var(--we-radius-none);
   background: var(--we-color-bg-muted);
-  animation: we-skeleton-pulse var(--we-skeleton-pulse-duration) var(--we-easing-ink) infinite;
+  animation: we-skeleton-pulse var(--we-skeleton-pulse-duration) steps(1, jump-end) infinite;
 }
 
 .we-skel-stack {
@@ -2730,7 +2730,7 @@
   gap: 10px;
 }
 .we-fields-list .we-status-field {
-  animation: we-rise-in var(--we-duration-slow) var(--we-easing-ink) both;
+  animation: we-signal-in var(--we-duration-normal) steps(1, jump-end) both;
 }
 
 .we-status-skeleton {
@@ -2937,6 +2937,144 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* ── 信号故障（GlitchText / 变化标签 / 提示条 / 完成确认）─────────────────
+   两路错位色：A 取当前世界强调色，B 取它的色环对面，每个世界的错位配色都不同。
+   时长由 useMotion().glitch() 以 --we-glitch-* 内联下发；关键帧一律 steps(1) 硬切。 */
+:is(.we-glitch, .we-done-signal) {
+  --glitch-a: var(--we-color-accent);
+  --glitch-b: hsl(from var(--we-color-accent) calc(h + 180) s l);
+}
+
+.we-glitch {
+  position: relative;
+  display: inline-block;
+  max-width: 100%;
+  isolation: isolate;
+  background: linear-gradient(to bottom,
+    transparent 44%,
+    color-mix(in srgb, var(--glitch-a) 40%, transparent) 47%,
+    color-mix(in srgb, var(--glitch-b) 55%, transparent) 50%,
+    color-mix(in srgb, var(--glitch-a) 40%, transparent) 53%,
+    transparent 56%) no-repeat;
+  background-size: 100% 300%;
+  background-position-y: 100%;
+  animation:
+    we-glitch-jolt var(--we-glitch-burst) steps(1, jump-end) both,
+    we-glitch-scan var(--we-glitch-burst) steps(6, jump-end) both;
+}
+.we-glitch::before,
+.we-glitch::after {
+  content: attr(data-text);
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  white-space: inherit;
+  pointer-events: none;
+  opacity: 0;
+}
+.we-glitch::before {
+  color: var(--glitch-a);
+  animation: we-glitch-split-a var(--we-glitch-burst) steps(1, jump-end) both;
+}
+.we-glitch::after {
+  color: var(--glitch-b);
+  animation: we-glitch-split-b var(--we-glitch-burst) steps(1, jump-end) both;
+}
+.we-glitch__text--masked {
+  color: transparent;
+}
+.we-glitch__decode {
+  position: absolute;
+  inset: 0;
+  color: var(--we-color-decode);
+  text-shadow: 0 0 6px color-mix(in srgb, var(--we-color-decode) 50%, transparent);
+}
+
+@keyframes we-glitch-jolt {
+  0%   { transform: translateX(3px) skewX(-14deg); }
+  14%  { transform: translateX(-4px) skewX(9deg); }
+  28%  { transform: translateX(2px) skewX(0deg); }
+  42%  { transform: translateX(-1px) skewX(-4deg); }
+  57%, 100% { transform: none; }
+}
+@keyframes we-glitch-scan {
+  from { background-position-y: 100%; }
+  to   { background-position-y: 0%; }
+}
+@keyframes we-glitch-split-a {
+  0%   { opacity: 1;   transform: translateX(-5px); clip-path: inset(0 0 55% 0);   font-weight: 700; }
+  14%  { opacity: 1;   transform: translateX(6px);  clip-path: inset(40% 0 20% 0); font-weight: 300; }
+  28%  { opacity: 1;   transform: translateX(-8px); clip-path: inset(72% 0 0 0);   font-weight: 700; }
+  42%  { opacity: 1;   transform: translateX(3px);  clip-path: inset(8% 0 62% 0);  font-weight: 500; }
+  57%  { opacity: 0.8; transform: translateX(-2px); clip-path: inset(0);           font-weight: 400; }
+  71%  { opacity: 0.5; transform: translateX(-1px); clip-path: inset(0); }
+  100% { opacity: 0;   transform: none;             clip-path: inset(0); }
+}
+@keyframes we-glitch-split-b {
+  0%   { opacity: 1;   transform: translateX(5px);  clip-path: inset(50% 0 0 0);   font-weight: 300; }
+  14%  { opacity: 1;   transform: translateX(-7px); clip-path: inset(0 0 68% 0);   font-weight: 700; }
+  28%  { opacity: 1;   transform: translateX(6px);  clip-path: inset(25% 0 45% 0); font-weight: 300; }
+  42%  { opacity: 1;   transform: translateX(-3px); clip-path: inset(60% 0 5% 0);  font-weight: 700; }
+  57%  { opacity: 0.8; transform: translateX(2px);  clip-path: inset(0);           font-weight: 400; }
+  71%  { opacity: 0.5; transform: translateX(1px);  clip-path: inset(0); }
+  100% { opacity: 0;   transform: none;             clip-path: inset(0); }
+}
+
+/* 本轮变化标签：值后面一枚切角小标签，一块实色扫过把它刷出来、闪两下后定住，留到下一轮 */
+.we-glitch-tag {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  margin-left: var(--we-space-xs);
+  padding: 0 var(--we-space-xs);
+  vertical-align: 1px;
+  font-family: var(--we-font-mono);
+  font-size: var(--we-text-2xs);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  line-height: 18px; /* design exact: 标签高度 */
+  white-space: nowrap;
+  color: var(--glitch-tone, var(--we-color-text-secondary));
+  background: color-mix(in srgb, var(--glitch-tone, var(--we-color-text-secondary)) 16%, transparent);
+  clip-path: polygon(5px 0, 100% 0, 100% calc(100% - 5px), calc(100% - 5px) 100%, 0 100%, 0 5px);
+  pointer-events: none;
+}
+.we-glitch-tag--up   { --glitch-tone: var(--we-color-status-success); }
+.we-glitch-tag--down { --glitch-tone: var(--we-color-status-danger); }
+.we-glitch-tag--play {
+  animation: we-glitch-blink var(--we-glitch-burst) steps(1, jump-end) both;
+}
+/* 刷出：实色块从左到右扫过后收走 */
+.we-glitch-tag--play::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--glitch-tone, var(--we-color-text-secondary));
+  transform-origin: right;
+  animation: we-glitch-wipe var(--we-glitch-burst) steps(4, jump-end) both;
+}
+
+@keyframes we-glitch-blink {
+  0%   { opacity: 0; }
+  14%  { opacity: 1; }
+  42%  { opacity: 0.25; }
+  57%  { opacity: 1; }
+  71%  { opacity: 0.5; }
+  100% { opacity: 1; }
+}
+@keyframes we-glitch-wipe {
+  from { transform: scaleX(1); }
+  to   { transform: scaleX(0); }
+}
+
+/* 关屏：先压扁成一条亮线，再熄灭 */
+@keyframes we-glitch-off {
+  0%   { opacity: 1;   transform: none; }
+  34%  { opacity: 1;   transform: translateX(4px) scaleY(0.35) scaleX(1.1); }
+  67%  { opacity: 0.8; transform: scaleY(0.06) scaleX(1.3); }
+  100% { opacity: 0;   transform: scaleY(0); }
+}
+
 /* ── 状态栏实体区块：「查看全部档案」切换，与上方现状用一条稀疏分隔线隔开 ─── */
 .we-state-change-toggle {
   display: flex;
@@ -3063,7 +3201,7 @@
   display: flex;
   gap: 7px; /* design exact */
   align-items: flex-start;
-  animation: we-rise-in var(--we-duration-slow) var(--we-easing-ink) both;
+  animation: we-signal-in var(--we-duration-normal) steps(1, jump-end) both;
 }
 
 .we-diary-entry {
@@ -3403,14 +3541,9 @@
   gap: var(--we-space-sm);
 }
 
-.we-toast-card__seal {
+.we-toast-card__tag {
   flex-shrink: 0;
-  margin-top: 2px; /* design exact: 与标题基线对齐 */
-  font-family: var(--we-font-prose);
-  font-size: var(--we-text-base);
-  line-height: var(--we-leading-flush);
-  color: var(--toast-color);
-  user-select: none;
+  margin: 1px 0 0; /* design exact: 与标题基线对齐 */
 }
 
 .we-toast-card__body {
@@ -3444,6 +3577,11 @@
 }
 .we-toast-card__close:hover {
   color: var(--we-color-text-primary);
+}
+
+/* 提示条入场时内容行跟着错位抖一下 */
+.we-toast-card--glitch .we-toast-card__row {
+  animation: we-glitch-jolt var(--we-glitch-burst) steps(1, jump-end) both;
 }
 
 /* 二级确认浮层：高于当前 Modal（--we-z-modal），脱离其 transform 上下文；
@@ -4101,58 +4239,7 @@
   stroke: var(--we-color-status-danger);
 }
 
-/* 里程表数字 */
-.we-counter {
-  display: inline-flex;
-  align-items: center;
-  font-variant-numeric: tabular-nums;
-}
-.we-counter__wheels {
-  display: inline-flex;
-  align-items: center;
-  user-select: none;
-}
-/* 每个面上下留出的空隙就是遮罩渐隐的区域，静止的数字保持实色 */
-.we-counter__digit {
-  --we-counter-fade: linear-gradient(to bottom,
-    rgba(0, 0, 0, 0) 0%,
-    rgba(0, 0, 0, 0.06) 5.5%,
-    rgba(0, 0, 0, 0.5) 11%,
-    rgba(0, 0, 0, 0.94) 16.5%,
-    #000 22%,
-    #000 78%,
-    rgba(0, 0, 0, 0.94) 83.5%,
-    rgba(0, 0, 0, 0.5) 89%,
-    rgba(0, 0, 0, 0.06) 94.5%,
-    rgba(0, 0, 0, 0) 100%);
-  position: relative;
-  display: inline-grid;
-  height: 1.5em;
-  overflow: hidden;
-  line-height: 1.5;
-  -webkit-mask-image: var(--we-counter-fade);
-  mask-image: var(--we-counter-fade);
-}
-.we-counter__sizer {
-  visibility: hidden;
-  grid-area: 1 / 1;
-}
-.we-counter__stack {
-  position: absolute;
-  inset-inline: 0;
-  top: 0;
-}
-.we-counter__face {
-  display: flex;
-  height: 1.5em;
-  align-items: center;
-  justify-content: center;
-}
-.we-counter__mark {
-  display: inline-block;
-}
-
-/* 液滴分段 tab（SectionTabs variant="gooey"）；pages.css 后加载，选择器多带一层以免被编辑面板的 tab 规则覆盖 */
+/* 分段 tab（SectionTabs variant="gooey"）；pages.css 后加载，选择器多带一层以免被编辑面板的 tab 规则覆盖 */
 .we-section-tabs.we-section-tabs--gooey .we-section-tabs-list {
   align-items: center;
   margin-left: 0;
@@ -4168,28 +4255,13 @@
 .we-gooey-nav__segment {
   position: relative;
   flex-shrink: 0;
-  margin-left: var(--we-gooey-gap, 0);
   background-color: var(--we-color-ink-wash);
 }
 .we-gooey-nav__segment.is-active {
   background-color: var(--we-color-accent);
-  transition: background-color var(--we-duration-slow) var(--we-easing-sharp);
-}
-.we-gooey-nav__neck {
-  position: absolute;
-  top: 0;
-  right: 100%;
-  height: 100%;
-  pointer-events: none;
-}
-.we-gooey-nav__stop {
-  stop-color: var(--we-color-ink-wash);
-}
-.we-gooey-nav__stop--active {
-  stop-color: var(--we-color-accent);
 }
 
-/* 点阵球 / 流体球 */
+/* 点阵球 */
 .we-matrix-orb {
   display: inline-flex;
   align-items: center;
@@ -4205,17 +4277,6 @@
   font-style: italic;
   font-size: var(--we-text-sm);
   color: var(--we-color-text-tertiary);
-}
-.we-fluid-orb {
-  position: relative;
-  flex-shrink: 0;
-  overflow: hidden;
-  border-radius: 50%;
-}
-.we-fluid-orb canvas {
-  display: block;
-  width: 100%;
-  height: 100%;
 }
 
 /* 竖向导航的弹跳圆点（BounceRail）；容器须 position: relative，导航项左侧留出圆点位置 */

@@ -57,6 +57,14 @@ describe('frontend logger — 基础 API', () => {
     window.removeEventListener('we:toast', handler);
   });
 
+  it('log.success 派发成功提示（type=success）', () => {
+    const handler = vi.fn();
+    window.addEventListener('we:toast', handler);
+    log.success('settings.saved', null, { toast: '设置已保存' });
+    expect(handler.mock.calls[0][0].detail).toEqual({ message: '设置已保存', type: 'success' });
+    window.removeEventListener('we:toast', handler);
+  });
+
   it('1500ms 内同 message 去重', () => {
     const handler = vi.fn();
     window.addEventListener('we:toast', handler);

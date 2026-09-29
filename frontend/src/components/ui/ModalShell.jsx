@@ -24,7 +24,7 @@ export default function ModalShell({ children, onClose, maxWidth = 'max-w-xl' })
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{   opacity: 0 }}
-      transition={m.transition('quick')}
+      transition={m.transition('backdrop')}
       onMouseDown={(e) => { mouseDownOnBackdrop.current = e.target === e.currentTarget; }}
       onClick={() => { if (mouseDownOnBackdrop.current) onClose(); }}
     >
@@ -33,11 +33,11 @@ export default function ModalShell({ children, onClose, maxWidth = 'max-w-xl' })
           'we-modal we-material w-full mx-4 flex flex-col max-h-[90vh] overflow-hidden',
           maxWidth,
         ].join(' ')}
-        variants={m.variant('overlayEnter')}
+        variants={m.variant('signalIn')}
         initial="hidden"
         animate="visible"
-        exit="hidden"
-        transition={m.spring('overlay')}
+        exit="exit"
+        transition={m.transition('signal')}
         onClick={(e) => e.stopPropagation()}
       >
         {children}

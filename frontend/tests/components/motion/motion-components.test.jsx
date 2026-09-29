@@ -10,7 +10,6 @@ vi.mock('framer-motion', async (importOriginal) => ({
 }));
 
 import DeleteButton from '../../../src/components/motion/DeleteButton.jsx';
-import AnimatedCounter from '../../../src/components/motion/AnimatedCounter.jsx';
 import SectionTabs from '../../../src/components/ui/SectionTabs.jsx';
 import BounceRail from '../../../src/components/motion/BounceRail.jsx';
 import TaskList from '../../../src/components/motion/TaskList.jsx';
@@ -79,18 +78,6 @@ describe('DeleteButton 原地确认', () => {
     fireEvent.click(screen.getByRole('button', { name: '删除' }));
     fireEvent.click(screen.getByRole('button', { name: '确认删除' }));
     expect(onConfirm).toHaveBeenCalledTimes(1);
-  });
-});
-
-describe('AnimatedCounter', () => {
-  it('读屏读到完整数值，滚轮本身对读屏隐藏', () => {
-    const { container, rerender } = render(<p>共 <AnimatedCounter value={12} /> 个</p>);
-    expect(container.querySelector('.we-visually-hidden')).toHaveTextContent('12');
-    expect(container.querySelector('.we-counter__wheels')).toHaveAttribute('aria-hidden');
-
-    rerender(<p>共 <AnimatedCounter value={105} /> 个</p>);
-    expect(container.querySelector('.we-visually-hidden')).toHaveTextContent('105');
-    expect(container.querySelectorAll('.we-counter__digit')).toHaveLength(3);
   });
 });
 

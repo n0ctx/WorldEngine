@@ -1,13 +1,14 @@
 import { motion } from 'framer-motion';
 import Icon from './Icon.jsx';
+import GlitchText from '../motion/GlitchText.jsx';
 import { useMotion } from '../../core/hooks/useMotion.js';
-import { DURATION, EASE } from '../../core/utils/motion.js';
 
+// 类型标签与状态栏的本轮变化标签同一种切角样式，颜色取对应状态色
 const TYPE_META = {
-  error: { color: 'var(--we-color-status-danger)', seal: '驳' },
-  warning: { color: 'var(--we-color-status-warning)', seal: '警' },
-  info: { color: 'var(--we-color-status-info)', seal: '录' },
-  success: { color: 'var(--we-color-accent)', seal: '成' },
+  error: { tone: 'var(--we-color-status-danger)', code: '错误' },
+  warning: { tone: 'var(--we-color-status-warning)', code: '警告' },
+  info: { tone: 'var(--we-color-status-info)', code: '提示' },
+  success: { tone: 'var(--we-color-status-success)', code: '完成' },
 };
 
 const CLOSE_PATHS = (
@@ -17,45 +18,37 @@ const CLOSE_PATHS = (
   </>
 );
 
+// 提示条：信号锁定入场，内容行抖一下，类型标签被一块实色刷出，标签与正文从乱码解码
 export default function ToastCard({ toast, onClose, onMouseEnter, onMouseLeave }) {
   const meta = TYPE_META[toast.type] || TYPE_META.info;
   const isAssertive = toast.type === 'error';
   const m = useMotion();
-
-  const motionProps = m.reduced
-    ? {
-      initial: { opacity: 0 },
-      animate: { opacity: 1 },
-      exit: { opacity: 0, transition: { duration: DURATION.quick, ease: EASE.retract } },
-      transition: { duration: DURATION.quick, ease: EASE.ink },
-    }
-    : {
-      initial: { opacity: 0, scale: 0.9, y: -8 },
-      animate: { opacity: 1, scale: 1, y: 0 },
-      exit: { opacity: 0, x: 24, scale: 0.96, transition: { duration: DURATION.quick, ease: EASE.retract } },
-      transition: m.spring('message'),
-      whileHover: { scale: 1.01 },
-    };
+  const glitchVars = m.glitch();
+  const glitchKey = glitchVars ? toast.id : null;
 
   return (
     <motion.div
       role={isAssertive ? 'alert' : 'status'}
       aria-live={isAssertive ? 'assertive' : 'polite'}
-      {...motionProps}
+      variants={m.variant('signalIn')}
+      initial="hidden"
+      animate="visible"
+      exit="exit"
+      transition={m.transition('signal')}
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
-      className="we-toast-card"
-      style={{ '--toast-color': meta.color }}
+      className={`we-toast-card${glitchVars ? ' we-toast-card--glitch' : ''}`}
+      style={{ '--glitch-tone': meta.tone, ...glitchVars }}
     >
       <div className="we-toast-card__row">
-        <span className="we-toast-card__seal" aria-hidden>
-          {meta.seal}
+        <span className={`we-glitch-tag we-toast-card__tag${glitchVars ? ' we-glitch-tag--play' : ''}`}>
+          <GlitchText text={meta.code} playKey={glitchKey} decode />
         </span>
         <div className="we-toast-card__body">
           {toast.title ? (
-            <div className="we-toast-card__title">{toast.title}</div>
+            <div className="we-toast-card__title"><GlitchText text={toast.title} playKey={glitchKey} decode /></div>
           ) : null}
-          <div className="we-toast-card__message">{toast.message}</div>
+          <div className="we-toast-card__message"><GlitchText text={toast.message} playKey={glitchKey} decode /></div>
         </div>
         <button
           type="button"

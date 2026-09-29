@@ -70,10 +70,10 @@ export default function SettingsPage() {
 
   // 加载态与内容态共用同一个面板节点（同样的外层结构），入场只播一次，内容在已落定的面板里替换
   const panelMotion = {
-    variants: m.variant('overlayEnter'),
+    variants: m.variant('signalIn'),
     initial: 'hidden',
     animate: 'visible',
-    transition: m.spring('overlay'),
+    transition: m.transition('signal'),
   };
 
   if (loading) {

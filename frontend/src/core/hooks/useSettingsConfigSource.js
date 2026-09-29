@@ -7,7 +7,7 @@ export function useSettingsConfigWriter(suppressNextReloadRef) {
     suppressNextReloadRef.current = !reload;
     try {
       const updated = await updateConfig(patch);
-      if (announceSaved) log.info('settings.saved', null, { toast: '设置已保存' });
+      if (announceSaved) log.success('settings.saved', null, { toast: '设置已保存' });
       return updated;
     } catch (err) {
       suppressNextReloadRef.current = false;

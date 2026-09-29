@@ -3,15 +3,15 @@
  * 刻度导航：每项一根横线，指针靠近时按距离伸长；滚动时当前项短暂伸出一下再收回。
  * items 里的 id 对应滚动容器中 data-message-id 的元素。 */
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { motion, useMotionValue, useSpring, useTransform } from 'framer-motion';
-import { useMotion } from '../../core/hooks/useMotion.js';
+import { motion, useMotionValue, useTransform } from 'framer-motion';
 
 const RADIUS = 40;
 const MAX_WIDTH = 40;
 const IDLE_RESET_DELAY = 80;
 // 少于这么多项时刻度没有导航价值，不显示
 const MIN_ITEMS = 3;
-const DASH_SPRING = { stiffness: 320, damping: 34, mass: 0.7 };
+// 刻度长度按 1/8 分档跳变，不做平滑跟随
+const DASH_LEVELS = 8;
 // 助手回复比玩家发言长，刻度也更长
 const PRESETS = {
   assistant: { base: 16, bump: 24 },
@@ -20,7 +20,7 @@ const PRESETS = {
 
 const elementOf = (container, id) => container?.querySelector(`[data-message-id="${CSS.escape(String(id))}"]`);
 
-function Dash({ item, active, mouseY, reduced, register, onSelect }) {
+function Dash({ item, active, mouseY, register, onSelect }) {
   const ref = useRef(null);
   const preset = PRESETS[item.kind] ?? PRESETS.user;
 
@@ -39,7 +39,7 @@ function Dash({ item, active, mouseY, reduced, register, onSelect }) {
     [preset.base / MAX_WIDTH, (preset.base + preset.bump) / MAX_WIDTH, preset.base / MAX_WIDTH],
     { clamp: true },
   );
-  const spring = useSpring(target, DASH_SPRING);
+  const stepped = useTransform(target, (v) => Math.round(v * DASH_LEVELS) / DASH_LEVELS);
 
   return (
     <button
@@ -51,13 +51,12 @@ function Dash({ item, active, mouseY, reduced, register, onSelect }) {
       className={`we-proximity-rail__dash we-proximity-rail__dash--${item.kind}`}
       onClick={() => onSelect(item.id)}
     >
-      <motion.span style={{ scaleX: reduced ? target : spring, width: MAX_WIDTH }} />
+      <motion.span style={{ scaleX: stepped, width: MAX_WIDTH }} />
     </button>
   );
 }
 
 export default function ProximityRail({ containerRef, items, onSelect }) {
-  const { reduced } = useMotion();
   const mouseY = useMotionValue(Infinity);
   const dashRefs = useRef(new Map());
   const pointerInside = useRef(false);
@@ -152,7 +151,6 @@ export default function ProximityRail({ containerRef, items, onSelect }) {
             item={item}
             active={String(item.id) === String(activeId)}
             mouseY={mouseY}
-            reduced={reduced}
             register={register}
             onSelect={(id) => {
               setActiveId(id);

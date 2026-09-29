@@ -1,6 +1,6 @@
 import { useRef, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { motion, useMotionTemplate, useMotionValue, useSpring } from 'framer-motion';
+import { motion, useMotionTemplate, useMotionValue } from 'framer-motion';
 import { Download, Ellipsis, PencilLine, Trash2 } from 'lucide-react';
 import SortableGrid from '../../components/ui/SortableGrid';
 import AvatarCircle from '../../components/ui/AvatarCircle.jsx';
@@ -13,11 +13,11 @@ import { STAGGER } from '../../core/utils/motion.js';
 const ENTER_STAGGER_CAP = 8;
 const GLOW_OPACITY = 0.8;
 
-function PortalGlow({ fade }) {
+function PortalGlow() {
   const ref = useRef(null);
   const pointerX = useMotionValue(0);
   const pointerY = useMotionValue(0);
-  const visible = useSpring(0, fade);
+  const visible = useMotionValue(0);
   const glowX = useMotionTemplate`${pointerX}px`;
   const glowY = useMotionTemplate`${pointerY}px`;
 
@@ -47,7 +47,6 @@ function PortalGlow({ fade }) {
       aria-hidden="true"
       style={{ '--glow-x': glowX, '--glow-y': glowY, '--glow-opacity': visible }}
     >
-      <span className="we-world-card-glow-surface" />
       <span className="we-world-card-glow-rim" />
     </motion.span>
   );
@@ -65,7 +64,7 @@ function WorldCard({
   exportingWorldId,
   reloadKey,
   sceneEnter,
-  glowFade,
+  showGlow,
   motionConfig,
   onEnterWorld,
   onSetLitWorld,
@@ -111,7 +110,7 @@ function WorldCard({
           hidden: sceneEnter.hidden,
           visible: {
             ...sceneEnter.visible,
-            transition: motionConfig.spring('portal', { delay: Math.min(index, ENTER_STAGGER_CAP) * STAGGER.list }),
+            transition: motionConfig.transition('signal', { delay: Math.min(index, ENTER_STAGGER_CAP) * STAGGER.list }),
           },
         }}
         initial={isDragging ? false : 'hidden'}
@@ -124,7 +123,7 @@ function WorldCard({
           <WorldSceneArt name={world.name} className="we-world-card-bg we-world-card-scene" />
         )}
         <div className="we-world-card-overlay" />
-        {glowFade && !isDragging ? <PortalGlow fade={glowFade} /> : null}
+        {showGlow && !isDragging ? <PortalGlow /> : null}
 
         <div className="we-world-card-foot">
           <h3 className="we-world-card-name">{world.name}</h3>
@@ -218,8 +217,8 @@ export default function WorldsGrid({
   const motionConfig = useMotion();
   const location = useLocation();
   const navigate = useNavigate();
-  const sceneEnter = motionConfig.variant('sceneEnter');
-  const glowFade = motionConfig.follow('glowFade');
+  const sceneEnter = motionConfig.variant('signalIn');
+  const showGlow = !motionConfig.reduced;
 
   return (
     <SortableGrid
@@ -234,7 +233,7 @@ export default function WorldsGrid({
           exportingWorldId={exportingWorldId}
           reloadKey={reloadKey}
           sceneEnter={sceneEnter}
-          glowFade={glowFade}
+          showGlow={showGlow}
           motionConfig={motionConfig}
           onEnterWorld={handleEnterWorld}
           onSetLitWorld={setLitWorld}

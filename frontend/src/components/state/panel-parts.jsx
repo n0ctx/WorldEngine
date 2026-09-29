@@ -1,5 +1,6 @@
 import { AnimatePresence, motion } from 'framer-motion';
-import { DURATION, EASE } from '../../core/utils/motion.js';
+import GlitchText from '../motion/GlitchText.jsx';
+import { useMotion } from '../../core/hooks/useMotion.js';
 
 const MotionDiv = motion.div;
 
@@ -44,7 +45,7 @@ export function ResetAction({ onClick, busy }) {
   );
 }
 
-/** 状态整理中 / 已整理的浮层提示。两种模式的外观类名不同，由调用方传入 */
+/** 状态整理中 / 已整理的浮层提示：扫描线遮罩 + 切角标签（文字乱码解码）。两种模式的外观类名不同，由调用方传入 */
 export function StateBusyOverlay({
   isUpdating,
   justChanged,
@@ -54,6 +55,9 @@ export function StateBusyOverlay({
   chipStyle,
   textClassName,
 }) {
+  const m = useMotion();
+  const label = isUpdating ? '整理中' : '已整理';
+  const glitchVars = m.glitch();
   return (
     <AnimatePresence>
       {(isUpdating || justChanged) && (
@@ -62,20 +66,26 @@ export function StateBusyOverlay({
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          transition={{ duration: DURATION.base, ease: EASE.page }}
+          transition={m.transition('backdrop')}
           className={overlayClassName}
         >
           <AnimatePresence mode="wait">
             <MotionDiv
-              key={isUpdating ? 'updating' : 'done'}
-              initial={{ opacity: 0, y: 6 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -4 }}
-              transition={{ duration: DURATION.base, ease: EASE.ink }}
+              key={label}
+              variants={m.variant('signalIn')}
+              initial="hidden"
+              animate="visible"
+              exit="exit"
+              transition={m.transition('signal')}
               className={chipClassName}
               style={chipStyle}
             >
-              <span className={textClassName}>{isUpdating ? '整理中' : '已整理'}</span>
+              <span
+                className={`we-glitch-tag ${textClassName}${glitchVars ? ' we-glitch-tag--play' : ''}`}
+                style={glitchVars ?? undefined}
+              >
+                <GlitchText text={label} playKey={glitchVars ? label : null} decode />
+              </span>
             </MotionDiv>
           </AnimatePresence>
         </MotionDiv>

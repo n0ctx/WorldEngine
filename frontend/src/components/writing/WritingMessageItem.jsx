@@ -1,7 +1,5 @@
 import React, { useState } from 'react';
-import { motion } from 'framer-motion';
 import Icon from '../ui/Icon.jsx';
-import { variants, transitions } from '../../core/utils/motion.js';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
@@ -19,7 +17,6 @@ import SeamlessEditableSurface from '../../../../shared/SeamlessEditableSurface.
 import MessageBlockList from '../message/MessageBlockList.jsx';
 import { useCopyFeedback, useDeleteConfirmation, useMessageBlocks } from '../message/useMessageHooks.js';
 
-const MotionDiv = motion.div;
 
 const REMARK_PLUGINS_W = [remarkGfm];
 const REHYPE_PLUGINS_W = [rehypeRaw, [rehypeSanitize, markdownSanitizeSchema]];
@@ -142,13 +139,9 @@ export default function WritingMessageItem({
   /* ── 玩家输入：居中的舞台提示 ── */
   if (isUser) {
     return (
-      <MotionDiv
+      <div
         data-message-id={message?.id}
         className="we-writing-annotation"
-        initial="hidden"
-        animate="visible"
-        variants={variants.inkRise}
-        transition={transitions.ink}
       >
         <SeamlessEditableSurface
           editing={editing}
@@ -191,19 +184,15 @@ export default function WritingMessageItem({
             )}
           </div>
         )}
-      </MotionDiv>
+      </div>
     );
   }
 
   /* ── 助手叙事：书页正文散文风格 ── */
   return (
-    <MotionDiv
+    <div
       data-message-id={message?.id}
       className="we-writing-prose"
-      initial="hidden"
-      animate="visible"
-      variants={variants.inkRise}
-      transition={transitions.ink}
     >
       <>
         <SeamlessEditableSurface
@@ -298,6 +287,6 @@ export default function WritingMessageItem({
             );
           })()}
       </>
-    </MotionDiv>
+    </div>
   );
 }

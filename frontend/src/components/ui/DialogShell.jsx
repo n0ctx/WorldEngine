@@ -28,10 +28,10 @@ export default function DialogShell({ children, onClose, panelClassName = 'w-ful
     >
       <motion.div
         className={`we-dialog-panel we-material ${panelClassName}`}
-        variants={m.variant('overlayEnter')}
+        variants={m.variant('signalIn')}
         initial="hidden"
         animate="visible"
-        transition={m.spring('overlay')}
+        transition={m.transition('signal')}
       >
         {children}
       </motion.div>

@@ -10,12 +10,13 @@ const CARET_TAG = 'we-caret';
 const NO_CHUNKS = [];
 const STAGGER_MS = STREAM.typing.stagger * 1000;
 const LAG_MS = STREAM.typing.lag * 1000;
-const CHAR_MS = STREAM.char.duration * 1000;
+// 一个字从轮到它到拖尾退完的总时长；过了这个时长才能去掉逐字包裹
+const CHAR_MS = (STREAM.char.duration + STREAM.trail.duration) * 1000;
 // 间隔短到这个程度就不再给每个字挂光标，否则几个字的光标会叠在一起
 const CHAR_CARET_MIN_MS = 6;
 
 /**
- * 书写光标：跟在最新文字后短促明暗；fading 时暗下去。
+ * 下划线光标：跟在最新文字后硬切闪烁；fading 时闪一下熄灭。
  * 还没有文字时单独放在正文位置，作为唯一的等待信号。
  */
 export function StreamCaret({ fading = false }) {
@@ -218,7 +219,7 @@ export default function StreamingMarkdown({
   const fading = !!vars && next.fading;
   useEffect(() => {
     if (!fading) return undefined;
-    const tail = Math.max(0, typedUntil - performance.now()) + (STREAM.char.duration + STREAM.caretOut.duration) * 1000;
+    const tail = Math.max(0, typedUntil - performance.now()) + CHAR_MS + STREAM.caretOut.duration * 1000;
     const timer = setTimeout(() => setTrack((t) => ({ ...t, fading: false, typing: false, chunks: [] })), tail);
     return () => clearTimeout(timer);
   }, [fading, typedUntil]);

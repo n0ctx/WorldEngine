@@ -112,6 +112,8 @@
   --we-color-status-warning: var(--we-base-amber-600);
   --we-color-status-danger:  var(--we-base-vermilion-600);
   --we-color-status-info:    var(--we-base-slate-600);
+  /* 解码色：乱码解码（黑客帝国式数字雨）的荧光绿，由成功色提亮加饱和得到 */
+  --we-color-decode:         hsl(from var(--we-color-status-success) h 90% 58%);
 
   /* 强调色 */
   --we-color-accent:      var(--we-base-vermilion-600);

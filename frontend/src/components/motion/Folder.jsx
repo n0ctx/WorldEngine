@@ -4,12 +4,15 @@
  * 只负责画，状态由外层卡片按悬停 / 按下传入，颜色读 --we-* token。 */
 import { motion } from 'framer-motion';
 import { useMotion } from '../../core/hooks/useMotion.js';
+import { DURATION, EASE } from '../../core/utils/motion.js';
 
 const BASE_WIDTH = 321;
 const BASE_HEIGHT = 270;
 const FLAP_PATH =
   'M0 25C0 11.1929 11.1929 0 25 0H136.084C143.044 0 149.689 2.90139 154.42 8.00608L178.08 33.5343C182.811 38.639 189.456 41.5404 196.416 41.5404H296C309.807 41.5404 321 52.7333 321 66.5404V216C321 229.807 309.807 241 296 241H25C11.1929 241 0 229.807 0 216V25Z';
 const INSTANT = { duration: 0 };
+// 卡片扇出、盖板开合都分格跳，不回弹
+const HOP = { duration: DURATION.medium, ease: EASE.stepped };
 
 // 三张卡在静止 / 悬停 / 打开时的位置与错峰延迟，数值取自上游
 const CARDS = [
@@ -64,7 +67,7 @@ export default function Folder({ state = 'rest', width = 56 }) {
               className="we-folder__card-slot"
               initial={false}
               animate={card[state]}
-              transition={reduced ? INSTANT : { type: 'spring', stiffness: 120, damping: 13, delay: card.delay[state] ?? 0 }}
+              transition={reduced ? INSTANT : { ...HOP, delay: card.delay[state] ?? 0 }}
             >
               <Card />
             </motion.span>
@@ -74,7 +77,7 @@ export default function Folder({ state = 'rest', width = 56 }) {
           className="we-folder__flap"
           initial={false}
           animate={{ rotateX: FLAP_TILT[state] }}
-          transition={reduced ? INSTANT : { type: 'spring', stiffness: 120, damping: 14 }}
+          transition={reduced ? INSTANT : HOP}
         >
           <span className="we-folder__flap-glass" style={{ clipPath: `path('${FLAP_PATH}')` }} />
           <svg width="321" height="241" viewBox="0 0 321 241" fill="none" className="we-folder__flap-shape">

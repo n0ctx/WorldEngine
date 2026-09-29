@@ -4,8 +4,10 @@
  * 只保留进度轨道，去掉播放 / 暂停控件与自动计时。 */
 import { motion } from 'framer-motion';
 import { useMotion } from '../../core/hooks/useMotion.js';
+import { DURATION, EASE } from '../../core/utils/motion.js';
 
-const WIDTH_SPRING = { type: 'spring', duration: 0.42, bounce: 0.14 };
+// 当前步拉长成进度条：分格跳到位，不回弹
+const WIDTH_HOP = { duration: DURATION.medium, ease: EASE.stepped };
 const INSTANT = { duration: 0 };
 
 // 比例取自上游（对照 iOS 原型量出）
@@ -26,7 +28,7 @@ function metricsFor(size) {
 export default function StepTrack({ steps, current, size = 28 }) {
   const { reduced } = useMotion();
   const m = metricsFor(size);
-  const transition = reduced ? INSTANT : WIDTH_SPRING;
+  const transition = reduced ? INSTANT : WIDTH_HOP;
   return (
     <div
       role="img"

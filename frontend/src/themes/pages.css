@@ -215,21 +215,17 @@
     var(--we-material-shadow-lift);
 }
 
-/* 跟随指针的光（WorldsPage 的 PortalGlow）：边缘光只露 1px 的环，表面光是一团模糊的氛围色，两层分开 */
+/* 跟随指针的边缘光（WorldsPage 的 PortalGlow）：只露 1px 的环 */
 .we-world-card-glow {
   display: contents;
   /* display: contents 也参与继承：把卡片的圆角传给 rim，否则 rim 的 border-radius: inherit 会拿到初始值 0 */
   border-radius: inherit;
 }
 
-.we-world-card-glow-rim,
-.we-world-card-glow-surface {
+.we-world-card-glow-rim {
   position: absolute;
   pointer-events: none;
   opacity: var(--glow-opacity, 0);
-}
-
-.we-world-card-glow-rim {
   inset: 0;
   z-index: var(--we-z-card-content);
   border-radius: inherit;
@@ -240,19 +236,6 @@
   mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
 }
 
-/* 半径 160px、径向到 80% 透明、24px 模糊：与边缘光同径，两侧抽屉的指针高光也是 160px */
-.we-world-card-glow-surface {
-  top: 0;
-  left: 0;
-  width: 160px;
-  height: 160px;
-  z-index: var(--we-z-card-overlay);
-  border-radius: var(--we-radius-full);
-  transform: translate(calc(var(--glow-x) - 80px), calc(var(--glow-y) - 80px));
-  background: radial-gradient(circle at center, color-mix(in srgb, var(--we-atmosphere-color) 70%, transparent), transparent 80%);
-  filter: blur(24px);
-  mix-blend-mode: screen;
-}
 
 .we-world-card[data-dragging] {
   cursor: grabbing;
@@ -1297,7 +1280,7 @@
   border-radius: var(--we-radius-md);
   background: transparent;
   box-shadow: none;
-  animation: we-rise-in var(--we-duration-slow) var(--we-easing-ink) backwards;
+  animation: we-signal-in var(--we-duration-normal) steps(1, jump-end) backwards;
   transition: background var(--we-duration-fast) var(--we-easing-sharp),
               transform var(--we-duration-fast) var(--we-easing-sharp);
 }
@@ -1705,7 +1688,7 @@
   max-height: calc(100vh - 96px);
   overflow-y: auto;
   /* 入场：墨水浮现（单次挂载，不随更新重放）*/
-  animation: we-ink-rise var(--we-duration-slow) var(--we-easing-ink) both;
+  animation: we-signal-in var(--we-duration-normal) steps(1, jump-end) both;
 }
 
 .we-edit-header {
@@ -2183,7 +2166,7 @@
   padding: 0 var(--we-space-xl) var(--we-space-xl);
   box-sizing: border-box;
   /* 背景遮罩淡入，与面板 inkRise 同步登场 */
-  animation: we-panel-fade var(--we-duration-normal) var(--we-easing-ink) both;
+  animation: we-panel-fade var(--we-duration-normal) steps(3, jump-end) both;
 }
 
 .we-settings-loading {
@@ -3565,8 +3548,7 @@
    「推开正文」而非浮层：两侧本来就是 book-spread 里的行内 flex 兄弟节点，
    展开收起复用已有的 flex 布局最省事，也不会在 1024px 窄屏下叠住正文。
    表面是悬浮在氛围上的磨砂玻璃面板：比正文纸面更透，靠缝隙、描边与投影和正文分开。
-   光从左上方斜照在玻璃上；::before 是跟随指针的一团高光（SideDrawer 写入 --pointer-x/y），
-   ::after 是顶部一条两端渐隐的镜面线和内侧一圈边缘光。
+   光从左上方斜照在玻璃上：::after 是顶部一条两端渐隐的镜面线和内侧一圈边缘光。
    ========================================================= */
 .we-side-drawer {
   position: relative;
@@ -3589,31 +3571,12 @@
 }
 
 /* 收起态显式写 min-width: 0：从默认的 auto 切到展开态的像素下限无法插值，宽度会一步跳满 */
-.we-side-drawer::before,
 .we-side-drawer::after {
   content: '';
   position: absolute;
   inset: 0;
   border-radius: inherit;
   pointer-events: none;
-}
-
-.we-side-drawer::before {
-  z-index: -1;
-  background: radial-gradient(
-    160px circle at var(--pointer-x, 50%) var(--pointer-y, 0%),
-    var(--we-pane-glow),
-    transparent 70%
-  );
-  opacity: 0;
-  transition: opacity var(--we-duration-normal) var(--we-easing-ink);
-}
-
-.we-side-drawer:hover::before {
-  opacity: 1;
-}
-
-.we-side-drawer::after {
   z-index: 1;
   background: linear-gradient(90deg, transparent 10%, var(--we-material-sheen) 32%, var(--we-material-sheen) 68%, transparent 90%) top / 100% 1px no-repeat;
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--we-material-sheen) 40%, transparent);
@@ -3801,9 +3764,6 @@
   .we-side-drawer {
     transition: none;
   }
-  .we-side-drawer::before {
-    display: none;
-  }
   .we-side-drawer-toggle::before {
     transition: none;
     transform: none;
@@ -3890,18 +3850,33 @@
   background-size: 128px 128px;
 }
 
-.we-seal-stamp-animation {
+/* 完成确认（DoneSignal）：右下角切角大字块，错位砸入、停住后关屏熄灭 */
+.we-done-signal {
   position: fixed;
   right: 40px;
   bottom: 40px;
   z-index: var(--we-z-tooltip);
+  padding: var(--we-space-sm) var(--we-space-lg);
+  font-family: var(--we-font-display);
+  font-size: var(--we-text-xl);
+  font-weight: 700;
+  letter-spacing: var(--we-tracking-wide);
+  color: var(--we-color-accent);
+  background: color-mix(in srgb, var(--we-color-accent) 14%, var(--we-color-bg-canvas));
+  clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
   pointer-events: none;
 }
-
-.we-seal-stamp-svg {
-  width: 80px;
-  height: 80px;
-  filter: drop-shadow(0 2px 8px color-mix(in srgb, var(--we-color-accent) 30%, transparent));
+.we-done-signal--play {
+  animation:
+    we-done-signal-in var(--we-glitch-burst) steps(1, jump-end) both,
+    we-glitch-off var(--we-glitch-off) steps(1, jump-end) calc(var(--we-glitch-stamp) - var(--we-glitch-off)) forwards;
+}
+@keyframes we-done-signal-in {
+  0%   { opacity: 0;   transform: scale(1.5) translateX(8px);   text-shadow: -6px 0 var(--glitch-a), 6px 0 var(--glitch-b); }
+  14%  { opacity: 1;   transform: scale(1.2) translateX(-6px);  text-shadow: 5px 0 var(--glitch-a), -5px 0 var(--glitch-b); }
+  28%  { opacity: 0.4; transform: scale(0.94) translateX(4px);  text-shadow: -3px 0 var(--glitch-a), 3px 0 var(--glitch-b); }
+  42%  { opacity: 1;   transform: scale(1.04) translateX(-2px); text-shadow: 1px 0 var(--glitch-a), -1px 0 var(--glitch-b); }
+  57%, 100% { opacity: 1; transform: none; text-shadow: none; }
 }
 
 .we-state-scroll {
@@ -4091,7 +4066,8 @@
     var(--we-material-shadow-near);
 }
 
-.we-state-change-overlay {
+/* 状态整理遮罩（StateBusyOverlay）：隔行扫描线压暗面板，一道亮带逐格往下扫 */
+:is(.we-state-change-overlay, .we-cast-state-overlay) {
   position: absolute;
   inset: 0;
   z-index: var(--we-z-panel);
@@ -4099,8 +4075,23 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--we-color-paper-overlay);
-  backdrop-filter: blur(2px);
+  background: repeating-linear-gradient(to bottom, var(--we-color-paper-overlay) 0 2px, transparent 2px 4px);
+  overflow: hidden;
+}
+:is(.we-state-change-overlay, .we-cast-state-overlay)::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to bottom,
+    transparent 46%,
+    color-mix(in srgb, var(--we-color-accent) 18%, transparent) 50%,
+    transparent 54%) no-repeat;
+  background-size: 100% 300%;
+  animation: we-busy-scan var(--we-duration-loop) steps(8, jump-end) infinite;
+}
+@keyframes we-busy-scan {
+  from { background-position-y: 100%; }
+  to   { background-position-y: 0%; }
 }
 
 .we-state-change-chip {
@@ -4110,14 +4101,11 @@
   user-select: none;
 }
 
-.we-state-change-text {
-  font-family: var(--we-font-display);
-  font-size: var(--we-text-2xs);
-  font-style: italic;
-  letter-spacing: var(--we-tracking-caps);
-  line-height: var(--we-leading-flush);
-  color: var(--we-color-gold);
-  white-space: nowrap;
+/* 整理中 / 已整理：切角标签（样式见 ui.css .we-glitch-tag），取强调色 */
+:is(.we-state-change-text, .we-cast-state-overlay-text) {
+  --glitch-tone: var(--we-color-accent);
+  position: relative;
+  z-index: 1;
 }
 
 .we-session-list-panel {
@@ -4226,7 +4214,7 @@
   flex-direction: column;
   position: relative;
   overflow: hidden;
-  animation: we-panel-fade var(--we-duration-normal) var(--we-easing-ink) both;
+  animation: we-panel-fade var(--we-duration-normal) steps(3, jump-end) both;
 }
 .we-cast-scroll {
   flex: 1;
@@ -4299,26 +4287,6 @@
 .we-cast-diary-more:disabled {
   opacity: 0.5;
   cursor: not-allowed;
-}
-.we-cast-state-overlay {
-  position: absolute;
-  inset: 0;
-  z-index: var(--we-z-panel);
-  pointer-events: none;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--we-color-paper-overlay);
-  backdrop-filter: blur(2px);
-}
-.we-cast-state-overlay-text {
-  font-family: var(--we-font-display);
-  font-size: var(--we-text-2xs);
-  font-style: italic;
-  letter-spacing: var(--we-tracking-caps);
-  line-height: var(--we-leading-flush);
-  color: var(--we-color-gold);
-  white-space: nowrap;
 }
 .we-cast-add-modal-body {
   padding: 16px 20px 6px;
@@ -4845,7 +4813,7 @@
   height: 16px;
   border-radius: var(--we-radius-sm);
   background: var(--we-skeleton-base-bg);
-  animation: we-skeleton-pulse var(--we-skeleton-pulse-duration) var(--we-easing-ink) infinite;
+  animation: we-skeleton-pulse var(--we-skeleton-pulse-duration) steps(1, jump-end) infinite;
   margin-bottom: var(--we-space-sm);
 }
 
@@ -4882,4 +4850,79 @@
     animation: none;
     opacity: 0.6;
   }
+}
+
+/* ── 开发用动效实验室（/dev/motion）──────────────────────────── */
+.we-motion-lab {
+  height: calc(100vh - var(--we-topbar-height));
+  overflow-y: auto;
+  padding: var(--we-space-2xl) var(--we-space-lg);
+}
+.we-motion-lab__header,
+.we-motion-lab__section {
+  max-width: 640px;
+  margin: 0 auto var(--we-space-2xl);
+}
+.we-motion-lab__title {
+  font-family: var(--we-font-display);
+  font-size: var(--we-text-hero);
+  font-weight: 600;
+  line-height: var(--we-leading-flush);
+  color: var(--we-color-text-primary);
+}
+.we-motion-lab__hint {
+  margin-top: var(--we-space-sm);
+  font-size: var(--we-text-sm);
+  color: var(--we-color-text-secondary);
+}
+.we-motion-lab__accents {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--we-space-sm);
+  margin-top: var(--we-space-lg);
+}
+.we-motion-lab__accent {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--we-space-xs);
+  padding: var(--we-space-xs) var(--we-space-sm);
+  border: 1px solid var(--we-color-border-default);
+  border-radius: var(--we-radius-full);
+  background: none;
+  font-size: var(--we-text-sm);
+  color: var(--we-color-text-secondary);
+  cursor: pointer;
+}
+.we-motion-lab__accent[aria-pressed="true"] {
+  border-color: var(--we-color-accent);
+  color: var(--we-color-text-primary);
+}
+.we-motion-lab__accent:focus-visible {
+  outline: none;
+  box-shadow: var(--we-focus-ring);
+  border-color: var(--we-color-border-focus);
+}
+.we-motion-lab__swatch {
+  width: 12px;
+  height: 12px;
+  border-radius: var(--we-radius-full);
+  background: var(--swatch);
+}
+.we-motion-lab__bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--we-space-sm);
+  margin-bottom: var(--we-space-md);
+}
+.we-motion-lab__heading {
+  flex: 1;
+  font-family: var(--we-font-display);
+  font-size: var(--we-text-lg);
+  color: var(--we-color-text-primary);
+}
+.we-motion-lab__stage {
+  padding: var(--we-space-lg);
+  border: 1px solid var(--we-color-border-subtle);
+  border-radius: var(--we-radius-md);
 }

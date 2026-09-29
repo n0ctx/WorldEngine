@@ -73,7 +73,7 @@ function WorldSelector({ effectiveWorldId, isCurrentLevel }) {
         <motion.span
           className="we-topbar-caret"
           animate={{ rotate: dropdownOpen ? 180 : 0 }}
-          transition={m.transition('quick')}
+          transition={m.transition('press')}
           aria-hidden="true"
         >
           <Icon size={16} viewBox="0 0 10 10" strokeWidth="1.6"><polyline points="2,3.5 5,6.5 8,3.5" /></Icon>
@@ -84,11 +84,11 @@ function WorldSelector({ effectiveWorldId, isCurrentLevel }) {
         {dropdownOpen && (
           <motion.div
             className="we-topbar-dropdown"
-            variants={m.variant('overlayEnter')}
+            variants={m.variant('signalIn')}
             initial="hidden"
             animate="visible"
-            exit="hidden"
-            transition={m.spring('overlay')}
+            exit="exit"
+            transition={m.transition('signal')}
           >
             {worldsLoading ? (
               <div className="we-topbar-dropdown-empty">加载中…</div>

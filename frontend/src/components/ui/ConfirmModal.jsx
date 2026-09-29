@@ -41,17 +41,17 @@ export default function ConfirmModal({
         initial="hidden"
         animate="visible"
         exit="hidden"
-        transition={m.transition('quick')}
+        transition={m.transition('backdrop')}
         onMouseDown={(e) => { mouseDownOnBackdrop.current = e.target === e.currentTarget; }}
         onClick={() => { if (mouseDownOnBackdrop.current && !confirming) onClose(); }}
       >
         <motion.div
           className="we-dialog-panel we-material we-confirm-panel w-full max-w-sm mx-4"
-          variants={m.variant('overlayEnter')}
+          variants={m.variant('signalIn')}
           initial="hidden"
           animate="visible"
-          exit="hidden"
-          transition={m.spring('overlay')}
+          exit="exit"
+          transition={m.transition('signal')}
           onClick={(e) => e.stopPropagation()}
         >
           <h2 className="we-confirm-title">{title}</h2>

@@ -12,6 +12,7 @@ import {
   useTransform,
 } from 'framer-motion';
 import { useMotion } from '../../core/hooks/useMotion.js';
+import { EASE as MOTION_EASE, transitions } from '../../core/utils/motion.js';
 
 const HINGE = '3px 6px';
 const LID_OPEN = -35;
@@ -23,18 +24,18 @@ const TILE = 28;
 const PANEL = 60;
 const HOLD = { deleted: 1400, kept: 600 };
 
-const EASE = [0.32, 0.72, 0, 1];
-const EASE_LID = [0.34, 1.1, 0.64, 1];
+// 所有位移、翻盖都分格跳，不过冲；按压瞬时到位
+const EASE = MOTION_EASE.stepped;
 
 const WIDTH = { duration: 0.62, ease: EASE };
-const LID = { duration: 0.6, ease: EASE_LID };
+const LID = { duration: 0.6, ease: EASE };
 const WALL = { duration: 0.56, ease: EASE };
 const IN = { duration: 0.44, ease: EASE, delay: 0.14 };
 const OUT = { duration: 0.3, ease: EASE };
 const TAP = { duration: 0.2, ease: EASE };
 const SWAP = { duration: 0.22, ease: EASE };
 const SETTLE = { duration: 0.45, ease: EASE };
-const PRESS = { type: 'spring', stiffness: 520, damping: 18, mass: 0.5 };
+const PRESS = transitions.press;
 const INSTANT = { duration: 0 };
 
 const ICON = {

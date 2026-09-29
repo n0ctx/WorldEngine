@@ -1,6 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
-import { DURATION, EASE } from '../../core/utils/motion';
 import { useMotion } from '../../core/hooks/useMotion.js';
 import GooeyNav from '../motion/GooeyNav.jsx';
 
@@ -20,22 +19,19 @@ const KEY_TARGET = {
  *
  * sections: Array<{ key, label, content, actions? }>
  *   - actions: 当此 tab 激活时,渲染在 tab 行下方的 ReactNode(承载该 tab 的快捷操作,例如"重置")
- * variant: 'gooey' 时 tab 行是一整条分段，选中段像液滴一样分离出来（不画下划线指示器）
+ * variant: 'gooey' 时 tab 行是一整条分段，选中段与相邻段分格跳开（不画下划线指示器）
  *
  * 交互:
  *   - active tab 变化时自动 scrollIntoView,让横向滚动条跟随当前 tab
  *   - tab 列表获焦时支持 ← / → 键盘切换(home/end 跳到首尾)
  */
 export default function SectionTabs({ sections, defaultKey, variant, globalActions, staticMotion = false }) {
-  const { reduced, spring } = useMotion();
+  const motionPrefs = useMotion();
   const [storedActive, setActive] = useState(defaultKey ?? sections[0]?.key);
-  const [prevIndex, setPrevIndex] = useState(sections.findIndex(s => s.key === (defaultKey ?? sections[0]?.key)));
   // sections 热更新时，若 active 已不在列表中，回退到第一个（仅渲染期推导，不写回状态）
   const active = sections.some((s) => s.key === storedActive) ? storedActive : sections[0]?.key;
   const current = sections.find(s => s.key === active);
   const activeIndex = sections.findIndex(s => s.key === active);
-  // dir > 0：向右（内容从右滑入），dir < 0：向左
-  const dir = activeIndex > prevIndex ? 1 : -1;
 
   const listRef = useRef(null);
   const tabRefs = useRef({});
@@ -67,7 +63,6 @@ export default function SectionTabs({ sections, defaultKey, variant, globalActio
 
   const selectByIndex = (nextIdx) => {
     if (nextIdx < 0 || nextIdx >= sections.length) return;
-    setPrevIndex(activeIndex);
     setActive(sections[nextIdx].key);
     // 让新 tab 立刻拿到键盘焦点,后续 ←/→ 能继续连按
     requestAnimationFrame(() => {
@@ -91,10 +86,7 @@ export default function SectionTabs({ sections, defaultKey, variant, globalActio
       aria-selected={active === s.key}
       tabIndex={active === s.key ? 0 : -1}
       className={`we-section-tab${active === s.key ? ' active' : ''}`}
-      onClick={() => {
-        setPrevIndex(activeIndex);
-        setActive(s.key);
-      }}
+      onClick={() => setActive(s.key)}
     >
       {s.label}
     </button>
@@ -116,7 +108,7 @@ export default function SectionTabs({ sections, defaultKey, variant, globalActio
               className="we-section-tab-indicator"
               initial={false}
               animate={indicator}
-              transition={staticMotion ? { duration: 0 } : spring('overlay')}
+              transition={staticMotion ? { duration: 0 } : motionPrefs.transition('hop')}
             />
           )}
         </div>
@@ -134,12 +126,13 @@ export default function SectionTabs({ sections, defaultKey, variant, globalActio
       {staticMotion ? (
         <div>{current?.content}</div>
       ) : (
-        // 旧内容立即换下、只让新内容淡入：等旧内容淡出完再进场会在连点时空一拍
+        // 旧内容立即换下、只让新内容信号锁定入场：等旧内容离场完再进场会在连点时空一拍
         <MotionDiv
           key={active}
-          initial={reduced ? false : { opacity: 0.4, x: dir * 6 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: DURATION.quick, ease: EASE.ink }}
+          variants={motionPrefs.variant('signalIn')}
+          initial={motionPrefs.reduced ? false : 'hidden'}
+          animate="visible"
+          transition={motionPrefs.transition('signal')}
         >
           {current?.content}
         </MotionDiv>

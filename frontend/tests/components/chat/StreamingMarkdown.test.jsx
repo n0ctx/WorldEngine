@@ -85,7 +85,8 @@ describe('流式书写', () => {
   it('打完后常驻光标停在最后一个字后面', () => {
     vi.useFakeTimers();
     const { container } = render(streamItem('夜色'));
-    act(() => { vi.advanceTimersByTime(STREAM.typing.lag * 1000); });
+    // 两个字打完、最后一个字还没解码完的那一刻
+    act(() => { vi.advanceTimersByTime(STREAM.typing.stagger * 2 * 1000 + 1); });
     const caret = container.querySelector('.we-stream-caret');
     expect(caret.previousElementSibling.textContent).toBe('色');
     expect(container.querySelectorAll('.we-stream-caret')).toHaveLength(1);
@@ -94,7 +95,7 @@ describe('流式书写', () => {
   it('打字追上真实到达后，已打完的字还原成普通文字，后到的字照常逐字出现', () => {
     vi.useFakeTimers();
     const { container, rerender } = render(streamItem('夜色'));
-    act(() => { vi.advanceTimersByTime((STREAM.typing.lag + STREAM.char.duration) * 1000); });
+    act(() => { vi.advanceTimersByTime((STREAM.typing.lag + STREAM.char.duration + STREAM.trail.duration) * 1000); });
     expect(container.querySelector('.we-stream-char')).toBeNull();
     expect(container.querySelectorAll('.we-stream-caret')).toHaveLength(1);
 
@@ -106,9 +107,9 @@ describe('流式书写', () => {
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'performance'] });
     const { container, rerender } = render(streamItem('风从北方'));
     const first = chars(container)[0];
-    // 持续有新字到达，打字一直没有完全追上
+    // 持续有新字到达（间隔短于单字解码加拖尾），打字一直没有完全追上
     for (const next of ['风从北方吹', '风从北方吹来', '风从北方吹来，']) {
-      act(() => { vi.advanceTimersByTime(400); });
+      act(() => { vi.advanceTimersByTime(500); });
       rerender(streamItem(next));
     }
     // 只有刚到的字还在动画里
@@ -126,7 +127,7 @@ describe('流式书写', () => {
     rerender(streamItem('夜色很深。', { isStreaming: false }));
 
     expect(container.querySelector('.we-stream-caret--fading')).not.toBeNull();
-    act(() => { vi.advanceTimersByTime((STREAM.char.duration + STREAM.caretOut.duration) * 1000); });
+    act(() => { vi.advanceTimersByTime((STREAM.char.duration + STREAM.trail.duration + STREAM.caretOut.duration) * 1000); });
     expect(container.querySelector('.we-stream-caret')).toBeNull();
     expect(container.querySelector('.we-stream-char')).toBeNull();
     expect(container.querySelector('.we-message-content').textContent).toBe('夜色很深。');
@@ -139,7 +140,7 @@ describe('流式书写', () => {
     expect(container.querySelectorAll('.we-stream-caret')).toHaveLength(1);
 
     rerender(streamItem('<think>先想一想\n\n[已中断]', { isStreaming: false }));
-    act(() => { vi.advanceTimersByTime((STREAM.typing.lag + STREAM.char.duration + STREAM.caretOut.duration) * 1000); });
+    act(() => { vi.advanceTimersByTime((STREAM.typing.lag + STREAM.char.duration + STREAM.trail.duration + STREAM.caretOut.duration) * 1000); });
     expect(container.querySelector('.we-stream-caret')).toBeNull();
   });
 

@@ -5,9 +5,11 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useMotion } from '../../core/hooks/useMotion.js';
+import { EASE, transitions } from '../../core/utils/motion.js';
 
-const EASE_OUT = [0.22, 1, 0.36, 1];
-const EASE_IN_OUT = [0.65, 0, 0.35, 1];
+// 填圈、打勾、划线、弹一下都分格跳；重排直接跳到新位置
+const EASE_OUT = EASE.stepped;
+const EASE_IN_OUT = EASE.stepped;
 
 const POP_SCALE = [1, 1.08, 1];
 const FLICK = [0, 8, -2, 0];
@@ -18,7 +20,7 @@ const POP = { duration: 0.34, ease: EASE_OUT, times: [0, 0.4, 1] };
 const TICK = { duration: 0.22, ease: EASE_OUT, delay: 0.06 };
 const STRIKE = { duration: 0.38, ease: EASE_IN_OUT };
 const NUDGE = { duration: 0.3, ease: EASE_OUT, times: FLICK_TIMES };
-const REORDER = { type: 'spring', stiffness: 320, damping: 30 };
+const REORDER = transitions.hop;
 const INSTANT = { duration: 0 };
 
 // 虚线段均分圆周，圈首尾不留接缝

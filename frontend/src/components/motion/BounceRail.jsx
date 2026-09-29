@@ -5,11 +5,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { animate, motion, useMotionValue } from 'framer-motion';
 import { useMotion } from '../../core/hooks/useMotion.js';
+import { EASE } from '../../core/utils/motion.js';
 
 const DOT = 6;
 // 圆点与导航项左缘的距离
 const GAP = 8;
-const HOP = { duration: 0.25, ease: 'easeOut' };
+// 圆点沿弧线分格跳到新项
+const HOP = { duration: 0.25, ease: EASE.stepped };
 
 const itemsOf = (container) => [...container.querySelectorAll('[data-bounce-item]')];
 

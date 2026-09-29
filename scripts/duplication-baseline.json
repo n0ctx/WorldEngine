@@ -66,13 +66,6 @@
         "backend/llm/providers/openai-compatible/index.js:285-287"
       ]
     },
-    "d829b565ae0ceefd": {
-      "tokens": 50,
-      "locations": [
-        "frontend/src/pages/CharacterEditPage/components/SealStampAnimation.jsx:13-19",
-        "frontend/src/pages/CharacterEditPage/components/SealStampAnimation.jsx:22-28"
-      ]
-    },
     "d904930004aa6cec": {
       "tokens": 56,
       "locations": [

@@ -1,7 +1,11 @@
 /* WorldEngine 动效 token —— 唯一真源。
  * 规格以本文件和相关主题 token 为准。
  * CSS 侧 --we-duration-* / --we-easing-* 由本文件按语义对齐；
- * 一致性由 scripts/check-motion.mjs 守护（npm run check:motion）。 */
+ * 一致性由 scripts/check-motion.mjs 守护（npm run check:motion）。
+ *
+ * 动效语言：信号锁定 —— 出现、切换、反馈都是一次短促的数字信号：
+ * 硬切闪烁、横向抖动、乱码解码、分格跳变。没有模糊，没有回弹。
+ * 平滑曲线只留给悬停变色、折叠展开这类普通状态过渡。 */
 
 // §2.1 时长
 export const DURATION = {
@@ -16,20 +20,29 @@ export const DURATION = {
   ambient: 2.00,
 };
 
+// 硬切：每段保持起点值，到段尾瞬间跳到终点（等价 CSS steps(1, jump-end)）
+const cut = (t) => (t >= 1 ? 1 : 0);
+// 分格：把一段位移切成 n 格逐格跳过去（等价 CSS steps(n, jump-end)）
+const stepped = (n) => (t) => (t >= 1 ? 1 : Math.floor(t * n) / n);
+
 // §2.2 缓动函数
 export const EASE = {
-  // 墨水浸润：快速展开、柔和收尾 — 主要入场曲线
+  // 墨水浸润：快速展开、柔和收尾 — 普通状态过渡
   ink:     [0.22, 1.00, 0.36, 1.00],
   // 翻页：匀速起步、柔和结束 — 页面级过渡
   page:    [0.65, 0.00, 0.35, 1.00],
-  // 落笔：微微加速再收 — 盖印、点击确认
+  // 落笔：微微加速再收 — 点击确认
   quill:   [0.40, 0.00, 0.20, 1.00],
   // 利落：快进快出 — 工具提示、hover 色变
   sharp:   [0.25, 0.46, 0.45, 0.94],
-  // 收回：先快后慢 — 离场、折叠
+  // 收回：先快后慢 — 折叠
   retract: [0.55, 0.00, 1.00, 0.45],
-  // 匀速：流式文字渐入
+  // 匀速
   linear:  'linear',
+  // 硬切：信号闪烁的每一帧
+  cut,
+  // 分格：指示条、高亮块在位置之间逐格跳
+  stepped: stepped(4),
 };
 
 // §2.3 stagger
@@ -39,75 +52,71 @@ export const STAGGER = {
   character: 0.08,
 };
 
-// §2.4 模糊半径
-export const BLUR = {
-  entry:   '1.5px',
-  edit:    '2px',
-  overlay: '0px',
+// §2.4 信号锁定 —— 所有出现与切换：闪两下、抖一下，然后锁定。
+// 时长复用 DURATION 档位，CSS 侧 we-signal-in 等关键帧用对应的 --we-duration-* 即可对齐
+export const SIGNAL = {
+  // 入场：0 → 亮 → 暗 → 亮，横向 -6 → 4 → -2 → 0（CSS：--we-duration-normal）
+  enter: DURATION.base,
+  // 离场：闪一下熄灭（CSS：--we-duration-fast）
+  exit:  DURATION.quick,
+  // 按压：瞬间到位，不回弹
+  press: DURATION.micro,
+  // 指示条 / 高亮块换位：分四格跳过去
+  hop:   DURATION.quick,
 };
 
-// §2.5 命名弹簧 —— 页面只引用键名，不直接写 stiffness/damping。
-// 弹簧没有对应的 CSS 曲线；CSS 侧的按压/悬停反馈继续用 --we-duration-* 与 --we-easing-*。
-// 透明度不走弹簧，单独用短淡入：弹簧驱动 opacity 时，结束交接那一帧会闪回初始透明度。
-const SPRING_FADE = { duration: DURATION.quick, ease: EASE.ink };
-
-export const SPRING = {
-  // 轻按压：按下立即压缩，松开短促回弹一次
-  press:   { type: 'spring', stiffness: 520, damping: 26, mass: 0.6, opacity: SPRING_FADE },
-  // 世界入口：体量大，悬停轻轻让位，按下压缩，松开只过冲回弹一次
-  portal:  { type: 'spring', stiffness: 300, damping: 24, mass: 1.1, opacity: SPRING_FADE },
-  // 消息入场：像角色走上舞台，短回弹后静止
-  message: { type: 'spring', stiffness: 420, damping: 28, mass: 0.8, opacity: SPRING_FADE },
-  // 切换角色：新的说话者从侧面落到台前，弹一下后站定
-  speaker: { type: 'spring', stiffness: 340, damping: 24, mass: 1.0, opacity: SPRING_FADE },
-  // 弹窗 / 设置：近临界阻尼，几乎不过冲
-  overlay: { type: 'spring', stiffness: 380, damping: 34, mass: 0.9, opacity: SPRING_FADE },
-  // 发送：按下陷落，松开短促回弹一次
-  sink:    { type: 'spring', stiffness: 700, damping: 18, mass: 0.5, opacity: SPRING_FADE },
-  // 跟随光的出现 / 消失
-  glowFade: { type: 'spring', stiffness: 300, damping: 35 },
+// §2.5 信号故障 —— 世界状态被改写的一瞬：RGB 错位、切片撕裂、乱码解码，只爆发一次后定格。
+export const GLITCH = {
+  // 错位撕裂一次的总时长
+  burst:      0.42,
+  // 乱码逐字锁定的间隔；字多时压缩间隔，整段解码不超过 decodeMax
+  decodeStep: 0.035,
+  decodeMax:  0.6,
+  // 保存确认从出现到熄灭的总时长
+  stamp:      1.4,
+  // 熄灭：压成一条横线后消失
+  off:        0.24,
 };
 
-// §2.5 流式书写 —— 新到达的文字逐字打出，书写光标跟着正在出现的字走
+// §2.6 流式输出 —— 新到达的文字先以乱码涌入，再逐字解码锁定；下划线光标领路
 export const STREAM = {
-  // 单个字：从一团墨色微光中显形；已出现的字不再参与
-  char:     { duration: 0.42,           ease: EASE.ink },
-  // 逐字间隔；到达太快时压缩间隔，打字进度最多落后真实到达 lag 秒
-  typing:   { stagger: 0.026, lag: 0.45 },
-  // 书写光标：短促亮起后缓缓回暗，一次呼吸一个周期
-  caret:    { duration: 1.10,           ease: EASE.page },
-  // 生成结束：光标先暗下去再移除
-  caretOut: { duration: DURATION.base,  ease: EASE.retract },
+  // 单个字：轮到它时乱码循环几帧后锁定成真字
+  char:     { duration: 0.2 },
+  // 锁定后的拖尾：从亮绿分四档退回正文色
+  trail:    { duration: 0.6 },
+  // 数字雨：还没轮到的字每 rain / 8 秒换一个字形
+  rain:     { duration: 0.4 },
+  // 逐字间隔；到达太快时压缩间隔，打字进度最多落后真实到达 lag 秒（落后的部分就是屏幕上的数字雨）
+  typing:   { stagger: 0.04, lag: 0.9 },
+  // 下划线光标：亮一半、灭一半，硬切
+  caret:    { duration: 1.00 },
+  // 生成结束：光标闪一下熄灭
+  caretOut: { duration: SIGNAL.exit },
 };
 
-// §2.5 手势目标值（whileHover / whileTap），transition 由 useMotion().gesture 配上对应弹簧
+// 手势目标值（whileHover / whileTap），transition 由 useMotion().gesture 配上瞬时硬切
 export const GESTURE = {
   press: {
-    whileHover: { scale: 1.03 },
-    whileTap:   { scale: 0.95 },
+    whileTap:   { scale: 0.96 },
   },
-  // 入口面积大：悬停只上移让位、不放大；按下只压缩
+  // 入口面积大：悬停上移让位；按下只压缩
   portal: {
     whileHover: { y: -2 },
     whileTap:   { scale: 0.98 },
   },
-  // 发送：没有悬停位移，按下陷落
+  // 发送：按下陷落
   sink: {
     whileTap: { y: 1.5 },
   },
 };
 
-// §2.6 预组合 variants（framer-motion variants 对象，直接展开使用）
+// 预组合 variants（framer-motion variants 对象，直接展开使用）
 export const variants = {
-  // 组件级：从下浮现 + 模糊消散（主入场）
-  inkRise: {
-    hidden:  { opacity: 0, y: 8,  filter: 'blur(1.5px)' },
-    visible: { opacity: 1, y: 0,  filter: 'blur(0px)'   },
-  },
-  // 组件级：向上淡出
-  inkFade: {
-    visible: { opacity: 1, y: 0,  filter: 'blur(0px)' },
-    hidden:  { opacity: 0, y: -6, filter: 'blur(1px)'  },
+  // 信号锁定入场：消息、弹窗、面板、卡片、说话者都用这一种
+  signalIn: {
+    hidden:  { opacity: 0, x: -6 },
+    visible: { opacity: [0, 1, 0.3, 1], x: [-6, 4, -2, 0] },
+    exit:    { opacity: [1, 0.4, 0], transition: { duration: SIGNAL.exit, ease: cut } },
   },
   // 列表容器：stagger 子项
   staggerList: {
@@ -120,43 +129,23 @@ export const variants = {
   },
   // 列表子项：配合 staggerList / staggerPanel 使用
   listItem: {
-    hidden:  { opacity: 0, y: 6 },
-    visible: { opacity: 1, y: 0 },
+    hidden:  { opacity: 0, x: -6 },
+    visible: { opacity: [0, 1, 0.3, 1], x: [-6, 4, -2, 0] },
   },
   // 页面级：路由切换过渡
   pageTransition: {
-    hidden:  { opacity: 0, y: 6 },
-    visible: { opacity: 1, y: 0, transition: { duration: DURATION.quick, ease: EASE.ink } },
-    exit:    { opacity: 0,       transition: { duration: 0.08,           ease: EASE.retract } },
+    hidden:  { opacity: 0 },
+    visible: { opacity: [0, 1, 0.3, 1], transition: { duration: SIGNAL.enter, ease: cut } },
+    exit:    { opacity: 0, transition: { duration: SIGNAL.exit, ease: cut } },
   },
-  // 消息入场：从下方升上台，只有位移（配 SPRING.message）
-  messageEnter: {
-    hidden:  { opacity: 0, y: 12 },
-    visible: { opacity: 1, y: 0  },
-  },
-  // 场景入场：世界入口 / 空状态（配 SPRING.portal）
-  sceneEnter: {
-    hidden:  { opacity: 0, y: 18, scale: 0.96 },
-    visible: { opacity: 1, y: 0,  scale: 1    },
-  },
-  // 切换角色：说话者从左侧走上台，只有横移（配 SPRING.speaker）
-  speakerEnter: {
-    hidden:  { opacity: 0, x: -16 },
-    visible: { opacity: 1, x: 0   },
-  },
-  // 弹窗 / 设置面板入场：原地展开，只有缩放（配 SPRING.overlay）
-  overlayEnter: {
-    hidden:  { opacity: 0, scale: 0.97 },
-    visible: { opacity: 1, scale: 1    },
-  },
-  // overlay 级：背景遮罩淡入淡出（供 ConfirmModal 等复用）
+  // 遮罩：分三档亮起 / 熄灭
   overlayBackdrop: {
     hidden:  { opacity: 0 },
     visible: { opacity: 1 },
   },
 };
 
-// §2.6 transition 预设（配合 variants 或 motion props 使用）
+// transition 预设（配合 variants 或 motion props 使用）
 export const transitions = {
   ink:     { duration: DURATION.base,   ease: EASE.ink     },
   quick:   { duration: DURATION.quick,  ease: EASE.sharp   },
@@ -165,4 +154,14 @@ export const transitions = {
   page:    { duration: DURATION.quick,  ease: EASE.ink     },
   quill:   { duration: DURATION.base,   ease: EASE.quill   },
   retract: { duration: DURATION.quick,  ease: EASE.retract },
+  // 信号锁定：配 variants.signalIn / listItem
+  signal:  { duration: SIGNAL.enter, ease: cut },
+  // 闪一下熄灭：配离场 { opacity: [1, 0.4, 0] }
+  signalOut: { duration: SIGNAL.exit, ease: cut },
+  // 遮罩分三档亮起
+  backdrop: { duration: DURATION.quick, ease: stepped(3) },
+  // 位置换位分四格跳
+  hop:     { duration: SIGNAL.hop, ease: EASE.stepped },
+  // 按压瞬时到位
+  press:   { duration: SIGNAL.press, ease: cut },
 };

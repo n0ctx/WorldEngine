@@ -1,5 +1,6 @@
 import { forwardRef } from 'react';
 import ProximityRail from '../motion/ProximityRail.jsx';
+import GlitchText from '../motion/GlitchText.jsx';
 import ProseChapters from './ProseChapters.jsx';
 import MessageBubbles from './MessageBubbles.jsx';
 import MessageListStatus from './MessageListStatus.jsx';
@@ -62,8 +63,10 @@ const MessageList = forwardRef(function MessageList({
 
       {messages.length === 0 && !generating && (
         <div className="we-chat-empty-state">
-          <span className="we-chat-empty-state__ornament" aria-hidden="true">❦</span>
-          <p className="we-chat-empty-state__text">开始对话吧</p>
+          <p className="we-chat-empty-state__text">
+            <GlitchText text="开始对话吧" playKey="empty" decode />
+            <span className="we-chat-empty-state__cursor" aria-hidden="true" />
+          </p>
         </div>
       )}
 
