@@ -16,11 +16,11 @@
  *   --we-easing-* / --we-text-* / --we-leading-* / --we-tracking-* / --we-focus-ring）
  *   间距、层级、动效节奏（easing）、字号字距等骨架量，跟视觉风格无关，主题不该改这几类。
  *   例外：--we-radius-* / --we-duration-* / --we-focus-ring 是既有主题包
- *   （classic-parchment / neon-noir）实际在覆盖的圆角节奏 /
+ *   （classic-parchment）实际在覆盖的圆角节奏 /
  *   焦点环观感旋钮，允许主题覆盖；其余 C 层 token 目前没有任何主题覆盖，保持不可覆盖。
  *
  * D 层 · 组件皮肤 token（其余所有绑定到某个具体组件、具体状态的 token）
- *   收敛后仍保留的这一层，是三个内置主题（nocturne / classic-parchment / neon-noir）
+ *   收敛后仍保留的这一层，是两个内置主题（nocturne / classic-parchment）
  *   换肤时确实需要不同取值、且无法用 B/C 层语义 / 结构 token 组合表达的旋钮。新代码不要
  *   再往这一层加 token，优先复用已有的语义 / 结构 token。
  *
@@ -324,7 +324,7 @@
     0 14px 36px rgb(48 31 13 / 10%);
 
   /* Skeleton 占位块皮肤：base-bg 走 B 层 --we-color-ink-wash-md，
-     三个主题都已覆盖该语义色，skeleton 自动随主题适配，无需主题额外覆写。
+     内置主题都已覆盖该语义色，skeleton 自动随主题适配，无需主题额外覆写。
      pulse-duration 为循环呼吸动画时长，独立于 --we-duration-* 四槽语义，
      不被 check-motion.mjs 校验（该校验只覆盖 --we-duration-* 前缀）。 */
   --we-skeleton-base-bg:         var(--we-color-ink-wash-md);

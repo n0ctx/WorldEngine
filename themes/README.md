@@ -118,9 +118,9 @@ cp -R themes/_template themes/my-theme
 
 ## 内置主题
 
-`nocturne/` 是默认内置主题（暗色）。`classic-parchment/`（亮色，保留羊皮纸色板、书脊阴影、印章/纸张阴影、卡片边框与旧化质感）与 `neon-noir/`（暗色，高对比霓虹路线）是另外两个内置主题。
+`nocturne/` 是默认内置主题（暗色）。`classic-parchment/`（亮色，保留羊皮纸色板、书脊阴影、印章/纸张阴影、卡片边框与旧化质感）是另一个内置主题。
 
-三个内置主题都只能覆盖 token，不能直接改结构。
+内置主题都只能覆盖 token，不能直接改结构。
 
 ## 验收清单
 

@@ -1,5 +1,5 @@
 /**
- * 把单一十六进制主色，按 nocturne/classic-parchment/neon-noir 三套主题已有的
+ * 把单一十六进制主色，按 nocturne/classic-parchment 两套主题已有的
  * accent 系 token 比例（bg 12% / border 28% / border-sm 20%，border-focus 与 accent 同色，
  * accent-deep 降低约 15% 亮度）派生出完整的一组 --we-color-accent-* 覆盖值。
  *

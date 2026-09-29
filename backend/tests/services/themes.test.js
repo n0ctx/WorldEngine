@@ -23,9 +23,9 @@ test('主题扫描只读内置主题目录，返回当前主题且不带来源�
 
 test('切换主题会写入 config.ui.theme，未知主题被拒绝', async () => {
   const { setActiveTheme } = await freshImport('backend/services/themes.js');
-  const result = setActiveTheme('neon-noir');
-  assert.equal(result.activeTheme, 'neon-noir');
-  assert.equal(sandbox.readConfig().ui.theme, 'neon-noir');
+  const result = setActiveTheme('classic-parchment');
+  assert.equal(result.activeTheme, 'classic-parchment');
+  assert.equal(sandbox.readConfig().ui.theme, 'classic-parchment');
   assert.throws(() => setActiveTheme('no-such'), /主题不存在/);
   assert.throws(() => setActiveTheme('../themes'), /主题不存在/);
 });

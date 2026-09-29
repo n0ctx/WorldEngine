@@ -181,10 +181,10 @@ test('themes API 支持列表、切换、CSS，且不再提供导入、导出、
 
   const switched = await ctx.request('/api/themes/active', {
     method: 'PUT', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ id: 'neon-noir' }),
+    body: JSON.stringify({ id: 'classic-parchment' }),
   });
   assert.equal(switched.status, 200);
-  assert.equal(ctx.sandbox.readConfig().ui.theme, 'neon-noir');
+  assert.equal(ctx.sandbox.readConfig().ui.theme, 'classic-parchment');
 
   const missingActive = await ctx.request('/api/themes/active', {
     method: 'PUT', headers: { 'Content-Type': 'application/json' },
@@ -194,9 +194,9 @@ test('themes API 支持列表、切换、CSS，且不再提供导入、导出、
 
   const imported = await ctx.request('/api/themes/import', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
   assert.equal(imported.status, 404);
-  const exported = await ctx.request('/api/themes/neon-noir/export');
+  const exported = await ctx.request('/api/themes/classic-parchment/export');
   assert.equal(exported.status, 404);
-  const deleted = await ctx.request('/api/themes/neon-noir', { method: 'DELETE' });
+  const deleted = await ctx.request('/api/themes/classic-parchment', { method: 'DELETE' });
   assert.equal(deleted.status, 404);
 });
 
