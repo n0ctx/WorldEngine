@@ -408,6 +408,7 @@ CREATE TABLE IF NOT EXISTS state_threads (
   content            TEXT NOT NULL,
   status             TEXT NOT NULL DEFAULT 'active',
   opened_round       INTEGER NOT NULL,
+  last_touched_round INTEGER NOT NULL DEFAULT 0,
   valid_from_round   INTEGER NOT NULL,
   valid_to_round     INTEGER
 );
@@ -493,6 +494,7 @@ export function initSchema(db) {
   migrateProfileDefaultsColumns(db);
   migrateWritingSessionPersonaSchema(db);
   migrateWorldAppearanceSchema(db);
+  migrateThreadTouchSchema(db);
 }
 
 function migrateInitialLegacyColumns(db) {
@@ -723,6 +725,12 @@ function migrateWritingSessionPersonaSchema(db) {
   // 区分"用户首轮前手动预设"与"被丢弃轮次的污染"。老会话为 NULL → 回滚退回保留现状（向下兼容）。
   try { db.exec(`ALTER TABLE sessions ADD COLUMN state_baseline_json TEXT`); } catch {}
   migrateBackfillWritingSessionPersonaId(db);
+}
+
+function migrateThreadTouchSchema(db) {
+  // 事项上次被对话碰到的轮次。旧行用立案轮次回填，不回放历史对话。
+  try { db.exec(`ALTER TABLE state_threads ADD COLUMN last_touched_round INTEGER NOT NULL DEFAULT 0`); } catch {}
+  db.exec(`UPDATE state_threads SET last_touched_round = opened_round WHERE last_touched_round = 0`);
 }
 
 function migrateWorldAppearanceSchema(db) {

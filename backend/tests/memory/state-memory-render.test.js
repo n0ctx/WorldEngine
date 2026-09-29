@@ -326,6 +326,36 @@ test('无参与者事项按本轮内容命中；无关事项不注入', () => {
   assert.doesNotMatch(text, /寻找宝石/);
 });
 
+test('相关的搁置事项进入结案输入并标明搁置，不相关的不进入', () => {
+  const { sessionId } = setupSession();
+  upsertThread(sessionId, {
+    threadId: 'dormant', seq: nextThreadSeq(sessionId), kind: '任务', participantsJson: '[]',
+    content: '归还账本', status: 'dormant', openedRound: 1, lastTouchedRound: 1,
+  }, 1);
+  upsertThread(sessionId, {
+    threadId: 'quiet', seq: nextThreadSeq(sessionId), kind: '任务', participantsJson: '[]',
+    content: '寻找宝石', status: 'dormant', openedRound: 1, lastTouchedRound: 1,
+  }, 1);
+  const text = renderRelevantThreadsForUpdate(sessionId, '账本已经归还');
+  assert.match(text, /［搁置］［任务］归还账本/);
+  assert.doesNotMatch(text, /寻找宝石/);
+});
+
+test('搁置事项不进入剧情提醒，也不把参与者拉进相关实体', () => {
+  const { sessionId, worldId } = setupSession();
+  const pinned = createEntity(sessionId, { name: '置顶角色', pinned: true });
+  const partner = createEntity(sessionId, { name: '冷线伙伴' });
+  upsertThread(sessionId, {
+    threadId: 'cold', seq: nextThreadSeq(sessionId), kind: '承诺',
+    participantsJson: JSON.stringify([pinned, partner]), content: '一起离开港口',
+    status: 'dormant', openedRound: 1, lastTouchedRound: 1,
+  }, 1);
+  const selected = selectRelevantEntities(sessionId, { userMessage: '', lastAssistant: '' });
+  assert.ok(!selected.some((item) => item.entityId === partner));
+  const text = renderStoryState(sessionId, { worldId, budget: 3000 });
+  assert.doesNotMatch(text, /一起离开港口/);
+});
+
 test('renderEntityDetailsForUpdate：player 输出档案与现状（含位置）', () => {
   const { sessionId, worldId } = setupSession();
   const playerId = createEntity(sessionId, { type: 'player', name: '旅人', round: 1 });

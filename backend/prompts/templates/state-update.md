@@ -45,14 +45,14 @@
 - {"op": "clear_state", "entity": "e<seq>", "key": "状态key"}　清除某条动态状态
 - {"op": "upsert_relation", "subject": "e<seq>", "predicate": "...", "object": "e<seq>（可选）", "objectValue": "非实体的关系对象文字（可选）", "note": "..."}　建立或更新一条关系；同一主体到同一客体实体只保留一条，关系变化时直接写新谓词会替换旧的，多层关系合并成一个谓词（如"师父兼养父"）
 - {"op": "retire_relation", "relation": "r<seq>"}　撤销一条关系
-- {"op": "open_thread", "kind": "承诺|任务|债务|冲突|谜团|威胁|计划|目标", "content": "...", "participants": ["e<seq>"]}　开启一条未完结事项
-- {"op": "update_thread", "thread": "t<seq>", "content": "..."}　更新未完结事项的内容
+- {"op": "open_thread", "kind": "承诺|任务|债务|冲突|谜团|威胁|计划|目标", "content": "...", "participants": ["e<seq>"]}　开启一条未完结事项。只在三件事同时成立时写：本轮之后仍未完成；后文会因它是否完成而改变；一句话能说清还差什么。本轮已经做完、失败或放弃的不立案；只发生一次的事件不立案；身份、性格、关系、位置、伤势走前面的档，不立案。与已有未了事项是同一件事时用 update_thread，不要再 open_thread
+- {"op": "update_thread", "thread": "t<seq>", "content": "..."}　更新未完结事项的内容。标了［搁置］的事项若本轮又被推进，用这条把它写回进行中
 - {"op": "resolve_thread", "thread": "t<seq>", "outcome": "resolved|failed"}　结束一条未完结事项
 - {"op": "retire_entity", "entity": "e<seq>"}　实体永久退场（死亡/消失等）
 - {"op": "set_world", "key": "time|location", "value": "..."}　设置世界档案：当前时间或当前场景地点
 - {"op": "set_present", "entities": ["e<seq>"]}　设置本轮在场实体列表，每轮都应输出，覆盖上一轮
 
-逐条核对【本轮相关的未了事项】：本轮明确完成时用 resolve_thread 标 resolved；明确无法完成或已失败时标 failed；只提到进展、期限到来或没有结果时保持 active。不要为结案编造剧情。
+逐条核对【本轮相关的未了事项】（含标了［搁置］、本轮又被提到的）：本轮事实表明已经完成（交付、兑现、揭晓、冲突平息、威胁解除都算，不要求出现「完成了」）时用 resolve_thread 标 resolved；本轮事实表明做不成、被放弃或各方不再追究时标 failed；只推进了一步、事情还没结束时用 update_thread 改写还差什么，保持进行中。期限到来本身不是结案，没有结果就只更新内容。本轮没有完成、失败或放弃的事实时不结案，不要为了清清单编造结局。
 
 ### 档案字段可变性规则
 

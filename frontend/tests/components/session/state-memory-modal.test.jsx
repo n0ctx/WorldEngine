@@ -279,4 +279,22 @@ describe('StateMemoryModal', () => {
     expect(screen.getByDisplayValue('欠酒馆十个银币')).toBeInTheDocument();
     expect(screen.getByText('第 1 轮起')).toBeInTheDocument();
   });
+
+  it('已搁置事项默认折叠，重新打开后回到进行中', async () => {
+    setup({
+      ...baseData,
+      threads: [
+        ...baseData.threads,
+        { thread_id: 't3', seq: 3, kind: '计划', participants: [], content: '修好北门的船', status: 'dormant', opened_round: 2 },
+      ],
+    });
+    await screen.findByLabelText('搜索实体');
+    fireEvent.click(screen.getByRole('tab', { name: /未了事项\s*1/ }));
+
+    expect(screen.queryByDisplayValue('修好北门的船')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /已搁置 1/ }));
+    expect(screen.getByDisplayValue('修好北门的船')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: '重新打开' }));
+    expect(mocks.updateStateThread).toHaveBeenCalledWith('s1', 't3', { status: 'active' });
+  });
 });

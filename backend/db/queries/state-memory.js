@@ -182,7 +182,7 @@ export function closeRelation(sessionId, relationId, round) {
 export function upsertThread(sessionId, thread, round) {
   return closeAndInsertRow(
     'state_threads',
-    ['thread_id', 'session_id', 'seq', 'kind', 'participants_json', 'content', 'status', 'opened_round'],
+    ['thread_id', 'session_id', 'seq', 'kind', 'participants_json', 'content', 'status', 'opened_round', 'last_touched_round'],
     ['session_id', 'thread_id'],
     {
       thread_id: thread.threadId,
@@ -193,6 +193,7 @@ export function upsertThread(sessionId, thread, round) {
       content: thread.content,
       status: thread.status ?? 'active',
       opened_round: thread.openedRound,
+      last_touched_round: thread.lastTouchedRound ?? thread.openedRound,
     },
     round,
   );

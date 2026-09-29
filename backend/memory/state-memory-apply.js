@@ -41,8 +41,9 @@ import { parseWorldDate, compareWorldDate } from '../utils/world-date.js';
 import { validateValue } from '../utils/state-field-validate.js';
 import {
   STATE_TEXT_FIELD_MAX, STATE_LIST_ITEM_MAX, STATE_LIST_MAX_ITEMS,
-  STATE_EVIDENCE_MIN, STATE_EVIDENCE_MAX,
+  STATE_EVIDENCE_MIN, STATE_EVIDENCE_MAX, THREAD_DORMANT_AFTER_ROUNDS,
 } from '../utils/constants.js';
+import { threadMatchesTurn } from './state-thread-relevance.js';
 import { createLogger, formatMeta } from '../utils/logger.js';
 
 const log = createLogger('all-state');
@@ -172,6 +173,7 @@ function buildApplyContext({ sessionId, worldId, round, turnText, realDate, main
     sessionId, worldId, round, realDate, mainCharacterEntityId, index,
     relations: listCurrentRelations(sessionId),
     threads: listThreads(sessionId),
+    turnText: turnText ?? '',
     worldProfile: getCurrentWorldProfile(sessionId),
     highBarUsed: new Set(),
     profileValues, profileFieldCache, allCharacterFields, nearbyCharacterFields,
@@ -230,6 +232,7 @@ function buildThreadRow(thread, overrides) {
     threadId: thread.thread_id, seq: thread.seq, kind: thread.kind,
     participantsJson: thread.participants_json, content: thread.content,
     status: thread.status, openedRound: thread.opened_round,
+    lastTouchedRound: thread.last_touched_round ?? thread.opened_round,
     ...overrides,
   };
 }
@@ -518,20 +521,31 @@ function handleRetireRelation(op, ctx) {
   return { ok: true };
 }
 
+function normalizedThreadContent(content) {
+  return content.replace(/\s+/g, '');
+}
+
 function handleOpenThread(op, ctx) {
   if (!THREAD_KINDS.includes(op.kind)) return { ok: false, reason: `未知事项类型: ${op.kind}` };
   const content = typeof op.content === 'string' ? op.content.trim() : '';
   if (!content) return { ok: false, reason: '缺少内容' };
+  const duplicate = ctx.threads.some((thread) => (
+    (thread.status === 'active' || thread.status === 'dormant')
+    && thread.kind === op.kind
+    && normalizedThreadContent(thread.content) === normalizedThreadContent(content)
+  ));
+  if (duplicate) return { ok: false, reason: '已有相同的未了事项' };
   const participantIds = resolveEntityRefList(op.participants, ctx);
   const threadId = crypto.randomUUID();
   const seq = nextThreadSeq(ctx.sessionId);
   const participantsJson = JSON.stringify(participantIds);
   upsertThread(ctx.sessionId, {
-    threadId, seq, kind: op.kind, participantsJson, content, status: 'active', openedRound: ctx.round,
+    threadId, seq, kind: op.kind, participantsJson, content, status: 'active',
+    openedRound: ctx.round, lastTouchedRound: ctx.round,
   }, ctx.round);
   ctx.threads.push({
     thread_id: threadId, seq, kind: op.kind, participants_json: participantsJson,
-    content, status: 'active', opened_round: ctx.round,
+    content, status: 'active', opened_round: ctx.round, last_touched_round: ctx.round,
   });
   return { ok: true };
 }
@@ -542,8 +556,11 @@ function handleUpdateThread(op, ctx) {
   const content = typeof op.content === 'string' ? op.content.trim() : '';
   if (!content) return { ok: false, reason: '缺少内容' };
   const thread = ctx.threads.find((t) => t.thread_id === threadId);
-  upsertThread(ctx.sessionId, buildThreadRow(thread, { content }), ctx.round);
+  const status = thread.status === 'dormant' ? 'active' : thread.status;
+  upsertThread(ctx.sessionId, buildThreadRow(thread, { content, status, lastTouchedRound: ctx.round }), ctx.round);
   thread.content = content;
+  thread.status = status;
+  thread.last_touched_round = ctx.round;
   return { ok: true };
 }
 
@@ -552,8 +569,9 @@ function handleResolveThread(op, ctx) {
   if (!threadId) return { ok: false, reason: '事项引用解析失败' };
   if (!THREAD_OUTCOMES.includes(op.outcome)) return { ok: false, reason: `未知结果: ${op.outcome}` };
   const thread = ctx.threads.find((t) => t.thread_id === threadId);
-  upsertThread(ctx.sessionId, buildThreadRow(thread, { status: op.outcome }), ctx.round);
+  upsertThread(ctx.sessionId, buildThreadRow(thread, { status: op.outcome, lastTouchedRound: ctx.round }), ctx.round);
   thread.status = op.outcome;
+  thread.last_touched_round = ctx.round;
   return { ok: true };
 }
 
@@ -619,6 +637,19 @@ const OP_HANDLERS = {
   set_present: handleSetPresent,
 };
 
+/** 进行中事项连续多轮没被对话碰到时搁置。不刷新上次触碰轮次，否则搁置看起来像刚被提到。 */
+function dormantUntouchedThreads(ctx) {
+  const names = new Map([...ctx.index.byId.values()].map((entity) => [entity.entity_id, entity.name]));
+  for (const thread of ctx.threads) {
+    if (thread.status !== 'active') continue;
+    const lastTouched = thread.last_touched_round ?? thread.opened_round ?? 0;
+    if (ctx.round - lastTouched < THREAD_DORMANT_AFTER_ROUNDS) continue;
+    if (threadMatchesTurn(thread, ctx.turnText, names)) continue;
+    upsertThread(ctx.sessionId, buildThreadRow(thread, { status: 'dormant' }), ctx.round);
+    thread.status = 'dormant';
+  }
+}
+
 // ============================
 // 对外接口
 // ============================
@@ -632,6 +663,7 @@ export function applyStateMemoryOps({ sessionId, worldId, round, ops, turnText, 
 
   return withSessionStateTransaction(() => {
     const ctx = buildApplyContext({ sessionId, worldId, round, turnText, realDate, mainCharacterEntityId });
+    dormantUntouchedThreads(ctx);
     let applied = 0;
     const rejected = [];
     for (const op of ops) {

@@ -129,6 +129,8 @@ export const STATE_EVIDENCE_MAX = 80;
 export const STATE_PROFILE_FILL_PER_ROUND = 3;
 /** 按名字/别名匹配实体时的最短字数 */
 export const STATE_NAME_MATCH_MIN = 2;
+/** 进行中事项连续这么多轮没被对话碰到，就自动搁置 */
+export const THREAD_DORMANT_AFTER_ROUNDS = 12;
 
 // ============================
 // Anthropic / Gemini extended thinking budget

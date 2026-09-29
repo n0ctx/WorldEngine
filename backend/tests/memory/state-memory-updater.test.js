@@ -1,4 +1,5 @@
 import test, { after } from 'node:test';
+import { readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
 
 import { createTestSandbox, freshImport, resetMockEnv } from '../helpers/test-env.js';
@@ -157,6 +158,13 @@ test('本轮明确完成的无参与者事项进入更新输入并可自动结�
   await updateAllStates(world.id, [character.id], session.id);
   assert.equal(listActiveThreads(session.id).length, 0);
   assert.equal(listThreads(session.id)[0].status, 'resolved');
+});
+
+test('状态更新提示词收紧立案并按事实结案', () => {
+  const prompt = readFileSync(new URL('../../prompts/templates/state-update.md', import.meta.url), 'utf8');
+  assert.match(prompt, /本轮之后仍未完成/);
+  assert.match(prompt, /不要求出现「完成了」/);
+  assert.match(prompt, /期限到来本身不是结案/);
 });
 
 test('连续 50 轮全是占位值/空操作时，状态记忆各表无新增行（除首轮建的 player/主角色外）', async () => {

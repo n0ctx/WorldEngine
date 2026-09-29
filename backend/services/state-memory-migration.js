@@ -354,7 +354,7 @@ function migrateRelationRow(sessionId, entityA, entityB, row) {
       threadId, seq, kind: '承诺',
       participantsJson: JSON.stringify([entityA, entityB]),
       content: truncateText(promise, STATE_TEXT_FIELD_MAX),
-      status: 'active', openedRound: MIGRATION_ROUND,
+      status: 'active', openedRound: MIGRATION_ROUND, lastTouchedRound: MIGRATION_ROUND,
     }, MIGRATION_ROUND);
   }
 }

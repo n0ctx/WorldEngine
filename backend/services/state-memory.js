@@ -52,7 +52,8 @@ import {
   getProfileFieldDefinitions, resolveActiveProfileFields, isPlaceholderValue,
 } from '../memory/state-memory-schema.js';
 
-const THREAD_STATUSES = ['active', 'resolved', 'failed'];
+const THREAD_STATUSES = ['active', 'resolved', 'failed', 'dormant'];
+const MANUAL_THREAD_STATUSES = ['active', 'resolved', 'failed'];
 
 function serviceError(code, message) {
   const err = new Error(message);
@@ -493,7 +494,7 @@ export function createThread(sessionId, body = {}) {
   const seq = nextThreadSeq(sessionId);
   upsertThread(sessionId, {
     threadId, seq, kind: body.kind, participantsJson: JSON.stringify(participantIds),
-    content, status: 'active', openedRound: round,
+    content, status: 'active', openedRound: round, lastTouchedRound: round,
   }, round);
   return { thread_id: threadId, seq, kind: body.kind, participants: participantIds, content, status: 'active', opened_round: round };
 }
@@ -510,12 +511,14 @@ export function updateThread(sessionId, threadId, body = {}) {
     if (!content) throw serviceError('bad_request', '缺少内容');
   }
   const status = body.status !== undefined ? body.status : thread.status;
-  if (!THREAD_STATUSES.includes(status)) throw serviceError('bad_request', `未知状态: ${status}`);
+  if (!THREAD_STATUSES.includes(status) || (body.status !== undefined && !MANUAL_THREAD_STATUSES.includes(status))) {
+    throw serviceError('bad_request', `未知状态: ${status}`);
+  }
 
   const round = resolveManualRound(sessionId);
   upsertThread(sessionId, {
     threadId: thread.thread_id, seq: thread.seq, kind: thread.kind, participantsJson: thread.participants_json,
-    content, status, openedRound: thread.opened_round,
+    content, status, openedRound: thread.opened_round, lastTouchedRound: round,
   }, round);
   return toThreadView({ ...thread, content, status });
 }

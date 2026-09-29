@@ -4,7 +4,7 @@ import { updateStateThread } from '../../core/api/state-memory.js';
 import { isImeComposing } from '../../core/utils/ime.js';
 import { log } from '../../core/utils/logger.js';
 
-const STATUS_LABELS = { active: '进行中', resolved: '已解决', failed: '已失败' };
+const STATUS_LABELS = { active: '进行中', dormant: '已搁置', resolved: '已解决', failed: '已失败' };
 
 function participantNames(entities, participantIds) {
   const byId = new Map(entities.map((e) => [e.entity_id, e.name]));
@@ -36,10 +36,13 @@ function ThreadRow({ sessionId, thread, entities, reload }) {
           {participants && <>{participants} · </>}第 {thread.opened_round} 轮起
         </span>
         <span className="we-sm-thread-actions">
-          {active ? (
+          {active || thread.status === 'dormant' ? (
             <>
               <button type="button" className="we-sm-text-btn" title="这件事已经了结" onClick={() => commit({ status: 'resolved' })}>已解决</button>
               <button type="button" className="we-sm-text-btn" title="这件事没能完成" onClick={() => commit({ status: 'failed' })}>已失败</button>
+              {thread.status === 'dormant' && (
+                <button type="button" className="we-sm-text-btn" title="这件事重新计入进行中" onClick={() => commit({ status: 'active' })}>重新打开</button>
+              )}
             </>
           ) : (
             <>
@@ -77,16 +80,30 @@ function Chevron({ open }) {
   );
 }
 
+function ClosedGroup({ label, count, open, onToggle, children }) {
+  return (
+    <div className="we-sm-closed">
+      <button type="button" className="we-sm-closed-toggle" aria-expanded={open} onClick={onToggle}>
+        <Chevron open={open} />
+        {label} {count}
+      </button>
+      {open && children}
+    </div>
+  );
+}
+
 export default function StateMemoryThreadTab({ sessionId, data, reload }) {
+  const [showDormant, setShowDormant] = useState(false);
   const [showClosed, setShowClosed] = useState(false);
   const entities = data?.entities ?? [];
   const threads = data?.threads ?? [];
   const active = threads.filter((t) => t.status === 'active');
-  const closed = threads.filter((t) => t.status !== 'active');
+  const dormant = threads.filter((t) => t.status === 'dormant');
+  const closed = threads.filter((t) => t.status === 'resolved' || t.status === 'failed');
 
   return (
     <div className="we-sm-thread-tab">
-      <p className="we-sm-intro">尚未了结的承诺、任务、冲突等。进行中的事项会提醒 AI 延续剧情，了结后不再提供。</p>
+      <p className="we-sm-intro">尚未了结的承诺、任务、冲突等。进行中的事项会提醒 AI 延续剧情；长时间没再被提到的会搁置，不再提醒；了结后不再提供。</p>
 
       {active.length === 0 ? (
         <div className="we-sm-empty">
@@ -101,25 +118,24 @@ export default function StateMemoryThreadTab({ sessionId, data, reload }) {
         </ul>
       )}
 
+      {dormant.length > 0 && (
+        <ClosedGroup label="已搁置" count={dormant.length} open={showDormant} onToggle={() => setShowDormant((v) => !v)}>
+          <ul className="we-sm-thread-list">
+            {dormant.map((thread) => (
+              <ThreadRow key={thread.thread_id} sessionId={sessionId} thread={thread} entities={entities} reload={reload} />
+            ))}
+          </ul>
+        </ClosedGroup>
+      )}
+
       {closed.length > 0 && (
-        <div className="we-sm-closed">
-          <button
-            type="button"
-            className="we-sm-closed-toggle"
-            aria-expanded={showClosed}
-            onClick={() => setShowClosed((v) => !v)}
-          >
-            <Chevron open={showClosed} />
-            已结束 {closed.length}
-          </button>
-          {showClosed && (
-            <ul className="we-sm-thread-list">
-              {closed.map((thread) => (
-                <ThreadRow key={thread.thread_id} sessionId={sessionId} thread={thread} entities={entities} reload={reload} />
-              ))}
-            </ul>
-          )}
-        </div>
+        <ClosedGroup label="已结束" count={closed.length} open={showClosed} onToggle={() => setShowClosed((v) => !v)}>
+          <ul className="we-sm-thread-list">
+            {closed.map((thread) => (
+              <ThreadRow key={thread.thread_id} sessionId={sessionId} thread={thread} entities={entities} reload={reload} />
+            ))}
+          </ul>
+        </ClosedGroup>
       )}
     </div>
   );

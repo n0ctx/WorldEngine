@@ -19,7 +19,7 @@ const {
   applyStateMemoryOps, applyEntityFields, ensureBaseEntities,
 } = await freshImport('backend/memory/state-memory-apply.js');
 const {
-  listCurrentEntities, listCurrentRelations, listThreads,
+  listCurrentEntities, listCurrentRelations, listThreads, listActiveThreads,
   getCurrentWorldProfile, getEntityDetails, upsertEntity, upsertProfileField,
 } = await freshImport('backend/db/queries/state-memory.js');
 const { getEntityStateValues } = await freshImport('backend/db/queries/session-entity-state-values.js');
@@ -465,6 +465,85 @@ test('未了事项仅在收到结案操作时结束，支持失败结果', () =>
   });
   assert.equal(ended.applied, 1);
   assert.equal(listThreads(session.id)[0].status, 'failed');
+});
+
+test('相同类型和内容的未了事项不重复立案，内容不同仍立案', () => {
+  const { world, session } = setupSession();
+  const first = applyStateMemoryOps({
+    sessionId: session.id, worldId: world.id, round: 1,
+    ops: [{ op: 'open_thread', kind: '任务', participants: [], content: '归还账本' }],
+    turnText: '需要归还账本', realDate: false, mainCharacterEntityId: null,
+  });
+  const duplicate = applyStateMemoryOps({
+    sessionId: session.id, worldId: world.id, round: 2,
+    ops: [{ op: 'open_thread', kind: '任务', participants: [], content: '归还 账本' }],
+    turnText: '还是要归还账本', realDate: false, mainCharacterEntityId: null,
+  });
+  const different = applyStateMemoryOps({
+    sessionId: session.id, worldId: world.id, round: 3,
+    ops: [{ op: 'open_thread', kind: '任务', participants: [], content: '寻找宝石' }],
+    turnText: '还要寻找宝石', realDate: false, mainCharacterEntityId: null,
+  });
+  assert.equal(first.applied, 1);
+  assert.equal(duplicate.rejected[0].reason, '已有相同的未了事项');
+  assert.equal(different.applied, 1);
+  assert.equal(listThreads(session.id).length, 2);
+});
+
+test('连续 12 轮没被碰到的进行中事项搁置，本轮碰到或间隔不足则保持进行中', () => {
+  const { world, session } = setupSession();
+  applyStateMemoryOps({
+    sessionId: session.id, worldId: world.id, round: 1,
+    ops: [
+      { op: 'open_thread', kind: '任务', participants: [], content: '寻找宝石' },
+      { op: 'open_thread', kind: '任务', participants: [], content: '归还账本' },
+      { op: 'open_thread', kind: '承诺', participants: [], content: '守住北门' },
+    ],
+    turnText: '寻找宝石，归还账本，守住北门', realDate: false, mainCharacterEntityId: null,
+  });
+  applyStateMemoryOps({
+    sessionId: session.id, worldId: world.id, round: 12,
+    ops: [{ op: 'update_thread', thread: 't3', content: '守住北门' }],
+    turnText: '北门仍要守住', realDate: false, mainCharacterEntityId: null,
+  });
+  applyStateMemoryOps({
+    sessionId: session.id, worldId: world.id, round: 13,
+    ops: [], turnText: '账本还在舱里', realDate: false, mainCharacterEntityId: null,
+  });
+  const byContent = new Map(listThreads(session.id).map((thread) => [thread.content, thread.status]));
+  assert.equal(byContent.get('寻找宝石'), 'dormant');
+  assert.equal(byContent.get('归还账本'), 'active');
+  assert.equal(byContent.get('守住北门'), 'active');
+});
+
+test('搁置事项被推进时回到进行中，被结案时直接结束', () => {
+  const { world, session } = setupSession();
+  applyStateMemoryOps({
+    sessionId: session.id, worldId: world.id, round: 1,
+    ops: [
+      { op: 'open_thread', kind: '任务', participants: [], content: '寻找宝石' },
+      { op: 'open_thread', kind: '任务', participants: [], content: '护送信件' },
+    ],
+    turnText: '寻找宝石，护送信件', realDate: false, mainCharacterEntityId: null,
+  });
+  applyStateMemoryOps({
+    sessionId: session.id, worldId: world.id, round: 13,
+    ops: [], turnText: '天气转阴', realDate: false, mainCharacterEntityId: null,
+  });
+  assert.equal(listThreads(session.id).every((thread) => thread.status === 'dormant'), true);
+
+  applyStateMemoryOps({
+    sessionId: session.id, worldId: world.id, round: 14,
+    ops: [
+      { op: 'update_thread', thread: 't1', content: '宝石在旧港，还没找到' },
+      { op: 'resolve_thread', thread: 't2', outcome: 'resolved' },
+    ],
+    turnText: '宝石在旧港，信件已经送到', realDate: false, mainCharacterEntityId: null,
+  });
+  const threads = listThreads(session.id);
+  assert.equal(threads.find((thread) => thread.seq === 1).status, 'active');
+  assert.equal(threads.find((thread) => thread.seq === 2).status, 'resolved');
+  assert.equal(listActiveThreads(session.id).length, 1);
 });
 
 // ─── 世界档案：时间与地点 ─────────────────────────────────────────────
