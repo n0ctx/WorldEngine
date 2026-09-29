@@ -2,13 +2,14 @@ import EntryEditor from '../../../components/state/EntryEditor';
 import RulesOverview from './RulesOverview.jsx';
 import FieldDetail from './FieldDetail.jsx';
 import WorldProfileDefaultsDetail from './WorldProfileDefaultsDetail.jsx';
+import CardProfileDefaultsDetail from './CardProfileDefaultsDetail.jsx';
 
 export default function RulesDetailPane({
   navMode, orderMode, creatingEntry, selectedEntry,
   worldId, defaultTriggerTypeForNew,
   setCreatingEntry, setSelectedEntryId, refreshEntries,
   entries, fieldsByScope,
-  selectedField, fieldScope, fieldScopeKey, loadFieldsFor,
+  selectedField, selectedFieldKey, fieldScope, fieldScopeKey, loadFieldsFor,
 }) {
   return (
     <section className="we-workshop-detail">
@@ -44,8 +45,10 @@ export default function RulesDetailPane({
             hint="选择左侧条目查看详情，或点「+ 新建」创建一条设定"
           />
         )
-      ) : fieldScopeKey === 'world' && !selectedField ? (
-        <WorldProfileDefaultsDetail worldId={worldId} />
+      ) : selectedFieldKey === 'profile' ? (
+        fieldScopeKey === 'world'
+          ? <WorldProfileDefaultsDetail worldId={worldId} />
+          : <CardProfileDefaultsDetail worldId={worldId} scopeKey={fieldScopeKey} />
       ) : !selectedField ? (
         <RulesOverview
           entries={entries}

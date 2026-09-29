@@ -92,6 +92,9 @@ vi.mock('../../src/components/state/StateValueField', () => ({
 vi.mock('../../src/components/state/WorldProfileDefaultsFields.jsx', () => ({
   default: () => <div data-testid="world-profile-defaults-fields">开场时间</div>,
 }));
+vi.mock('../../src/pages/RulesPage/components/CardProfileDefaultsDetail.jsx', () => ({
+  default: ({ scopeKey }) => <div data-testid="card-profile-defaults">{scopeKey}</div>,
+}));
 
 import RulesPage from '../../src/pages/RulesPage/index.jsx';
 
@@ -155,6 +158,19 @@ describe('RulesPage', () => {
 
     expect(screen.getByTestId('world-profile-defaults')).toHaveTextContent('档案默认值');
     expect(screen.getByTestId('world-profile-defaults-fields')).toBeInTheDocument();
+  });
+
+  it('角色状态和玩家状态列出档案默认值', async () => {
+    render(<RulesPage />);
+    await waitFor(() => expect(mocks.listCharacterStateFields).toHaveBeenCalled());
+
+    fireEvent.click(screen.getByTestId('nav-fields-character'));
+    expect(screen.getByTestId('character-profile-defaults')).toHaveTextContent('身份 / 外貌 / 人格');
+    expect(screen.getByTestId('card-profile-defaults')).toHaveTextContent('character');
+
+    fireEvent.click(screen.getByTestId('nav-fields-persona'));
+    expect(screen.getByTestId('persona-profile-defaults')).toHaveTextContent('身份 / 外貌');
+    expect(screen.getByTestId('card-profile-defaults')).toHaveTextContent('persona');
   });
 
   it('点击机制后中栏只显示该机制条目，不受旧手动分组影响', async () => {

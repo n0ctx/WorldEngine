@@ -59,7 +59,7 @@ export default function RulesPage() {
   function selectFieldScope(key) {
     setNavMode('fields');
     setFieldScopeKey(key);
-    setSelectedFieldKey(key === 'world' ? 'profile' : (fieldsByScope[key]?.[0]?.field_key ?? null));
+    setSelectedFieldKey('profile');
     setCreatingField(false);
   }
 
@@ -129,6 +129,7 @@ export default function RulesPage() {
             entries={entries}
             fieldsByScope={fieldsByScope}
             selectedField={selectedField}
+            selectedFieldKey={selectedFieldKey}
             fieldScope={fieldScope}
             fieldScopeKey={fieldScopeKey}
             loadFieldsFor={loadFieldsFor}
