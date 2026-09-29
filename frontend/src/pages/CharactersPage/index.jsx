@@ -1,7 +1,8 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useSyncExternalStore } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import useStore from '../../core/state/index';
 import { useMotion } from '../../core/hooks/useMotion.js';
+import { getPortal, subscribePortal } from '../../core/motion/portal.js';
 import { storylineTitle } from '../../core/hooks/storyline.js';
 import { useWorldHubData } from './hooks/useWorldHubData.js';
 import { useCardImport } from './hooks/useCardImport.js';
@@ -46,6 +47,9 @@ export default function CharactersPage() {
 
   const [personaExpanded, setPersonaExpanded] = useState(false);
   const m = useMotion();
+  // 进入世界的页面转场：挂载时转场仍在播，就给画布挂上入场编排，转场收定后摘除
+  const portal = useSyncExternalStore(subscribePortal, getPortal);
+  const [enteredViaPortal] = useState(() => getPortal() !== null);
   // 收放过程中裁掉溢出，落定后放开，避免卡片阴影和拖拽被裁
   const personaSwitchMotion = {
     initial: { height: 0, opacity: 0, overflow: 'hidden' },
@@ -86,7 +90,7 @@ export default function CharactersPage() {
   }
 
   return (
-    <div className="we-characters-canvas">
+    <div className="we-characters-canvas" data-portal={portal && enteredViaPortal ? 'enter' : undefined}>
       {/* 返回导航已收口到顶栏面包屑（TopBar），此页不再自带返回按钮 */}
 
       {/* 新世界搭建引导：三步未完成且未被手动关闭时，取代下方整套空态 */}

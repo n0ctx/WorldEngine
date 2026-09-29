@@ -18,6 +18,28 @@
 .we-worlds-canvas::-webkit-scrollbar-track { background: transparent; }
 .we-worlds-canvas::-webkit-scrollbar-thumb { background: var(--we-page-canvas-fg-muted); border-radius: var(--we-radius-full); }
 
+/* ── 进入世界的页面转场（动效位 world-portal）：结构与抑制规则与动效包无关，编排在 themes/motion/<包>.css ── */
+
+/* 跨路由的转场遮罩：信号锁定的视口括号画在它身上（墨流不画遮罩） */
+.we-portal-veil {
+  position: fixed;
+  inset: 0;
+  z-index: var(--we-z-modal);
+  pointer-events: none;
+}
+
+/* 退出中的页面：禁止二次点击；卡片自己的触点涟漪与指针光晕由整页退出接管，不再各播各的 */
+.we-worlds-canvas[data-portal='leave'] {
+  pointer-events: none;
+}
+.we-worlds-canvas[data-portal='leave'] :is(.we-touch-fx, .we-world-card-glow) {
+  display: none;
+}
+
+/* 三栏的错峰序号，两个动效包的入场编排共用 */
+.we-characters-canvas .we-worldhub-layout > :nth-child(2) { --col: 1; }
+.we-characters-canvas .we-worldhub-layout > :nth-child(3) { --col: 2; }
+
 .we-worlds-header {
   margin: 0 0 var(--we-space-xl);
   display: flex;

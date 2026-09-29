@@ -69,6 +69,8 @@ export function useMotion() {
     stream: () => (reduced ? null : cssVarsOf(pack).stream),
     // 世界被改写时的特效 CSS 变量；reduced 模式下返回 null：调用方不播放，只保留静态结果
     fx: () => (reduced ? null : cssVarsOf(pack).fx),
+    // 进入世界的页面转场时序（navigate / total，秒）；reduced 模式下返回 null：调用方直接切路由
+    portal: () => (reduced ? null : pack.portal),
     // variants 预设；reduced 模式下去掉位移 / 缩放 / 模糊，关键帧只留终值
     variant: (key) => {
       const v = pack.variants[key];

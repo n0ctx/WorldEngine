@@ -1,3 +1,4 @@
+import { useSyncExternalStore } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Plus, Upload } from 'lucide-react';
@@ -8,6 +9,7 @@ import Button from '../components/ui/Button.jsx';
 import ChangeText from '../components/motion/ChangeText.jsx';
 import MotionOrb from '../components/motion/MotionOrb.jsx';
 import { useMotion } from '../core/hooks/useMotion.js';
+import { getPortal, startPortal, subscribePortal } from '../core/motion/portal.js';
 import { useWorldsPageController } from './WorldsPage/useWorldsPageController.js';
 import { useWorldAmbientTint } from './WorldsPage/useWorldAmbientTint.js';
 import WorldsGrid from './WorldsPage/WorldsGrid.jsx';
@@ -21,14 +23,22 @@ export default function WorldsPage() {
   const page = useWorldsPageController();
   const { worlds, loading, loadError, deletingWorld, importingWorld, worldImportRef } = page;
   const { setLitWorld } = useWorldAmbientTint(worlds);
+  // 进入世界的页面转场：转场期间旧页播退出动画并禁止二次点击
+  const portal = useSyncExternalStore(subscribePortal, getPortal);
 
   function handleEnterWorld(world) {
     setCurrentWorldId(world.id);
-    navigate(`/worlds/${world.id}`);
+    const timing = motionConfig.portal();
+    if (!timing) {
+      navigate(`/worlds/${world.id}`);
+      return;
+    }
+    startPortal();
+    setTimeout(() => navigate(`/worlds/${world.id}`), timing.navigate * 1000);
   }
 
   return (
-    <div className="we-worlds-canvas">
+    <div className="we-worlds-canvas" data-portal={portal ? 'leave' : undefined}>
       <div className="we-worlds-header">
         <div className="we-worlds-heading">
           {worlds.length > 0 ? <p className="we-worlds-eyebrow"><ChangeText text={String(worlds.length)} playKey={worlds.length} decode /> 个世界</p> : null}

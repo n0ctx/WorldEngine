@@ -115,6 +115,14 @@ export const SLOTS = [
     note: '信号锁定：圆点沿弧线落位后，小方形准星三拍收紧套住它，停一下后熄灭。',
   },
   {
+    id: 'world-portal', category: 'move', title: '进入世界', status: 'pack',
+    api: [], usedIn: ['WorldsPage → CharactersPage', 'AppShell（跨路由遮罩 .we-portal-veil）'],
+    note: '没有独立的动效接口：时序（navigate / total）在动效包的 portal 字段，编排在动效包 CSS 里按 data-portal 接管。'
+      + '墨流「洇门」：旧页沉入水中，枢纽页从柔焦里浮上来，栏标题从湿墨色干成正文色；'
+      + '信号锁定「锁定跃迁」：旧页横向撕裂一次、暗半拍后硬切熄灭，新页闪两下亮起，视口四角大括号三拍收紧锁定后熄灭（括号画在 .we-portal-veil 上）。'
+      + '转场期间旧页禁止二次点击，卡片的触点涟漪与指针光晕由整页退出接管，不重复播放。',
+  },
+  {
     id: 'task-list', category: 'move', title: '任务列表', status: 'pack',
     api: ['transition:move'], usedIn: ['TaskList'],
   },

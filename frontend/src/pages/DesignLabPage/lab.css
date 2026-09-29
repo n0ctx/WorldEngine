@@ -86,3 +86,74 @@
   max-width: none;
   overflow: visible;
 }
+
+/* ── 「进入世界」转场演示的样机页（portal.jsx）：类名与 data-portal 是生产实现，这里只负责样机外观 ── */
+.we-design-lab__portal-stage {
+  position: relative;
+  height: 360px;
+  overflow: hidden;
+  contain: layout paint;
+  border-radius: var(--we-radius-md);
+  background-color: var(--we-page-canvas-bg);
+  background-image: var(--we-canvas-texture-image);
+}
+.we-design-lab__portal-page {
+  height: 100%;
+  padding: var(--we-space-xl);
+  overflow: hidden;
+}
+.we-design-lab__portal-head {
+  margin-bottom: var(--we-space-lg);
+  font-size: var(--we-text-lg);
+  color: var(--we-page-canvas-fg);
+}
+.we-design-lab__portal-grid {
+  display: flex;
+  gap: var(--we-space-lg);
+}
+.we-design-lab__portal-card {
+  display: grid;
+  align-content: end;
+  gap: var(--we-space-xxs);
+  width: 148px;
+  height: 188px;
+  padding: var(--we-space-md);
+  border: 1px solid var(--we-color-border-subtle);
+  border-radius: var(--we-radius-md);
+  background: linear-gradient(160deg, color-mix(in srgb, var(--we-color-accent) 55%, var(--we-color-bg-muted)), var(--we-color-bg-muted));
+  color: var(--we-page-canvas-fg);
+  text-align: left;
+  cursor: pointer;
+}
+.we-design-lab__portal-card--idle {
+  background: var(--we-color-bg-muted);
+  color: var(--we-color-text-tertiary);
+  cursor: default;
+}
+.we-design-lab__portal-hint {
+  font-size: var(--we-text-xs);
+  color: var(--we-color-text-tertiary);
+}
+.we-design-lab__portal-col {
+  display: grid;
+  align-content: start;
+  gap: var(--we-space-sm);
+}
+.we-design-lab__portal-item {
+  padding: var(--we-space-sm) var(--we-space-md);
+  border: 1px solid var(--we-color-border-subtle);
+  border-radius: var(--we-radius-sm);
+  background: var(--we-color-bg-muted);
+  font-size: var(--we-text-sm);
+  color: var(--we-color-text-secondary);
+}
+.we-design-lab__portal-back {
+  justify-self: start;
+  margin-top: var(--we-space-lg);
+  padding: var(--we-space-xs) var(--we-space-md);
+  border: 1px solid var(--we-color-border-default);
+  border-radius: var(--we-radius-sm);
+  color: var(--we-color-text-secondary);
+  font-size: var(--we-text-xs);
+  cursor: pointer;
+}

@@ -100,6 +100,8 @@ export default {
     caretOut: DURATION.quick,
   },
   // 世界被改写的一瞬：RGB 错位、切片撕裂、切片成字，只爆发一次后定格
+  // 进入世界的页面转场「锁定跃迁」：旧页撕裂一次后熄灭，新页闪两下亮起、视口括号锁定；CSS 编排在 signal.css
+  portal: { navigate: 0.36, total: 1.06 },
   fx: {
     // 错位撕裂一次
     burst: 0.42,

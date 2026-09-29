@@ -10,6 +10,7 @@
  * (BookSpread / PageLeft / PageRight / MemoryRecallOverlay) lives under
  * `./layout` and `./chrome` and MUST NOT be imported by pages directly.
  */
+import { useEffect, useSyncExternalStore } from 'react';
 import { MotionConfig } from 'framer-motion';
 import { LucideProvider } from 'lucide-react';
 import TopBar from './chrome/TopBar.jsx';
@@ -19,6 +20,8 @@ import RenderPageLayout from './layout/pageLayoutRenderer.jsx';
 import { useWorldAccentVars } from '../../core/features/worldAccent/useWorldAccentVars.js';
 import useStore from '../../core/state/index.js';
 import AtmosphereLayer from './atmosphere/AtmosphereLayer.jsx';
+import { useMotion } from '../../core/hooks/useMotion.js';
+import { endPortal, getPortal, subscribePortal } from '../../core/motion/portal.js';
 
 // 长时间阅读的页面：氛围压到最低，只留在边缘
 const QUIET_SCENE = /\/chat$|\/writing$/;
@@ -36,6 +39,15 @@ export default function AppShell({ children, locationKey }) {
     ? { ...worldAccentVars, '--we-atmosphere-color': atmosphereColor }
     : worldAccentVars;
 
+  // 进入世界的页面转场：遮罩挂在壳上才能跨过路由切换；播完 total 秒收定
+  const { pack } = useMotion();
+  const portal = useSyncExternalStore(subscribePortal, getPortal);
+  useEffect(() => {
+    if (!portal) return undefined;
+    const timer = setTimeout(endPortal, pack.portal.total * 1000);
+    return () => clearTimeout(timer);
+  }, [portal, pack]);
+
   // reducedMotion="user"：系统要求减少动效时，所有 framer 动画关闭位移与缩放，只保留透明度
   // Lucide 图标统一细描边：24 视口下 1.75，20 / 16 尺寸按比例缩放，整站线重一致
   return (
@@ -49,6 +61,7 @@ export default function AppShell({ children, locationKey }) {
         <a href="#we-main-content" className="we-skip-link">跳到主内容</a>
         <TopBar />
         <GlobalToast />
+        {portal && <div className="we-portal-veil" aria-hidden="true" />}
         <PageLayoutRendererProvider render={RenderPageLayout}>
           <div className="we-page-body">
             {children}

@@ -359,6 +359,43 @@
     we-signal-release var(--we-duration-fast) var(--we-cut) calc(var(--we-duration-normal) + var(--we-duration-slow)) forwards;
 }
 
+/* ── 进入世界「锁定跃迁」：世界选择页 → 世界枢纽的页面转场 ───
+   JS 侧时序（navigate / total）见 packs/signal.js 的 portal；遮罩与结构规则见 pages.css。
+   旧页在事件瞬间横向撕裂一次、暗半拍后硬切熄灭；枢纽页硬切闪两下亮起，
+   视口四角的大括号从外三拍收紧、把新世界锁住，停一瞬后闪一下熄灭。全程 steps(1) 硬切。 */
+
+/* 撕裂只爆一次：上半切走向左、下半切走向右，整页暗半拍闪回后熄灭 */
+@keyframes we-signal-portal-tear {
+  0%        { opacity: 1;    transform: none;                           clip-path: inset(0); }
+  22%       { opacity: 1;    transform: translateX(-12px) skewX(-6deg); clip-path: inset(0 0 52% 0); }
+  44%       { opacity: 1;    transform: translateX(9px);                clip-path: inset(48% 0 0 0); }
+  66%       { opacity: 0.35; transform: translateX(-2px);               clip-path: inset(0); }
+  88%, 100% { opacity: 0;    transform: none;                           clip-path: inset(0); }
+}
+:where(:root[data-motion="signal"]) .we-worlds-canvas[data-portal='leave'] {
+  animation: we-signal-portal-tear var(--we-duration-normal) var(--we-cut) both;
+}
+
+/* 视口锁定括号：四角各两笔，从视口外三拍收紧；旧页熄灭、黑一拍之后才出场 */
+:where(:root[data-motion="signal"]) .we-portal-veil {
+  --lock-gap: 8px;
+  background: var(--sig-brackets);
+  opacity: 0;
+  /* guard-allow(literals): 锁定与熄火的出场时刻与 packs/signal.js 的 portal 同步，锁定跃迁材质的一部分 */
+  animation:
+    we-signal-lock var(--we-duration-normal) var(--we-cut) 380ms both,
+    we-signal-release var(--we-duration-fast) var(--we-cut) 880ms forwards;
+}
+
+/* 枢纽页：硬切闪两下亮起，三栏逐格锁定入场（--col 见 pages.css） */
+:where(:root[data-motion="signal"]) .we-characters-canvas[data-portal='enter'] {
+  animation: we-signal-blink var(--we-duration-normal) var(--we-cut) both;
+}
+:where(:root[data-motion="signal"]) .we-characters-canvas[data-portal='enter'] .we-worldhub-layout > * {
+  /* guard-allow(literals): 三栏错峰锁定入场，与 packs/signal.js 的 portal 同步，锁定跃迁材质的一部分 */
+  animation: we-signal-in var(--we-duration-normal) var(--we-cut) calc(60ms + var(--col, 0) * 70ms) both;
+}
+
 /* ── 剧情选项：选中的一项被锁定，其余一格格暗下去 ───────────────────────────────────────── */
 /* 选中：括号从外向内锁上并一直挂着，文字错位撕裂一次（两路错位色见上方 --glitch-a / --glitch-b） */
 :where(:root[data-motion="signal"]) .we-option-list > .we-option-btn--selected {

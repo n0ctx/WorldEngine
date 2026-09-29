@@ -102,6 +102,8 @@ export default {
     // 生成结束：墨珠被最后一个字吸收
     caretOut: 0.5,
   },
+  // 进入世界的页面转场「洇门」：触点洇开一圈涟漪，旧页沉水，枢纽页浮出；CSS 编排在 liquid.css
+  portal: { navigate: 0.42, total: 1.7 },
   fx: {
     // 数值换新：新值穿过扰动的水面浮上来
     burst: 0.9,

@@ -4,6 +4,7 @@ import { DialogDemo, ModalDemo, ToastDemo } from './overlay.jsx';
 import { BounceRailDemo, FolderDemo, StepTrackDemo, TabsDemo, TaskListDemo } from './move.jsx';
 import { CardHoverDemo, DeleteButtonDemo, PortalDemo, PressDemo, SinkDemo } from './press.jsx';
 import { SideDrawerDemo, TopBarDemo } from './shell.jsx';
+import { WorldPortalDemo } from './portal.jsx';
 import { InputFocusDemo, SelectDemo, SwitchRangeDemo } from './input.jsx';
 import { LegacyEnterDemo } from './legacy.jsx';
 import { BusyDemo, LoopsDemo, StreamDemo } from './stream.jsx';
@@ -26,6 +27,7 @@ export const DEMOS = {
   tabs: TabsDemo,
   'step-track': StepTrackDemo,
   'bounce-rail': BounceRailDemo,
+  'world-portal': WorldPortalDemo,
   'task-list': TaskListDemo,
   folder: FolderDemo,
   topbar: TopBarDemo,
