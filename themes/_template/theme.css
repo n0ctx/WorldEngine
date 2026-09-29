@@ -39,7 +39,6 @@
   --we-color-status-warning: #9a6c35;
   --we-color-status-danger: #7d766f;
   --we-color-status-info: #586174;
-  --we-color-decode: hsl(from var(--we-color-status-success) h 90% 58%);
 
   --we-color-accent: #7d766f;
   --we-color-accent-deep: #5f5852;

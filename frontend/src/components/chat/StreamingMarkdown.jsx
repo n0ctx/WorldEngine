@@ -10,8 +10,7 @@ const CARET_TAG = 'we-caret';
 const NO_CHUNKS = [];
 const STAGGER_MS = STREAM.typing.stagger * 1000;
 const LAG_MS = STREAM.typing.lag * 1000;
-// 一个字从轮到它到拖尾退完的总时长；过了这个时长才能去掉逐字包裹
-const CHAR_MS = (STREAM.char.duration + STREAM.trail.duration) * 1000;
+const CHAR_MS = STREAM.char.duration * 1000;
 // 间隔短到这个程度就不再给每个字挂光标，否则几个字的光标会叠在一起
 const CHAR_CARET_MIN_MS = 6;
 
@@ -219,7 +218,7 @@ export default function StreamingMarkdown({
   const fading = !!vars && next.fading;
   useEffect(() => {
     if (!fading) return undefined;
-    const tail = Math.max(0, typedUntil - performance.now()) + CHAR_MS + STREAM.caretOut.duration * 1000;
+    const tail = Math.max(0, typedUntil - performance.now()) + (STREAM.char.duration + STREAM.caretOut.duration) * 1000;
     const timer = setTimeout(() => setTrack((t) => ({ ...t, fading: false, typing: false, chunks: [] })), tail);
     return () => clearTimeout(timer);
   }, [fading, typedUntil]);
@@ -241,10 +240,11 @@ export default function StreamingMarkdown({
     ...components,
     [CHAR_TAG]: ({ children, 'data-delay': delay, 'data-step': step, 'data-done': done }) => (done ? <span>{children}</span> : (
       <span
-        className={`we-stream-char${step ? ' we-stream-char--caret' : ''}`}
+        className={`we-stream-char we-slice${step ? ' we-stream-char--caret' : ''}`}
         style={{ ...vars, '--we-stream-char-delay': `${delay}ms`, '--we-stream-char-step': step ? `${step}ms` : undefined }}
+        data-ch={children}
       >
-        {children}
+        <span className="we-slice__glyph" data-ch={children}>{children}</span>
       </span>
     )),
     [CARET_TAG]: (props) => <CaretMark vars={vars} fading={props['data-fading'] === 'true'} />,

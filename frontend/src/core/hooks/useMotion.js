@@ -23,14 +23,13 @@ const cssMs = (seconds) => `${Math.round(seconds * 1000)}ms`;
 // 流式输出的时长以 CSS 变量交给 chat.css 的关键帧；模块级常量，引用恒定
 const STREAM_VARS = {
   '--we-stream-char-duration':      cssMs(STREAM.char.duration),
-  '--we-stream-rain-duration':      cssMs(STREAM.rain.duration),
-  '--we-stream-trail-duration':     cssMs(STREAM.trail.duration),
   '--we-stream-caret-duration':     cssMs(STREAM.caret.duration),
   '--we-stream-caret-out-duration': cssMs(STREAM.caretOut.duration),
 };
 // 信号故障的时长同样以 CSS 变量交给 ui.css 的关键帧
 const GLITCH_VARS = {
   '--we-glitch-burst': cssMs(GLITCH.burst),
+  '--we-glitch-decode': cssMs(GLITCH.decode),
   '--we-glitch-off':   cssMs(GLITCH.off),
   '--we-glitch-stamp': cssMs(GLITCH.stamp),
 };

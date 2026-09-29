@@ -31,13 +31,13 @@ describe('GlitchText 信号故障文字', () => {
     expect(container.querySelector('.we-glitch')).toBeNull();
   });
 
-  it('解码期间真实文字仍在 DOM 里，乱码层对读屏隐藏', () => {
+  it('切片成字：真字一直在 DOM 里，三层横带由同一段文字画出', () => {
     const { container } = render(<GlitchText text="地下拳场" playKey={1} decode />);
-    const glitch = container.querySelector('.we-glitch');
-    expect(glitch).not.toBeNull();
-    expect(screen.getByText('地下拳场')).toHaveClass('we-glitch__text--masked');
-    expect(container.querySelector('.we-glitch__decode')).toHaveAttribute('aria-hidden', 'true');
-    expect(glitch).toHaveAttribute('style', expect.stringContaining('--we-glitch-burst'));
+    const slice = container.querySelector('.we-slice');
+    expect(slice).toHaveTextContent('地下拳场');
+    expect(slice).toHaveAttribute('data-ch', '地下拳场');
+    expect(slice.querySelector('.we-slice__glyph')).toHaveAttribute('data-ch', '地下拳场');
+    expect(slice).toHaveAttribute('style', expect.stringContaining('--we-glitch-decode'));
   });
 
   it('playKey 变化时重新挂载故障层，重播一次', () => {
@@ -52,7 +52,7 @@ describe('GlitchText 信号故障文字', () => {
     mocks.reduced = true;
     const { container } = render(<GlitchText text="地下拳场" playKey={1} decode />);
     expect(container).toHaveTextContent('地下拳场');
-    expect(container.querySelector('.we-glitch')).toBeNull();
+    expect(container.querySelector('.we-glitch, .we-slice')).toBeNull();
   });
 });
 
@@ -134,7 +134,7 @@ describe('ToastCard 提示条', () => {
     mocks.reduced = true;
     const { container } = render(<ToastCard toast={{ id: 'c', type: 'info', message: '标题生成中…' }} onClose={() => {}} />);
     expect(container.querySelector('.we-toast-card')).not.toHaveClass('we-toast-card--glitch');
-    expect(container.querySelector('.we-glitch')).toBeNull();
+    expect(container.querySelector('.we-glitch, .we-slice')).toBeNull();
     expect(screen.getByRole('status')).toHaveTextContent('提示标题生成中…');
   });
 });

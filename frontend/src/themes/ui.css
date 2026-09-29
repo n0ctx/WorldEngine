@@ -2980,14 +2980,121 @@
   color: var(--glitch-b);
   animation: we-glitch-split-b var(--we-glitch-burst) steps(1, jump-end) both;
 }
-.we-glitch__text--masked {
-  color: transparent;
+/* 切片成字（.we-slice）：字被切成 6 条横带，分三层叠放（每层两条不相邻的横带）。
+   · 定下来之前：整字是强调色，三层各自左右抖；
+   · 三层按 --slice-order-* 的顺序一层层定住，定住的一瞬亮一下；
+   · 全部定住后整字闪一次高光，再退回正文色。
+   真字本身在 __glyph 里保持透明，只占位、给读屏和选中用；三层画在 .we-slice::before、__glyph::before、__glyph::after。
+   外层的 ::after 留给流式输出的逐字光标。起点 / 时长由调用方写进 --we-slice-delay / --we-slice-duration */
+.we-slice {
+  --slice-delay: var(--we-slice-delay, 0ms);
+  --slice-step: calc(var(--we-slice-duration) / 4);
+  --slice-order-a: 0;
+  --slice-order-b: 1;
+  --slice-order-c: 2;
+  --slice-bright: color-mix(in srgb, var(--we-color-accent) 35%, white);
+  position: relative;
 }
-.we-glitch__decode {
+/* 整段文字（GlitchText decode）：按块排版，三层与真字同宽同换行；时长取 --we-glitch-decode */
+.we-slice--block {
+  --we-slice-duration: var(--we-glitch-decode);
+  display: inline-block;
+  max-width: 100%;
+}
+.we-slice--block > .we-slice__glyph {
+  display: block;
+}
+/* 整段按块排版：三层与真字同行高才能同样换行 */
+.we-slice.we-slice--block::before,
+.we-slice--block > .we-slice__glyph::before,
+.we-slice--block > .we-slice__glyph::after {
+  line-height: inherit;
+}
+/* 每个字的三层换一种定住顺序，整段看起来是随机的 */
+.we-slice:nth-child(3n + 1) { --slice-order-a: 2; --slice-order-b: 0; --slice-order-c: 1; }
+.we-slice:nth-child(3n + 2) { --slice-order-a: 1; --slice-order-b: 2; --slice-order-c: 0; }
+.we-slice__glyph {
+  position: relative;
+  animation: we-slice-hide var(--we-slice-duration) steps(1, jump-end) var(--slice-delay) backwards;
+}
+.we-slice::before,
+.we-slice__glyph::before,
+.we-slice__glyph::after {
+  content: attr(data-ch);
   position: absolute;
   inset: 0;
-  color: var(--we-color-decode);
-  text-shadow: 0 0 6px color-mix(in srgb, var(--we-color-decode) 50%, transparent);
+  /* 行内的字：定位盒只有字体本身高，用字体默认行高才能与真字重合、横带不截断 */
+  line-height: normal;
+  white-space: inherit;
+  color: var(--we-color-accent);
+  pointer-events: none;
+  visibility: hidden;
+}
+.we-slice::before {
+  clip-path: polygon(0 0%, 100% 0%, 100% 16.667%, 0 16.667%, 0 50%, 100% 50%, 100% 66.667%, 0 66.667%);
+  animation:
+    we-slice-jitter-a calc(var(--slice-step) * 2.2) steps(1, jump-end) calc(var(--slice-delay) * -1.7) infinite,
+    we-slice-lock 1ms steps(1, jump-end) calc(var(--slice-delay) + var(--slice-step) * var(--slice-order-a)) forwards,
+    we-slice-band-flash var(--slice-step) steps(1, jump-end) calc(var(--slice-delay) + var(--slice-step) * var(--slice-order-a)),
+    we-slice-char-flash var(--slice-step) steps(1, jump-end) calc(var(--slice-delay) + var(--slice-step) * 3),
+    we-slice-live var(--we-slice-duration) steps(1, jump-end) var(--slice-delay) backwards;
+}
+.we-slice__glyph::before {
+  clip-path: polygon(0 16.667%, 100% 16.667%, 100% 33.333%, 0 33.333%, 0 66.667%, 100% 66.667%, 100% 83.333%, 0 83.333%);
+  animation:
+    we-slice-jitter-b calc(var(--slice-step) * 1.8) steps(1, jump-end) calc(var(--slice-delay) * -2.3) infinite,
+    we-slice-lock 1ms steps(1, jump-end) calc(var(--slice-delay) + var(--slice-step) * var(--slice-order-b)) forwards,
+    we-slice-band-flash var(--slice-step) steps(1, jump-end) calc(var(--slice-delay) + var(--slice-step) * var(--slice-order-b)),
+    we-slice-char-flash var(--slice-step) steps(1, jump-end) calc(var(--slice-delay) + var(--slice-step) * 3),
+    we-slice-live var(--we-slice-duration) steps(1, jump-end) var(--slice-delay) backwards;
+}
+.we-slice__glyph::after {
+  clip-path: polygon(0 33.333%, 100% 33.333%, 100% 50%, 0 50%, 0 83.333%, 100% 83.333%, 100% 100%, 0 100%);
+  animation:
+    we-slice-jitter-c calc(var(--slice-step) * 2.6) steps(1, jump-end) calc(var(--slice-delay) * -3.1) infinite,
+    we-slice-lock 1ms steps(1, jump-end) calc(var(--slice-delay) + var(--slice-step) * var(--slice-order-c)) forwards,
+    we-slice-band-flash var(--slice-step) steps(1, jump-end) calc(var(--slice-delay) + var(--slice-step) * var(--slice-order-c)),
+    we-slice-char-flash var(--slice-step) steps(1, jump-end) calc(var(--slice-delay) + var(--slice-step) * 3),
+    we-slice-live var(--we-slice-duration) steps(1, jump-end) var(--slice-delay) backwards;
+}
+
+/* 真字：定住之前透明，由三层代画 */
+@keyframes we-slice-hide {
+  from, to { color: transparent; }
+}
+/* 三层只在定住之前和定住过程中显示；结束后交还给真字 */
+@keyframes we-slice-live {
+  from, to { visibility: visible; }
+}
+@keyframes we-slice-jitter-a {
+  0%   { translate: -3px 0; }
+  25%  { translate: 2px 0; }
+  50%  { translate: -1px 0; }
+  75%  { translate: 3px 0; }
+}
+@keyframes we-slice-jitter-b {
+  0%   { translate: 2px 0; }
+  33%  { translate: -3px 0; }
+  67%  { translate: 1px 0; }
+}
+@keyframes we-slice-jitter-c {
+  0%   { translate: -1px 0; }
+  20%  { translate: 3px 0; }
+  40%  { translate: -2px 0; }
+  60%  { translate: 1px 0; }
+  80%  { translate: -3px 0; }
+}
+/* 定住：横带回到原位，不再抖 */
+@keyframes we-slice-lock {
+  from, to { translate: 0 0; }
+}
+/* 定住的一瞬亮一下 */
+@keyframes we-slice-band-flash {
+  from, to { color: var(--slice-bright); text-shadow: 0 0 6px var(--we-color-accent); }
+}
+/* 整字定住：闪一次高光 */
+@keyframes we-slice-char-flash {
+  from, to { color: white; text-shadow: 0 0 10px var(--we-color-accent), 0 0 2px var(--slice-bright); }
 }
 
 @keyframes we-glitch-jolt {

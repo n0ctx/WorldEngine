@@ -586,105 +586,10 @@
 /* ── Streaming ─────────────────────────────────────────── */
 
 /* 时长由 useMotion().stream() 以 --we-stream-* 变量写入；变量缺失（减少动效）时整条 animation 无效，光标静止、新文字直接显示 */
-/* 数字雨解码（黑客帝国式）：
-   · 还没轮到的字：一格暗绿的镜像片假名 / 数字，每个字各自错开节奏换字形，亮度忽明忽暗、上下轻抖；
-   · 轮到它时：这一格变成最亮的"雨头"，闪几帧后锁定成真字（真字在锁定前保持透明）；
-   · 刚锁定的字：从亮绿分四档退回正文色，连起来是雨头后面一条渐暗的拖尾。
-   错开节奏靠负的 animation-delay：按每个字的出现时刻换算，相邻字落在不同帧上。
-   同一属性后列的动画优先：head 盖过 rain / flicker 的颜色与亮度，lock 盖过 rain 的字形 */
+/* 切片成字（样式见 ui.css .we-slice）：新到达的字先是抖动的强调色横带，轮到它时一层层定住、闪一下，退回正文色 */
 .we-stream-char {
-  position: relative;
-  animation:
-    we-stream-char var(--we-stream-char-duration) steps(1, jump-end) var(--we-stream-char-delay) backwards,
-    we-matrix-trail var(--we-stream-trail-duration) steps(4, jump-end) calc(var(--we-stream-char-delay) + var(--we-stream-char-duration)) none;
-}
-.we-stream-char::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  text-align: center;
-  color: color-mix(in srgb, var(--we-color-decode) 55%, transparent);
-  text-shadow: 0 0 6px color-mix(in srgb, var(--we-color-decode) 50%, transparent);
-  transform: scaleX(-1);
-  pointer-events: none;
-  animation:
-    we-matrix-rain-a var(--we-stream-rain-duration) steps(1, jump-end) calc(var(--we-stream-char-delay) * -3.7) infinite,
-    we-matrix-flicker calc(var(--we-stream-rain-duration) * 0.7) steps(1, jump-end) calc(var(--we-stream-char-delay) * -2.3) infinite,
-    we-matrix-head var(--we-stream-char-duration) steps(1, jump-end) var(--we-stream-char-delay),
-    we-matrix-lock 1ms steps(1, jump-end) calc(var(--we-stream-char-delay) + var(--we-stream-char-duration)) forwards;
-}
-.we-stream-char:nth-child(4n + 1)::before { animation-name: we-matrix-rain-b, we-matrix-flicker, we-matrix-head, we-matrix-lock; }
-.we-stream-char:nth-child(4n + 2)::before { animation-name: we-matrix-rain-c, we-matrix-flicker, we-matrix-head, we-matrix-lock; }
-.we-stream-char:nth-child(4n + 3)::before { animation-name: we-matrix-rain-d, we-matrix-flicker, we-matrix-head, we-matrix-lock; }
-
-@keyframes we-stream-char {
-  from, to { color: transparent; }
-}
-@keyframes we-matrix-flicker {
-  0%   { opacity: 1;    translate: 0 0; }
-  17%  { opacity: 0.45; translate: 0 -1px; }
-  33%  { opacity: 0.85; translate: 0 1px; }
-  50%  { opacity: 0.3;  translate: 0 0; }
-  67%  { opacity: 0.95; translate: 0 -1px; }
-  83%  { opacity: 0.6;  translate: 0 0; }
-}
-@keyframes we-matrix-head {
-  from, to {
-    opacity: 1;
-    translate: 0 0;
-    color: hsl(from var(--we-color-decode) h s 88%);
-    text-shadow: 0 0 8px var(--we-color-decode), 0 0 2px var(--we-color-decode);
-  }
-}
-@keyframes we-matrix-lock {
-  from, to { content: ''; }
-}
-/* 拖尾：刚锁定的真字从亮绿退回正文色（to 帧留空 = 回到正文原本的颜色） */
-@keyframes we-matrix-trail {
-  from {
-    color: hsl(from var(--we-color-decode) h s 72%);
-    text-shadow: 0 0 6px color-mix(in srgb, var(--we-color-decode) 60%, transparent);
-  }
-}
-@keyframes we-matrix-rain-a {
-  0%    { content: 'ﾅ'; }
-  12.5% { content: 'ｺ'; }
-  25%   { content: 'ﾊ'; }
-  37.5% { content: 'ﾚ'; }
-  50%   { content: 'ｴ'; }
-  62.5% { content: 'ｵ'; }
-  75%   { content: 'ﾓ'; }
-  87.5% { content: 'ｷ'; }
-}
-@keyframes we-matrix-rain-b {
-  0%    { content: 'ﾈ'; }
-  12.5% { content: 'ﾖ'; }
-  25%   { content: 'ｴ'; }
-  37.5% { content: 'ﾑ'; }
-  50%   { content: 'ｾ'; }
-  62.5% { content: 'ｳ'; }
-  75%   { content: 'ｶ'; }
-  87.5% { content: 'ﾌ'; }
-}
-@keyframes we-matrix-rain-c {
-  0%    { content: 'ﾋ'; }
-  12.5% { content: 'ｵ'; }
-  25%   { content: 'ﾀ'; }
-  37.5% { content: 'ｶ'; }
-  50%   { content: 'ﾔ'; }
-  62.5% { content: 'ﾌ'; }
-  75%   { content: 'ｴ'; }
-  87.5% { content: 'ﾕ'; }
-}
-@keyframes we-matrix-rain-d {
-  0%    { content: 'ｸ'; }
-  12.5% { content: 'ｿ'; }
-  25%   { content: 'ﾙ'; }
-  37.5% { content: '7'; }
-  50%   { content: 'ﾖ'; }
-  62.5% { content: 'ｴ'; }
-  75%   { content: 'ﾕ'; }
-  87.5% { content: '5'; }
+  --we-slice-delay: var(--we-stream-char-delay);
+  --we-slice-duration: var(--we-stream-char-duration);
 }
 
 /* 逐字光标：下划线光标只在这个字锁定的那一拍亮着，连起来就是一道跟着字走的光标 */
@@ -2777,8 +2682,10 @@
 
 @media (prefers-reduced-motion: reduce) {
   .we-danmaku-track,
-  .we-stream-char,
-  .we-stream-char::before,
+  .we-slice::before,
+  .we-slice__glyph,
+  .we-slice__glyph::before,
+  .we-slice__glyph::after,
   .we-stream-char--caret::after,
   .we-stream-caret {
     animation: none;

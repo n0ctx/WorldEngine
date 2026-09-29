@@ -67,8 +67,6 @@ describe('useMotion', () => {
     const { result } = renderHook(() => useMotion());
     expect(result.current.stream()).toEqual({
       '--we-stream-char-duration': `${STREAM.char.duration * 1000}ms`,
-      '--we-stream-rain-duration': `${STREAM.rain.duration * 1000}ms`,
-      '--we-stream-trail-duration': `${STREAM.trail.duration * 1000}ms`,
       '--we-stream-caret-duration': `${STREAM.caret.duration * 1000}ms`,
       '--we-stream-caret-out-duration': `${Math.round(STREAM.caretOut.duration * 1000)}ms`,
     });
