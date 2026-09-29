@@ -110,7 +110,7 @@ function CopyButton({ code }) {
                 d="M4 12.5l5 5L20 6.5"
                 initial={reduced ? false : { pathLength: 0 }}
                 animate={{ pathLength: 1 }}
-                transition={{ duration: 0.2, ease: EASE.stepped, delay: 0.05 }}
+                transition={{ duration: 0.2, ease: EASE.ink, delay: 0.05 }}
               />
             </svg>
           </motion.span>

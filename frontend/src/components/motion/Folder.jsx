@@ -11,8 +11,8 @@ const BASE_HEIGHT = 270;
 const FLAP_PATH =
   'M0 25C0 11.1929 11.1929 0 25 0H136.084C143.044 0 149.689 2.90139 154.42 8.00608L178.08 33.5343C182.811 38.639 189.456 41.5404 196.416 41.5404H296C309.807 41.5404 321 52.7333 321 66.5404V216C321 229.807 309.807 241 296 241H25C11.1929 241 0 229.807 0 216V25Z';
 const INSTANT = { duration: 0 };
-// 卡片扇出、盖板开合都分格跳，不回弹
-const HOP = { duration: DURATION.medium, ease: EASE.stepped };
+// 卡片扇出、盖板开合平滑到位。分格跳会让悬停展开一顿一顿
+const HOP = { duration: DURATION.medium, ease: EASE.ink };
 
 // 三张卡在静止 / 悬停 / 打开时的位置与错峰延迟，数值取自上游
 const CARDS = [

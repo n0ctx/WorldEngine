@@ -47,11 +47,11 @@ export default function ConfirmModal({
       >
         <motion.div
           className="we-dialog-panel we-material we-confirm-panel w-full max-w-sm mx-4"
-          variants={m.variant('signalIn')}
+          variants={m.variant('overlayEnter')}
           initial="hidden"
           animate="visible"
           exit="exit"
-          transition={m.transition('signal')}
+          transition={m.transition('overlay')}
           onClick={(e) => e.stopPropagation()}
         >
           <h2 className="we-confirm-title">{title}</h2>

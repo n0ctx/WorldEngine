@@ -7,9 +7,9 @@ import { motion } from 'framer-motion';
 import { useMotion } from '../../core/hooks/useMotion.js';
 import { EASE, transitions } from '../../core/utils/motion.js';
 
-// 填圈、打勾、划线、弹一下都分格跳；重排直接跳到新位置
-const EASE_OUT = EASE.stepped;
-const EASE_IN_OUT = EASE.stepped;
+// 填圈、打勾、划线、弹一下平滑走完。分格跳会让勾选一顿一顿；重排跟指示条同一条平滑曲线
+const EASE_OUT = EASE.ink;
+const EASE_IN_OUT = EASE.ink;
 
 const POP_SCALE = [1, 1.08, 1];
 const FLICK = [0, 8, -2, 0];

@@ -17,7 +17,7 @@ export default function WorldsPage() {
   const location = useLocation();
   const setCurrentWorldId = useStore((state) => state.setCurrentWorldId);
   const motionConfig = useMotion();
-  const sceneEnter = motionConfig.variant('signalIn');
+  const sceneEnter = motionConfig.variant('overlayEnter');
   const page = useWorldsPageController();
   const { worlds, loading, loadError, deletingWorld, importingWorld, worldImportRef } = page;
   const { setLitWorld } = useWorldAmbientTint(worlds);

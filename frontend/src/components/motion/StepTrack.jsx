@@ -6,8 +6,8 @@ import { motion } from 'framer-motion';
 import { useMotion } from '../../core/hooks/useMotion.js';
 import { DURATION, EASE } from '../../core/utils/motion.js';
 
-// 当前步拉长成进度条：分格跳到位，不回弹
-const WIDTH_HOP = { duration: DURATION.medium, ease: EASE.stepped };
+// 当前步拉长成进度条：平滑到位。分格跳会让进度条一格一格顿住
+const WIDTH_HOP = { duration: DURATION.medium, ease: EASE.ink };
 const INSTANT = { duration: 0 };
 
 // 比例取自上游（对照 iOS 原型量出）

@@ -25,6 +25,7 @@ function Segment({ gap, isActive, shape, transition, children }) {
 
 export default function GooeyNav({ active, children }) {
   const m = useMotion();
+  // 缝隙与圆角平滑打开。分格跳会让分段条在切换时顿住
   const transition = m.transition('hop');
   const items = Children.toArray(children);
   const open = (seam) => seam === 0 || seam === items.length || seam - 1 === active || seam === active;

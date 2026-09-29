@@ -134,10 +134,17 @@ export const variants = {
     visible: { opacity: [0, 1, 0.3, 1], transition: { duration: SIGNAL.enter, ease: cut } },
     exit:    { opacity: 0, transition: { duration: SIGNAL.exit, ease: cut } },
   },
-  // 遮罩：分三档亮起 / 熄灭
+  // 遮罩：平滑亮起 / 熄灭。大面积背景不走分格跳，跳变会在淡入过程中闪一下
   overlayBackdrop: {
     hidden:  { opacity: 0 },
     visible: { opacity: 1 },
+  },
+  // 大面板入场：淡入并上浮到位。信号锁定的横向抖动只适合小块（消息、标签、提示），
+  // 用在设置页、弹窗上会把整块内容拽偏
+  overlayEnter: {
+    hidden:  { opacity: 0, y: 8 },
+    visible: { opacity: 1, y: 0 },
+    exit:    { opacity: 0, y: 6 },
   },
 };
 
@@ -154,10 +161,12 @@ export const transitions = {
   signal:  { duration: SIGNAL.enter, ease: cut },
   // 闪一下熄灭：配离场 { opacity: [1, 0.4, 0] }
   signalOut: { duration: SIGNAL.exit, ease: cut },
-  // 遮罩分三档亮起
-  backdrop: { duration: DURATION.quick, ease: stepped(3) },
-  // 位置换位分四格跳
-  hop:     { duration: SIGNAL.hop, ease: EASE.stepped },
+  // 遮罩平滑亮起
+  backdrop: { duration: DURATION.quick, ease: EASE.ink },
+  // 大面板入场：配 variants.overlayEnter
+  overlay: { duration: DURATION.medium, ease: EASE.ink },
+  // 指示条、高亮块换位：平滑滑过去。分格跳会在跟随过程中一顿一顿
+  hop:     { duration: SIGNAL.hop, ease: EASE.ink },
   // 按压瞬时到位
   press:   { duration: SIGNAL.press, ease: cut },
 };

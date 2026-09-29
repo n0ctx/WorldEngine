@@ -126,13 +126,14 @@ export default function SectionTabs({ sections, defaultKey, variant, globalActio
       {staticMotion ? (
         <div>{current?.content}</div>
       ) : (
-        // 旧内容立即换下、只让新内容信号锁定入场：等旧内容离场完再进场会在连点时空一拍
+        // 旧内容立即换下、只让新内容淡入：等旧内容离场完再进场会在连点时空一拍。
+        // 页签内容是整块面板，不走信号锁定，横向抖动会把表单拽偏
         <MotionDiv
           key={active}
-          variants={motionPrefs.variant('signalIn')}
+          variants={motionPrefs.variant('overlayEnter')}
           initial={motionPrefs.reduced ? false : 'hidden'}
           animate="visible"
-          transition={motionPrefs.transition('signal')}
+          transition={motionPrefs.transition('overlay')}
         >
           {current?.content}
         </MotionDiv>

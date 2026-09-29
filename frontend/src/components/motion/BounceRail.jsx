@@ -10,8 +10,8 @@ import { EASE } from '../../core/utils/motion.js';
 const DOT = 6;
 // 圆点与导航项左缘的距离
 const GAP = 8;
-// 圆点沿弧线分格跳到新项
-const HOP = { duration: 0.25, ease: EASE.stepped };
+// 圆点沿弧线滑到新项。分格跳会在导航项之间一顿一顿，看起来像卡住
+const HOP = { duration: 0.25, ease: EASE.ink };
 
 const itemsOf = (container) => [...container.querySelectorAll('[data-bounce-item]')];
 

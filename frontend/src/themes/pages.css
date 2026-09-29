@@ -1280,7 +1280,7 @@
   border-radius: var(--we-radius-md);
   background: transparent;
   box-shadow: none;
-  animation: we-signal-in var(--we-duration-normal) steps(1, jump-end) backwards;
+  animation: we-rise-in var(--we-duration-slow) var(--we-easing-ink) backwards;
   transition: background var(--we-duration-fast) var(--we-easing-sharp),
               transform var(--we-duration-fast) var(--we-easing-sharp);
 }
@@ -1685,10 +1685,11 @@
   width: min(960px, calc(100vw - 48px));
   max-width: min(960px, calc(100vw - 48px));
   margin: var(--we-space-xl) auto var(--we-space-2xl);
-  max-height: calc(100vh - 96px);
+  /* 遮罩是定高 flex 容器，100% 即遮罩高度。96px 按 52px 顶栏写死，桌面顶栏 30px 时会把底部裁掉 */
+  max-height: calc(100% - var(--we-space-xl) - var(--we-space-2xl));
   overflow-y: auto;
-  /* 入场：墨水浮现（单次挂载，不随更新重放）*/
-  animation: we-signal-in var(--we-duration-normal) steps(1, jump-end) both;
+  /* 入场：墨水浮现（单次挂载，不随更新重放）。大面板不走信号锁定，横向抖动会把整页内容拽偏 */
+  animation: we-ink-rise var(--we-duration-slow) var(--we-easing-ink) both;
 }
 
 .we-edit-header {
@@ -2045,14 +2046,19 @@
 
 .we-settings-panel-wrap {
   width: 100%;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 .we-settings-panel-overlay {
   width: min(1040px, calc(100vw - 40px));
-  margin: var(--we-space-xl) auto var(--we-space-xl);
-  min-height: auto;
-  height: calc(100vh - 84px);
-  max-height: calc(100vh - 84px);
+  margin: var(--we-space-xl) auto;
+  min-height: 0;
+  flex: 1;
+  height: auto;
+  max-height: none;
 }
 
 .we-settings-nav {
@@ -2158,15 +2164,18 @@
 
 .we-settings-overlay {
   position: fixed;
-  inset: 52px 0 0;
+  /* 贴在顶栏下沿：52px 是手机顶栏高度，桌面顶栏只有 30px，写死会在顶栏和面板之间露出一条没被罩住的背景 */
+  inset: var(--we-topbar-height) 0 0;
   z-index: var(--we-z-sticky);
+  display: flex;
+  flex-direction: column;
   background: var(--we-color-bg-overlay);
   backdrop-filter: blur(6px);
   overflow: hidden;
   padding: 0 var(--we-space-xl) var(--we-space-xl);
   box-sizing: border-box;
-  /* 背景遮罩淡入，与面板 inkRise 同步登场 */
-  animation: we-panel-fade var(--we-duration-normal) steps(3, jump-end) both;
+  /* 背景遮罩淡入，与面板同步登场；遮罩只变透明度，保持平滑，不跟信号锁定一起分格跳 */
+  animation: we-panel-fade var(--we-duration-normal) var(--we-easing-ink) both;
 }
 
 .we-settings-loading {
@@ -3115,6 +3124,11 @@
 }
 
 @media (max-width: 960px) {
+  .we-settings-overlay {
+    padding-inline: var(--we-space-md);
+    padding-bottom: var(--we-space-lg);
+  }
+
   .we-worlds-canvas {
     padding: var(--we-space-xl) var(--we-space-xl) var(--we-space-2xl);
   }
@@ -3176,8 +3190,7 @@
   }
 
   .we-settings-panel-overlay {
-    height: calc(100vh - 64px);
-    max-height: calc(100vh - 64px);
+    margin-block: var(--we-space-lg);
   }
 
   .we-settings-nav {
@@ -4214,7 +4227,7 @@
   flex-direction: column;
   position: relative;
   overflow: hidden;
-  animation: we-panel-fade var(--we-duration-normal) steps(3, jump-end) both;
+  animation: we-panel-fade var(--we-duration-normal) var(--we-easing-ink) both;
 }
 .we-cast-scroll {
   flex: 1;

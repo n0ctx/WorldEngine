@@ -27,6 +27,10 @@ describe('motion utils', () => {
     expect(visible.x.at(-1)).toBe(0);
     expect(exit.opacity.at(-1)).toBe(0);
     expect(transitions.signal).toEqual({ duration: SIGNAL.enter, ease: EASE.cut });
+    expect(transitions.hop.ease).toBe(EASE.ink);
+    expect(transitions.backdrop.ease).toBe(EASE.ink);
+    expect(variants.overlayEnter.visible).toEqual({ opacity: 1, y: 0 });
+    expect(transitions.overlay.ease).toBe(EASE.ink);
     expect(SIGNAL.enter).toBe(DURATION.base);
     expect(SIGNAL.exit).toBe(DURATION.quick);
   });

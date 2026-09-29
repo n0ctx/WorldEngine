@@ -217,7 +217,7 @@ export default function WorldsGrid({
   const motionConfig = useMotion();
   const location = useLocation();
   const navigate = useNavigate();
-  const sceneEnter = motionConfig.variant('signalIn');
+  const sceneEnter = motionConfig.variant('overlayEnter');
   const showGlow = !motionConfig.reduced;
 
   return (

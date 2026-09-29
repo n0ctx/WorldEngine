@@ -30,11 +30,11 @@ export default function ToastCard({ toast, onClose, onMouseEnter, onMouseLeave }
     <motion.div
       role={isAssertive ? 'alert' : 'status'}
       aria-live={isAssertive ? 'assertive' : 'polite'}
-      variants={m.variant('signalIn')}
+      variants={m.variant('overlayEnter')}
       initial="hidden"
       animate="visible"
       exit="exit"
-      transition={m.transition('signal')}
+      transition={m.transition('overlay')}
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
       className={`we-toast-card${glitchVars ? ' we-toast-card--glitch' : ''}`}

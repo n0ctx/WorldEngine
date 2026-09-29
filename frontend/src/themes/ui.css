@@ -2011,7 +2011,7 @@
   height: 1.5px;
   background: var(--we-color-accent);
   transform: scaleX(0);
-  transition: transform var(--we-duration-fast) steps(4, jump-end);
+  transition: transform var(--we-duration-fast) var(--we-easing-ink);
   opacity: 0;
 }
 

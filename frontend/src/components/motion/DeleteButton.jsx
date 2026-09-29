@@ -24,8 +24,8 @@ const TILE = 28;
 const PANEL = 60;
 const HOLD = { deleted: 1400, kept: 600 };
 
-// 所有位移、翻盖都分格跳，不过冲；按压瞬时到位
-const EASE = MOTION_EASE.stepped;
+// 翻盖、滑出确认条平滑到位。分格跳会让删除确认一顿一顿；按压仍走瞬时硬切
+const EASE = MOTION_EASE.ink;
 
 const WIDTH = { duration: 0.62, ease: EASE };
 const LID = { duration: 0.6, ease: EASE };

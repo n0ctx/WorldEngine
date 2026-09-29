@@ -33,11 +33,11 @@ export default function ModalShell({ children, onClose, maxWidth = 'max-w-xl' })
           'we-modal we-material w-full mx-4 flex flex-col max-h-[90vh] overflow-hidden',
           maxWidth,
         ].join(' ')}
-        variants={m.variant('signalIn')}
+        variants={m.variant('overlayEnter')}
         initial="hidden"
         animate="visible"
         exit="exit"
-        transition={m.transition('signal')}
+        transition={m.transition('overlay')}
         onClick={(e) => e.stopPropagation()}
       >
         {children}

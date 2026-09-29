@@ -7,6 +7,18 @@
   to   { opacity: 1; }
 }
 
+/* 列表项上浮入场：故事线等小块，单次挂载 */
+@keyframes we-rise-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* 大面板墨水浮现：编辑页等整页容器。不带模糊——模糊入场会让文字在合成层上抖一下 */
+@keyframes we-ink-rise {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: none; }
+}
+
 /* 信号锁定入场：闪两下、抖一下，然后锁定（对应 motion.js variants.signalIn；
    用法 animation: we-signal-in var(--we-duration-normal) steps(1, jump-end) both） */
 @keyframes we-signal-in {
@@ -367,7 +379,7 @@
     0 0 0 1px var(--we-material-stroke),
     var(--we-material-shadow-near),
     var(--we-material-shadow-far);
-  animation: we-panel-fade var(--we-duration-normal) steps(3, jump-end) both;
+  animation: we-panel-fade var(--we-duration-normal) var(--we-easing-ink) both;
 }
 
 /* 纸面：::before 是压在底色上、正文下的静态纸纹；::after 是纸边——
@@ -957,7 +969,7 @@
   background: var(--we-color-gold);
   transform: scaleX(0);
   transform-origin: center;
-  transition: transform var(--we-duration-extended) steps(6, jump-end) 0.1s;
+  transition: transform var(--we-duration-extended) var(--we-easing-ink) 0.1s;
 }
 
 .we-chapter-header--visible .we-chapter-fleuron-line {
@@ -1549,7 +1561,7 @@
   inset: var(--we-topbar-height) 0 0 0;
   z-index: calc(var(--we-z-modal) - 1);
   background: color-mix(in srgb, var(--we-color-bg-overlay) 40%, transparent);
-  animation: we-panel-fade var(--we-duration-fast) steps(3, jump-end) both;
+  animation: we-panel-fade var(--we-duration-fast) var(--we-easing-ink) both;
 }
 
 .we-asst-drawer {
