@@ -17,9 +17,9 @@ function InkOrb({ size = 24, className = '' }) {
   );
 }
 
-const ORBS = { signal: MatrixOrb, liquid: InkOrb };
+const ORBS = { matrix: MatrixOrb, ink: InkOrb };
 
 export default function MotionOrb(props) {
-  const Orb = ORBS[useMotion().pack.id];
+  const Orb = ORBS[useMotion().pack.traits.orb];
   return <Orb {...props} />;
 }

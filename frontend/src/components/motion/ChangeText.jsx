@@ -20,7 +20,7 @@ export default function ChangeText({ text, playKey = null, decode = false }) {
     </span>
   );
 
-  if (m.pack.id !== 'liquid') return content;
+  if (!m.pack.traits.warp) return content;
   return (
     <InkWarp key={playKey} strength={decode ? 10 : 16} duration={decode ? m.pack.fx.decode : m.pack.fx.burst}>
       {content}

@@ -16,6 +16,7 @@ const shape = (pack) => ({
   gestures: Object.keys(pack.gestures).sort(),
   stream: Object.keys(pack.stream).sort(),
   fx: Object.keys(pack.fx).sort(),
+  traits: Object.keys(pack.traits).sort(),
 });
 
 describe('动效包', () => {

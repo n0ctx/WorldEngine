@@ -78,7 +78,7 @@ function Segment({ gap, isActive, shape, neck, children }) {
 }
 
 export default function GooeyNav({ active, children }) {
-  const withNeck = useMotion().pack.id === 'liquid';
+  const withNeck = useMotion().pack.traits.neck;
   const items = Children.toArray(children);
   const open = (seam) => seam === 0 || seam === items.length || seam - 1 === active || seam === active;
 

@@ -62,7 +62,7 @@ export default function BounceRail({ containerRef, activeKey }) {
       end.set(to.y);
       return undefined;
     }
-    if (pack.id === 'liquid') {
+    if (pack.traits.rail === 'stretch') {
       x.set(to.x);
       const down = to.y > y.get();
       const { move, moveTrail } = pack.transitions;

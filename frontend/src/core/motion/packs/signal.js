@@ -20,6 +20,13 @@ export default {
   id: 'signal',
   name: '信号锁定',
   description: '出现、切换、反馈都是一次短促的数字信号：硬切闪烁、错位撕裂、切片成字。',
+  // 依赖包身份的组件行为：写在包里，组件只读这些字段，不按包 id 判断
+  traits: {
+    neck: false,
+    warp: false,
+    rail: 'hop',
+    orb: 'matrix',
+  },
   variants: {
     // 小块入场：闪两下、抖一下，然后锁定（消息、说话者、下拉、错误提示）
     enter: {
