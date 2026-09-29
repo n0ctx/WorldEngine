@@ -58,11 +58,6 @@ export default {
       hidden:  (edge) => ({ opacity: 0, x: edge * 2.5, filter: BLUR_EXIT, transition: EXIT }),
       visible: () => ({ opacity: 1, x: 0, filter: CLEAR, transition: { ...ENTER, delay: 0.14 } }),
     },
-    page: {
-      hidden:  { opacity: 0, y: 24 },
-      visible: { opacity: 1, y: 0, transition: PANEL },
-      exit:    { opacity: 0, y: 12, transition: EXIT },
-    },
   },
   transitions: {
     enter:     ENTER,

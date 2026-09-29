@@ -2,8 +2,8 @@
  * Classic Parchment shell — PageLayout slot renderer.
  *
  * Extracted from AppShell so tests can install the real renderer via
- * `PageLayoutRendererProvider` without dragging in TopBar / GlobalToast /
- * PageTransition. Production code goes through AppShell.
+ * `PageLayoutRendererProvider` without dragging in TopBar / GlobalToast.
+ * Production code goes through AppShell.
  */
 import BookSpread from './BookSpread.jsx';
 import PageLeft from './PageLeft.jsx';

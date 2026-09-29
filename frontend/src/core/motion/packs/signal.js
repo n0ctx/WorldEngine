@@ -58,12 +58,6 @@ export default {
         transition: { ...ENTER, delay: DURATION.quick },
       }),
     },
-    // 路由切换
-    page: {
-      hidden:  { opacity: 0 },
-      visible: { opacity: FLASH, transition: ENTER },
-      exit:    { opacity: 0, transition: EXIT },
-    },
   },
   transitions: {
     enter:    ENTER,

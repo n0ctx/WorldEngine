@@ -2165,7 +2165,7 @@
   height: 11px;
 }
 
-.we-page-transition {
+.we-page-body {
   flex: 1;
   min-height: 0;
   overflow-x: hidden;

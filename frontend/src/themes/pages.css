@@ -5051,9 +5051,6 @@
   border-color: var(--we-color-status-warning);
   color: var(--we-color-status-warning);
 }
-.we-design-lab__status--closed {
-  color: var(--we-color-text-tertiary);
-}
 .we-design-lab__count {
   margin-left: var(--we-space-xs);
   font-size: var(--we-text-xs);

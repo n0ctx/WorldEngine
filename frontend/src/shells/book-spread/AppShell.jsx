@@ -1,7 +1,7 @@
 /**
  * Book-spread shell — default app frame.
  *
- * Owns global chrome (top bar, toast region), the page transition wrapper,
+ * Owns global chrome (top bar, toast region), the page body wrapper,
  * and the PageLayout slot renderer that arranges page slots inside the
  * book two-page spread.
  *
@@ -13,7 +13,6 @@
 import { MotionConfig } from 'framer-motion';
 import { LucideProvider } from 'lucide-react';
 import TopBar from './chrome/TopBar.jsx';
-import PageTransition from './transitions/PageTransition.jsx';
 import GlobalToast from '../../components/ui/GlobalToast.jsx';
 import { PageLayoutRendererProvider } from '../../pages/layout/PageLayout.jsx';
 import RenderPageLayout from './layout/pageLayoutRenderer.jsx';
@@ -51,9 +50,9 @@ export default function AppShell({ children, locationKey }) {
         <TopBar />
         <GlobalToast />
         <PageLayoutRendererProvider render={RenderPageLayout}>
-          <PageTransition locationKey={locationKey}>
+          <div className="we-page-body">
             {children}
-          </PageTransition>
+          </div>
         </PageLayoutRendererProvider>
       </div>
       </LucideProvider>

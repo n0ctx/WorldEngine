@@ -7,7 +7,6 @@
  * status：
  *   pack    走动效包，必须有演示
  *   blind   没接进动效包（硬编码或没有动效），切换动效不会变；演示可选
- *   closed  代码里有意关闭
  */
 
 export const CATEGORIES = [
@@ -25,7 +24,6 @@ export const CATEGORIES = [
 export const STATUS_LABEL = {
   pack: '动效包驱动',
   blind: '未接入动效包',
-  closed: '已关闭',
 };
 
 export const SLOTS = [
@@ -64,13 +62,15 @@ export const SLOTS = [
   {
     id: 'option-card', category: 'appear', title: '剧情选项卡入场', status: 'blind',
     api: [], usedIn: ['OptionCard'],
-    note: '入场的位移和时长写死在组件里，不随动效包变化。',
+    note: '入场的位移和时长写死在组件里，不随动效包变化。'
+      + '右侧出样：三张卡逐张错开入场，点选后被选中的卡强调、其余卡下沉变暗；未落地，确认后再接入动效包。',
   },
   {
     id: 'legacy-css-enter', category: 'appear', title: '页面元素的固定 CSS 入场', status: 'blind',
     api: [], usedIn: ['会话中栏', '写卡助手遮罩', '设置遮罩', '写卡面板', '编辑面板遮罩'],
     note: '直接用 we-panel-fade（淡入）和 we-panel-rise（8px 上浮淡入）两个固定动画，不随动效包变化；'
-      + '大面板不走信号锁定，横向抖动会把整页内容拽偏。',
+      + '大面板不走信号锁定，横向抖动会把整页内容拽偏。'
+      + '右侧出样了「遮罩」与「大面板」两个样机；未落地，确认后再接入动效包。',
   },
 
   // ── 浮层与弹窗 ──
@@ -93,11 +93,6 @@ export const SLOTS = [
     id: 'side-drawer', category: 'overlay', title: '侧抽屉', status: 'pack',
     api: ['variant:appear', 'variant:edgeEnter', 'transition:enter', 'transition:backdrop'],
     usedIn: ['SideDrawer'],
-  },
-  {
-    id: 'page-transition', category: 'overlay', title: '页面切换', status: 'closed',
-    api: ['variant:page'], usedIn: ['PageTransition'],
-    note: '会和页内翻页叠加造成双重位移，代码里有意关闭，任何动效都不生效。',
   },
 
   // ── 换位与导航 ──
@@ -149,7 +144,7 @@ export const SLOTS = [
   {
     id: 'card-hover', category: 'press', title: '卡片悬停与按下', status: 'blind',
     api: [], usedIn: ['Card', 'PanelCard', '角色卡'],
-    note: '现在只有普通 CSS 过渡，动效包管不到。',
+    note: '现在只有普通 CSS 过渡，动效包管不到。右侧出样（纯 CSS，悬停与按下）未落地，确认后再接入动效包。',
   },
 
   // ── 输入控件 ──
@@ -160,11 +155,12 @@ export const SLOTS = [
   {
     id: 'input-focus', category: 'input', title: '输入框聚焦', status: 'blind',
     api: [], usedIn: ['Input', 'Textarea'],
+    note: '右侧出样（纯 CSS，聚焦描边）未落地，确认后再接入动效包。',
   },
   {
     id: 'switch-range', category: 'input', title: '开关与滑块', status: 'blind',
     api: [], usedIn: ['ToggleSwitch', 'Range'],
-    note: '墨流包里开关圆钮已有弹跳，滑块没有。',
+    note: '墨流包里开关圆钮已有弹跳，滑块没有。右侧出样（纯 CSS，圆钮、轨道、滑块）未落地，确认后再接入动效包。',
   },
 
   // ── 列表与排序 ──
@@ -176,6 +172,7 @@ export const SLOTS = [
   {
     id: 'badge-empty', category: 'list', title: '徽标与空状态入场', status: 'blind',
     api: [], usedIn: ['Badge', 'EmptyState'],
+    note: '右侧出样：徽标逐个入场，空状态的标题、说明、按钮随后依次错开；未落地，确认后再接入动效包。',
   },
 
   // ── 流式与等待 ──
