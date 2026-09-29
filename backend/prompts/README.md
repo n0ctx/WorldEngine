@@ -43,7 +43,7 @@
   中期剧情摘要滚动合并 prompt：把旧摘要与新滑出的轮次合并为新摘要。
   调用方：`backend/memory/middle-summary.js`
 - `templates/memory-middle-summary-shrink.md`
-  中期剧情摘要超出目标长度时的压缩 prompt。
+  中期剧情摘要超出目标长度时的压缩 prompt，最多连续用两次。
   调用方：`backend/memory/middle-summary.js`
 - `templates/memory-recall-system.md`
   长期记忆召回判定的 system prompt，喂给模型历史轮次目录索引，要求只返回命中的轮次编号 JSON。

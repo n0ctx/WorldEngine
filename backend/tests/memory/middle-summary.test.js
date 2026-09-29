@@ -141,10 +141,10 @@ test('computeMiddleSummary：有滑出时合并成功，coveredTo 推进', async
   assert.equal(result.windowRounds, 1);
 });
 
-test('computeMiddleSummary：输出超过 1000 token 时二次压缩成功', async () => {
+test('computeMiddleSummary：输出超过 1200 token 时压缩成功', async () => {
   resetMockEnv();
   sandbox.writeConfig(createTestConfig({ short_term_token_budget: 10 }));
-  const tooLong = '测'.repeat(2100); // ≈ 1050 token，超过 MIDDLE_SUMMARY_MAX_TOKENS
+  const tooLong = '测'.repeat(1600); // ≈ 1248 token，超过 MIDDLE_SUMMARY_MAX_TOKENS
   const shrunk = '压缩后的摘要';
   process.env.MOCK_LLM_COMPLETE_QUEUE = JSON.stringify([tooLong, shrunk]);
 
@@ -160,12 +160,13 @@ test('computeMiddleSummary：输出超过 1000 token 时二次压缩成功', asy
   assert.equal(result.text, shrunk);
 });
 
-test('computeMiddleSummary：二次压缩仍超长时失败，coveredTo 不推进，text 回退基线', async () => {
+test('computeMiddleSummary：两次压缩仍超长时失败，coveredTo 不推进，text 回退基线', async () => {
   resetMockEnv();
   sandbox.writeConfig(createTestConfig({ short_term_token_budget: 10 }));
-  const tooLong1 = '测'.repeat(2100);
-  const tooLong2 = '测'.repeat(2100);
-  process.env.MOCK_LLM_COMPLETE_QUEUE = JSON.stringify([tooLong1, tooLong2]);
+  const tooLong1 = '测'.repeat(1600);
+  const tooLong2 = '测'.repeat(1600);
+  const tooLong3 = '测'.repeat(1600);
+  process.env.MOCK_LLM_COMPLETE_QUEUE = JSON.stringify([tooLong1, tooLong2, tooLong3]);
 
   const session = seedSession();
   seedRound(session.id, 1, { userText: '测'.repeat(50) });
@@ -182,10 +183,28 @@ test('computeMiddleSummary：二次压缩仍超长时失败，coveredTo 不推�
   assert.equal(result.windowRounds, 2);
 });
 
-test('computeMiddleSummary：二次压缩输出为空时失败', async () => {
+test('computeMiddleSummary：第一次压缩仍超长、第二次压进上限时成功', async () => {
   resetMockEnv();
   sandbox.writeConfig(createTestConfig({ short_term_token_budget: 10 }));
-  const tooLong = '测'.repeat(2100);
+  const tooLong = '测'.repeat(1600);
+  process.env.MOCK_LLM_COMPLETE_QUEUE = JSON.stringify([tooLong, tooLong, '压进上限的摘要']);
+
+  const session = seedSession();
+  seedRound(session.id, 1, { userText: '测'.repeat(50) });
+  seedRound(session.id, 2, { userText: '短' });
+
+  const { computeMiddleSummary } = await freshImport('backend/memory/middle-summary.js');
+  const result = await computeMiddleSummary(session.id, 2);
+
+  assert.equal(result.failed, false);
+  assert.equal(result.coveredTo, 1);
+  assert.equal(result.text, '压进上限的摘要');
+});
+
+test('computeMiddleSummary：压缩输出为空时失败', async () => {
+  resetMockEnv();
+  sandbox.writeConfig(createTestConfig({ short_term_token_budget: 10 }));
+  const tooLong = '测'.repeat(1600);
   process.env.MOCK_LLM_COMPLETE_QUEUE = JSON.stringify([tooLong, '']);
 
   const session = seedSession();

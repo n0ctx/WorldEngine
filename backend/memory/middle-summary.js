@@ -29,8 +29,10 @@ import {
   MIDDLE_RAW_ROUNDS_MAX,
 } from '../utils/constants.js';
 
-/** 中期摘要正文目标字数上限，留给模型的篇幅预算（估算误差由输出校验兜底） */
-const MIDDLE_SUMMARY_TARGET_CHARS = 1000;
+/** 提示词里的目标字数，比 token 硬上限更紧，留给模型习惯性写超的余量 */
+const MIDDLE_SUMMARY_TARGET_CHARS = 800;
+/** 超限后最多再压这么多次；仍超限则回退基线 */
+const MIDDLE_SUMMARY_SHRINK_ATTEMPTS = 2;
 
 /**
  * 计算短期窗口滑出计划。
@@ -150,6 +152,7 @@ async function callShrink(sessionId, summary) {
   return callMiddleSummaryLLM(sessionId, renderBackendPrompt('memory-middle-summary-shrink.md', {
     SUMMARY: summary,
     SUMMARY_CHARS: summary.length,
+    WRITTEN_CHARS: summary.length,
     MAX_CHARS: MIDDLE_SUMMARY_TARGET_CHARS,
   }));
 }
@@ -181,7 +184,7 @@ async function mergeMaterial(sessionId, userName, characterName, baseText, items
 /**
  * 计算第 roundIndex 轮的中期摘要。
  * 基线取 round_index < roundIndex 的最新记录（无记录或 middle_covered_to 为 null 时按 text='' / coveredTo=0 处理）。
- * 无滑出时原样继承基线；有滑出时滚动合并被滑出的轮次，超长二次压缩，仍失败则回退基线并标记 failed
+ * 无滑出时原样继承基线；有滑出时滚动合并被滑出的轮次，超长再压两次，仍失败则回退基线并标记 failed
  * （不抛错，调用方在建行之后自行抛出）。
  *
  * @param {string} sessionId
@@ -241,7 +244,7 @@ export async function computeMiddleSummary(sessionId, roundIndex) {
   try {
     let summaryText = await mergeMaterial(sessionId, userName, characterName, baseText, items);
 
-    if (countTokens(summaryText) > MIDDLE_SUMMARY_MAX_TOKENS) {
+    for (let attempt = 0; attempt < MIDDLE_SUMMARY_SHRINK_ATTEMPTS && countTokens(summaryText) > MIDDLE_SUMMARY_MAX_TOKENS; attempt++) {
       summaryText = await callShrink(sessionId, summaryText);
     }
 

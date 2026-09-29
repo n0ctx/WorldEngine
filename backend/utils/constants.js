@@ -42,7 +42,7 @@ export const TURN_SUMMARY_CAST_MAX = 4;
 // 记忆分层（memory-v2）
 // ============================
 /** 中期摘要单条最大 token 数 */
-export const MIDDLE_SUMMARY_MAX_TOKENS = 1000;
+export const MIDDLE_SUMMARY_MAX_TOKENS = 1200;
 /** 中期摘要压缩输入（原文轮次拼接后）最大 token 数 */
 export const MIDDLE_COMPRESS_INPUT_MAX_TOKENS = 12000;
 /** 中期摘要覆盖的原文轮数上限 */
