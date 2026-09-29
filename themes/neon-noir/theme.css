@@ -161,15 +161,6 @@
   --we-pane-glow: color-mix(in srgb, var(--we-atmosphere-color) 26%, transparent);
 
   /* ==================== 质感阴影（棱角分明的赛博风格） ==================== */
-  --we-shadow-stamp-up:
-    inset 0 1px 0 rgba(255, 255, 255, 0.06),
-    inset 0 -1px 0 rgba(0, 0, 0, 0.20),
-    0 2px 0 var(--we-color-accent-deep),
-    0 4px 8px rgba(0, 0, 0, 0.35);
-  --we-shadow-stamp-down:
-    inset 0 2px 4px rgba(0, 0, 0, 0.25),
-    inset 0 1px 0 rgba(0, 0, 0, 0.15),
-    0 1px 0 var(--we-color-accent-deep);
   --we-shadow-paper-lift:
     0 0 5px rgba(10, 10, 20, 0.15),
     0 0 12px rgba(10, 10, 20, 0.08);
@@ -186,7 +177,6 @@
   --we-shadow-toast:
     0 0 0 1px var(--we-color-border-subtle),
     0 4px 12px var(--we-color-shadow-md);
-  --we-shadow-btn-primary-inner-glow: inset 0 0 12px color-mix(in srgb, var(--we-color-avatar-placeholder) 8%, transparent);
   --we-shadow-range-thumb: 0 1px 4px color-mix(in srgb, var(--we-base-ink-900) 18%, transparent);
   --we-shadow-range-thumb-active:
     0 0 0 3px color-mix(in srgb, var(--we-base-vermilion-600) 15%, transparent),

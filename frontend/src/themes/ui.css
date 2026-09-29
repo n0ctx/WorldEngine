@@ -45,19 +45,15 @@
   justify-content: center;
   line-height: var(--we-leading-tight);
   text-decoration: none;
-  box-shadow: inset 0 1px 0 var(--we-color-white-sheen-sm), 0 1px 2px var(--we-color-shadow-sm);
 }
 .we-btn:hover:not(:disabled) {
   border-color: var(--we-color-text-tertiary);
   background: var(--we-color-ink-wash);
 }
-.we-btn:active:not(:disabled) {
-  box-shadow: inset 0 1px 3px var(--we-color-shadow-md);
-}
 /* 键盘焦点环：鼠标点击不触发（:focus-visible），仅键盘 Tab 时显形 */
 .we-btn:focus-visible {
   outline: none;
-  box-shadow: var(--we-focus-ring), 0 1px 2px var(--we-color-shadow-sm);
+  box-shadow: var(--we-focus-ring);
   border-color: var(--we-color-border-focus);
 }
 .we-btn:disabled {
@@ -86,21 +82,16 @@
   padding: 5px 10px;
 }
 
-/* variant: primary */
+/* variant: primary —— 扁平实色：没有厚度边、高光和投影；悬停时颜色向正文色靠一点 */
 .we-btn-primary {
   background: var(--we-color-accent);
   color: var(--we-color-bg-canvas);
-  border-color: var(--we-color-accent-deep);
-  box-shadow: var(--we-shadow-stamp-up);
+  border-color: var(--we-color-accent);
   font-weight: 600;
 }
 .we-btn-primary:hover:not(:disabled) {
-  background: var(--we-color-accent);
-  border-color: var(--we-color-accent-deep);
-  box-shadow: var(--we-shadow-stamp-up), var(--we-shadow-btn-primary-inner-glow);
-}
-.we-btn-primary:active:not(:disabled) {
-  box-shadow: var(--we-shadow-stamp-down);
+  background: color-mix(in srgb, var(--we-color-accent) 86%, var(--we-color-text-primary));
+  border-color: color-mix(in srgb, var(--we-color-accent) 86%, var(--we-color-text-primary));
 }
 
 /* variant: secondary */
@@ -936,17 +927,16 @@
   font-family: var(--we-font-prose);
   font-size: var(--we-text-sm);
   font-weight: 600;
-  background: var(--we-material-raised-face), var(--we-color-accent);
+  background: var(--we-color-accent);
   color: var(--we-color-bg-canvas);
   border: none;
   border-radius: var(--we-radius-full);
   padding: 8px var(--we-space-lg); /* 8px: design exact */
   cursor: pointer;
-  box-shadow: var(--we-material-raised);
-  transition: box-shadow var(--we-duration-fast) var(--we-easing-sharp), filter var(--we-duration-fast) var(--we-easing-sharp);
+  transition: filter var(--we-duration-fast) var(--we-easing-sharp);
 }
 .we-confirm-ok.danger {
-  background: var(--we-material-raised-face), var(--we-color-status-danger);
+  background: var(--we-color-status-danger);
 }
 .we-confirm-ok:disabled {
   opacity: 0.5;
@@ -954,9 +944,6 @@
 }
 .we-confirm-ok:hover:not(:disabled) {
   filter: brightness(1.06);
-}
-.we-confirm-ok:active:not(:disabled) {
-  box-shadow: var(--we-material-raised-pressed);
 }
 
 /* ── AvatarUpload 头像上传 ── */

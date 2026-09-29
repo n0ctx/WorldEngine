@@ -1325,15 +1325,13 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: var(--we-material-raised-face), var(--we-color-accent);
+  background: var(--we-color-accent);
   color: var(--we-color-text-inverse);
   border: none;
   border-radius: var(--we-radius-full);
   cursor: pointer;
-  box-shadow: var(--we-material-raised);
-  /* 陷落 / 回弹由 framer 弹簧驱动（InputBox），CSS 只把厚度收进去 */
-  transition: box-shadow var(--we-duration-fast) var(--we-easing-sharp),
-              filter var(--we-duration-fast) var(--we-easing-sharp),
+  /* 陷落 / 回弹由 framer 弹簧驱动（InputBox），CSS 只过渡颜色 */
+  transition: filter var(--we-duration-fast) var(--we-easing-sharp),
               opacity var(--we-duration-fast) var(--we-easing-sharp);
 }
 
@@ -1341,13 +1339,9 @@
   filter: brightness(1.06);
 }
 
-.we-chat-send-btn:active:not(:disabled) {
-  box-shadow: var(--we-material-raised-pressed);
-}
-
 .we-chat-send-btn:focus-visible {
   outline: none;
-  box-shadow: var(--we-focus-ring), var(--we-material-raised);
+  box-shadow: var(--we-focus-ring);
 }
 
 .we-chat-send-btn:disabled {
