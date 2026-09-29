@@ -308,10 +308,7 @@
   background: var(--we-glass-bg);
   backdrop-filter: blur(var(--we-glass-blur));
   border-radius: var(--we-radius-xl);
-  box-shadow:
-    0 0 0 1px var(--we-material-stroke),
-    var(--we-material-shadow-near),
-    var(--we-material-shadow-far);
+  box-shadow: var(--we-material-shadow);
 }
 
 /* ── ModalShell ── */
@@ -324,10 +321,7 @@
   background: var(--we-glass-bg);
   backdrop-filter: blur(var(--we-glass-blur));
   border-radius: var(--we-radius-xl);
-  box-shadow:
-    0 0 0 1px var(--we-material-stroke),
-    var(--we-material-shadow-near),
-    var(--we-material-shadow-far);
+  box-shadow: var(--we-material-shadow);
 }
 
 .we-dialog-header {

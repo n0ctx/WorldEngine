@@ -366,10 +366,7 @@
   isolation: isolate;
   background: var(--we-pane-center-bg);
   border-radius: var(--we-radius-lg);
-  box-shadow:
-    0 0 0 1px var(--we-material-stroke),
-    var(--we-material-shadow-near),
-    var(--we-material-shadow-far);
+  box-shadow: var(--we-material-shadow);
   animation: we-panel-fade var(--we-duration-normal) var(--we-easing-ink) both;
 }
 
@@ -1096,10 +1093,7 @@
   padding: var(--we-space-xs);
   background: var(--we-composer-field-bg);
   border-radius: var(--we-radius-xl);
-  box-shadow:
-    0 0 0 1px var(--we-material-stroke),
-    var(--we-material-shadow-near),
-    var(--we-material-shadow-far);
+  box-shadow: var(--we-material-shadow);
   backdrop-filter: blur(var(--we-glass-blur));
 }
 
@@ -1506,10 +1500,7 @@
   background: color-mix(in srgb, var(--we-color-bg-elevated) 30%, transparent);
   backdrop-filter: blur(var(--we-glass-blur));
   border-radius: var(--we-radius-xl);
-  box-shadow:
-    0 0 0 1px var(--we-material-stroke),
-    var(--we-material-shadow-near),
-    var(--we-material-shadow-far);
+  box-shadow: var(--we-material-shadow);
 }
 
 /* 调宽手柄只占面板中段，避开圆角 */

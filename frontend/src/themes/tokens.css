@@ -185,6 +185,8 @@
   --we-material-shadow-lift:
     0 16px 28px -14px var(--we-color-shadow-lg),
     0 40px 68px -34px var(--we-color-shadow-xl);
+  /* 落地的物件：描边 + 近影 + 远影，用于 --we-material-* 三件套的默认组合 */
+  --we-material-shadow: 0 0 0 1px var(--we-material-stroke), var(--we-material-shadow-near), var(--we-material-shadow-far);
   /* 页面内容区的底：默认透明让氛围透出；浅色主题可铺回实底 */
   --we-stage-surface:             transparent;
   /* 浮层（侧栏、设置、弹窗、输入胶囊）的半透明底与背景模糊 */

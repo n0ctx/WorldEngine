@@ -173,10 +173,7 @@
   padding: var(--we-space-lg);
   border-radius: var(--we-radius-lg);
   background: var(--we-card-bg);
-  box-shadow:
-    0 0 0 1px var(--we-material-stroke),
-    var(--we-material-shadow-near),
-    var(--we-material-shadow-far);
+  box-shadow: var(--we-material-shadow);
   cursor: pointer;
   overflow: hidden;
   z-index: var(--we-z-card-overlay);
