@@ -3,22 +3,25 @@
  * 主题系统三层对齐检查
  *
  * 检查三个问题：
- *   A. 模板盲区   — 内核定义的视觉 token 在 _template/theme.css 里看不到，主题作者无从覆盖
- *   B. 孤悬覆盖   — 主题包覆盖了内核里根本不存在的 token（可能是改名后遗留）
- *   C. 主题缺失   — 模板列出的关键 token 某主题没有覆盖（不强制，仅提示）
+ *   A. 模板盲区   — 内核定义的视觉 token 在 _template/theme.css 里看不到，主题作者无从覆盖（硬错误）
+ *   B. 孤悬覆盖   — 主题包覆盖了内核里根本不存在的 token（可能是改名后遗留，硬错误）
+ *   C. 主题缺失   — 模板列出的关键 token 某主题没有覆盖（主题可以只覆盖需要的部分，仅提示，不影响退出码）
  *
- * 退出码：
- *   0 — 全部通过
- *   1 — 发现 B 类孤悬覆盖（硬错误，token 完全无效）
- *   2 — 仅有 A 类模板盲区 / C 类主题缺失（警告，不阻塞 CI）
+ * 新增或改名核心 token 时，同一次提交里要同步 _template/theme.css，否则 A 失败。
+ *
+ * 用法：node scripts/check-theme-alignment.mjs [--root <dir>]
+ *
+ * 退出码：0 通过 / 1 发现 A 或 B
  */
 
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import path from 'node:path';
+import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const ROOT = path.resolve(__dirname, '..');
+const rootFlag = process.argv.indexOf('--root');
+const ROOT = rootFlag === -1 ? path.resolve(__dirname, '..') : path.resolve(process.argv[rootFlag + 1]);
 
 // ─── 路径配置 ────────────────────────────────────────────────────────────────
 const CORE_FILES = [
@@ -33,6 +36,8 @@ const SKIP_PREFIXES = [
   '--we-core-',        // 内部基础色，不对外暴露
   '--we-z-',           // z-index，不在主题范围
   '--we-space-',       // 间距，结构性，主题不改
+  '--we-topbar-height',// 顶栏高度，结构尺寸，主题不改
+  '--we-skeleton-pulse-duration', // 骨架呼吸时长，动效节奏，随动效包而不是主题
   '--we-range-',       // 功能性渐变（JS 动态变量）
   '--we-status-table-',// JS 运行时 token
   '--we-worlds-grid-', // JS 运行时 token
@@ -76,9 +81,6 @@ function themeIds() {
 }
 
 // ─── 解析 ─────────────────────────────────────────────────────────────────────
-const coreTokens = new Set();
-for (const f of CORE_FILES) coreTokens.add(...[...extractDefined(readCss(f))]);
-// Set.add 不支持展开，逐个加
 const coreTokensSet = new Set();
 for (const f of CORE_FILES) for (const t of extractDefined(readCss(f))) coreTokensSet.add(t);
 
@@ -113,12 +115,11 @@ for (const [id, tokens] of Object.entries(themes)) {
 
 // ─── 输出 ─────────────────────────────────────────────────────────────────────
 let hasError = false;
-let hasWarn  = false;
 
 // ── A ──
 if (templateGap.length > 0) {
-  hasWarn = true;
-  console.log(`\n⚠  [A] 模板盲区：内核定义但模板未列出的视觉 token（主题作者无从覆盖）`);
+  hasError = true;
+  console.log(`\n✖  [A] 模板盲区：内核定义但模板未列出的视觉 token（主题作者无从覆盖）`);
   console.log(`   共 ${templateGap.length} 个：\n`);
   for (const t of templateGap) {
     // 找出是哪个 core 文件定义的
@@ -139,9 +140,8 @@ for (const [id, tokens] of Object.entries(orphaned)) {
 
 // ── C ──
 for (const [id, tokens] of Object.entries(missing)) {
-  hasWarn = true;
   const pct = Math.round(((keyTokens.length - tokens.length) / keyTokens.length) * 100);
-  console.log(`\n⚠  [C] 主题缺失（themes/${id}/theme.css）：模板关键 token 覆盖率 ${pct}%，缺少 ${tokens.length} 个`);
+  console.log(`\nℹ  [C] 主题缺失（themes/${id}/theme.css）：模板关键 token 覆盖率 ${pct}%，缺少 ${tokens.length} 个`);
   for (const t of tokens) console.log(`   ${t}`);
 }
 
@@ -152,12 +152,11 @@ console.log(`模板 token  (视觉范围): ${[...templateTokens].filter(isVisual
 for (const [id, tokens] of Object.entries(themes)) {
   const vis = [...tokens].filter(isVisual).length;
   const pct = Math.round((vis / keyTokens.length) * 100);
-  const ok = !orphaned[id] && !missing[id];
-  console.log(`${ok ? '✓' : '⚠'} themes/${id}  : 覆盖 ${vis} 个视觉 token，关键覆盖率 ${pct}%`);
+  console.log(`${orphaned[id] ? '✖' : '✓'} themes/${id}  : 覆盖 ${vis} 个视觉 token，关键覆盖率 ${pct}%`);
 }
 
-if (!hasError && !hasWarn) {
-  console.log(`\n✓ 三层对齐检查通过，内核 / 模板 / 主题无漂移。`);
+if (!hasError) {
+  console.log(`\n✓ 三层对齐检查通过：模板覆盖全部内核视觉 token，主题没有孤悬覆盖。`);
 }
 
-process.exit(hasError ? 1 : hasWarn ? 2 : 0);
+process.exit(hasError ? 1 : 0);

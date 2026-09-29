@@ -278,5 +278,8 @@
   /* --we-composer-field-bg:              var(--we-color-ink-wash); */
   /* --we-composer-btn-border:            1px solid var(--we-color-border-default); */
 
+  /* 骨架屏占位块底色；默认取 ink-wash-md */
+  /* --we-skeleton-base-bg:               var(--we-color-ink-wash-md); */
+
   /* 标题栏 / 书脊 chrome（chat 顶部栏 + 左侧会话列表）；默认复刻中性观感 */
 }

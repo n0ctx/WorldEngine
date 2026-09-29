@@ -9,6 +9,7 @@
 import {
   rgbToHsl, hslToRgb, rgbToHex, contrastRatio, clamp,
 } from './color.js';
+import { ACCENT_TEXT_BASIS_RGB } from './accentBasis.js';
 
 // 兜底色：中性、低饱和、深色底可读；封面缺失/取色失败/极端封面（纯黑白灰、无法辨别色相）时使用。
 // 固定的冷灰蓝，不随主题变化：只保证在深色底上有足够对比，取色失败时给一个不突兀的中性色。
@@ -98,22 +99,15 @@ export function quantizeDominantColor(pixels, { levels = 8 } = {}) {
   };
 }
 
-// 主色按钮文字实际用的是 --we-color-bg-canvas（见 we-btn-primary 的 `color: var(--we-color-bg-canvas)`），
-// 不是纯黑。这里取两个深色主题画布色里"更浅"的那个（nocturne #15181b）做校验基准 ——
-// 亮度越接近背景，对比度越低，用更浅的当基准才是保守方向；曾经错用纯黑（亮度 0）做基准，
-// 而纯黑是两者中"最难达标"方向被算反了的极端值，会让实际对比度不足 4.5:1 的颜色也判定通过
-// （回归：西幻异世界取到 #6172ae，对 #15181b 实测只有 3.84:1，却因为对纯黑算出 4.5+ 而被放行）。
-const DARK_THEME_TEXT_RGB = { r: 0x15, g: 0x18, b: 0x1b };
-
 /**
- * 不断抬高 HSL 亮度，直到与深色主题按钮文字色（DARK_THEME_TEXT_RGB）的对比度 >= 4.5:1。
+ * 不断抬高 HSL 亮度，直到与按钮文字色的对比度基准（ACCENT_TEXT_BASIS_RGB，见 accentBasis.js）>= 4.5:1。
  * 触顶（MAX_LIGHTNESS）仍不达标则返回 null，由调用方落到兜底色。
  */
 function ensureContrastAgainstDarkText(hsl) {
   let l = hsl.l;
   for (let i = 0; i < 60; i++) {
     const rgb = hslToRgb({ ...hsl, l });
-    const ratio = contrastRatio(rgb, DARK_THEME_TEXT_RGB);
+    const ratio = contrastRatio(rgb, ACCENT_TEXT_BASIS_RGB);
     if (ratio >= 4.5) return rgbToHex(rgb);
     l += 1;
     if (l > MAX_LIGHTNESS) return null;

@@ -16,8 +16,7 @@ import useStore from '../../state/index.js';
 import { extractIds, resolveTopbarPathname, isBookshelfPathname } from '../../utils/worldScope.js';
 import { deriveAccentTokens } from './deriveAccentTokens.js';
 import { relativeLuminance } from '../../utils/color.js';
-
-const DARK_CANVAS_LUMINANCE_THRESHOLD = 0.35;
+import { DARK_CANVAS_LUMINANCE_THRESHOLD } from '../../utils/accentBasis.js';
 
 function parseCssColor(value) {
   const m = value.trim().match(/^#([0-9a-f]{6})$/i);
