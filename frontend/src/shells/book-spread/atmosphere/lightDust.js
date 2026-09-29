@@ -71,6 +71,15 @@ export function createMoteSprite(color, doc = document) {
   return sprite;
 }
 
+/** 换色时释放旧贴图。Edge 会把离开 DOM 的 canvas 和径向渐变一直留在 GPU 缓冲里，只掉引用不够。 */
+export function releaseMoteSprite(sprite) {
+  if (!sprite) return;
+  const ctx = sprite.getContext('2d');
+  ctx?.clearRect(0, 0, sprite.width, sprite.height);
+  sprite.width = 0;
+  sprite.height = 0;
+}
+
 /**
  * 画一帧。time 以秒计，驱动光束的慢速呼吸。
  * color 为 {r,g,b}；整体强度由 CSS 的 opacity 按场景控制，这里按满强度画。

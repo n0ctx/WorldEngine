@@ -1,6 +1,6 @@
 import React from 'react';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
   useNavigate: vi.fn(),
@@ -54,6 +54,7 @@ vi.mock('../../src/core/utils/avatar', () => ({
   getAvatarUrl: (path) => (path ? `/api/uploads/${path}` : null),
 }));
 
+import { endPortal } from '../../src/core/motion/portal.js';
 import WorldsPage from '../../src/pages/WorldsPage.jsx';
 
 describe('WorldsPage', () => {
@@ -73,6 +74,11 @@ describe('WorldsPage', () => {
     mocks.extractAccentColorFromImageSrc.mockResolvedValue('#7f95a8');
     mocks.useReducedMotion.mockReturnValue(false);
     global.alert = vi.fn();
+  });
+
+  afterEach(() => {
+    endPortal();
+    vi.useRealTimers();
   });
 
   it('入口带跟随指针的光；减少动效时不渲染跟随光，材料仍在', async () => {
@@ -105,13 +111,24 @@ describe('WorldsPage', () => {
     expect(await screen.findByText('群星海')).toBeInTheDocument();
     expect(screen.getByRole('img', { name: '2 个角色' })).toBeInTheDocument();
 
-    fireEvent.click(screen.getByText('群星海'));
+    vi.useFakeTimers();
+    await act(async () => {
+      fireEvent.click(screen.getByText('群星海'));
+    });
     expect(mocks.setCurrentWorldId).toHaveBeenCalledWith('world-1');
+    expect(mocks.useNavigate).not.toHaveBeenCalled();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(500);
+    });
     expect(mocks.useNavigate).toHaveBeenCalledWith('/worlds/world-1');
 
     mocks.useNavigate.mockClear();
-    fireEvent.keyDown(screen.getByRole('link', { name: '群星海' }), { key: 'Enter' });
+    await act(async () => {
+      fireEvent.keyDown(screen.getByRole('link', { name: '群星海' }), { key: 'Enter' });
+      await vi.advanceTimersByTimeAsync(500);
+    });
     expect(mocks.useNavigate).toHaveBeenCalledWith('/worlds/world-1');
+    vi.useRealTimers();
 
     // 导出 / 编辑 / 删除收在"⋯"操作位里，点开前不出现；点操作位不会进入世界
     expect(screen.queryByTitle('删除')).toBeNull();

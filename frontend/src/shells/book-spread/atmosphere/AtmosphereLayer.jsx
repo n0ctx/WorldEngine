@@ -7,7 +7,7 @@
 import { useEffect, useRef } from 'react';
 import { useMotion } from '../../../core/hooks/useMotion.js';
 import { hexToRgb } from '../../../core/utils/color.js';
-import { approachColor, createMoteSprite, createMotes, drawFrame, moteCountFor, stepMotes } from './lightDust.js';
+import { approachColor, createMoteSprite, createMotes, drawFrame, moteCountFor, releaseMoteSprite, stepMotes } from './lightDust.js';
 
 const MAX_DPR = 2;
 // 主题切换不发事件给这里，按固定间隔重读一次 token；已知的换色（colorKey）立即重读
@@ -74,6 +74,7 @@ function Canvas({ colorKey }) {
       if (color) {
         const key = `${Math.round(color.r)},${Math.round(color.g)},${Math.round(color.b)}`;
         if (key !== spriteKey) {
+          releaseMoteSprite(sprite);
           sprite = createMoteSprite(color);
           spriteKey = key;
         }
@@ -92,6 +93,9 @@ function Canvas({ colorKey }) {
     function stop() {
       cancelAnimationFrame(frame);
       frame = 0;
+      releaseMoteSprite(sprite);
+      sprite = null;
+      spriteKey = '';
     }
 
     function onVisibility() {
@@ -106,6 +110,10 @@ function Canvas({ colorKey }) {
 
     return () => {
       stop();
+      releaseMoteSprite(sprite);
+      sprite = null;
+      canvas.width = 0;
+      canvas.height = 0;
       window.removeEventListener('resize', resize);
       document.removeEventListener('visibilitychange', onVisibility);
     };
