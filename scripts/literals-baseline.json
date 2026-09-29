@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "literals": {
+    "frontend/src/themes/chat.css::z-index::1": 1,
+    "frontend/src/themes/chat.css::z-index::2": 1,
+    "frontend/src/themes/motion/signal.css::fallback::0ms": 2,
+    "frontend/src/themes/pages.css::fallback::0.22": 1,
+    "frontend/src/themes/pages.css::z-index::0": 1,
+    "frontend/src/themes/pages.css::z-index::1": 3,
+    "frontend/src/themes/pages.css::z-index::2": 1,
+    "frontend/src/themes/pages.css::z-index::3": 1,
+    "frontend/src/themes/pages.css::z-index::4": 2,
+    "frontend/src/themes/ui.css::color::#0000": 1,
+    "frontend/src/themes/ui.css::fallback::0": 1,
+    "frontend/src/themes/ui.css::fallback::1": 1,
+    "frontend/src/themes/ui.css::fallback::6px": 1,
+    "frontend/src/themes/ui.css::radius::25px": 1,
+    "frontend/src/themes/ui.css::z-index::1": 2,
+    "frontend/src/themes/ui.css::z-index::2": 1
+  }
+}

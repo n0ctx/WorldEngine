@@ -9,6 +9,9 @@
  *   // guard-allow(<守卫名>): <理由>
  * 标记单独占一行，覆盖紧随其后的那条语句，以及与它紧挨着、中间没有空行的后续同级语句。被覆盖的发现不进基线；标记跟着代码走，搬家改名不失效。
  * 没写理由、守卫名写错、覆盖范围里已经没有违规的标记都算失败；每次运行都列出全部标记。
+ *
+ * CSS 文件（目前只有 literals 守卫扫 CSS）里把同样的 `guard-allow(<守卫名>): <理由>` 写进块注释，紧贴在要豁免的声明上一行：
+ * 覆盖注释后面那一行，以及紧挨着、中间没有空行、也没有 `{` `}` 的后续行（同一规则块内连续的声明）。其余规则同上。
  */
 
 import { spawnSync } from 'node:child_process';
@@ -136,6 +139,22 @@ export function stringValue(node) {
   if (node?.type === 'Literal' && typeof node.value === 'string') return node.value;
   if (node?.type === 'TemplateLiteral' && node.expressions.length === 0) return node.quasis[0].value.cooked;
   return null;
+}
+
+// 表达式里能静态取到的值：字符串、数字，条件 / 逻辑 / 加法两边都取；含插值的模板按动态值处理（记成 var()）
+export function valueLeaves(node) {
+  if (!node) return [];
+  if (node.type === 'Literal') return typeof node.value === 'string' || typeof node.value === 'number' ? [node.value] : [];
+  if (node.type === 'TemplateLiteral') {
+    return [node.quasis.map((q, i) => q.value.cooked + (i < node.expressions.length ? 'var(--js-expr)' : '')).join('')];
+  }
+  if (node.type === 'UnaryExpression' && node.operator === '-' && node.argument.type === 'Literal'
+    && typeof node.argument.value === 'number') return [-node.argument.value];
+  if (node.type === 'ConditionalExpression') return [...valueLeaves(node.consequent), ...valueLeaves(node.alternate)];
+  if (node.type === 'LogicalExpression' || (node.type === 'BinaryExpression' && node.operator === '+')) {
+    return [...valueLeaves(node.left), ...valueLeaves(node.right)];
+  }
+  return [];
 }
 
 // ─── CLI 与基线 ───────────────────────────────────────────────────────────────
@@ -266,7 +285,7 @@ export function baselineFailures(diff, { script, addedTitle }) {
 }
 
 // ─── 有意保留标记 ─────────────────────────────────────────────────────────────
-const ALLOW_GUARDS = ['dead-code', 'duplication', 'perf-shape', 'tests'];
+const ALLOW_GUARDS = ['dead-code', 'duplication', 'perf-shape', 'tests', 'literals'];
 const ALLOW_RE = /^\s*\*?\s*guard-allow\(([^)]*)\)\s*(?::\s*(.*?))?\s*$/s;
 
 // 每行开头最大的语句/表达式节点，连同它所在的同级列表
@@ -331,25 +350,78 @@ class AllowMarkers {
   }
 }
 
-/** 收集 guard 这个守卫在 parsed 文件里的标记，返回 AllowMarkers */
-export function collectAllowMarkers(parsed, guard) {
+// 去掉 CSS 注释（保留换行，行号不变；字符串里的注释起始符不算），返回 { text, comments: [{ value, line, endLine, unterminated }] }
+export function stripCssComments(source) {
+  let text = '';
+  const comments = [];
+  let line = 1;
+  for (let i = 0; i < source.length;) {
+    const ch = source[i];
+    if (ch === '"' || ch === "'") {
+      let j = i + 1;
+      while (j < source.length && source[j] !== ch && source[j] !== '\n') j += source[j] === '\\' ? 2 : 1;
+      text += source.slice(i, j + 1);
+      i = j + 1;
+    } else if (ch === '/' && source[i + 1] === '*') {
+      const close = source.indexOf('*/', i + 2);
+      const end = close === -1 ? source.length : close + 2;
+      const raw = source.slice(i, end);
+      const newlines = raw.split('\n').length - 1;
+      comments.push({ value: raw.slice(2, close === -1 ? undefined : -2), line, endLine: line + newlines, unterminated: close === -1 });
+      text += raw.replace(/[^\n]/g, ' ');
+      line += newlines;
+      i = end;
+    } else {
+      if (ch === '\n') line += 1;
+      text += ch;
+      i += 1;
+    }
+  }
+  return { text, comments };
+}
+
+// CSS 标记覆盖的行区间：注释后一行起，连续的非空、不含花括号的行
+function cssCoverage(lines, comment) {
+  const start = comment.endLine + 1;
+  if (!lines[start - 1]?.trim()) return null;
+  let end = start;
+  while (lines[end]?.trim() && !/[{}]/.test(lines[end])) end += 1;
+  return [start, end];
+}
+
+// 解析一条注释：不是 guard-allow 标记返回 null；否则返回 { marker } 或 { problem }。其他守卫的标记只校验名字
+function parseMarker(guard, rel, comment, range) {
+  const match = ALLOW_RE.exec(comment.value);
+  if (!match) return null;
+  const where = `${rel}:${comment.loc?.start.line ?? comment.line}`;
+  const name = match[1].trim();
+  const reason = (match[2] ?? '').trim();
+  if (!ALLOW_GUARDS.includes(name)) return { problem: `${where} 守卫名 \`${name}\` 不存在（可用：${ALLOW_GUARDS.join('、')}）` };
+  if (name !== guard) return null;
+  if (!reason) return { problem: `${where} 标记没写理由：写成 \`guard-allow(${name}): 为什么这里是有意的\`` };
+  if (!range) return { problem: `${where} 标记后面没有代码可覆盖` };
+  return { marker: { rel, where, reason, range, used: false } };
+}
+
+/**
+ * 收集 guard 这个守卫的标记，返回 AllowMarkers。
+ * parsed 是 espree 解析过的 JS 文件；cssFiles 是 [{ rel, text, comments }]（text 为去掉注释后的正文，见 stripCssComments）。
+ */
+export function collectAllowMarkers(parsed, guard, cssFiles = []) {
   const markers = [];
   const malformed = [];
+  const add = (rel, comment, range) => {
+    const parsedMarker = parseMarker(guard, rel, comment, range);
+    if (parsedMarker?.marker) markers.push(parsedMarker.marker);
+    else if (parsedMarker) malformed.push(parsedMarker.problem);
+  };
   for (const file of parsed) {
     const byLine = lineStarts(file.tree);
-    for (const comment of file.tree.comments || []) {
-      const match = ALLOW_RE.exec(comment.value);
-      if (!match) continue;
-      const where = `${file.rel}:${comment.loc.start.line}`;
-      const name = match[1].trim();
-      const reason = (match[2] ?? '').trim();
-      const range = coverage(file.tree, comment, byLine);
-      if (!ALLOW_GUARDS.includes(name)) malformed.push(`${where} 守卫名 \`${name}\` 不存在（可用：${ALLOW_GUARDS.join('、')}）`);
-      else if (name !== guard) continue;
-      else if (!reason) malformed.push(`${where} 标记没写理由：写成 \`guard-allow(${name}): 为什么这里是有意的\``);
-      else if (!range) malformed.push(`${where} 标记后面没有代码可覆盖`);
-      else markers.push({ rel: file.rel, where, reason, range, used: false });
-    }
+    for (const comment of file.tree.comments || []) add(file.rel, comment, coverage(file.tree, comment, byLine));
+  }
+  for (const file of cssFiles) {
+    const lines = file.text.split('\n');
+    for (const comment of file.comments) add(file.rel, comment, cssCoverage(lines, comment));
   }
   return new AllowMarkers(guard, markers, malformed);
 }
