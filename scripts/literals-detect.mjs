@@ -16,6 +16,8 @@ const SHADOW_PROPS = new Set(['box-shadow', 'text-shadow', '-webkit-box-shadow']
 const FILTER_PROPS = new Set(['filter', 'backdrop-filter', '-webkit-backdrop-filter']);
 const RADIUS_RE = /^border(-[a-z]+)*-radius$/;
 const MASK_PROP_RE = /^(-webkit-)?mask/;
+const MOTION_PROP_RE = /^(-webkit-)?(transition|animation)(-(duration|delay|timing-function))?$/;
+const EASING_KEYWORD_RE = /(?<![\w-])(ease|ease-in|ease-out|ease-in-out|linear)(?![\w-])/g;
 const MASK_ALPHA_COLORS = new Set(['#000', '#000000', 'black']);
 const collapse = (text) => text.replace(/\s+/g, ' ').trim();
 
@@ -107,6 +109,20 @@ function sizeLiterals(text, units) {
   return [...text.matchAll(new RegExp(`(?<![\\w.-])(-?\\d*\\.?\\d+)(${units})(?![\\w-])`, 'g'))].filter((m) => nonZero(m[1]));
 }
 
+// 时长 / 延迟（非 0 的 ms、s）、cubic-bezier()、steps()、ease 类关键字
+function motionLiterals(plain) {
+  const out = [];
+  let rest = plain;
+  for (const name of ['cubic-bezier', 'steps']) {
+    const { inners, rest: next } = extractCalls(rest, name);
+    inners.forEach((inner) => out.push(`${name}(${collapse(inner.replace(/\s*,\s*/g, ','))})`));
+    rest = next;
+  }
+  out.push(...sizeLiterals(rest, 'ms|s').map((m) => m[0]));
+  out.push(...[...rest.matchAll(EASING_KEYWORD_RE)].map((m) => m[0]));
+  return out;
+}
+
 // prop 是小写连字符形式；返回 [{ rule, value }]
 function analyzeValue(prop, rawValue) {
   const found = [];
@@ -133,6 +149,7 @@ function analyzeValue(prop, rawValue) {
   else if (prop === 'letter-spacing' && !hasVar) add('letter-spacing', sizeLiterals(plain, 'em|px|rem').length ? [plain] : []);
   else if (RADIUS_RE.test(prop) && !hasVar) add('radius', sizeLiterals(plain, 'px|rem').length ? [plain] : []);
   else if (prop === 'z-index' && /^-?\d+$/.test(plain)) add('z-index', [plain]);
+  else if (MOTION_PROP_RE.test(prop)) add('motion', motionLiterals(plain));
   return found;
 }
 
@@ -195,7 +212,7 @@ export function scanCssFile({ rel, text, comments }, allow, found) {
 
 // ─── JS / JSX ────────────────────────────────────────────────────────────────
 const STYLE_KEY_RE = new RegExp('^(-webkit-)?(color|background|border|outline|fill|stroke|box-shadow|text-shadow|filter|backdrop-filter'
-  + '|caret-color|accent-color|font-size|line-height|letter-spacing|z-index|mask|text-decoration-color|--)');
+  + '|caret-color|accent-color|font-size|line-height|letter-spacing|z-index|mask|text-decoration-color|transition|animation|--)');
 const PX_NUMBER_PROPS = /^(font-size|letter-spacing|border(-[a-z]+)*-radius)$/;
 
 const kebab = (key) => key.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`);

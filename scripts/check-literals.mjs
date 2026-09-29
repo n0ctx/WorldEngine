@@ -18,6 +18,8 @@
  *   radius         border-radius（含各角）里非 0 的 px / rem 字面量（含 var() 的表达式不报）
  *   shadow         box-shadow / text-shadow / drop-shadow 里的颜色字面量
  *   z-index        整数字面量（var() 与 calc(var()) 不报）
+ *   motion         transition / animation（含 -duration / -delay / -timing-function）里非 0 的 ms、s 时长与延迟、
+ *                  cubic-bezier()、steps()、ease / linear 关键字；自定义属性（--x: ...）是 token 定义，不报
  *   fallback       var(--we-x, 字面量) 里的字面量回退
  *   tailwind       className 里的任意值 text-[12px] / rounded-[8px] / bg-[#fff] / tracking-[..] / leading-[..]，
  *                  以及内置刻度 text-sm、rounded-lg、tracking-wide、leading-tight、font-mono、bg-white 等
@@ -60,6 +62,7 @@ const RULE_HINTS = {
   radius: '圆角改用 `--we-radius-*`',
   shadow: '阴影里的颜色改用 `--we-color-*`（或整体用 `--we-shadow-*`）',
   'z-index': '层级改用 `--we-z-*`',
+  motion: '时长与缓动改用 `--we-duration-*` / `--we-easing-*`；动效包自己的材质有意写字面量的，写 guard-allow(literals)',
   fallback: '去掉字面量回退，token 在 tokens.css 里声明即可',
   tailwind: '改成引用 --we-* 的任意值，如 text-[length:var(--we-text-sm)]、rounded-[var(--we-radius-md)]、bg-[var(--we-color-bg-surface)]',
 };

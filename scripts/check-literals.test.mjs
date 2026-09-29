@@ -20,6 +20,12 @@ const CLEAN_CSS = `/* color: #fff; font-size: 12px; z-index: 5 */
   background-image: url("data:image/svg+xml;utf8,<svg fill='%23fff' stroke='#000'/>");
 }
 .clean-em { font-size: 1.2em; line-height: 0; border-radius: var(--we-radius-md); z-index: auto; letter-spacing: 0px; }
+.clean-motion {
+  transition: color var(--we-duration-fast) var(--we-easing-sharp), opacity 0s;
+  animation: we-fade var(--we-duration-normal) var(--we-cut) both;
+  --ink-flow: cubic-bezier(0.65, 0, 0.35, 1);
+  --ink-time: 720ms;
+}
 .clean-mix { color: color-mix(in srgb, var(--we-color-accent) 40%, transparent); content: "#fff"; }
 `;
 
@@ -62,6 +68,9 @@ const BAD_CSS = `.bad {
   padding: var(--we-space-md, 8px);
   margin: var(--we-space-md, 8px);
   width: var(--we-w, 100px);
+  transition: opacity 150ms ease-out, transform var(--we-duration-fast) cubic-bezier(0.16, 1, 0.3, 1);
+  animation: we-spin 1.2s steps(4, jump-end) infinite linear;
+  animation-delay: 300ms;
 }
 `;
 
@@ -69,7 +78,7 @@ const BAD_JSX = `export function Bad({ open }) {
   return (
     <div
       className={\`text-sm rounded-lg tracking-wide leading-tight font-mono bg-white/50 \${open ? 'text-[13px] bg-[#fff]' : 'hover:rounded-[6px]'}\`}
-      style={{ fontSize: 13, zIndex: 10, borderRadius: 8, lineHeight: 1.4, letterSpacing: '0.1em', boxShadow: '0 0 4px rgba(0,0,0,0.2)', color: '#ff0000', '--we-x': 'var(--we-core-ink-900)' }}
+      style={{ fontSize: 13, zIndex: 10, borderRadius: 8, lineHeight: 1.4, letterSpacing: '0.1em', boxShadow: '0 0 4px rgba(0,0,0,0.2)', transition: 'opacity 0.3s ease', color: '#ff0000', '--we-x': 'var(--we-core-ink-900)' }}
     />
   );
 }
@@ -106,6 +115,13 @@ test('每条规则的字面量都被报出，并写明改成哪类 token', () =>
     ['shadow', 'rgba\\(0,0,0,0\\.3\\)', '--we-shadow-\\*'],
     ['shadow', '#abc', '--we-shadow-\\*'],
     ['z-index', '5', '--we-z-\\*'],
+    ['motion', '150ms', '--we-duration-\\*'],
+    ['motion', 'ease-out', '--we-easing-\\*'],
+    ['motion', 'cubic-bezier\\(0\\.16,1,0\\.3,1\\)', '--we-easing-\\*'],
+    ['motion', '1\\.2s', '--we-duration-\\*'],
+    ['motion', 'steps\\(4,jump-end\\)', '--we-easing-\\*'],
+    ['motion', 'linear', '--we-easing-\\*'],
+    ['motion', '300ms', '--we-duration-\\*'],
     ['fallback', '#333', '去掉字面量回退'],
     ['fallback', '8px', '去掉字面量回退'],
     ['fallback', '100px', '去掉字面量回退'],
@@ -118,7 +134,7 @@ test('每条规则的字面量都被报出，并写明改成哪类 token', () =>
     ['tailwind', 'font-mono'], ['tailwind', 'bg-white/50'], ['tailwind', 'text-\\[13px\\]'], ['tailwind', 'bg-\\[#fff\\]'],
     ['tailwind', 'rounded-\\[6px\\]'],
     ['font-size', '13px'], ['z-index', '10'], ['radius', '8px'], ['line-height', '1\\.4'], ['letter-spacing', '0\\.1em'],
-    ['shadow', 'rgba\\(0,0,0,0\\.2\\)'], ['color', '#ff0000'], ['layer', '--we-core-ink-900'],
+    ['shadow', 'rgba\\(0,0,0,0\\.2\\)'], ['motion', '0\\.3s'], ['color', '#ff0000'], ['layer', '--we-core-ink-900'],
   ]) {
     assert.match(err, new RegExp(`${jsx} \\[${rule}\\] ${value}[ \\n×]`), `${rule} ${value}`);
   }
