@@ -5,13 +5,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { animate, motion, useMotionValue } from 'framer-motion';
 import { useMotion } from '../../core/hooks/useMotion.js';
-import { EASE } from '../../core/utils/motion.js';
 
 const DOT = 6;
 // 圆点与导航项左缘的距离
 const GAP = 8;
 // 圆点沿弧线滑到新项。分格跳会在导航项之间一顿一顿，看起来像卡住
-const HOP = { duration: 0.25, ease: EASE.ink };
+const HOP_DURATION = 0.25;
 
 const itemsOf = (container) => [...container.querySelectorAll('[data-bounce-item]')];
 
@@ -39,7 +38,7 @@ function arcPoint(from, to, t) {
 }
 
 export default function BounceRail({ containerRef, activeKey }) {
-  const { reduced } = useMotion();
+  const { reduced, pack } = useMotion();
   const x = useMotionValue(0);
   const y = useMotionValue(0);
   const placed = useRef(null);
@@ -59,7 +58,7 @@ export default function BounceRail({ containerRef, activeKey }) {
       return undefined;
     }
     const hop = animate(0, 1, {
-      ...HOP,
+      ...pack.flow(HOP_DURATION),
       onUpdate: (t) => {
         const p = arcPoint(from, to, t);
         x.set(p.x);
@@ -67,7 +66,7 @@ export default function BounceRail({ containerRef, activeKey }) {
       },
     });
     return () => hop.stop();
-  }, [containerRef, activeKey, reduced, x, y]);
+  }, [containerRef, activeKey, reduced, pack, x, y]);
 
   // 布局变化（窗口缩放、列表增减）时直接落到新位置，不走弧线
   useEffect(() => {

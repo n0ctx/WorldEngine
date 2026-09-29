@@ -12,7 +12,7 @@ import {
   useTransform,
 } from 'framer-motion';
 import { useMotion } from '../../core/hooks/useMotion.js';
-import { EASE as MOTION_EASE, transitions } from '../../core/utils/motion.js';
+import { EASE as MOTION_EASE } from '../../core/utils/motion.js';
 
 const HINGE = '3px 6px';
 const LID_OPEN = -35;
@@ -35,7 +35,6 @@ const OUT = { duration: 0.3, ease: EASE };
 const TAP = { duration: 0.2, ease: EASE };
 const SWAP = { duration: 0.22, ease: EASE };
 const SETTLE = { duration: 0.45, ease: EASE };
-const PRESS = transitions.press;
 const INSTANT = { duration: 0 };
 
 const ICON = {
@@ -57,6 +56,7 @@ const circleMotion = {
 };
 
 function Circle({ label, onClick, reduced, children }) {
+  const m = useMotion();
   return (
     <motion.div className="we-delete-btn__slot" variants={reduced ? undefined : circleMotion}>
       <motion.button
@@ -66,7 +66,7 @@ function Circle({ label, onClick, reduced, children }) {
         onClick={onClick}
         whileHover={reduced ? undefined : { scale: 1.03 }}
         whileTap={reduced ? undefined : { scale: 0.84 }}
-        transition={PRESS}
+        transition={m.transition('press')}
         className="we-delete-btn__circle"
       >
         <svg {...ICON} width="12" height="12" stroke="currentColor" strokeWidth="3.5">

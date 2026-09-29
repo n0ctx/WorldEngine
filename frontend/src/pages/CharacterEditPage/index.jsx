@@ -10,7 +10,7 @@ import {
 import MarkdownEditor from '../../components/ui/MarkdownEditor';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
-import DoneSignal from './components/DoneSignal.jsx';
+import DoneConfirm from './components/DoneConfirm.jsx';
 import CardEditTabs from '../../components/state/CardEditTabs.jsx';
 import EditPageShell from '../layout/EditPageShell';
 import FormGroup from '../../components/ui/FormGroup';
@@ -262,7 +262,7 @@ export default function CharacterEditPage() {
       >
         <CardEditTabs basicTab={basicTab} stateInit={stateInit} />
       </EditPageShell>
-      <DoneSignal trigger={doneKey} label="已导出" />
+      <DoneConfirm trigger={doneKey} label="已导出" />
     </>
   );
 }

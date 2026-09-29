@@ -3863,8 +3863,8 @@
   background-size: 128px 128px;
 }
 
-/* 完成确认（DoneSignal）：右下角切角大字块，错位砸入、停住后关屏熄灭 */
-.we-done-signal {
+/* 完成确认（DoneConfirm）：右下角一块大字，出现与收场由动效包决定 */
+.we-done-confirm {
   position: fixed;
   right: 40px;
   bottom: 40px;
@@ -3876,20 +3876,7 @@
   letter-spacing: var(--we-tracking-wide);
   color: var(--we-color-accent);
   background: color-mix(in srgb, var(--we-color-accent) 14%, var(--we-color-bg-canvas));
-  clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
   pointer-events: none;
-}
-.we-done-signal--play {
-  animation:
-    we-done-signal-in var(--we-glitch-burst) steps(1, jump-end) both,
-    we-glitch-off var(--we-glitch-off) steps(1, jump-end) calc(var(--we-glitch-stamp) - var(--we-glitch-off)) forwards;
-}
-@keyframes we-done-signal-in {
-  0%   { opacity: 0;   transform: scale(1.5) translateX(8px);   text-shadow: -6px 0 var(--glitch-a), 6px 0 var(--glitch-b); }
-  14%  { opacity: 1;   transform: scale(1.2) translateX(-6px);  text-shadow: 5px 0 var(--glitch-a), -5px 0 var(--glitch-b); }
-  28%  { opacity: 0.4; transform: scale(0.94) translateX(4px);  text-shadow: -3px 0 var(--glitch-a), 3px 0 var(--glitch-b); }
-  42%  { opacity: 1;   transform: scale(1.04) translateX(-2px); text-shadow: 1px 0 var(--glitch-a), -1px 0 var(--glitch-b); }
-  57%, 100% { opacity: 1; transform: none; text-shadow: none; }
 }
 
 .we-state-scroll {
@@ -4079,7 +4066,7 @@
     var(--we-material-shadow-near);
 }
 
-/* 状态整理遮罩（StateBusyOverlay）：隔行扫描线压暗面板，一道亮带逐格往下扫 */
+/* 状态整理遮罩（StateBusyOverlay）：盖住面板、居中一枚状态标签；遮罩质感由动效包决定 */
 :is(.we-state-change-overlay, .we-cast-state-overlay) {
   position: absolute;
   inset: 0;
@@ -4088,23 +4075,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: repeating-linear-gradient(to bottom, var(--we-color-paper-overlay) 0 2px, transparent 2px 4px);
   overflow: hidden;
-}
-:is(.we-state-change-overlay, .we-cast-state-overlay)::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(to bottom,
-    transparent 46%,
-    color-mix(in srgb, var(--we-color-accent) 18%, transparent) 50%,
-    transparent 54%) no-repeat;
-  background-size: 100% 300%;
-  animation: we-busy-scan var(--we-duration-loop) steps(8, jump-end) infinite;
-}
-@keyframes we-busy-scan {
-  from { background-position-y: 100%; }
-  to   { background-position-y: 0%; }
 }
 
 .we-state-change-chip {
@@ -4114,9 +4085,9 @@
   user-select: none;
 }
 
-/* 整理中 / 已整理：切角标签（样式见 ui.css .we-glitch-tag），取强调色 */
+/* 整理中 / 已整理：变化标签（样式见 ui.css .we-change-tag），取强调色 */
 :is(.we-state-change-text, .we-cast-state-overlay-text) {
-  --glitch-tone: var(--we-color-accent);
+  --change-tone: var(--we-color-accent);
   position: relative;
   z-index: 1;
 }
@@ -4826,7 +4797,7 @@
   height: 16px;
   border-radius: var(--we-radius-sm);
   background: var(--we-skeleton-base-bg);
-  animation: we-skeleton-pulse var(--we-skeleton-pulse-duration) steps(1, jump-end) infinite;
+  animation: var(--we-fx-skeleton);
   margin-bottom: var(--we-space-sm);
 }
 

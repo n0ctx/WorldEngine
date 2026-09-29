@@ -110,7 +110,7 @@ function WorldCard({
           hidden: sceneEnter.hidden,
           visible: {
             ...sceneEnter.visible,
-            transition: motionConfig.transition('signal', { delay: Math.min(index, ENTER_STAGGER_CAP) * STAGGER.list }),
+            transition: motionConfig.transition('enter', { delay: Math.min(index, ENTER_STAGGER_CAP) * STAGGER.list }),
           },
         }}
         initial={isDragging ? false : 'hidden'}

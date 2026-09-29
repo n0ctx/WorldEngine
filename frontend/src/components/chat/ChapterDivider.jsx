@@ -1,7 +1,7 @@
 import { useRef, useEffect, useState } from 'react';
 import Icon from '../ui/Icon.jsx';
-import MatrixOrb from '../motion/MatrixOrb.jsx';
-import GlitchText from '../motion/GlitchText.jsx';
+import MotionOrb from '../motion/MotionOrb.jsx';
+import ChangeText from '../motion/ChangeText.jsx';
 import { useMotion } from '../../core/hooks/useMotion.js';
 import { handleInlineRenameKeyDown } from '../../core/utils/inline-rename.js';
 
@@ -20,7 +20,7 @@ export default function ChapterDivider({ chapterIndex, title, onEdit, onRegenera
   const inputRef = useRef(null);
   const [visible, setVisible] = useState(false);
   const [editing, setEditing] = useState(false);
-  const glitchVars = useMotion().glitch();
+  const fxVars = useMotion().fx();
   const [draft, setDraft] = useState('');
   const [regenerating, setRegenerating] = useState(false);
 
@@ -82,10 +82,10 @@ export default function ChapterDivider({ chapterIndex, title, onEdit, onRegenera
     <header
       ref={ref}
       className={`we-chapter-header${visible ? ' we-chapter-header--visible' : ''}`}
-      style={glitchVars ?? undefined}
+      style={fxVars ?? undefined}
     >
       <div className="we-chapter-num">
-        <GlitchText text={`第 ${toChapterNum(chapterIndex)} 章`} playKey={visible ? chapterIndex : null} decode />
+        <ChangeText text={`第 ${toChapterNum(chapterIndex)} 章`} playKey={visible ? chapterIndex : null} decode />
       </div>
 
       {editing ? (
@@ -105,7 +105,7 @@ export default function ChapterDivider({ chapterIndex, title, onEdit, onRegenera
       ) : (
         <>
           <h2 className="we-chapter-title">
-            <GlitchText text={title} playKey={visible ? title : null} decode />
+            <ChangeText text={title} playKey={visible ? title : null} decode />
           </h2>
           {(onEdit || onRegenerate) && (
             <div className="we-chapter-actions">
@@ -120,7 +120,7 @@ export default function ChapterDivider({ chapterIndex, title, onEdit, onRegenera
               )}
               {onRegenerate && (
                 <button onClick={handleRegenerate} disabled={regenerating} aria-label="重新生成章节标题">
-                  {regenerating ? <MatrixOrb size={16} /> : (
+                  {regenerating ? <MotionOrb size={16} /> : (
                     <Icon size={16}>
                       <polyline points="1 4 1 10 7 10" />
                       <path d="M3.51 15a9 9 0 1 0 .49-4.98" />

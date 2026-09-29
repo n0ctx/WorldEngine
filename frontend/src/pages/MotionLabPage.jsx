@@ -6,7 +6,7 @@ import { useState } from 'react';
 import Button from '../components/ui/Button.jsx';
 import StatusSection from '../components/state/StatusSection.jsx';
 import ChapterDivider from '../components/chat/ChapterDivider.jsx';
-import DoneSignal from './CharacterEditPage/components/DoneSignal.jsx';
+import DoneConfirm from './CharacterEditPage/components/DoneConfirm.jsx';
 import { useMotion } from '../core/hooks/useMotion.js';
 import { log } from '../core/utils/logger.js';
 
@@ -110,7 +110,7 @@ export default function MotionLabPage() {
         </div>
       </section>
 
-      <DoneSignal trigger={doneKey} label="已导出" />
+      <DoneConfirm trigger={doneKey} label="已导出" />
     </div>
   );
 }

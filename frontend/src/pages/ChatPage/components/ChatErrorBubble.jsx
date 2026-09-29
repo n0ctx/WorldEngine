@@ -8,11 +8,11 @@ export default function ChatErrorBubble({ character, errorBubble, generating, on
       {errorBubble && !generating && (
         <motion.div
           key="error-bubble"
-          variants={motionPrefs.variant('signalIn')}
+          variants={motionPrefs.variant('enter')}
           initial="hidden"
           animate="visible"
           exit="exit"
-          transition={motionPrefs.transition('signal')}
+          transition={motionPrefs.transition('enter')}
           className="px-4 pb-2 shrink-0"
         >
           <div className="max-w-[800px] mx-auto">

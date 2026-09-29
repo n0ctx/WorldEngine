@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from 'framer-motion';
-import GlitchText from '../motion/GlitchText.jsx';
+import ChangeText from '../motion/ChangeText.jsx';
 import { useMotion } from '../../core/hooks/useMotion.js';
 
 const MotionDiv = motion.div;
@@ -57,7 +57,7 @@ export function StateBusyOverlay({
 }) {
   const m = useMotion();
   const label = isUpdating ? '整理中' : '已整理';
-  const glitchVars = m.glitch();
+  const fxVars = m.fx();
   return (
     <AnimatePresence>
       {(isUpdating || justChanged) && (
@@ -72,19 +72,19 @@ export function StateBusyOverlay({
           <AnimatePresence mode="wait">
             <MotionDiv
               key={label}
-              variants={m.variant('signalIn')}
+              variants={m.variant('enter')}
               initial="hidden"
               animate="visible"
               exit="exit"
-              transition={m.transition('signal')}
+              transition={m.transition('enter')}
               className={chipClassName}
               style={chipStyle}
             >
               <span
-                className={`we-glitch-tag ${textClassName}${glitchVars ? ' we-glitch-tag--play' : ''}`}
-                style={glitchVars ?? undefined}
+                className={`we-change-tag ${textClassName}${fxVars ? ' we-change-tag--play' : ''}`}
+                style={fxVars ?? undefined}
               >
-                <GlitchText text={label} playKey={glitchVars ? label : null} decode />
+                <ChangeText text={label} playKey={fxVars ? label : null} decode />
               </span>
             </MotionDiv>
           </AnimatePresence>

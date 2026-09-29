@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion';
 import { ArrowUp, ImagePlus, Square } from 'lucide-react';
 import { MAX_ATTACHMENTS_PER_MESSAGE } from '../../core/utils/constants.js';
-import MatrixOrb from '../motion/MatrixOrb.jsx';
+import MotionOrb from '../motion/MotionOrb.jsx';
 import { SLASH_LISTBOX_ID, slashOptionId } from './useSlashCommands.js';
 import SlashCommandMenu from './SlashCommandMenu.jsx';
 import AttachmentThumbs from './AttachmentThumbs.jsx';
@@ -65,7 +65,7 @@ export default function InputBoxComposer({
           {/* impersonate 构思中占位层（无用户输入时覆盖 placeholder） */}
           {impersonating && !text && (
             <div className="we-chat-impersonate-thinking">
-              <MatrixOrb size={18} />
+              <MotionOrb size={18} />
               <span className="we-chat-impersonate-text">AI 正在构思</span>
             </div>
           )}

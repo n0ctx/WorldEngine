@@ -4,20 +4,20 @@
  * 真实文字始终在 DOM 里，读屏读到的永远是最终值、版面也不跳。 */
 import { useMotion } from '../../core/hooks/useMotion.js';
 
-export default function GlitchText({ text, playKey = null, decode = false }) {
-  const vars = useMotion().glitch();
+export default function ChangeText({ text, playKey = null, decode = false }) {
+  const vars = useMotion().fx();
   if (vars == null || playKey == null) return text;
 
   if (decode) {
     return (
-      <span key={playKey} className="we-slice we-slice--block" data-ch={text} style={vars}>
-        <span className="we-slice__glyph" data-ch={text}>{text}</span>
+      <span key={playKey} className="we-fx-glyph we-fx-glyph--block" data-ch={text} style={vars}>
+        <span className="we-fx-glyph__face" data-ch={text}>{text}</span>
       </span>
     );
   }
 
   return (
-    <span key={playKey} className="we-glitch" data-text={text} style={vars}>
+    <span key={playKey} className="we-fx-burst" data-text={text} style={vars}>
       {text}
     </span>
   );

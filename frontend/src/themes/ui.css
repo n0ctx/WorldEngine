@@ -2628,7 +2628,7 @@
   display: block;
   border-radius: var(--we-radius-none);
   background: var(--we-color-bg-muted);
-  animation: we-skeleton-pulse var(--we-skeleton-pulse-duration) steps(1, jump-end) infinite;
+  animation: var(--we-fx-skeleton);
 }
 
 .we-skel-stack {
@@ -2730,7 +2730,7 @@
   gap: 10px;
 }
 .we-fields-list .we-status-field {
-  animation: we-signal-in var(--we-duration-normal) steps(1, jump-end) both;
+  animation: var(--we-fx-enter);
 }
 
 .we-status-skeleton {
@@ -2937,198 +2937,8 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* ── 信号故障（GlitchText / 变化标签 / 提示条 / 完成确认）─────────────────
-   两路错位色：A 取当前世界强调色，B 取它的色环对面，每个世界的错位配色都不同。
-   时长由 useMotion().glitch() 以 --we-glitch-* 内联下发；关键帧一律 steps(1) 硬切。 */
-:is(.we-glitch, .we-done-signal) {
-  --glitch-a: var(--we-color-accent);
-  --glitch-b: hsl(from var(--we-color-accent) calc(h + 180) s l);
-}
-
-.we-glitch {
-  position: relative;
-  display: inline-block;
-  max-width: 100%;
-  isolation: isolate;
-  background: linear-gradient(to bottom,
-    transparent 44%,
-    color-mix(in srgb, var(--glitch-a) 40%, transparent) 47%,
-    color-mix(in srgb, var(--glitch-b) 55%, transparent) 50%,
-    color-mix(in srgb, var(--glitch-a) 40%, transparent) 53%,
-    transparent 56%) no-repeat;
-  background-size: 100% 300%;
-  background-position-y: 100%;
-  animation:
-    we-glitch-jolt var(--we-glitch-burst) steps(1, jump-end) both,
-    we-glitch-scan var(--we-glitch-burst) steps(6, jump-end) both;
-}
-.we-glitch::before,
-.we-glitch::after {
-  content: attr(data-text);
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  white-space: inherit;
-  pointer-events: none;
-  opacity: 0;
-}
-.we-glitch::before {
-  color: var(--glitch-a);
-  animation: we-glitch-split-a var(--we-glitch-burst) steps(1, jump-end) both;
-}
-.we-glitch::after {
-  color: var(--glitch-b);
-  animation: we-glitch-split-b var(--we-glitch-burst) steps(1, jump-end) both;
-}
-/* 切片成字（.we-slice）：字被切成 6 条横带，分三层叠放（每层两条不相邻的横带）。
-   · 定下来之前：整字是强调色，三层各自左右抖；
-   · 三层按 --slice-order-* 的顺序一层层定住，定住的一瞬亮一下；
-   · 全部定住后整字闪一次高光，再退回正文色。
-   真字本身在 __glyph 里保持透明，只占位、给读屏和选中用；三层画在 .we-slice::before、__glyph::before、__glyph::after。
-   外层的 ::after 留给流式输出的逐字光标。起点 / 时长由调用方写进 --we-slice-delay / --we-slice-duration */
-.we-slice {
-  --slice-delay: var(--we-slice-delay, 0ms);
-  --slice-step: calc(var(--we-slice-duration) / 4);
-  --slice-order-a: 0;
-  --slice-order-b: 1;
-  --slice-order-c: 2;
-  --slice-bright: color-mix(in srgb, var(--we-color-accent) 35%, white);
-  position: relative;
-}
-/* 整段文字（GlitchText decode）：按块排版，三层与真字同宽同换行；时长取 --we-glitch-decode */
-.we-slice--block {
-  --we-slice-duration: var(--we-glitch-decode);
-  display: inline-block;
-  max-width: 100%;
-}
-.we-slice--block > .we-slice__glyph {
-  display: block;
-}
-/* 整段按块排版：三层与真字同行高才能同样换行 */
-.we-slice.we-slice--block::before,
-.we-slice--block > .we-slice__glyph::before,
-.we-slice--block > .we-slice__glyph::after {
-  line-height: inherit;
-}
-/* 每个字的三层换一种定住顺序，整段看起来是随机的 */
-.we-slice:nth-child(3n + 1) { --slice-order-a: 2; --slice-order-b: 0; --slice-order-c: 1; }
-.we-slice:nth-child(3n + 2) { --slice-order-a: 1; --slice-order-b: 2; --slice-order-c: 0; }
-.we-slice__glyph {
-  position: relative;
-  animation: we-slice-hide var(--we-slice-duration) steps(1, jump-end) var(--slice-delay) backwards;
-}
-.we-slice::before,
-.we-slice__glyph::before,
-.we-slice__glyph::after {
-  content: attr(data-ch);
-  position: absolute;
-  inset: 0;
-  /* 行内的字：定位盒只有字体本身高，用字体默认行高才能与真字重合、横带不截断 */
-  line-height: normal;
-  white-space: inherit;
-  color: var(--we-color-accent);
-  pointer-events: none;
-  visibility: hidden;
-}
-.we-slice::before {
-  clip-path: polygon(0 0%, 100% 0%, 100% 16.667%, 0 16.667%, 0 50%, 100% 50%, 100% 66.667%, 0 66.667%);
-  animation:
-    we-slice-jitter-a calc(var(--slice-step) * 2.2) steps(1, jump-end) calc(var(--slice-delay) * -1.7) infinite,
-    we-slice-lock 1ms steps(1, jump-end) calc(var(--slice-delay) + var(--slice-step) * var(--slice-order-a)) forwards,
-    we-slice-band-flash var(--slice-step) steps(1, jump-end) calc(var(--slice-delay) + var(--slice-step) * var(--slice-order-a)),
-    we-slice-char-flash var(--slice-step) steps(1, jump-end) calc(var(--slice-delay) + var(--slice-step) * 3),
-    we-slice-live var(--we-slice-duration) steps(1, jump-end) var(--slice-delay) backwards;
-}
-.we-slice__glyph::before {
-  clip-path: polygon(0 16.667%, 100% 16.667%, 100% 33.333%, 0 33.333%, 0 66.667%, 100% 66.667%, 100% 83.333%, 0 83.333%);
-  animation:
-    we-slice-jitter-b calc(var(--slice-step) * 1.8) steps(1, jump-end) calc(var(--slice-delay) * -2.3) infinite,
-    we-slice-lock 1ms steps(1, jump-end) calc(var(--slice-delay) + var(--slice-step) * var(--slice-order-b)) forwards,
-    we-slice-band-flash var(--slice-step) steps(1, jump-end) calc(var(--slice-delay) + var(--slice-step) * var(--slice-order-b)),
-    we-slice-char-flash var(--slice-step) steps(1, jump-end) calc(var(--slice-delay) + var(--slice-step) * 3),
-    we-slice-live var(--we-slice-duration) steps(1, jump-end) var(--slice-delay) backwards;
-}
-.we-slice__glyph::after {
-  clip-path: polygon(0 33.333%, 100% 33.333%, 100% 50%, 0 50%, 0 83.333%, 100% 83.333%, 100% 100%, 0 100%);
-  animation:
-    we-slice-jitter-c calc(var(--slice-step) * 2.6) steps(1, jump-end) calc(var(--slice-delay) * -3.1) infinite,
-    we-slice-lock 1ms steps(1, jump-end) calc(var(--slice-delay) + var(--slice-step) * var(--slice-order-c)) forwards,
-    we-slice-band-flash var(--slice-step) steps(1, jump-end) calc(var(--slice-delay) + var(--slice-step) * var(--slice-order-c)),
-    we-slice-char-flash var(--slice-step) steps(1, jump-end) calc(var(--slice-delay) + var(--slice-step) * 3),
-    we-slice-live var(--we-slice-duration) steps(1, jump-end) var(--slice-delay) backwards;
-}
-
-/* 真字：定住之前透明，由三层代画 */
-@keyframes we-slice-hide {
-  from, to { color: transparent; }
-}
-/* 三层只在定住之前和定住过程中显示；结束后交还给真字 */
-@keyframes we-slice-live {
-  from, to { visibility: visible; }
-}
-@keyframes we-slice-jitter-a {
-  0%   { translate: -3px 0; }
-  25%  { translate: 2px 0; }
-  50%  { translate: -1px 0; }
-  75%  { translate: 3px 0; }
-}
-@keyframes we-slice-jitter-b {
-  0%   { translate: 2px 0; }
-  33%  { translate: -3px 0; }
-  67%  { translate: 1px 0; }
-}
-@keyframes we-slice-jitter-c {
-  0%   { translate: -1px 0; }
-  20%  { translate: 3px 0; }
-  40%  { translate: -2px 0; }
-  60%  { translate: 1px 0; }
-  80%  { translate: -3px 0; }
-}
-/* 定住：横带回到原位，不再抖 */
-@keyframes we-slice-lock {
-  from, to { translate: 0 0; }
-}
-/* 定住的一瞬亮一下 */
-@keyframes we-slice-band-flash {
-  from, to { color: var(--slice-bright); text-shadow: 0 0 6px var(--we-color-accent); }
-}
-/* 整字定住：闪一次高光 */
-@keyframes we-slice-char-flash {
-  from, to { color: white; text-shadow: 0 0 10px var(--we-color-accent), 0 0 2px var(--slice-bright); }
-}
-
-@keyframes we-glitch-jolt {
-  0%   { transform: translateX(3px) skewX(-14deg); }
-  14%  { transform: translateX(-4px) skewX(9deg); }
-  28%  { transform: translateX(2px) skewX(0deg); }
-  42%  { transform: translateX(-1px) skewX(-4deg); }
-  57%, 100% { transform: none; }
-}
-@keyframes we-glitch-scan {
-  from { background-position-y: 100%; }
-  to   { background-position-y: 0%; }
-}
-@keyframes we-glitch-split-a {
-  0%   { opacity: 1;   transform: translateX(-5px); clip-path: inset(0 0 55% 0);   font-weight: 700; }
-  14%  { opacity: 1;   transform: translateX(6px);  clip-path: inset(40% 0 20% 0); font-weight: 300; }
-  28%  { opacity: 1;   transform: translateX(-8px); clip-path: inset(72% 0 0 0);   font-weight: 700; }
-  42%  { opacity: 1;   transform: translateX(3px);  clip-path: inset(8% 0 62% 0);  font-weight: 500; }
-  57%  { opacity: 0.8; transform: translateX(-2px); clip-path: inset(0);           font-weight: 400; }
-  71%  { opacity: 0.5; transform: translateX(-1px); clip-path: inset(0); }
-  100% { opacity: 0;   transform: none;             clip-path: inset(0); }
-}
-@keyframes we-glitch-split-b {
-  0%   { opacity: 1;   transform: translateX(5px);  clip-path: inset(50% 0 0 0);   font-weight: 300; }
-  14%  { opacity: 1;   transform: translateX(-7px); clip-path: inset(0 0 68% 0);   font-weight: 700; }
-  28%  { opacity: 1;   transform: translateX(6px);  clip-path: inset(25% 0 45% 0); font-weight: 300; }
-  42%  { opacity: 1;   transform: translateX(-3px); clip-path: inset(60% 0 5% 0);  font-weight: 700; }
-  57%  { opacity: 0.8; transform: translateX(2px);  clip-path: inset(0);           font-weight: 400; }
-  71%  { opacity: 0.5; transform: translateX(1px);  clip-path: inset(0); }
-  100% { opacity: 0;   transform: none;             clip-path: inset(0); }
-}
-
-/* 本轮变化标签：值后面一枚切角小标签，一块实色扫过把它刷出来、闪两下后定住，留到下一轮 */
-.we-glitch-tag {
+/* 本轮变化标签：值后面的一枚小标签，留到下一轮；出现方式由动效包决定 */
+.we-change-tag {
   position: relative;
   display: inline-flex;
   align-items: center;
@@ -3141,47 +2951,12 @@
   font-variant-numeric: tabular-nums;
   line-height: 18px; /* design exact: 标签高度 */
   white-space: nowrap;
-  color: var(--glitch-tone, var(--we-color-text-secondary));
-  background: color-mix(in srgb, var(--glitch-tone, var(--we-color-text-secondary)) 16%, transparent);
-  clip-path: polygon(5px 0, 100% 0, 100% calc(100% - 5px), calc(100% - 5px) 100%, 0 100%, 0 5px);
+  color: var(--change-tone, var(--we-color-text-secondary));
+  background: color-mix(in srgb, var(--change-tone, var(--we-color-text-secondary)) 16%, transparent);
   pointer-events: none;
 }
-.we-glitch-tag--up   { --glitch-tone: var(--we-color-status-success); }
-.we-glitch-tag--down { --glitch-tone: var(--we-color-status-danger); }
-.we-glitch-tag--play {
-  animation: we-glitch-blink var(--we-glitch-burst) steps(1, jump-end) both;
-}
-/* 刷出：实色块从左到右扫过后收走 */
-.we-glitch-tag--play::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: var(--glitch-tone, var(--we-color-text-secondary));
-  transform-origin: right;
-  animation: we-glitch-wipe var(--we-glitch-burst) steps(4, jump-end) both;
-}
-
-@keyframes we-glitch-blink {
-  0%   { opacity: 0; }
-  14%  { opacity: 1; }
-  42%  { opacity: 0.25; }
-  57%  { opacity: 1; }
-  71%  { opacity: 0.5; }
-  100% { opacity: 1; }
-}
-@keyframes we-glitch-wipe {
-  from { transform: scaleX(1); }
-  to   { transform: scaleX(0); }
-}
-
-/* 关屏：先压扁成一条亮线，再熄灭 */
-@keyframes we-glitch-off {
-  0%   { opacity: 1;   transform: none; }
-  34%  { opacity: 1;   transform: translateX(4px) scaleY(0.35) scaleX(1.1); }
-  67%  { opacity: 0.8; transform: scaleY(0.06) scaleX(1.3); }
-  100% { opacity: 0;   transform: scaleY(0); }
-}
-
+.we-change-tag--up   { --change-tone: var(--we-color-status-success); }
+.we-change-tag--down { --change-tone: var(--we-color-status-danger); }
 /* ── 状态栏实体区块：「查看全部档案」切换，与上方现状用一条稀疏分隔线隔开 ─── */
 .we-state-change-toggle {
   display: flex;
@@ -3308,7 +3083,7 @@
   display: flex;
   gap: 7px; /* design exact */
   align-items: flex-start;
-  animation: we-signal-in var(--we-duration-normal) steps(1, jump-end) both;
+  animation: var(--we-fx-enter);
 }
 
 .we-diary-entry {
@@ -3684,11 +3459,6 @@
 }
 .we-toast-card__close:hover {
   color: var(--we-color-text-primary);
-}
-
-/* 提示条入场时内容行跟着错位抖一下 */
-.we-toast-card--glitch .we-toast-card__row {
-  animation: we-glitch-jolt var(--we-glitch-burst) steps(1, jump-end) both;
 }
 
 /* 二级确认浮层：高于当前 Modal（--we-z-modal），脱离其 transform 上下文；

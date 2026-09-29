@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion';
 import Icon from './Icon.jsx';
-import GlitchText from '../motion/GlitchText.jsx';
+import ChangeText from '../motion/ChangeText.jsx';
 import { useMotion } from '../../core/hooks/useMotion.js';
 
 // 类型标签与状态栏的本轮变化标签同一种切角样式，颜色取对应状态色
@@ -23,8 +23,8 @@ export default function ToastCard({ toast, onClose, onMouseEnter, onMouseLeave }
   const meta = TYPE_META[toast.type] || TYPE_META.info;
   const isAssertive = toast.type === 'error';
   const m = useMotion();
-  const glitchVars = m.glitch();
-  const glitchKey = glitchVars ? toast.id : null;
+  const fxVars = m.fx();
+  const fxKey = fxVars ? toast.id : null;
 
   return (
     <motion.div
@@ -37,18 +37,18 @@ export default function ToastCard({ toast, onClose, onMouseEnter, onMouseLeave }
       transition={m.transition('overlay')}
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
-      className={`we-toast-card${glitchVars ? ' we-toast-card--glitch' : ''}`}
-      style={{ '--glitch-tone': meta.tone, ...glitchVars }}
+      className={`we-toast-card${fxVars ? ' we-toast-card--fx' : ''}`}
+      style={{ '--change-tone': meta.tone, ...fxVars }}
     >
       <div className="we-toast-card__row">
-        <span className={`we-glitch-tag we-toast-card__tag${glitchVars ? ' we-glitch-tag--play' : ''}`}>
-          <GlitchText text={meta.code} playKey={glitchKey} decode />
+        <span className={`we-change-tag we-toast-card__tag${fxVars ? ' we-change-tag--play' : ''}`}>
+          <ChangeText text={meta.code} playKey={fxKey} decode />
         </span>
         <div className="we-toast-card__body">
           {toast.title ? (
-            <div className="we-toast-card__title"><GlitchText text={toast.title} playKey={glitchKey} decode /></div>
+            <div className="we-toast-card__title"><ChangeText text={toast.title} playKey={fxKey} decode /></div>
           ) : null}
-          <div className="we-toast-card__message"><GlitchText text={toast.message} playKey={glitchKey} decode /></div>
+          <div className="we-toast-card__message"><ChangeText text={toast.message} playKey={fxKey} decode /></div>
         </div>
         <button
           type="button"

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import Icon from '../ui/Icon.jsx';
 import StatusTable from './StatusTable.jsx';
-import StatusValueGlitch from './StatusValueGlitch.jsx';
+import StatusValueChange from './StatusValueChange.jsx';
 import InlineEditor from './StatusInlineEditor.jsx';
 import { applyTemplateVars } from '../../core/utils/template-vars.js';
 import {
@@ -139,7 +139,7 @@ function StatusValueDisplay({ row, type, editKey, editable, onSetEditingKey, tem
       onClick={editHandler}
       title={display != null && editable ? '点击编辑' : undefined}
     >
-      <StatusValueGlitch
+      <StatusValueChange
         value={display}
         text={display != null ? (isNumber ? numberDisplay : applyTemplateVars(display, templateCtx)) : EMPTY_STATUS_DISPLAY}
         changed={changed}

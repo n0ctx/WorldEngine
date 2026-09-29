@@ -11,7 +11,9 @@ vi.mock('framer-motion', async (importOriginal) => ({
 
 import MessageItem from '../../../src/components/chat/MessageItem.jsx';
 import WritingMessageItem from '../../../src/components/writing/WritingMessageItem.jsx';
-import { STREAM } from '../../../src/core/utils/motion.js';
+import signal from '../../../src/core/motion/packs/signal.js';
+
+const STREAM = signal.stream;
 import { useDisplaySettingsStore } from '../../../src/core/state/displaySettings.js';
 
 class ResizeObserverMock {
@@ -79,14 +81,14 @@ describe('流式书写', () => {
     const long = '春'.repeat(200);
     const { container } = render(streamItem(long));
     const d = delays(container);
-    expect(d[d.length - 1]).toBeLessThanOrEqual(STREAM.typing.lag * 1000);
+    expect(d[d.length - 1]).toBeLessThanOrEqual(STREAM.lag * 1000);
   });
 
   it('打完后常驻光标停在最后一个字后面', () => {
     vi.useFakeTimers();
     const { container } = render(streamItem('夜色'));
     // 两个字打完、最后一个字还没解码完的那一刻
-    act(() => { vi.advanceTimersByTime(STREAM.typing.stagger * 2 * 1000 + 1); });
+    act(() => { vi.advanceTimersByTime(STREAM.stagger * 2 * 1000 + 1); });
     const caret = container.querySelector('.we-stream-caret');
     expect(caret.previousElementSibling.textContent).toBe('色');
     expect(container.querySelectorAll('.we-stream-caret')).toHaveLength(1);
@@ -95,7 +97,7 @@ describe('流式书写', () => {
   it('打字追上真实到达后，已打完的字还原成普通文字，后到的字照常逐字出现', () => {
     vi.useFakeTimers();
     const { container, rerender } = render(streamItem('夜色'));
-    act(() => { vi.advanceTimersByTime((STREAM.typing.lag + STREAM.char.duration) * 1000); });
+    act(() => { vi.advanceTimersByTime((STREAM.lag + STREAM.char) * 1000); });
     expect(container.querySelector('.we-stream-char')).toBeNull();
     expect(container.querySelectorAll('.we-stream-caret')).toHaveLength(1);
 
@@ -123,11 +125,11 @@ describe('流式书写', () => {
     vi.useFakeTimers();
     const { container, rerender } = render(streamItem('夜色'));
     rerender(streamItem('夜色很深。'));
-    act(() => { vi.advanceTimersByTime(STREAM.typing.lag * 1000); });
+    act(() => { vi.advanceTimersByTime(STREAM.lag * 1000); });
     rerender(streamItem('夜色很深。', { isStreaming: false }));
 
     expect(container.querySelector('.we-stream-caret--fading')).not.toBeNull();
-    act(() => { vi.advanceTimersByTime((STREAM.char.duration + STREAM.caretOut.duration) * 1000); });
+    act(() => { vi.advanceTimersByTime((STREAM.char + STREAM.caretOut) * 1000); });
     expect(container.querySelector('.we-stream-caret')).toBeNull();
     expect(container.querySelector('.we-stream-char')).toBeNull();
     expect(container.querySelector('.we-message-content').textContent).toBe('夜色很深。');
@@ -136,11 +138,11 @@ describe('流式书写', () => {
   it('在思考阶段中断后，思考块上不再留光标', () => {
     vi.useFakeTimers();
     const { container, rerender } = render(streamItem('<think>先想一想'));
-    act(() => { vi.advanceTimersByTime(STREAM.typing.lag * 1000); });
+    act(() => { vi.advanceTimersByTime(STREAM.lag * 1000); });
     expect(container.querySelectorAll('.we-stream-caret')).toHaveLength(1);
 
     rerender(streamItem('<think>先想一想\n\n[已中断]', { isStreaming: false }));
-    act(() => { vi.advanceTimersByTime((STREAM.typing.lag + STREAM.char.duration + STREAM.caretOut.duration) * 1000); });
+    act(() => { vi.advanceTimersByTime((STREAM.lag + STREAM.char + STREAM.caretOut) * 1000); });
     expect(container.querySelector('.we-stream-caret')).toBeNull();
   });
 

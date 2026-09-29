@@ -108,7 +108,7 @@ export default function SectionTabs({ sections, defaultKey, variant, globalActio
               className="we-section-tab-indicator"
               initial={false}
               animate={indicator}
-              transition={staticMotion ? { duration: 0 } : motionPrefs.transition('hop')}
+              transition={staticMotion ? { duration: 0 } : motionPrefs.transition('move')}
             />
           )}
         </div>

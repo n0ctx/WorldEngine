@@ -19,15 +19,6 @@
   to   { opacity: 1; transform: none; }
 }
 
-/* 信号锁定入场：闪两下、抖一下，然后锁定（对应 motion.js variants.signalIn；
-   用法 animation: we-signal-in var(--we-duration-normal) steps(1, jump-end) both） */
-@keyframes we-signal-in {
-  0%   { opacity: 0;   transform: translateX(-6px); }
-  33%  { opacity: 1;   transform: translateX(4px); }
-  67%  { opacity: 0.3; transform: translateX(-2px); }
-  100% { opacity: 1;   transform: none; }
-}
-
 /* ── Scrollbar ─────────────────────────────────────────── */
 
 .we-chat-area,
@@ -577,16 +568,6 @@
   opacity: 0.6;
 }
 
-.we-chat-empty-state__cursor {
-  display: inline-block;
-  width: 0.6em;
-  height: 2px;
-  margin-left: 2px;
-  vertical-align: -0.12em;
-  background: var(--we-color-accent);
-  animation: we-stream-caret var(--we-duration-loop) steps(1, jump-end) infinite;
-}
-
 .we-chat-empty-state__text {
   margin: 0;
   font-family: var(--we-font-prose);
@@ -596,59 +577,6 @@
 }
 
 /* ── Streaming ─────────────────────────────────────────── */
-
-/* 时长由 useMotion().stream() 以 --we-stream-* 变量写入；变量缺失（减少动效）时整条 animation 无效，光标静止、新文字直接显示 */
-/* 切片成字（样式见 ui.css .we-slice）：新到达的字先是抖动的强调色横带，轮到它时一层层定住、闪一下，退回正文色 */
-.we-stream-char {
-  --we-slice-delay: var(--we-stream-char-delay);
-  --we-slice-duration: var(--we-stream-char-duration);
-}
-
-/* 逐字光标：下划线光标只在这个字锁定的那一拍亮着，连起来就是一道跟着字走的光标 */
-@keyframes we-stream-char-caret {
-  from, to { opacity: 1; }
-}
-
-.we-stream-char--caret::after {
-  content: '';
-  position: absolute;
-  bottom: -0.12em;
-  left: 100%;
-  width: 0.55em;
-  height: 2px;
-  background: var(--we-color-accent);
-  opacity: 0;
-  pointer-events: none;
-  animation: we-stream-char-caret var(--we-stream-char-step) linear var(--we-stream-char-delay);
-}
-
-/* 下划线光标：终端式硬切闪烁；净宽为 0（负右边距抵消），出现、消失都不推动正文换行 */
-@keyframes we-stream-caret {
-  0%, 49%   { opacity: 1; }
-  50%, 100% { opacity: 0; }
-}
-/* 生成结束：闪一下熄灭 */
-@keyframes we-stream-caret-out {
-  0%   { opacity: 1; }
-  34%  { opacity: 0; }
-  67%  { opacity: 1; }
-  100% { opacity: 0; }
-}
-
-.we-stream-caret {
-  display: inline-block;
-  width: 0.55em;
-  height: 2px;
-  margin: 0 calc(-0.55em - 1px) 0 1px;
-  vertical-align: -0.12em;
-  background: var(--we-color-accent);
-  pointer-events: none;
-  animation: we-stream-caret var(--we-stream-caret-duration) steps(1, jump-end) infinite;
-}
-
-.we-stream-caret--fading {
-  animation: we-stream-caret-out var(--we-stream-caret-out-duration) steps(1, jump-end) forwards;
-}
 
 /* ── Token Usage ────────────────────────────────────────── */
 
@@ -984,7 +912,7 @@
   line-height: var(--we-leading-prose);
   color: var(--we-color-text-primary);
   margin-bottom: 0.6em;
-  animation: we-signal-in var(--we-duration-normal) steps(1, jump-end) both;
+  animation: var(--we-fx-enter);
 }
 
 .we-writing-prose p      { margin-bottom: 0; }
@@ -1003,7 +931,7 @@
   font-style: italic;
   font-size: var(--we-text-sm);
   color: var(--we-color-text-secondary);
-  animation: we-signal-in var(--we-duration-normal) steps(1, jump-end) both;
+  animation: var(--we-fx-enter);
 }
 
 .we-writing-annotation .we-message-actions {
@@ -1831,7 +1759,7 @@
 
 .we-asst-new-msg-arrow {
   display: block;
-  animation: we-bounce-arrow var(--we-duration-loop) steps(1, jump-end) infinite;
+  animation: var(--we-fx-nudge);
 }
 
 .we-asst-entry {
@@ -1845,7 +1773,7 @@
   border-radius: var(--we-radius-md);
   font-family: var(--we-font-prose);
   color: var(--we-color-text-primary);
-  animation: we-signal-in var(--we-duration-normal) steps(1, jump-end) both;
+  animation: var(--we-fx-enter);
 }
 
 .we-asst-entry--tool,
@@ -1934,7 +1862,7 @@
   border: 1.5px solid var(--we-color-text-tertiary);
   border-top-color: transparent;
   border-radius: var(--we-radius-full);
-  animation: we-tool-spin var(--we-duration-loop) steps(8, jump-end) infinite;
+  animation: var(--we-fx-spin);
   flex-shrink: 0;
   margin-left: auto;
 }
@@ -2098,17 +2026,6 @@
 .we-asst-entry__action--danger,
 .we-asst-entry__action--danger:hover { color: var(--we-color-status-danger); }
 
-/* 流式光标：与正文同一种下划线光标，硬切闪烁 */
-.we-asst-stream-cursor {
-  display: inline-block;
-  width: 0.55em;
-  height: 2px;
-  background: var(--we-color-accent);
-  margin-left: 2px;
-  vertical-align: -0.12em;
-  animation: we-stream-caret var(--we-duration-loop) steps(1, jump-end) infinite;
-}
-
 /* 空状态 */
 .we-asst-empty {
   min-height: 100%;
@@ -2158,7 +2075,7 @@
   font-family: var(--we-font-prose);
   font-size: var(--we-text-sm);
   line-height: 1.7;
-  animation: we-signal-in var(--we-duration-normal) steps(1, jump-end) both;
+  animation: var(--we-fx-enter);
 }
 
 .we-asst-bubble--user {
@@ -2254,7 +2171,7 @@
    ========================================================= */
 
 /* — 打字三点 ─ */
-/* 三个方块逐格点亮，像数据在传 */
+/* 三个点依次亮起；形状与节奏由动效包决定 */
 @keyframes we-typing-dot {
   0%, 33%   { opacity: 1; }
   34%, 100% { opacity: 0.2; }
@@ -2266,7 +2183,7 @@
   height: 6px;
   background: var(--we-color-text-tertiary);
   margin: 0 var(--we-space-xxs);
-  animation: we-typing-dot var(--we-duration-loop) steps(1, jump-end) infinite;
+  animation: var(--we-fx-typing);
 }
 
 .typing-dot-accent {
@@ -2285,17 +2202,9 @@
   padding: var(--we-space-2xl) 0 var(--we-space-lg);
   opacity: 0;
 }
-/* 章节开场：整块被横向撕开、闪两下后锁定；减少动态效果时没有 --we-glitch-burst，直接落定 */
+/* 章节开场：进场方式由动效包决定；减少动态效果时直接落定 */
 .we-chapter-header.we-chapter-header--visible {
-  animation: we-chapter-tear var(--we-glitch-burst, 0ms) steps(1, jump-end) both;
-}
-@keyframes we-chapter-tear {
-  0%   { opacity: 0;   transform: translateX(-18px) skewX(-16deg); clip-path: inset(0 0 58% 0); }
-  14%  { opacity: 1;   transform: translateX(14px) skewX(10deg);   clip-path: inset(38% 0 0 0); }
-  28%  { opacity: 0.3; transform: translateX(-8px) skewX(0deg);    clip-path: inset(0 0 22% 0); }
-  42%  { opacity: 1;   transform: translateX(5px) skewX(-5deg);    clip-path: inset(12% 0 0 0); }
-  57%  { opacity: 1;   transform: translateX(-2px);                clip-path: inset(0); }
-  100% { opacity: 1;   transform: none;                            clip-path: none; }
+  opacity: 1;
 }
 .we-chapter-num {
   font-family: var(--we-font-display);
@@ -2693,13 +2602,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .we-danmaku-track,
-  .we-slice::before,
-  .we-slice__glyph,
-  .we-slice__glyph::before,
-  .we-slice__glyph::after,
-  .we-stream-char--caret::after,
-  .we-stream-caret {
+  .we-danmaku-track {
     animation: none;
   }
 }

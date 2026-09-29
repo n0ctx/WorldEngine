@@ -12,11 +12,11 @@ export default function SpeakerStage({ character }) {
           <motion.div
             key={character.id}
             className="we-speaker-stage__cast"
-            variants={m.variant('signalIn')}
+            variants={m.variant('enter')}
             initial="hidden"
             animate="visible"
             exit="exit"
-            transition={m.transition('signal')}
+            transition={m.transition('enter')}
           >
             <CharacterSeal character={character} size={32} />
             <span className="we-speaker-stage__name">{character.name}</span>

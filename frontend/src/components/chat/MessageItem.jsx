@@ -37,10 +37,10 @@ export default function MessageItem({
   const isUser = message.role === 'user';
   const m = useMotion();
   const enterProps = {
-    variants: m.variant('signalIn'),
+    variants: m.variant('enter'),
     initial: 'hidden',
     animate: 'visible',
-    transition: m.transition('signal'),
+    transition: m.transition('enter'),
     exit: 'exit',
   };
 
@@ -69,7 +69,7 @@ export default function MessageItem({
         data-message-id={message?.id}
         className="we-message-row we-message-assistant"
         {...enterProps}
-        transition={m.transition('signal', { delay: DURATION.base })}
+        transition={m.transition('enter', { delay: DURATION.base })}
       >
         <div className="we-message-row-inner">
           <div className="we-message-body--assistant">

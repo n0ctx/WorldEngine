@@ -84,11 +84,11 @@ function WorldSelector({ effectiveWorldId, isCurrentLevel }) {
         {dropdownOpen && (
           <motion.div
             className="we-topbar-dropdown"
-            variants={m.variant('signalIn')}
+            variants={m.variant('enter')}
             initial="hidden"
             animate="visible"
             exit="exit"
-            transition={m.transition('signal')}
+            transition={m.transition('enter')}
           >
             {worldsLoading ? (
               <div className="we-topbar-dropdown-empty">加载中…</div>

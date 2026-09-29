@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from 'framer-motion';
-import { variants } from '../../../core/utils/motion.js';
+import { useMotion } from '../../../core/hooks/useMotion.js';
 
 const MotionDiv = motion.div;
 
@@ -15,10 +15,11 @@ const ENABLED = false;
 
 /**
  * Route-level transition container for the book-spread shell.
- * locationKey changes trigger pageTransition motion; overlay routes
+ * locationKey changes trigger the motion pack's page variant; overlay routes
  * (backgroundLocation active → locationKey unchanged) do not.
  */
 export default function PageTransition({ children, locationKey }) {
+  const m = useMotion();
   if (!ENABLED) {
     return <div className="we-page-transition">{children}</div>;
   }
@@ -28,7 +29,7 @@ export default function PageTransition({ children, locationKey }) {
       <MotionDiv
         key={locationKey}
         className="we-page-transition"
-        variants={variants.pageTransition}
+        variants={m.variant('page')}
         initial="hidden"
         animate="visible"
         exit="exit"

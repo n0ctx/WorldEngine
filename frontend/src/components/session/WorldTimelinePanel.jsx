@@ -106,7 +106,7 @@ function TimelineItem({ item, title, index, isActive, editable, onClick, onRenam
           layoutId="we-storyline-highlight"
           className="we-storyline-highlight"
           aria-hidden="true"
-          transition={motionPrefs.transition('hop')}
+          transition={motionPrefs.transition('move')}
         />
       )}
       <StorylineModeBadge mode={item.mode} />
