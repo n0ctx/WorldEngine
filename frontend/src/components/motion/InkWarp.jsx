@@ -3,6 +3,7 @@
  * 外层 span 始终保留：换掉它会让里面的文字重新挂载，入场动画再播一遍。 */
 import { useEffect, useId, useRef, useState } from 'react';
 import { animate } from 'framer-motion';
+import { SURFACE } from '../../core/motion/packs/liquid.js';
 
 export default function InkWarp({ strength = 14, duration = 0.9, children }) {
   const filterId = `we-ink-warp-${useId().replace(/:/g, '')}`;
@@ -13,7 +14,7 @@ export default function InkWarp({ strength = 14, duration = 0.9, children }) {
   useEffect(() => {
     const warp = animate(1, 0, {
       duration,
-      ease: [0.16, 1, 0.3, 1],
+      ease: SURFACE,
       onUpdate: (t) => {
         displaceRef.current?.setAttribute('scale', String(strength * t));
         noiseRef.current?.setAttribute('baseFrequency', `${0.012 + 0.02 * t} ${0.06 + 0.05 * t}`);

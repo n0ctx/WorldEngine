@@ -102,7 +102,7 @@ export default function SortableGrid({
     setActiveId(null);
     setDraftItems(null);
     setIsDropping(true);
-    setTimeout(() => setIsDropping(false), 300);
+    setTimeout(() => setIsDropping(false), DURATION.base * 1000);
     const changed = finalItems.some((item, i) => item.id !== items[i]?.id);
     if (changed) onReorderEnd?.(finalItems);
   }

@@ -7,10 +7,10 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { Copy } from 'lucide-react';
 import { Highlight } from 'prism-react-renderer';
 import { useMotion } from '../../core/hooks/useMotion.js';
-import { EASE } from '../../core/utils/motion.js';
+import { DURATION, EASE, STAGGER } from '../../core/utils/motion.js';
 import { readCssColor } from './readCssColor.js';
 
-const REDUCED_SWAP = { duration: 0.15 };
+const REDUCED_SWAP = { duration: DURATION.quick };
 const COPY_RESET_MS = 1800;
 
 function rgbToHsl([r8, g8, b8]) {
@@ -105,7 +105,7 @@ function CopyButton({ code }) {
                 d="M4 12.5l5 5L20 6.5"
                 initial={reduced ? false : { pathLength: 0 }}
                 animate={{ pathLength: 1 }}
-                transition={{ duration: 0.2, ease: EASE.ink, delay: 0.05 }}
+                transition={{ duration: DURATION.quick, ease: EASE.ink, delay: STAGGER.list }}
               />
             </svg>
           </motion.span>

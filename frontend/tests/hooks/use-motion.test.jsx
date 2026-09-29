@@ -28,8 +28,6 @@ describe('useMotion', () => {
 
     expect(result.current.reduced).toBe(false);
     expect(result.current.pack).toBe(pack);
-    expect(result.current.duration(0.3)).toBe(0.3);
-    expect(result.current.ease([1, 2, 3])).toEqual([1, 2, 3]);
     expect(result.current.transition('enter')).toBe(pack.transitions.enter);
     expect(result.current.transition('enter', { delay: 0.3 })).toEqual({ ...pack.transitions.enter, delay: 0.3 });
     expect(result.current.transition('medium')).toBe(sharedTransitions.medium);
@@ -41,8 +39,6 @@ describe('useMotion', () => {
     const { result } = renderHook(() => useMotion());
 
     expect(result.current.reduced).toBe(true);
-    expect(result.current.duration(0.3)).toBe(0);
-    expect(result.current.ease([1, 2, 3])).toBe('linear');
     expect(result.current.transition('enter', { delay: 0.3 })).toMatchObject({ duration: 0, delay: 0 });
     expect(result.current.flow(0.25)).toEqual({ duration: 0 });
   });

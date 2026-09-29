@@ -2,7 +2,7 @@
  * 硬切闪烁、横向抖动、切片成字、错位撕裂。没有模糊，没有回弹。
  * 大面板、遮罩、换位走平滑曲线：整块内容被抖偏、跟随时一顿一顿都不好看。
  * 样式与关键帧见 themes/motion/signal.css。 */
-import { DURATION, EASE } from '../../utils/motion.js';
+import { DURATION, EASE, transitions as sharedTransitions } from '../../utils/motion.js';
 
 // 硬切：每段保持起点值，到段尾瞬间跳到终点（等价 CSS steps(1, jump-end)）
 const cut = (t) => (t >= 1 ? 1 : 0);
@@ -10,6 +10,11 @@ const cut = (t) => (t >= 1 ? 1 : 0);
 const ENTER = { duration: DURATION.base, ease: cut };
 const EXIT = { duration: DURATION.quick, ease: cut };
 const MOVE = { duration: DURATION.quick, ease: EASE.ink };
+
+// 闪两下亮起：亮起、回落、再亮起
+const FLASH = [0, 1, 0.3, 1];
+// 大面板与页签内容的上浮起点
+const RISE_Y = 8;
 
 export default {
   id: 'signal',
@@ -19,18 +24,18 @@ export default {
     // 小块入场：闪两下、抖一下，然后锁定（消息、说话者、下拉、错误提示）
     enter: {
       hidden:  { opacity: 0, x: -6 },
-      visible: { opacity: [0, 1, 0.3, 1], x: [-6, 4, -2, 0] },
+      visible: { opacity: FLASH, x: [-6, 4, -2, 0] },
       exit:    { opacity: [1, 0.4, 0], transition: EXIT },
     },
     // 大面板入场：淡入并上浮到位
     overlayEnter: {
-      hidden:  { opacity: 0, y: 8 },
+      hidden:  { opacity: 0, y: RISE_Y },
       visible: { opacity: 1, y: 0 },
       exit:    { opacity: 0, y: 6 },
     },
     // 页签内容：与大面板一样淡入上浮，不看切换方向
     tabEnter: {
-      hidden:  { opacity: 0, y: 8 },
+      hidden:  { opacity: 0, y: RISE_Y },
       visible: { opacity: 1, y: 0 },
     },
     // 遮罩：平滑亮起 / 熄灭
@@ -41,14 +46,14 @@ export default {
     // 只变透明度的出现：闪两下亮起、闪一下熄灭（侧抽屉本体、图标互换）
     appear: {
       hidden:  { opacity: 0 },
-      visible: { opacity: [0, 1, 0.3, 1] },
+      visible: { opacity: FLASH },
       exit:    { opacity: 0, transition: EXIT },
     },
     // 侧抽屉内容：从外侧边缘抖进来、闪一下退回去；custom 传外侧方向的位移
     edgeEnter: {
       hidden:  (edge) => ({ opacity: 0, x: edge, transition: EXIT }),
       visible: (edge) => ({
-        opacity: [0, 1, 0.3, 1],
+        opacity: FLASH,
         x: [edge, -edge / 2, edge / 4, 0],
         transition: { ...ENTER, delay: DURATION.quick },
       }),
@@ -56,14 +61,13 @@ export default {
     // 路由切换
     page: {
       hidden:  { opacity: 0 },
-      visible: { opacity: [0, 1, 0.3, 1], transition: ENTER },
+      visible: { opacity: FLASH, transition: ENTER },
       exit:    { opacity: 0, transition: EXIT },
     },
   },
   transitions: {
     enter:    ENTER,
-    exit:     EXIT,
-    overlay:  { duration: DURATION.medium, ease: EASE.ink },
+    overlay:  sharedTransitions.medium,
     backdrop: { duration: DURATION.quick, ease: EASE.ink },
     // 指示条、高亮块换位：平滑滑过去；前后沿同一节奏，不拉伸
     move:      MOVE,

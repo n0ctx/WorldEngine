@@ -12,7 +12,7 @@ import {
   useTransform,
 } from 'framer-motion';
 import { useMotion } from '../../core/hooks/useMotion.js';
-import { EASE as MOTION_EASE } from '../../core/utils/motion.js';
+import { DURATION, EASE as MOTION_EASE, STAGGER } from '../../core/utils/motion.js';
 
 const HINGE = '3px 6px';
 const LID_OPEN = -35;
@@ -31,9 +31,9 @@ const WIDTH = { duration: 0.62, ease: EASE };
 const LID = { duration: 0.6, ease: EASE };
 const WALL = { duration: 0.56, ease: EASE };
 const IN = { duration: 0.44, ease: EASE, delay: 0.14 };
-const OUT = { duration: 0.3, ease: EASE };
-const TAP = { duration: 0.2, ease: EASE };
-const SWAP = { duration: 0.22, ease: EASE };
+const OUT = { duration: DURATION.base, ease: EASE };
+const TAP = { duration: DURATION.quick, ease: EASE };
+const SWAP = { duration: DURATION.quick, ease: EASE };
 const SETTLE = { duration: 0.45, ease: EASE };
 const INSTANT = { duration: 0 };
 
@@ -47,7 +47,7 @@ const ICON = {
 
 const panelMotion = {
   hidden: { opacity: 0, x: -6, transition: OUT },
-  shown: { opacity: 1, x: 0, transition: { ...IN, staggerChildren: 0.07 } },
+  shown: { opacity: 1, x: 0, transition: { ...IN, staggerChildren: STAGGER.panel } },
 };
 
 const circleMotion = {

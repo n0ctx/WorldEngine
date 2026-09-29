@@ -19,9 +19,9 @@ function DrawerList({ items }) {
  * 实验室里的「书页外壳」：真实的 BookSpread + 左右 SideDrawer + 中栏纸面，收进固定尺寸的盒子。
  * 盒子带 contain: layout paint，窄屏下抽屉的 fixed 遮罩只盖住盒子本身。
  */
-export default function ShellFrame({ initialLeft = false, initialRight = false, children }) {
+export default function ShellFrame({ initialLeft = false, children }) {
   const [leftOpen, setLeftOpen] = useState(initialLeft);
-  const [rightOpen, setRightOpen] = useState(initialRight);
+  const [rightOpen, setRightOpen] = useState(false);
   return (
     <div className="we-design-lab__shell-box">
       <BookSpread>

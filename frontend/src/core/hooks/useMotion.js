@@ -50,9 +50,7 @@ export function useMotion() {
   return {
     reduced,
     pack,
-    duration: (d) => (reduced ? 0 : d),
-    ease:     (e) => (reduced ? 'linear' : e),
-    // 先找当前包的预设（enter / exit / overlay / backdrop / move / press），再找共用预设；
+    // 先找当前包的预设（enter / overlay / backdrop / move / press），再找共用预设；
     // reduced 模式下 duration → 0
     transition: (preset, { delay = 0 } = {}) => {
       const t = pack.transitions[preset] ?? sharedTransitions[preset] ?? sharedTransitions.ink;

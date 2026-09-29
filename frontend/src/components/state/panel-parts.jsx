@@ -1,6 +1,7 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import ChangeText from '../motion/ChangeText.jsx';
 import { useMotion } from '../../core/hooks/useMotion.js';
+import { STAGGER } from '../../core/utils/motion.js';
 
 const MotionDiv = motion.div;
 
@@ -17,7 +18,7 @@ export function DiaryEntry({ entry, index, selected, onSelect, className, style 
   return (
     <div
       className={`we-timeline-entry ${className}${selected ? ` ${className}--selected` : ''}`}
-      style={{ animationDelay: `${index * 50}ms`, ...style }}
+      style={{ animationDelay: `${index * STAGGER.list}s`, ...style }}
       onClick={() => onSelect(entry)}
       title="点击注入下轮提示词"
     >

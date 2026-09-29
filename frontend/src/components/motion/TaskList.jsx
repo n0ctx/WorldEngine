@@ -5,21 +5,20 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useMotion } from '../../core/hooks/useMotion.js';
-import { EASE } from '../../core/utils/motion.js';
+import { DURATION, EASE, STAGGER } from '../../core/utils/motion.js';
 
 // 填圈、打勾、划线、弹一下平滑走完。分格跳会让勾选一顿一顿；重排跟指示条同一条平滑曲线
-const EASE_OUT = EASE.ink;
-const EASE_IN_OUT = EASE.ink;
+const EASE_INK = EASE.ink;
 
 const POP_SCALE = [1, 1.08, 1];
 const FLICK = [0, 8, -2, 0];
 const FLICK_TIMES = [0, 0.35, 0.7, 1];
 
-const FILL = { duration: 0.24, ease: EASE_OUT };
-const POP = { duration: 0.34, ease: EASE_OUT, times: [0, 0.4, 1] };
-const TICK = { duration: 0.22, ease: EASE_OUT, delay: 0.06 };
-const STRIKE = { duration: 0.38, ease: EASE_IN_OUT };
-const NUDGE = { duration: 0.3, ease: EASE_OUT, times: FLICK_TIMES };
+const FILL = { duration: 0.24, ease: EASE_INK };
+const POP = { duration: DURATION.base, ease: EASE_INK, times: [0, 0.4, 1] };
+const TICK = { duration: DURATION.quick, ease: EASE_INK, delay: STAGGER.panel };
+const STRIKE = { duration: DURATION.medium, ease: EASE_INK };
+const NUDGE = { duration: DURATION.base, ease: EASE_INK, times: FLICK_TIMES };
 const INSTANT = { duration: 0 };
 
 // 虚线段均分圆周，圈首尾不留接缝

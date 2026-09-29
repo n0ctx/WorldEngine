@@ -4,6 +4,7 @@ import StatusTable from './StatusTable.jsx';
 import StatusValueChange from './StatusValueChange.jsx';
 import InlineEditor from './StatusInlineEditor.jsx';
 import { applyTemplateVars } from '../../core/utils/template-vars.js';
+import { STAGGER } from '../../core/utils/motion.js';
 import {
   EMPTY_STATUS_DISPLAY,
   formatFieldValue,
@@ -79,7 +80,7 @@ function StatusTableField({ row, index, fieldExtra, editable, onSave }) {
   return (
     <div
       className={`we-status-field we-status-field--table${fieldExtra}`}
-      style={{ animationDelay: `${index * 45}ms` }}
+      style={{ animationDelay: `${index * STAGGER.list}s` }}
     >
       <span className="we-status-key">{row.label}</span>
       <StatusTable
@@ -178,7 +179,7 @@ function StatusField({
   return (
     <div
       className={`we-status-field${fieldExtra}${isEditing ? ' we-status-field--editing' : ''}`}
-      style={{ animationDelay: `${index * 45}ms` }}
+      style={{ animationDelay: `${index * STAGGER.list}s` }}
     >
       <span className="we-status-key">{row.label}</span>
       {isEditing ? (

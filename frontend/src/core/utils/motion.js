@@ -5,15 +5,12 @@
 
 // §2.1 时长
 export const DURATION = {
-  instant: 0,
   micro:   0.10,
   quick:   0.18,
   base:    0.30,
   medium:  0.38,
   slow:    0.50,
-  crawl:   0.75,
   loop:    1.20,
-  ambient: 2.00,
 };
 
 // §2.2 缓动函数
@@ -28,24 +25,16 @@ export const EASE = {
   sharp:   [0.25, 0.46, 0.45, 0.94],
   // 收回：先快后慢 — 折叠
   retract: [0.55, 0.00, 1.00, 0.45],
-  // 匀速
-  linear:  'linear',
 };
 
 // §2.3 stagger
 export const STAGGER = {
-  list:      0.05,
-  panel:     0.06,
-  character: 0.08,
+  list:  0.05,
+  panel: 0.06,
 };
 
 // transition 预设（配合 variants 或 motion props 使用）
 export const transitions = {
-  ink:     { duration: DURATION.base,   ease: EASE.ink     },
-  quick:   { duration: DURATION.quick,  ease: EASE.sharp   },
-  medium:  { duration: DURATION.medium, ease: EASE.ink     },
-  slow:    { duration: DURATION.slow,   ease: EASE.page    },
-  page:    { duration: DURATION.quick,  ease: EASE.ink     },
-  quill:   { duration: DURATION.base,   ease: EASE.quill   },
-  retract: { duration: DURATION.quick,  ease: EASE.retract },
+  ink:    { duration: DURATION.base,   ease: EASE.ink },
+  medium: { duration: DURATION.medium, ease: EASE.ink },
 };

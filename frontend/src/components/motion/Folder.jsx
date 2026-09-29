@@ -4,7 +4,7 @@
  * 只负责画，状态由外层卡片按悬停 / 按下传入，颜色读 --we-* token。 */
 import { motion } from 'framer-motion';
 import { useMotion } from '../../core/hooks/useMotion.js';
-import { DURATION } from '../../core/utils/motion.js';
+import { DURATION, STAGGER } from '../../core/utils/motion.js';
 
 const BASE_WIDTH = 321;
 const BASE_HEIGHT = 270;
@@ -12,12 +12,13 @@ const FLAP_PATH =
   'M0 25C0 11.1929 11.1929 0 25 0H136.084C143.044 0 149.689 2.90139 154.42 8.00608L178.08 33.5343C182.811 38.639 189.456 41.5404 196.416 41.5404H296C309.807 41.5404 321 52.7333 321 66.5404V216C321 229.807 309.807 241 296 241H25C11.1929 241 0 229.807 0 216V25Z';
 // 卡片扇出、盖板开合平滑到位。分格跳会让悬停展开一顿一顿
 
-// 三张卡在静止 / 悬停 / 打开时的位置与错峰延迟，数值取自上游
+// 三张卡在静止 / 悬停 / 打开时的位置，数值取自上游；错峰延迟按序号从后往前递减
 const CARDS = [
-  { rest: { x: 40, y: -10, rotate: 10 }, hover: { x: 40, y: -30, rotate: 14 }, open: { x: 70, y: -160, rotate: 18 }, delay: { hover: 0.12, open: 0.1 } },
-  { rest: { x: 3, y: -20, rotate: 2 }, hover: { x: 3, y: -35, rotate: -1 }, open: { x: 0, y: -180, rotate: -3 }, delay: { hover: 0.06, open: 0.05 } },
-  { rest: { x: -40, y: -22, rotate: -5 }, hover: { x: -40, y: -44, rotate: -9 }, open: { x: -65, y: -170, rotate: -14 }, delay: { hover: 0, open: 0 } },
+  { rest: { x: 40, y: -10, rotate: 10 }, hover: { x: 40, y: -30, rotate: 14 }, open: { x: 70, y: -160, rotate: 18 } },
+  { rest: { x: 3, y: -20, rotate: 2 }, hover: { x: 3, y: -35, rotate: -1 }, open: { x: 0, y: -180, rotate: -3 } },
+  { rest: { x: -40, y: -22, rotate: -5 }, hover: { x: -40, y: -44, rotate: -9 }, open: { x: -65, y: -170, rotate: -14 } },
 ];
+const CARD_STAGGER = { hover: STAGGER.panel, open: STAGGER.list };
 const FLAP_TILT = { rest: -15, hover: -45, open: -55 };
 
 // 卡面：标题条 + 两列八行的文字条
@@ -65,7 +66,7 @@ export default function Folder({ state = 'rest', width = 56 }) {
               className="we-folder__card-slot"
               initial={false}
               animate={card[state]}
-              transition={m.flow(DURATION.medium, { delay: card.delay[state] ?? 0 })}
+              transition={m.flow(DURATION.medium, { delay: (CARDS.length - 1 - i) * (CARD_STAGGER[state] ?? 0) })}
             >
               <Card />
             </motion.span>

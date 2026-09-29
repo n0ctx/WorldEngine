@@ -7,8 +7,12 @@
  * 样式与关键帧见 themes/motion/liquid.css；畸变滤镜见 components/motion/InkWarp.jsx。 */
 
 // 浮现：长尾收住；沉没：先慢后快坠下去
-const SURFACE = [0.16, 1, 0.3, 1];
+export const SURFACE = [0.16, 1, 0.3, 1];
 const SINK = [0.7, 0, 0.84, 0];
+
+const CLEAR = 'blur(0px)';
+const BLUR_EXIT = 'blur(6px)';
+const PANEL_FADE = 0.36;
 
 const spring = (stiffness, damping, mass = 1) => ({ type: 'spring', stiffness, damping, mass });
 
@@ -16,7 +20,7 @@ const spring = (stiffness, damping, mass = 1) => ({ type: 'spring', stiffness, d
 const RISE = spring(260, 19);
 const ENTER = { ...RISE, opacity: { duration: 0.32, ease: SURFACE }, filter: { duration: 0.42, ease: SURFACE } };
 const EXIT = { duration: 0.28, ease: SINK };
-const PANEL = { ...spring(220, 22), opacity: { duration: 0.36, ease: SURFACE } };
+const PANEL = { ...spring(220, 22), opacity: { duration: PANEL_FADE, ease: SURFACE } };
 
 export default {
   id: 'liquid',
@@ -26,8 +30,8 @@ export default {
     // 小块入场：从下方的柔焦里浮上来，竖向微微拉长，落位时回弹
     enter: {
       hidden:  { opacity: 0, y: 22, scaleX: 0.97, scaleY: 1.06, filter: 'blur(8px)' },
-      visible: { opacity: 1, y: 0, scaleX: 1, scaleY: 1, filter: 'blur(0px)' },
-      exit:    { opacity: 0, y: 14, scaleY: 0.96, filter: 'blur(6px)', transition: EXIT },
+      visible: { opacity: 1, y: 0, scaleX: 1, scaleY: 1, filter: CLEAR },
+      exit:    { opacity: 0, y: 14, scaleY: 0.96, filter: BLUR_EXIT, transition: EXIT },
     },
     // 大面板入场：整块托起再落稳；不加模糊，大块模糊会让文字在合成层上抖一下
     overlayEnter: {
@@ -37,8 +41,8 @@ export default {
     },
     // 页签内容：顺着指示条移动的方向流进来；custom 传方向（1 向右、-1 向左）
     tabEnter: {
-      hidden:  (dir = 1) => ({ opacity: 0, x: dir * 40, scaleX: 1.04, filter: 'blur(6px)' }),
-      visible: { opacity: 1, x: 0, scaleX: 1, filter: 'blur(0px)' },
+      hidden:  (dir = 1) => ({ opacity: 0, x: dir * 40, scaleX: 1.04, filter: BLUR_EXIT }),
+      visible: { opacity: 1, x: 0, scaleX: 1, filter: CLEAR },
     },
     overlayBackdrop: {
       hidden:  { opacity: 0 },
@@ -46,13 +50,13 @@ export default {
     },
     appear: {
       hidden:  { opacity: 0, scale: 0.6, filter: 'blur(4px)' },
-      visible: { opacity: 1, scale: 1, filter: 'blur(0px)' },
+      visible: { opacity: 1, scale: 1, filter: CLEAR },
       exit:    { opacity: 0, scale: 0.8, filter: 'blur(4px)', transition: EXIT },
     },
     // 侧抽屉内容：从外侧被水流带进来，冲过一点再回到位
     edgeEnter: {
-      hidden:  (edge) => ({ opacity: 0, x: edge * 2.5, filter: 'blur(6px)', transition: EXIT }),
-      visible: () => ({ opacity: 1, x: 0, filter: 'blur(0px)', transition: { ...ENTER, delay: 0.14 } }),
+      hidden:  (edge) => ({ opacity: 0, x: edge * 2.5, filter: BLUR_EXIT, transition: EXIT }),
+      visible: () => ({ opacity: 1, x: 0, filter: CLEAR, transition: { ...ENTER, delay: 0.14 } }),
     },
     page: {
       hidden:  { opacity: 0, y: 24 },
@@ -62,9 +66,8 @@ export default {
   },
   transitions: {
     enter:     ENTER,
-    exit:      EXIT,
     overlay:   PANEL,
-    backdrop:  { duration: 0.36, ease: SURFACE },
+    backdrop:  { duration: PANEL_FADE, ease: SURFACE },
     // 指示物换位：前沿冲得快、后沿被拖着走，行进中明显拉长，到位后回弹收拢
     move:      spring(520, 30),
     moveTrail: spring(210, 20),

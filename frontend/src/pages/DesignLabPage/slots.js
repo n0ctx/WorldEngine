@@ -7,7 +7,6 @@
  * status：
  *   pack    走动效包，必须有演示
  *   blind   没接进动效包（硬编码或没有动效），切换动效不会变；演示可选
- *   pending 走动效包，演示还没做
  *   closed  代码里有意关闭
  */
 
@@ -26,7 +25,6 @@ export const CATEGORIES = [
 export const STATUS_LABEL = {
   pack: '动效包驱动',
   blind: '未接入动效包',
-  pending: '演示待补',
   closed: '已关闭',
 };
 
@@ -34,13 +32,13 @@ export const SLOTS = [
   // ── 出现与消失 ──
   {
     id: 'enter-list', category: 'appear', title: '小块增删', status: 'pack',
-    api: ['variant:enter', 'transition:enter', 'transition:exit'],
+    api: ['variant:enter', 'transition:enter'],
     usedIn: ['状态面板遮罩', '错误提示', '下拉菜单'],
   },
   {
     id: 'message', category: 'appear', title: '聊天消息入场', status: 'pack',
     api: ['variant:enter', 'transition:enter'],
-    usedIn: ['MessageItem', 'MessageBubbles'],
+    usedIn: ['MessageItem'],
   },
   {
     id: 'speaker', category: 'appear', title: '说话人切换', status: 'pack',
@@ -54,13 +52,13 @@ export const SLOTS = [
   },
   {
     id: 'code-block', category: 'appear', title: '代码块出现', status: 'pack',
-    api: ['variant:appear', 'transition:enter'],
+    api: ['variant:appear', 'transition:enter', 'transition:press'],
     usedIn: ['CodeBlock'],
   },
   {
     id: 'css-enter', category: 'appear', title: 'CSS 入场（样机）', status: 'pack',
     api: ['css:enter'],
-    usedIn: ['写作正文与批注', '写卡助手气泡与条目', '状态字段列表', '时间线条目'],
+    usedIn: ['写作正文与批注', '写卡助手气泡与条目', '状态字段列表', '时间线条目', '故事线条目'],
     note: '这里用样机元素回放 --we-fx-enter，真实位置见「用在」。',
   },
   {
@@ -70,9 +68,9 @@ export const SLOTS = [
   },
   {
     id: 'legacy-css-enter', category: 'appear', title: '页面元素的固定 CSS 入场', status: 'blind',
-    api: [], usedIn: ['会话中栏', '写卡助手遮罩', '设置遮罩', '写卡面板', '编辑面板遮罩', '故事线条目'],
-    note: '直接用 we-panel-fade / we-rise-in / we-ink-rise 三个固定动画，不随动效包变化；'
-      + 'we-ink-rise 与墨流包里的同名动画还有命名冲突。',
+    api: [], usedIn: ['会话中栏', '写卡助手遮罩', '设置遮罩', '写卡面板', '编辑面板遮罩'],
+    note: '直接用 we-panel-fade（淡入）和 we-panel-rise（8px 上浮淡入）两个固定动画，不随动效包变化；'
+      + '大面板不走信号锁定，横向抖动会把整页内容拽偏。',
   },
 
   // ── 浮层与弹窗 ──
@@ -89,7 +87,7 @@ export const SLOTS = [
   {
     id: 'toast', category: 'overlay', title: '提示条', status: 'pack',
     api: ['variant:overlayEnter', 'transition:overlay', 'fx'],
-    usedIn: ['ToastCard', 'GlobalToast'],
+    usedIn: ['ToastCard'],
   },
   {
     id: 'side-drawer', category: 'overlay', title: '侧抽屉', status: 'pack',
@@ -114,7 +112,7 @@ export const SLOTS = [
   },
   {
     id: 'bounce-rail', category: 'move', title: '导航条', status: 'pack',
-    api: ['transition:move'], usedIn: ['BounceRail', '设置页导航', 'WorldTimelinePanel'],
+    api: ['transition:move', 'transition:moveTrail', 'flow'], usedIn: ['BounceRail', '设置页导航', 'WorldTimelinePanel'],
   },
   {
     id: 'task-list', category: 'move', title: '任务列表', status: 'pack',
@@ -126,7 +124,7 @@ export const SLOTS = [
   },
   {
     id: 'topbar', category: 'move', title: '顶栏', status: 'pack',
-    api: ['variant:enter', 'transition:enter', 'gesture:press'], usedIn: ['TopBar'],
+    api: ['variant:enter', 'transition:enter', 'transition:press', 'gesture:press'], usedIn: ['TopBar'],
     note: '直接渲染真实顶栏；世界下拉只在进入过某个世界后才出现。',
   },
 
@@ -144,13 +142,13 @@ export const SLOTS = [
     api: ['gesture:sink'], usedIn: ['InputBoxComposer'],
   },
   {
-    id: 'delete-button', category: 'press', title: '删除确认按钮', status: 'blind',
-    api: [], usedIn: ['DeleteButton'],
-    note: '展开和确认动作写死在组件里，只读了「减少动态效果」。',
+    id: 'delete-button', category: 'press', title: '删除确认按钮', status: 'pack',
+    api: ['transition:press'], usedIn: ['DeleteButton'],
+    note: '翻盖和滑出确认条的时长、曲线写死在组件里，不随动效包变化；只有确认、取消两个圆钮的按压走动效包。',
   },
   {
     id: 'card-hover', category: 'press', title: '卡片悬停与按下', status: 'blind',
-    api: [], usedIn: ['Card', 'PanelCard', '世界卡、角色卡'],
+    api: [], usedIn: ['Card', 'PanelCard', '角色卡'],
     note: '现在只有普通 CSS 过渡，动效包管不到。',
   },
 
@@ -187,7 +185,8 @@ export const SLOTS = [
   },
   {
     id: 'busy', category: 'stream', title: '状态整理遮罩与思考指示', status: 'pack',
-    api: ['fx'], usedIn: ['StateBusyOverlay', 'MotionOrb'],
+    api: ['fx', 'transition:backdrop'], usedIn: ['StateBusyOverlay', 'MotionOrb'],
+    note: '思考指示 MotionOrb 只按动效包 id 选小球，不读 fx() 与过渡；遮罩与「整理中」字样由 StateBusyOverlay 驱动。',
   },
   {
     id: 'loops', category: 'stream', title: '循环动画', status: 'pack',
@@ -212,7 +211,7 @@ export const SLOTS = [
   // ── 全站节奏 ──
   {
     id: 'rhythm', category: 'rhythm', title: '全站节奏', status: 'blind',
-    api: [], usedIn: ['全站约 190 处普通 CSS 过渡'],
+    api: [], usedIn: ['全站约 150 处普通 CSS 过渡'],
     note: '悬停、色变、开合这类过渡只认主题里的时长和曲线，动效包改不了。',
   },
 ];
