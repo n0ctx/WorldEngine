@@ -53,7 +53,7 @@ float fbm(vec2 p) {
 
 void main() {
   vec2 uv = gl_FragCoord.xy / u_resolution.xy;
-  float t = u_time * 0.22;
+  float t = u_time * 0.14;
 
   vec2 drift = vec2(
     sin(t) + 0.6 * sin(t * 1.7 + 1.3),

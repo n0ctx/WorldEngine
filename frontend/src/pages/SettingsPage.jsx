@@ -13,6 +13,7 @@ import CustomCssManager from '../components/settings/CustomCssManager';
 import RegexRulesManager from '../components/settings/RegexRulesManager';
 import FeaturesConfigPanel from '../components/settings/FeaturesConfigPanel';
 import ThemeManager from '../components/settings/ThemeManager.jsx';
+import MotionPackPicker from '../components/settings/MotionPackPicker.jsx';
 import { NAV_SECTIONS, NAV_KEY, SETTINGS_MODE } from '../core/constants/settings';
 import { useMotion } from '../core/hooks/useMotion.js';
 import BounceRail from '../components/motion/BounceRail.jsx';
@@ -69,11 +70,12 @@ export default function SettingsPage() {
   };
 
   // 加载态与内容态共用同一个面板节点（同样的外层结构），入场只播一次，内容在已落定的面板里替换
+  // 大面板淡入上浮，不走信号锁定：整页横向抖动会把表单内容拽偏，看起来像错位
   const panelMotion = {
     variants: m.variant('overlayEnter'),
     initial: 'hidden',
     animate: 'visible',
-    transition: m.spring('overlay'),
+    transition: m.transition('overlay'),
   };
 
   if (loading) {
@@ -209,6 +211,8 @@ export default function SettingsPage() {
               <div className="we-settings-section">
                 <h2 className="we-settings-section-title">主题</h2>
                 <ThemeManager />
+                <h2 className="we-settings-section-title we-settings-section-title--sub">动效</h2>
+                <MotionPackPicker />
               </div>
             )}
             {activeSection === NAV_KEY.REGEX && (

@@ -1,21 +1,23 @@
 import { useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { useMotion } from '../../core/hooks/useMotion.js';
-import { STREAM } from '../../core/utils/motion.js';
 
 // 代码块由 CodeBlock 用 String(children) 取文本，里面不能插元素
 const SKIP_TAGS = new Set(['pre', 'code']);
 const CHAR_TAG = 'we-char';
 const CARET_TAG = 'we-caret';
 const NO_CHUNKS = [];
-const STAGGER_MS = STREAM.typing.stagger * 1000;
-const LAG_MS = STREAM.typing.lag * 1000;
-const CHAR_MS = STREAM.char.duration * 1000;
 // 间隔短到这个程度就不再给每个字挂光标，否则几个字的光标会叠在一起
 const CHAR_CARET_MIN_MS = 6;
 
+// 当前动效包的排字节奏（毫秒）
+function streamTiming(pack) {
+  const { stagger, lag, char, caretOut } = pack.stream;
+  return { stagger: stagger * 1000, lag: lag * 1000, char: char * 1000, caretOut: caretOut * 1000 };
+}
+
 /**
- * 书写光标：跟在最新文字后短促明暗；fading 时暗下去。
+ * 书写光标：跟在最新文字后；fading 时熄灭。样式由当前动效包决定。
  * 还没有文字时单独放在正文位置，作为唯一的等待信号。
  */
 export function StreamCaret({ fading = false }) {
@@ -38,16 +40,16 @@ function isBlank(text) {
 }
 
 // 给还没排期的到达段排进打字队列：接在上一段打完之后逐字出现；
-// 到达快过打字时压缩间隔，保证打字进度最多落后真实到达 LAG_MS
+// 到达快过打字时压缩间隔，保证打字进度最多落后真实到达 timing.lag
 // 顺带把早已显形完的段标成 done：它们只去掉动画、保留同一个元素，段落结构变化引起重新挂载时不会重打一遍
-function schedule(track, now) {
+function schedule(track, now, timing) {
   let typedUntil = track.typedUntil;
   const chunks = track.chunks.map((chunk) => {
     if (chunk.scheduled) {
-      return !chunk.done && chunk.end + CHAR_MS < now ? { ...chunk, done: true } : chunk;
+      return !chunk.done && chunk.end + timing.char < now ? { ...chunk, done: true } : chunk;
     }
     const start = Math.max(now, typedUntil);
-    const step = Math.min(STAGGER_MS, Math.max(0, now + LAG_MS - start) / Math.max(1, chunk.length));
+    const step = Math.min(timing.stagger, Math.max(0, now + timing.lag - start) / Math.max(1, chunk.length));
     typedUntil = start + chunk.length * step;
     return { ...chunk, wait: start - now, step, end: typedUntil, scheduled: true, done: false };
   });
@@ -173,7 +175,7 @@ function initialTrack(text, streaming, caret) {
 }
 
 /**
- * 流式正文：新到达的文字逐字打出，已出现的字保持静止；打字节奏贴着真实到达速度，最多落后 STREAM.typing.lag。
+ * 流式正文：新到达的文字逐字打出，已出现的字保持静止；打字节奏贴着真实到达速度，最多落后当前动效包的 stream.lag。
  * caret=true 时书写光标跟着正在出现的字走，打完停在最后一个字后面；生成结束先暗下去再移除。
  * 聊天与写作共用；reduced motion 下不逐字、光标静止、结束直接移除。
  */
@@ -187,6 +189,7 @@ export default function StreamingMarkdown({
 }) {
   const m = useMotion();
   const vars = m.stream();
+  const timing = useMemo(() => streamTiming(m.pack), [m.pack]);
   const [track, setTrack] = useState(() => initialTrack(text, streaming, caret));
   const next = advance(track, text, streaming, caret);
   if (next !== track) setTrack(next);
@@ -196,8 +199,8 @@ export default function StreamingMarkdown({
   useLayoutEffect(() => {
     if (!hasPending) return;
     // eslint-disable-next-line react-hooks/set-state-in-effect -- 排期依赖时钟，只能在提交后、绘制前完成
-    setTrack((t) => schedule(t, performance.now()));
-  }, [hasPending, next.chunks]);
+    setTrack((t) => schedule(t, performance.now(), timing));
+  }, [hasPending, next.chunks, timing]);
 
   // 打字进行中由逐字光标领路，打完再换回常驻光标；
   // 最后一个字也显形后，已打完的字还原成普通文字：段落结构变化时旧字不会重打，逐字包裹也不会越积越多
@@ -209,19 +212,19 @@ export default function StreamingMarkdown({
     const typed = setTimeout(() => setTrack((t) => (caught(t) ? { ...t, caretBack: true } : t)), left);
     const settled = setTimeout(
       () => setTrack((t) => (caught(t) && !t.fading ? { ...t, typing: false, chunks: [] } : t)),
-      left + CHAR_MS,
+      left + timing.char,
     );
     return () => { clearTimeout(typed); clearTimeout(settled); };
-  }, [typing, typedUntil]);
+  }, [typing, typedUntil, timing]);
 
   // 生成结束：等剩下的字打完、光标暗完，再把逐字包裹去掉
   const fading = !!vars && next.fading;
   useEffect(() => {
     if (!fading) return undefined;
-    const tail = Math.max(0, typedUntil - performance.now()) + (STREAM.char.duration + STREAM.caretOut.duration) * 1000;
+    const tail = Math.max(0, typedUntil - performance.now()) + timing.char + timing.caretOut;
     const timer = setTimeout(() => setTrack((t) => ({ ...t, fading: false, typing: false, chunks: [] })), tail);
     return () => clearTimeout(timer);
-  }, [fading, typedUntil]);
+  }, [fading, typedUntil, timing]);
 
   const writing = streaming || fading;
   const chunks = vars && writing ? next.chunks : NO_CHUNKS;
@@ -240,10 +243,11 @@ export default function StreamingMarkdown({
     ...components,
     [CHAR_TAG]: ({ children, 'data-delay': delay, 'data-step': step, 'data-done': done }) => (done ? <span>{children}</span> : (
       <span
-        className={`we-stream-char${step ? ' we-stream-char--caret' : ''}`}
+        className={`we-stream-char we-fx-glyph${step ? ' we-stream-char--caret' : ''}`}
         style={{ ...vars, '--we-stream-char-delay': `${delay}ms`, '--we-stream-char-step': step ? `${step}ms` : undefined }}
+        data-ch={children}
       >
-        {children}
+        <span className="we-fx-glyph__face" data-ch={children}>{children}</span>
       </span>
     )),
     [CARET_TAG]: (props) => <CaretMark vars={vars} fading={props['data-fading'] === 'true'} />,

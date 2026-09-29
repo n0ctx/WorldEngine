@@ -1,13 +1,14 @@
 import { motion } from 'framer-motion';
 import Icon from './Icon.jsx';
+import ChangeText from '../motion/ChangeText.jsx';
 import { useMotion } from '../../core/hooks/useMotion.js';
-import { DURATION, EASE } from '../../core/utils/motion.js';
 
+// 类型标签与状态栏的本轮变化标签同一种切角样式，颜色取对应状态色
 const TYPE_META = {
-  error: { color: 'var(--we-color-status-danger)', seal: '驳' },
-  warning: { color: 'var(--we-color-status-warning)', seal: '警' },
-  info: { color: 'var(--we-color-status-info)', seal: '录' },
-  success: { color: 'var(--we-color-accent)', seal: '成' },
+  error: { tone: 'var(--we-color-status-danger)', code: '错误' },
+  warning: { tone: 'var(--we-color-status-warning)', code: '警告' },
+  info: { tone: 'var(--we-color-status-info)', code: '提示' },
+  success: { tone: 'var(--we-color-status-success)', code: '完成' },
 };
 
 const CLOSE_PATHS = (
@@ -17,45 +18,37 @@ const CLOSE_PATHS = (
   </>
 );
 
+// 提示条：信号锁定入场，内容行抖一下，类型标签被一块实色刷出，标签与正文从乱码解码
 export default function ToastCard({ toast, onClose, onMouseEnter, onMouseLeave }) {
   const meta = TYPE_META[toast.type] || TYPE_META.info;
   const isAssertive = toast.type === 'error';
   const m = useMotion();
-
-  const motionProps = m.reduced
-    ? {
-      initial: { opacity: 0 },
-      animate: { opacity: 1 },
-      exit: { opacity: 0, transition: { duration: DURATION.quick, ease: EASE.retract } },
-      transition: { duration: DURATION.quick, ease: EASE.ink },
-    }
-    : {
-      initial: { opacity: 0, scale: 0.9, y: -8 },
-      animate: { opacity: 1, scale: 1, y: 0 },
-      exit: { opacity: 0, x: 24, scale: 0.96, transition: { duration: DURATION.quick, ease: EASE.retract } },
-      transition: m.spring('message'),
-      whileHover: { scale: 1.01 },
-    };
+  const fxVars = m.fx();
+  const fxKey = fxVars ? toast.id : null;
 
   return (
     <motion.div
       role={isAssertive ? 'alert' : 'status'}
       aria-live={isAssertive ? 'assertive' : 'polite'}
-      {...motionProps}
+      variants={m.variant('overlayEnter')}
+      initial="hidden"
+      animate="visible"
+      exit="exit"
+      transition={m.transition('overlay')}
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
-      className="we-toast-card"
-      style={{ '--toast-color': meta.color }}
+      className={`we-toast-card${fxVars ? ' we-toast-card--fx' : ''}`}
+      style={{ '--change-tone': meta.tone, ...fxVars }}
     >
       <div className="we-toast-card__row">
-        <span className="we-toast-card__seal" aria-hidden>
-          {meta.seal}
+        <span className={`we-change-tag we-toast-card__tag${fxVars ? ' we-change-tag--play' : ''}`}>
+          <ChangeText text={meta.code} playKey={fxKey} decode />
         </span>
         <div className="we-toast-card__body">
           {toast.title ? (
-            <div className="we-toast-card__title">{toast.title}</div>
+            <div className="we-toast-card__title"><ChangeText text={toast.title} playKey={fxKey} decode /></div>
           ) : null}
-          <div className="we-toast-card__message">{toast.message}</div>
+          <div className="we-toast-card__message"><ChangeText text={toast.message} playKey={fxKey} decode /></div>
         </div>
         <button
           type="button"

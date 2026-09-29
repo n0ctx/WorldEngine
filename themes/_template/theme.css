@@ -136,10 +136,7 @@
   --we-material-shadow-near: 0 1px 1px rgba(23, 23, 23, 0.14), 0 2px 4px -2px rgba(23, 23, 23, 0.14);
   --we-material-shadow-far: 0 12px 24px -14px rgba(23, 23, 23, 0.20), 0 32px 56px -32px rgba(23, 23, 23, 0.30);
   --we-material-shadow-lift: 0 16px 28px -14px rgba(23, 23, 23, 0.20), 0 40px 68px -34px rgba(23, 23, 23, 0.30);
-  /* 有厚度的按钮（发送、确认）：面、厚度、按下时的收薄；颗粒贴图 */
-  /* --we-material-raised-face:    linear-gradient(180deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0) 55%, rgba(0, 0, 0, 0.10)); */
-  /* --we-material-raised:         inset 0 1px 0 rgba(255, 255, 255, 0.28), inset 0 -1px 0 rgba(0, 0, 0, 0.20), 0 1px 1px var(--we-color-shadow-md), 0 6px 12px -6px var(--we-color-shadow-lg); */
-  /* --we-material-raised-pressed: inset 0 1px 2px rgba(0, 0, 0, 0.24), 0 1px 1px var(--we-color-shadow-sm); */
+  /* 颗粒贴图 */
   /* --we-grain-image:             url("data:image/svg+xml,…feTurbulence…"); */
   --we-stage-surface: transparent;                  /* 页面内容区的底；浅色纸面主题可铺实底 */
   --we-glass-bg: rgba(255, 255, 255, 0.8);          /* 侧栏/设置/弹窗/输入胶囊的半透明底 */
@@ -200,13 +197,6 @@
      § 6 阴影 / 圆角 / 动效
      ────────────────────────────────────────────────────────────── */
 
-  --we-shadow-stamp-up:
-    inset 0 0.5px 0 rgba(255, 255, 255, 0.2),
-    inset 0 0 0 0.5px rgba(0, 0, 0, 0.2),
-    0 1px 2px rgba(0, 0, 0, 0.05);
-  --we-shadow-stamp-down:
-    inset 0 1px 2px rgba(0, 0, 0, 0.1),
-    inset 0 0 0 0.5px rgba(0, 0, 0, 0.2);
   --we-shadow-paper-lift: 0 0 0 1px rgba(0, 0, 0, 0.06);
   --we-shadow-paper-indent:
     inset 0 1px 2px rgba(0, 0, 0, 0.03);
@@ -217,7 +207,6 @@
   --we-shadow-toast:
     0 0 0 1px #ffffff,
     0 4px 12px rgba(23, 23, 23, 0.14);
-  --we-shadow-btn-primary-inner-glow: none;
   --we-shadow-range-thumb: 0 1px 4px rgba(23, 23, 23, 0.18);
   --we-shadow-range-thumb-active:
     0 0 0 3px rgba(23, 23, 23, 0.15),

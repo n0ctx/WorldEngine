@@ -11,7 +11,7 @@
 import { useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import Icon from '../../../components/ui/Icon.jsx';
-import { BLUR, DURATION, EASE } from '../../../core/utils/motion.js';
+import { DURATION } from '../../../core/utils/motion.js';
 import { useMotion } from '../../../core/hooks/useMotion.js';
 
 const MotionDiv = motion.div;
@@ -45,16 +45,8 @@ const EDGE_OFFSET = { left: -12, right: 12 };
 /* 进入会话页时两侧面板在正文之后依次浮现：左侧先，右侧后 */
 const ENTER_DELAY = { left: DURATION.micro, right: DURATION.micro * 2 };
 
-/* 玻璃上的高光跟着指针走：直接写 CSS 变量，不经过 React 状态，移动时不重渲染 */
-function trackPointer(event) {
-  const el = event.currentTarget;
-  const rect = el.getBoundingClientRect();
-  el.style.setProperty('--pointer-x', `${event.clientX - rect.left}px`);
-  el.style.setProperty('--pointer-y', `${event.clientY - rect.top}px`);
-}
-
 export default function SideDrawer({ side, open, onToggle, label, footer = null, children }) {
-  const { reduced } = useMotion();
+  const m = useMotion();
   const toggleLabel = open ? `收起${label}` : `展开${label}`;
   // 收起时内容先淡出、卸载完再收回宽度：内容还在离场时，抽屉保持展开宽度
   const [contentMounted, setContentMounted] = useState(open);
@@ -64,17 +56,8 @@ export default function SideDrawer({ side, open, onToggle, label, footer = null,
   const expanded = open || contentMounted;
   const edge = EDGE_OFFSET[side];
 
-  const contentVariants = {
-    hidden: reduced
-      ? { opacity: 0, transition: { duration: 0 } }
-      : { opacity: 0, x: edge, filter: `blur(${BLUR.entry})`, transition: { duration: DURATION.quick, ease: EASE.retract } },
-    shown: {
-      opacity: 1,
-      x: 0,
-      filter: 'blur(0px)',
-      transition: reduced ? { duration: 0 } : { duration: DURATION.base, delay: DURATION.quick, ease: EASE.ink },
-    },
-  };
+  // 收起：内容退回外侧；展开：等宽度让出后从抽屉外侧进来（节奏由当前动效包决定）
+  const contentVariants = m.variant('edgeEnter');
 
   function handleContentAnimationComplete(variant) {
     if (variant !== 'hidden' || open) return;
@@ -95,16 +78,16 @@ export default function SideDrawer({ side, open, onToggle, label, footer = null,
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={reduced ? { duration: 0 } : { duration: DURATION.quick, ease: EASE.ink }}
+            transition={m.transition('backdrop')}
           />
         )}
       </AnimatePresence>
       <MotionDiv
         className={`we-side-drawer we-side-drawer--${side}${expanded ? ' we-side-drawer--open' : ''}`}
-        initial={reduced ? false : { opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: DURATION.medium, delay: ENTER_DELAY[side], ease: EASE.ink }}
-        onPointerMove={reduced ? undefined : trackPointer}
+        variants={m.variant('appear')}
+        initial={m.reduced ? false : 'hidden'}
+        animate="visible"
+        transition={m.transition('enter', { delay: ENTER_DELAY[side] })}
       >
         <button
           type="button"
@@ -133,8 +116,9 @@ export default function SideDrawer({ side, open, onToggle, label, footer = null,
           <MotionDiv
             className="we-side-drawer-content"
             variants={contentVariants}
+            custom={edge}
             initial={animateEntry ? 'hidden' : false}
-            animate={open ? 'shown' : 'hidden'}
+            animate={open ? 'visible' : 'hidden'}
             onAnimationComplete={handleContentAnimationComplete}
           >
             {children}

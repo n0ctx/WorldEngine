@@ -184,12 +184,6 @@
      物件落在舞台上：内高光 + 向下的柔和接地投影；主按钮用实色底边做出可按压的厚度。
      ────────────────────────────────────────────────────────────── */
 
-  --we-shadow-stamp-up: inset 0 1px 0 rgba(255, 255, 255, 0.28),
-    0 3px 0 var(--we-color-accent-deep),
-    0 8px 18px -6px rgba(0, 0, 0, 0.55);
-  --we-shadow-stamp-down: inset 0 1px 0 rgba(255, 255, 255, 0.18),
-    0 1px 0 var(--we-color-accent-deep),
-    0 3px 8px -4px rgba(0, 0, 0, 0.50);
   --we-shadow-paper-lift: inset 0 1px 0 rgba(255, 238, 220, 0.05),
     0 10px 24px -12px rgba(0, 0, 0, 0.60);
   --we-shadow-paper-indent: inset 0 1px 2px rgba(0, 0, 0, 0.28);
@@ -198,7 +192,6 @@
     0 8px 18px rgba(0, 0, 0, 0.35);
   --we-shadow-toast: 0 0 0 1px rgba(255, 238, 220, 0.08),
     0 14px 32px -10px rgba(0, 0, 0, 0.65);
-  --we-shadow-btn-primary-inner-glow: none;
   --we-shadow-range-thumb: 0 1px 3px rgba(0, 0, 0, 0.40);
   --we-shadow-range-thumb-active: 0 0 0 3px rgba(242, 166, 94, 0.22),
     0 1px 3px rgba(0, 0, 0, 0.40);

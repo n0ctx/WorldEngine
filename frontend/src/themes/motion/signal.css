@@ -1,0 +1,397 @@
+/* 动效包「信号锁定」的样式（JS 侧见 core/motion/packs/signal.js）。
+ * 只在 <html data-motion="signal"> 时生效；:where() 包住作用域，选择器权重与写在内核里一样。
+ * 内核样式经下面的 --we-fx-* 引用本包的入场、骨架、转圈等循环动画；
+ * 错位撕裂、切片成字、变化标签、完成确认、章节开场、遮罩、光标整块由本包负责外观。 */
+
+:root[data-motion="signal"] {
+  --we-fx-enter: we-signal-in var(--we-duration-normal) steps(1, jump-end) both;
+  --we-fx-skeleton: we-skeleton-pulse var(--we-skeleton-pulse-duration) steps(1, jump-end) infinite;
+  --we-fx-nudge: we-bounce-arrow var(--we-duration-loop) steps(1, jump-end) infinite;
+  --we-fx-spin: we-tool-spin var(--we-duration-loop) steps(8, jump-end) infinite;
+  --we-fx-typing: we-typing-dot var(--we-duration-loop) steps(1, jump-end) infinite;
+}
+
+/* ── 信号锁定入场 ───────────────────────────────────────── */
+/* 闪两下、抖一下，然后锁定（对应 packs/signal.js variants.enter） */
+@keyframes we-signal-in {
+  0%   { opacity: 0;   transform: translateX(-6px); }
+  33%  { opacity: 1;   transform: translateX(4px); }
+  67%  { opacity: 0.3; transform: translateX(-2px); }
+  100% { opacity: 1;   transform: none; }
+}
+
+/* ── 错位撕裂与切片成字 ───────────────────────────────────────── */
+/* 两路错位色：A 取当前世界强调色，B 取它的色环对面，每个世界的错位配色都不同。
+   时长由 useMotion().fx() 以 --we-fx-* 内联下发；关键帧一律 steps(1) 硬切。 */
+:where(:root[data-motion="signal"]) :is(.we-fx-burst, .we-done-confirm) {
+  --glitch-a: var(--we-color-accent);
+  --glitch-b: hsl(from var(--we-color-accent) calc(h + 180) s l);
+}
+
+:where(:root[data-motion="signal"]) .we-fx-burst {
+  position: relative;
+  display: inline-block;
+  max-width: 100%;
+  isolation: isolate;
+  background: linear-gradient(to bottom,
+    transparent 44%,
+    color-mix(in srgb, var(--glitch-a) 40%, transparent) 47%,
+    color-mix(in srgb, var(--glitch-b) 55%, transparent) 50%,
+    color-mix(in srgb, var(--glitch-a) 40%, transparent) 53%,
+    transparent 56%) no-repeat;
+  background-size: 100% 300%;
+  background-position-y: 100%;
+  animation:
+    we-glitch-jolt var(--we-fx-burst) steps(1, jump-end) both,
+    we-glitch-scan var(--we-fx-burst) steps(6, jump-end) both;
+}
+:where(:root[data-motion="signal"]) .we-fx-burst::before,
+:where(:root[data-motion="signal"]) .we-fx-burst::after {
+  content: attr(data-text);
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  white-space: inherit;
+  pointer-events: none;
+  opacity: 0;
+}
+:where(:root[data-motion="signal"]) .we-fx-burst::before {
+  color: var(--glitch-a);
+  animation: we-glitch-split-a var(--we-fx-burst) steps(1, jump-end) both;
+}
+:where(:root[data-motion="signal"]) .we-fx-burst::after {
+  color: var(--glitch-b);
+  animation: we-glitch-split-b var(--we-fx-burst) steps(1, jump-end) both;
+}
+/* 切片成字（.we-fx-glyph）：字被切成 6 条横带，分三层叠放（每层两条不相邻的横带）。
+   · 定下来之前：整字是强调色，三层各自左右抖；
+   · 三层按 --slice-order-* 的顺序一层层定住，定住的一瞬亮一下；
+   · 全部定住后整字闪一次高光，再退回正文色。
+   真字本身在 __face 里保持透明，只占位、给读屏和选中用；三层画在 .we-fx-glyph::before、__face::before、__face::after。
+   外层的 ::after 留给流式输出的逐字光标。起点 / 时长由调用方写进 --we-glyph-delay / --we-glyph-duration */
+:where(:root[data-motion="signal"]) .we-fx-glyph {
+  --slice-delay: var(--we-glyph-delay, 0ms);
+  --slice-step: calc(var(--we-glyph-duration) / 4);
+  --slice-order-a: 0;
+  --slice-order-b: 1;
+  --slice-order-c: 2;
+  --slice-bright: color-mix(in srgb, var(--we-color-accent) 35%, white);
+  position: relative;
+}
+/* 整段文字（ChangeText decode）：按块排版，三层与真字同宽同换行；时长取 --we-fx-decode */
+:where(:root[data-motion="signal"]) .we-fx-glyph--block {
+  --we-glyph-duration: var(--we-fx-decode);
+  display: inline-block;
+  max-width: 100%;
+}
+:where(:root[data-motion="signal"]) .we-fx-glyph--block > .we-fx-glyph__face {
+  display: block;
+}
+/* 整段按块排版：三层与真字同行高才能同样换行 */
+:where(:root[data-motion="signal"]) .we-fx-glyph.we-fx-glyph--block::before,
+:where(:root[data-motion="signal"]) .we-fx-glyph--block > .we-fx-glyph__face::before,
+:where(:root[data-motion="signal"]) .we-fx-glyph--block > .we-fx-glyph__face::after {
+  line-height: inherit;
+}
+/* 每个字的三层换一种定住顺序，整段看起来是随机的 */
+:where(:root[data-motion="signal"]) .we-fx-glyph:nth-child(3n + 1) { --slice-order-a: 2; --slice-order-b: 0; --slice-order-c: 1; }
+:where(:root[data-motion="signal"]) .we-fx-glyph:nth-child(3n + 2) { --slice-order-a: 1; --slice-order-b: 2; --slice-order-c: 0; }
+:where(:root[data-motion="signal"]) .we-fx-glyph__face {
+  position: relative;
+  animation: we-slice-hide var(--we-glyph-duration) steps(1, jump-end) var(--slice-delay) backwards;
+}
+:where(:root[data-motion="signal"]) .we-fx-glyph::before,
+:where(:root[data-motion="signal"]) .we-fx-glyph__face::before,
+:where(:root[data-motion="signal"]) .we-fx-glyph__face::after {
+  content: attr(data-ch);
+  position: absolute;
+  inset: 0;
+  /* 行内的字：定位盒只有字体本身高，用字体默认行高才能与真字重合、横带不截断 */
+  line-height: normal;
+  white-space: inherit;
+  color: var(--we-color-accent);
+  pointer-events: none;
+  visibility: hidden;
+}
+:where(:root[data-motion="signal"]) .we-fx-glyph::before {
+  clip-path: polygon(0 0%, 100% 0%, 100% 16.667%, 0 16.667%, 0 50%, 100% 50%, 100% 66.667%, 0 66.667%);
+  animation:
+    we-slice-jitter-a calc(var(--slice-step) * 2.2) steps(1, jump-end) calc(var(--slice-delay) * -1.7) infinite,
+    we-slice-lock 1ms steps(1, jump-end) calc(var(--slice-delay) + var(--slice-step) * var(--slice-order-a)) forwards,
+    we-slice-band-flash var(--slice-step) steps(1, jump-end) calc(var(--slice-delay) + var(--slice-step) * var(--slice-order-a)),
+    we-slice-char-flash var(--slice-step) steps(1, jump-end) calc(var(--slice-delay) + var(--slice-step) * 3),
+    we-slice-live var(--we-glyph-duration) steps(1, jump-end) var(--slice-delay) backwards;
+}
+:where(:root[data-motion="signal"]) .we-fx-glyph__face::before {
+  clip-path: polygon(0 16.667%, 100% 16.667%, 100% 33.333%, 0 33.333%, 0 66.667%, 100% 66.667%, 100% 83.333%, 0 83.333%);
+  animation:
+    we-slice-jitter-b calc(var(--slice-step) * 1.8) steps(1, jump-end) calc(var(--slice-delay) * -2.3) infinite,
+    we-slice-lock 1ms steps(1, jump-end) calc(var(--slice-delay) + var(--slice-step) * var(--slice-order-b)) forwards,
+    we-slice-band-flash var(--slice-step) steps(1, jump-end) calc(var(--slice-delay) + var(--slice-step) * var(--slice-order-b)),
+    we-slice-char-flash var(--slice-step) steps(1, jump-end) calc(var(--slice-delay) + var(--slice-step) * 3),
+    we-slice-live var(--we-glyph-duration) steps(1, jump-end) var(--slice-delay) backwards;
+}
+:where(:root[data-motion="signal"]) .we-fx-glyph__face::after {
+  clip-path: polygon(0 33.333%, 100% 33.333%, 100% 50%, 0 50%, 0 83.333%, 100% 83.333%, 100% 100%, 0 100%);
+  animation:
+    we-slice-jitter-c calc(var(--slice-step) * 2.6) steps(1, jump-end) calc(var(--slice-delay) * -3.1) infinite,
+    we-slice-lock 1ms steps(1, jump-end) calc(var(--slice-delay) + var(--slice-step) * var(--slice-order-c)) forwards,
+    we-slice-band-flash var(--slice-step) steps(1, jump-end) calc(var(--slice-delay) + var(--slice-step) * var(--slice-order-c)),
+    we-slice-char-flash var(--slice-step) steps(1, jump-end) calc(var(--slice-delay) + var(--slice-step) * 3),
+    we-slice-live var(--we-glyph-duration) steps(1, jump-end) var(--slice-delay) backwards;
+}
+
+/* 真字：定住之前透明，由三层代画 */
+@keyframes we-slice-hide {
+  from, to { color: transparent; }
+}
+/* 三层只在定住之前和定住过程中显示；结束后交还给真字 */
+@keyframes we-slice-live {
+  from, to { visibility: visible; }
+}
+@keyframes we-slice-jitter-a {
+  0%   { translate: -3px 0; }
+  25%  { translate: 2px 0; }
+  50%  { translate: -1px 0; }
+  75%  { translate: 3px 0; }
+}
+@keyframes we-slice-jitter-b {
+  0%   { translate: 2px 0; }
+  33%  { translate: -3px 0; }
+  67%  { translate: 1px 0; }
+}
+@keyframes we-slice-jitter-c {
+  0%   { translate: -1px 0; }
+  20%  { translate: 3px 0; }
+  40%  { translate: -2px 0; }
+  60%  { translate: 1px 0; }
+  80%  { translate: -3px 0; }
+}
+/* 定住：横带回到原位，不再抖 */
+@keyframes we-slice-lock {
+  from, to { translate: 0 0; }
+}
+/* 定住的一瞬亮一下 */
+@keyframes we-slice-band-flash {
+  from, to { color: var(--slice-bright); text-shadow: 0 0 6px var(--we-color-accent); }
+}
+/* 整字定住：闪一次高光 */
+@keyframes we-slice-char-flash {
+  from, to { color: white; text-shadow: 0 0 10px var(--we-color-accent), 0 0 2px var(--slice-bright); }
+}
+
+@keyframes we-glitch-jolt {
+  0%   { transform: translateX(3px) skewX(-14deg); }
+  14%  { transform: translateX(-4px) skewX(9deg); }
+  28%  { transform: translateX(2px) skewX(0deg); }
+  42%  { transform: translateX(-1px) skewX(-4deg); }
+  57%, 100% { transform: none; }
+}
+@keyframes we-glitch-scan {
+  from { background-position-y: 100%; }
+  to   { background-position-y: 0%; }
+}
+@keyframes we-glitch-split-a {
+  0%   { opacity: 1;   transform: translateX(-5px); clip-path: inset(0 0 55% 0);   font-weight: 700; }
+  14%  { opacity: 1;   transform: translateX(6px);  clip-path: inset(40% 0 20% 0); font-weight: 300; }
+  28%  { opacity: 1;   transform: translateX(-8px); clip-path: inset(72% 0 0 0);   font-weight: 700; }
+  42%  { opacity: 1;   transform: translateX(3px);  clip-path: inset(8% 0 62% 0);  font-weight: 500; }
+  57%  { opacity: 0.8; transform: translateX(-2px); clip-path: inset(0);           font-weight: 400; }
+  71%  { opacity: 0.5; transform: translateX(-1px); clip-path: inset(0); }
+  100% { opacity: 0;   transform: none;             clip-path: inset(0); }
+}
+@keyframes we-glitch-split-b {
+  0%   { opacity: 1;   transform: translateX(5px);  clip-path: inset(50% 0 0 0);   font-weight: 300; }
+  14%  { opacity: 1;   transform: translateX(-7px); clip-path: inset(0 0 68% 0);   font-weight: 700; }
+  28%  { opacity: 1;   transform: translateX(6px);  clip-path: inset(25% 0 45% 0); font-weight: 300; }
+  42%  { opacity: 1;   transform: translateX(-3px); clip-path: inset(60% 0 5% 0);  font-weight: 700; }
+  57%  { opacity: 0.8; transform: translateX(2px);  clip-path: inset(0);           font-weight: 400; }
+  71%  { opacity: 0.5; transform: translateX(1px);  clip-path: inset(0); }
+  100% { opacity: 0;   transform: none;             clip-path: inset(0); }
+}
+
+/* ── 变化标签 ───────────────────────────────────────── */
+:where(:root[data-motion="signal"]) .we-change-tag {
+  clip-path: polygon(5px 0, 100% 0, 100% calc(100% - 5px), calc(100% - 5px) 100%, 0 100%, 0 5px);
+}
+:where(:root[data-motion="signal"]) .we-change-tag--play {
+  animation: we-glitch-blink var(--we-fx-burst) steps(1, jump-end) both;
+}
+/* 刷出：实色块从左到右扫过后收走 */
+:where(:root[data-motion="signal"]) .we-change-tag--play::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--change-tone, var(--we-color-text-secondary));
+  transform-origin: right;
+  animation: we-glitch-wipe var(--we-fx-burst) steps(4, jump-end) both;
+}
+
+@keyframes we-glitch-blink {
+  0%   { opacity: 0; }
+  14%  { opacity: 1; }
+  42%  { opacity: 0.25; }
+  57%  { opacity: 1; }
+  71%  { opacity: 0.5; }
+  100% { opacity: 1; }
+}
+@keyframes we-glitch-wipe {
+  from { transform: scaleX(1); }
+  to   { transform: scaleX(0); }
+}
+
+/* 关屏：先压扁成一条亮线，再熄灭 */
+@keyframes we-glitch-off {
+  0%   { opacity: 1;   transform: none; }
+  34%  { opacity: 1;   transform: translateX(4px) scaleY(0.35) scaleX(1.1); }
+  67%  { opacity: 0.8; transform: scaleY(0.06) scaleX(1.3); }
+  100% { opacity: 0;   transform: scaleY(0); }
+}
+
+/* ── 提示条 ───────────────────────────────────────── */
+/* 提示条入场时内容行跟着错位抖一下 */
+:where(:root[data-motion="signal"]) .we-toast-card--fx .we-toast-card__row {
+  animation: we-glitch-jolt var(--we-fx-burst) steps(1, jump-end) both;
+}
+
+/* ── 章节开场 ───────────────────────────────────────── */
+/* 章节开场：整块被横向撕开、闪两下后锁定；减少动态效果时没有 --we-fx-burst，直接落定 */
+:where(:root[data-motion="signal"]) .we-chapter-header.we-chapter-header--visible {
+  animation: we-chapter-tear var(--we-fx-burst, 0ms) steps(1, jump-end) both;
+}
+@keyframes we-chapter-tear {
+  0%   { opacity: 0;   transform: translateX(-18px) skewX(-16deg); clip-path: inset(0 0 58% 0); }
+  14%  { opacity: 1;   transform: translateX(14px) skewX(10deg);   clip-path: inset(38% 0 0 0); }
+  28%  { opacity: 0.3; transform: translateX(-8px) skewX(0deg);    clip-path: inset(0 0 22% 0); }
+  42%  { opacity: 1;   transform: translateX(5px) skewX(-5deg);    clip-path: inset(12% 0 0 0); }
+  57%  { opacity: 1;   transform: translateX(-2px);                clip-path: inset(0); }
+  100% { opacity: 1;   transform: none;                            clip-path: none; }
+}
+
+/* 章节分隔线中间的像素花饰 */
+:where(:root[data-motion="signal"]) .we-chapter-fleuron-mark::before {
+  content: '▞';
+}
+
+/* ── 完成确认 ───────────────────────────────────────── */
+:where(:root[data-motion="signal"]) .we-done-confirm {
+  clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
+}
+:where(:root[data-motion="signal"]) .we-done-confirm--play {
+  animation:
+    we-done-signal-in var(--we-fx-burst) steps(1, jump-end) both,
+    we-glitch-off var(--we-fx-off) steps(1, jump-end) calc(var(--we-fx-stamp) - var(--we-fx-off)) forwards;
+}
+@keyframes we-done-signal-in {
+  0%   { opacity: 0;   transform: scale(1.5) translateX(8px);   text-shadow: -6px 0 var(--glitch-a), 6px 0 var(--glitch-b); }
+  14%  { opacity: 1;   transform: scale(1.2) translateX(-6px);  text-shadow: 5px 0 var(--glitch-a), -5px 0 var(--glitch-b); }
+  28%  { opacity: 0.4; transform: scale(0.94) translateX(4px);  text-shadow: -3px 0 var(--glitch-a), 3px 0 var(--glitch-b); }
+  42%  { opacity: 1;   transform: scale(1.04) translateX(-2px); text-shadow: 1px 0 var(--glitch-a), -1px 0 var(--glitch-b); }
+  57%, 100% { opacity: 1; transform: none; text-shadow: none; }
+}
+
+/* ── 状态整理遮罩 ───────────────────────────────────────── */
+:where(:root[data-motion="signal"]) :is(.we-state-change-overlay, .we-cast-state-overlay) {
+  background: repeating-linear-gradient(to bottom, var(--we-color-paper-overlay) 0 2px, transparent 2px 4px);
+}
+:where(:root[data-motion="signal"]) :is(.we-state-change-overlay, .we-cast-state-overlay)::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to bottom,
+    transparent 46%,
+    color-mix(in srgb, var(--we-color-accent) 18%, transparent) 50%,
+    transparent 54%) no-repeat;
+  background-size: 100% 300%;
+  animation: we-busy-scan var(--we-duration-loop) steps(8, jump-end) infinite;
+}
+@keyframes we-busy-scan {
+  from { background-position-y: 100%; }
+  to   { background-position-y: 0%; }
+}
+
+/* ── 光标与流式输出 ───────────────────────────────────────── */
+:where(:root[data-motion="signal"]) .we-chat-empty-state__cursor {
+  display: inline-block;
+  width: 0.6em;
+  height: 2px;
+  margin-left: 2px;
+  vertical-align: -0.12em;
+  background: var(--we-color-accent);
+  animation: we-stream-caret var(--we-duration-loop) steps(1, jump-end) infinite;
+}
+
+/* 流式光标：与正文同一种下划线光标，硬切闪烁 */
+:where(:root[data-motion="signal"]) .we-asst-stream-cursor {
+  display: inline-block;
+  width: 0.55em;
+  height: 2px;
+  background: var(--we-color-accent);
+  margin-left: 2px;
+  vertical-align: -0.12em;
+  animation: we-stream-caret var(--we-duration-loop) steps(1, jump-end) infinite;
+}
+
+/* 时长由 useMotion().stream() 以 --we-stream-* 变量写入；变量缺失（减少动效）时整条 animation 无效，光标静止、新文字直接显示 */
+/* 切片成字（样式见上方 .we-fx-glyph）：新到达的字先是抖动的强调色横带，轮到它时一层层定住、闪一下，退回正文色 */
+:where(:root[data-motion="signal"]) .we-stream-char {
+  --we-glyph-delay: var(--we-stream-char-delay);
+  --we-glyph-duration: var(--we-stream-char-duration);
+}
+
+/* 逐字光标：下划线光标只在这个字锁定的那一拍亮着，连起来就是一道跟着字走的光标 */
+@keyframes we-stream-char-caret {
+  from, to { opacity: 1; }
+}
+
+:where(:root[data-motion="signal"]) .we-stream-char--caret::after {
+  content: '';
+  position: absolute;
+  bottom: -0.12em;
+  left: 100%;
+  width: 0.55em;
+  height: 2px;
+  background: var(--we-color-accent);
+  opacity: 0;
+  pointer-events: none;
+  animation: we-stream-char-caret var(--we-stream-char-step) linear var(--we-stream-char-delay);
+}
+
+/* 下划线光标：终端式硬切闪烁；净宽为 0（负右边距抵消），出现、消失都不推动正文换行 */
+@keyframes we-stream-caret {
+  0%, 49%   { opacity: 1; }
+  50%, 100% { opacity: 0; }
+}
+/* 生成结束：闪一下熄灭 */
+@keyframes we-stream-caret-out {
+  0%   { opacity: 1; }
+  34%  { opacity: 0; }
+  67%  { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+:where(:root[data-motion="signal"]) .we-stream-caret {
+  display: inline-block;
+  width: 0.55em;
+  height: 2px;
+  margin: 0 calc(-0.55em - 1px) 0 1px;
+  vertical-align: -0.12em;
+  background: var(--we-color-accent);
+  pointer-events: none;
+  animation: we-stream-caret var(--we-stream-caret-duration) steps(1, jump-end) infinite;
+}
+
+:where(:root[data-motion="signal"]) .we-stream-caret--fading {
+  animation: we-stream-caret-out var(--we-stream-caret-out-duration) steps(1, jump-end) forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :where(:root[data-motion="signal"]) .we-fx-glyph::before,
+  :where(:root[data-motion="signal"]) .we-fx-glyph__face,
+  :where(:root[data-motion="signal"]) .we-fx-glyph__face::before,
+  :where(:root[data-motion="signal"]) .we-fx-glyph__face::after,
+  :where(:root[data-motion="signal"]) .we-stream-char--caret::after,
+  :where(:root[data-motion="signal"]) .we-stream-caret {
+    animation: none;
+  }
+}

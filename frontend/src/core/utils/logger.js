@@ -1,6 +1,6 @@
 import { postClientLogs, sendClientLogsBeacon } from '../api/client-logs.js';
 
-const LEVEL_ORDER = { debug: 0, info: 1, warn: 2, error: 3 };
+const LEVEL_ORDER = { debug: 0, info: 1, success: 1, warn: 2, error: 3 };
 const TOAST_TYPE = { error: 'error', warn: 'warning', info: 'info', success: 'success' };
 
 const FLUSH_BATCH = 20;
@@ -97,6 +97,7 @@ export function __resetLoggerForTest() {
 export const log = {
   debug: makeLog('debug'),
   info: makeLog('info'),
+  success: makeLog('success'),
   warn: makeLog('warn'),
   error: makeLog('error'),
 };

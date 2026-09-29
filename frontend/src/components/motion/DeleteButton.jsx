@@ -12,6 +12,7 @@ import {
   useTransform,
 } from 'framer-motion';
 import { useMotion } from '../../core/hooks/useMotion.js';
+import { EASE as MOTION_EASE } from '../../core/utils/motion.js';
 
 const HINGE = '3px 6px';
 const LID_OPEN = -35;
@@ -23,18 +24,17 @@ const TILE = 28;
 const PANEL = 60;
 const HOLD = { deleted: 1400, kept: 600 };
 
-const EASE = [0.32, 0.72, 0, 1];
-const EASE_LID = [0.34, 1.1, 0.64, 1];
+// 翻盖、滑出确认条平滑到位。分格跳会让删除确认一顿一顿；按压仍走瞬时硬切
+const EASE = MOTION_EASE.ink;
 
 const WIDTH = { duration: 0.62, ease: EASE };
-const LID = { duration: 0.6, ease: EASE_LID };
+const LID = { duration: 0.6, ease: EASE };
 const WALL = { duration: 0.56, ease: EASE };
 const IN = { duration: 0.44, ease: EASE, delay: 0.14 };
 const OUT = { duration: 0.3, ease: EASE };
 const TAP = { duration: 0.2, ease: EASE };
 const SWAP = { duration: 0.22, ease: EASE };
 const SETTLE = { duration: 0.45, ease: EASE };
-const PRESS = { type: 'spring', stiffness: 520, damping: 18, mass: 0.5 };
 const INSTANT = { duration: 0 };
 
 const ICON = {
@@ -56,6 +56,7 @@ const circleMotion = {
 };
 
 function Circle({ label, onClick, reduced, children }) {
+  const m = useMotion();
   return (
     <motion.div className="we-delete-btn__slot" variants={reduced ? undefined : circleMotion}>
       <motion.button
@@ -65,7 +66,7 @@ function Circle({ label, onClick, reduced, children }) {
         onClick={onClick}
         whileHover={reduced ? undefined : { scale: 1.03 }}
         whileTap={reduced ? undefined : { scale: 0.84 }}
-        transition={PRESS}
+        transition={m.transition('press')}
         className="we-delete-btn__circle"
       >
         <svg {...ICON} width="12" height="12" stroke="currentColor" strokeWidth="3.5">

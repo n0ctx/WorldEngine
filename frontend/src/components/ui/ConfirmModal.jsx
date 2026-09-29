@@ -41,7 +41,7 @@ export default function ConfirmModal({
         initial="hidden"
         animate="visible"
         exit="hidden"
-        transition={m.transition('quick')}
+        transition={m.transition('backdrop')}
         onMouseDown={(e) => { mouseDownOnBackdrop.current = e.target === e.currentTarget; }}
         onClick={() => { if (mouseDownOnBackdrop.current && !confirming) onClose(); }}
       >
@@ -50,8 +50,8 @@ export default function ConfirmModal({
           variants={m.variant('overlayEnter')}
           initial="hidden"
           animate="visible"
-          exit="hidden"
-          transition={m.spring('overlay')}
+          exit="exit"
+          transition={m.transition('overlay')}
           onClick={(e) => e.stopPropagation()}
         >
           <h2 className="we-confirm-title">{title}</h2>

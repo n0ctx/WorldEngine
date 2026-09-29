@@ -7,11 +7,9 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { Copy } from 'lucide-react';
 import { Highlight } from 'prism-react-renderer';
 import { useMotion } from '../../core/hooks/useMotion.js';
+import { EASE } from '../../core/utils/motion.js';
 import { readCssColor } from './readCssColor.js';
 
-const TAP_SPRING = { type: 'spring', stiffness: 500, damping: 30 };
-const SWAP_SPRING = { type: 'spring', duration: 0.3, bounce: 0 };
-const CHECK_SPRING = { type: 'spring', duration: 0.4, bounce: 0.35 };
 const REDUCED_SWAP = { duration: 0.15 };
 const COPY_RESET_MS = 1800;
 
@@ -70,7 +68,8 @@ function useAccentTheme(ref) {
 }
 
 function CopyButton({ code }) {
-  const { reduced } = useMotion();
+  const m = useMotion();
+  const { reduced } = m;
   const [copied, setCopied] = useState(false);
   const timer = useRef(null);
 
@@ -87,13 +86,7 @@ function CopyButton({ code }) {
     timer.current = setTimeout(() => setCopied(false), COPY_RESET_MS);
   }, [code]);
 
-  const swap = reduced
-    ? { initial: { opacity: 0 }, animate: { opacity: 1 }, exit: { opacity: 0 } }
-    : {
-        initial: { opacity: 0, scale: 0.5, filter: 'blur(4px)' },
-        animate: { opacity: 1, scale: 1, filter: 'blur(0px)' },
-        exit: { opacity: 0, scale: 0.5, filter: 'blur(4px)' },
-      };
+  const swap = { variants: m.variant('appear'), initial: 'hidden', animate: 'visible', exit: 'exit' };
 
   return (
     <motion.button
@@ -101,23 +94,23 @@ function CopyButton({ code }) {
       aria-label={copied ? '已复制' : '复制'}
       onClick={copy}
       whileTap={reduced ? undefined : { scale: 0.9 }}
-      transition={TAP_SPRING}
+      transition={m.transition('press')}
       className={`we-code-block__copy${copied ? ' is-copied' : ''}`}
     >
       <AnimatePresence initial={false}>
         {copied ? (
-          <motion.span key="check" className="we-code-block__copy-icon" {...swap} transition={reduced ? REDUCED_SWAP : CHECK_SPRING}>
+          <motion.span key="check" className="we-code-block__copy-icon" {...swap} transition={reduced ? REDUCED_SWAP : m.transition('enter')}>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" width="14" height="14" aria-hidden>
               <motion.path
                 d="M4 12.5l5 5L20 6.5"
                 initial={reduced ? false : { pathLength: 0 }}
                 animate={{ pathLength: 1 }}
-                transition={{ duration: 0.2, ease: 'easeOut', delay: 0.05 }}
+                transition={{ duration: 0.2, ease: EASE.ink, delay: 0.05 }}
               />
             </svg>
           </motion.span>
         ) : (
-          <motion.span key="copy" className="we-code-block__copy-icon" {...swap} transition={reduced ? REDUCED_SWAP : SWAP_SPRING}>
+          <motion.span key="copy" className="we-code-block__copy-icon" {...swap} transition={reduced ? REDUCED_SWAP : m.transition('enter')}>
             <Copy size={14} />
           </motion.span>
         )}

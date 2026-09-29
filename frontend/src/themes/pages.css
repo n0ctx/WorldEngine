@@ -215,21 +215,17 @@
     var(--we-material-shadow-lift);
 }
 
-/* 跟随指针的光（WorldsPage 的 PortalGlow）：边缘光只露 1px 的环，表面光是一团模糊的氛围色，两层分开 */
+/* 跟随指针的边缘光（WorldsPage 的 PortalGlow）：只露 1px 的环 */
 .we-world-card-glow {
   display: contents;
   /* display: contents 也参与继承：把卡片的圆角传给 rim，否则 rim 的 border-radius: inherit 会拿到初始值 0 */
   border-radius: inherit;
 }
 
-.we-world-card-glow-rim,
-.we-world-card-glow-surface {
+.we-world-card-glow-rim {
   position: absolute;
   pointer-events: none;
   opacity: var(--glow-opacity, 0);
-}
-
-.we-world-card-glow-rim {
   inset: 0;
   z-index: var(--we-z-card-content);
   border-radius: inherit;
@@ -240,19 +236,6 @@
   mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
 }
 
-/* 半径 160px、径向到 80% 透明、24px 模糊：与边缘光同径，两侧抽屉的指针高光也是 160px */
-.we-world-card-glow-surface {
-  top: 0;
-  left: 0;
-  width: 160px;
-  height: 160px;
-  z-index: var(--we-z-card-overlay);
-  border-radius: var(--we-radius-full);
-  transform: translate(calc(var(--glow-x) - 80px), calc(var(--glow-y) - 80px));
-  background: radial-gradient(circle at center, color-mix(in srgb, var(--we-atmosphere-color) 70%, transparent), transparent 80%);
-  filter: blur(24px);
-  mix-blend-mode: screen;
-}
 
 .we-world-card[data-dragging] {
   cursor: grabbing;
@@ -1702,9 +1685,10 @@
   width: min(960px, calc(100vw - 48px));
   max-width: min(960px, calc(100vw - 48px));
   margin: var(--we-space-xl) auto var(--we-space-2xl);
-  max-height: calc(100vh - 96px);
+  /* 遮罩是定高 flex 容器，100% 即遮罩高度。96px 按 52px 顶栏写死，桌面顶栏 30px 时会把底部裁掉 */
+  max-height: calc(100% - var(--we-space-xl) - var(--we-space-2xl));
   overflow-y: auto;
-  /* 入场：墨水浮现（单次挂载，不随更新重放）*/
+  /* 入场：墨水浮现（单次挂载，不随更新重放）。大面板不走信号锁定，横向抖动会把整页内容拽偏 */
   animation: we-ink-rise var(--we-duration-slow) var(--we-easing-ink) both;
 }
 
@@ -2062,14 +2046,19 @@
 
 .we-settings-panel-wrap {
   width: 100%;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 .we-settings-panel-overlay {
   width: min(1040px, calc(100vw - 40px));
-  margin: var(--we-space-xl) auto var(--we-space-xl);
-  min-height: auto;
-  height: calc(100vh - 84px);
-  max-height: calc(100vh - 84px);
+  margin: var(--we-space-xl) auto;
+  min-height: 0;
+  flex: 1;
+  height: auto;
+  max-height: none;
 }
 
 .we-settings-nav {
@@ -2175,14 +2164,17 @@
 
 .we-settings-overlay {
   position: fixed;
-  inset: 52px 0 0;
+  /* 贴在顶栏下沿：52px 是手机顶栏高度，桌面顶栏只有 30px，写死会在顶栏和面板之间露出一条没被罩住的背景 */
+  inset: var(--we-topbar-height) 0 0;
   z-index: var(--we-z-sticky);
+  display: flex;
+  flex-direction: column;
   background: var(--we-color-bg-overlay);
   backdrop-filter: blur(6px);
   overflow: hidden;
   padding: 0 var(--we-space-xl) var(--we-space-xl);
   box-sizing: border-box;
-  /* 背景遮罩淡入，与面板 inkRise 同步登场 */
+  /* 背景遮罩淡入，与面板同步登场；遮罩只变透明度，保持平滑，不跟信号锁定一起分格跳 */
   animation: we-panel-fade var(--we-duration-normal) var(--we-easing-ink) both;
 }
 
@@ -2215,6 +2207,10 @@
   margin: 0 0 var(--we-space-lg);
   padding-bottom: var(--we-space-md);
   border-bottom: 1px solid var(--we-color-border-subtle);
+}
+/* 同一设置页里的第二个分组（如主题页下的「动效」）：与上一组拉开距离 */
+.we-settings-section-title--sub {
+  margin-top: var(--we-space-2xl);
 }
 
 /* 字段级子标题：比 section-title 小一档，无下边框 */
@@ -3132,6 +3128,11 @@
 }
 
 @media (max-width: 960px) {
+  .we-settings-overlay {
+    padding-inline: var(--we-space-md);
+    padding-bottom: var(--we-space-lg);
+  }
+
   .we-worlds-canvas {
     padding: var(--we-space-xl) var(--we-space-xl) var(--we-space-2xl);
   }
@@ -3193,8 +3194,7 @@
   }
 
   .we-settings-panel-overlay {
-    height: calc(100vh - 64px);
-    max-height: calc(100vh - 64px);
+    margin-block: var(--we-space-lg);
   }
 
   .we-settings-nav {
@@ -3565,8 +3565,7 @@
    「推开正文」而非浮层：两侧本来就是 book-spread 里的行内 flex 兄弟节点，
    展开收起复用已有的 flex 布局最省事，也不会在 1024px 窄屏下叠住正文。
    表面是悬浮在氛围上的磨砂玻璃面板：比正文纸面更透，靠缝隙、描边与投影和正文分开。
-   光从左上方斜照在玻璃上；::before 是跟随指针的一团高光（SideDrawer 写入 --pointer-x/y），
-   ::after 是顶部一条两端渐隐的镜面线和内侧一圈边缘光。
+   光从左上方斜照在玻璃上：::after 是顶部一条两端渐隐的镜面线和内侧一圈边缘光。
    ========================================================= */
 .we-side-drawer {
   position: relative;
@@ -3589,31 +3588,12 @@
 }
 
 /* 收起态显式写 min-width: 0：从默认的 auto 切到展开态的像素下限无法插值，宽度会一步跳满 */
-.we-side-drawer::before,
 .we-side-drawer::after {
   content: '';
   position: absolute;
   inset: 0;
   border-radius: inherit;
   pointer-events: none;
-}
-
-.we-side-drawer::before {
-  z-index: -1;
-  background: radial-gradient(
-    160px circle at var(--pointer-x, 50%) var(--pointer-y, 0%),
-    var(--we-pane-glow),
-    transparent 70%
-  );
-  opacity: 0;
-  transition: opacity var(--we-duration-normal) var(--we-easing-ink);
-}
-
-.we-side-drawer:hover::before {
-  opacity: 1;
-}
-
-.we-side-drawer::after {
   z-index: 1;
   background: linear-gradient(90deg, transparent 10%, var(--we-material-sheen) 32%, var(--we-material-sheen) 68%, transparent 90%) top / 100% 1px no-repeat;
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--we-material-sheen) 40%, transparent);
@@ -3801,9 +3781,6 @@
   .we-side-drawer {
     transition: none;
   }
-  .we-side-drawer::before {
-    display: none;
-  }
   .we-side-drawer-toggle::before {
     transition: none;
     transform: none;
@@ -3890,18 +3867,20 @@
   background-size: 128px 128px;
 }
 
-.we-seal-stamp-animation {
+/* 完成确认（DoneConfirm）：右下角一块大字，出现与收场由动效包决定 */
+.we-done-confirm {
   position: fixed;
   right: 40px;
   bottom: 40px;
   z-index: var(--we-z-tooltip);
+  padding: var(--we-space-sm) var(--we-space-lg);
+  font-family: var(--we-font-display);
+  font-size: var(--we-text-xl);
+  font-weight: 700;
+  letter-spacing: var(--we-tracking-wide);
+  color: var(--we-color-accent);
+  background: color-mix(in srgb, var(--we-color-accent) 14%, var(--we-color-bg-canvas));
   pointer-events: none;
-}
-
-.we-seal-stamp-svg {
-  width: 80px;
-  height: 80px;
-  filter: drop-shadow(0 2px 8px color-mix(in srgb, var(--we-color-accent) 30%, transparent));
 }
 
 .we-state-scroll {
@@ -4091,7 +4070,8 @@
     var(--we-material-shadow-near);
 }
 
-.we-state-change-overlay {
+/* 状态整理遮罩（StateBusyOverlay）：盖住面板、居中一枚状态标签；遮罩质感由动效包决定 */
+:is(.we-state-change-overlay, .we-cast-state-overlay) {
   position: absolute;
   inset: 0;
   z-index: var(--we-z-panel);
@@ -4099,8 +4079,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--we-color-paper-overlay);
-  backdrop-filter: blur(2px);
+  overflow: hidden;
 }
 
 .we-state-change-chip {
@@ -4110,14 +4089,11 @@
   user-select: none;
 }
 
-.we-state-change-text {
-  font-family: var(--we-font-display);
-  font-size: var(--we-text-2xs);
-  font-style: italic;
-  letter-spacing: var(--we-tracking-caps);
-  line-height: var(--we-leading-flush);
-  color: var(--we-color-gold);
-  white-space: nowrap;
+/* 整理中 / 已整理：变化标签（样式见 ui.css .we-change-tag），取强调色 */
+:is(.we-state-change-text, .we-cast-state-overlay-text) {
+  --change-tone: var(--we-color-accent);
+  position: relative;
+  z-index: 1;
 }
 
 .we-session-list-panel {
@@ -4299,26 +4275,6 @@
 .we-cast-diary-more:disabled {
   opacity: 0.5;
   cursor: not-allowed;
-}
-.we-cast-state-overlay {
-  position: absolute;
-  inset: 0;
-  z-index: var(--we-z-panel);
-  pointer-events: none;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--we-color-paper-overlay);
-  backdrop-filter: blur(2px);
-}
-.we-cast-state-overlay-text {
-  font-family: var(--we-font-display);
-  font-size: var(--we-text-2xs);
-  font-style: italic;
-  letter-spacing: var(--we-tracking-caps);
-  line-height: var(--we-leading-flush);
-  color: var(--we-color-gold);
-  white-space: nowrap;
 }
 .we-cast-add-modal-body {
   padding: 16px 20px 6px;
@@ -4845,7 +4801,7 @@
   height: 16px;
   border-radius: var(--we-radius-sm);
   background: var(--we-skeleton-base-bg);
-  animation: we-skeleton-pulse var(--we-skeleton-pulse-duration) var(--we-easing-ink) infinite;
+  animation: var(--we-fx-skeleton);
   margin-bottom: var(--we-space-sm);
 }
 
@@ -4882,4 +4838,167 @@
     animation: none;
     opacity: 0.6;
   }
+}
+
+/* ── 开发用动效实验室（/dev/motion）──────────────────────────── */
+.we-motion-lab {
+  height: calc(100vh - var(--we-topbar-height));
+  overflow-y: auto;
+  padding: var(--we-space-2xl) var(--we-space-lg);
+}
+.we-motion-lab__header,
+.we-motion-lab__section {
+  max-width: 640px;
+  margin: 0 auto var(--we-space-2xl);
+}
+.we-motion-lab__title {
+  font-family: var(--we-font-display);
+  font-size: var(--we-text-hero);
+  font-weight: 600;
+  line-height: var(--we-leading-flush);
+  color: var(--we-color-text-primary);
+}
+.we-motion-lab__hint {
+  margin-top: var(--we-space-sm);
+  font-size: var(--we-text-sm);
+  color: var(--we-color-text-secondary);
+}
+.we-motion-lab__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--we-space-sm);
+  margin-top: var(--we-space-lg);
+}
+.we-motion-lab__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--we-space-xs);
+  padding: var(--we-space-xs) var(--we-space-sm);
+  border: 1px solid var(--we-color-border-default);
+  border-radius: var(--we-radius-full);
+  background: none;
+  font-size: var(--we-text-sm);
+  color: var(--we-color-text-secondary);
+  cursor: pointer;
+}
+.we-motion-lab__chip[aria-pressed="true"] {
+  border-color: var(--we-color-accent);
+  color: var(--we-color-text-primary);
+}
+.we-motion-lab__chip:focus-visible {
+  outline: none;
+  box-shadow: var(--we-focus-ring);
+  border-color: var(--we-color-border-focus);
+}
+.we-motion-lab__swatch {
+  width: 12px;
+  height: 12px;
+  border-radius: var(--we-radius-full);
+  background: var(--swatch);
+}
+.we-motion-lab__bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--we-space-sm);
+  margin-bottom: var(--we-space-md);
+}
+.we-motion-lab__heading {
+  flex: 1;
+  font-family: var(--we-font-display);
+  font-size: var(--we-text-lg);
+  color: var(--we-color-text-primary);
+}
+.we-motion-lab__stage {
+  padding: var(--we-space-lg);
+  border: 1px solid var(--we-color-border-subtle);
+  border-radius: var(--we-radius-md);
+}
+.we-motion-lab__chips + .we-motion-lab__chips {
+  margin-top: var(--we-space-sm);
+}
+.we-motion-lab__prose {
+  min-height: 7.5em;
+  font-family: var(--we-font-prose);
+  font-size: var(--we-text-prose);
+  line-height: var(--we-leading-prose);
+  color: var(--we-color-text-primary);
+}
+.we-motion-lab__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--we-space-md);
+}
+.we-motion-lab__grid {
+  display: grid;
+  gap: var(--we-space-xl);
+}
+.we-motion-lab__cards {
+  display: grid;
+  gap: var(--we-space-sm);
+  min-height: 120px;
+}
+.we-motion-lab__card {
+  padding: var(--we-space-sm) var(--we-space-md);
+  border-radius: var(--we-radius-md);
+  font-size: var(--we-text-sm);
+  color: var(--we-color-text-primary);
+  text-align: left;
+  cursor: pointer;
+}
+.we-motion-lab__send {
+  width: 36px;
+  height: 36px;
+  border: 0;
+  border-radius: var(--we-radius-full);
+  background: var(--we-color-accent);
+  color: var(--we-color-text-inverse);
+  cursor: pointer;
+}
+.we-motion-lab__note {
+  padding-top: var(--we-space-sm);
+  font-size: var(--we-text-sm);
+  color: var(--we-color-text-secondary);
+}
+.we-motion-lab__nav {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--we-space-xs);
+  padding-left: 22px; /* 弹跳圆点的位置：弧线向左鼓出 8px + 圆点 6px + 间距 8px */
+}
+.we-motion-lab__nav-item {
+  padding: var(--we-space-xs) var(--we-space-sm);
+  border: 0;
+  background: none;
+  font-size: var(--we-text-sm);
+  color: var(--we-color-text-secondary);
+  cursor: pointer;
+}
+.we-motion-lab__nav-item[aria-current] {
+  color: var(--we-color-text-primary);
+}
+.we-motion-lab__wait {
+  display: flex;
+  align-items: center;
+  gap: var(--we-space-xl);
+}
+.we-motion-lab__busy {
+  position: relative;
+  flex: 1;
+  padding: var(--we-space-lg);
+  overflow: hidden;
+  border-radius: var(--we-radius-sm);
+}
+.we-motion-lab__orbs {
+  display: flex;
+  align-items: center;
+  gap: var(--we-space-lg);
+}
+.we-motion-lab__folder {
+  border: 0;
+  background: none;
+  cursor: pointer;
 }

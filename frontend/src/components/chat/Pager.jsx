@@ -1,5 +1,5 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import AnimatedCounter from '../motion/AnimatedCounter.jsx';
+import ChangeText from '../motion/ChangeText.jsx';
 
 /**
  * 翻页条（受控组件）：只渲染按钮与页码，不维护自己的状态、不计算切片。
@@ -29,7 +29,7 @@ export default function Pager({ totalPages, currentPage, onChange }) {
         <ChevronLeft size={20} />
       </button>
       <span className="we-pager-label">
-        <span className="we-pager-index">第 <AnimatedCounter value={current + 1} /> / <AnimatedCounter value={totalPages} /> 页</span>
+        <span className="we-pager-index">第 <ChangeText text={String(current + 1)} playKey={current} decode /> / <ChangeText text={String(totalPages)} playKey={totalPages} decode /> 页</span>
       </span>
       <button
         type="button"

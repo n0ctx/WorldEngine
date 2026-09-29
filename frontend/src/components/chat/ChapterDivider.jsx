@@ -1,6 +1,8 @@
 import { useRef, useEffect, useState } from 'react';
 import Icon from '../ui/Icon.jsx';
-import MatrixOrb from '../motion/MatrixOrb.jsx';
+import MotionOrb from '../motion/MotionOrb.jsx';
+import ChangeText from '../motion/ChangeText.jsx';
+import { useMotion } from '../../core/hooks/useMotion.js';
 import { handleInlineRenameKeyDown } from '../../core/utils/inline-rename.js';
 
 const CN_NUMS = ['一', '二', '三', '四', '五', '六', '七', '八', '九', '十'];
@@ -16,7 +18,9 @@ function toChapterNum(n) {
 export default function ChapterDivider({ chapterIndex, title, onEdit, onRegenerate }) {
   const ref = useRef(null);
   const inputRef = useRef(null);
+  const [visible, setVisible] = useState(false);
   const [editing, setEditing] = useState(false);
+  const fxVars = useMotion().fx();
   const [draft, setDraft] = useState('');
   const [regenerating, setRegenerating] = useState(false);
 
@@ -26,7 +30,7 @@ export default function ChapterDivider({ chapterIndex, title, onEdit, onRegenera
     const obs = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting) {
-          el.classList.add('we-chapter-header--visible');
+          setVisible(true);
           obs.disconnect();
         }
       },
@@ -75,8 +79,14 @@ export default function ChapterDivider({ chapterIndex, title, onEdit, onRegenera
   }
 
   return (
-    <header ref={ref} className="we-chapter-header">
-      <div className="we-chapter-num">第 {toChapterNum(chapterIndex)} 章</div>
+    <header
+      ref={ref}
+      className={`we-chapter-header${visible ? ' we-chapter-header--visible' : ''}`}
+      style={fxVars ?? undefined}
+    >
+      <div className="we-chapter-num">
+        <ChangeText text={`第 ${toChapterNum(chapterIndex)} 章`} playKey={visible ? chapterIndex : null} decode />
+      </div>
 
       {editing ? (
         <div className="we-chapter-edit">
@@ -94,7 +104,9 @@ export default function ChapterDivider({ chapterIndex, title, onEdit, onRegenera
         </div>
       ) : (
         <>
-          <h2 className="we-chapter-title">{title}</h2>
+          <h2 className="we-chapter-title">
+            <ChangeText text={title} playKey={visible ? title : null} decode />
+          </h2>
           {(onEdit || onRegenerate) && (
             <div className="we-chapter-actions">
               {onEdit && (
@@ -108,7 +120,7 @@ export default function ChapterDivider({ chapterIndex, title, onEdit, onRegenera
               )}
               {onRegenerate && (
                 <button onClick={handleRegenerate} disabled={regenerating} aria-label="重新生成章节标题">
-                  {regenerating ? <MatrixOrb size={16} /> : (
+                  {regenerating ? <MotionOrb size={16} /> : (
                     <Icon size={16}>
                       <polyline points="1 4 1 10 7 10" />
                       <path d="M3.51 15a9 9 0 1 0 .49-4.98" />
@@ -124,7 +136,7 @@ export default function ChapterDivider({ chapterIndex, title, onEdit, onRegenera
 
       <div className="we-chapter-fleuron">
         <span className="we-chapter-fleuron-line" />
-        <span>❦</span>
+        <span className="we-chapter-fleuron-mark" aria-hidden="true" />
         <span className="we-chapter-fleuron-line" />
       </div>
     </header>

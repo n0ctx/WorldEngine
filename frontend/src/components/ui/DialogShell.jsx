@@ -31,7 +31,7 @@ export default function DialogShell({ children, onClose, panelClassName = 'w-ful
         variants={m.variant('overlayEnter')}
         initial="hidden"
         animate="visible"
-        transition={m.spring('overlay')}
+        transition={m.transition('overlay')}
       >
         {children}
       </motion.div>

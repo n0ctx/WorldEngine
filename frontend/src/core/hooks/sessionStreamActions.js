@@ -228,7 +228,7 @@ async function retitleSession(targetSessionId, state) {
     if (title) {
       state.setCurrentSession((previous) => previous ? { ...previous, title } : previous);
       state.sessionListBridge.updateTitle?.(targetSessionId, title);
-      log.info(`${state.mode}.title.updated`, null, { toast: `标题已更新：${title}` });
+      log.success(`${state.mode}.title.updated`, null, { toast: `标题已更新：${title}` });
     } else {
       log.error(`${state.mode}.title.generate_failed`, null, { toast: '标题生成失败' });
     }

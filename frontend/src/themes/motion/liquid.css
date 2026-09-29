@@ -1,0 +1,376 @@
+/* 动效包「墨流」的样式（JS 侧见 core/motion/packs/liquid.js）。
+ * 只在 <html data-motion="liquid"> 时生效；:where() 包住作用域，选择器权重与写在内核里一样。
+ * 一种材质三种行为：浮现 / 沉没、黏滞流动、洇开。颜色只取主题的强调色与正文色，
+ * "湿墨"是强调色与正文色的混色：刚落下的墨是湿的、带光，慢慢干成正文色。
+ * --ink-spring / --ink-spring-soft 是按弹簧阶跃响应采样的 linear() 曲线（阻尼比 0.5 / 0.7），
+ * 与 JS 侧的弹簧同一手感：冲过头、回落、停稳。 */
+
+:root[data-motion="liquid"] {
+  --ink-spring: linear(0, 0.045, 0.16, 0.315, 0.487, 0.655, 0.808, 0.935, 1.034, 1.102, 1.144, 1.161, 1.161, 1.146, 1.123, 1.096, 1.068, 1.042, 1.019, 1.001, 0.988, 0.979, 0.975, 0.973, 0.975, 0.978, 0.982, 0.987, 0.991, 0.995, 0.999, 1.001, 1.003, 1.004, 1.004, 1.004, 1);
+  --ink-spring-soft: linear(0, 0.037, 0.128, 0.249, 0.381, 0.512, 0.632, 0.738, 0.826, 0.897, 0.951, 0.991, 1.018, 1.034, 1.043, 1.046, 1.045, 1.041, 1.035, 1.029, 1.023, 1.018, 1.013, 1.008, 1.005, 1.003, 1.001, 0.999, 0.998, 0.998, 0.998, 0.998, 0.998, 0.998, 0.999, 0.999, 1);
+  --ink-surface: cubic-bezier(0.16, 1, 0.3, 1);
+  --ink-sink: cubic-bezier(0.7, 0, 0.84, 0);
+  --ink-flow: cubic-bezier(0.65, 0, 0.35, 1);
+  --ink-wet: color-mix(in oklab, var(--we-color-accent) 72%, white);
+  --ink-glow: color-mix(in srgb, var(--we-color-accent) 55%, transparent);
+
+  --we-fx-enter: we-ink-surface 720ms var(--ink-spring-soft) both;
+  --we-fx-skeleton: we-ink-sheen 1.8s var(--ink-flow) infinite;
+  --we-fx-nudge: we-ink-bob 1.4s var(--ink-flow) infinite;
+  --we-fx-spin: we-ink-spin 0.9s cubic-bezier(0.5, 0.1, 0.5, 0.9) infinite;
+  --we-fx-typing: we-ink-bead-rise 1.2s var(--ink-flow) infinite;
+}
+
+/* ── 浮现 / 沉没 ───────────────────────────────────────── */
+/* 从柔焦的深处浮上来，竖向微微拉长，冲过一点再回落 */
+@keyframes we-ink-surface {
+  from { opacity: 0; transform: translateY(20px) scale(0.97, 1.05); filter: blur(8px); }
+  40%  { opacity: 1; filter: blur(0); }
+  to   { opacity: 1; transform: none; filter: none; }
+}
+/* 被引力往下拽：越往下越拉长、越化开 */
+@keyframes we-ink-sink {
+  to { opacity: 0; transform: translateY(22px) scale(0.92, 1.14); filter: blur(8px); }
+}
+
+/* ── 流式输出：一滴墨落进纸里 ───────────────────────────────────────── */
+/* 每个字：墨滴从上方带着柔焦落下，冲过基线一点再弹回（前 45%）；
+   同时湿墨色带着光晕，随后慢慢干成正文色。
+   字保持行内元素（用相对定位的 top 位移，不用 transform），断行与最终排版完全一致。
+   时刻由 StreamingMarkdown 写进 --we-stream-char-delay，排在后面的字在轮到之前保持不可见 */
+:where(:root[data-motion="liquid"]) .we-stream-char {
+  position: relative;
+}
+:where(:root[data-motion="liquid"]) .we-stream-char > .we-fx-glyph__face {
+  position: relative;
+  animation:
+    we-ink-drop calc(var(--we-stream-char-duration) * 0.45) var(--ink-spring) var(--we-stream-char-delay) both,
+    we-ink-dry var(--we-stream-char-duration) var(--ink-flow) var(--we-stream-char-delay) both;
+}
+@keyframes we-ink-drop {
+  0%   { opacity: 0; top: -0.6em; filter: blur(6px); }
+  30%  { opacity: 1; filter: blur(0); }
+  100% { opacity: 1; top: 0; filter: none; }
+}
+@keyframes we-ink-dry {
+  0%, 30% { color: var(--ink-wet); text-shadow: 0 0 0.45em var(--ink-glow), 0 0 0.12em var(--ink-glow); }
+  100%    { text-shadow: 0 0 0 transparent; }
+}
+
+/* 书写前沿的墨珠：只在这个字出现的那一拍挂在它后面，连起来就是一颗跟着字跑的墨珠 */
+:where(:root[data-motion="liquid"]) .we-stream-char--caret::after {
+  content: '';
+  position: absolute;
+  left: 100%;
+  bottom: 0.28em;
+  width: 0.38em;
+  height: 0.38em;
+  margin-left: 0.12em;
+  border-radius: 50%;
+  background: var(--ink-wet);
+  box-shadow: 0 0 0.6em var(--ink-glow);
+  opacity: 0;
+  pointer-events: none;
+  animation: we-ink-bead-step var(--we-stream-char-step) linear var(--we-stream-char-delay);
+}
+@keyframes we-ink-bead-step {
+  from, to { opacity: 1; }
+}
+
+/* 常驻墨珠：胀缩着呼吸，不闪烁；净宽为 0，出现、消失都不推动正文换行 */
+:where(:root[data-motion="liquid"]) :is(.we-stream-caret, .we-chat-empty-state__cursor, .we-asst-stream-cursor) {
+  display: inline-block;
+  width: 0.38em;
+  height: 0.38em;
+  vertical-align: 0.08em;
+  border-radius: 50%;
+  background: var(--ink-wet);
+  box-shadow: 0 0 0.6em var(--ink-glow);
+  pointer-events: none;
+}
+:where(:root[data-motion="liquid"]) .we-stream-caret {
+  margin: 0 calc(-0.38em - 4px) 0 4px;
+  animation: we-ink-breathe var(--we-stream-caret-duration) var(--ink-flow) infinite;
+}
+:where(:root[data-motion="liquid"]) :is(.we-chat-empty-state__cursor, .we-asst-stream-cursor) {
+  margin-left: 5px;
+  animation: we-ink-breathe 1.4s var(--ink-flow) infinite;
+}
+/* 生成结束：墨珠被最后一个字吸进去 */
+:where(:root[data-motion="liquid"]) .we-stream-caret--fading {
+  animation: we-ink-absorb var(--we-stream-caret-out-duration) var(--ink-sink) forwards;
+}
+@keyframes we-ink-breathe {
+  0%, 100% { transform: scale(0.6, 0.66); opacity: 0.6; }
+  50%      { transform: scale(1.12, 1.02); opacity: 1; }
+}
+@keyframes we-ink-absorb {
+  30%  { transform: scale(1.3, 0.8); opacity: 1; }
+  100% { transform: translateX(-0.6em) scale(0.1); opacity: 0; filter: blur(3px); }
+}
+
+/* ── 洇开：世界状态被改写 ───────────────────────────────────────── */
+/* 畸变滤镜的容器（InkWarp）：只占位，不影响排版 */
+.we-ink-warp {
+  display: inline-block;
+  max-width: 100%;
+}
+.we-ink-warp__defs {
+  position: absolute;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+}
+
+/* 整段文字（ChangeText decode）：墨从左往右洇开，边缘羽化；洇开时是湿墨色并带光 */
+:where(:root[data-motion="liquid"]) .we-fx-glyph--block {
+  display: inline-block;
+  max-width: 100%;
+}
+:where(:root[data-motion="liquid"]) .we-fx-glyph--block > .we-fx-glyph__face {
+  display: block;
+  -webkit-mask-image: linear-gradient(90deg, #000 0 40%, transparent 60% 100%);
+  mask-image: linear-gradient(90deg, #000 0 40%, transparent 60% 100%);
+  -webkit-mask-size: 260% 100%;
+  mask-size: 260% 100%;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  animation: we-ink-spread var(--we-fx-decode) var(--ink-surface) both;
+}
+@keyframes we-ink-spread {
+  0%   { -webkit-mask-position: 100% 0; mask-position: 100% 0; color: var(--ink-wet); text-shadow: 0 0 0.5em var(--ink-glow); filter: blur(3px); }
+  50%  { color: var(--ink-wet); text-shadow: 0 0 0.35em var(--ink-glow); filter: blur(0); }
+  100% { -webkit-mask-position: 0 0; mask-position: 0 0; text-shadow: 0 0 0 transparent; filter: none; }
+}
+
+/* 数值换新：新值被从下方拉上来——先拉长成一滴冲过位置，再收缩着落定，湿墨色随后干掉。
+   畸变由外层的 InkWarp 负责，这里不再加别的装饰 */
+:where(:root[data-motion="liquid"]) .we-fx-burst {
+  display: inline-block;
+  max-width: 100%;
+  transform-origin: 50% 100%;
+  animation:
+    we-ink-rise calc(var(--we-fx-burst) * 0.85) var(--ink-spring) both,
+    we-ink-dry var(--we-fx-burst) var(--ink-flow) both;
+}
+/* 弹簧冲过终点时竖向拉伸会反过来变成压扁：落地那一下自然收缩 */
+@keyframes we-ink-rise {
+  0%   { opacity: 0; transform: translateY(0.8em) scale(0.7, 1.45); filter: blur(4px); }
+  30%  { opacity: 1; filter: blur(0); }
+  100% { opacity: 1; transform: none; filter: none; }
+}
+
+/* 变化标签：像一滴墨被从数值里拽出来——先被拉成细长一条，挣脱后缩回圆头墨签；
+   上升从下方拽出，下降从上方拽出 */
+:where(:root[data-motion="liquid"]) .we-change-tag {
+  padding: 0 0.65em;
+  border-radius: var(--we-radius-full);
+  transform-origin: 0 50%;
+}
+:where(:root[data-motion="liquid"]) .we-change-tag--play {
+  animation: we-ink-pull calc(var(--we-fx-burst) * 0.9) var(--ink-spring) calc(var(--we-fx-burst) * 0.3) both;
+}
+:where(:root[data-motion="liquid"]) .we-change-tag--up.we-change-tag--play {
+  animation-name: we-ink-pull-up;
+}
+:where(:root[data-motion="liquid"]) .we-change-tag--down.we-change-tag--play {
+  animation-name: we-ink-pull-down;
+}
+@keyframes we-ink-pull {
+  0%   { opacity: 0; transform: translateX(-1em) scale(0.2, 0.5); filter: blur(3px); }
+  25%  { opacity: 1; filter: blur(0); }
+  100% { opacity: 1; transform: none; filter: none; }
+}
+@keyframes we-ink-pull-up {
+  0%   { opacity: 0; transform: translate(-1em, 8px) scale(0.2, 0.5); filter: blur(3px); }
+  25%  { opacity: 1; filter: blur(0); }
+  100% { opacity: 1; transform: none; filter: none; }
+}
+@keyframes we-ink-pull-down {
+  0%   { opacity: 0; transform: translate(-1em, -8px) scale(0.2, 0.5); filter: blur(3px); }
+  25%  { opacity: 1; filter: blur(0); }
+  100% { opacity: 1; transform: none; filter: none; }
+}
+
+/* 提示条：整条浮现、沉没已经足够醒目，里面的文字和类型标签不再单独动 */
+:where(:root[data-motion="liquid"]) .we-toast-card .we-change-tag--play,
+:where(:root[data-motion="liquid"]) .we-toast-card .we-fx-glyph--block > .we-fx-glyph__face {
+  animation: none;
+  -webkit-mask-image: none;
+  mask-image: none;
+}
+
+/* ── 章节开场：一个连贯的动作 ───────────────────────────────────────────
+   墨滴坠下（0–640ms）→ 砸在中点的一瞬，两条线向两侧冲开（260ms 起）→
+   章节号、标题依次从中点向两边洇出（380ms / 480ms 起）。整块标题本身不再单独入场 */
+:where(:root[data-motion="liquid"]) .we-chapter-fleuron-mark {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: 0 0 10px color-mix(in srgb, currentColor 60%, transparent);
+  opacity: 0;
+}
+:where(:root[data-motion="liquid"]) .we-chapter-header--visible .we-chapter-fleuron-mark {
+  animation: we-ink-fall 640ms var(--ink-spring) both;
+}
+@keyframes we-ink-fall {
+  0%   { opacity: 0; transform: translateY(-36px) scale(0.45, 2); }
+  20%  { opacity: 1; }
+  100% { opacity: 1; transform: none; }
+}
+/* 两条线从墨点向外冲出，冲过头一点再收回，远端羽化 */
+:where(:root[data-motion="liquid"]) .we-chapter-fleuron-line {
+  transition: transform 1000ms var(--ink-spring) 260ms;
+}
+:where(:root[data-motion="liquid"]) .we-chapter-fleuron-line:first-child {
+  transform-origin: right;
+  background: linear-gradient(to left, var(--we-color-gold), transparent);
+}
+:where(:root[data-motion="liquid"]) .we-chapter-fleuron-line:last-child {
+  transform-origin: left;
+  background: linear-gradient(to right, var(--we-color-gold), transparent);
+}
+/* 文字从中点向两边洇出：先是一道细窄的湿痕，横向铺开成整行 */
+:where(:root[data-motion="liquid"]) .we-chapter-header .we-fx-glyph--block > .we-fx-glyph__face {
+  -webkit-mask-image: radial-gradient(closest-side, #000 55%, transparent 100%);
+  mask-image: radial-gradient(closest-side, #000 55%, transparent 100%);
+  -webkit-mask-position: 50% 50%;
+  mask-position: 50% 50%;
+  animation: we-ink-spread-out 820ms var(--ink-surface) 380ms both;
+}
+:where(:root[data-motion="liquid"]) .we-chapter-title .we-fx-glyph--block > .we-fx-glyph__face {
+  animation-delay: 480ms;
+}
+@keyframes we-ink-spread-out {
+  0%   { -webkit-mask-size: 8% 40%; mask-size: 8% 40%; color: var(--ink-wet); text-shadow: 0 0 0.5em var(--ink-glow); filter: blur(3px); }
+  55%  { color: var(--ink-wet); text-shadow: 0 0 0.35em var(--ink-glow); filter: blur(0); }
+  100% { -webkit-mask-size: 320% 320%; mask-size: 320% 320%; text-shadow: 0 0 0 transparent; filter: none; }
+}
+
+/* ── 完成确认：一滴墨坠下，落地压扁再弹回，停留后被引力拉长着沉下去 ─── */
+:where(:root[data-motion="liquid"]) .we-done-confirm {
+  border-radius: var(--we-radius-md);
+  transform-origin: 50% 100%;
+}
+:where(:root[data-motion="liquid"]) .we-done-confirm--play {
+  animation:
+    we-ink-splash calc(var(--we-fx-burst) * 1.1) var(--ink-spring) both,
+    we-ink-sink var(--we-fx-off) var(--ink-sink) calc(var(--we-fx-stamp) - var(--we-fx-off)) forwards;
+}
+@keyframes we-ink-splash {
+  0%   { opacity: 0; transform: translateY(-48px) scale(0.72, 1.4); filter: blur(8px); }
+  30%  { opacity: 1; filter: blur(0); }
+  100% { opacity: 1; transform: none; filter: none; }
+}
+
+/* ── 状态整理遮罩：柔焦的水面下，两团墨云缓缓翻涌 ─── */
+:where(:root[data-motion="liquid"]) :is(.we-state-change-overlay, .we-cast-state-overlay) {
+  background: color-mix(in srgb, var(--we-color-bg-canvas) 40%, transparent);
+  -webkit-backdrop-filter: blur(4px) saturate(1.2);
+  backdrop-filter: blur(4px) saturate(1.2);
+}
+:where(:root[data-motion="liquid"]) :is(.we-state-change-overlay, .we-cast-state-overlay)::after {
+  content: '';
+  position: absolute;
+  inset: -30%;
+  background:
+    radial-gradient(38% 34% at 30% 38%, color-mix(in srgb, var(--we-color-accent) 26%, transparent), transparent 70%),
+    radial-gradient(32% 30% at 70% 66%, color-mix(in srgb, var(--we-color-accent) 18%, transparent), transparent 70%);
+  filter: blur(6px);
+  pointer-events: none;
+  animation: we-ink-cloud 4.5s var(--ink-flow) infinite alternate;
+}
+@keyframes we-ink-cloud {
+  from { transform: translate(-8%, -4%) rotate(-6deg) scale(1); }
+  to   { transform: translate(8%, 6%) rotate(10deg) scale(1.12); }
+}
+
+/* ── 交互反馈：按下像按进水面，松手弹回 ───────────────────────────────
+   framer 驱动的按钮（Button、发送、卡片）走 JS 手势；这里补上普通可点元素。
+   用独立的 scale 属性，不碰各自的 transform；按下快、松手走弹簧 */
+:where(:root[data-motion="liquid"]) :is(
+  .we-section-tab, .we-select-option, .we-settings-nav-item, .we-chat-slash-item,
+  .we-session-item, .we-topbar-item, .we-chat-quick-btn, .we-sm-chip,
+  .we-character-card-action-btn, .we-world-card-action-btn, .we-motion-lab__chip, .we-toggle-track
+) {
+  transition:
+    scale var(--ink-press-time, 560ms) var(--ink-press-ease, var(--ink-spring)),
+    color var(--we-duration-fast) var(--we-easing-sharp),
+    background-color var(--we-duration-fast) var(--we-easing-sharp),
+    border-color var(--we-duration-fast) var(--we-easing-sharp),
+    box-shadow var(--we-duration-fast) var(--we-easing-sharp),
+    opacity var(--we-duration-fast) var(--we-easing-sharp);
+}
+:where(:root[data-motion="liquid"]) :is(
+  .we-section-tab, .we-select-option, .we-settings-nav-item, .we-chat-slash-item,
+  .we-session-item, .we-topbar-item, .we-chat-quick-btn, .we-sm-chip,
+  .we-character-card-action-btn, .we-world-card-action-btn, .we-motion-lab__chip, .we-toggle-track
+):active {
+  --ink-press-time: 90ms;
+  --ink-press-ease: ease-out;
+  scale: 1.03 0.9;
+}
+/* 开关的圆钮：被弹过去，冲过一点再回来 */
+:where(:root[data-motion="liquid"]) .we-toggle-thumb {
+  transition: transform 560ms var(--ink-spring);
+}
+
+/* ── 循环：打字点、骨架、转圈、箭头、小墨珠 ─── */
+:where(:root[data-motion="liquid"]) .typing-dot {
+  border-radius: 50%;
+}
+@keyframes we-ink-bead-rise {
+  0%, 100% { transform: translateY(0) scale(1, 1); opacity: 0.45; }
+  30%      { transform: translateY(-6px) scale(0.85, 1.2); opacity: 1; }
+  55%      { transform: translateY(0) scale(1.25, 0.75); opacity: 0.8; }
+  70%      { transform: translateY(0) scale(1, 1); }
+}
+
+/* 一道湿润的光泽流过 */
+:where(:root[data-motion="liquid"]) :is(.we-skel, .we-skeleton-block) {
+  background-image: linear-gradient(100deg, transparent 30%, color-mix(in srgb, var(--we-color-accent) 14%, transparent) 50%, transparent 70%);
+  background-size: 250% 100%;
+  background-repeat: no-repeat;
+}
+@keyframes we-ink-sheen {
+  from { background-position: 130% 0; }
+  to   { background-position: -30% 0; }
+}
+
+@keyframes we-ink-bob {
+  0%, 100% { transform: translateY(0) scale(1, 1); }
+  45%      { transform: translateY(5px) scale(0.92, 1.1); }
+  60%      { transform: translateY(4px) scale(1.1, 0.9); }
+}
+@keyframes we-ink-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* 小尺寸思考指示（MotionOrb）：一颗胀缩的墨珠，带光晕 */
+.we-ink-bead {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  vertical-align: middle;
+}
+.we-ink-bead::before {
+  content: '';
+  width: var(--we-ink-bead-size);
+  height: var(--we-ink-bead-size);
+  border-radius: 50%;
+  background: var(--we-color-accent);
+  box-shadow: 0 0 0.6em color-mix(in srgb, var(--we-color-accent) 55%, transparent);
+  animation: we-ink-breathe 1.4s cubic-bezier(0.65, 0, 0.35, 1) infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :where(:root[data-motion="liquid"]) .we-stream-char > .we-fx-glyph__face,
+  :where(:root[data-motion="liquid"]) .we-stream-char--caret::after,
+  :where(:root[data-motion="liquid"]) .we-stream-caret,
+  :where(:root[data-motion="liquid"]) :is(.we-state-change-overlay, .we-cast-state-overlay)::after,
+  .we-ink-bead::before {
+    animation: none;
+  }
+}

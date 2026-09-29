@@ -10,7 +10,7 @@ import {
 import MarkdownEditor from '../../components/ui/MarkdownEditor';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
-import SealStampAnimation from './components/SealStampAnimation.jsx';
+import DoneConfirm from './components/DoneConfirm.jsx';
 import CardEditTabs from '../../components/state/CardEditTabs.jsx';
 import EditPageShell from '../layout/EditPageShell';
 import FormGroup from '../../components/ui/FormGroup';
@@ -39,7 +39,7 @@ export default function CharacterEditPage() {
   const [loadError, setLoadError] = useState('');
   const [saving, setSaving] = useState(false);
   const [exporting, setExporting] = useState(false);
-  const [sealKey, setSealKey] = useState(0);
+  const [doneKey, setDoneKey] = useState(0);
   const [saveError, setSaveError] = useState('');
   const [avatarUploading, setAvatarUploading] = useState(false);
 
@@ -132,7 +132,7 @@ export default function CharacterEditPage() {
     try {
       const safeName = (name || character?.name || 'character').replace(/[^\w\u4e00-\u9fa5]/g, '_');
       await downloadCharacterCard(characterId, `${safeName}.wechar.json`);
-      setSealKey(k => k + 1);
+      setDoneKey(k => k + 1);
     } catch (err) {
       log.error('character.export_failed', err, { toast: `导出失败：${err.message}` });
     } finally {
@@ -262,7 +262,7 @@ export default function CharacterEditPage() {
       >
         <CardEditTabs basicTab={basicTab} stateInit={stateInit} />
       </EditPageShell>
-      <SealStampAnimation trigger={sealKey} text="成" />
+      <DoneConfirm trigger={doneKey} label="已导出" />
     </>
   );
 }

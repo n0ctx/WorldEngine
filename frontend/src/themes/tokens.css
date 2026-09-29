@@ -179,17 +179,6 @@
   --we-material-shadow-lift:
     0 16px 28px -14px var(--we-color-shadow-lg),
     0 40px 68px -34px var(--we-color-shadow-xl);
-  /* 有厚度的按钮（发送、确认）：上亮下暗的面 + 顶部内高光 + 底部厚度边；按下时厚度收进去 */
-  --we-material-raised-face:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0) 55%, rgba(0, 0, 0, 0.10));
-  --we-material-raised:
-    inset 0 1px 0 rgba(255, 255, 255, 0.28),
-    inset 0 -1px 0 rgba(0, 0, 0, 0.20),
-    0 1px 1px var(--we-color-shadow-md),
-    0 6px 12px -6px var(--we-color-shadow-lg);
-  --we-material-raised-pressed:
-    inset 0 1px 2px rgba(0, 0, 0, 0.24),
-    0 1px 1px var(--we-color-shadow-sm);
   /* 页面内容区的底：默认透明让氛围透出；浅色主题可铺回实底 */
   --we-stage-surface:             transparent;
   /* 浮层（侧栏、设置、弹窗、输入胶囊）的半透明底与背景模糊 */
@@ -395,15 +384,6 @@
 
 
   /* 物理质感阴影：默认中性，主题可替换为纸张、印章等具体材质。 */
-  --we-shadow-stamp-up:
-    inset 0 1px 0 rgba(255, 255, 255, 0.18),
-    inset 0 -1px 0 rgba(0, 0, 0, 0.12),
-    0 2px 0 var(--we-color-accent-deep),
-    0 4px 8px rgba(115, 55, 36, 0.28);
-  --we-shadow-stamp-down:
-    inset 0 2px 4px rgba(0, 0, 0, 0.18),
-    inset 0 1px 0 rgba(0, 0, 0, 0.10),
-    0 1px 0 var(--we-color-accent-deep);
   --we-shadow-paper-lift:
     0 0 5px rgba(23, 23, 23, 0.12),
     0 0 12px rgba(23, 23, 23, 0.06);
@@ -422,8 +402,6 @@
     0 0 0 1px var(--we-color-border-subtle),
     0 4px 12px var(--we-color-shadow-md);
   /* 按钮主色悬停内发光：.we-btn-primary:hover 内侧光晕，基于 avatar-placeholder 色 */
-  --we-shadow-btn-primary-inner-glow:
-    inset 0 0 12px color-mix(in srgb, var(--we-color-avatar-placeholder) 8%, transparent);
   /* 滑块拇指默认投影 */
   --we-shadow-range-thumb:
     0 1px 4px color-mix(in srgb, var(--we-base-ink-900) 18%, transparent);

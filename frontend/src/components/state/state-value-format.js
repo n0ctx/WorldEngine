@@ -73,3 +73,28 @@ export function formatFieldValue(effectiveValueJson, type, prefix) {
 export function stateRowKey(row) {
   return row.character_id ? `${row.character_id}:${row.field_key}` : row.field_key;
 }
+
+/** 状态字段值为空时的占位显示 */
+export const EMPTY_STATUS_DISPLAY = '—';
+
+export function parseArray(raw) {
+  if (raw == null) return [];
+  if (Array.isArray(raw)) return raw;
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch { return []; }
+}
+
+/** 状态字段值 → 编辑器 / 标签组用的原始值（boolean / list 归一；解析失败回退为原串） */
+export function parseRawValue(effectiveValueJson, type) {
+  if (effectiveValueJson == null) return type === 'list' ? [] : '';
+  try {
+    const v = JSON.parse(effectiveValueJson);
+    if (type === 'boolean') return v === true || v === 'true' || v === '1' || v === 1;
+    if (type === 'list') return Array.isArray(v) ? v : [];
+    return v ?? '';
+  } catch {
+    return effectiveValueJson ?? '';
+  }
+}
