@@ -136,7 +136,7 @@ export default function ChapterDivider({ chapterIndex, title, onEdit, onRegenera
 
       <div className="we-chapter-fleuron">
         <span className="we-chapter-fleuron-line" />
-        <span aria-hidden="true">▞</span>
+        <span className="we-chapter-fleuron-mark" aria-hidden="true" />
         <span className="we-chapter-fleuron-line" />
       </div>
     </header>

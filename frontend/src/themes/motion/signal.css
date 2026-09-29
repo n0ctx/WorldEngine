@@ -268,6 +268,11 @@
   100% { opacity: 1;   transform: none;                            clip-path: none; }
 }
 
+/* 章节分隔线中间的像素花饰 */
+:where(:root[data-motion="signal"]) .we-chapter-fleuron-mark::before {
+  content: '▞';
+}
+
 /* ── 完成确认 ───────────────────────────────────────── */
 :where(:root[data-motion="signal"]) .we-done-confirm {
   clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);

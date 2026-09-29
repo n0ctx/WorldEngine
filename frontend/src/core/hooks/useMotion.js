@@ -5,6 +5,8 @@ import { getMotionPack, subscribeMotionPack } from '../motion/motionPack.js';
 
 const MOTION_KEYS = ['x', 'y', 'scale', 'scaleX', 'scaleY', 'rotate', 'filter'];
 const INSTANT = { duration: 0 };
+// reduced 模式的过渡：连同按属性分开写的子过渡（如 opacity: {...}）一起清零
+const REDUCED = { duration: 0, delay: 0 };
 
 // reduced 模式：去掉位移 / 缩放 / 模糊，关键帧只留终值，过渡瞬间完成
 function stripMotion(state) {
@@ -13,7 +15,7 @@ function stripMotion(state) {
   const next = { ...state };
   for (const key of MOTION_KEYS) delete next[key];
   if (Array.isArray(next.opacity)) next.opacity = next.opacity[next.opacity.length - 1];
-  if (next.transition) next.transition = { ...next.transition, duration: 0, delay: 0 };
+  if (next.transition) next.transition = REDUCED;
   return next;
 }
 
@@ -54,7 +56,7 @@ export function useMotion() {
     // reduced 模式下 duration → 0
     transition: (preset, { delay = 0 } = {}) => {
       const t = pack.transitions[preset] ?? sharedTransitions[preset] ?? sharedTransitions.ink;
-      if (reduced) return { ...t, duration: 0, delay: 0 };
+      if (reduced) return REDUCED;
       return delay ? { ...t, delay } : t;
     },
     // 位移、尺寸、形状变化：名义时长交给当前包决定节奏

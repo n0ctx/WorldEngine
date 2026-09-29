@@ -1,10 +1,35 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { motion } from 'framer-motion';
+import { animate, motion, useMotionValue, useTransform } from 'framer-motion';
 import { useMotion } from '../../core/hooks/useMotion.js';
 import GooeyNav from '../motion/GooeyNav.jsx';
 
 const MotionDiv = motion.div;
 const MotionSpan = motion.span;
+
+// 指示条：左右两条边分开动。朝哪边走，哪边的边用当前包的 move 先到，另一边用 moveTrail 跟上；
+// 两者节奏不同时指示条在行进中被拉长、到位后收拢。首次出现与静态模式直接落位
+function Indicator({ target, staticMotion }) {
+  const { pack, reduced } = useMotion();
+  const left = useMotionValue(target.x);
+  const right = useMotionValue(target.x + target.width);
+  const width = useTransform(() => right.get() - left.get());
+  const { x, width: w } = target;
+
+  useEffect(() => {
+    if (staticMotion || reduced) {
+      left.jump(x);
+      right.jump(x + w);
+      return undefined;
+    }
+    const { move, moveTrail } = pack.transitions;
+    const forward = x >= left.get();
+    const leftMove = animate(left, x, forward ? moveTrail : move);
+    const rightMove = animate(right, x + w, forward ? move : moveTrail);
+    return () => { leftMove.stop(); rightMove.stop(); };
+  }, [x, w, staticMotion, reduced, pack, left, right]);
+
+  return <MotionSpan className="we-section-tab-indicator" style={{ x: left, width }} />;
+}
 
 // 键盘切换：按键 → 目标 tab 下标
 const KEY_TARGET = {
@@ -103,14 +128,7 @@ export default function SectionTabs({ sections, defaultKey, variant, globalActio
           onKeyDown={handleKeyDown}
         >
           {gooey ? <GooeyNav active={activeIndex}>{tabs}</GooeyNav> : tabs}
-          {indicator && (
-            <MotionSpan
-              className="we-section-tab-indicator"
-              initial={false}
-              animate={indicator}
-              transition={staticMotion ? { duration: 0 } : motionPrefs.transition('move')}
-            />
-          )}
+          {indicator && <Indicator target={indicator} staticMotion={staticMotion} />}
         </div>
           {globalActions && (
             <span className="we-section-tabs-globals">{globalActions}</span>

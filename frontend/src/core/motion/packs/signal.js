@@ -9,6 +9,7 @@ const cut = (t) => (t >= 1 ? 1 : 0);
 
 const ENTER = { duration: DURATION.base, ease: cut };
 const EXIT = { duration: DURATION.quick, ease: cut };
+const MOVE = { duration: DURATION.quick, ease: EASE.ink };
 
 export default {
   id: 'signal',
@@ -58,8 +59,9 @@ export default {
     exit:     EXIT,
     overlay:  { duration: DURATION.medium, ease: EASE.ink },
     backdrop: { duration: DURATION.quick, ease: EASE.ink },
-    // 指示条、高亮块换位：平滑滑过去
-    move:     { duration: DURATION.quick, ease: EASE.ink },
+    // 指示条、高亮块换位：平滑滑过去；前后沿同一节奏，不拉伸
+    move:      MOVE,
+    moveTrail: MOVE,
     // 按压瞬时到位
     press:    { duration: DURATION.micro, ease: cut },
   },

@@ -44,7 +44,8 @@ describe('动效包', () => {
   it('手势只含目标值不含 transition，按下是压缩或陷落', () => {
     for (const pack of Object.values(MOTION_PACKS)) {
       for (const gesture of Object.values(pack.gestures)) expect(gesture.transition).toBeUndefined();
-      expect(pack.gestures.press.whileTap.scale).toBeLessThan(1);
+      const press = pack.gestures.press.whileTap;
+      expect(press.scaleY ?? press.scale).toBeLessThan(1);
       expect(pack.gestures.sink.whileTap.y).toBeGreaterThan(0);
     }
   });

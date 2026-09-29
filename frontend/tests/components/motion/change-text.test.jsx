@@ -1,6 +1,6 @@
 import React from 'react';
 import { render, renderHook, screen } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({ reduced: false }));
 
@@ -13,6 +13,7 @@ import ChangeText from '../../../src/components/motion/ChangeText.jsx';
 import { useChangeBurst } from '../../../src/components/motion/useChangeBurst.js';
 import StatusSection from '../../../src/components/state/StatusSection.jsx';
 import ToastCard from '../../../src/components/ui/ToastCard.jsx';
+import { DEFAULT_MOTION_PACK_ID, setMotionPack } from '../../../src/core/motion/motionPack.js';
 
 class ResizeObserverMock {
   observe() {}
@@ -46,6 +47,32 @@ describe('ChangeText 信号故障文字', () => {
     rerender(<ChangeText text="62" playKey={2} />);
     expect(container.querySelector('.we-fx-burst')).not.toBe(first);
     expect(container.querySelector('.we-fx-burst')).toHaveAttribute('data-text', '62');
+  });
+
+  describe('墨流包', () => {
+    beforeEach(() => setMotionPack('liquid'));
+    afterEach(() => setMotionPack(DEFAULT_MOTION_PACK_ID));
+
+    it('变化的文字经过一枚畸变滤镜，文字本身仍在 DOM 里', () => {
+      const { container } = render(<ChangeText text="62" playKey={1} />);
+      const warp = container.querySelector('.we-ink-warp');
+      const filterId = warp.querySelector('filter').id;
+      expect(warp).toHaveAttribute('style', expect.stringContaining(`url(#${filterId})`));
+      expect(warp.querySelector('feDisplacementMap')).not.toBeNull();
+      expect(warp.querySelector('.we-fx-burst')).toHaveTextContent('62');
+    });
+
+    it('减少动态效果时不加滤镜', () => {
+      mocks.reduced = true;
+      const { container } = render(<ChangeText text="62" playKey={1} />);
+      expect(container.querySelector('.we-ink-warp')).toBeNull();
+      expect(container).toHaveTextContent('62');
+    });
+  });
+
+  it('信号锁定包不加畸变滤镜', () => {
+    const { container } = render(<ChangeText text="62" playKey={1} />);
+    expect(container.querySelector('.we-ink-warp')).toBeNull();
   });
 
   it('减少动态效果时直接显示最终文字，不播放', () => {
