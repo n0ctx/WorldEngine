@@ -3728,13 +3728,21 @@
   border-radius: var(--we-radius-sm);
 }
 
-.we-side-drawer-content {
+/* 裁切层：自己不动，滑入的内容被它挡在抽屉边框之内 */
+.we-side-drawer-clip {
   flex: 1;
   min-height: 0;
   display: flex;
   flex-direction: column;
   overflow: hidden;
   border-radius: 0 0 var(--we-radius-lg) var(--we-radius-lg);
+}
+
+.we-side-drawer-content {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 @media (prefers-reduced-motion: reduce) {

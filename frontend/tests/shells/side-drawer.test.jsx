@@ -54,4 +54,11 @@ describe('SideDrawer', () => {
     expect(drawer()).toHaveClass('we-side-drawer--open');
     expect(screen.getByText('a')).toBeInTheDocument();
   });
+
+  it('滑入的内容由不动的裁切层包住：裁切框不能挂在正在位移的元素上，否则内容会滑出抽屉边框', () => {
+    render(<Harness />);
+    const content = drawer().querySelector('.we-side-drawer-content');
+    expect(content.parentElement).toHaveClass('we-side-drawer-clip');
+    expect(content.parentElement.parentElement).toBe(drawer());
+  });
 });

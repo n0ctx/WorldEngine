@@ -110,19 +110,22 @@ export default function SideDrawer({ side, open, onToggle, label, footer = null,
         </button>
         {/* 展开时宽度先让出来（CSS 过渡 base 时长），走过大半后内容从外侧边缘带着轻微模糊浮进来；
             收起时先退回外侧、卸载后再收宽度。减少动效时只剩瞬间的透明度切换。
+            裁切由外层 .we-side-drawer-clip 负责（它不动）：内容自己在位移，裁切框若挂在它身上会一起滑出抽屉边框。
             卸载只看内容自身的退场动画，不用 AnimatePresence 的退场：那会等子树里所有动效元素
             都报完成，故事线的选中亮片（layoutId）切换过会话后不再报完成，抽屉就卡在展开宽度 */}
         {contentMounted && (
-          <MotionDiv
-            className="we-side-drawer-content"
-            variants={contentVariants}
-            custom={edge}
-            initial={animateEntry ? 'hidden' : false}
-            animate={open ? 'visible' : 'hidden'}
-            onAnimationComplete={handleContentAnimationComplete}
-          >
-            {children}
-          </MotionDiv>
+          <div className="we-side-drawer-clip">
+            <MotionDiv
+              className="we-side-drawer-content"
+              variants={contentVariants}
+              custom={edge}
+              initial={animateEntry ? 'hidden' : false}
+              animate={open ? 'visible' : 'hidden'}
+              onAnimationComplete={handleContentAnimationComplete}
+            >
+              {children}
+            </MotionDiv>
+          </div>
         )}
         {/* footer（记忆检索状态指示器）不跟随收起/展开挂卸：它是独立于「会话列表内容」
             的实时反馈，收起时用户也应该能看到后台正在检索/记录记忆。 */}
