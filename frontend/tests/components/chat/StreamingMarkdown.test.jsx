@@ -11,9 +11,9 @@ vi.mock('framer-motion', async (importOriginal) => ({
 
 import MessageItem from '../../../src/components/chat/MessageItem.jsx';
 import WritingMessageItem from '../../../src/components/writing/WritingMessageItem.jsx';
-import signal from '../../../src/core/motion/packs/signal.js';
+import { DEFAULT_MOTION_PACK_ID, MOTION_PACKS } from '../../../src/core/motion/motionPack.js';
 
-const STREAM = signal.stream;
+const STREAM = MOTION_PACKS[DEFAULT_MOTION_PACK_ID].stream;
 import { useDisplaySettingsStore } from '../../../src/core/state/displaySettings.js';
 
 class ResizeObserverMock {
@@ -109,9 +109,9 @@ describe('流式书写', () => {
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'performance'] });
     const { container, rerender } = render(streamItem('风从北方'));
     const first = chars(container)[0];
-    // 持续有新字到达（间隔短于单字去码），打字一直没有完全追上
+    // 持续有新字到达（间隔短于单个字的动画时长），打字一直没有完全追上
     for (const next of ['风从北方吹', '风从北方吹来', '风从北方吹来，']) {
-      act(() => { vi.advanceTimersByTime(250); });
+      act(() => { vi.advanceTimersByTime(Math.round(STREAM.char * 1000 * 0.8)); });
       rerender(streamItem(next));
     }
     // 只有刚到的字还在动画里

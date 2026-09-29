@@ -14,6 +14,7 @@ const MOVE = { duration: DURATION.quick, ease: EASE.ink };
 export default {
   id: 'signal',
   name: '信号锁定',
+  description: '出现、切换、反馈都是一次短促的数字信号：硬切闪烁、错位撕裂、切片成字。',
   variants: {
     // 小块入场：闪两下、抖一下，然后锁定（消息、说话者、下拉、错误提示）
     enter: {

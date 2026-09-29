@@ -3,7 +3,7 @@
   "name": "Neon Noir",
   "version": "1.0.0",
   "author": "写卡助手",
-  "description": "赛博朋克暗系主题，深黑蓝底配青霓虹 accent，与 Neon Noir FX 动效包完美搭配。",
+  "description": "赛博朋克暗系主题，深黑蓝底配青霓虹 accent；搭配设置里的「信号锁定」动效最合适。",
   "preview": {
     "paper": "#0a0a14",
     "accent": "#00d4ff",

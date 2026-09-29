@@ -16,6 +16,7 @@ import { invalidateCache, loadRules } from '../utils/regex-runner.js';
 import { useAssistantPanel } from '../features/assistant/index.js';
 import RouteFallback from '../../components/ui/RouteFallback.jsx';
 import { OVERLAY_ROUTES } from './route-constants.js';
+import { setMotionPack } from '../motion/motionPack.js';
 
 const WorldsPage = lazy(() => import('../../pages/WorldsPage'));
 const WorldEditPage = lazy(() => import('../../pages/WorldEditPage'));
@@ -75,6 +76,7 @@ export default function AppRouter() {
       setWritingAutoCollapseThinking(c.writing?.ui?.auto_collapse_thinking !== false);
       setWritingShowTokenUsage(c.writing?.ui?.show_token_usage === true);
       setWritingDanmakuSpeed(c.writing?.danmaku?.speed ?? 'normal');
+      setMotionPack(c.ui?.motion);
       return refreshThemeCss(c.ui?.theme || DEFAULT_THEME_ID, { silent: true });
     }).then(() => {
       return refreshCustomCss('chat');

@@ -25,6 +25,20 @@ test('缺少配置文件时写入默认值并返回独立对象', () => {
   assert.equal(getConfig().ui.theme, 'nocturne');
 });
 
+test('动效包默认墨流；保存与读取时未知的动效包都回落默认', () => {
+  fs.rmSync(sandbox.configPath, { force: true });
+  assert.equal(getConfig().ui.motion, 'liquid');
+
+  assert.equal(updateConfig({ ui: { motion: 'signal' } }).ui.motion, 'signal');
+  assert.equal(getConfig().ui.motion, 'signal');
+
+  assert.equal(updateConfig({ ui: { motion: 'no-such-pack' } }).ui.motion, 'liquid');
+
+  sandbox.writeConfig({ ui: { theme: 'nocturne', motion: 42 } });
+  assert.equal(getConfig().ui.motion, 'liquid');
+  assert.equal(sandbox.readConfig().ui.motion, 'liquid');
+});
+
 test('对话和写作的行为配置分别保存', () => {
   fs.rmSync(sandbox.configPath, { force: true });
   updateConfig({
@@ -128,6 +142,7 @@ test('读取旧配置时迁移共享密钥并持久化规范化结果', () => {
   assert.equal(config.logging.llm_raw.enabled, true);
   assert.deepEqual(config.ui, {
     theme: 'nocturne',
+    motion: 'liquid',
     font_size: 18,
     custom_css: '',
     show_thinking: true,

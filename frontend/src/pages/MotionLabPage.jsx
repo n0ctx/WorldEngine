@@ -1,6 +1,6 @@
 /**
  * 开发用动效实验室（/dev/motion，仅 import.meta.env.DEV 注册路由）：
- * 把每个动效位的真实组件放在一页，逐块重播；顶部切换动效包（只改当前页面，不写配置）与世界强调色。
+ * 把每个动效位的真实组件放在一页，逐块重播；顶部切换动效包（临时预览，不写配置）与世界强调色。
  */
 import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -338,7 +338,7 @@ export default function MotionLabPage() {
       <header className="we-motion-lab__header">
         <h1 className="we-motion-lab__title">动效实验室</h1>
         <p className="we-motion-lab__hint">
-          {reduced ? '系统已开启“减少动态效果”：只显示静态结果。' : '切换动效包会作用于整个应用，刷新页面后恢复。'}
+          {reduced ? '系统已开启“减少动态效果”：只显示静态结果。' : '这里切换动效包只是临时预览，刷新后回到设置里选的动效。'}
         </p>
         <div className="we-motion-lab__chips" role="group" aria-label="动效包">
           {Object.values(MOTION_PACKS).map((item) => (

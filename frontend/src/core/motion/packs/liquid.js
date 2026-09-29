@@ -21,6 +21,7 @@ const PANEL = { ...spring(220, 22), opacity: { duration: 0.36, ease: SURFACE } }
 export default {
   id: 'liquid',
   name: '墨流',
+  description: '墨在水中：出现时浮上来，移动时拉伸收缩，落下时回弹；流式输出一字一滴墨。',
   variants: {
     // 小块入场：从下方的柔焦里浮上来，竖向微微拉长，落位时回弹
     enter: {

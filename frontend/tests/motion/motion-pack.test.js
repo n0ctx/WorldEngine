@@ -27,6 +27,7 @@ describe('动效包', () => {
       expect(shape(pack)).toEqual(reference);
       expect(typeof pack.flow).toBe('function');
       expect(pack.name).toBeTruthy();
+      expect(pack.description).toBeTruthy();
     }
   });
 

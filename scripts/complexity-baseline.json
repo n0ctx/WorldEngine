@@ -28,7 +28,7 @@
     "backend/prompts/entry-matcher.js#matchStateEntries>(匿名)": 31,
     "backend/services/chat.js#processStreamOutput": 39,
     "backend/services/chat.js#resolveSuggestionOptions": 31,
-    "backend/services/config.js#getConfig": 69,
+    "backend/services/config.js#getConfig": 68,
     "backend/services/import-export.js#createImportedWorld": 50,
     "backend/services/import-export.js#importGlobalSettings": 34,
     "backend/services/import-export.js#importWorld>runImportTransaction": 50,

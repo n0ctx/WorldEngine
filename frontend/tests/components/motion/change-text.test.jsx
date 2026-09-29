@@ -94,8 +94,13 @@ describe('ChangeText 信号故障文字', () => {
   });
 
   it('信号锁定包不加畸变滤镜', () => {
-    const { container } = render(<ChangeText text="62" playKey={1} />);
-    expect(container.querySelector('.we-ink-warp')).toBeNull();
+    setMotionPack('signal');
+    try {
+      const { container } = render(<ChangeText text="62" playKey={1} />);
+      expect(container.querySelector('.we-ink-warp')).toBeNull();
+    } finally {
+      setMotionPack(DEFAULT_MOTION_PACK_ID);
+    }
   });
 
   it('减少动态效果时直接显示最终文字，不播放', () => {

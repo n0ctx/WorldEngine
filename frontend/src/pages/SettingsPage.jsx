@@ -13,6 +13,7 @@ import CustomCssManager from '../components/settings/CustomCssManager';
 import RegexRulesManager from '../components/settings/RegexRulesManager';
 import FeaturesConfigPanel from '../components/settings/FeaturesConfigPanel';
 import ThemeManager from '../components/settings/ThemeManager.jsx';
+import MotionPackPicker from '../components/settings/MotionPackPicker.jsx';
 import { NAV_SECTIONS, NAV_KEY, SETTINGS_MODE } from '../core/constants/settings';
 import { useMotion } from '../core/hooks/useMotion.js';
 import BounceRail from '../components/motion/BounceRail.jsx';
@@ -210,6 +211,8 @@ export default function SettingsPage() {
               <div className="we-settings-section">
                 <h2 className="we-settings-section-title">主题</h2>
                 <ThemeManager />
+                <h2 className="we-settings-section-title we-settings-section-title--sub">动效</h2>
+                <MotionPackPicker />
               </div>
             )}
             {activeSection === NAV_KEY.REGEX && (

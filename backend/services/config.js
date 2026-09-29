@@ -23,8 +23,12 @@ const DEFAULT_ASSISTANT = {
   model_source: 'main',
 };
 
+// 前端内置的动效包（frontend/src/core/motion/packs/），配置里只认这几个 id
+const MOTION_PACK_IDS = ['liquid', 'signal'];
+
 const DEFAULT_UI = {
   theme: 'nocturne',
+  motion: 'liquid',
   font_size: 16,
   custom_css: '',
   show_thinking: true,
@@ -204,6 +208,20 @@ function normalizeLlmSection(section, defaults) {
   };
 }
 
+// ui 里需要纠正的取值：旧主题名迁到默认主题，未知的动效包回落默认；返回是否改动过
+function normalizeUiValues(ui) {
+  let dirty = false;
+  if (ui.theme === 'dark' || ui.theme === 'parchment') {
+    ui.theme = DEFAULT_UI.theme;
+    dirty = true;
+  }
+  if (!MOTION_PACK_IDS.includes(ui.motion)) {
+    ui.motion = DEFAULT_UI.motion;
+    dirty = true;
+  }
+  return dirty;
+}
+
 function normalizeConfigForPersist(config) {
   const normalized = ensurePlainObject(config, structuredClone(DEFAULT_CONFIG));
   normalized.provider_keys = ensurePlainObject(normalized.provider_keys);
@@ -213,6 +231,7 @@ function normalizeConfigForPersist(config) {
   normalized.writing.llm = normalizeLlmSection(normalized.writing.llm, DEFAULT_WRITING.llm);
   normalized.writing.aux_llm = normalizeLlmSection(normalized.writing.aux_llm, DEFAULT_WRITING.aux_llm);
   normalized.ui = { ...structuredClone(DEFAULT_UI), ...ensurePlainObject(normalized.ui) };
+  normalizeUiValues(normalized.ui);
   normalized.logging = { ...structuredClone(DEFAULT_LOGGING), ...ensurePlainObject(normalized.logging) };
   normalized.chapter_turn_size = normalizePositiveInteger(
     normalized.chapter_turn_size,
@@ -389,10 +408,7 @@ function normalizeConfigSections(config) {
     dirty = true;
   } else {
     config.ui = { ...DEFAULT_UI, ...config.ui };
-    if (config.ui.theme === 'dark' || config.ui.theme === 'parchment') {
-      config.ui.theme = DEFAULT_UI.theme;
-      dirty = true;
-    }
+    if (normalizeUiValues(config.ui)) dirty = true;
   }
 
   // 补全 writing 命名空间（旧配置文件无此字段）

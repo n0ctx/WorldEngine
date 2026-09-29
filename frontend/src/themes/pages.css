@@ -2208,6 +2208,10 @@
   padding-bottom: var(--we-space-md);
   border-bottom: 1px solid var(--we-color-border-subtle);
 }
+/* 同一设置页里的第二个分组（如主题页下的「动效」）：与上一组拉开距离 */
+.we-settings-section-title--sub {
+  margin-top: var(--we-space-2xl);
+}
 
 /* 字段级子标题：比 section-title 小一档，无下边框 */
 .we-settings-field-label {

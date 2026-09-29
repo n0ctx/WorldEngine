@@ -5,7 +5,7 @@ import liquid from './packs/liquid.js';
 import signal from './packs/signal.js';
 
 export const MOTION_PACKS = { [signal.id]: signal, [liquid.id]: liquid };
-export const DEFAULT_MOTION_PACK_ID = signal.id;
+export const DEFAULT_MOTION_PACK_ID = liquid.id;
 
 let current = MOTION_PACKS[DEFAULT_MOTION_PACK_ID];
 const listeners = new Set();
