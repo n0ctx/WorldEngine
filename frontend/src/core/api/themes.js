@@ -28,19 +28,24 @@ if (import.meta.hot) {
   });
 }
 
+// 把一份 theme.css 套到页面上。设计实验室的草稿主题也走这里，草稿不会成为「当前主题」
+export function applyThemeCss(css, id) {
+  let el = document.getElementById('we-theme-css');
+  if (!el) {
+    el = document.createElement('style');
+    el.id = 'we-theme-css';
+    const customCss = document.getElementById('we-custom-css');
+    document.head.insertBefore(el, customCss || null);
+  }
+  el.textContent = css;
+  window.dispatchEvent(new CustomEvent('we:theme-updated', { detail: { id } }));
+}
+
 export async function refreshThemeCss(id, options = {}) {
   try {
     const css = await fetchThemeCss(id);
-    let el = document.getElementById('we-theme-css');
-    if (!el) {
-      el = document.createElement('style');
-      el.id = 'we-theme-css';
-      const customCss = document.getElementById('we-custom-css');
-      document.head.insertBefore(el, customCss || null);
-    }
-    el.textContent = css;
     activeThemeId = id;
-    window.dispatchEvent(new CustomEvent('we:theme-updated', { detail: { id } }));
+    applyThemeCss(css, id);
   } catch (err) {
     // 主题加载失败时保留核心样式，不阻塞应用启动。
     if (!options.silent) {

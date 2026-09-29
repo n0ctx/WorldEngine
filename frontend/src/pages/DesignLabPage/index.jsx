@@ -5,9 +5,10 @@
  */
 import { useEffect, useState } from 'react';
 import { getConfig } from '../../core/api/config.js';
-import { DEFAULT_THEME_ID, listThemes, refreshThemeCss } from '../../core/api/themes.js';
+import { DEFAULT_THEME_ID, applyThemeCss, listThemes, refreshThemeCss } from '../../core/api/themes.js';
 import { useMotion } from '../../core/hooks/useMotion.js';
 import { MOTION_PACKS, setMotionPack } from '../../core/motion/motionPack.js';
+import { DRAFTS } from './drafts.js';
 import './lab.css';
 import './sketch/sketch.css';
 import MotionTab from './MotionTab.jsx';
@@ -67,9 +68,15 @@ export default function DesignLabPage() {
     };
   }, []);
 
+  // 草稿主题：文件内容变了（热更新）或换了草稿都重新套用
+  const draft = DRAFTS.find((item) => item.key === themeId);
+  useEffect(() => {
+    if (draft) applyThemeCss(draft.css, draft.key);
+  }, [draft]);
+
   function previewTheme(id) {
     setThemeId(id);
-    refreshThemeCss(id, { silent: true });
+    if (!DRAFTS.some((item) => item.key === id)) refreshThemeCss(id, { silent: true });
   }
 
   const { Content } = TABS.find((item) => item.key === tab);
@@ -89,7 +96,7 @@ export default function DesignLabPage() {
         />
         <ChipGroup
           label="主题"
-          items={themes.map((item) => ({ key: item.id, label: item.name }))}
+          items={[...themes.map((item) => ({ key: item.id, label: item.name })), ...DRAFTS.map((item) => ({ key: item.key, label: item.label }))]}
           isActive={(item) => themeId === item.key}
           onSelect={(item) => previewTheme(item.key)}
         />

@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const themesApi = vi.hoisted(() => ({
   DEFAULT_THEME_ID: 'nocturne',
+  applyThemeCss: vi.fn(),
   listThemes: vi.fn(),
   refreshThemeCss: vi.fn(),
   setActiveTheme: vi.fn(),
@@ -11,6 +12,9 @@ const themesApi = vi.hoisted(() => ({
 const configApi = vi.hoisted(() => ({ getConfig: vi.fn(), updateConfig: vi.fn() }));
 vi.mock('../../../core/api/themes.js', () => themesApi);
 vi.mock('../../../core/api/config.js', () => configApi);
+vi.mock('../drafts.js', () => ({
+  DRAFTS: [{ key: 'draft:midnight', label: '草稿 · midnight', css: ':root { --we-color-accent: #0f0; }' }],
+}));
 
 const DesignLabPage = (await import('../index.jsx')).default;
 const { getMotionPack, setMotionPack } = await import('../../../core/motion/motionPack.js');
@@ -56,5 +60,18 @@ describe('DesignLabPage', () => {
     unmount();
     await waitFor(() => expect(themesApi.refreshThemeCss).toHaveBeenLastCalledWith('nocturne', { silent: true }));
     expect(getMotionPack().id).toBe('liquid');
+  });
+
+  it('草稿主题直接套用草稿里的 CSS：不请求后端、不写配置，离开时恢复设置里的主题', async () => {
+    const { unmount } = render(<MemoryRouter><DesignLabPage /></MemoryRouter>);
+    fireEvent.click(await screen.findByRole('button', { name: '草稿 · midnight' }));
+
+    expect(themesApi.applyThemeCss).toHaveBeenCalledWith(':root { --we-color-accent: #0f0; }', 'draft:midnight');
+    expect(themesApi.refreshThemeCss).not.toHaveBeenCalledWith('draft:midnight', expect.anything());
+    expect(themesApi.setActiveTheme).not.toHaveBeenCalled();
+    expect(configApi.updateConfig).not.toHaveBeenCalled();
+
+    unmount();
+    await waitFor(() => expect(themesApi.refreshThemeCss).toHaveBeenLastCalledWith('nocturne', { silent: true }));
   });
 });
