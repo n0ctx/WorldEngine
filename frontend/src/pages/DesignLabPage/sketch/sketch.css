@@ -1,0 +1,113 @@
+/* 动效出样（未落地）：只在设计实验室里生效，不进正式组件与动效包。
+ * 两个包各有一个签名动作，出样里每一项都围绕它来设计，而不是各套一遍缩放和闪烁：
+ *   墨流「洇」：湿墨色和光晕从触点出发扩散，再慢慢干成常态色（延用 liquid.css 的 --ink-wet / --ink-glow）。
+ *   信号锁定「锁」：括号与扫描线一格一格收紧、落定；错位撕裂只在事件的那一瞬爆一次，落定后干净。
+ * 外观（颜色、尺寸、圆角）一律沿用正式样式，选择器都挂在 .we-sketch-* 容器下，不影响「现在」一侧。 */
+@import './touch.css';
+@import './field.css';
+@import './switch.css';
+@import './enter.css';
+@import './option.css';
+@import './legacy.css';
+
+/* 信号锁定的括号：四角各两笔，落在容器外沿；--gap 是落定后与容器的间距 */
+:root[data-motion="signal"] {
+  --we-sketch-brackets:
+    linear-gradient(var(--we-color-accent) 0 0) left top / 10px 1px no-repeat,
+    linear-gradient(var(--we-color-accent) 0 0) left top / 1px 10px no-repeat,
+    linear-gradient(var(--we-color-accent) 0 0) right top / 10px 1px no-repeat,
+    linear-gradient(var(--we-color-accent) 0 0) right top / 1px 10px no-repeat,
+    linear-gradient(var(--we-color-accent) 0 0) left bottom / 10px 1px no-repeat,
+    linear-gradient(var(--we-color-accent) 0 0) left bottom / 1px 10px no-repeat,
+    linear-gradient(var(--we-color-accent) 0 0) right bottom / 10px 1px no-repeat,
+    linear-gradient(var(--we-color-accent) 0 0) right bottom / 1px 10px no-repeat;
+}
+/* 错位撕裂的两路色：A 取世界强调色，B 取色环对面（与 signal.css 的 .we-fx-burst 同一套） */
+[data-motion="signal"] .we-sketch-compare__col {
+  --glitch-a: var(--we-color-accent);
+  --glitch-b: hsl(from var(--we-color-accent) calc(h + 180) s l);
+}
+/* 括号从外向内分三拍收紧，中间闪一下暗，最后锁定 */
+@keyframes we-sketch-lock {
+  0%   { opacity: 0;    inset: calc(var(--gap, 5px) * -3.2); }
+  34%  { opacity: 1;    inset: calc(var(--gap, 5px) * -2.2); }
+  67%  { opacity: 0.35; inset: calc(var(--gap, 5px) * -1.4); }
+  100% { opacity: 1;    inset: calc(var(--gap, 5px) * -1); }
+}
+@keyframes we-sketch-lock-tight {
+  0%   { inset: calc(var(--gap, 5px) * -0.4); }
+  100% { inset: calc(var(--gap, 5px) * -0.2); }
+}
+/* 一次错位撕裂：三拍，红青两路错开，逐拍收拢 */
+@keyframes we-sketch-blink {
+  0%   { opacity: 0; }
+  25%  { opacity: 1; }
+  55%  { opacity: 0.3; }
+  100% { opacity: 1; }
+}
+
+/* 触点位置带一点黏滞：光晕追着指针走，不是贴着走 */
+@property --mx { syntax: '<length-percentage>'; inherits: true; initial-value: 50%; }
+@property --my { syntax: '<length-percentage>'; inherits: true; initial-value: 50%; }
+
+/* ── 对照容器 ───────────────────────────────────────── */
+.we-sketch-compare {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--we-space-lg);
+}
+@media (max-width: 720px) {
+  .we-sketch-compare { grid-template-columns: minmax(0, 1fr); }
+}
+.we-sketch-compare__col {
+  display: grid;
+  align-content: start;
+  gap: var(--we-space-md);
+  min-width: 0;
+  padding: var(--we-space-lg);
+  border: 1px solid var(--we-color-border-subtle);
+  border-radius: var(--we-radius-md);
+}
+.we-sketch-compare__col--sketch {
+  border-color: color-mix(in srgb, var(--we-color-accent) 45%, var(--we-color-border-subtle));
+  background: color-mix(in srgb, var(--we-color-accent) 4%, transparent);
+}
+.we-sketch-compare__tag {
+  font-size: var(--we-text-xs);
+  color: var(--we-color-text-tertiary);
+}
+.we-sketch-compare__col--sketch .we-sketch-compare__tag {
+  color: var(--we-color-accent);
+}
+.we-sketch-compare__body {
+  display: grid;
+  align-content: start;
+  gap: var(--we-space-lg);
+  min-width: 0;
+}
+
+/* ── 减少动态效果：出样一律静止，只留结果 ─── */
+@media (prefers-reduced-motion: reduce) {
+  [data-motion] .we-sketch-compare__col--sketch,
+  [data-motion] .we-sketch-compare__col--sketch *,
+  [data-motion] .we-sketch-compare__col--sketch ::before,
+  [data-motion] .we-sketch-compare__col--sketch ::after {
+    animation: none !important;
+    transition: none !important;
+    translate: none !important;
+    scale: none !important;
+    filter: none !important;
+    clip-path: none !important;
+    -webkit-mask-image: none !important;
+    mask-image: none !important;
+  }
+  [data-motion] .we-sketch-touch__fx,
+  [data-motion] .we-sketch-compare__col--sketch .we-sketch-option__dimmed {
+    display: none !important;
+  }
+  [data-motion] .we-sketch-compare__col--sketch .we-range::-webkit-slider-thumb,
+  [data-motion] .we-sketch-compare__col--sketch .we-range::-moz-range-thumb {
+    animation: none !important;
+    transition: none !important;
+  }
+}

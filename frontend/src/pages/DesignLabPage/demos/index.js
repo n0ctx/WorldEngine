@@ -5,6 +5,7 @@ import { BounceRailDemo, FolderDemo, StepTrackDemo, TabsDemo, TaskListDemo } fro
 import { CardHoverDemo, DeleteButtonDemo, PortalDemo, PressDemo, SinkDemo } from './press.jsx';
 import { SideDrawerDemo, TopBarDemo } from './shell.jsx';
 import { InputFocusDemo, SelectDemo, SwitchRangeDemo } from './input.jsx';
+import { LegacyEnterDemo } from './legacy.jsx';
 import { BusyDemo, LoopsDemo, StreamDemo } from './stream.jsx';
 import { ChapterDemo, DoneConfirmDemo, StateValuesDemo } from './world.jsx';
 
@@ -17,6 +18,7 @@ export const DEMOS = {
   'code-block': CodeBlockDemo,
   'css-enter': CssEnterDemo,
   'option-card': OptionCardDemo,
+  'legacy-css-enter': LegacyEnterDemo,
   modal: ModalDemo,
   dialog: DialogDemo,
   toast: ToastDemo,

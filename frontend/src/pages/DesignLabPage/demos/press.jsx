@@ -4,6 +4,8 @@ import Button from '../../../components/ui/Button.jsx';
 import Card from '../../../components/ui/Card.jsx';
 import PanelCard from '../../../components/ui/PanelCard.jsx';
 import { useMotion } from '../../../core/hooks/useMotion.js';
+import Compare from '../sketch/Compare.jsx';
+import Touch from '../sketch/Touch.jsx';
 import SlotSection from '../SlotSection.jsx';
 
 const noop = () => {};
@@ -50,14 +52,20 @@ export function DeleteButtonDemo() {
 export function CardHoverDemo() {
   return (
     <SlotSection id="card-hover">
-      <div className="we-design-lab__row">
-        {['contained', 'ring', 'whisper'].map((elevation) => (
-          <Card key={elevation} elevation={elevation} className="we-design-lab__card-sample">{elevation}</Card>
-        ))}
-      </div>
-      <PanelCard title="面板卡片" actions={<Button variant="ghost" size="sm">操作</Button>}>
-        <p className="we-design-lab__note">悬停整块面板。</p>
-      </PanelCard>
+      <Compare sketchClass="we-sketch-card">
+        <div className="we-design-lab__row">
+          {['contained', 'ring', 'whisper'].map((elevation) => (
+            <Touch key={elevation}>
+              <Card elevation={elevation} className="we-design-lab__card-sample">{elevation}</Card>
+            </Touch>
+          ))}
+        </div>
+        <Touch>
+          <PanelCard title="面板卡片" actions={<Button variant="ghost" size="sm">操作</Button>}>
+            <p className="we-design-lab__note">悬停整块面板。</p>
+          </PanelCard>
+        </Touch>
+      </Compare>
     </SlotSection>
   );
 }

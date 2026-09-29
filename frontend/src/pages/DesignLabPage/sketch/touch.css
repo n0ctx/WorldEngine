@@ -1,0 +1,124 @@
+/* 卡片悬停与按下。
+ * 墨流：卡片不弹，而是「湿墨光晕」追着指针在卡面里游走（黏滞，慢半拍），按下时从触点洇开一圈墨晕，
+ *       卡片像被按进纸里、松手后缓缓托回。
+ * 信号锁定：悬停时四角括号分三拍从外向内锁定，按下括号收紧并扫过一道扫描线。 */
+
+.we-sketch-touch {
+  position: relative;
+  display: grid;
+}
+.we-sketch-touch__fx {
+  display: none;
+}
+
+/* ── 墨流 ─── */
+[data-motion="liquid"] .we-sketch-card .we-sketch-touch {
+  transition: --mx 520ms var(--ink-surface), --my 520ms var(--ink-surface);
+}
+[data-motion="liquid"] .we-sketch-card .we-sketch-touch > :is(.we-card, .we-panel-card) {
+  transition:
+    translate 720ms var(--ink-spring-soft),
+    scale 720ms var(--ink-spring-soft),
+    border-color var(--we-duration-normal) var(--we-easing-sharp),
+    box-shadow var(--we-duration-normal) var(--we-easing-sharp);
+}
+[data-motion="liquid"] .we-sketch-card .we-sketch-touch:hover > :is(.we-card, .we-panel-card) {
+  translate: 0 -2px;
+  border-color: color-mix(in srgb, var(--we-color-accent) 40%, var(--we-color-border-default));
+}
+[data-motion="liquid"] .we-sketch-card .we-sketch-touch:active > :is(.we-card, .we-panel-card) {
+  translate: 0 0;
+  scale: 0.992;
+  transition:
+    translate 140ms ease-out,
+    scale 140ms ease-out,
+    border-color var(--we-duration-normal) var(--we-easing-sharp),
+    box-shadow var(--we-duration-normal) var(--we-easing-sharp);
+}
+[data-motion="liquid"] .we-sketch-card .we-sketch-touch__fx {
+  display: block;
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border-radius: var(--we-card-radius);
+  pointer-events: none;
+  opacity: 0;
+  background: radial-gradient(
+    200px circle at var(--mx) var(--my),
+    color-mix(in srgb, var(--we-color-accent) 15%, transparent),
+    transparent 72%
+  );
+  transition: opacity 640ms var(--ink-surface);
+}
+[data-motion="liquid"] .we-sketch-card .we-sketch-touch:hover .we-sketch-touch__fx {
+  opacity: 1;
+}
+/* 按下的那一点洇出一圈：环从触点扩到整张卡，边缘羽化 */
+.we-sketch-touch__ripple {
+  position: absolute;
+  left: var(--rx);
+  top: var(--ry);
+  width: 12px;
+  height: 12px;
+  margin: -6px 0 0 -6px;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    transparent 48%,
+    color-mix(in srgb, var(--we-color-accent) 38%, transparent) 60%,
+    transparent 72%
+  );
+  animation: we-sketch-ripple 1100ms var(--ink-surface, ease-out) both;
+}
+@keyframes we-sketch-ripple {
+  from { transform: scale(1);  opacity: 1; }
+  to   { transform: scale(44); opacity: 0; }
+}
+
+/* ── 信号锁定 ─── */
+[data-motion="signal"] .we-sketch-card .we-sketch-touch > :is(.we-card, .we-panel-card) {
+  transition: none;
+}
+[data-motion="signal"] .we-sketch-card .we-sketch-touch:hover > :is(.we-card, .we-panel-card) {
+  translate: 0 -2px;
+  border-color: var(--we-color-accent);
+}
+[data-motion="signal"] .we-sketch-card .we-sketch-touch:active > :is(.we-card, .we-panel-card) {
+  translate: 0 0;
+}
+[data-motion="signal"] .we-sketch-card .we-sketch-touch::before {
+  content: '';
+  position: absolute;
+  inset: -5px;
+  pointer-events: none;
+  opacity: 0;
+  background: var(--we-sketch-brackets);
+}
+[data-motion="signal"] .we-sketch-card .we-sketch-touch:hover::before {
+  --gap: 5px;
+  animation: we-sketch-lock 300ms var(--we-cut) both;
+}
+[data-motion="signal"] .we-sketch-card .we-sketch-touch:active::before {
+  animation: we-sketch-lock-tight 120ms var(--we-cut) both;
+}
+[data-motion="signal"] .we-sketch-card .we-sketch-touch__fx {
+  display: block;
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border-radius: var(--we-card-radius);
+  pointer-events: none;
+}
+[data-motion="signal"] .we-sketch-card .we-sketch-touch:active .we-sketch-touch__fx {
+  background: linear-gradient(to bottom,
+    transparent 44%,
+    color-mix(in srgb, var(--glitch-a) 40%, transparent) 47%,
+    color-mix(in srgb, var(--glitch-b) 55%, transparent) 50%,
+    color-mix(in srgb, var(--glitch-a) 40%, transparent) 53%,
+    transparent 56%) no-repeat;
+  background-size: 100% 300%;
+  animation: we-busy-scan 260ms steps(6, jump-end) both;
+}
+[data-motion="signal"] .we-sketch-touch__ripple {
+  display: none;
+}

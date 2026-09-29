@@ -9,6 +9,7 @@ import { DEFAULT_THEME_ID, listThemes, refreshThemeCss } from '../../core/api/th
 import { useMotion } from '../../core/hooks/useMotion.js';
 import { MOTION_PACKS, setMotionPack } from '../../core/motion/motionPack.js';
 import './lab.css';
+import './sketch/sketch.css';
 import MotionTab from './MotionTab.jsx';
 import VisualTab from './VisualTab.jsx';
 
