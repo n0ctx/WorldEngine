@@ -10,15 +10,15 @@
   --ink-spring-soft: linear(0, 0.037, 0.128, 0.249, 0.381, 0.512, 0.632, 0.738, 0.826, 0.897, 0.951, 0.991, 1.018, 1.034, 1.043, 1.046, 1.045, 1.041, 1.035, 1.029, 1.023, 1.018, 1.013, 1.008, 1.005, 1.003, 1.001, 0.999, 0.998, 0.998, 0.998, 0.998, 0.998, 0.998, 0.999, 0.999, 1);
   --ink-surface: cubic-bezier(0.16, 1, 0.3, 1);
   --ink-sink: cubic-bezier(0.7, 0, 0.84, 0);
-  --ink-flow: cubic-bezier(0.65, 0, 0.35, 1);
+  --ink-flow: var(--we-easing-page);
   --ink-wet: color-mix(in oklab, var(--we-color-accent) 72%, var(--we-color-white));
   --ink-glow: color-mix(in srgb, var(--we-color-accent) 55%, transparent);
 
   --we-fx-enter: we-ink-surface 720ms var(--ink-spring-soft) both;
   --we-fx-skeleton: we-ink-sheen 1.8s var(--ink-flow) infinite;
   --we-fx-nudge: we-ink-bob 1.4s var(--ink-flow) infinite;
-  --we-fx-spin: we-ink-spin 0.9s cubic-bezier(0.5, 0.1, 0.5, 0.9) infinite;
-  --we-fx-typing: we-ink-bead-rise 1.2s var(--ink-flow) infinite;
+  --we-fx-spin: we-tool-spin 0.9s cubic-bezier(0.5, 0.1, 0.5, 0.9) infinite;
+  --we-fx-typing: we-ink-bead-rise var(--we-duration-loop) var(--ink-flow) infinite;
 }
 
 /* ── 浮现 / 沉没 ───────────────────────────────────────── */
@@ -71,10 +71,7 @@
   box-shadow: 0 0 0.6em var(--ink-glow);
   opacity: 0;
   pointer-events: none;
-  animation: we-ink-bead-step var(--we-stream-char-step) linear var(--we-stream-char-delay);
-}
-@keyframes we-ink-bead-step {
-  from, to { opacity: 1; }
+  animation: we-stream-char-caret var(--we-stream-char-step) linear var(--we-stream-char-delay);
 }
 
 /* 常驻墨珠：胀缩着呼吸，不闪烁；净宽为 0，出现、消失都不推动正文换行 */
@@ -171,23 +168,13 @@
   animation: we-ink-pull calc(var(--we-fx-burst) * 0.9) var(--ink-spring) calc(var(--we-fx-burst) * 0.3) both;
 }
 :where(:root[data-motion="liquid"]) .we-change-tag--up.we-change-tag--play {
-  animation-name: we-ink-pull-up;
+  --pull-y: 8px;
 }
 :where(:root[data-motion="liquid"]) .we-change-tag--down.we-change-tag--play {
-  animation-name: we-ink-pull-down;
+  --pull-y: -8px;
 }
 @keyframes we-ink-pull {
-  0%   { opacity: 0; transform: translateX(-1em) scale(0.2, 0.5); filter: blur(3px); }
-  25%  { opacity: 1; filter: blur(0); }
-  100% { opacity: 1; transform: none; filter: none; }
-}
-@keyframes we-ink-pull-up {
-  0%   { opacity: 0; transform: translate(-1em, 8px) scale(0.2, 0.5); filter: blur(3px); }
-  25%  { opacity: 1; filter: blur(0); }
-  100% { opacity: 1; transform: none; filter: none; }
-}
-@keyframes we-ink-pull-down {
-  0%   { opacity: 0; transform: translate(-1em, -8px) scale(0.2, 0.5); filter: blur(3px); }
+  0%   { opacity: 0; transform: translate(-1em, var(--pull-y, 0)) scale(0.2, 0.5); filter: blur(3px); }
   25%  { opacity: 1; filter: blur(0); }
   100% { opacity: 1; transform: none; filter: none; }
 }
@@ -291,8 +278,8 @@
    用独立的 scale 属性，不碰各自的 transform；按下快、松手走弹簧 */
 :where(:root[data-motion="liquid"]) :is(
   .we-section-tab, .we-select-option, .we-settings-nav-item, .we-chat-slash-item,
-  .we-session-item, .we-topbar-item, .we-chat-quick-btn, .we-sm-chip,
-  .we-character-card-action-btn, .we-world-card-action-btn, .we-design-lab__chip, .we-toggle-track
+  .we-topbar-item, .we-chat-quick-btn, .we-sm-chip,
+  .we-character-card-action-btn, .we-world-card-action-btn, .we-toggle-track
 ) {
   transition:
     scale var(--ink-press-time, 560ms) var(--ink-press-ease, var(--ink-spring)),
@@ -301,15 +288,12 @@
     border-color var(--we-duration-fast) var(--we-easing-sharp),
     box-shadow var(--we-duration-fast) var(--we-easing-sharp),
     opacity var(--we-duration-fast) var(--we-easing-sharp);
-}
-:where(:root[data-motion="liquid"]) :is(
-  .we-section-tab, .we-select-option, .we-settings-nav-item, .we-chat-slash-item,
-  .we-session-item, .we-topbar-item, .we-chat-quick-btn, .we-sm-chip,
-  .we-character-card-action-btn, .we-world-card-action-btn, .we-design-lab__chip, .we-toggle-track
-):active {
-  --ink-press-time: 90ms;
-  --ink-press-ease: ease-out;
-  scale: 1.03 0.9;
+
+  &:active {
+    --ink-press-time: 90ms;
+    --ink-press-ease: ease-out;
+    scale: 1.03 0.9;
+  }
 }
 /* 开关的圆钮：被弹过去，冲过一点再回来 */
 :where(:root[data-motion="liquid"]) .we-toggle-thumb {
@@ -343,9 +327,6 @@
   45%      { transform: translateY(5px) scale(0.92, 1.1); }
   60%      { transform: translateY(4px) scale(1.1, 0.9); }
 }
-@keyframes we-ink-spin {
-  to { transform: rotate(360deg); }
-}
 
 /* 小尺寸思考指示（MotionOrb）：一颗胀缩的墨珠，带光晕 */
 .we-ink-bead {
@@ -362,7 +343,7 @@
   border-radius: 50%;
   background: var(--we-color-accent);
   box-shadow: 0 0 0.6em color-mix(in srgb, var(--we-color-accent) 55%, transparent);
-  animation: we-ink-breathe 1.4s cubic-bezier(0.65, 0, 0.35, 1) infinite;
+  animation: we-ink-breathe 1.4s var(--we-easing-page) infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {

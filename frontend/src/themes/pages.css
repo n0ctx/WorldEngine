@@ -1277,7 +1277,7 @@
   border-radius: var(--we-radius-md);
   background: transparent;
   box-shadow: none;
-  animation: we-rise-in var(--we-duration-slow) var(--we-easing-ink) backwards;
+  animation: var(--we-fx-enter);
   transition: background var(--we-duration-fast) var(--we-easing-sharp),
               transform var(--we-duration-fast) var(--we-easing-sharp);
 }
@@ -1686,7 +1686,7 @@
   max-height: calc(100% - var(--we-space-xl) - var(--we-space-2xl));
   overflow-y: auto;
   /* 入场：墨水浮现（单次挂载，不随更新重放）。大面板不走信号锁定，横向抖动会把整页内容拽偏 */
-  animation: we-ink-rise var(--we-duration-slow) var(--we-easing-ink) both;
+  animation: we-panel-rise var(--we-duration-slow) var(--we-easing-ink) both;
 }
 
 .we-edit-header {
@@ -4840,6 +4840,9 @@
   font-size: var(--we-text-sm);
   color: var(--we-color-text-secondary);
   cursor: pointer;
+  transition: color var(--we-duration-fast) var(--we-easing-sharp),
+              border-color var(--we-duration-fast) var(--we-easing-sharp),
+              box-shadow var(--we-duration-fast) var(--we-easing-sharp);
 }
 .we-design-lab__chip[aria-pressed="true"] {
   border-color: var(--we-color-accent);

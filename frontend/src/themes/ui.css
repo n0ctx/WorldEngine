@@ -4203,7 +4203,7 @@
   background: var(--we-color-accent);
   opacity: 0;
   pointer-events: none;
-  transition: opacity 150ms ease;
+  transition: opacity var(--we-duration-fast) var(--we-easing-sharp);
 }
 .we-bounce-rail.is-visible {
   opacity: 1;
@@ -4222,7 +4222,7 @@
   overflow: hidden;
   border-radius: var(--we-radius-full);
   background: var(--we-color-text-tertiary);
-  transition: background-color 300ms ease;
+  transition: background-color var(--we-duration-normal) var(--we-easing-sharp);
 }
 .we-step-track__step[data-state="past"] {
   background: var(--we-color-text-primary);
@@ -4276,7 +4276,7 @@
   height: 28px;
   border-radius: var(--we-radius-sm);
   color: var(--we-color-text-tertiary);
-  transition: background-color 150ms ease-out, color 150ms ease-out;
+  transition: background-color var(--we-duration-fast) var(--we-easing-sharp), color var(--we-duration-fast) var(--we-easing-sharp);
 }
 .we-code-block__copy:hover {
   background: var(--we-color-ink-wash-md);
@@ -4350,7 +4350,7 @@
   background-position: 0 52%;
   -webkit-box-decoration-break: clone;
   box-decoration-break: clone;
-  transition: color 300ms ease;
+  transition: color var(--we-duration-normal) var(--we-easing-sharp);
 }
 @media (prefers-reduced-motion: reduce) {
   .we-task-title { transition: none; }

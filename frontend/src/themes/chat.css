@@ -7,14 +7,13 @@
   to   { opacity: 1; }
 }
 
-/* 列表项上浮入场：故事线等小块，单次挂载 */
-@keyframes we-rise-in {
-  from { opacity: 0; transform: translateY(4px); }
-  to   { opacity: 1; transform: none; }
+/* 逐字光标的“亮一拍”：两个动效包共用 */
+@keyframes we-stream-char-caret {
+  from, to { opacity: 1; }
 }
 
 /* 大面板墨水浮现：编辑页等整页容器。不带模糊——模糊入场会让文字在合成层上抖一下 */
-@keyframes we-ink-rise {
+@keyframes we-panel-rise {
   from { opacity: 0; transform: translateY(8px); }
   to   { opacity: 1; transform: none; }
 }
