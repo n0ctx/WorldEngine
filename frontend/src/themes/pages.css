@@ -1883,6 +1883,23 @@
   background: var(--we-edit-accent-preview, var(--we-color-accent));
 }
 
+/* Chromium UA 样式把取色块画在伪元素里（自带 padding、无圆角），需抹平后继承全圆角 */
+.we-edit-accent-swatch::-webkit-color-swatch-wrapper {
+  padding: 0;
+  border: none;
+}
+
+.we-edit-accent-swatch::-webkit-color-swatch {
+  border: none;
+  border-radius: var(--we-radius-full);
+}
+
+/* Firefox 兜底 */
+.we-edit-accent-swatch::-moz-color-swatch {
+  border: none;
+  border-radius: var(--we-radius-full);
+}
+
 .we-edit-empty-text {
   font-family: var(--we-font-display);
   font-size: var(--we-text-sm);
