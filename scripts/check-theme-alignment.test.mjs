@@ -13,8 +13,8 @@ function fixture({ core = CORE, template = ':root { --we-base-canvas: #111; --we
   const root = makeRoot();
   write(root, 'frontend/src/themes/tokens.css', core);
   write(root, 'frontend/src/themes/fonts.css', '');
-  write(root, 'themes/_template/theme.css', template);
-  write(root, 'themes/sample/theme.css', theme);
+  write(root, 'frontend/src/visual/_template/theme.css', template);
+  write(root, 'frontend/src/visual/sample/theme.css', theme);
   return root;
 }
 
@@ -22,7 +22,7 @@ test('模板列全了主题可写 token、主题没有孤悬或越权覆盖：�
   const result = run(fixture());
   assert.equal(result.status, 0, result.stdout);
   assert.match(result.stdout, /三层对齐检查通过/);
-  assert.match(result.stdout, /\[C\] 主题缺失（themes\/sample\/theme\.css）/);
+  assert.match(result.stdout, /\[C\] 主题缺失（frontend\/src\/visual\/sample\/theme\.css）/);
 });
 
 test('内核新增了主题可写 token 而模板没列：失败，并点名 token；推导出的语义色与组合 token 不要求出现在模板里', () => {
@@ -38,7 +38,7 @@ test('主题覆盖了内核里不存在的 token：失败，并点名主题与 t
   const root = fixture({ theme: ':root { --we-base-accent: #09f; --we-base-gone: #fff; }\n' });
   const result = run(root);
   assert.equal(result.status, 1);
-  assert.match(result.stdout, /\[B\] 孤悬覆盖（themes\/sample\/theme\.css）/);
+  assert.match(result.stdout, /\[B\] 孤悬覆盖（frontend\/src\/visual\/sample\/theme\.css）/);
   assert.match(result.stdout, /--we-base-gone/);
 });
 
@@ -46,7 +46,7 @@ test('主题写了白名单以外的核心 token（推导出的语义色、主�
   const root = fixture({ theme: ':root { --we-color-bg-canvas: #000; --we-focus-ring: none; --we-elevation-1: none; --we-color-scheme: dark; --we-motion-state-duration: 90ms; }\n' });
   const result = run(root);
   assert.equal(result.status, 1);
-  assert.match(result.stdout, /\[D\] 越权覆盖（themes\/sample\/theme\.css）/);
+  assert.match(result.stdout, /\[D\] 越权覆盖（frontend\/src\/visual\/sample\/theme\.css）/);
   assert.match(result.stdout, /--we-color-bg-canvas/);
   assert.match(result.stdout, /--we-focus-ring/);
   assert.match(result.stdout, /--we-elevation-1/);

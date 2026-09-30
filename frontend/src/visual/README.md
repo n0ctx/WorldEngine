@@ -1,6 +1,6 @@
 # WorldEngine 视觉主题包开发指引
 
-根目录 `themes/` 只存放视觉主题包，均为仓库内置、只读：应用内只能查看列表和切换，不能导入、导出、删除或由写卡助手创建。新增主题只能由开发者在此目录添加。
+`frontend/src/visual/` 只存放视觉主题包，均随前端打包、只读：应用内只能查看列表和切换，不能导入、导出、删除或由写卡助手创建。新增主题只能由开发者在此目录添加。
 
 动效包不在这里：逻辑在 `frontend/src/core/motion/`，样式在 `frontend/src/themes/motion/`，规则见 `frontend/CLAUDE.md`。
 
@@ -15,7 +15,7 @@ frontend/src/themes/
   - ui.css / pages.css / chat.css: 组件与页面样式，只消费 token
   - motion/<pack-id>.css: 动效包样式，只声明 --we-fx-* 接口与 --we-motion-* 节奏变量
 
-themes/<theme-id>/
+frontend/src/visual/<theme-id>/
   - theme.json: 视觉主题元信息
   - theme.css: 仅覆盖 --we-* token
 
@@ -44,7 +44,7 @@ npm run check:themes
 每个主题必须是一个目录，目录名必须等于 `theme.json` 里的 `id`：
 
 ```text
-themes/{theme_id}/
+frontend/src/visual/{theme_id}/
   theme.json
   theme.css
 ```
@@ -73,21 +73,21 @@ themes/{theme_id}/
 
 ## 先出样：草稿主题
 
-主题的设计要先在设计实验室（开发环境下的 `/dev/design`，「视觉」分页）出样，由用户在浏览器里确认后再落地，不要一上来就建 `themes/<id>/`。
+主题的设计要先在设计实验室（开发环境下的 `/dev/design`，「视觉」分页）出样，由用户在浏览器里确认后再落地，不要一上来就建 `frontend/src/visual/<id>/`。
 
-1. 复制 `themes/_template/theme.css` 到 `frontend/src/pages/DesignLabPage/drafts/<名字>.css`，改取值。
+1. 复制 `frontend/src/visual/_template/theme.css` 到 `frontend/src/pages/DesignLabPage/drafts/<名字>.css`，改取值。
 2. 实验室「主题」一行会出现「草稿 · 名字」，选中即临时套用（不写配置，离开页面恢复设置里的主题）；改文件会热更新。
-3. 用户确认后，才把它搬进 `themes/<id>/theme.css`，补 `theme.json`，删除草稿。
+3. 用户确认后，才把它搬进 `frontend/src/visual/<id>/theme.css`，补 `theme.json`，删除草稿。
 
 ## 快速开始
 
 1. 复制模板目录：
 
 ```bash
-cp -R themes/_template themes/my-theme
+cp -R frontend/src/visual/_template frontend/src/visual/my-theme
 ```
 
-2. 修改 `themes/my-theme/theme.json`：
+2. 修改 `frontend/src/visual/my-theme/theme.json`：
 
 ```json
 {
@@ -104,9 +104,9 @@ cp -R themes/_template themes/my-theme
 }
 ```
 
-3. 修改 `themes/my-theme/theme.css` 中的 token 取值，只保留真正需要覆盖的部分。
+3. 修改 `frontend/src/visual/my-theme/theme.css` 中的 token 取值，只保留真正需要覆盖的部分。
 
-4. 刷新主题列表，系统会重新扫描 `themes/`。
+4. 重启前端开发服务器，`core/visual/visualThemes.js` 会按目录自动收录，设置页即可看到新主题。
 
 ## 主题应该覆盖什么
 

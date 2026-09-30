@@ -2,7 +2,7 @@
 /**
  * 设计令牌健康检查
  *
- * 扫描 frontend/src 与 themes/ 下所有 CSS/JSX/JS 文件:
+ * 扫描 frontend/src 下所有 CSS/JSX/JS 文件:
  *   - 提取所有 --we-* 声明 (LHS) 与 var(--we-*) 引用 (RHS)
  *   - 报告"孤儿引用"(被引用但任何地方都未声明的 token)
  *   - 报告"僵尸 token"(声明了但无任何引用的 token)
@@ -26,7 +26,6 @@ import process from 'node:process';
 const repoRoot = process.cwd();
 const SCAN_ROOTS = [
   path.join(repoRoot, 'frontend', 'src'),
-  path.join(repoRoot, 'themes'),
 ];
 const SCAN_EXTENSIONS = new Set(['.css', '.jsx', '.js']);
 const SKIP_DIRS = new Set(['node_modules', 'dist', 'build', '.vite']);

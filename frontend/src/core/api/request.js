@@ -21,7 +21,7 @@ export async function uploadForm(url, formData) {
 }
 
 /** 4xx/5xx 时抛错：优先 body.error，否则为「failMessage：状态码」 */
-export async function assertOk(res, failMessage = '请求失败') {
+async function assertOk(res, failMessage = '请求失败') {
   if (res.ok) return;
   const body = await res.json().catch(() => ({}));
   throw new Error(body.error || `${failMessage}：${res.status}`);

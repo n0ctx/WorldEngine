@@ -30,8 +30,8 @@ const CORE_FILES = [
   path.join(ROOT, 'frontend/src/themes/tokens.css'),
   path.join(ROOT, 'frontend/src/themes/fonts.css'),
 ];
-const TEMPLATE_FILE = path.join(ROOT, 'themes/_template/theme.css');
-const THEMES_DIR = path.join(ROOT, 'themes');
+const TEMPLATE_FILE = path.join(ROOT, 'frontend/src/visual/_template/theme.css');
+const THEMES_DIR = path.join(ROOT, 'frontend/src/visual');
 
 // ─── 不属于"主题视觉 token"范围，排除出 A/C 检查 ───────────────────────────
 const SKIP_PREFIXES = [
@@ -153,7 +153,7 @@ if (templateGap.length > 0) {
 // ── B ──
 for (const [id, tokens] of Object.entries(orphaned)) {
   hasError = true;
-  console.log(`\n✖  [B] 孤悬覆盖（themes/${id}/theme.css）：覆盖了内核不存在的 token`);
+  console.log(`\n✖  [B] 孤悬覆盖（frontend/src/visual/${id}/theme.css）：覆盖了内核不存在的 token`);
   console.log(`   共 ${tokens.length} 个：\n`);
   for (const t of tokens) console.log(`   ${t}`);
 }
@@ -161,7 +161,7 @@ for (const [id, tokens] of Object.entries(orphaned)) {
 // ── D ──
 for (const [id, tokens] of Object.entries(overreach)) {
   hasError = true;
-  console.log(`\n✖  [D] 越权覆盖（themes/${id}/theme.css）：这些 token 由核心从基础色推导，主题不写，改写 --we-base-* 或白名单里的质感旋钮`);
+  console.log(`\n✖  [D] 越权覆盖（frontend/src/visual/${id}/theme.css）：这些 token 由核心从基础色推导，主题不写，改写 --we-base-* 或白名单里的质感旋钮`);
   console.log(`   共 ${tokens.length} 个：\n`);
   for (const t of tokens) console.log(`   ${t}`);
 }
@@ -169,7 +169,7 @@ for (const [id, tokens] of Object.entries(overreach)) {
 // ── C ──
 for (const [id, tokens] of Object.entries(missing)) {
   const pct = Math.round(((keyTokens.length - tokens.length) / keyTokens.length) * 100);
-  console.log(`\nℹ  [C] 主题缺失（themes/${id}/theme.css）：模板关键 token 覆盖率 ${pct}%，缺少 ${tokens.length} 个`);
+  console.log(`\nℹ  [C] 主题缺失（frontend/src/visual/${id}/theme.css）：模板关键 token 覆盖率 ${pct}%，缺少 ${tokens.length} 个`);
   for (const t of tokens) console.log(`   ${t}`);
 }
 
@@ -180,7 +180,7 @@ console.log(`模板 token  (主题可写): ${[...templateTokens].filter(isThemeW
 for (const [id, tokens] of Object.entries(themes)) {
   const vis = [...tokens].filter(isThemeWritable).length;
   const pct = Math.round((vis / keyTokens.length) * 100);
-  console.log(`${orphaned[id] || overreach[id] ? '✖' : '✓'} themes/${id}  : 覆盖 ${vis} 个视觉 token，关键覆盖率 ${pct}%`);
+  console.log(`${orphaned[id] || overreach[id] ? '✖' : '✓'} frontend/src/visual/${id}  : 覆盖 ${vis} 个视觉 token，关键覆盖率 ${pct}%`);
 }
 
 if (!hasError) {

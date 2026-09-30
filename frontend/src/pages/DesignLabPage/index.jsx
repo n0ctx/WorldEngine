@@ -5,7 +5,7 @@
  */
 import { useEffect, useState } from 'react';
 import { getConfig } from '../../core/api/config.js';
-import { DEFAULT_THEME_ID, applyThemeCss, listThemes, refreshThemeCss } from '../../core/api/themes.js';
+import { DEFAULT_THEME_ID, VISUAL_THEMES, applyThemeCss, applyVisualTheme } from '../../core/visual/visualThemes.js';
 import { useMotion } from '../../core/hooks/useMotion.js';
 import { MOTION_PACKS, setMotionPack } from '../../core/motion/motionPack.js';
 import { DRAFTS } from './drafts.js';
@@ -49,22 +49,20 @@ export default function DesignLabPage() {
   const { reduced, pack } = useMotion();
   const [tab, setTab] = useState(TABS[0].key);
   const [accent, setAccent] = useState(ACCENTS[0].color);
-  const [themes, setThemes] = useState([]);
   const [themeId, setThemeId] = useState(DEFAULT_THEME_ID);
 
   useEffect(() => {
     let configured = { theme: DEFAULT_THEME_ID, motion: undefined };
     let cancelled = false;
-    Promise.all([listThemes(), getConfig()]).then(([data, config]) => {
+    getConfig().then((config) => {
       if (cancelled) return;
       configured = { theme: config.ui?.theme || DEFAULT_THEME_ID, motion: config.ui?.motion };
-      setThemes(data.themes || []);
       setThemeId(configured.theme);
     }).catch(() => {});
     return () => {
       cancelled = true;
       setMotionPack(configured.motion);
-      refreshThemeCss(configured.theme, { silent: true });
+      applyVisualTheme(configured.theme);
     };
   }, []);
 
@@ -76,7 +74,7 @@ export default function DesignLabPage() {
 
   function previewTheme(id) {
     setThemeId(id);
-    if (!DRAFTS.some((item) => item.key === id)) refreshThemeCss(id, { silent: true });
+    if (!DRAFTS.some((item) => item.key === id)) applyVisualTheme(id);
   }
 
   const { Content } = TABS.find((item) => item.key === tab);
@@ -96,7 +94,7 @@ export default function DesignLabPage() {
         />
         <ChipGroup
           label="主题"
-          items={[...themes.map((item) => ({ key: item.id, label: item.name })), ...DRAFTS.map((item) => ({ key: item.key, label: item.label }))]}
+          items={[...VISUAL_THEMES.map((item) => ({ key: item.id, label: item.name })), ...DRAFTS.map((item) => ({ key: item.key, label: item.label }))]}
           isActive={(item) => themeId === item.key}
           onSelect={(item) => previewTheme(item.key)}
         />

@@ -5,7 +5,7 @@
  * 扫描范围（frontend/src）：
  *   - CSS：themes/ui.css、pages.css、chat.css、themes/motion/*.css
  *   - JS/JSX（不含测试）：style 对象里的 CSS 属性、className 字符串
- *   不扫：themes/tokens.css、fonts.css、themes/<主题 id>/theme.css（那是 token 定义）、pages/DesignLabPage/（设计实验室）、
+ *   不扫：themes/tokens.css、fonts.css、visual/<主题 id>/theme.css（那是 token 定义）、pages/DesignLabPage/（设计实验室）、
  *   测试文件；CSS 注释与 JS 注释里的内容不算；mask 属性里的 #000（取 alpha 通道）不算。
  *   JS 只看 CSS 属性名的键值和 className，色板 / 画布 / 取色文件里的颜色不在这些位置，无需整文件排除。
  *

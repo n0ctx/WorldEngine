@@ -1,7 +1,7 @@
 /**
- * 草稿主题：pages/DesignLabPage/drafts/*.css，每个文件是一份完整的 theme.css（从 themes/_template/theme.css 复制起步）。
- * 实验室的「主题」一行会多出「草稿 · 文件名」，选中即临时套用，不写配置、不进 themes/；改文件立即热更新。
- * 用户在浏览器里确认后，再把它搬进 themes/<id>/ 并补 theme.json。
+ * 草稿主题：pages/DesignLabPage/drafts/*.css，每个文件是一份完整的 theme.css（从 visual/_template/theme.css 复制起步）。
+ * 实验室的「主题」一行会多出「草稿 · 文件名」，选中即临时套用，不写配置、不进 visual/；改文件立即热更新。
+ * 用户在浏览器里确认后，再把它搬进 visual/<id>/ 并补 theme.json。
  */
 export const DRAFT_PREFIX = 'draft:';
 

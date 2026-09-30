@@ -1,18 +1,13 @@
 import { useCallback, useEffect, useState } from 'react';
-import {
-  DEFAULT_THEME_ID,
-  listThemes,
-  refreshThemeCss,
-  setActiveTheme,
-} from '../../core/api/themes.js';
+import { getConfig, updateConfig } from '../../core/api/config.js';
+import { VISUAL_THEMES, applyVisualTheme, resolveThemeId } from '../../core/visual/visualThemes.js';
 import { refreshCustomCss } from '../../core/api/custom-css-snippets.js';
 import { useAppModeStore } from '../../core/state/appMode.js';
 import Button from '../ui/Button.jsx';
 import { log } from '../../core/utils/logger.js';
 
 export default function ThemeManager() {
-  const [themes, setThemes] = useState([]);
-  const [activeTheme, setActiveThemeState] = useState(DEFAULT_THEME_ID);
+  const [activeTheme, setActiveThemeState] = useState(null);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState(null);
   const appMode = useAppModeStore((s) => s.appMode);
@@ -20,9 +15,8 @@ export default function ThemeManager() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await listThemes();
-      setThemes(data.themes || []);
-      setActiveThemeState(data.activeTheme || DEFAULT_THEME_ID);
+      const config = await getConfig();
+      setActiveThemeState(resolveThemeId(config.ui?.theme));
     } finally {
       setLoading(false);
     }
@@ -37,18 +31,12 @@ export default function ThemeManager() {
 
   async function switchTheme(id) {
     setBusyId(id);
-    const previousTheme = activeTheme;
     try {
-      await setActiveTheme(id);
-      await refreshThemeCss(id);
+      await updateConfig({ ui: { theme: id } });
+      applyVisualTheme(id);
       await refreshCustomCss(appMode);
       setActiveThemeState(id);
     } catch (err) {
-      if (previousTheme && previousTheme !== id) {
-        await setActiveTheme(previousTheme).catch((rollbackErr) => {
-          log.warn('themes.rollback_failed', rollbackErr);
-        });
-      }
       log.error('themes.switch_failed', err, { toast: `切换失败：${err.message}` });
     } finally {
       setBusyId(null);
@@ -59,7 +47,7 @@ export default function ThemeManager() {
 
   return (
     <div className="we-theme-list">
-      {themes.map((theme) => {
+      {VISUAL_THEMES.map((theme) => {
         const active = theme.id === activeTheme;
         return (
           <article key={theme.id} className={`we-theme-card${active ? ' active' : ''}`}>

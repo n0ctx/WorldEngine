@@ -1,10 +1,10 @@
 # WorldEngine 前端 — Agent 规则
 
-本文件承接根目录 `CLAUDE.md`，只写前端、主题、动效、视觉设计相关规则；通用规则见 `../CLAUDE.md`。主题包字段与 token 白名单见 `../themes/README.md`。
+本文件承接根目录 `CLAUDE.md`，只写前端、主题、动效、视觉设计相关规则；通用规则见 `../CLAUDE.md`。主题包字段与 token 白名单见 `src/visual/README.md`。
 
 ## 硬约束
 
-- 核心 token 与动效包样式在 `frontend/src/themes/`（动效包样式在其 `motion/` 下）；可切换的视觉主题包在根目录 `themes/<theme-id>/`。
+- 核心 token 与动效包样式在 `frontend/src/themes/`（动效包样式在其 `motion/` 下）；可切换的视觉主题包在 `frontend/src/visual/<theme-id>/`，由 `core/visual/visualThemes.js` 按目录收录。
 - 主题包只覆写 `--we-*` token，不写组件选择器或 `@font-face`。
 - 页面截图位于 `docs/images/`；除 `bookshelf.png` 外均为本地私密文件，不得提交；完成视觉改动后，用当前页面的新截图覆盖对应文件。
 
@@ -59,4 +59,4 @@
 ### 视觉出样与落地
 
 - 视觉位登记在 `DesignLabPage/visualSlots.js`：新增受主题控制的视觉，先登记并补演示，测试会核对每个核心 token 都被某个视觉位认领。
-- 新主题或大改现有主题的取值，先做成草稿，用户确认后才搬进 `themes/<id>/`；草稿流程、落地清单、新字体与深色画布限制见 `themes/README.md`。
+- 新主题或大改现有主题的取值，先做成草稿，用户确认后才搬进 `visual/<id>/`；草稿流程、落地清单、新字体与深色画布限制见 `visual/README.md`。

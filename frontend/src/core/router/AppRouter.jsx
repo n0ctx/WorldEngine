@@ -9,7 +9,7 @@ import { lazy, Suspense, useEffect, useState } from 'react';
 import { Routes, Route, Navigate, useParams, useLocation } from 'react-router-dom';
 import { refreshCustomCss } from '../api/custom-css-snippets';
 import { getConfig } from '../api/config';
-import { DEFAULT_THEME_ID, refreshThemeCss } from '../api/themes.js';
+import { applyVisualTheme } from '../visual/visualThemes.js';
 import { useDisplaySettingsStore } from '../state/displaySettings';
 import { useAppModeStore } from '../state/appMode';
 import { invalidateCache, loadRules } from '../utils/regex-runner.js';
@@ -77,8 +77,7 @@ export default function AppRouter() {
       setWritingShowTokenUsage(c.writing?.ui?.show_token_usage === true);
       setWritingDanmakuSpeed(c.writing?.danmaku?.speed ?? 'normal');
       setMotionPack(c.ui?.motion);
-      return refreshThemeCss(c.ui?.theme || DEFAULT_THEME_ID, { silent: true });
-    }).then(() => {
+      applyVisualTheme(c.ui?.theme);
       return refreshCustomCss('chat');
     }).catch(() => {});
   }, [setAutoCollapseThinking, setShowThinking, setShowTokenUsage, setDanmakuSpeed, setWritingShowThinking, setWritingAutoCollapseThinking, setWritingShowTokenUsage, setWritingDanmakuSpeed]);

@@ -135,7 +135,6 @@ frontend/    React 前端、页面与交互状态
 backend/     Express API、SQLite、模型调用、状态与记忆流程
 assistant/   写卡助手客户端、服务端和工具
 desktop/     Electron 桌面封装与打包配置
-themes/      内置主题包（只读，应用内只能切换）
 shared/      前后端与助手共享协议
 scripts/     质量守卫和仓库维护脚本
 data/        源码模式的本地数据目录

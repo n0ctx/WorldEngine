@@ -61,7 +61,7 @@ export function useWorldAccentVars() {
   // 和世界数据的 fetch 是两条独立的异步链路：主题 CSS 还没注入完时若只在渲染期同步
   // 读一次（不进 state），之后主题就绪也不会触发这个 hook 重渲染，会永久卡在"判定为浅色
   // 主题、不注入"的错误结果上（复现：整页刷新时世界数据经常比主题 CSS 先到）。
-  // 用 state 存开关值 + 监听 we:theme-updated（themes.js 里 refreshThemeCss 成功后派发）
+  // 用 state 存开关值 + 监听 we:theme-updated（visualThemes.js 套用主题 CSS 后派发）
   // 保证主题就绪后能补一次重渲染。
   const [themeReady, setThemeReady] = useState(shouldApplyWorldAccent);
 

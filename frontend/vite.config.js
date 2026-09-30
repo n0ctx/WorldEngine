@@ -10,26 +10,6 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const rootPkg = JSON.parse(readFileSync(path.resolve(__dirname, '../package.json'), 'utf-8'))
 const backendUrl = process.env.VITE_BACKEND_URL || 'http://localhost:3000'
 
-// 主题 CSS 热更新：监听 /themes/ 下的 *.css 变化，
-// 向浏览器广播 `we:theme-css-changed`，前端在 themes.js 里订阅后重抓当前主题 CSS。
-function themeHotReloadPlugin() {
-  const themesDir = path.resolve(__dirname, '../themes')
-  return {
-    name: 'we-theme-hot-reload',
-    apply: 'serve',
-    configureServer(server) {
-      server.watcher.add(`${themesDir}/**/*.css`)
-      const onChange = (file) => {
-        if (!file.endsWith('.css')) return
-        if (!file.startsWith(themesDir)) return
-        server.ws.send({ type: 'custom', event: 'we:theme-css-changed', data: { file } })
-      }
-      server.watcher.on('change', onChange)
-      server.watcher.on('add', onChange)
-    },
-  }
-}
-
 // 启动脚本（WorldEngine.bat / .command）设 WE_OPEN_BROWSER=1：等 vite 与后端都能连上再开浏览器，
 // 避免页面先于后端加载，首屏 /api 请求全部 ECONNREFUSED；手动 npm run dev 不弹浏览器。
 function openWhenBackendReadyPlugin() {
@@ -60,7 +40,7 @@ export default defineConfig({
   define: {
     __APP_VERSION__: JSON.stringify(rootPkg.version),
   },
-  plugins: [react(), tailwindcss(), themeHotReloadPlugin(), openWhenBackendReadyPlugin()],
+  plugins: [react(), tailwindcss(), openWhenBackendReadyPlugin()],
   resolve: {
     dedupe: ['react', 'react-dom', 'zustand'],
   },

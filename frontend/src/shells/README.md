@@ -12,7 +12,7 @@ core   (frontend/src/core, pages, components/ui, components/{domain})
    ↓ composes routes & page content
 shell  (frontend/src/shells/<shell-id>)
    ↓ wraps app with global frame (top bar, transitions, panels)
-theme  (themes/)
+theme  (frontend/src/visual/)
    ↓ overrides --we-* tokens only
 ```
 
@@ -20,8 +20,8 @@ theme  (themes/)
 
 - `core` MUST NOT import from `shells/`.
 - `shells/<id>` MAY import from `core` and shared `components/`.
-- `themes/` MUST NOT contain layout, structure, or component CSS — only
-  `--we-*` token overrides (see `themes/README.md`).
+- `visual/` MUST NOT contain layout, structure, or component CSS — only
+  `--we-*` token overrides (see `visual/README.md`).
 
 The selected shell is chosen centrally in
 `frontend/src/core/router/selectShell.js`. Adding a new shell means dropping a new

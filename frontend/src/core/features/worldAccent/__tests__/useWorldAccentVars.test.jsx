@@ -71,7 +71,7 @@ describe('useWorldAccentVars', () => {
     await act(async () => {});
     expect(result.current).toBeNull(); // 此时还判定为浅色主题，不注入
 
-    // 主题包异步加载完成，画布色变暗，themes.js 派发 we:theme-updated
+    // 主题包异步加载完成，画布色变暗，visualThemes.js 派发 we:theme-updated
     await act(async () => {
       setCanvasVar(DARK_CANVAS);
       window.dispatchEvent(new CustomEvent('we:theme-updated'));

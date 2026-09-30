@@ -53,7 +53,8 @@ function mixOklab(a, b, weight) {
 }
 
 const CORE = declarations(readText('frontend', 'src', 'themes', 'tokens.css'));
-const THEME_IDS = readdirSync(fromRepo('themes'), { withFileTypes: true })
+const THEMES_DIR = ['frontend', 'src', 'visual'];
+const THEME_IDS = readdirSync(fromRepo(...THEMES_DIR), { withFileTypes: true })
   .filter((entry) => entry.isDirectory() && !entry.name.startsWith('_'))
   .map((entry) => entry.name);
 
@@ -92,7 +93,7 @@ const PAIRS = [
 describe('推导色的对比度', () => {
   for (const id of THEME_IDS) {
     it(`${id}：纸面与壳层的文字各级、强边框、主色按钮文字达到对比度下限`, () => {
-      const theme = declarations(readText('themes', id, 'theme.css'));
+      const theme = declarations(readText(...THEMES_DIR, id, 'theme.css'));
       for (const [fg, bg, min] of PAIRS) {
         const ratio = contrastRatio(resolve(fg, theme), resolve(bg, theme));
         expect(ratio, `${id} 的 ${fg} 在 ${bg} 上只有 ${ratio.toFixed(2)}:1，低于 ${min}:1`).toBeGreaterThanOrEqual(min);
