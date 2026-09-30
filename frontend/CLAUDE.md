@@ -28,7 +28,7 @@
 - 不缩放会含文字的元素（文字会抖）；大面板不加模糊、不横向抖动。
 - 普通过渡（悬停、色变、显隐、折叠、抽屉）只选动效角色：CSS 成对写 `--we-motion-<角色>-duration / -easing`，JS 用 `useMotion().role()`；错峰用 `--we-motion-stagger` / `STAGGER`。
 - 角色默认值在 `core/utils/motion.js`；动效包改节奏写在包的 `rhythm`，CSS 同值写在包的 `:root[data-motion]`。
-- 出样必须遵守「减少动态效果」：CSS 出样在媒体查询下静止，JS 走 `useMotion` 的 `reduced`。
+- 「减少动态效果」：`index.css` 的全局降级把动画与过渡的时长、延迟清零，动画直接落到末帧；包和组件的降级块不写 `animation / transition: none`，只写静止终态修正（悬停位移、缩放、遮罩回常态，或带 fill 的动画末帧不等于常态）。JS 走 `useMotion` 的 `reduced`。
 
 ### 落地清单
 

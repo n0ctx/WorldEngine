@@ -3988,11 +3988,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .we-side-drawer {
-    transition: none;
-  }
   .we-side-drawer-toggle::before {
-    transition: none;
     transform: none;
   }
 }
@@ -5053,16 +5049,6 @@
 .we-provider-safety-row__meta-item--wide .we-code-block {
   max-height: 200px;
 }
-@media (prefers-reduced-motion: reduce) {
-  .we-provider-safety-banner,
-  .we-provider-safety-banner__btn,
-  .we-provider-safety-banner__close,
-  .we-provider-safety-refresh,
-  .we-provider-safety-filter select,
-  .we-provider-safety-row__head {
-    transition: none;
-  }
-}
 
 /* ── Skeleton Loading 占位 ── */
 .we-skeleton-block {
@@ -5103,7 +5089,6 @@
 /* reduced-motion 降级 */
 @media (prefers-reduced-motion: reduce) {
   .we-skeleton-block {
-    animation: none;
     background-color: var(--we-color-shade-1);
   }
 }

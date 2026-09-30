@@ -819,21 +819,6 @@
     --ink-t6: 0ms;
     --we-motion-state-duration: 0ms;
   }
-  :where(:root[data-motion="liquid"]) :is(.we-input, .we-textarea, .we-toggle-track, .we-toggle-thumb, .we-delete-btn, .we-delete-btn__done),
-  :where(:root[data-motion="liquid"]) .we-delete-btn__trigger::after,
-  :where(:root[data-motion="liquid"]) .we-stream-char > .we-fx-glyph__face,
-  :where(:root[data-motion="liquid"]) .we-stream-char--caret::after,
-  :where(:root[data-motion="liquid"]) .we-stream-caret,
-  :where(:root[data-motion="liquid"]) :is(.we-state-change-overlay, .we-cast-state-overlay)::after,
-  :where(:root[data-motion="liquid"]) :is(.we-sortable-item > :first-child, .we-badge, .we-empty-state__title, .we-empty-state__hint, .we-empty-state__actions),
-  :where(:root[data-motion="liquid"]) .we-sortable-item::after,
-  :where(:root[data-motion="liquid"]) .we-badge::after,
-  .we-ink-bead::before {
-    animation: none;
-  }
-  :where(:root[data-motion="liquid"]) :is(.we-sortable-item, .we-sortable-item > :first-child, .we-character-card) {
-    transition: none;
-  }
   :where(:root[data-motion="liquid"]) .we-character-card:active {
     scale: none;
   }

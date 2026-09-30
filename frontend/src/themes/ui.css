@@ -4504,9 +4504,6 @@
   background: var(--we-color-accent);
   transform-origin: left center;
 }
-@media (prefers-reduced-motion: reduce) {
-  .we-step-track__step { transition: none; }
-}
 
 /* 只读代码块（CodeBlock）：语法配色由组件按强调色推出，这里只管外框 */
 .we-code-block {
@@ -4624,9 +4621,6 @@
   -webkit-box-decoration-break: clone;
   box-decoration-break: clone;
   transition: color var(--we-motion-state-duration) var(--we-motion-state-easing);
-}
-@media (prefers-reduced-motion: reduce) {
-  .we-task-title { transition: none; }
 }
 
 /* 文件夹（Folder）：内部按上游 321×270 画布布局，外层整体缩放到目标宽度 */

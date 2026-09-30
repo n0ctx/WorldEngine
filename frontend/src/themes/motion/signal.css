@@ -353,12 +353,6 @@
 /* guard-allow(literals): 同上一行——第二列错拍启动、快慢不一 */
 :where(:root[data-motion="signal"]) .we-portal-veil::after { animation: we-signal-rain 620ms var(--sig-cut) 320ms; }
 
-/* 减少动态效果：雨不出现，只留新旧页之间的暗一拍 */
-@media (prefers-reduced-motion: reduce) {
-  :where(:root[data-motion="signal"]) .we-portal-veil::before,
-  :where(:root[data-motion="signal"]) .we-portal-veil::after { animation: none; }
-}
-
 /* 枢纽页：硬切闪两下亮起，三栏逐格锁定入场（--col 见 pages.css） */
 :where(:root[data-motion="signal"]) .we-characters-canvas[data-portal='enter'] {
   animation: we-signal-blink var(--sig-beat) var(--sig-cut) both;
@@ -725,14 +719,6 @@
   100% { opacity: 1;   transform: none; }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  /* 一闪而过的磷光帧、冲洗、锁定不出现；落定状态照常显示 */
-  :where(:root[data-motion="signal"]) :is(.we-input, .we-textarea, .we-btn, .we-card, .we-character-card,
-    .we-world-card-shell, .we-delete-btn) {
-    animation: none;
-  }
-}
-
 /* ── 光标与流式输出 ───────────────────────────────────────── */
 :where(:root[data-motion="signal"]) .we-chat-empty-state__cursor {
   display: inline-block;
@@ -803,15 +789,4 @@
 
 :where(:root[data-motion="signal"]) .we-stream-caret--fading {
   animation: we-stream-caret-out var(--we-stream-caret-out-duration) var(--sig-cut) forwards;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  :where(:root[data-motion="signal"]) .we-fx-glyph::before,
-  :where(:root[data-motion="signal"]) .we-fx-glyph__face,
-  :where(:root[data-motion="signal"]) .we-fx-glyph__face::before,
-  :where(:root[data-motion="signal"]) .we-fx-glyph__face::after,
-  :where(:root[data-motion="signal"]) .we-stream-char--caret::after,
-  :where(:root[data-motion="signal"]) .we-stream-caret {
-    animation: none;
-  }
 }

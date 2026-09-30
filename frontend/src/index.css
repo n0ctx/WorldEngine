@@ -39,15 +39,22 @@ body {
 
 /* =========================================================
    可达性 — 全局 prefers-reduced-motion 降级
-   tokens.css 已将 duration 降为 0；此处对 keyframe 动画显式短路，
-   覆盖所有未走 --we-motion-* 的 animation-duration 字面量。
+   tokens.css 与动效包已将时长变量降为 0；此处对所有动画与过渡统一短路：
+   时长、延迟清零，循环只走一次——动画直接落到末帧（带 fill 时停在末帧），
+   所以组件与动效包不必再逐条写 animation / transition: none。
    ========================================================= */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
+    animation-delay: 0s !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+    transition-delay: 0s !important;
     scroll-behavior: auto !important;
+  }
+  /* 加载占位的延迟是防闪，不是动效：300ms 内加载完就不出现 */
+  .we-route-fallback {
+    animation-delay: 300ms !important;
   }
 }
 
@@ -72,7 +79,7 @@ body {
      padding 交给内层 .we-skeleton-container 提供，避免双重 padding。 */
   min-height: 100svh;
   /* 加载在 300ms 内完成时占位根本不出现。延迟写死而不走 --we-motion-*：
-     减弱动效模式会把 duration token 置 0，闪烁会回来。 */
+     减弱动效模式会把 duration token 与延迟都清零，闪烁会回来（上方全局降级里单独保留了这个延迟）。 */
   animation: we-panel-fade var(--we-motion-enter-duration) var(--we-motion-enter-easing) 300ms both;
 }
 

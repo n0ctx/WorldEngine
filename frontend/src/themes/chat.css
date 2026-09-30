@@ -459,9 +459,6 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .we-chat-center-pane::after {
-    transition: none;
-  }
   .we-chat-center-pane .we-option-btn:hover:not(.we-option-btn--disabled) {
     transform: none;
   }
@@ -2649,11 +2646,6 @@
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .we-danmaku-track {
-    animation: none;
-  }
-}
 
 /* 触屏没有真正的 hover：消息与章节的操作按钮常驻显示，否则永远点不到 */
 @media (hover: none) {
