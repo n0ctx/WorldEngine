@@ -30,12 +30,15 @@ const CLEAN_CSS = `/* color: #fff; font-size: 12px; z-index: 5 */
   --ink-time: 720ms;
 }
 .clean-mix { color: color-mix(in srgb, var(--we-color-accent) var(--we-alpha-4), transparent); content: "#fff"; }
+.clean-opacity { opacity: 0; }
+.clean-opacity:hover { opacity: 1; }
+.clean-opacity:disabled { opacity: var(--we-opacity-disabled); }
 `;
 
 const CLEAN_JSX = `export function Clean() {
   return (
     <div
-      className="we-type-ui rounded-[var(--we-radius-md)] bg-[var(--we-color-bg-surface)] p-4 hover:opacity-90"
+      className="we-type-ui rounded-[var(--we-radius-md)] bg-[var(--we-color-bg-surface)] p-4 opacity-0 hover:opacity-100"
       style={{ color: 'var(--we-color-text-primary)', fontSize: 'var(--we-type-ui-size)', zIndex: 'var(--we-z-modal)', borderRadius: '50%' }}
     />
   );
@@ -75,6 +78,7 @@ const BAD_CSS = `.bad {
   animation: we-spin 1.2s steps(4, jump-end) infinite linear;
   animation-delay: 300ms;
   font-weight: 700;
+  opacity: 0.6;
 }
 .bad-role {
   font-size: var(--we-type-ui-size);
@@ -87,8 +91,8 @@ const BAD_CSS = `.bad {
 const BAD_JSX = `export function Bad({ open }) {
   return (
     <div
-      className={\`text-sm rounded-lg tracking-wide leading-tight font-mono font-bold bg-white/50 [font-size:var(--we-type-ui-size)] text-[length:var(--we-type-ui-size)] \${open ? 'text-[13px] bg-[#fff]' : 'hover:rounded-[6px]'}\`}
-      style={{ fontSize: 13, zIndex: 10, borderRadius: 8, lineHeight: 1.4, letterSpacing: '0.1em', boxShadow: '0 0 4px rgba(0,0,0,0.2)', transition: 'opacity 0.3s ease', color: '#ff0000', '--we-x': 'var(--we-core-ink-900)' }}
+      className={\`text-sm rounded-lg tracking-wide leading-tight font-mono font-bold opacity-50 opacity-[.3] bg-white/50 [font-size:var(--we-type-ui-size)] text-[length:var(--we-type-ui-size)] \${open ? 'text-[13px] bg-[#fff]' : 'hover:rounded-[6px]'}\`}
+      style={{ fontSize: 13, zIndex: 10, borderRadius: 8, lineHeight: 1.4, letterSpacing: '0.1em', boxShadow: '0 0 4px rgba(0,0,0,0.2)', transition: 'opacity 0.3s ease', opacity: 0.5, color: '#ff0000', '--we-x': 'var(--we-core-ink-900)' }}
     />
   );
 }
@@ -136,6 +140,7 @@ test('每条规则的字面量都被报出，并写明改成哪类 token', () =>
     ['fallback', '8px', '去掉字面量回退'],
     ['fallback', '100px', '去掉字面量回退'],
     ['font-weight', '700', '--we-weight-\\*'],
+    ['opacity', '0\\.6', '文字色阶梯'],
     ['mix-percent', '30%', '--we-alpha-1\\.\\.5'],
     ['mix-percent', '55%', '--we-alpha-1\\.\\.5'],
     ['type-role', 'var\\(--we-type-body-leading\\) 与字号角色 ui 不一致', '写齐同一角色'],
@@ -150,10 +155,10 @@ test('每条规则的字面量都被报出，并写明改成哪类 token', () =>
   for (const [rule, value] of [
     ['tailwind', 'text-sm'], ['tailwind', 'rounded-lg'], ['tailwind', 'tracking-wide'], ['tailwind', 'leading-tight'],
     ['tailwind', 'font-mono'], ['tailwind', 'bg-white/50'], ['tailwind', 'text-\\[13px\\]'], ['tailwind', 'bg-\\[#fff\\]'],
-    ['tailwind', 'rounded-\\[6px\\]'], ['tailwind', 'font-bold'],
+    ['tailwind', 'rounded-\\[6px\\]'], ['tailwind', 'font-bold'], ['tailwind', 'opacity-50'], ['tailwind', 'opacity-\\[\\.3\\]'],
     ['tailwind', '\\[font-size:var\\(--we-type-ui-size\\)\\]'], ['tailwind', 'text-\\[length:var\\(--we-type-ui-size\\)\\]'],
     ['font-size', '13px'], ['z-index', '10'], ['radius', '8px'], ['line-height', '1\\.4'], ['letter-spacing', '0\\.1em'],
-    ['shadow', 'rgba\\(0,0,0,0\\.2\\)'], ['motion', '0\\.3s'], ['color', '#ff0000'], ['layer', '--we-core-ink-900'],
+    ['shadow', 'rgba\\(0,0,0,0\\.2\\)'], ['motion', '0\\.3s'], ['color', '#ff0000'], ['layer', '--we-core-ink-900'], ['opacity', '0\\.5'],
   ]) {
     assert.match(err, new RegExp(`${jsx} \\[${rule}\\] ${value}[ \\n×]`), `${rule} ${value}`);
   }

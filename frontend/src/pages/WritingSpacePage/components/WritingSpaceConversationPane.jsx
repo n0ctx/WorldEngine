@@ -54,7 +54,7 @@ export default function WritingSpaceConversationPane({ worldId, navigate, config
         </div>
 
         {isInitializing ? (
-          <div className="flex-1 flex items-center justify-center we-type-ui text-[var(--we-color-text-secondary)] opacity-60">
+          <div className="flex-1 flex items-center justify-center we-type-ui text-[var(--we-color-text-tertiary)]">
             正在准备写作空间…
           </div>
         ) : initError ? (

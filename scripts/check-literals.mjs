@@ -21,13 +21,15 @@
  *   radius         border-radius（含各角）里非 0 的 px / rem 字面量（含 var() 的表达式不报）
  *   shadow         box-shadow / text-shadow / drop-shadow 里的颜色字面量
  *   z-index        整数字面量（var() 与 calc(var()) 不报）
+ *   opacity        0 / 1 以外的字面量：弱化文字走文字色阶梯（--we-color-text-*），不可用控件用 --we-opacity-disabled；
+ *                  动效包材质里有意保留的记入基线
  *   motion         transition / animation（含 -duration / -delay / -timing-function）里非 0 的 ms、s 时长与延迟、
  *                  cubic-bezier()、steps()、ease / linear 关键字；自定义属性（--x: ...）是 token 定义，不报
  *   fallback       var(--we-x, 字面量) 里的字面量回退
  *   mix-percent    color-mix() 里的百分比字面量：半透明与混色浓度只取透明度阶梯 var(--we-alpha-*)，
  *                  超过一半时反过来写（另一侧的颜色取阶梯）；动效包材质里有意保留的记入基线
  *   tailwind       className 里的任意值 text-[12px] / rounded-[8px] / bg-[#fff] / tracking-[..] / leading-[..]，
- *                  以及内置刻度 text-sm、rounded-lg、tracking-wide、leading-tight、font-mono、font-bold、bg-white 等；
+ *                  以及内置刻度 text-sm、rounded-lg、tracking-wide、leading-tight、font-mono、font-bold、bg-white、opacity-50 等；
  *                  字号、行高、字距、字重一律用 .we-type-* 角色类，[font-size:..] / text-[length:..] 等写法即使引用 var() 也报
  *   padding / margin / gap 不在本守卫范围。
  *
@@ -70,6 +72,7 @@ const RULE_HINTS = {
   radius: '圆角改用 `--we-radius-*`',
   shadow: '阴影里的颜色改用 `--we-color-*`（或整体用 `--we-shadow-*`）',
   'z-index': '层级改用 `--we-z-*`',
+  opacity: '弱化文字改用文字色阶梯 `--we-color-text-secondary / -tertiary / -faint`，不可用控件用 `--we-opacity-disabled`；显隐只用 0 / 1',
   motion: '时长与缓动改用 `--we-duration-*` / `--we-easing-*`；动效包自己的材质有意写字面量的，写 guard-allow(literals)',
   fallback: '去掉字面量回退，token 在 tokens.css 里声明即可',
   'mix-percent': 'color-mix 的百分比改用透明度阶梯 `var(--we-alpha-1..5)`（6/12/24/40/64%）；超过一半时把另一侧颜色写在前面取阶梯',

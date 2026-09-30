@@ -168,6 +168,7 @@ function analyzeValue(prop, rawValue) {
   else if (RADIUS_RE.test(prop) && !hasVar) add('radius', sizeLiterals(plain, 'px|rem').length ? [plain] : []);
   else if (prop === 'font-weight' && /^(\d+|bold|bolder|lighter)$/.test(plain)) add('font-weight', [plain]);
   else if (prop === 'z-index' && /^-?\d+$/.test(plain)) add('z-index', [plain]);
+  else if (prop === 'opacity' && !hasVar && !/^(0|1|inherit|initial|unset)$/.test(plain)) add('opacity', [plain]);
   else if (MOTION_PROP_RE.test(prop)) add('motion', motionLiterals(plain));
   return found;
 }
@@ -268,7 +269,7 @@ export function scanCssFile({ rel, text, comments }, allow, found) {
 
 // ─── JS / JSX ────────────────────────────────────────────────────────────────
 const STYLE_KEY_RE = new RegExp('^(-webkit-)?(color|background|border|outline|fill|stroke|box-shadow|text-shadow|filter|backdrop-filter'
-  + '|caret-color|accent-color|font-size|font-weight|line-height|letter-spacing|z-index|mask|text-decoration-color|transition|animation|--)');
+  + '|caret-color|accent-color|font-size|font-weight|line-height|letter-spacing|z-index|opacity|mask|text-decoration-color|transition|animation|--)');
 const PX_NUMBER_PROPS = /^(font-size|letter-spacing|border(-[a-z]+)*-radius)$/;
 
 const kebab = (key) => key.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`);

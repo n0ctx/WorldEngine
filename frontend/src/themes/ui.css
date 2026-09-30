@@ -134,7 +134,7 @@
   border-color: var(--we-color-border-focus);
 }
 .we-btn:disabled {
-  opacity: 0.5;
+  opacity: var(--we-opacity-disabled);
   cursor: not-allowed;
 }
 
@@ -235,7 +235,7 @@
 }
 .we-input:disabled,
 .we-textarea:disabled {
-  opacity: 0.4;
+  opacity: var(--we-opacity-disabled);
   cursor: not-allowed;
 }
 
@@ -322,11 +322,7 @@
 .we-empty-state__icon {
   width: 56px;
   height: 56px;
-  color: var(--we-color-text-tertiary);
-  opacity: 0.6;
-}
-.we-empty-state__icon:has(.we-matrix-orb, .we-fluid-orb) {
-  opacity: 1;
+  color: var(--we-color-text-faint);
 }
 .we-empty-state__title {
   font-family: var(--we-font-display);
@@ -580,7 +576,7 @@
 }
 
 .we-extract-arrow {
-  opacity: 0.5;
+  color: var(--we-color-text-faint);
 }
 
 /* 关键词/枚举 tag 容器 */
@@ -631,18 +627,17 @@
 }
 
 .we-tag button {
-  color: var(--we-color-accent);
-  opacity: 0.55;
+  color: var(--we-color-ornament);
   background: none;
   border: none;
   cursor: pointer;
   padding: 0;
   line-height: var(--we-leading-flush);
   font-size: var(--we-glyph-md);
-  transition: opacity var(--we-duration-fast) var(--we-easing-sharp);
+  transition: color var(--we-duration-fast) var(--we-easing-sharp), opacity var(--we-duration-fast) var(--we-easing-sharp);
 }
 
-.we-tag button:hover { opacity: 1; }
+.we-tag button:hover { color: var(--we-color-accent); }
 
 .we-tag-input-field {
   flex: 1;
@@ -709,8 +704,9 @@
 
 .we-status-inline-list .we-tag:hover button,
 .we-status-inline-list .we-tag:focus-within button {
-  opacity: 0.72;
+  opacity: 1;
   pointer-events: auto;
+  color: var(--we-color-text-tertiary);
 }
 
 .we-status-inline-list__input {
@@ -783,7 +779,7 @@
   border-color: var(--we-color-border-focus);
 }
 .we-option-btn--disabled {
-  opacity: 0.45;
+  opacity: var(--we-opacity-disabled);
   cursor: default;
   pointer-events: none;
 }
@@ -823,7 +819,6 @@
   padding: 6px 10px; /* design exact */
 }
 .we-option-card--history {
-  opacity: 0.7;
   margin-top: 6px; /* design exact */
 }
 .we-option-collapsed-hint {
@@ -871,7 +866,7 @@
 }
 .we-select-trigger:disabled {
   cursor: not-allowed;
-  opacity: 0.5;
+  opacity: var(--we-opacity-disabled);
 }
 .we-select-trigger:focus-visible {
   border-color: var(--we-color-border-focus);
@@ -1042,7 +1037,7 @@
   outline-offset: 2px;
 }
 .we-confirm-cancel:disabled {
-  opacity: 0.5;
+  opacity: var(--we-opacity-disabled);
   cursor: not-allowed;
 }
 
@@ -1064,7 +1059,7 @@
   background: var(--we-color-status-danger);
 }
 .we-confirm-ok:disabled {
-  opacity: 0.5;
+  opacity: var(--we-opacity-disabled);
   cursor: not-allowed;
 }
 .we-confirm-ok:hover:not(:disabled) {
@@ -1187,9 +1182,8 @@
   font-size: var(--we-type-caption-size);
   line-height: var(--we-type-caption-leading);
   letter-spacing: var(--we-type-caption-tracking);
-  color: var(--we-color-text-tertiary);
+  color: var(--we-color-text-faint);
   margin-top: var(--we-space-sm);
-  opacity: 0.7;
 }
 
 .we-form-required {
@@ -1602,7 +1596,7 @@
 }
 
 .we-entry-editor-save:disabled {
-  opacity: 0.6;
+  opacity: var(--we-opacity-disabled);
   cursor: not-allowed;
 }
 
@@ -1798,17 +1792,16 @@
 .we-regex-dialog-close {
   font-family: var(--we-font-prose);
   font-size: var(--we-glyph-lg);
-  color: var(--we-color-text-tertiary);
+  color: var(--we-color-text-faint);
   background: none;
   border: none;
   cursor: pointer;
   line-height: var(--we-leading-flush);
-  opacity: 0.6;
-  transition: opacity var(--we-duration-fast) var(--we-easing-sharp);
+  transition: color var(--we-duration-fast) var(--we-easing-sharp);
 }
 
 .we-regex-dialog-close:hover {
-  opacity: 1;
+  color: var(--we-color-text-tertiary);
 }
 
 .we-regex-test-box {
@@ -1924,8 +1917,7 @@
   font-size: var(--we-type-caption-size);
   line-height: var(--we-type-caption-leading);
   letter-spacing: var(--we-type-caption-tracking);
-  color: var(--we-color-text-tertiary);
-  opacity: 0.6;
+  color: var(--we-color-text-faint);
 }
 
 .we-regex-scope-empty {
@@ -1933,9 +1925,8 @@
   font-size: var(--we-type-caption-size);
   line-height: var(--we-type-caption-leading);
   letter-spacing: var(--we-type-caption-tracking);
-  color: var(--we-color-text-tertiary);
+  color: var(--we-color-text-faint);
   font-style: italic;
-  opacity: 0.5;
   margin-left: var(--we-space-xs);
 }
 
@@ -1962,10 +1953,9 @@
 }
 
 .we-regex-rule-drag {
-  color: var(--we-color-text-tertiary);
+  color: var(--we-color-text-faint);
   font-size: var(--we-glyph-sm);
   flex-shrink: 0;
-  opacity: 0.5;
 }
 
 .we-regex-rule-main {
@@ -1989,7 +1979,7 @@
 }
 
 .we-regex-rule-name--disabled {
-  opacity: 0.45;
+  opacity: var(--we-opacity-disabled);
 }
 
 .we-regex-rule-world {
@@ -2006,11 +1996,10 @@
   font-size: var(--we-type-caption-size);
   line-height: var(--we-type-caption-leading);
   letter-spacing: var(--we-type-caption-tracking);
-  color: var(--we-color-text-tertiary);
+  color: var(--we-color-text-faint);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  opacity: 0.6;
 }
 
 .we-regex-rule-actions {
@@ -2361,7 +2350,10 @@
   display: inline-flex;
   align-items: center;
   margin-left: var(--we-space-xs);
-  opacity: 0.5;
+  color: var(--we-topbar-item-dim);
+}
+.we-topbar-item:hover .we-topbar-caret {
+  color: var(--we-topbar-item-muted);
 }
 .we-topbar-caret svg {
   width: 11px;  /* design exact: 顶栏 caret 视觉尺寸，小于 Icon 最小档 16 */
@@ -2392,7 +2384,6 @@
 
 .we-memory-recall__label {
   color: var(--we-color-accent);
-  opacity: 0.75;
 }
 
 .we-memory-recall__summary {
@@ -2708,7 +2699,7 @@
 
 .we-combobox-toggle:disabled {
   cursor: default;
-  opacity: 0.5;
+  opacity: var(--we-opacity-disabled);
 }
 
 .we-combobox-chevron {
@@ -2785,12 +2776,11 @@
   letter-spacing: var(--we-type-caption-tracking);
   font-family: var(--we-font-ui);
   color: var(--we-color-text-tertiary);
-  opacity: 0.8;
   white-space: nowrap;
 }
 
 .we-combobox-price-unit {
-  opacity: 0.6;
+  color: var(--we-color-text-faint);
 }
 
 /* — Range 滑条 ─ */
@@ -2912,8 +2902,7 @@
 .we-section-rule {
   flex: 1;
   height: 1px;
-  background: var(--we-color-border-default);
-  opacity: 0.7;
+  background: var(--we-color-border-subtle);
 }
 
 /* 重置按钮：hover 区块或键盘聚焦时显现（M2: 同步绑定 :focus-within 改善可达性） */
@@ -2943,9 +2932,8 @@
 
 .we-status-chevron {
   flex-shrink: 0;
-  color: var(--we-color-text-tertiary);
-  opacity: 0.45;
-  transition: transform var(--we-duration-normal) var(--we-easing-ink), opacity var(--we-duration-normal) var(--we-easing-sharp);
+  color: var(--we-color-text-faint);
+  transition: transform var(--we-duration-normal) var(--we-easing-ink);
 }
 
 /* 空状态文字 */
@@ -2954,8 +2942,7 @@
   font-size: var(--we-type-caption-size);
   line-height: var(--we-type-caption-leading);
   font-style: italic;
-  color: var(--we-color-text-tertiary);
-  opacity: 0.55;
+  color: var(--we-color-text-faint);
   margin: 0;
   letter-spacing: var(--we-type-caption-tracking);
 }
@@ -3006,7 +2993,7 @@
   min-width: 0;
 }
 .we-status-inline-wrap--saving {
-  opacity: 0.6;
+  opacity: var(--we-opacity-disabled);
   pointer-events: none;
 }
 .we-status-inline-pending {
@@ -3100,8 +3087,7 @@
   overflow-wrap: anywhere;
 }
 .we-status-null {
-  color: var(--we-color-text-tertiary);
-  opacity: 0.35;
+  color: var(--we-color-text-faint);
 }
 .we-status-editable {
   cursor: pointer;
@@ -3278,8 +3264,7 @@
   font-weight: var(--we-type-eyebrow-weight);
   letter-spacing: var(--we-type-eyebrow-tracking);
   text-transform: uppercase;
-  color: var(--we-color-text-tertiary);
-  opacity: 0.75;
+  color: var(--we-color-text-faint);
   background: color-mix(in srgb, var(--we-color-text-primary) var(--we-alpha-1), transparent);
 }
 .we-status-table-body-cell .we-status-table-value {
@@ -3348,14 +3333,14 @@
   background: color-mix(in srgb, var(--we-color-bg-surface) var(--we-alpha-5), transparent);
 }
 .we-diary-entry:hover .we-timeline-dot {
-  opacity: 0.85;
+  color: var(--we-color-accent);
 }
 .we-diary-entry--selected,
 .we-diary-entry--selected:hover {
   background: color-mix(in srgb, var(--we-color-accent) var(--we-alpha-1), color-mix(in srgb, var(--we-color-bg-surface) var(--we-alpha-5), transparent));
 }
 .we-diary-entry--selected .we-timeline-dot {
-  opacity: 1;
+  color: var(--we-color-accent);
 }
 .we-diary-entry--selected .we-timeline-text {
   color: var(--we-color-text-secondary);
@@ -3465,7 +3450,7 @@
 .we-panel-card-actions .we-panel-card-action:disabled,
 .we-section-tabs-globals .we-panel-card-action:disabled,
 .we-section-tabs-actions .we-panel-card-action:disabled {
-  opacity: 0.4;
+  opacity: var(--we-opacity-disabled);
   cursor: not-allowed;
 }
 .we-panel-card-collapse {
@@ -3626,8 +3611,7 @@
 .we-timeline-dot {
   font-family: var(--we-font-prose);
   font-size: var(--we-glyph-md);
-  color: var(--we-color-accent);
-  opacity: 0.5;
+  color: var(--we-color-ornament);
   line-height: var(--we-leading-flush);
   flex-shrink: 0;
 }
@@ -3942,7 +3926,7 @@
   color: var(--we-color-text-tertiary);
 }
 .we-sm-group-count {
-  opacity: 0.7;
+  color: var(--we-color-text-faint);
 }
 .we-sm-entity-item {
   display: flex;
@@ -4184,11 +4168,14 @@
   color: var(--we-color-text-secondary);
 }
 .we-sm-relation-item .we-sm-icon-btn {
-  opacity: 0.45;
+  color: var(--we-color-text-faint);
 }
 .we-sm-relation-item:hover .we-sm-icon-btn,
 .we-sm-relation-item .we-sm-icon-btn:focus-visible {
-  opacity: 1;
+  color: var(--we-color-text-tertiary);
+}
+.we-sm-relation-item .we-sm-icon-btn:hover {
+  color: var(--we-color-accent);
 }
 
 /* 未了事项 */
@@ -4360,7 +4347,7 @@
   box-shadow: var(--we-focus-ring);
 }
 .we-delete-btn__trigger:disabled {
-  opacity: 0.4;
+  opacity: var(--we-opacity-disabled);
   cursor: not-allowed;
 }
 .we-delete-btn__done {

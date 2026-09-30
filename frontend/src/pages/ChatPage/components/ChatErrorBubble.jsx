@@ -19,9 +19,9 @@ export default function ChatErrorBubble({ character, errorBubble, generating, on
             <div className="flex items-start gap-3">
               <CharacterSeal character={character} size={24} />
               <div className="flex flex-col gap-1 max-w-[75%]">
-                <span className="we-type-caption opacity-50">{character?.name}</span>
+                <span className="we-type-caption text-[var(--we-color-text-faint)]">{character?.name}</span>
                 {errorBubble.partialContent && (
-                  <div className="px-4 py-3 rounded-[var(--we-radius-lg)] rounded-tl-[var(--we-radius-xs)] bg-[var(--we-color-bg-surface)] border border-[var(--we-color-border-default)] text-[var(--we-color-text-primary)] we-type-body whitespace-pre-wrap opacity-60">
+                  <div className="px-4 py-3 rounded-[var(--we-radius-lg)] rounded-tl-[var(--we-radius-xs)] bg-[var(--we-color-bg-surface)] border border-[var(--we-color-border-default)] text-[var(--we-color-text-secondary)] we-type-body whitespace-pre-wrap">
                     {errorBubble.partialContent}
                   </div>
                 )}

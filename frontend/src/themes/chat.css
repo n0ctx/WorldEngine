@@ -144,7 +144,6 @@
   letter-spacing: var(--we-type-caption-tracking);
   text-transform: none;
   color: var(--we-color-status-danger);
-  opacity: 0.85;
 }
 
 .we-message-user .we-message-label {
@@ -167,7 +166,7 @@
 .we-message-content p:last-child { margin-bottom: 0; }
 .we-message-content ul, .we-message-content ol { padding-left: 1.5em; margin-bottom: 0.5em; }
 .we-message-content li     { margin-bottom: 0.2em; }
-.we-message-content ul li::marker { color: var(--we-color-accent); opacity: 0.7; }
+.we-message-content ul li::marker { color: var(--we-color-ornament); }
 .we-message-content ol li::marker { color: var(--we-color-text-tertiary); }
 .we-message-content strong { font-weight: var(--we-weight-strong); font-synthesis: weight; color: var(--we-color-text-primary); }
 .we-message-content em     { font-style: italic; font-synthesis: style; }
@@ -244,9 +243,8 @@
 .we-message-content hr {
   border: none;
   height: 1px;
-  background: var(--we-color-border-default);
+  background: var(--we-color-border-subtle);
   margin: 1.2em 0;
-  opacity: 0.6;
 }
 
 /* 删除线 */
@@ -575,7 +573,6 @@
   justify-content: center;
   height: 100%;
   gap: var(--we-space-md);
-  opacity: 0.6;
 }
 
 .we-chat-empty-state__text {
@@ -583,7 +580,7 @@
   font-family: var(--we-font-prose);
   font-size: var(--we-type-prose-size);
   line-height: var(--we-type-prose-leading);
-  color: var(--we-color-text-tertiary);
+  color: var(--we-color-text-faint);
   letter-spacing: var(--we-type-prose-tracking);
 }
 
@@ -599,9 +596,9 @@
   align-items: baseline;
   gap: 0.6em;
   font-size: 0.72em;
-  color: var(--we-color-text-secondary);
+  color: var(--we-color-text-tertiary);
   margin-top: var(--we-space-xs);
-  opacity: 0.15;
+  opacity: 0;
   /* mono 字体族普遍不含中文字形（各主题包覆盖 --we-font-mono 时也未加中文回退），
      数字/单位走等宽对齐，"命中"/"写入" 等中文标签逐字形回退到 --we-font-prose，
      避免落入无主题控制的系统默认字体 */
@@ -616,12 +613,11 @@
 }
 
 .we-token-usage-unit {
-  opacity: 0.6;
+  color: var(--we-color-text-faint);
 }
 
 .we-token-usage-cost {
   color: var(--we-color-accent);
-  opacity: 0.8;
   font-weight: var(--we-weight-medium);
 }
 
@@ -652,7 +648,7 @@
 /* :focus-within 让键盘用户 Tab 到操作按钮时也能看到 token 计数，不依赖鼠标悬浮 */
 .we-message-row:hover .we-token-usage,
 .we-message-row:focus-within .we-token-usage {
-  opacity: 0.85;
+  opacity: 1;
 }
 
 .we-message-actions button,
@@ -703,7 +699,7 @@
   content: '·';
   position: absolute;
   left: -2px;
-  opacity: 0.5;
+  color: var(--we-color-text-faint);
 }
 
 .we-activated-entry-chip:hover {
@@ -715,8 +711,8 @@
   flex-shrink: 0;
   padding: 0 var(--we-space-xs);
   font-style: italic;
-  opacity: 0.7;
   cursor: default;
+  color: var(--we-color-text-faint);
 }
 
 /* 与功能按钮同行时与按钮字号对齐（按钮 10px） */
@@ -745,7 +741,6 @@
   font-size: var(--we-type-caption-size);
   line-height: var(--we-type-caption-leading);
   letter-spacing: var(--we-type-caption-tracking);
-  opacity: 0.7;
   user-select: none;
   pointer-events: none;
 }
@@ -753,8 +748,7 @@
 .we-interrupted-mark__rule {
   flex: 0 1 56px;
   height: 1px;
-  background: currentColor;
-  opacity: 0.55;
+  background: color-mix(in srgb, currentColor var(--we-alpha-4), transparent);
 }
 
 .we-interrupted-mark__label {
@@ -765,7 +759,6 @@
 .we-think-block-body .we-interrupted-mark,
 .we-writing-think-body .we-interrupted-mark {
   margin: var(--we-space-sm) 0 0;
-  opacity: 0.6;
 }
 
 /* ── Edit state ────────────────────────────────────────── */
@@ -965,7 +958,7 @@
 .we-writing-prose:hover .we-token-usage,
 .we-writing-annotation:focus-within .we-token-usage,
 .we-writing-prose:focus-within .we-token-usage {
-  opacity: 0.85;
+  opacity: 1;
 }
 
 .we-writing-think {
@@ -1003,8 +996,8 @@
 }
 
 .we-writing-think-open {
-  opacity: 0.4;
   margin-left: var(--we-space-xs);
+  color: var(--we-color-text-faint);
 }
 
 .we-writing-think-body {
@@ -1027,7 +1020,7 @@
 .we-think-block-body ul, .we-think-block-body ol { padding-left: 1.4em; margin-bottom: 0.4em; }
 .we-think-block-body li     { margin-bottom: 0.15em; font-style: italic; }
 .we-think-block-body strong { font-weight: var(--we-weight-strong); color: inherit; }
-.we-think-block-body em     { font-style: normal; opacity: 0.85; }
+.we-think-block-body em     { font-style: normal; color: var(--we-color-text-faint); }
 .we-think-block-body h1,
 .we-think-block-body h2,
 .we-think-block-body h3 {
@@ -1047,8 +1040,8 @@
 }
 .we-think-block-body blockquote {
   padding-left: 0.8em;
-  opacity: 0.7;
   margin: 0.3em 0;
+  color: var(--we-color-text-faint);
 }
 
 /* ── InputBox ── */
@@ -1154,7 +1147,7 @@
 }
 
 .we-chat-input__attach-btn:disabled {
-  opacity: 0.3;
+  opacity: var(--we-opacity-disabled);
   cursor: not-allowed;
 }
 
@@ -1234,8 +1227,7 @@
   font-size: var(--we-type-prose-size);
   line-height: var(--we-type-prose-leading);
   letter-spacing: var(--we-type-prose-tracking);
-  color: var(--we-color-text-tertiary);
-  opacity: 0.7;
+  color: var(--we-color-text-faint);
 }
 
 /* 输入框顶部工具条：翻页（居中）+ 快捷动作（右） */
@@ -1295,7 +1287,7 @@
 }
 
 .we-chat-quick-btn:disabled {
-  opacity: 0.35;
+  opacity: var(--we-opacity-disabled);
   cursor: not-allowed;
 }
 
@@ -1329,7 +1321,7 @@
 }
 
 .we-chat-textarea:disabled {
-  opacity: 0.6;
+  opacity: var(--we-opacity-disabled);
 }
 
 /* Send / Stop button */
@@ -1363,7 +1355,7 @@
 .we-chat-send-btn:disabled {
   background: var(--we-color-bg-strong);
   color: var(--we-color-text-tertiary);
-  opacity: 0.7;
+  opacity: var(--we-opacity-disabled);
   cursor: not-allowed;
   box-shadow: none;
 }
@@ -1405,8 +1397,8 @@
 }
 
 .we-think-block-dots {
-  opacity: 0.4;
   margin-left: var(--we-space-xs);
+  color: var(--we-color-text-faint);
 }
 
 .we-think-block-status {
@@ -1415,8 +1407,7 @@
   font-size: var(--we-type-caption-size);
   line-height: var(--we-type-caption-leading);
   letter-spacing: var(--we-type-caption-tracking);
-  color: var(--we-color-text-tertiary);
-  opacity: 0.55;
+  color: var(--we-color-text-faint);
 }
 
 .we-think-block-body-wrap {
@@ -1834,12 +1825,11 @@
   line-height: var(--we-type-caption-leading);
   letter-spacing: var(--we-type-caption-tracking);
   color: var(--we-color-text-tertiary);
-  opacity: 0.85;
 }
 
 .we-asst-entry--tool-running .we-asst-entry__title,
 .we-asst-entry--tool-running .we-asst-entry__sub {
-  opacity: 0.7;
+  color: var(--we-color-text-faint);
 }
 
 .we-asst-tool__icon {
@@ -1993,8 +1983,7 @@
 
 .we-asst-think-line__mark {
   flex-shrink: 0;
-  color: var(--we-color-accent);
-  opacity: 0.55;
+  color: var(--we-color-ornament);
   margin-top: 1px;
 }
 
@@ -2362,7 +2351,7 @@
 }
 
 .we-chapter-actions button:disabled {
-  opacity: 0.5;
+  opacity: var(--we-opacity-disabled);
   cursor: default;
 }
 
@@ -2441,7 +2430,7 @@
 }
 
 .we-pager-btn:disabled {
-  opacity: 0.35;
+  opacity: var(--we-opacity-disabled);
   cursor: not-allowed;
   box-shadow: none;
 }
@@ -2515,8 +2504,7 @@
 
 .we-css-snippet-row__drag {
   flex-shrink: 0;
-  color: var(--we-color-text-tertiary);
-  opacity: 0.5;
+  color: var(--we-color-text-faint);
 }
 
 .we-css-snippet-row__main {

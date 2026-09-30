@@ -15,7 +15,7 @@
  *   依赖世界主色的 token 放在下方「主色作用域」块里，不在 :root 主块里声明。
  *
  * C 层 · 结构 token（--we-space-* / --we-alpha-* / --we-radius-* / --we-blur-* / --we-z-* / --we-duration-* /
- *   --we-easing-* / --we-type-* / --we-leading-flush / --we-glyph-* / --we-weight-*）
+ *   --we-easing-* / --we-type-* / --we-leading-flush / --we-glyph-* / --we-weight-* / --we-opacity-disabled）
  *   间距、透明度阶梯、层级、动效节奏、字体角色等骨架量，跟视觉风格无关。
  *   例外：--we-radius-* / --we-duration-* 允许主题覆盖。
  *
@@ -52,6 +52,7 @@
   --we-color-text-primary:   var(--we-base-ink);
   --we-color-text-secondary: color-mix(in oklab, var(--we-base-ink) 78%, var(--we-base-surface));
   --we-color-text-tertiary:  color-mix(in oklab, var(--we-base-ink) 66%, var(--we-base-surface));
+  --we-color-text-faint:     color-mix(in oklab, var(--we-base-ink) 50%, var(--we-base-surface));  /* 最弱一档：占位、空态、拖拽柄；弱化文字用这一档，不叠 opacity */
   --we-color-on-accent:      var(--we-base-canvas);  /* 压在主色、状态色实底上的字 */
   /* 头像占位圈文字色：叠在 avatar.js 的固定哈希色板（--avatar-bg）上，
      该色板不随主题变化、始终是中低明度色，因此恒定取白；不能复用 on-accent。 */
@@ -164,6 +165,9 @@
   --we-alpha-3: 24%;
   --we-alpha-4: 40%;
   --we-alpha-5: 64%;
+
+  /* === 不可用控件的整体透明度；opacity 只用于它和 0/1 显隐，弱化文字走文字色阶梯 === */
+  --we-opacity-disabled: 0.45;
 
   /* === 间距 Scale（严格 4 的倍数）=== */
   --we-space-xxs: 2px;

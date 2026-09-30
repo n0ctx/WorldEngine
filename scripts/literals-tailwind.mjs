@@ -19,7 +19,7 @@ export function utilityOf(token) {
 
 // 任意值里的颜色字面量（含 var( 的已在调用前排除）
 const COLOR_LITERAL_RE = /#[0-9a-f]{3,8}(?![\w-])|(?<![\w-])(rgba?|hsla?|oklch)\(/i;
-const TW_ARBITRARY_RE = /^(text|rounded(?:-[a-z]{1,2})?|bg|border|fill|stroke|tracking|leading)-\[(.+)\]$/;
+const TW_ARBITRARY_RE = /^(text|rounded(?:-[a-z]{1,2})?|bg|border|fill|stroke|tracking|leading|opacity)-\[(.+)\]$/;
 const TW_SCALES = [
   /^text-(xs|sm|base|lg|xl|[2-9]xl)$/,
   /^rounded(-(t|r|b|l|s|e|tl|tr|br|bl|ss|se|ee|es))?(-(xs|sm|md|lg|xl|[2-4]xl|full))?$/,
@@ -28,10 +28,11 @@ const TW_SCALES = [
   /^font-(mono|sans|serif)$/,
   /^font-(thin|extralight|light|normal|medium|semibold|bold|extrabold|black)$/,
   /^(bg|text|border)-(black|white)(\/\d+)?$/,
+  /^opacity-(?!0$|100$)\d+$/,
 ];
 
 // 字号、行高、字距、字重一律经 .we-type-* 角色类，任意值写法（含 var()）都算
-const TW_TYPE_PROPERTY_RE = /^\[(font-size|line-height|letter-spacing|font-weight):/;
+const TW_TYPE_PROPERTY_RE = /^\[(font-size|line-height|letter-spacing|font-weight|opacity):/;
 
 export function isTailwindLiteral(utility) {
   if (TW_SCALES.some((re) => re.test(utility))) return true;
@@ -39,7 +40,7 @@ export function isTailwindLiteral(utility) {
   const m = TW_ARBITRARY_RE.exec(utility);
   if (!m) return false;
   const [, kind, inner] = m;
-  if (kind === 'tracking' || kind === 'leading') return true;
+  if (kind === 'tracking' || kind === 'leading' || kind === 'opacity') return true;
   if (kind === 'text' && inner.startsWith('length:')) return true;
   if (inner.includes('var(')) return false;
   const sized = /^(length:)?-?\d*\.?\d+(px|rem)$/.test(inner);

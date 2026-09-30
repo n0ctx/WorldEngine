@@ -66,13 +66,16 @@ function resolve(name, theme) {
   return mixOklab(resolve(mix[1], theme), resolve(mix[3], theme), Number(mix[2]) / 100);
 }
 
-// [前景, 背景, 下限]：正文级文字 4.5:1，控件边界与弱文字 3:1（WCAG 1.4.3 / 1.4.11）
+// [前景, 背景, 下限]：正文级文字 4.5:1，控件边界与最弱一档文字 3:1（WCAG 1.4.3 / 1.4.11）
 const PAIRS = [
   ['--we-color-text-secondary', '--we-color-bg-canvas', 4.5],
   ['--we-color-text-secondary', '--we-color-bg-surface', 4.5],
   ['--we-color-text-secondary', '--we-color-bg-elevated', 4.5],
   ['--we-color-text-tertiary', '--we-color-bg-canvas', 4.5],
   ['--we-color-text-tertiary', '--we-color-bg-surface', 4.5],
+  ['--we-color-text-faint', '--we-color-bg-canvas', 3],
+  ['--we-color-text-faint', '--we-color-bg-surface', 3],
+  ['--we-color-text-faint', '--we-color-bg-elevated', 3],
   ['--we-color-border-strong', '--we-color-bg-canvas', 3],
   ['--we-color-border-strong', '--we-color-bg-surface', 3],
   ['--we-color-on-accent', '--we-color-accent', 4.5],

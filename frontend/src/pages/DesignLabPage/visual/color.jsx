@@ -16,7 +16,7 @@ export function SurfaceColorsDemo() {
     <VisualSection id="surface-colors">
       <div className="we-design-lab__grid">
         <SwatchGroup title="底色" prefix="--we-color-" names={['bg-canvas', 'bg-surface', 'bg-elevated', 'bg-sunken', 'bg-strong', 'scrim']} />
-        <SwatchGroup title="文字" prefix="--we-color-" names={['text-primary', 'text-secondary', 'text-tertiary', 'on-accent']} />
+        <SwatchGroup title="文字" prefix="--we-color-" names={['text-primary', 'text-secondary', 'text-tertiary', 'text-faint', 'on-accent']} />
         <SwatchGroup title="边框" prefix="--we-color-" names={['border-subtle', 'border-default', 'border-strong', 'border-focus']} />
       </div>
     </VisualSection>

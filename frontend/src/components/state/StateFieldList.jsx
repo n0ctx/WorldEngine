@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { SortableList } from '../index';
+import Button from '../ui/Button.jsx';
 import DragHandle from '../ui/DragHandle.jsx';
 import StateFieldEditor from './StateFieldEditor';
 import { log } from '../../core/utils/logger.js';
@@ -76,21 +77,18 @@ export default function StateFieldList({
   return (
     <div>
       <div className="flex items-center justify-between mb-2">
-        <span className="we-type-eyebrow text-[var(--we-color-text-secondary)] uppercase opacity-60">
+        <span className="we-type-eyebrow text-[var(--we-color-text-tertiary)] uppercase">
           {scope === 'world' ? '世界状态字段' : scope === 'persona' ? '玩家状态字段' : '角色状态字段'}
         </span>
-        <button
-          onClick={() => { setEditingField(null); setShowEditor(true); }}
-          className="we-type-caption px-3 py-1 bg-[var(--we-color-accent)] text-[var(--we-color-on-accent)] rounded-[var(--we-radius-lg)] hover:opacity-90 transition-opacity"
-        >
+        <Button size="sm" onClick={() => { setEditingField(null); setShowEditor(true); }}>
           + 添加
-        </button>
+        </Button>
       </div>
 
       {loading ? (
-        <p className="we-type-caption text-[var(--we-color-text-secondary)] opacity-50 py-3 text-center">加载中…</p>
+        <p className="we-type-caption text-[var(--we-color-text-faint)] py-3 text-center">加载中…</p>
       ) : fields.length === 0 ? (
-        <p className="we-type-caption text-[var(--we-color-text-secondary)] opacity-35 italic py-3 text-center">暂无字段</p>
+        <p className="we-type-caption text-[var(--we-color-text-faint)] italic py-3 text-center">暂无字段</p>
       ) : (
         <div className="flex flex-col gap-2">
           <SortableList
@@ -131,11 +129,11 @@ export default function StateFieldList({
 function FieldRow({ field, onEdit, onDelete }) {
   return (
     <div className="we-field-row group flex items-center gap-2 px-3 py-2 select-none cursor-grab active:cursor-grabbing">
-      <DragHandle className="flex-shrink-0 opacity-25 group-hover:opacity-50" />
+      <DragHandle className="flex-shrink-0 text-[var(--we-color-text-faint)] group-hover:text-[var(--we-color-text-tertiary)] transition-colors" />
 
       <div className="flex-1 min-w-0 flex items-center gap-2">
         <span className="we-type-ui text-[var(--we-color-text-primary)] truncate">{field.label}</span>
-        <span className="we-type-caption text-[var(--we-color-text-secondary)] opacity-50 [font-family:var(--we-font-mono)] truncate">{field.field_key}</span>
+        <span className="we-type-caption text-[var(--we-color-text-faint)] [font-family:var(--we-font-mono)] truncate">{field.field_key}</span>
         <span className="ml-auto flex gap-1 flex-shrink-0">
           <Badge label={TYPE_LABEL[field.type] ?? field.type} />
           <Badge label={UPDATE_LABEL[field.update_mode] ?? field.update_mode} dim />

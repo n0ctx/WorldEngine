@@ -95,7 +95,7 @@ function NumberStateFieldEditor({ field, local, setLocal, saveValue }) {
         onChange={(e) => setLocal(e.target.value)}
         onBlur={() => saveValue(local === '' || local == null ? null : Number(local))}
       />
-      {unit && <span className="we-type-caption text-[var(--we-color-text-secondary)] opacity-70 flex-shrink-0">{unit}</span>}
+      {unit && <span className="we-type-caption text-[var(--we-color-text-tertiary)] flex-shrink-0">{unit}</span>}
     </div>
   );
 }
@@ -194,7 +194,7 @@ function TableStateFieldEditor({ field, local, setLocal, saveValue }) {
   }
   const obj = local && typeof local === 'object' && !Array.isArray(local) ? local : {};
   if (columns.length === 0) {
-    return <span className="we-type-caption text-[var(--we-color-text-secondary)] opacity-70">未配置列</span>;
+    return <span className="we-type-caption text-[var(--we-color-text-tertiary)]">未配置列</span>;
   }
   return (
     <div className="we-status-table" style={{ '--we-status-table-cols': columns.length }} role="table" aria-label="表格状态默认值">

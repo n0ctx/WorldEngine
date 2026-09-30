@@ -40,10 +40,10 @@ export const VISUAL_SLOTS = [
   {
     id: 'wash-colors', category: 'color', title: '透明度阶梯与状态层', status: 'ready',
     tokens: [
-      '--we-alpha-*', '--we-color-hover', '--we-color-pressed', '--we-color-highlight-*', '--we-color-shade*',
+      '--we-alpha-*', '--we-opacity-disabled', '--we-color-hover', '--we-color-pressed', '--we-color-highlight-*', '--we-color-shade*',
       '--we-color-white', '--we-color-cover-*', '--we-color-avatar-*',
     ],
-    usedIn: ['输入框底、悬停底、遮罩、阴影、头像占位'],
+    usedIn: ['输入框底、悬停底、遮罩、阴影、头像占位、不可用控件'],
   },
 
   // ── 字体与排版 ──

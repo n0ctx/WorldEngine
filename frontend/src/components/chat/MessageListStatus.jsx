@@ -2,7 +2,7 @@
 export default function MessageListStatus({ loading, sessionId, loadError, onRetry }) {
   if (loading) {
     return (
-      <div className="flex-1 flex items-center justify-center text-[var(--we-color-text-secondary)] opacity-50 we-type-ui">
+      <div className="flex-1 flex items-center justify-center text-[var(--we-color-text-faint)] we-type-ui">
         加载中…
       </div>
     );
@@ -10,7 +10,7 @@ export default function MessageListStatus({ loading, sessionId, loadError, onRet
 
   if (!sessionId) {
     return (
-      <div className="flex-1 flex items-center justify-center text-[var(--we-color-text-secondary)] opacity-40 we-type-ui">
+      <div className="flex-1 flex items-center justify-center text-[var(--we-color-text-faint)] we-type-ui">
         请选择或创建一个对话
       </div>
     );

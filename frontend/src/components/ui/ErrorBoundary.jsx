@@ -34,13 +34,13 @@ export default class ErrorBoundary extends Component {
             应用渲染过程中发生异常。重新加载后会优先尝试恢复本地暂存的未发送输入，再不行再联系开发者反馈问题。
           </p>
           {this.state.error && (
-            <pre className="we-type-caption text-left bg-[var(--we-color-bg-surface)] p-4 rounded-[var(--we-radius-lg)] mb-6 max-w-lg overflow-auto opacity-70">
+            <pre className="we-type-caption text-left bg-[var(--we-color-bg-surface)] p-4 rounded-[var(--we-radius-lg)] mb-6 max-w-lg overflow-auto text-[var(--we-color-text-tertiary)]">
               {this.state.error.toString()}
             </pre>
           )}
           <button
             onClick={this.handleReload}
-            className="px-4 py-2 rounded-[var(--we-radius-lg)] bg-[var(--we-color-accent)] text-[var(--we-color-on-accent)] we-type-ui hover:opacity-90 transition-opacity"
+            className="we-btn we-btn-primary"
           >
             刷新并尝试恢复草稿
           </button>
