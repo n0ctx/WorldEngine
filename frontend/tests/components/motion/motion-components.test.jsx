@@ -182,6 +182,7 @@ describe('CodeBlock', () => {
   it('复制按钮把代码写进剪贴板，并切换成已复制', async () => {
     const writeText = vi.fn().mockResolvedValue();
     Object.assign(navigator, { clipboard: { writeText } });
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(null);
     render(<CodeBlock code={'\n{\n  "a": 1\n}\n'} />);
 
     await act(async () => {

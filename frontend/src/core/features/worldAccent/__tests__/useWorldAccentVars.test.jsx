@@ -31,11 +31,17 @@ describe('useWorldAccentVars', () => {
     document.documentElement.style.removeProperty('--we-color-bg-canvas');
   });
 
-  it('世界内页面（深色主题、有 accent_color）返回派生 token', async () => {
+  it('世界内页面（深色主题、有 accent_color）只覆盖主色，派生值交给 CSS 重算', async () => {
     const { result } = renderAt('/worlds/w1');
     await act(async () => {});
-    expect(result.current).not.toBeNull();
-    expect(result.current['--we-color-accent']).toBe('#6172ae');
+    expect(result.current).toEqual({ '--we-color-accent': '#6172ae' });
+  });
+
+  it('accent_color 不是合法的十六进制色时不注入', async () => {
+    worldsApi.getWorld.mockResolvedValue({ id: 'w1', accent_color: 'not-a-color' });
+    const { result } = renderAt('/worlds/w1');
+    await act(async () => {});
+    expect(result.current).toBeNull();
   });
 
   it('书架层（"/")永远返回 null，不看残留的 accentColor', async () => {

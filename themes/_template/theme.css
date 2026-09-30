@@ -5,69 +5,27 @@
    *
    * 规则：
    *   1. 主题只改值，不写组件选择器
-   *   2. 先改语义色和字体，再决定是否下沉到基础色板
+   *   2. 先改基础色板和字体；语义色由核心推导，主题不写
    *   3. 如果缺 token，先补 frontend/src/themes/tokens.css，再回到这里覆盖
    */
 
   /* ──────────────────────────────────────────────────────────────
-     § 1 语义色与透明层
+     § 1 基础色板：主题只写这几个颜色，文字、底色、边框、透明层由核心按公式推导
      ────────────────────────────────────────────────────────────── */
 
-  --we-color-text-primary: #171717;
-  --we-color-text-secondary: #525252;
-  --we-color-text-tertiary: #737373;
-  --we-color-text-inverse: #ffffff;
-  --we-color-text-danger: #7d766f;
-
+  --we-base-canvas:  #f7f7f4;   /* 页面底；深色主题须写 6 位十六进制，且不能比 core/utils/accentBasis.js 的取色基准更亮 */
+  --we-base-surface: #ffffff;   /* 卡片、面板 */
+  --we-base-ink:     #171717;   /* 正文色 */
+  --we-base-accent:  #7d766f;   /* 主题强调色：克制、低饱和，把颜色让给世界封面 */
+  --we-base-success: #4f6a58;
+  --we-base-warning: #9a6c35;
+  --we-base-info:    #586174;
+  --we-base-danger:  #7d766f;
+  --we-base-shade:   #171717;   /* 阴影、遮罩、凹陷的底色 */
+  --we-shadow-strength: 100%;   /* 阴影与凹陷的浓度：深色主题 100%，纸面主题可降到 50% */
   /* 画布偏深的主题必须改成 dark，否则切回标签页时会闪一帧浏览器白底 */
   --we-color-scheme: light;
-
-  --we-color-bg-canvas: #f7f7f4;
-  --we-color-bg-surface: #ffffff;
-  --we-color-bg-elevated: #ffffff;    /* 弹窗/浮层，主题可加深以制造层次 */
-  --we-color-bg-subtle: #e2e2dc;
-  --we-color-bg-muted: #c9c9c0;
-  --we-color-bg-overlay: rgba(23, 23, 23, 0.5);
-  --we-color-bg-inverse: #2f3136;
-
-  --we-color-border-default: #e2e2dc;
-  --we-color-border-subtle: #ffffff;
-  --we-color-border-strong: #c9c9c0;
-  --we-color-border-focus: #7d766f;
-
-  --we-color-status-success: #4f6a58;
-  --we-color-status-warning: #9a6c35;
-  --we-color-status-danger: #7d766f;
-  --we-color-status-info: #586174;
-
-  --we-color-accent: #7d766f;
-  --we-color-accent-deep: #5f5852;
-  --we-color-accent-bg: rgba(125, 118, 111, 0.08);
-  --we-color-gold: #8b867e;
-  --we-color-gold-pale: #b3aea5;
-  --we-color-avatar-placeholder: #f0c4a4;
-  --we-color-white: #ffffff;                             /* 恒定纯白：漂白强调色、动效高亮，不随主题翻转 */
-  --we-color-cover-scrim: rgb(0 0 0);                    /* 世界卡封面图上的恒定黑：文字投影、头像圈描边 */
-
-  --we-color-ink-wash: rgba(23, 23, 23, 0.035);
-  --we-color-ink-wash-md: rgba(23, 23, 23, 0.06);
-  --we-color-ink-wash-strong: rgba(23, 23, 23, 0.13);
-  --we-color-shadow-sm: rgba(23, 23, 23, 0.08);
-  --we-color-shadow-md: rgba(23, 23, 23, 0.14);
-  --we-color-shadow-lg: rgba(23, 23, 23, 0.20);
-  --we-color-shadow-xl: rgba(23, 23, 23, 0.30);
-  --we-color-overlay-medium: rgba(23, 23, 23, 0.35);
-  --we-color-overlay-heavy: rgba(23, 23, 23, 0.60);
-  --we-color-paper-wash: rgba(247, 247, 244, 0.28);
-  --we-color-paper-tint: rgba(226, 226, 220, 0.45);
-  --we-color-paper-overlay: rgba(201, 201, 192, 0.12);
-  --we-color-ink-secondary-wash: rgba(82, 82, 82, 0.16);
-  --we-color-ink-secondary-wash-sm: rgba(82, 82, 82, 0.12);
-  --we-color-accent-border: rgba(125, 118, 111, 0.25);
-  --we-color-accent-border-sm: rgba(125, 118, 111, 0.22);
-  --we-color-white-wash: rgba(255, 255, 255, 0.05);      /* ~5% 白色悬停 */
-  --we-color-white-sheen-sm: rgba(255, 255, 255, 0.12);  /* ~12% 高光（按钮） */
-  --we-color-white-sheen-md: rgba(255, 255, 255, 0.22);  /* ~22% 高光（卡片） */
+  --we-color-gold-pale: #b3aea5;  /* 顶栏激活态的浅金字 */
 
   /* ──────────────────────────────────────────────────────────────
      § 2 字体与页面排版
@@ -182,28 +140,6 @@
     0 14px 36px rgb(48 31 13 / 10%);
 
   /* ──────────────────────────────────────────────────────────────
-     § 5 基础色板
-     ────────────────────────────────────────────────────────────── */
-
-  --we-base-paper-100: #f7f7f4;
-  --we-base-paper-200: #ffffff;
-  --we-base-paper-300: #e2e2dc;
-  --we-base-paper-400: #c9c9c0;
-  --we-base-ink-900: #171717;
-  --we-base-ink-700: #525252;
-  --we-base-ink-500: #737373;
-  --we-base-vermilion-600: #7d766f;
-  --we-base-vermilion-800: #5f5852;
-  --we-base-gold-600: #8b867e;
-  --we-base-gold-400: #b3aea5;
-  --we-base-moss-600: #4f6a58;
-  --we-base-amber-600: #9a6c35;
-  --we-base-slate-600: #586174;
-  --we-base-book-bg: #2f3136;
-  --we-base-white: #ffffff;
-  --we-base-peach-200: #f0c4a4;
-
-  /* ──────────────────────────────────────────────────────────────
      § 6 阴影 / 圆角 / 动效
      ────────────────────────────────────────────────────────────── */
 
@@ -218,9 +154,6 @@
     0 0 0 1px #ffffff,
     0 4px 12px rgba(23, 23, 23, 0.14);
   --we-shadow-range-thumb: 0 1px 4px rgba(23, 23, 23, 0.18);
-  --we-shadow-range-thumb-active:
-    0 0 0 3px rgba(23, 23, 23, 0.15),
-    0 1px 4px rgba(23, 23, 23, 0.18);
 
   --we-radius-none: 1px;
   --we-radius-xs: 3px;

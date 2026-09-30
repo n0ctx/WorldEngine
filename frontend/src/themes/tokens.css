@@ -5,23 +5,22 @@
  * 本文件自上而下分五层，层与层之间用分节注释隔开。新增 token 前先想清楚它属于哪一层，
  * 不要图省事塞进离得最近的一层。
  *
- * A 层 · 基础色板（--we-core-* / --we-base-*）
- *   最原始的取值。--we-core-* 是内部基础色，只供 --we-base-* 派生引用，组件和主题都
- *   不准直接使用。主题包换肤时真正要覆盖的是 --we-base-*。
+ * A 层 · 基础色板（--we-base-* / --we-shadow-strength）
+ *   主题换肤只写这一层（外加字体与少数质感旋钮，白名单见 scripts/check-theme-alignment.mjs）。
+ *   组件禁止直接引用。
  *
  * B 层 · 语义 token（--we-color-* / --we-danmaku-*）
- *   从 A 层派生、组件必须使用的一套。禁止跳过这一层直接引用基础色。
+ *   全部由 A 层按公式推导，主题不写。组件必须使用这一层。
+ *   文字与边框朝 surface 混：卡片面是文字最常落的底，对比度按它保证。
+ *   依赖世界主色的 token 放在下方「主色作用域」块里，不在 :root 主块里声明。
  *
- * C 层 · 结构 token（--we-space-* / --we-radius-* / --we-blur-* / --we-z-* / --we-duration-* /
- *   --we-easing-* / --we-type-* / --we-leading-flush / --we-glyph-* / --we-weight-* / --we-focus-ring）
- *   间距、层级、动效节奏（easing）、字号字距等骨架量，跟视觉风格无关，主题不该改这几类。
- *   例外：--we-radius-* / --we-duration-* / --we-focus-ring 是既有主题包
- *   （classic-parchment）实际在覆盖的圆角节奏 /
- *   焦点环观感旋钮，允许主题覆盖；其余 C 层 token 目前没有任何主题覆盖，保持不可覆盖。
+ * C 层 · 结构 token（--we-space-* / --we-alpha-* / --we-radius-* / --we-blur-* / --we-z-* / --we-duration-* /
+ *   --we-easing-* / --we-type-* / --we-leading-flush / --we-glyph-* / --we-weight-*）
+ *   间距、透明度阶梯、层级、动效节奏、字体角色等骨架量，跟视觉风格无关。
+ *   例外：--we-radius-* / --we-duration-* 允许主题覆盖。
  *
  * D 层 · 组件皮肤 token（其余所有绑定到某个具体组件、具体状态的 token）
- *   收敛后仍保留的这一层，是两个内置主题（nocturne / classic-parchment）
- *   换肤时确实需要不同取值、且无法用 B/C 层语义 / 结构 token 组合表达的旋钮。新代码不要
+ *   两个内置主题换肤时确实需要不同取值、且无法用 A/B/C 层组合表达的旋钮。新代码不要
  *   再往这一层加 token，优先复用已有的语义 / 结构 token。
  *
  * E 层 · 运行时 token（--we-status-table-cols）
@@ -30,135 +29,98 @@
 
 :root {
   /* ============================================================
-   * A 层 · 基础色板
+   * A 层 · 基础色板：主题只写这一层
    * ============================================================ */
 
-  /* === 基础色（仅供语义色引用，组件禁止直接使用）=== */
-  --we-core-surface-100: #f7f7f4;
-  --we-core-surface-200: #ffffff;
-  --we-core-surface-300: #e2e2dc;
-  --we-core-surface-400: #c9c9c0;
-  --we-core-ink-900:     #171717;
-  --we-core-ink-700:     #525252;
-  --we-core-ink-500:     #737373;
-  --we-core-accent-600:  #7d766f;
-  --we-core-accent-800:  #5f5852;
-  --we-core-ornament-600:#8b867e;
-  --we-core-ornament-400:#b3aea5;
-  --we-core-success-600: #4f6a58;
-  --we-core-warning-600: #9a6c35;
-  --we-core-info-600:    #586174;
-  --we-core-shell-bg:    #2f3136;
-
-  /* 基础色板变量：语义 token 从这里派生，主题可通过覆盖它们批量换肤。 */
-  --we-base-paper-100: var(--we-core-surface-100);
-  --we-base-paper-200: var(--we-core-surface-200);
-  --we-base-paper-300: var(--we-core-surface-300);
-  --we-base-paper-400: var(--we-core-surface-400);
-  --we-base-ink-900:   var(--we-core-ink-900);
-  --we-base-ink-700:   var(--we-core-ink-700);
-  --we-base-ink-500:   var(--we-core-ink-500);
-  --we-base-vermilion-600: var(--we-core-accent-600);
-  --we-base-vermilion-800: var(--we-core-accent-800);
-  --we-base-gold-600:  var(--we-core-ornament-600);
-  --we-base-gold-400:  var(--we-core-ornament-400);
-  --we-base-moss-600:  var(--we-core-success-600);
-  --we-base-amber-600: var(--we-core-warning-600);
-  --we-base-slate-600: var(--we-core-info-600);
-  --we-base-book-bg:   var(--we-core-shell-bg);
-  --we-base-white:     #ffffff;
-  --we-base-peach-200: #f0c4a4;
+  --we-base-canvas:  #f7f7f4;  /* 页面底；深色主题须写成 6 位十六进制，世界主色的对比度检查要解析它 */
+  --we-base-surface: #ffffff;  /* 卡片、面板 */
+  --we-base-ink:     #171717;  /* 正文色；文字与边框的各级都由它朝 surface 混出 */
+  --we-base-accent:  #7d766f;  /* 主题强调色；进入世界后深色主题由世界主色接管 */
+  --we-base-success: #4f6a58;
+  --we-base-warning: #9a6c35;
+  --we-base-info:    #586174;
+  --we-base-danger:  #7d766f;
+  --we-base-shade:   #171717;  /* 阴影、遮罩、凹陷的底色 */
+  /* 阴影与凹陷的浓度（百分比）：深色主题压得重，纸面主题压得轻 */
+  --we-shadow-strength: 100%;
 
   /* ============================================================
-   * B 层 · 语义 token
+   * B 层 · 语义 token：全部由 A 层推导
    * ============================================================ */
 
-  /* === 语义色（组件必须使用这些，禁止直接用基础色）=== */
-
   /* 文字色 */
-  --we-color-text-primary:   var(--we-base-ink-900);
-  --we-color-text-secondary: var(--we-base-ink-700);
-  --we-color-text-tertiary:  var(--we-base-ink-500);
-  --we-color-text-inverse:   var(--we-base-white);
-  --we-color-text-danger:    var(--we-base-vermilion-600);
+  --we-color-text-primary:   var(--we-base-ink);
+  --we-color-text-secondary: color-mix(in oklab, var(--we-base-ink) 78%, var(--we-base-surface));
+  --we-color-text-tertiary:  color-mix(in oklab, var(--we-base-ink) 66%, var(--we-base-surface));
+  --we-color-text-inverse:   var(--we-base-canvas);  /* 主色按钮上的字 */
+  --we-color-text-danger:    var(--we-base-danger);
   /* 头像占位圈文字色：叠在 avatar.js 的固定哈希色板（--avatar-bg）上，
-     该色板本身不随主题变化、始终是中低明度色，因此这里恒定取浅色，
-     不能复用 text-inverse —— text-inverse 在深色主题里会为了「主色按钮文字」
-     场景反转成深色，套到头像色板上会导致深字压深底、初始字母不可读。 */
-  --we-color-avatar-text:    var(--we-base-white);
-  /* 恒定纯白：把强调色往白色漂白、动效高亮用。不随主题翻转，
-     不能复用 text-inverse（深色主题里它会翻成深色，漂白方向就反了）。 */
-  --we-color-white:          var(--we-base-white);
+     该色板不随主题变化、始终是中低明度色，因此恒定取白；不能复用 text-inverse。 */
+  --we-color-avatar-text:    #ffffff;
+  /* 恒定纯白：把强调色往白色漂白、动效高亮用。不随主题翻转，不能复用 text-inverse。 */
+  --we-color-white:          #ffffff;
 
   /* 浏览器原生配色方案：决定标签页复原/滚动越界时浏览器自己那层底色，以及
      原生滚动条、表单控件、自动填充的明暗。必须跟本主题画布明暗一致，
      否则深色主题切回标签页会先闪一帧白底。深色主题包需覆盖为 dark。 */
   --we-color-scheme: light;
 
-  /* 背景色 */
-  --we-color-bg-canvas:   var(--we-base-paper-100);
-  --we-color-bg-surface:  var(--we-base-paper-200);  /* 卡片/面板 */
-  --we-color-bg-elevated: var(--we-base-paper-200);  /* 浮层/弹窗，默认同 surface，主题可覆盖以制造层次 */
-  --we-color-bg-subtle:   var(--we-base-paper-300);
-  --we-color-bg-muted:    var(--we-base-paper-400);
-  --we-color-bg-overlay:  rgba(23, 23, 23, 0.5);
-  --we-color-bg-inverse:  var(--we-base-book-bg);
+  /* 背景色：canvas 页面底 → surface 卡片 → elevated 浮层；sunken 比 surface 低一层，muted 实心徽标底 */
+  --we-color-bg-canvas:   var(--we-base-canvas);
+  --we-color-bg-surface:  var(--we-base-surface);
+  --we-color-bg-elevated: color-mix(in oklab, var(--we-color-white) 4%, var(--we-base-surface));
+  --we-color-bg-subtle:   color-mix(in oklab, var(--we-base-shade) 8%, var(--we-base-surface));
+  --we-color-bg-muted:    color-mix(in oklab, var(--we-base-ink) 14%, var(--we-base-surface));
+  --we-color-bg-overlay:  color-mix(in srgb, var(--we-base-shade) var(--we-alpha-5), transparent);
 
-  /* 边框色 */
-  --we-color-border-default: var(--we-base-paper-300);
-  --we-color-border-subtle:  var(--we-base-paper-200);
-  --we-color-border-strong:  var(--we-base-paper-400);
-  --we-color-border-focus:   var(--we-base-vermilion-600);
+  /* 边框色：strong 用于输入框、复选框等控件边界（对比度 ≥ 3:1） */
+  --we-color-border-subtle:  color-mix(in oklab, var(--we-base-ink) 14%, var(--we-base-surface));
+  --we-color-border-default: color-mix(in oklab, var(--we-base-ink) 30%, var(--we-base-surface));
+  --we-color-border-strong:  color-mix(in oklab, var(--we-base-ink) 52%, var(--we-base-surface));
 
   /* 状态色 */
-  --we-color-status-success: var(--we-base-moss-600);
-  --we-color-status-warning: var(--we-base-amber-600);
-  --we-color-status-danger:  var(--we-base-vermilion-600);
-  --we-color-status-info:    var(--we-base-slate-600);
+  --we-color-status-success: var(--we-base-success);
+  --we-color-status-warning: var(--we-base-warning);
+  --we-color-status-danger:  var(--we-base-danger);
+  --we-color-status-info:    var(--we-base-info);
 
-  /* 强调色 */
-  --we-color-accent:      var(--we-base-vermilion-600);
-  --we-color-accent-deep: var(--we-base-vermilion-800);
-  --we-color-accent-bg:   rgba(125, 118, 111, 0.08);
-  --we-color-gold:        var(--we-base-gold-600);
-  --we-color-gold-pale:   var(--we-base-gold-400);
+  /* 强调色：派生值见下方「主色作用域」块 */
+  --we-color-accent:      var(--we-base-accent);
+  /* 顶栏激活态的浅金字，阶段性保留为主题可写，待壳层色板收敛 */
+  --we-color-gold-pale:   #b3aea5;
 
-  /* 头像占位背景 */
-  --we-color-avatar-placeholder: var(--we-base-peach-200);
-
-  /* 中性墨色透明层 */
-  --we-color-ink-wash:          rgba(23, 23, 23, 0.035);
-  --we-color-ink-wash-md:       rgba(23, 23, 23, 0.06);
-  --we-color-ink-wash-strong:   rgba(23, 23, 23, 0.13);
-  /* sm/md/lg/xl 表示不透明度从低到高，非空间尺寸 */
-  --we-color-shadow-sm:         rgba(23, 23, 23, 0.08);
-  --we-color-shadow-md:         rgba(23, 23, 23, 0.14);
-  --we-color-shadow-lg:         rgba(23, 23, 23, 0.20);
-  --we-color-shadow-xl:         rgba(23, 23, 23, 0.30);
-  --we-color-overlay-medium:    rgba(23, 23, 23, 0.35);
-  --we-color-overlay-heavy:     rgba(23, 23, 23, 0.60);
+  /* 状态层：透明度只取 --we-alpha-* 阶梯 */
+  --we-color-pressed:     color-mix(in srgb, var(--we-base-ink) var(--we-alpha-2), transparent);
+  --we-color-highlight-1: color-mix(in srgb, var(--we-color-white) var(--we-alpha-1), transparent);
+  --we-color-highlight-2: color-mix(in srgb, var(--we-color-white) var(--we-alpha-2), transparent);
+  /* 阴影与凹陷：底色先按主题的 --we-shadow-strength 调浓淡，再取阶梯 */
+  --we-color-shade:       color-mix(in srgb, var(--we-base-shade) var(--we-shadow-strength), transparent);
+  --we-color-shade-1:     color-mix(in srgb, var(--we-color-shade) var(--we-alpha-2), transparent);
+  --we-color-shade-2:     color-mix(in srgb, var(--we-color-shade) var(--we-alpha-3), transparent);
+  --we-color-shade-3:     color-mix(in srgb, var(--we-color-shade) var(--we-alpha-4), transparent);
+  --we-color-shade-4:     color-mix(in srgb, var(--we-color-shade) var(--we-alpha-5), transparent);
   /* 世界卡封面图上的恒定黑：文字投影、头像圈描边。封面图明暗与主题无关，
-     所以不能用随主题变化的 overlay / shadow；用法：color-mix(in srgb, var(--we-color-cover-scrim) N%, transparent) */
-  --we-color-cover-scrim:       rgb(0 0 0);
+     所以不能用随主题变化的 shade；用法：color-mix(in srgb, var(--we-color-cover-scrim) N%, transparent) */
+  --we-color-cover-scrim: rgb(0 0 0);
 
-  /* 白色透明叠加（用于高光）*/
-  /* 255,255,255 = --we-base-white 的 RGB */
-  --we-color-white-wash:        rgba(255, 255, 255, 0.05); /* ~5% 白色悬停 */
-  --we-color-white-sheen-sm:    rgba(255, 255, 255, 0.12); /* ~12% 白色高光（按钮） */
-  --we-color-white-sheen-md:    rgba(255, 255, 255, 0.22); /* ~22% 白色高光（卡片） */
-
-  /* 表面透明叠加 */
-  --we-color-paper-wash:        rgba(247, 247, 244, 0.28);
-  --we-color-paper-tint:        rgba(226, 226, 220, 0.45);
-  --we-color-paper-overlay:     rgba(201, 201, 192, 0.12);
-
-  /* 墨水次色透明叠加（用于代码块边框）*/
-  --we-color-ink-secondary-wash:    rgba(82, 82, 82, 0.16);
-  --we-color-ink-secondary-wash-sm: rgba(82, 82, 82, 0.12);
-
-  /* 强调色透明叠加（用于 tag 边框）*/
-  --we-color-accent-border:     rgba(125, 118, 111, 0.25);
-  --we-color-accent-border-sm:  rgba(125, 118, 111, 0.22);
+  /* 旧名：下一步按用途改名后删除 */
+  --we-color-ink-wash:              var(--we-color-shade-1);
+  --we-color-ink-wash-md:           var(--we-color-shade-2);
+  --we-color-ink-wash-strong:       var(--we-color-shade-3);
+  --we-color-shadow-sm:             var(--we-color-shade-2);
+  --we-color-shadow-md:             var(--we-color-shade-2);
+  --we-color-shadow-lg:             var(--we-color-shade-3);
+  --we-color-shadow-xl:             var(--we-color-shade-4);
+  --we-color-overlay-medium:        color-mix(in srgb, var(--we-base-shade) var(--we-alpha-4), transparent);
+  --we-color-overlay-heavy:         color-mix(in srgb, var(--we-base-shade) var(--we-alpha-5), transparent);
+  --we-color-paper-wash:            color-mix(in srgb, var(--we-base-canvas) var(--we-alpha-3), transparent);
+  --we-color-paper-tint:            color-mix(in srgb, var(--we-color-bg-muted) var(--we-alpha-4), transparent);
+  --we-color-paper-overlay:         color-mix(in srgb, var(--we-color-bg-muted) var(--we-alpha-2), transparent);
+  --we-color-ink-secondary-wash:    var(--we-color-pressed);
+  --we-color-ink-secondary-wash-sm: var(--we-color-pressed);
+  --we-color-white-wash:            var(--we-color-highlight-1);
+  --we-color-white-sheen-sm:        var(--we-color-highlight-1);
+  --we-color-white-sheen-md:        var(--we-color-highlight-2);
 
   /* 背景氛围「光尘」：外壳在全部内容后画一束斜光和漂浮的微尘（shells/book-spread/atmosphere）。
      颜色随世界封面主色，由外壳在根节点覆盖；主题只调强度与冷暖。 */
@@ -173,7 +135,7 @@
   /* 表面材料（世界入口、台前、消息、输入胶囊、弹窗共用，见 ui.css .we-material）：
      暗色描边包住物件，内侧一圈极淡的光和顶部一条窄高光；表面压一层几乎看不见的静态颗粒；
      接地阴影分近、远两段：近处实、远处淡，悬停只让远影稍微离开 */
-  --we-material-stroke:     color-mix(in srgb, var(--we-base-ink-900) 16%, transparent);
+  --we-material-stroke:     color-mix(in srgb, var(--we-base-ink) 16%, transparent);
   --we-material-sheen:      rgba(255, 255, 255, 0.14);
   --we-material-grain:      0.03;
   --we-material-shadow-near:
@@ -213,6 +175,13 @@
   /* ============================================================
    * C 层 · 结构 token
    * ============================================================ */
+
+  /* === 透明度阶梯：color-mix 的百分比只取这五档 === */
+  --we-alpha-1: 6%;
+  --we-alpha-2: 12%;
+  --we-alpha-3: 24%;
+  --we-alpha-4: 40%;
+  --we-alpha-5: 64%;
 
   /* === 间距 Scale（严格 4 的倍数）=== */
   --we-space-xxs: 2px;
@@ -328,9 +297,6 @@
   --we-weight-medium:  500;
   --we-weight-strong:  600;
 
-  /* 统一焦点环：可与 box-shadow 叠加（如 input 的 paper-indent + focus-ring） */
-  --we-focus-ring: 0 0 0 2px var(--we-color-accent-bg);
-
   /* ============================================================
    * D 层 · 组件皮肤 token
    * 历史遗留层，数量过多导致主题作者要拧上百个旋钮才能换一次皮。
@@ -366,7 +332,7 @@
 
   --we-card-bg: var(--we-color-bg-surface);
   /* hover/选中背景：必须不透明（半透明会透出底下画布，文字发糊）。默认在卡底色上叠一层浅墨 */
-  --we-card-hover-bg: color-mix(in srgb, #171717 6%, var(--we-card-bg));
+  --we-card-hover-bg: color-mix(in srgb, var(--we-base-shade) 6%, var(--we-card-bg));
   --we-card-border: 1px solid var(--we-color-border-default);
   --we-card-radius: var(--we-radius-sm);
   --we-card-shadow: var(--we-shadow-paper-lift);
@@ -381,8 +347,7 @@
      需要在窄行/auto-overflow 容器里收紧远距 bloom 的主题可单独覆写这两个 token。 */
   /* 卡片 hover 位移：world 卡默认上浮 -4px；硬投影/拟物主题可覆写为 translate(...) 做下压 */
   /* 列表卡 hover 位移：默认不位移；硬投影/拟物主题可覆写为 translate(...) 制造下压/弹起手感 */
-  --we-panel-card-shadow: 0 0 0 1px rgba(23, 23, 23, 0.03); /* fallback: older browsers */
-  --we-panel-card-shadow: 0 0 0 1px color-mix(in srgb, var(--we-base-ink-900) 3%, transparent);
+  --we-panel-card-shadow: 0 0 0 1px color-mix(in srgb, var(--we-base-ink) 3%, transparent);
 
   /* === 装饰 & 纹理 token（主题可控制显隐与视觉）=== */
   --we-canvas-texture-image:    none;
@@ -396,16 +361,6 @@
   --we-parchment-display:       none;
   --we-parchment-fiber-opacity: 0;
 
-
-  /* === 功能性渐变 Token（允许保留 linear-gradient，因含动态变量）=== */
-  /* range 滑条：由 --range-pct 动态计算填充比例，无法用 color-mix 替代 */
-  --we-range-track-bg: linear-gradient(
-    to right,
-    var(--we-color-accent) 0%,
-    var(--we-color-accent) calc(var(--range-pct, 0%)),
-    var(--we-color-border-default) calc(var(--range-pct, 0%)),
-    var(--we-color-border-default) 100%
-  );
 
   /* === 壳层、分隔与质感 token：核心提供中性值，主题可覆盖 === */
   --we-topbar-bg:              #2f3136;
@@ -443,14 +398,9 @@
   --we-shadow-toast:
     0 0 0 1px var(--we-color-border-subtle),
     0 4px 12px var(--we-color-shadow-md);
-  /* 按钮主色悬停内发光：.we-btn-primary:hover 内侧光晕，基于 avatar-placeholder 色 */
   /* 滑块拇指默认投影 */
   --we-shadow-range-thumb:
-    0 1px 4px color-mix(in srgb, var(--we-base-ink-900) 18%, transparent);
-  /* 滑块拇指悬停/聚焦：强调环 + 投影 */
-  --we-shadow-range-thumb-active:
-    0 0 0 3px color-mix(in srgb, var(--we-base-vermilion-600) 15%, transparent),
-    0 1px 4px color-mix(in srgb, var(--we-base-ink-900) 18%, transparent);
+    0 1px 4px var(--we-color-shade-2);
 
   /* === Pager（嵌在消息列表底部的翻页按钮胶囊）皮肤 token：中性默认，主题可覆写 === */
   --we-pager-btn-bg:               var(--we-color-bg-surface);
@@ -474,6 +424,38 @@
 
   /* === 运行时布局 token：由 JS 在组件上动态设置，此处声明默认值，避免 var() fallback 散落各处 === */
   --we-status-table-cols:       1;   /* StatusTable: 状态表格列数 */
+}
+
+/* 主色作用域：依赖 --we-color-accent 的派生值。世界主色以内联样式覆盖在 .we-app-root 上，
+   挂到 body 的浮层（下拉列表等）复制主色后加 .we-accent-scope；
+   这些节点上重新声明，派生值才会按覆盖后的主色重算。主题不写这里的 token。 */
+:root,
+.we-app-root,
+.we-accent-scope {
+  --we-color-accent-deep:   color-mix(in oklab, var(--we-color-accent) 85%, black);
+  --we-color-accent-bg:     color-mix(in srgb, var(--we-color-accent) var(--we-alpha-2), transparent);
+  --we-color-accent-border: color-mix(in srgb, var(--we-color-accent) var(--we-alpha-3), transparent);
+  --we-color-border-focus:  var(--we-color-accent);
+  /* 装饰色：花饰、分隔线等不承载交互的点缀，由主色与三级文字混出 */
+  --we-color-ornament:      color-mix(in oklab, var(--we-color-accent) 50%, var(--we-color-text-tertiary));
+  /* 统一焦点环：可与 box-shadow 叠加（如 input 的 paper-indent + focus-ring） */
+  --we-focus-ring: 0 0 0 2px var(--we-color-accent-bg);
+  /* range 滑条：由 --range-pct 动态计算填充比例 */
+  --we-range-track-bg: linear-gradient(
+    to right,
+    var(--we-color-accent) 0%,
+    var(--we-color-accent) calc(var(--range-pct, 0%)),
+    var(--we-color-border-default) calc(var(--range-pct, 0%)),
+    var(--we-color-border-default) 100%
+  );
+  /* 滑块拇指悬停/聚焦：强调环 + 投影 */
+  --we-shadow-range-thumb-active:
+    0 0 0 3px var(--we-color-accent-bg),
+    0 1px 4px var(--we-color-shade-2);
+
+  /* 旧名：下一步按用途改名后删除 */
+  --we-color-accent-border-sm: var(--we-color-accent-border);
+  --we-color-gold:             var(--we-color-ornament);
 }
 
 /* 手机上顶栏按钮放大到 44px 触控区，顶栏随之加高 */

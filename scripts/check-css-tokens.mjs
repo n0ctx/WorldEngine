@@ -6,10 +6,13 @@
  *   - 提取所有 --we-* 声明 (LHS) 与 var(--we-*) 引用 (RHS)
  *   - 报告"孤儿引用"(被引用但任何地方都未声明的 token)
  *   - 报告"僵尸 token"(声明了但无任何引用的 token)
+ *   - 报告"主色作用域漏项"(tokens.css 里依赖 --we-color-accent 的 token 声明在 :root 主块、且没有主题覆盖:
+ *     世界主色以内联样式覆盖在 .we-app-root 上,这类 token 在 :root 就已算定,不会跟着变;
+ *     应挪进 tokens.css 的主色作用域块 `:root, .we-app-root, .we-accent-scope`)
  *
  * 退出码:
  *   0 - 健康
- *   1 - 发现孤儿引用 (硬错误,阻塞 CI)
+ *   1 - 发现孤儿引用或主色作用域漏项 (硬错误,阻塞 CI)
  *   2 - 仅僵尸 token (软警告,不阻塞,但 stderr 提示)
  *
  * JS/JSX 中通过 React style prop 内联设置的运行时 token (例如 WorldsPage 的
@@ -126,6 +129,32 @@ for (const [prefix, locs] of prefixUses) {
   }
 }
 
+// 主色作用域：tokens.css 里依赖主色的 token 必须在作用域块里重新声明（主题覆盖的皮肤旋钮除外）
+function accentScopeMisses() {
+  const css = readFileSync(path.join(repoRoot, 'frontend/src/themes/tokens.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+  const rootDecls = new Map();
+  const scoped = new Set();
+  for (const [, selector, body] of css.matchAll(/([^{}]*)\{([^{}]*)\}/g)) {
+    for (const [, token, value] of body.matchAll(/(--we-[a-z0-9-]+)\s*:([^;]*);/g)) {
+      if (selector.trim() === ':root') rootDecls.set(token, value);
+      else if (selector.includes('.we-accent-scope')) scoped.add(token);
+    }
+  }
+  const themed = new Set(files.filter((f) => /[\\/]themes[\\/][^_][^\\/]*[\\/]theme\.css$/.test(f))
+    .flatMap((f) => [...readFileSync(f, 'utf8').matchAll(DECL_RE)].map((m) => m[1])));
+  const memo = new Map();
+  const dependsOnAccent = (token) => {
+    if (token === '--we-color-accent' || scoped.has(token)) return true;
+    if (!rootDecls.has(token) || memo.has(token)) return memo.get(token) ?? false;
+    memo.set(token, false);
+    const hit = [...rootDecls.get(token).matchAll(USE_RE)].some((m) => dependsOnAccent(m[1]));
+    memo.set(token, hit);
+    return hit;
+  };
+  return [...rootDecls.keys()].filter((t) => t !== '--we-color-accent' && !themed.has(t) && dependsOnAccent(t)).sort();
+}
+
+const scopeMisses = accentScopeMisses();
 const orphans = [...usedSet].filter((t) => !declaredSet.has(t)).sort();
 const zombies = [...declaredSet].filter((t) => !usedSet.has(t)).sort();
 
@@ -142,6 +171,12 @@ if (orphans.length > 0) {
       console.error(`    └─ ...(共 ${used.get(t).length} 处)`);
     }
   }
+  exitCode = 1;
+}
+
+if (scopeMisses.length > 0) {
+  console.error(`\n✖ 发现 ${scopeMisses.length} 个依赖主色却声明在 :root 主块的 token (不会跟着世界主色变,挪进 tokens.css 的主色作用域块):\n`);
+  for (const t of scopeMisses) console.error(`  ${t}`);
   exitCode = 1;
 }
 

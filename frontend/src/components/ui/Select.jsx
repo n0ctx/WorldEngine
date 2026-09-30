@@ -99,7 +99,7 @@ function SelectList({ id, options, selectedIndex, placement, onChoose, onClose, 
       tabIndex={-1}
       aria-activedescendant={optionId(active)}
       onKeyDown={handleKeyDown}
-      className="we-select-dropdown"
+      className="we-select-dropdown we-accent-scope"
       style={placement}
       variants={m.variant('enter')}
       initial="hidden"

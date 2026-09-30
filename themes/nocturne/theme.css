@@ -2,68 +2,25 @@
   /*
    * 夜航 nocturne —— 深色沉浸主题
    * 暖墨色舞台地面，单一余烬橙主色；进入世界后主色由世界封面接管。
-   * 危险色单独覆盖为暖赭红（不沿用主色）。
+   * 危险色单独取暖赭红（不沿用主色）。
    */
 
   /* ──────────────────────────────────────────────────────────────
-     § 1 语义色与透明层
+     § 1 基础色板：语义色、边框、透明层都由核心按公式推导
      ────────────────────────────────────────────────────────────── */
 
-  --we-color-text-primary: #f3ece2;
-  --we-color-text-secondary: #bcb0a2;
-  --we-color-text-tertiary: #9a8e80;
-  --we-color-text-inverse: #17130f;
-  --we-color-text-danger: #e38e78;
-
+  --we-base-canvas:  #17130f;
+  --we-base-surface: #211c17;
+  --we-base-ink:     #f3ece2;
+  --we-base-accent:  #f2a65e;
+  --we-base-success: #6f9e82;
+  --we-base-warning: #b08b52;
+  --we-base-info:    #7a8794;
+  --we-base-danger:  #e38e78;  /* 暖赭红，不沿用主色 */
+  --we-base-shade:   #000000;
+  --we-shadow-strength: 100%;
   --we-color-scheme: dark;
-  --we-color-bg-canvas: #17130f;
-  --we-color-bg-surface: #211c17;
-  --we-color-bg-elevated: #2a241e;
-  --we-color-bg-subtle: #1c1814;
-  --we-color-bg-muted: #342d26;
-  --we-color-bg-overlay: rgba(12, 9, 6, 0.66);
-  --we-color-bg-inverse: #0f0c09;
-
-  /* 边框对比度按 WCAG 非文本 ≥3:1 硬指标标定（相邻画布/卡面均实测达标），
-     border-subtle 例外：仅用于卡片内部极轻高光分隔，非功能性描边 */
-  --we-color-border-default: rgba(255, 238, 220, 0.34);
-  --we-color-border-subtle: rgba(255, 238, 220, 0.07);
-  --we-color-border-strong: rgba(255, 238, 220, 0.44);
-  --we-color-border-focus: #f2a65e;
-
-  --we-color-status-success: #6f9e82;
-  --we-color-status-warning: #b08b52;
-  --we-color-status-danger: #e38e78;
-  --we-color-status-info: #7a8794;
-
-  --we-color-accent: #f2a65e;
-  --we-color-accent-deep: #d9853d;
-  --we-color-accent-bg: rgba(242, 166, 94, 0.14);
-  --we-color-gold: #c9a57a;
   --we-color-gold-pale: #f6d2a8;
-  --we-color-avatar-placeholder: #bfa088;
-  --we-color-white: #ffffff;
-  --we-color-cover-scrim: rgb(0 0 0);
-
-  --we-color-ink-wash: rgba(0, 0, 0, 0.16);
-  --we-color-ink-wash-md: rgba(0, 0, 0, 0.24);
-  --we-color-ink-wash-strong: rgba(0, 0, 0, 0.36);
-  --we-color-shadow-sm: rgba(0, 0, 0, 0.20);
-  --we-color-shadow-md: rgba(0, 0, 0, 0.30);
-  --we-color-shadow-lg: rgba(0, 0, 0, 0.40);
-  --we-color-shadow-xl: rgba(0, 0, 0, 0.55);
-  --we-color-overlay-medium: rgba(12, 9, 6, 0.45);
-  --we-color-overlay-heavy: rgba(12, 9, 6, 0.74);
-  --we-color-paper-wash: rgba(23, 19, 15, 0.35);
-  --we-color-paper-tint: rgba(52, 45, 38, 0.45);
-  --we-color-paper-overlay: rgba(66, 57, 48, 0.14);
-  --we-color-ink-secondary-wash: rgba(188, 176, 162, 0.14);
-  --we-color-ink-secondary-wash-sm: rgba(188, 176, 162, 0.10);
-  --we-color-accent-border: rgba(242, 166, 94, 0.34);
-  --we-color-accent-border-sm: rgba(242, 166, 94, 0.22);
-  --we-color-white-wash: rgba(255, 255, 255, 0.04);
-  --we-color-white-sheen-sm: rgba(255, 255, 255, 0.07);
-  --we-color-white-sheen-md: rgba(255, 255, 255, 0.10);
 
   /* ──────────────────────────────────────────────────────────────
      § 2 字体与页面排版
@@ -168,28 +125,6 @@
     0 14px 36px rgb(0 0 0 / 30%);
 
   /* ──────────────────────────────────────────────────────────────
-     § 5 基础色板
-     ────────────────────────────────────────────────────────────── */
-
-  --we-base-paper-100: #17130f;
-  --we-base-paper-200: #211c17;
-  --we-base-paper-300: #342d26;
-  --we-base-paper-400: #433a31;
-  --we-base-ink-900: #f3ece2;
-  --we-base-ink-700: #bcb0a2;
-  --we-base-ink-500: #9a8e80;
-  --we-base-vermilion-600: #f2a65e;
-  --we-base-vermilion-800: #d9853d;
-  --we-base-gold-600: #c9a57a;
-  --we-base-gold-400: #f6d2a8;
-  --we-base-moss-600: #6f9e82;
-  --we-base-amber-600: #b08b52;
-  --we-base-slate-600: #7a8794;
-  --we-base-book-bg: #0f0c09;
-  --we-base-white: #ffffff;
-  --we-base-peach-200: #bfa088;
-
-  /* ──────────────────────────────────────────────────────────────
      § 6 阴影 / 圆角 / 动效
      物件落在舞台上：内高光 + 向下的柔和接地投影；主按钮用实色底边做出可按压的厚度。
      ────────────────────────────────────────────────────────────── */
@@ -203,8 +138,6 @@
   --we-shadow-toast: 0 0 0 1px rgba(255, 238, 220, 0.08),
     0 14px 32px -10px rgba(0, 0, 0, 0.65);
   --we-shadow-range-thumb: 0 1px 3px rgba(0, 0, 0, 0.40);
-  --we-shadow-range-thumb-active: 0 0 0 3px rgba(242, 166, 94, 0.22),
-    0 1px 3px rgba(0, 0, 0, 0.40);
 
   --we-radius-none: 2px;
   --we-radius-xs: 6px;

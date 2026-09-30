@@ -5,9 +5,11 @@ import { useGuardFixture } from './guard-fixture.mjs';
 
 const { makeRoot, write, run } = useGuardFixture('check-theme-alignment.mjs');
 
-const CORE = ':root { --we-color-bg-canvas: #111; --we-color-accent: #f90; --we-space-md: 12px; }\n';
+const CORE = `:root { --we-base-canvas: #111; --we-base-accent: #f90; --we-color-bg-canvas: var(--we-base-canvas); --we-color-scheme: light; --we-space-md: 12px; }
+:root, .we-app-root { --we-color-accent-bg: color-mix(in srgb, var(--we-base-accent) 12%, transparent); --we-focus-ring: 0 0 0 2px red; }
+`;
 
-function fixture({ core = CORE, template = ':root { --we-color-bg-canvas: #111; --we-color-accent: #f90; }\n', theme = ':root { --we-color-accent: #09f; }\n' } = {}) {
+function fixture({ core = CORE, template = ':root { --we-base-canvas: #111; --we-base-accent: #f90; --we-color-scheme: light; }\n', theme = ':root { --we-base-accent: #09f; }\n' } = {}) {
   const root = makeRoot();
   write(root, 'frontend/src/themes/tokens.css', core);
   write(root, 'frontend/src/themes/fonts.css', '');
@@ -16,27 +18,38 @@ function fixture({ core = CORE, template = ':root { --we-color-bg-canvas: #111; 
   return root;
 }
 
-test('模板列全了内核视觉 token、主题没有孤悬覆盖：通过；主题少覆盖只提示，不失败', () => {
+test('模板列全了主题可写 token、主题没有孤悬或越权覆盖：通过；主题少覆盖只提示，不失败', () => {
   const result = run(fixture());
   assert.equal(result.status, 0, result.stdout);
   assert.match(result.stdout, /三层对齐检查通过/);
   assert.match(result.stdout, /\[C\] 主题缺失（themes\/sample\/theme\.css）/);
 });
 
-test('内核新增了视觉 token 而模板没列：失败，并点名 token', () => {
-  const root = fixture({ core: `${CORE}:root { --we-color-bg-new: #222; }\n` });
+test('内核新增了主题可写 token 而模板没列：失败，并点名 token；推导出的语义色不要求出现在模板里', () => {
+  const root = fixture({ core: `${CORE}:root { --we-base-new: #222; --we-color-text-new: var(--we-base-new); }\n` });
   const result = run(root);
   assert.equal(result.status, 1);
   assert.match(result.stdout, /\[A\] 模板盲区/);
-  assert.match(result.stdout, /--we-color-bg-new/);
+  assert.match(result.stdout, /--we-base-new/);
+  assert.doesNotMatch(result.stdout, /--we-color-text-new/);
 });
 
 test('主题覆盖了内核里不存在的 token：失败，并点名主题与 token', () => {
-  const root = fixture({ theme: ':root { --we-color-accent: #09f; --we-color-gone: #fff; }\n' });
+  const root = fixture({ theme: ':root { --we-base-accent: #09f; --we-base-gone: #fff; }\n' });
   const result = run(root);
   assert.equal(result.status, 1);
   assert.match(result.stdout, /\[B\] 孤悬覆盖（themes\/sample\/theme\.css）/);
-  assert.match(result.stdout, /--we-color-gone/);
+  assert.match(result.stdout, /--we-base-gone/);
+});
+
+test('主题写了推导出的语义色或主色作用域里的 token：失败，并点名', () => {
+  const root = fixture({ theme: ':root { --we-color-bg-canvas: #000; --we-focus-ring: none; --we-color-scheme: dark; }\n' });
+  const result = run(root);
+  assert.equal(result.status, 1);
+  assert.match(result.stdout, /\[D\] 越权覆盖（themes\/sample\/theme\.css）/);
+  assert.match(result.stdout, /--we-color-bg-canvas/);
+  assert.match(result.stdout, /--we-focus-ring/);
+  assert.doesNotMatch(result.stdout, /越权[\s\S]*--we-color-scheme/);
 });
 
 test('不属于主题视觉范围的 token（间距等）不要求出现在模板里', () => {

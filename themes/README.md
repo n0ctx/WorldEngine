@@ -58,12 +58,13 @@ themes/{theme_id}/
 
 优先按下面顺序覆盖 token，通常能最少改动地完成一个完整主题：
 
-1. 语义色与透明层：`--we-color-*`
+1. 基础色板：`--we-base-*`（页面底、卡片面、正文色、强调色、四个状态色、阴影底色）与 `--we-shadow-strength`（阴影浓度），再加 `--we-color-scheme`
 2. 字体与排版：`--we-font-*`、`--we-page-canvas-*`
 3. 组件皮肤：`--we-card-*`、`--we-panel-card-*`
 4. 壳层与装饰：`--we-topbar-*`、`--we-spine-*`、`--we-canvas-texture-image`
-5. 基础色板：`--we-base-*`
-6. 圆角与动效：`--we-radius-*`、`--we-duration-*`、`--we-easing-*`
+5. 圆角与动效：`--we-radius-*`、`--we-duration-*`、`--we-easing-*`
+
+文字的各级灰、底色层级、边框、透明层、强调色的深浅变体都由核心 `tokens.css` 从基础色板按公式推导，主题不写 `--we-color-*`（`--we-color-scheme`、`--we-color-gold-pale` 除外），写了 `check:themes` 会报越权。想调某一级颜色，改基础色。
 
 字号、行高、字距、字重由核心的字体角色（`--we-type-*`）统一定义，全站一致，主题不覆盖；主题改字体观感用 `--we-font-*`。
 
@@ -113,7 +114,7 @@ cp -R themes/_template themes/my-theme
 
 ### 适合放进主题的内容
 
-- 基础色板：页面背景、卡片、边框、强调色、状态色
+- 基础色板：页面底、卡片面、正文色、强调色、状态色、阴影底色与浓度
 - 字体：衬线、无衬线、展示字体、印章字体、等宽字体
 - 视觉节奏：圆角、阴影、动效时长、缓动曲线
 - 全局质感：顶部壳层、纸张纹理、书脊阴影、覆盖层

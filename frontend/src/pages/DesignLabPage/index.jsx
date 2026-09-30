@@ -82,7 +82,7 @@ export default function DesignLabPage() {
   const { Content } = TABS.find((item) => item.key === tab);
 
   return (
-    <div className="we-design-lab" style={{ '--we-color-accent': accent }}>
+    <div className="we-design-lab we-accent-scope" style={{ '--we-color-accent': accent }}>
       <header className="we-design-lab__header">
         <h1 className="we-design-lab__title">设计实验室</h1>
         <p className="we-design-lab__hint">

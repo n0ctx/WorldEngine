@@ -25,7 +25,7 @@ export const VISUAL_SLOTS = [
   // ── 色彩 ──
   {
     id: 'base-palette', category: 'color', title: '基础色板', status: 'ready',
-    tokens: ['--we-base-*'], usedIn: ['主题换肤时真正要覆盖的一层，语义色都从它派生'],
+    tokens: ['--we-base-*', '--we-shadow-strength'], usedIn: ['主题换肤只写这一层，语义色都由它按公式推导'],
   },
   {
     id: 'surface-colors', category: 'color', title: '底色、文字与边框', status: 'ready',
@@ -34,12 +34,13 @@ export const VISUAL_SLOTS = [
   },
   {
     id: 'accent-colors', category: 'color', title: '强调与状态', status: 'ready',
-    tokens: ['--we-color-accent*', '--we-color-gold*', '--we-color-status-*'],
-    usedIn: ['主按钮、选中态、徽标、成功 / 警告 / 危险提示'],
+    tokens: ['--we-color-accent*', '--we-color-ornament', '--we-color-gold*', '--we-color-status-*'],
+    usedIn: ['主按钮、选中态、徽标、花饰与分隔线、成功 / 警告 / 危险提示'],
   },
   {
-    id: 'wash-colors', category: 'color', title: '透明层与投影色', status: 'ready',
+    id: 'wash-colors', category: 'color', title: '透明度阶梯与状态层', status: 'ready',
     tokens: [
+      '--we-alpha-*', '--we-color-pressed', '--we-color-highlight-*', '--we-color-shade*',
       '--we-color-ink-*', '--we-color-shadow-*', '--we-color-overlay-*', '--we-color-paper-*',
       '--we-color-white', '--we-color-white-*', '--we-color-cover-*', '--we-color-avatar-*',
     ],
@@ -132,6 +133,7 @@ export const VISUAL_SLOTS = [
     tokens: ['--we-pager-*', '--we-composer-*'], usedIn: ['Pager', 'InputBox'],
     note: '真实的 InputBox 与 Pager，发送和续写等回调为空。',
   },
+
 ];
 
 export const VISUAL_SLOT_BY_ID = Object.fromEntries(VISUAL_SLOTS.map((slot) => [slot.id, slot]));

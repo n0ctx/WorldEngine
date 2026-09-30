@@ -32,7 +32,7 @@ test('切换主题会写入 config.ui.theme，未知主题被拒绝', async () =
 
 test('取主题 CSS，未知主题抛错', async () => {
   const { getThemeCss } = await freshImport('backend/services/themes.js');
-  assert.match(getThemeCss('classic-parchment'), /--we-base-paper-100/);
+  assert.match(getThemeCss('classic-parchment'), /--we-base-canvas/);
   assert.throws(() => getThemeCss('no-such'), /主题不存在/);
 });
 

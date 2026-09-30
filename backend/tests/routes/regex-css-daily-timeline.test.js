@@ -174,7 +174,7 @@ test('themes API 支持列表、切换、CSS，且不再提供导入、导出、
 
   const css = await ctx.request('/api/themes/classic-parchment/css');
   assert.equal(css.status, 200);
-  assert.match(await css.text(), /--we-base-paper-100/);
+  assert.match(await css.text(), /--we-base-canvas/);
 
   const missingCss = await ctx.request('/api/themes/no-such/css');
   assert.equal(missingCss.status, 404);

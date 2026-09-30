@@ -1,6 +1,7 @@
 /**
  * 「封面即光源」运行时注入：解析当前是否处于某个世界内（世界层/规则空间/会话页/写作页），
- * 是则取该世界的 accent_color 派生出 --we-color-accent 系 token 覆盖值；
+ * 是则取该世界的 accent_color 作为 --we-color-accent 的覆盖值（深浅变体、底色、描边等由 tokens.css
+ * 的主色作用域块在覆盖节点上重新推导）；
  * 书架层（'/'）或没有 accent_color 的世界返回 null，调用方不注入任何 style，
  * 页面退回主题自身默认色。
  *
@@ -14,8 +15,7 @@ import { useLocation } from 'react-router-dom';
 import { getWorld } from '../../api/worlds.js';
 import useStore from '../../state/index.js';
 import { extractIds, resolveTopbarPathname, isBookshelfPathname } from '../../utils/worldScope.js';
-import { deriveAccentTokens } from './deriveAccentTokens.js';
-import { relativeLuminance } from '../../utils/color.js';
+import { hexToRgb, relativeLuminance, rgbToHex } from '../../utils/color.js';
 import { DARK_CANVAS_LUMINANCE_THRESHOLD } from '../../utils/accentBasis.js';
 
 function parseCssColor(value) {
@@ -100,5 +100,6 @@ export function useWorldAccentVars() {
   if (accentState.fetchedFor !== worldId) return null;
   if (!accentState.color) return null;
   if (!themeReady) return null;
-  return deriveAccentTokens(accentState.color);
+  const rgb = hexToRgb(accentState.color);
+  return rgb ? { '--we-color-accent': rgbToHex(rgb) } : null;
 }

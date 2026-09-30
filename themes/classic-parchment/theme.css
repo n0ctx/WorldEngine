@@ -1,100 +1,27 @@
 /*
  * classic-parchment 主题覆盖层
- *
- * 关键语义值最终解析结果（供调试参考）：
- *   --we-color-bg-canvas  → #ede3d0  （羊皮纸浅面，via --we-base-paper-100）
- *   --we-color-bg-surface → #d9ccb0  （羊皮纸中面，via --we-base-paper-200）
- *   --we-color-bg-muted   → #b8a882  （羊皮纸深面，via --we-base-paper-400）
- *   --we-color-bg-inverse → #3f2f22  （书卷底色/大背景，via --we-base-book-bg）
- *   --we-color-accent     → #a23b2e  （朱砂主色，via --we-base-vermilion-600）
- *   --we-topbar-bg        → transparent（TopBar 退到边缘，直接压在页面大背景上）
+ * 浅色羊皮纸面、朱砂主色，页面大画布是深色书桌。
  */
-
 :root {
-  /* 基础纸面 */
-  --we-base-paper-100: #ede3d0;
-  --we-base-paper-200: #d9ccb0;
-  --we-base-paper-300: #c8b99a;
-  --we-base-paper-400: #b8a882;
-
-  /* 基础文字 */
-  --we-base-ink-900: #2a1f17;
-  --we-base-ink-700: #534236;
-  --we-base-ink-500: #6d5c4b;
-
-  /* 朱砂、金箔与状态色 */
-  --we-base-vermilion-600: #a23b2e;
-  --we-base-vermilion-800: #7c2a20;
-  --we-base-gold-600: #a0833f;
-  --we-base-gold-400: #c9a85a;
-  --we-base-moss-600: #5c6b3a;
-  --we-base-amber-600: #8b5a1f;
-  --we-base-slate-600: #4a5568;
-  --we-base-book-bg: #3f2f22;
-  --we-base-white: #ffffff;
-  --we-base-peach-200: #ffc8a0;
+  /* 基础色板：语义色、边框、透明层都由核心按公式推导 */
+  --we-base-canvas:  #ede3d0;
+  --we-base-surface: #d9ccb0;
+  --we-base-ink:     #2a1f17;
+  --we-base-accent:  #a23b2e;  /* 朱砂 */
+  --we-base-success: #5c6b3a;
+  --we-base-warning: #8b5a1f;
+  --we-base-info:    #4a5568;
+  --we-base-danger:  #a23b2e;
+  --we-base-shade:   #2a1f17;
+  --we-shadow-strength: 50%;  /* 纸面上的阴影与凹陷压得轻 */
+  --we-color-scheme: light;
+  --we-color-gold-pale: #c9a85a;
 
   /* 字体族：经典羊皮纸风格 */
   --we-font-prose:   'EB Garamond', 'Source Han Serif SC', 'Source Han Serif', serif;
   --we-font-display: 'Cormorant Garamond', 'LXGW WenKai TC', serif;
   --we-font-ui:      system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --we-font-mono:    'JetBrains Mono', ui-monospace, monospace;
-
-  /* 语义色：显式列出，避免依赖隐式传导（调试友好） */
-  --we-color-text-primary:   #2a1f17;
-  --we-color-text-secondary: #534236;
-  --we-color-text-tertiary:  #6d5c4b;
-  --we-color-text-inverse:   #ffffff;
-  --we-color-text-danger:    #a23b2e;
-
-  --we-color-scheme: light;
-  --we-color-bg-canvas:   #ede3d0;
-  --we-color-bg-surface:  #d9ccb0;
-  --we-color-bg-elevated: #d9ccb0;
-  --we-color-bg-subtle:   #c8b99a;
-  --we-color-bg-muted:    #b8a882;
-  --we-color-bg-inverse:  #3f2f22;
-
-  --we-color-border-default:     #c8b99a;
-  --we-color-border-subtle:      #d9ccb0;
-  --we-color-border-strong:      #b8a882;
-  --we-color-border-focus:       #a23b2e;
-
-  --we-color-status-success: #5c6b3a;
-  --we-color-status-warning: #8b5a1f;
-  --we-color-status-danger:  #a23b2e;
-  --we-color-status-info:    #4a5568;
-
-  --we-color-accent:      #a23b2e;
-  --we-color-accent-deep: #7c2a20;
-  --we-color-gold:        #a0833f;
-  --we-color-gold-pale:   #c9a85a;
-  --we-color-white: #ffffff;
-  --we-color-cover-scrim: rgb(0 0 0);
-
-  --we-color-white-wash:     rgba(255, 255, 255, 0.03);
-  --we-color-white-sheen-sm: rgba(255, 255, 255, 0.06);
-  --we-color-white-sheen-md: rgba(255, 255, 255, 0.10);
-
-  /* 透明叠加层：与羊皮纸色板绑定，覆盖核心中性值。 */
-  --we-color-bg-overlay: rgba(42, 31, 23, 0.5);
-  --we-color-accent-bg: rgba(162, 59, 46, 0.08);
-  --we-color-ink-wash: rgba(42, 31, 23, 0.035);
-  --we-color-ink-wash-md: rgba(42, 31, 23, 0.06);
-  --we-color-ink-wash-strong: rgba(42, 31, 23, 0.13);
-  --we-color-shadow-sm: rgba(42, 31, 23, 0.08);
-  --we-color-shadow-md: rgba(42, 31, 23, 0.14);
-  --we-color-shadow-lg: rgba(42, 31, 23, 0.20);
-  --we-color-shadow-xl: rgba(42, 31, 23, 0.30);
-  --we-color-overlay-medium: rgba(42, 31, 23, 0.35);
-  --we-color-overlay-heavy: rgba(42, 31, 23, 0.60);
-  --we-color-paper-wash: rgba(237, 227, 208, 0.28);
-  --we-color-paper-tint: rgba(200, 185, 154, 0.45);
-  --we-color-paper-overlay: rgba(184, 168, 130, 0.12);
-  --we-color-ink-secondary-wash: rgba(83, 66, 54, 0.16);
-  --we-color-ink-secondary-wash-sm: rgba(83, 66, 54, 0.12);
-  --we-color-accent-border: rgba(162, 59, 46, 0.25);
-  --we-color-accent-border-sm: rgba(162, 59, 46, 0.22);
 
   /* 书卷壳层 */
   --we-topbar-bg: transparent;
@@ -144,8 +71,8 @@
     0 0 12px rgba(42, 31, 23, 0.06);
   --we-shadow-paper-indent: inset 0 1px 2px rgba(42, 31, 23, 0.08);
 
-  /* 页面大画布（深色书架背景，同 book-bg = bg-inverse） */
-  --we-page-canvas-bg:               var(--we-color-bg-inverse);
+  /* 页面大画布（深色书架背景） */
+  --we-page-canvas-bg:               #3f2f22;
   --we-page-canvas-fg:               rgba(237, 227, 208, 0.90);
   --we-page-canvas-fg-muted:         rgba(200, 185, 154, 0.55);
   --we-page-canvas-fg-deep:          rgba(200, 185, 154, 0.30);
@@ -156,8 +83,8 @@
 
   /* 卡片皮肤：古籍装帧框（深皮边 + 镀金内描 + 双层投影） */
   --we-card-bg: var(--we-color-bg-canvas);
-  /* hover/选中背景：必须不透明。取 paper-100/paper-200 中间实色，比卡面深一档，文字对比度只增不减 */
-  --we-card-hover-bg: color-mix(in srgb, var(--we-base-paper-100) 50%, var(--we-base-paper-200));
+  /* hover/选中背景：必须不透明。取 canvas / surface 中间实色，比卡面深一档，文字对比度只增不减 */
+  --we-card-hover-bg: color-mix(in srgb, var(--we-base-canvas) 50%, var(--we-base-surface));
   --we-card-border: 1px solid rgba(78, 56, 32, 0.78);
   --we-card-radius: var(--we-radius-md);
   --we-card-shadow: 0 1px 2px rgba(42, 31, 23, 0.10);
@@ -199,10 +126,6 @@
   --we-shadow-toast:
     0 0 0 1px var(--we-color-border-subtle),
     0 4px 12px rgba(42, 31, 23, 0.18);
-  --we-shadow-range-thumb: 0 1px 4px color-mix(in srgb, var(--we-base-ink-900) 18%, transparent);
-  --we-shadow-range-thumb-active:
-    0 0 0 3px color-mix(in srgb, var(--we-base-vermilion-600) 15%, transparent),
-    0 1px 4px color-mix(in srgb, var(--we-base-ink-900) 18%, transparent);
 
   /* 圆角阶梯 */
   --we-radius-none: 1px;
