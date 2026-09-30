@@ -98,6 +98,10 @@
   --we-card-radius: var(--we-radius-sm);
   --we-card-shadow: var(--we-shadow-paper-lift);
   --we-card-hover-shadow: var(--we-card-shadow);
+  /* 阴影出血留白：裁剪容器必须为卡片阴影留出的淡出空间（横向 inline / 纵向 block）。
+     取值 = 本主题最大卡片阴影出血 + 余量；仅当自身阴影更大时覆写，inline 会收窄卡片内容区宜小不宜大 */
+  --we-shadow-bleed-inline: 24px;
+  --we-shadow-bleed-block: 24px;
   /* 列表型窄长条卡（PersonaCard / CharacterCard 等）：默认沿用 card 投影，可单独收紧 */
   --we-panel-card-shadow: 0 0 0 1px color-mix(in srgb, #171717 3%, transparent);
 

@@ -348,6 +348,12 @@
   --we-card-radius: var(--we-radius-sm);
   --we-card-shadow: var(--we-shadow-paper-lift);
   --we-card-hover-shadow: var(--we-card-shadow);
+  /* 阴影出血留白：裁剪容器（overflow-y: auto）必须为卡片阴影留出的淡出空间。
+     inline = 左右留白（会收窄卡片内容区，按横向最大阴影出血 + 余量取值）；
+     block = 底部留白（只占垂直呼吸区，须覆盖纵向最大出血范围：offset-y + blur − |spread|）。
+     阴影更大的主题覆写为更大值。 */
+  --we-shadow-bleed-inline: 24px;
+  --we-shadow-bleed-block: 24px;
   /* 列表型卡（PersonaCard / CharacterCard 等窄长条 list row）：默认沿用 --we-card-shadow，
      需要在窄行/auto-overflow 容器里收紧远距 bloom 的主题可单独覆写这两个 token。 */
   /* 卡片 hover 位移：world 卡默认上浮 -4px；硬投影/拟物主题可覆写为 translate(...) 做下压 */

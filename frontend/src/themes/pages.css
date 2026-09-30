@@ -711,7 +711,8 @@
   gap: var(--we-space-xl);
   min-height: 0;
   overflow-y: auto;
-  padding-right: var(--we-space-xs);
+  padding-inline: var(--we-shadow-bleed-inline);
+  padding-bottom: var(--we-shadow-bleed-block);
   scrollbar-width: thin;
   scrollbar-color: var(--we-page-canvas-fg-muted) transparent;
 }
@@ -1107,9 +1108,16 @@
   gap: var(--we-space-xl);
   min-height: 0;
   overflow-y: auto;
-  padding-right: var(--we-space-xs);
+  padding-inline: var(--we-shadow-bleed-inline);
+  padding-bottom: var(--we-shadow-bleed-block);
   scrollbar-width: thin;
   scrollbar-color: var(--we-page-canvas-fg-muted) transparent;
+}
+
+/* 栏头与空状态是 .we-worldhub-main 的直接子元素（滚动容器之外），手动对齐到阴影出血留白线 */
+.we-worldhub-main > .we-worldhub-section-header,
+.we-worldhub-main > .we-storyline-empty {
+  margin-inline: var(--we-shadow-bleed-inline);
 }
 
 .we-storyline-body::-webkit-scrollbar { width: 4px; }
@@ -3174,10 +3182,19 @@
     min-width: 0;
     max-width: none;
     overflow: visible;
+    padding-inline: 0;
   }
 
   .we-storyline-body {
     overflow: visible;
+    padding-inline: 0;
+  }
+
+  /* 堆叠模式无独立滚动容器：横向留白复位（画布已够，避免卡片无谓收窄）；
+     底部留白保留——它只占垂直呼吸区，与画布自身 padding 叠加成阴影淡出空间 */
+  .we-worldhub-main > .we-worldhub-section-header,
+  .we-worldhub-main > .we-storyline-empty {
+    margin-inline: 0;
   }
 
   .we-settings-panel,

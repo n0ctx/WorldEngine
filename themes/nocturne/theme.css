@@ -90,6 +90,10 @@
   --we-card-hover-shadow: inset 0 1px 0 rgba(255, 238, 220, 0.07),
     0 6px 12px rgba(0, 0, 0, 0.32),
     0 26px 44px -14px rgba(0, 0, 0, 0.72);
+  /* 阴影出血留白：hover 阴影 0 26px 44px -14px 绘制范围 = offset+blur−spread → 底部 ≈ 26 + 44 − 14 = 56px，
+     横向最大 44 − 14 = 30px；block 须覆盖完整 56px 淡出再留余量（不足即见硬切线），inline 取 36 够盖 30 */
+  --we-shadow-bleed-inline: 36px;
+  --we-shadow-bleed-block: 60px;
   --we-panel-card-shadow: inset 0 1px 0 rgba(255, 238, 220, 0.04);
 
 
