@@ -1,9 +1,9 @@
 {
   "id": "classic-parchment",
   "name": "羊皮纸",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "author": "WorldEngine",
-  "description": "WorldEngine 默认书卷风主题。",
+  "description": "WorldEngine 默认书卷风主题，立体浮雕已削平为纸上印刷风格。",
   "preview": {
     "paper": "#ede3d0",
     "accent": "#a23b2e",
