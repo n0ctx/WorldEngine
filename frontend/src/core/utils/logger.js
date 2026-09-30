@@ -10,6 +10,7 @@ const RETRY_KEY = 'we:log:retry';
 const RETRY_CAP = 200;
 const POST_BATCH_MAX = 100;
 const DEDUP_MS = 1500;
+const DEDUP_CAP = 500;
 
 const consoleLevel = (() => {
   try {
@@ -68,6 +69,8 @@ function makeLog(level) {
       const key = dedupeKey(level, event, toastMsg);
       const last = _dedupe.get(key) || 0;
       if (Date.now() - last >= DEDUP_MS) {
+        // 只增不删会无限增长：超上限时整体清空，去重窗口（DEDUP_MS）内的重复最多漏拦一次
+        if (_dedupe.size >= DEDUP_CAP) _dedupe.clear();
         _dedupe.set(key, Date.now());
         emitToast(toastMsg, toastType);
       }

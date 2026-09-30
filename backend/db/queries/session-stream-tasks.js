@@ -74,6 +74,23 @@ export function getSessionStreamTask(sessionId) {
   return decodeRow(db.prepare('SELECT * FROM session_stream_tasks WHERE session_id = ?').get(sessionId));
 }
 
+export function deleteSessionStreamTask(sessionId) {
+  db.prepare('DELETE FROM session_stream_tasks WHERE session_id = ?').run(sessionId);
+}
+
+// 批量删除：预编译一次语句，按 500 条一个事务提交，避免每行单独落盘
+export function deleteSessionStreamTasks(sessionIds) {
+  if (!sessionIds || sessionIds.length === 0) return;
+  const stmt = db.prepare('DELETE FROM session_stream_tasks WHERE session_id = ?');
+  const tx = db.transaction((ids) => {
+    for (const id of ids) stmt.run(id);
+  });
+  const BATCH = 500;
+  for (let i = 0; i < sessionIds.length; i += BATCH) {
+    tx(sessionIds.slice(i, i + BATCH));
+  }
+}
+
 export function listSessionStreamTasks() {
   return db.prepare('SELECT * FROM session_stream_tasks ORDER BY updated_at DESC').all().map(decodeRow);
 }

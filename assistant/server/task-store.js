@@ -21,9 +21,16 @@ const log = createLogger('as-store', 'magenta');
 
 const tasks = new Map();
 const sseClients = new Map(); // taskId -> Set<res>
+// 背压缓冲：write 返回 false（客户端消费不动）时暂停直推，缓冲到 drain 再补写，
+// 避免缓冲在 socket 里无限堆积。
+const ssePending = new Map(); // res -> string[]
 
 export const TERMINAL_TASK_STATUSES = new Set(['completed', 'failed', 'cancelled']);
 export const RESTART_INTERRUPTED_ERROR = 'interrupted by restart';
+
+// 内存 + DB 中最多保留的任务数：任务含全部消息，全量常驻会随会话数无限增长。
+// 超出时按 updatedAt 淘汰最旧的非 running 任务（running 永不淘汰）。
+export const MAX_RETAINED_TASKS = 100;
 
 function cloneTaskForPersist(task) {
   return {
@@ -45,6 +52,24 @@ function persist(task) {
     upsertAssistantTask(cloneTaskForPersist(task));
   } catch (err) {
     log.warn(`PERSIST_FAIL  ${formatMeta({ taskId: task.id, error: err.message })}`);
+  }
+  evictOldTasks();
+}
+
+function evictOldTasks() {
+  if (tasks.size <= MAX_RETAINED_TASKS) return;
+  const candidates = [];
+  for (const task of tasks.values()) {
+    if (task.status === 'running') continue;
+    candidates.push(task);
+  }
+  candidates.sort((a, b) => (a.updatedAt ?? 0) - (b.updatedAt ?? 0));
+  let excess = tasks.size - MAX_RETAINED_TASKS;
+  for (const task of candidates) {
+    if (excess <= 0) break;
+    deleteTask(task.id);
+    log.info(`EVICT  ${formatMeta({ taskId: task.id, status: task.status, retained: tasks.size })}`);
+    excess -= 1;
   }
 }
 
@@ -175,6 +200,7 @@ export function hydrateAssistantTasks() {
     restored += 1;
   }
   if (restored > 0) log.info(`HYDRATE  ${formatMeta({ restored, orphaned })}`);
+  evictOldTasks();
 }
 
 export function createTask({ context } = {}) {
@@ -384,6 +410,7 @@ export function attachSse(taskId, res) {
 
 export function detachSse(taskId, res) {
   sseClients.get(taskId)?.delete(res);
+  ssePending.delete(res);
   const remaining = sseClients.get(taskId)?.size ?? 0;
   log.debug(`DETACH  ${formatMeta({ taskId, remaining })}`);
 }
@@ -396,8 +423,28 @@ export function endAllSse(taskId) {
     try {
       if (!res.writableEnded) res.end();
     } catch { /* ignore */ }
+    ssePending.delete(res);
   }
   clients.clear();
+}
+
+function flushPendingSse(res) {
+  const buf = ssePending.get(res);
+  if (!buf) return;
+  while (buf.length > 0) {
+    const line = buf.shift();
+    try {
+      if (res.write(line) === false) {
+        res.once('drain', () => flushPendingSse(res));
+        return;
+      }
+    } catch (err) {
+      ssePending.delete(res);
+      log.warn(`EMIT_DROP  ${formatMeta({ error: err.message })}`);
+      return;
+    }
+  }
+  ssePending.delete(res);
 }
 
 export function emit(taskId, event) {
@@ -409,8 +456,16 @@ export function emit(taskId, event) {
   const line = `data: ${JSON.stringify(event)}\n\n`;
   let dead = null;
   for (const res of clients) {
+    const pending = ssePending.get(res);
+    if (pending) {
+      pending.push(line);
+      continue;
+    }
     try {
-      res.write(line);
+      if (res.write(line) === false) {
+        ssePending.set(res, []);
+        res.once('drain', () => flushPendingSse(res));
+      }
     } catch (err) {
       (dead ??= []).push(res);
       log.warn(`EMIT_DROP  ${formatMeta({ taskId, type: event.type, error: err.message })}`);
@@ -418,7 +473,10 @@ export function emit(taskId, event) {
   }
   if (dead) {
     // 失效连接不及时清理会让后续 emit 每次都重复抛错刷日志，长跑任务下还会泄漏内存。
-    for (const res of dead) clients.delete(res);
+    for (const res of dead) {
+      clients.delete(res);
+      ssePending.delete(res);
+    }
     log.warn(`EMIT_PARTIAL  ${formatMeta({ taskId, type: event.type, dropped: dead.length, ofTotal: subscribers })}`);
   }
 }

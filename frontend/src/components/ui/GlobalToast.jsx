@@ -4,6 +4,7 @@ import ToastCard from './ToastCard.jsx';
 
 const MAX_TOASTS = 3;
 const DEDUP_MS = 1500;
+const RECENT_CAP = 500;
 const DURATION_BY_TYPE = { error: 5000, warning: 5000, info: 3000, success: 3000 };
 
 export default function GlobalToast() {
@@ -40,6 +41,8 @@ export default function GlobalToast() {
       const now = Date.now();
       const last = recentRef.current.get(message);
       if (last && now - last < DEDUP_MS) return;
+      // 只增不删会无限增长：超上限时整体清空，去重窗口内的同文消息最多重复弹一次
+      if (recentRef.current.size >= RECENT_CAP) recentRef.current.clear();
       recentRef.current.set(message, now);
 
       const id = (typeof crypto !== 'undefined' && crypto.randomUUID)

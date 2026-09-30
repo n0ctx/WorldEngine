@@ -12,7 +12,23 @@ import { DURATION } from '../../core/utils/motion.js';
 
 const MotionDiv = motion.div;
 
-export default function MessageItem({
+// 流式期间 streamingText 每个 token 变化都会重渲染整个渲染窗口；历史消息的 message 引用稳定，
+// 靠 memo 跳过其正则替换 / 分块 / Markdown 重解析（聊得越久越卡的主因）。
+// 回调 props（onEdit 等）是每次渲染新建的薄壳（执行时经 getRuntime() 取最新状态），比较器忽略其引用；
+// onEditAssistant 的有无随 lastAssistantId 切换（最后一条 assistant 的编辑入口），必须比较 Boolean。
+function areMessageItemPropsEqual(prev, next) {
+  return prev.message === next.message
+    && prev.character === next.character
+    && prev.persona === next.persona
+    && prev.worldId === next.worldId
+    && prev.isStreaming === next.isStreaming
+    && prev.streamingText === next.streamingText
+    && prev.showCaret === next.showCaret
+    && prev.isGreeting === next.isGreeting
+    && Boolean(prev.onEditAssistant) === Boolean(next.onEditAssistant);
+}
+
+function MessageItem({
   message,
   character,
   persona,
@@ -131,3 +147,5 @@ export default function MessageItem({
     />
   );
 }
+
+export default React.memo(MessageItem, areMessageItemPropsEqual);

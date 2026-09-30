@@ -66,10 +66,13 @@ export default function useMessageDisplay({
   // 选项流式时正文已写完，「正在生成」只由选项卡给出，正文不再挂光标
   const optionsStreaming = generating && options.length > 0;
 
-  // 章节按全局 messages 分（保留稳定 chapterIndex），再投影出当前页可见的章节子集；末页 streaming stub 单独并入末章
-  const chapters = useMemo(() => {
+  // 章节按全局 messages 分（保留稳定 chapterIndex），再投影出当前页可见的章节子集；末页 streaming stub 单独并入末章。
+  // 全局分组只依赖 messages（流式期间引用稳定，不随 token 重算）；窗口投影依赖 messagesForDisplay。
+  const globalChapters = useMemo(() => {
     if (!prose) return [];
-    const globalChapters = groupMessagesIntoChapters(messages, chapterTurnSize);
+    return groupMessagesIntoChapters(messages, chapterTurnSize);
+  }, [prose, messages, chapterTurnSize]);
+  const chapters = useMemo(() => {
     if (globalChapters.length === 0) return globalChapters;
     // 必须按 m.id 建集合：onUserSaved 后用户消息 id=realId/_key=tempId、appendMessage 后助手 id=realId/_key=streamKey；用 _key 会与下面 ch.messages.filter(m=>visibleIds.has(m.id)) 错位导致整条消息被过滤
     const visibleIds = new Set(messagesForDisplay.map((m) => m.id));
@@ -81,8 +84,9 @@ export default function useMessageDisplay({
       visible[visible.length - 1].messages = [...visible[visible.length - 1].messages, streamStub];
     }
     return visible;
-  }, [prose, messages, messagesForDisplay, chapterTurnSize]);
-  const railItems = useMemo(() => toRailItems(messagesForDisplay), [messagesForDisplay]);
+  }, [globalChapters, messagesForDisplay]);
+  // 刻度只消费已落定消息（stub 被过滤），依赖 pageMessages（流式期间引用稳定）即可，避免每个 token 重跑 parseStreamingBlocks
+  const railItems = useMemo(() => toRailItems(pageMessages), [pageMessages]);
 
   return { messagesForDisplay, lastAssistantId, suppressLastFrozen, optionsStreaming, chapters, railItems };
 }
