@@ -30,7 +30,7 @@
   padding: var(--we-space-md);
   list-style: none;
   font-size: var(--we-text-sm);
-  color: var(--we-color-text-secondary);
+  color: var(--we-page-canvas-fg-muted);
 }
 
 .we-design-lab__fx-box {
@@ -132,7 +132,7 @@
 }
 .we-design-lab__portal-hint {
   font-size: var(--we-text-xs);
-  color: var(--we-color-text-tertiary);
+  color: var(--we-page-canvas-fg-muted);
 }
 .we-design-lab__portal-col {
   display: grid;
@@ -153,7 +153,106 @@
   padding: var(--we-space-xs) var(--we-space-md);
   border: 1px solid var(--we-color-border-default);
   border-radius: var(--we-radius-sm);
-  color: var(--we-color-text-secondary);
+  color: var(--we-page-canvas-fg-muted);
   font-size: var(--we-text-xs);
   cursor: pointer;
+}
+
+/* ── 借真实组件的演示位：组件在生产里坐在纸面上，这里直接落在大画布上。
+     深色画布主题（羊皮纸等）下文字改用画布前景 token；夜航下解析值与墨色相同。 ── */
+
+/* 聊天消息入场：用户气泡与角色标签浮在画布上（助手气泡自带纸面底色，不动） */
+.we-design-lab__stage .we-message-bubble-user {
+  color: var(--we-page-canvas-fg);
+}
+.we-design-lab__stage .we-message-label {
+  color: var(--we-page-canvas-fg);
+}
+
+/* 说话人切换 */
+.we-design-lab__stage .we-speaker-stage__name {
+  color: var(--we-page-canvas-fg);
+}
+.we-design-lab__stage .we-speaker-stage__line {
+  color: color-mix(in srgb, var(--we-page-canvas-fg) 90%, var(--we-color-bg-canvas));
+}
+
+/* 剧情选项卡：演示借聊天中栏作用域，选项无 surface 底色（下拉面板与选中态自带底色，不动） */
+.we-design-lab__canvas-strip .we-option-btn {
+  color: var(--we-page-canvas-fg);
+}
+.we-design-lab__canvas-strip :is(.we-option-streaming-hint, .we-option-dismiss, .we-option-collapsed-hint) {
+  color: var(--we-page-canvas-fg-muted);
+}
+
+/* 任务列表：实验室里 ul/li 无类名，文字继承 body 墨色 */
+.we-design-lab__stage .we-task-title {
+  color: var(--we-page-canvas-fg);
+}
+.we-design-lab__stage .we-task-title.is-struck {
+  color: var(--we-page-canvas-fg-muted);
+}
+
+/* 下拉选择：trigger 只有一层近透明墨洗（下拉面板自带底色，不动） */
+.we-design-lab__stage .we-select-trigger {
+  color: var(--we-page-canvas-fg-muted);
+}
+.we-design-lab__stage .we-select-trigger.has-value {
+  color: var(--we-page-canvas-fg);
+}
+
+/* 输入框：同上，只有近透明墨洗底色 */
+.we-design-lab__stage :is(.we-input, .we-textarea) {
+  color: var(--we-page-canvas-fg);
+}
+.we-design-lab__stage :is(.we-input, .we-textarea)::placeholder {
+  color: var(--we-page-canvas-fg-muted);
+}
+
+/* 状态数值变化：演示 stage 带 we-state-panel，生产同作用域规则在此让位 */
+.we-design-lab__stage .we-status-key,
+.we-design-lab__stage .we-section-empty {
+  color: var(--we-page-canvas-fg-muted);
+}
+.we-design-lab__stage.we-state-panel .we-status-field .we-status-value,
+.we-design-lab__stage.we-state-panel .we-status-tag {
+  color: var(--we-page-canvas-fg);
+}
+
+/* 章节开场：数字与标题浮在画布上（金线装饰不动） */
+.we-design-lab__stage .we-chapter-num {
+  color: var(--we-page-canvas-fg-muted);
+}
+.we-design-lab__stage .we-chapter-title {
+  color: var(--we-page-canvas-fg);
+}
+
+/* 徽标与空状态：变体（accent/error）保留状态色，只换默认态 */
+.we-design-lab__stage .we-badge:not(.we-badge-accent):not(.we-badge-error) {
+  color: var(--we-page-canvas-fg-muted);
+}
+.we-design-lab__stage .we-empty-state,
+.we-design-lab__stage .we-empty-state__icon {
+  color: var(--we-page-canvas-fg-muted);
+}
+.we-design-lab__stage .we-empty-state__title {
+  color: var(--we-page-canvas-fg);
+}
+
+/* 页签 */
+.we-design-lab__stage .we-section-tab {
+  color: var(--we-page-canvas-fg-muted);
+}
+.we-design-lab__stage .we-section-tab.active,
+.we-design-lab__stage .we-section-tab:active {
+  color: var(--we-page-canvas-fg);
+}
+
+/* 循环动画里的字符与旋钮（打字三点是强调色，不动） */
+.we-design-lab__stage .we-asst-new-msg-arrow {
+  color: var(--we-page-canvas-fg);
+}
+.we-design-lab__stage .we-asst-tool__spinner {
+  border-color: var(--we-page-canvas-fg-muted);
+  border-top-color: transparent;
 }

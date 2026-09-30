@@ -25,14 +25,14 @@
 }
 .we-sketch-compare__tag {
   font-size: var(--we-text-xs);
-  color: var(--we-color-text-tertiary);
+  color: var(--we-page-canvas-fg-muted);
 }
 .we-sketch-compare__col--sketch .we-sketch-compare__tag {
   color: var(--we-color-accent);
 }
 .we-sketch-compare__same {
   font-size: var(--we-text-sm);
-  color: var(--we-color-text-tertiary);
+  color: var(--we-page-canvas-fg-muted);
 }
 .we-sketch-compare__body {
   display: grid;
