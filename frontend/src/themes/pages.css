@@ -1435,9 +1435,11 @@
   font-size: var(--we-text-xs);
   padding: var(--we-space-xxs) var(--we-space-sm);
   border-radius: var(--we-radius-sm);
-  border: 1px solid var(--we-col-btn-border-color);
+  /* 本行落在 --we-card-bg（羊皮纸为浅色面），不能用暗画布列的 col-btn token，
+     否则浅米字压在米色卡面上发虚；用卡片面语义 token（夜航下与 col-btn 同值） */
+  border: 1px solid var(--we-color-border-strong);
   background: transparent;
-  color: var(--we-col-btn-color);
+  color: var(--we-color-text-secondary);
   cursor: pointer;
   transition: border-color var(--we-duration-fast) var(--we-easing-sharp), color var(--we-duration-fast) var(--we-easing-sharp);
 }
