@@ -5,9 +5,8 @@ import SectionTabs from '../ui/SectionTabs.jsx';
 import StateValueField from './StateValueField';
 import StateExtractPreviewModal from './StateExtractPreviewModal';
 import { applyExtractedValues } from './applyExtractedValues.js';
+import { groupRowsByProfile } from './profile-groups.js';
 import { log } from '../../core/utils/logger.js';
-
-const PROFILE_GROUP_ORDER = ['身份', '外貌', '人格'];
 
 function ValueRows({ fields, onSave }) {
   return (
@@ -34,9 +33,7 @@ function withSaveToast(write, failMessage) {
 }
 
 function StateInitialValuesPanel({ profileRows, stateFields, writeProfile, writeState, onExtract }) {
-  const groups = PROFILE_GROUP_ORDER
-    .map((group) => ({ group, fields: profileRows.filter((row) => row.group === group) }))
-    .filter(({ fields }) => fields.length > 0);
+  const groups = groupRowsByProfile(profileRows);
   const saveProfile = withSaveToast(writeProfile, '档案初始值保存失败');
   const saveState = withSaveToast(writeState, '状态值保存失败');
 

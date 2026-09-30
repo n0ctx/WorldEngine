@@ -713,9 +713,9 @@ function migrateNearbyEnabledColumn(db) {
 
 function migrateProfileDefaultsColumns(db) {
   // 角色卡 / 人设的档案初始值（身份、外貌、人格），以及世界卡的开场时间、开场地点，{字段key: 值}
-  try { db.exec(`ALTER TABLE characters ADD COLUMN profile_defaults_json TEXT NOT NULL DEFAULT '{}'`); } catch {}
-  try { db.exec(`ALTER TABLE personas ADD COLUMN profile_defaults_json TEXT NOT NULL DEFAULT '{}'`); } catch {}
-  try { db.exec(`ALTER TABLE worlds ADD COLUMN profile_defaults_json TEXT NOT NULL DEFAULT '{}'`); } catch {}
+  for (const table of ['characters', 'personas', 'worlds']) {
+    try { db.exec(`ALTER TABLE ${table} ADD COLUMN profile_defaults_json TEXT NOT NULL DEFAULT '{}'`); } catch {}
+  }
 }
 
 function migrateWritingSessionPersonaSchema(db) {
