@@ -1,6 +1,6 @@
 import VisualSection from '../VisualSection.jsx';
 
-const RADII = ['none', 'xs', 'sm', 'md', 'lg', 'xl', 'full'];
+const RADII = ['xs', 'sm', 'md', 'lg', 'xl', 'full'];
 const SHADOWS = ['elevation-1', 'elevation-2', 'elevation-3', 'shadow-inset', 'shadow-range-thumb-active', 'focus-ring'];
 
 export function RadiusDemo() {

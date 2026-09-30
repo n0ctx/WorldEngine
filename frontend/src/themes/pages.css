@@ -2157,7 +2157,7 @@
   clip-path: inset(0 14px);
   pointer-events: none;
   background: var(--we-color-accent);
-  border-radius: var(--we-radius-none);
+  border-radius: var(--we-radius-xs);
 }
 
 /* StatePanel / NearbyPanel：tab 内容区 */
@@ -2460,6 +2460,7 @@
   padding: var(--we-space-md) var(--we-space-lg);
   background: var(--we-color-bg-surface);
   border: 1px solid var(--we-color-border-default);
+  border-radius: var(--we-radius-xs);
   transition: border-color var(--we-motion-state-duration) var(--we-motion-state-easing),
     background var(--we-motion-state-duration) var(--we-motion-state-easing);
 }
@@ -2524,6 +2525,7 @@
 .we-theme-badge {
   padding: var(--we-space-xxs) var(--we-space-sm);
   border: 1px solid var(--we-color-border-default);
+  border-radius: var(--we-radius-xs);
   font-family: var(--we-font-prose);
   font-size: var(--we-type-caption-size);
   line-height: var(--we-type-caption-leading);
@@ -2709,6 +2711,7 @@
   letter-spacing: var(--we-type-body-tracking);
   background: var(--we-color-bg-surface);
   border: 1px solid var(--we-color-border-default);
+  border-radius: var(--we-radius-xs);
   padding: var(--we-space-md) var(--we-space-md);
   color: var(--we-color-text-secondary);
   margin: 0;
@@ -3069,7 +3072,7 @@
   cursor: pointer;
   padding: var(--we-space-sm) var(--we-space-md);
   border: 1px solid var(--we-color-border-default);
-  border-radius: var(--we-radius-none);
+  border-radius: var(--we-radius-xs);
   background: var(--we-color-shade-1);
   user-select: none;
   list-style: none;
@@ -3085,7 +3088,7 @@
 
 .we-css-reference details[open] > summary {
   border-bottom: none;
-  border-radius: var(--we-radius-none) var(--we-radius-none) 0 0;
+  border-radius: var(--we-radius-xs) var(--we-radius-xs) 0 0;
 }
 
 .we-css-reference-body {
@@ -3129,7 +3132,7 @@
 .we-field-badge {
   background: var(--we-color-shade-2);
   color: var(--we-color-text-tertiary);
-  border-radius: var(--we-radius-none);
+  border-radius: var(--we-radius-xs);
   padding: var(--we-space-xxs) var(--we-space-sm);
   font-size: var(--we-type-caption-size);
   line-height: var(--we-type-caption-leading);
@@ -3142,7 +3145,7 @@
   background: var(--we-color-accent-bg);
   color: var(--we-color-accent);
   border: 1px solid var(--we-color-accent-border);
-  border-radius: var(--we-radius-none);
+  border-radius: var(--we-radius-xs);
   padding: var(--we-space-xxs) var(--we-space-sm);
   font-size: var(--we-type-caption-size);
   line-height: var(--we-type-caption-leading);

@@ -353,7 +353,7 @@
   font-size: var(--we-type-caption-size);
   line-height: var(--we-type-caption-leading);
   font-family: var(--we-font-prose);
-  border-radius: var(--we-radius-none);
+  border-radius: var(--we-radius-xs);
   border: 1px solid var(--we-color-border-default);
   background: transparent;
   color: var(--we-color-text-tertiary);
@@ -544,7 +544,7 @@
   line-height: var(--we-type-caption-leading);
   letter-spacing: var(--we-type-caption-tracking);
   padding: 1px var(--we-space-xs);
-  border-radius: var(--we-radius-none);
+  border-radius: var(--we-radius-xs);
   border: 1px solid var(--we-color-border-default);
 }
 
@@ -610,7 +610,7 @@
   padding: 1px var(--we-space-sm); /* 1px: design exact */
   background: var(--we-color-accent-bg);
   border: 1px solid var(--we-color-accent-border);
-  border-radius: var(--we-radius-none);
+  border-radius: var(--we-radius-xs);
   font-family: var(--we-font-prose);
   font-size: var(--we-type-caption-size);
   line-height: var(--we-type-caption-leading);
@@ -1496,7 +1496,7 @@
   background: var(--we-color-text-tertiary);
 }
 .we-trigger-dot--keyword {
-  border-radius: var(--we-radius-none);
+  border-radius: var(--we-radius-xs);
   background: var(--we-color-text-tertiary);
   transform: rotate(45deg);
 }
@@ -1608,7 +1608,7 @@
   letter-spacing: var(--we-type-body-tracking);
   background: var(--we-color-shade-1);
   border: 1px solid var(--we-color-border-default);
-  border-radius: var(--we-radius-none);
+  border-radius: var(--we-radius-xs);
   color: var(--we-color-text-primary);
   box-sizing: border-box;
   outline: none;
@@ -1761,7 +1761,7 @@
   width: 14px;
   height: 14px;
   border: 1px solid var(--we-color-border-default);
-  border-radius: var(--we-radius-none);
+  border-radius: var(--we-radius-xs);
   background: transparent;
   cursor: pointer;
   flex-shrink: 0;
@@ -1851,7 +1851,7 @@
   background: var(--we-color-bg-surface);
   border: 1px solid var(--we-color-border-default);
   padding: var(--we-space-xs) var(--we-space-md);
-  border-radius: var(--we-radius-none);
+  border-radius: var(--we-radius-xs);
   white-space: pre-wrap;
 }
 
@@ -1941,6 +1941,7 @@
   gap: var(--we-space-sm);
   background: var(--we-color-bg-surface);
   border: 1px solid var(--we-color-border-default);
+  border-radius: var(--we-radius-xs);
   padding: var(--we-space-sm) var(--we-space-md);
   cursor: grab;
   user-select: none;
@@ -2015,6 +2016,7 @@
   letter-spacing: var(--we-type-caption-tracking);
   padding: var(--we-space-xxs) var(--we-space-sm);
   border: 1px solid var(--we-color-border-default);
+  border-radius: var(--we-radius-xs);
   color: var(--we-color-text-tertiary);
   background: transparent;
   cursor: pointer;
@@ -2191,7 +2193,7 @@
   color: var(--we-color-text-tertiary);
   background: transparent;
   border: none;
-  border-radius: var(--we-radius-none);
+  border-radius: var(--we-radius-xs);
   cursor: pointer;
   line-height: var(--we-type-ui-leading);
   letter-spacing: var(--we-type-ui-tracking);
@@ -2613,7 +2615,7 @@
   color: var(--we-color-text-secondary);
   padding-left: 14px;
   font-style: italic;
-  border-radius: 0 var(--we-radius-none) var(--we-radius-none) 0;
+  border-radius: 0 var(--we-radius-xs) var(--we-radius-xs) 0;
 }
 
 /* 内联样式（非光标行的 span 装饰） */
@@ -2632,7 +2634,7 @@
   font-family: var(--we-font-mono);
   font-size: 0.82em;
   border: 1px solid color-mix(in srgb, var(--we-color-border-default) var(--we-alpha-5), transparent);
-  border-radius: var(--we-radius-none);
+  border-radius: var(--we-radius-xs);
   padding: 1px 5px; /* 1px: design exact, 5px: design exact */
 }
 
@@ -2798,7 +2800,7 @@
   width: 100%;
   height: 4px;
   background: var(--we-range-track-bg);
-  border-radius: var(--we-radius-none);
+  border-radius: var(--we-radius-xs);
   outline: none;
   cursor: pointer;
   border: none;
@@ -2840,7 +2842,7 @@
 
 .we-range::-moz-range-track {
   height: 4px;
-  border-radius: var(--we-radius-none);
+  border-radius: var(--we-radius-xs);
   background: var(--we-color-border-default);
 }
 
@@ -2848,7 +2850,7 @@
 /* ── 骨架屏动画 ─── */
 .we-skel {
   display: block;
-  border-radius: var(--we-radius-none);
+  border-radius: var(--we-radius-xs);
   background: var(--we-color-bg-strong);
   animation: var(--we-fx-skeleton);
 }
@@ -3027,7 +3029,7 @@
   height: 22px;
 }
 .we-status-inline-surface .we-seamless-edit__surface--editing {
-  border-radius: var(--we-radius-none);
+  border-radius: var(--we-radius-xs);
   box-shadow: inset 0 0 0 1px var(--we-color-border-focus);
 }
 .we-status-inline-surface .we-seamless-edit__overlay {
@@ -3077,7 +3079,7 @@
   min-height: 22px;
   padding: 1px var(--we-space-xs); /* 1px: design exact */
   border: 1px solid transparent;
-  border-radius: var(--we-radius-none);
+  border-radius: var(--we-radius-xs);
   box-sizing: border-box;
 }
 .we-status-value--multiline {
@@ -3104,7 +3106,7 @@
   min-height: 24px;
   padding: 1px var(--we-space-xs); /* 1px: design exact */
   border: 1px solid transparent;
-  border-radius: var(--we-radius-none);
+  border-radius: var(--we-radius-xs);
   box-sizing: border-box;
   align-items: flex-start;
 }

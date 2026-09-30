@@ -187,7 +187,6 @@
   --we-space-2xl: 32px;
 
   /* === 圆角 Scale === */
-  --we-radius-none: 2px;  /* 微圆角，代码块/行内代码等保留平直感 */
   --we-radius-xs:   6px;
   --we-radius-sm:   10px;
   --we-radius-md:   14px;
