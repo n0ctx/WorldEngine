@@ -1241,10 +1241,10 @@
   transform: translateX(2px);
 }
 
-/* 非选中态：hover 浮一层极轻墨晕，提示"可点入"；
-   选中态（--active）已有更强底色 ink-wash-strong，hover 不冲淡它。 */
+/* 非选中态：hover 换一档更深的实色（--we-card-hover-bg），提示"可点入"。
+   底色必须不透明：半透明墨晕在羊皮纸下会透出深色书卷画布，文字直接发糊。 */
 .we-storyline-item:not(.we-storyline-item--active):hover {
-  background: var(--we-color-ink-wash);
+  background: var(--we-card-hover-bg);
 }
 
 /* 世界层故事线的删除按钮：悬停或键盘聚焦时浮现。列表条目里盖在时间上、时间同时淡出；
@@ -1286,7 +1286,7 @@
 /* 混编时间线在对话页/写作页复用时，当前打开的那一条打选中态：边框与未选中同一套，
    只靠更深的底色认出 */
 .we-storyline-item--active {
-  background: var(--we-color-ink-wash-strong);
+  background: var(--we-card-hover-bg);
 }
 
 .we-storyline-list--timeline {
@@ -1311,8 +1311,8 @@
   transition: background var(--we-duration-fast) var(--we-easing-sharp),
               transform var(--we-duration-fast) var(--we-easing-sharp);
 }
-/* 窄轨里是玻璃上的透明浮片，三种外观分开：未选中标题退一档字色；悬停铺一层浅墨晕并上浮 1px；
-   按下深一档、落回原位；选中由下方滑动的亮片托着，标题回到主字色 */
+/* 窄轨里是玻璃上的透明浮片，三种外观分开：未选中标题退一档字色；悬停换不透明深底色并上浮 1px；
+   按下同底色、落回原位；选中由下方滑动的亮片托着，标题回到主字色 */
 .we-storyline-list--timeline .we-storyline-item-title {
   color: var(--we-color-text-secondary);
 }
@@ -1320,7 +1320,7 @@
   color: var(--we-color-text-primary);
 }
 .we-storyline-list--timeline .we-storyline-item:not(.we-storyline-item--active):hover {
-  background: var(--we-color-ink-wash);
+  background: var(--we-card-hover-bg);
   box-shadow: none;
   transform: translateY(-1px);
 }
@@ -1331,7 +1331,7 @@
   transform: none;
 }
 .we-storyline-list--timeline .we-storyline-item:not(.we-storyline-item--active):active {
-  background: var(--we-color-ink-wash-md);
+  background: var(--we-card-hover-bg);
   transform: none;
 }
 @media (prefers-reduced-motion: reduce) {

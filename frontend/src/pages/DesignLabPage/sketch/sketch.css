@@ -40,6 +40,11 @@
   gap: var(--we-space-lg);
   min-width: 0;
 }
+/* body 是隐式网格：子项 min-width:auto 会按 min-content 撑宽轨道（省略号在固有尺寸计算里
+   不收缩），导致比列宽的条目（如带长预览的卡片行）溢出对照列。允许子项收缩，文字才按列宽换行/截断。 */
+.we-sketch-compare__body > * {
+  min-width: 0;
+}
 
 /* ── 减少动态效果：出样一律静止，只留结果 ─── */
 @media (prefers-reduced-motion: reduce) {

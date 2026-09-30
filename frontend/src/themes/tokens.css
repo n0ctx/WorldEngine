@@ -344,6 +344,8 @@
   --we-skeleton-base-bg:         var(--we-color-ink-wash-md);
 
   --we-card-bg: var(--we-color-bg-surface);
+  /* hover/选中背景：必须不透明（半透明会透出底下画布，文字发糊）。默认在卡底色上叠一层浅墨 */
+  --we-card-hover-bg: color-mix(in srgb, #171717 6%, var(--we-card-bg));
   --we-card-border: 1px solid var(--we-color-border-default);
   --we-card-radius: var(--we-radius-sm);
   --we-card-shadow: var(--we-shadow-paper-lift);

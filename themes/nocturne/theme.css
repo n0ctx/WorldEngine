@@ -82,6 +82,8 @@
      ────────────────────────────────────────────────────────────── */
 
   --we-card-bg: var(--we-color-bg-surface);
+  /* hover/选中背景：必须不透明。与原 16% 黑墨晕叠在卡面上的效果等价的实色，保持现有手感 */
+  --we-card-hover-bg: #1c1813;
   --we-card-border: 1px solid var(--we-color-border-subtle);
   --we-card-radius: var(--we-radius-md);
   --we-card-shadow: inset 0 1px 0 rgba(255, 238, 220, 0.05),
