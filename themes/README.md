@@ -1,6 +1,8 @@
-# WorldEngine 主题开发指引
+# WorldEngine 视觉主题包开发指引
 
-`themes/` 存放全部主题，均为仓库内置、只读：应用内只能查看列表和切换，不能导入、导出、删除或由写卡助手创建。新增主题只能由开发者在此目录添加。
+根目录 `themes/` 只存放视觉主题包，均为仓库内置、只读：应用内只能查看列表和切换，不能导入、导出、删除或由写卡助手创建。新增主题只能由开发者在此目录添加。
+
+动效包不在这里：逻辑在 `frontend/src/core/motion/`，样式在 `frontend/src/themes/motion/`，规则见 `frontend/CLAUDE.md`。
 
 ## 分层职责
 
@@ -11,16 +13,17 @@ frontend/src/themes/
   - tokens.css: 核心默认 token，保持中性
   - fonts.css: 核心字体默认值，保持中性
   - ui.css / pages.css / chat.css: 组件与页面样式，只消费 token
+  - motion/<pack-id>.css: 动效包样式，只声明 --we-fx-* 接口与 --we-motion-* 节奏变量
 
 themes/<theme-id>/
-  - theme.json: 主题元信息
+  - theme.json: 视觉主题元信息
   - theme.css: 仅覆盖 --we-* token
 
 frontend/src/shells/
   - shell 负责结构、布局、壳层装饰
 ```
 
-核心层负责“默认可用”，主题层负责“视觉取值”，shell 负责“结构与布局”。主题不能替代 shell，也不应该把组件选择器写回主题目录。
+核心层负责“默认可用”，视觉主题负责“视觉取值”，动效包负责“动效风格”，shell 负责“结构与布局”。主题不能替代 shell，也不应该把组件选择器写回主题目录。
 
 ## 对齐检查
 
@@ -103,7 +106,7 @@ cp -R themes/_template themes/my-theme
 
 3. 修改 `themes/my-theme/theme.css` 中的 token 取值，只保留真正需要覆盖的部分。
 
-4. 刷新主题列表或重启后端，让系统重新扫描 `themes/`。
+4. 刷新主题列表，系统会重新扫描 `themes/`。
 
 ## 主题应该覆盖什么
 

@@ -4,7 +4,7 @@
 
 ## 硬约束
 
-- 核心主题层在 `frontend/src/themes/`；可切换主题包在 `themes/<theme-id>/`。
+- 核心 token 与动效包样式在 `frontend/src/themes/`（动效包样式在其 `motion/` 下）；可切换的视觉主题包在根目录 `themes/<theme-id>/`。
 - 主题包只覆写 `--we-*` token，不写组件选择器或 `@font-face`。
 - 页面截图位于 `docs/images/`；除 `bookshelf.png` 外均为本地私密文件，不得提交；完成视觉改动后，用当前页面的新截图覆盖对应文件。
 
@@ -34,14 +34,14 @@
 
 用户同意出样后，落地到正式代码时依次做：
 
-1. 改动效包和 `themes/motion/<id>.css`；JS 与 CSS 有意镜像的部分（如信号的 `variants.enter` 与 `we-signal-in`、`SURFACE` 曲线）两边同步改。
+1. 改动效包和 `frontend/src/themes/motion/<id>.css`；JS 与 CSS 有意镜像的部分（如信号的 `variants.enter` 与 `we-signal-in`、`SURFACE` 曲线）两边同步改。
 2. 更新 `slots.js`：`blind` 改 `pack`，补 `api` 与 `note`；出样对照改成正式演示，清掉对应出样文件。
 3. 动效值不写字面量：核心用动效角色，包的材质时长写成私有变量（`--ink-*`、`--sig-*`），确需字面量加 `guard-allow(literals)` 写理由。
 4. 跑 `npm run check:guards`（含 `check:motion`）和 frontend 的 `tests/motion`、`tests/components/motion`、`DesignLabPage` 测试。
 
 ### 新增动效包
 
-- 包文件提供完整接口、`traits`（依赖包身份的组件行为都写这里，组件不按包 id 判断）和 `rhythm`（不改节奏写 `{}`），在注册表登记，并提供同名样式 `themes/motion/<id>.css`（按目录自动引入）。
+- 包文件提供完整接口、`traits`（依赖包身份的组件行为都写这里，组件不按包 id 判断）和 `rhythm`（不改节奏写 `{}`），在注册表登记，并提供同名样式 `frontend/src/themes/motion/<id>.css`（按目录自动引入）。
 - 包样式里的 `--we-*` 只能是接口 `--we-fx-*`（核心引用的都要给）和节奏角色 `--we-motion-*`；其余变量用本包私有前缀。
 - 后端 `services/config.js` 的 `MOTION_PACK_IDS` 也要加，否则用户选了新包会被静默改回默认包。
 - 漏接由 `tests/motion/` 下的测试和动效位清单测试报错，照报错补齐，不要绕过。
