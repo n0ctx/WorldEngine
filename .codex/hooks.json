@@ -6,8 +6,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "echo '{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"allow\",\"additionalContext\":\"提醒:本仓有 codegraph 索引。代码探索/定位/理解优先 codegraph_explore(预建符号图,更准更省 token,能跟踪动态分发);仅在 codegraph 未覆盖的具体细节时才回退到本次 Grep。\"}}'",
-            "statusMessage": "codegraph 提醒"
+            "command": "echo '{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"additionalContext\":\"提醒:已知符号的定义、引用、实现关系优先用 Serena(find_symbol、find_referencing_symbols、get_symbols_overview);Grep 只用于文件名、路径、精确字符串或入口未知的搜索。\",\"permissionDecision\":\"allow\"}}'",
+            "statusMessage": "Serena 提醒"
           }
         ]
       },
@@ -39,7 +39,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "echo '{\"hookSpecificOutput\":{\"hookEventName\":\"UserPromptSubmit\",\"additionalContext\":\"探索、定位、理解代码时默认优先 codegraph(先 codegraph_explore;查调用链用 codegraph_callers/callees/impact),替代手动 grep+read。codegraph 工具已常驻(alwaysLoad),直接调用,无需先 ToolSearch。\"}}'"
+            "command": "echo '{\"hookSpecificOutput\":{\"hookEventName\":\"UserPromptSubmit\",\"additionalContext\":\"探索、定位、理解代码时,已知符号的定义、引用、实现关系优先用 Serena(find_symbol、find_referencing_symbols、get_symbols_overview),不要先 grep 再整文件 Read;文件名、路径、精确字符串或入口未知时用原生搜索。\"}}'"
           }
         ]
       }
