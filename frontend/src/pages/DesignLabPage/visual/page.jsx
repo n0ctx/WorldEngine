@@ -40,7 +40,7 @@ export function WorldCardDemo() {
   const m = useMotion();
   return (
     <VisualSection id="world-card">
-      <div className="we-design-lab__worlds">
+      <div className="we-design-lab__worlds we-design-lab__desk">
         <WorldsGrid
           worlds={WORLDS}
           onReorderEnd={noop}
@@ -53,11 +53,11 @@ export function WorldCardDemo() {
           handleEnterWorld={noop}
           setLitWorld={noop}
         />
-        <div className="we-worlds-state">
+        <div className="we-worlds-state we-on-shell">
           <EmptyState title="世界列表读取失败" hint="网络连接中断。" primaryAction={{ label: '重试', onClick: noop }} />
         </div>
         <motion.div
-          className="we-worlds-door"
+          className="we-worlds-door we-on-shell"
           variants={m.variant('overlayEnter')}
           initial="hidden"
           animate="visible"

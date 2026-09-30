@@ -1,3 +1,13 @@
+/* 实验室整页铺纸面（组件在正式页面里都放在纸面上）；本来就在书桌上的样机（书架、世界页三栏、顶栏、光尘、编辑页画布）挂 __desk 铺书桌底 */
+.we-design-lab {
+  background: var(--we-color-bg-canvas);
+}
+.we-design-lab .we-design-lab__desk {
+  padding: var(--we-space-lg);
+  border-radius: var(--we-radius-md);
+  background-color: var(--we-color-shell-bg);
+}
+
 /* 实验室专用：把整页布局里的东西收进固定尺寸的盒子。contain: layout paint 让盒内 fixed 元素只铺满盒子。 */
 .we-design-lab__shell-box {
   display: flex;
@@ -5,7 +15,7 @@
   height: 320px;
   contain: layout paint;
   border-radius: var(--we-radius-md);
-  background: var(--we-page-canvas-bg);
+  background: var(--we-color-shell-bg);
 }
 
 .we-design-lab__pane {
@@ -32,7 +42,7 @@
   font-size: var(--we-type-ui-size);
   line-height: var(--we-type-ui-leading);
   letter-spacing: var(--we-type-ui-tracking);
-  color: var(--we-page-canvas-fg-muted);
+  color: var(--we-color-text-secondary);
 }
 
 .we-design-lab__fx-box {
@@ -42,7 +52,7 @@
   padding: var(--we-space-lg);
   contain: layout paint;
   border-radius: var(--we-radius-md);
-  background: var(--we-page-canvas-bg);
+  background: var(--we-color-shell-bg);
 }
 
 .we-design-lab__canvas-strip {
@@ -50,7 +60,7 @@
   margin-top: var(--we-space-lg);
   padding-block: var(--we-space-lg);
   border-radius: var(--we-radius-md);
-  background-color: var(--we-page-canvas-bg);
+  background-color: var(--we-color-shell-bg);
 }
 
 .we-design-lab__page-box {
@@ -61,7 +71,7 @@
   padding: var(--we-space-xl);
   overflow: hidden;
   border-radius: var(--we-radius-md);
-  background-color: var(--we-page-canvas-bg);
+  background-color: var(--we-color-shell-bg);
   background-image: var(--we-canvas-texture-image);
 }
 
@@ -96,7 +106,7 @@
   overflow: hidden;
   contain: layout paint;
   border-radius: var(--we-radius-md);
-  background-color: var(--we-page-canvas-bg);
+  background-color: var(--we-color-shell-bg);
   background-image: var(--we-canvas-texture-image);
 }
 .we-design-lab__portal-page {
@@ -109,7 +119,7 @@
   font-size: var(--we-type-heading-size);
   line-height: var(--we-type-heading-leading);
   letter-spacing: var(--we-type-heading-tracking);
-  color: var(--we-page-canvas-fg);
+  color: var(--we-color-shell-text-primary);
 }
 .we-design-lab__portal-grid {
   display: flex;
@@ -125,7 +135,7 @@
   border: 1px solid var(--we-color-border-subtle);
   border-radius: var(--we-radius-md);
   background: linear-gradient(160deg, color-mix(in srgb, var(--we-color-accent) 55%, var(--we-color-bg-strong)), var(--we-color-bg-strong));
-  color: var(--we-page-canvas-fg);
+  color: var(--we-color-shell-text-primary);
   text-align: left;
   cursor: pointer;
 }
@@ -138,7 +148,7 @@
   font-size: var(--we-type-caption-size);
   line-height: var(--we-type-caption-leading);
   letter-spacing: var(--we-type-caption-tracking);
-  color: var(--we-page-canvas-fg-muted);
+  color: var(--we-color-shell-text-secondary);
 }
 .we-design-lab__portal-col {
   display: grid;
@@ -161,7 +171,7 @@
   padding: var(--we-space-xs) var(--we-space-md);
   border: 1px solid var(--we-color-border-default);
   border-radius: var(--we-radius-sm);
-  color: var(--we-page-canvas-fg-muted);
+  color: var(--we-color-shell-text-secondary);
   font-size: var(--we-type-caption-size);
   line-height: var(--we-type-caption-leading);
   letter-spacing: var(--we-type-caption-tracking);
@@ -173,96 +183,96 @@
 
 /* 聊天消息入场：用户气泡与角色标签浮在画布上（助手气泡自带纸面底色，不动） */
 .we-design-lab__stage .we-message-bubble-user {
-  color: var(--we-page-canvas-fg);
+  color: var(--we-color-shell-text-primary);
 }
 .we-design-lab__stage .we-message-label {
-  color: var(--we-page-canvas-fg);
+  color: var(--we-color-shell-text-primary);
 }
 
 /* 说话人切换 */
 .we-design-lab__stage .we-speaker-stage__name {
-  color: var(--we-page-canvas-fg);
+  color: var(--we-color-shell-text-primary);
 }
 .we-design-lab__stage .we-speaker-stage__line {
-  color: color-mix(in srgb, var(--we-page-canvas-fg) 90%, var(--we-color-bg-canvas));
+  color: color-mix(in srgb, var(--we-color-shell-text-primary) 90%, var(--we-color-bg-canvas));
 }
 
 /* 剧情选项卡：演示借聊天中栏作用域，选项无 surface 底色（下拉面板与选中态自带底色，不动） */
 .we-design-lab__canvas-strip .we-option-btn {
-  color: var(--we-page-canvas-fg);
+  color: var(--we-color-shell-text-primary);
 }
 .we-design-lab__canvas-strip :is(.we-option-streaming-hint, .we-option-dismiss, .we-option-collapsed-hint) {
-  color: var(--we-page-canvas-fg-muted);
+  color: var(--we-color-shell-text-secondary);
 }
 
 /* 任务列表：实验室里 ul/li 无类名，文字继承 body 墨色 */
 .we-design-lab__stage .we-task-title {
-  color: var(--we-page-canvas-fg);
+  color: var(--we-color-shell-text-primary);
 }
 .we-design-lab__stage .we-task-title.is-struck {
-  color: var(--we-page-canvas-fg-muted);
+  color: var(--we-color-shell-text-secondary);
 }
 
 /* 下拉选择：trigger 只有一层近透明墨洗（下拉面板自带底色，不动） */
 .we-design-lab__stage .we-select-trigger {
-  color: var(--we-page-canvas-fg-muted);
+  color: var(--we-color-shell-text-secondary);
 }
 .we-design-lab__stage .we-select-trigger.has-value {
-  color: var(--we-page-canvas-fg);
+  color: var(--we-color-shell-text-primary);
 }
 
 /* 输入框：同上，只有近透明墨洗底色 */
 .we-design-lab__stage :is(.we-input, .we-textarea) {
-  color: var(--we-page-canvas-fg);
+  color: var(--we-color-shell-text-primary);
 }
 .we-design-lab__stage :is(.we-input, .we-textarea)::placeholder {
-  color: var(--we-page-canvas-fg-muted);
+  color: var(--we-color-shell-text-secondary);
 }
 
 /* 状态数值变化：演示 stage 带 we-state-panel，生产同作用域规则在此让位 */
 .we-design-lab__stage .we-status-key,
 .we-design-lab__stage .we-section-empty {
-  color: var(--we-page-canvas-fg-muted);
+  color: var(--we-color-shell-text-secondary);
 }
 .we-design-lab__stage.we-state-panel .we-status-field .we-status-value,
 .we-design-lab__stage.we-state-panel .we-status-tag {
-  color: var(--we-page-canvas-fg);
+  color: var(--we-color-shell-text-primary);
 }
 
 /* 章节开场：数字与标题浮在画布上（金线装饰不动） */
 .we-design-lab__stage .we-chapter-num {
-  color: var(--we-page-canvas-fg-muted);
+  color: var(--we-color-shell-text-secondary);
 }
 .we-design-lab__stage .we-chapter-title {
-  color: var(--we-page-canvas-fg);
+  color: var(--we-color-shell-text-primary);
 }
 
 /* 徽标与空状态：变体（accent/error）保留状态色，只换默认态 */
 .we-design-lab__stage .we-badge:not(.we-badge-accent):not(.we-badge-error) {
-  color: var(--we-page-canvas-fg-muted);
+  color: var(--we-color-shell-text-secondary);
 }
 .we-design-lab__stage .we-empty-state,
 .we-design-lab__stage .we-empty-state__icon {
-  color: var(--we-page-canvas-fg-muted);
+  color: var(--we-color-shell-text-secondary);
 }
 .we-design-lab__stage .we-empty-state__title {
-  color: var(--we-page-canvas-fg);
+  color: var(--we-color-shell-text-primary);
 }
 
 /* 页签 */
 .we-design-lab__stage .we-section-tab {
-  color: var(--we-page-canvas-fg-muted);
+  color: var(--we-color-shell-text-secondary);
 }
 .we-design-lab__stage .we-section-tab.active,
 .we-design-lab__stage .we-section-tab:active {
-  color: var(--we-page-canvas-fg);
+  color: var(--we-color-shell-text-primary);
 }
 
 /* 循环动画里的字符与旋钮（打字三点是强调色，不动） */
 .we-design-lab__stage .we-asst-new-msg-arrow {
-  color: var(--we-page-canvas-fg);
+  color: var(--we-color-shell-text-primary);
 }
 .we-design-lab__stage .we-asst-tool__spinner {
-  border-color: var(--we-page-canvas-fg-muted);
+  border-color: var(--we-color-shell-border-strong);
   border-top-color: transparent;
 }

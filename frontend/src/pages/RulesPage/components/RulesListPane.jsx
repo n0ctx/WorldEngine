@@ -14,7 +14,7 @@ export default function RulesListPane({
   if (navMode === 'entries') {
     return (
       <section className="we-workshop-list">
-        <div className="we-workshop-list-head">
+        <div className="we-workshop-list-head we-on-shell">
           <span>
             {entryFilter === 'all' ? '全部条目' : `「${TRIGGER_LABEL[entryFilter]}」条目`}
           </span>
@@ -58,7 +58,7 @@ export default function RulesListPane({
 
   return (
     <section className="we-workshop-list">
-      <div className="we-workshop-list-head">
+      <div className="we-workshop-list-head we-on-shell">
         <span>{fieldScope.label}字段</span>
         <button className="we-btn we-btn-sm we-btn-secondary" onClick={() => setCreatingField(true)}>+ 添加</button>
       </div>

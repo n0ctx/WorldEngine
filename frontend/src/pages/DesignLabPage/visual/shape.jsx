@@ -1,7 +1,7 @@
 import VisualSection from '../VisualSection.jsx';
 
 const RADII = ['none', 'xs', 'sm', 'md', 'lg', 'xl', 'full'];
-const SHADOWS = ['paper-lift', 'paper-indent', 'dialog', 'toast', 'range-thumb', 'range-thumb-active'];
+const SHADOWS = ['elevation-1', 'elevation-2', 'elevation-3', 'shadow-inset', 'shadow-range-thumb-active', 'focus-ring'];
 
 export function RadiusDemo() {
   return (
@@ -20,9 +20,8 @@ export function ShadowDemo() {
     <VisualSection id="shadow">
       <div className="we-design-lab__row">
         {SHADOWS.map((name) => (
-          <span key={name} className="we-design-lab__shape we-design-lab__shape--shadow" style={{ '--lab-token': `var(--we-shadow-${name})` }}>{name}</span>
+          <span key={name} className="we-design-lab__shape we-design-lab__shape--shadow" style={{ '--lab-token': `var(--we-${name})` }}>{name}</span>
         ))}
-        <span className="we-design-lab__shape we-design-lab__shape--shadow" style={{ '--lab-token': 'var(--we-focus-ring)' }}>focus-ring</span>
       </div>
     </VisualSection>
   );

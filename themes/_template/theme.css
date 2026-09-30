@@ -5,12 +5,13 @@
    *
    * 规则：
    *   1. 主题只改值，不写组件选择器
-   *   2. 先改基础色板和字体；语义色由核心推导，主题不写
-   *   3. 如果缺 token，先补 frontend/src/themes/tokens.css，再回到这里覆盖
+   *   2. 主题只能写本文件列出的 token（外加 --we-duration-*）；语义色、壳层色、阴影、状态层都由核心推导，
+   *      写了别的 token，check:themes 会报越权
+   *   3. 想调某一级颜色或阴影，改 § 1 的基础色与阴影浓度
    */
 
   /* ──────────────────────────────────────────────────────────────
-     § 1 基础色板：主题只写这几个颜色，文字、底色、边框、透明层由核心按公式推导
+     § 1 基础色板：文字、底色、边框、壳层、透明层、阴影都由核心按公式推导
      ────────────────────────────────────────────────────────────── */
 
   --we-base-canvas:  #f7f7f4;   /* 页面底；深色主题须写 6 位十六进制，且不能比 core/utils/accentBasis.js 的取色基准更亮 */
@@ -22,72 +23,36 @@
   --we-base-info:    #586174;
   --we-base-danger:  #7d766f;
   --we-base-shade:   #171717;   /* 阴影、遮罩、凹陷的底色 */
-  --we-shadow-strength: 100%;   /* 阴影与凹陷的浓度：深色主题 100%，纸面主题可降到 50% */
+  /* 壳层：页面大画布、书桌与顶栏的底和上面的字，默认同画布与正文色；想要一张深色书桌时另写 */
+  --we-base-shell:    var(--we-base-canvas);
+  --we-base-on-shell: var(--we-base-ink);
+  --we-shadow-strength: 100%;   /* 阴影、凹陷、遮罩的浓度：深色主题 100%，纸面主题可降到 35% */
   /* 画布偏深的主题必须改成 dark，否则切回标签页时会闪一帧浏览器白底 */
   --we-color-scheme: light;
-  --we-color-gold-pale: #b3aea5;  /* 顶栏激活态的浅金字 */
 
   /* ──────────────────────────────────────────────────────────────
-     § 2 字体与页面排版
+     § 2 字体：字号、行高、字距、字重由核心的字体角色统一定义，主题只换字体族
      ────────────────────────────────────────────────────────────── */
 
-  /* --we-font-ui：界面字体，按钮/标签/表单/导航/列表 */
-  --we-font-ui: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  /* --we-font-prose：叙事正文，chat / writing 的小说正文 */
-  --we-font-prose: Georgia, 'Times New Roman', 'Noto Serif SC', serif;
-  /* --we-font-display：标题与展示字体 */
-  --we-font-display: Georgia, 'Times New Roman', 'Noto Serif SC', serif;
-  /* --we-font-mono：数字与代码 */
-  --we-font-mono: ui-monospace, SFMono-Regular, 'SF Mono', Consolas, monospace;
-
-  --we-page-canvas-bg: var(--we-color-bg-canvas);
-  --we-page-canvas-fg: var(--we-color-text-primary);
-  --we-page-canvas-fg-muted: var(--we-color-text-secondary);
-  --we-page-canvas-fg-deep: var(--we-color-border-strong);
-  --we-page-canvas-title-style: normal;
-  --we-card-name-font-style: normal;
+  --we-font-ui: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;  /* 按钮、标签、表单、导航 */
+  --we-font-prose: Georgia, 'Times New Roman', 'Noto Serif SC', serif;                  /* 叙事正文 */
+  --we-font-display: Georgia, 'Times New Roman', 'Noto Serif SC', serif;                /* 标题与展示 */
+  --we-font-mono: ui-monospace, SFMono-Regular, 'SF Mono', Consolas, monospace;          /* 数字与代码 */
+  --we-font-display-style: normal;  /* 大标题、世界卡名的字形，可改 italic */
 
   /* ──────────────────────────────────────────────────────────────
-     § 3 卡片、面板与条目行
+     § 3 形状与质感
      ────────────────────────────────────────────────────────────── */
 
-  --we-card-bg: var(--we-color-bg-surface);
-  --we-card-border: 1px solid var(--we-color-border-default);
-  --we-card-radius: var(--we-radius-sm);
-  --we-card-shadow: var(--we-shadow-paper-lift);
-  --we-card-hover-shadow: var(--we-card-shadow);
-  /* hover/选中背景：必须不透明（半透明会透出底下画布，文字发糊）；按本主题色板取实色 */
-  --we-card-hover-bg: color-mix(in srgb, #171717 6%, var(--we-card-bg));
-  /* 阴影出血留白：裁剪容器必须为卡片阴影留出的淡出空间（横向 inline / 纵向 block）。
-     取值 = 本主题最大卡片阴影出血 + 余量；仅当自身阴影更大时覆写，inline 会收窄卡片内容区宜小不宜大 */
-  --we-shadow-bleed-inline: 24px;
-  --we-shadow-bleed-block: 24px;
-  /* 列表型窄长条卡（PersonaCard / CharacterCard 等）：默认沿用 card 投影，可单独收紧 */
-  --we-panel-card-shadow: 0 0 0 1px color-mix(in srgb, #171717 3%, transparent);
+  --we-radius-none: 2px;
+  --we-radius-xs:   6px;
+  --we-radius-sm:   10px;
+  --we-radius-md:   14px;
+  --we-radius-lg:   20px;
+  --we-radius-xl:   28px;
+  --we-radius-full: 9999px;
 
-  /* 条目行（WorldConfigPage 四列）：默认与画布同色，主题可覆盖以产生浮起感 */
-
-  /* ──────────────────────────────────────────────────────────────
-     § 4 壳层、书架与质感
-     ────────────────────────────────────────────────────────────── */
-
-  --we-topbar-bg: #2f3136;
-  --we-topbar-border: rgba(255, 255, 255, 0.08);
-  --we-topbar-item: rgba(255, 255, 255, 0.58);
-  --we-topbar-item-hover: rgba(255, 255, 255, 0.82);
-  --we-topbar-sep: rgba(255, 255, 255, 0.22);
-  --we-topbar-active-bg: rgba(183, 146, 59, 0.10);
-  --we-topbar-active-ring: rgba(183, 146, 59, 0.32);
-  --we-topbar-dropdown-bg: #2f3136;
-  --we-topbar-dropdown-border: rgba(255, 255, 255, 0.12);
-  --we-topbar-dropdown-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
-  --we-topbar-item-hover-bg: rgba(255, 255, 255, 0.06);
-  --we-topbar-item-dim: rgba(255, 255, 255, 0.34);
-  --we-topbar-item-muted: rgba(255, 255, 255, 0.40);
-  --we-topbar-item-faint: rgba(255, 255, 255, 0.66);
-  --we-topbar-divider: rgba(255, 255, 255, 0.08);
-
-  /* 背景氛围「光尘」（外壳在内容后画的斜光与漂浮微尘）
+  /* 背景氛围「光尘」：外壳在内容后画一束斜光和漂浮的微尘。
      --we-atmosphere-color 默认取主色，进入世界后由外壳按封面主色覆盖 */
   --we-atmosphere-color: var(--we-color-accent);
   --we-atmosphere-shade: rgba(52, 64, 96, 0.22);   /* 对角暗部的冷色 */
@@ -95,95 +60,29 @@
   --we-atmosphere-opacity-quiet: 0.6;               /* 阅读页光尘强度 */
   --we-atmosphere-glow-strength: 14%;               /* 静态光晕浓度 */
   --we-atmosphere-grain: 0.04;                      /* 胶片颗粒强度，0 为关闭 */
-  /* 表面材料（世界入口、台前、消息、输入胶囊、弹窗）：暗色描边、内侧光与顶部窄高光、静态颗粒、近实远淡的接地阴影 */
-  --we-material-stroke: rgba(23, 23, 23, 0.16);
-  --we-material-sheen: rgba(255, 255, 255, 0.14);
-  --we-material-grain: 0.03;                        /* 表面颗粒强度，0 为关闭 */
-  --we-material-shadow-near: 0 1px 1px rgba(23, 23, 23, 0.14), 0 2px 4px -2px rgba(23, 23, 23, 0.14);
-  --we-material-shadow-far: 0 12px 24px -14px rgba(23, 23, 23, 0.20), 0 32px 56px -32px rgba(23, 23, 23, 0.30);
-  --we-material-shadow: 0 0 0 1px var(--we-material-stroke), var(--we-material-shadow-near), var(--we-material-shadow-far);
-  --we-material-shadow-lift: 0 16px 28px -14px rgba(23, 23, 23, 0.20), 0 40px 68px -34px rgba(23, 23, 23, 0.30);
-  /* 颗粒贴图 */
-  /* --we-grain-image:             url("data:image/svg+xml,…feTurbulence…"); */
-  --we-stage-surface: transparent;                  /* 页面内容区的底；浅色纸面主题可铺实底 */
-  --we-glass-bg: rgba(255, 255, 255, 0.8);          /* 侧栏/设置/弹窗/输入胶囊的半透明底 */
-  --we-glass-blur: 18px;
-  --we-blur-scrim: 6px;                             /* 遮罩、半透明小块背后的轻模糊 */
-  --we-pane-gap: var(--we-space-md);                /* 会话页三块悬浮面板之间与四周的缝隙 */
-  --we-pane-center-bg: color-mix(in srgb, var(--we-color-bg-canvas) 94%, transparent);    /* 中栏正文纸面：最实 */
-  --we-pane-side-bg: color-mix(in srgb, var(--we-color-bg-elevated) 40%, transparent);    /* 两侧磨砂玻璃：更透，模糊沿用 --we-glass-blur */
-  --we-pane-glow: color-mix(in srgb, var(--we-atmosphere-color) 18%, transparent);       /* 面板背后的环境光，透过两侧玻璃可见 */
 
-  --we-canvas-texture-image: none;
+  /* 表面材料：顶部窄高光与表面颗粒 */
+  --we-material-sheen: rgba(255, 255, 255, 0.14);
+  --we-material-grain: 0.03;
+
+  /* 浮层与会话页三块面板 */
+  --we-glass-opacity: 80%;      /* 浮层底的不透明度，纸面主题可铺满 100% */
+  --we-glass-blur: 18px;
+  --we-blur-scrim: 6px;
+  --we-stage-surface: transparent;  /* 页面内容区的底，浅色主题可铺回实底 */
+  --we-pane-gap: var(--we-space-md);
+  --we-pane-center-bg: color-mix(in srgb, var(--we-color-bg-canvas) 78%, transparent);
+  --we-pane-side-bg: color-mix(in srgb, var(--we-color-bg-elevated) 18%, transparent);
+  --we-pane-glow: color-mix(in srgb, var(--we-atmosphere-color) 18%, transparent);
+
+  /* 卡片：底与边框；世界卡封面上的暗罩 */
+  --we-card-bg: var(--we-color-bg-surface);
+  --we-card-border: 1px solid var(--we-color-border-default);
   --we-card-overlay-bg: transparent;
-  --we-card-overlay-hover-bg: transparent;
-  --we-card-cover-text-color: var(--we-color-text-primary);
-  --we-card-cover-meta-color: var(--we-color-text-secondary);
-  --we-col-header-border-color: var(--we-color-border-default);
-  --we-col-btn-border-color: var(--we-color-border-strong);
-  --we-col-btn-color: var(--we-color-text-secondary);
-  --we-col-btn-primary-hover-bg: rgba(180, 80, 60, 0.12); /* 主按钮 hover 色，主题可换色调 */
+  --we-card-overlay-hover-bg: var(--we-card-overlay-bg);
+
+  /* 纹理：页面画布纹理、羊皮纸纤维层（display 取 block 显示） */
+  --we-canvas-texture-image: none;
   --we-parchment-display: none;
   --we-parchment-fiber-opacity: 0;
-
-
-  /* 书架空/加载/错误态面板 */
-  --we-bookshelf-empty-bg:            rgba(255, 255, 255, 0.02);
-  --we-bookshelf-empty-border:        rgba(23, 23, 23, 0.06);
-
-  /* 设置面板加载占位 scrim */
-  --we-loading-scrim-bg:
-    linear-gradient(180deg, rgb(255 248 236 / 42%), rgb(245 233 212 / 28%));
-  --we-loading-scrim-border: rgb(120 76 33 / 10%);
-  --we-loading-scrim-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 26%),
-    0 14px 36px rgb(48 31 13 / 10%);
-
-  /* ──────────────────────────────────────────────────────────────
-     § 6 阴影 / 圆角 / 动效
-     ────────────────────────────────────────────────────────────── */
-
-  --we-shadow-paper-lift: 0 0 0 1px rgba(0, 0, 0, 0.06);
-  --we-shadow-paper-indent:
-    inset 0 1px 2px rgba(0, 0, 0, 0.03);
-  --we-shadow-dialog:
-    0 0 0 1px rgba(23, 23, 23, 0.08),
-    0 4px 18px rgba(23, 23, 23, 0.14),
-    0 16px 48px rgba(23, 23, 23, 0.14);
-  --we-shadow-toast:
-    0 0 0 1px #ffffff,
-    0 4px 12px rgba(23, 23, 23, 0.14);
-  --we-shadow-range-thumb: 0 1px 4px rgba(23, 23, 23, 0.18);
-
-  --we-radius-none: 1px;
-  --we-radius-xs: 3px;
-  --we-radius-sm: 6px;
-  --we-radius-md: 12px;
-  --we-radius-lg: 16px;
-  --we-radius-xl: 26px;
-  --we-radius-full: 9999px;
-
-  --we-duration-fast: 180ms;
-  --we-duration-normal: 300ms;
-  --we-duration-slow: 380ms;
-  --we-duration-extended: 500ms;
-  --we-duration-loop: 1200ms;
-
-  /* ──────────────────────────────────────────────────────────────
-     § 7 Pager（嵌在消息列表底部的翻页按钮胶囊）—— 主题可覆写定制外观
-     ────────────────────────────────────────────────────────────── */
-  /* --we-pager-btn-bg:           var(--we-color-bg-surface); */
-  /* --we-pager-btn-border:       1px solid var(--we-color-border-default); */
-  /* --we-pager-btn-shadow:       none; */
-  /* --we-pager-btn-hover-bg:     var(--we-color-accent-bg); */
-  /* --we-pager-btn-hover-shadow: none; */
-
-  /* Composer 底部输入栏皮肤（chat / writing 共用）；默认复刻中性观感，按需覆盖 */
-  /* --we-composer-field-bg:              var(--we-color-shade-1); */
-  /* --we-composer-btn-border:            1px solid var(--we-color-border-default); */
-
-  /* 骨架屏占位块底色；默认取 ink-wash-md */
-  /* --we-skeleton-base-bg:               var(--we-color-shade-2); */
-
-  /* 标题栏 / 书脊 chrome（chat 顶部栏 + 左侧会话列表）；默认复刻中性观感 */
 }

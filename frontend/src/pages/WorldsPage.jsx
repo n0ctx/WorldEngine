@@ -85,7 +85,7 @@ export default function WorldsPage() {
           ))}
         </div>
       ) : loadError ? (
-        <div className="we-worlds-state">
+        <div className="we-worlds-state we-on-shell">
           <EmptyState
             title="世界列表读取失败"
             hint={loadError}
@@ -94,7 +94,7 @@ export default function WorldsPage() {
         </div>
       ) : worlds.length === 0 ? (
         <motion.div
-          className="we-worlds-door"
+          className="we-worlds-door we-on-shell"
           variants={sceneEnter}
           initial="hidden"
           animate="visible"

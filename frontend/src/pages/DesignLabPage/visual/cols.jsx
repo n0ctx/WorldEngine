@@ -13,7 +13,7 @@ export function EntryColsDemo() {
   const [characters, setCharacters] = useState(CAST);
   return (
     <VisualSection id="entry-cols">
-      <div className="we-worldhub-layout we-design-lab__cols">
+      <div className="we-worldhub-layout we-design-lab__cols we-design-lab__desk">
         <StorylineColumn
           loading={false}
           timeline={STORYLINES}

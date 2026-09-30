@@ -32,15 +32,9 @@ npm run check:themes
 
 退出码说明：
 - `0` — 通过（某个主题只覆盖了部分 token 只会提示，不算失败）
-- `1` — 失败：内核新增的视觉 token 没有列进模板，或主题覆盖了内核不存在的 token
+- `1` — 失败：内核新增的主题可写 token 没有列进模板、主题覆盖了内核不存在的 token，或主题写了白名单以外的 token（越权）
 
-`_template/theme.css` 列出内核全部视觉 token，新主题从模板复制后删除不需要的行即可，无需猜哪些 token 可覆盖。所以新增或改名核心 token 时，必须在同一次提交里同步模板。
-
-## 迁移声明
-
-- 主题系统只接受正式语义 token 和基础色板 token，旧兼容别名已全部移除。
-- 新主题请优先覆盖 `--we-color-*`、`--we-font-*`、`--we-page-canvas-*`、`--we-card-*`、`--we-panel-card-*`、`--we-bookshelf-*`、`--we-entry-row-*`。
-- 如果你的历史主题包仍引用旧别名，需要手动迁移到当前 token 名。
+主题可写的 token 是一张白名单（`scripts/check-theme-alignment.mjs` 的 `THEME_WRITABLE`），`_template/theme.css` 把它们全部列出，新主题从模板复制后删除不需要的行即可。新增或改名主题可写的核心 token 时，必须在同一次提交里同步白名单和模板。
 
 ## 主题包结构
 
@@ -58,13 +52,12 @@ themes/{theme_id}/
 
 优先按下面顺序覆盖 token，通常能最少改动地完成一个完整主题：
 
-1. 基础色板：`--we-base-*`（页面底、卡片面、正文色、强调色、四个状态色、阴影底色）与 `--we-shadow-strength`（阴影浓度），再加 `--we-color-scheme`
-2. 字体与排版：`--we-font-*`、`--we-page-canvas-*`
-3. 组件皮肤：`--we-card-*`、`--we-panel-card-*`
-4. 壳层与装饰：`--we-topbar-*`、`--we-spine-*`、`--we-canvas-texture-image`
-5. 圆角与动效：`--we-radius-*`、`--we-duration-*`、`--we-easing-*`
+1. 基础色板：`--we-base-*`（页面底、卡片面、正文色、强调色、四个状态色、阴影底色，可选的壳层底 `shell` 与壳层字 `on-shell`）与 `--we-shadow-strength`（阴影浓度），再加 `--we-color-scheme`
+2. 字体：`--we-font-*`（含展示字形 `--we-font-display-style`）
+3. 形状：`--we-radius-*`、`--we-duration-*`
+4. 质感例外：光尘 `--we-atmosphere-*`、表面高光与颗粒、浮层不透明度与模糊、会话页面板 `--we-pane-*`、卡片底与边框、封面暗罩、画布纹理与羊皮纸纤维
 
-文字的各级灰、底色层级、边框、透明层、强调色的深浅变体都由核心 `tokens.css` 从基础色板按公式推导，主题不写 `--we-color-*`（`--we-color-scheme`、`--we-color-gold-pale` 除外），写了 `check:themes` 会报越权。想调某一级颜色，改基础色。
+文字的各级灰、底色层级、边框、壳层（书桌、顶栏）色板、透明层、强调色的深浅变体、三档高度阴影都由核心 `tokens.css` 从基础色板按公式推导，主题不写，写了 `check:themes` 会报越权。想调某一级颜色，改基础色；想让阴影轻一些，调 `--we-shadow-strength`。
 
 字号、行高、字距、字重由核心的字体角色（`--we-type-*`）统一定义，全站一致，主题不覆盖；主题改字体观感用 `--we-font-*`。
 
@@ -116,9 +109,9 @@ cp -R themes/_template themes/my-theme
 
 - 基础色板：页面底、卡片面、正文色、强调色、状态色、阴影底色与浓度
 - 字体：衬线、无衬线、展示字体、印章字体、等宽字体
-- 视觉节奏：圆角、阴影、动效时长、缓动曲线
-- 全局质感：顶部壳层、纸张纹理、书脊阴影、覆盖层
-- 页面大画布：`--we-page-canvas-*`、卡片名称字形、是否显示副标题
+- 视觉节奏：圆角、阴影浓度、动效时长
+- 全局质感：光尘、纸张纹理、浮层透明度、封面暗罩
+- 壳层：用 `--we-base-shell` / `--we-base-on-shell` 另起一层深色书桌；书桌、顶栏上的文字与边框由核心推导
 
 ### 字体
 

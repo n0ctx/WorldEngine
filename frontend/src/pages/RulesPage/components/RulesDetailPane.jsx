@@ -15,7 +15,7 @@ export default function RulesDetailPane({
     <section className="we-workshop-detail">
       {navMode === 'entries' ? (
         orderMode ? (
-          <p className="we-workshop-empty">拖拽左侧条目调整顺序，越靠上越先注入。完成后点「完成排序」返回列表。</p>
+          <p className="we-workshop-empty we-on-shell">拖拽左侧条目调整顺序，越靠上越先注入。完成后点「完成排序」返回列表。</p>
         ) : creatingEntry ? (
           <div className="we-workshop-detail-inner">
             <EntryEditor

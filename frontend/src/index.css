@@ -62,7 +62,7 @@ body {
   width: 100%;
   overflow: hidden;
   /* 画布底色只在这里铺一次；页面容器保持透明，让背景氛围层从内容后面透出来 */
-  background: var(--we-page-canvas-bg);
+  background: var(--we-color-shell-bg);
   isolation: isolate;
 }
 

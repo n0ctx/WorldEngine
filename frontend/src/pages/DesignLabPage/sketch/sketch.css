@@ -28,7 +28,7 @@
   font-size: var(--we-type-caption-size);
   line-height: var(--we-type-caption-leading);
   letter-spacing: var(--we-type-caption-tracking);
-  color: var(--we-page-canvas-fg-muted);
+  color: var(--we-color-text-secondary);
 }
 .we-sketch-compare__col--sketch .we-sketch-compare__tag {
   color: var(--we-color-accent);
@@ -37,7 +37,7 @@
   font-size: var(--we-type-ui-size);
   line-height: var(--we-type-ui-leading);
   letter-spacing: var(--we-type-ui-tracking);
-  color: var(--we-page-canvas-fg-muted);
+  color: var(--we-color-text-secondary);
 }
 .we-sketch-compare__body {
   display: grid;

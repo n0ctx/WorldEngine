@@ -34,16 +34,22 @@ export const VISUAL_SLOTS = [
   },
   {
     id: 'accent-colors', category: 'color', title: '强调与状态', status: 'ready',
-    tokens: ['--we-color-accent*', '--we-color-ornament', '--we-color-gold-pale', '--we-color-status-*'],
+    tokens: ['--we-color-accent*', '--we-color-ornament', '--we-color-status-*'],
     usedIn: ['主按钮、选中态、徽标、花饰与分隔线、成功 / 警告 / 危险提示'],
+  },
+  {
+    id: 'shell-colors', category: 'color', title: '壳层色板', status: 'ready',
+    tokens: ['--we-color-shell-*'],
+    usedIn: ['书桌、页面大画布、顶栏、世界页三栏的文字与边框；挂 .we-on-shell 的容器（书架空态）'],
+    note: '公式同纸面的文字、边框阶梯，底和字换成 --we-base-shell / --we-base-on-shell；当前项 shell-accent 由主色混出。',
   },
   {
     id: 'wash-colors', category: 'color', title: '透明度阶梯与状态层', status: 'ready',
     tokens: [
       '--we-alpha-*', '--we-opacity-disabled', '--we-color-hover', '--we-color-pressed', '--we-color-highlight-*', '--we-color-shade*',
-      '--we-color-white', '--we-color-cover-*', '--we-color-avatar-*',
+      '--we-color-white', '--we-color-cover-*', '--we-color-on-cover*', '--we-color-avatar-*',
     ],
-    usedIn: ['输入框底、悬停底、遮罩、阴影、头像占位、不可用控件'],
+    usedIn: ['输入框底、悬停底、遮罩、阴影、头像占位、封面上的字、不可用控件'],
   },
 
   // ── 字体与排版 ──
@@ -64,7 +70,8 @@ export const VISUAL_SLOTS = [
   },
   {
     id: 'shadow', category: 'shape', title: '阴影与焦点环', status: 'ready',
-    tokens: ['--we-shadow-*', '--we-focus-ring'], usedIn: ['纸面抬升与凹陷、弹窗、提示条、滑块、键盘焦点'],
+    tokens: ['--we-elevation-*', '--we-shadow-*', '--we-focus-ring'], usedIn: ['卡片、世界卡、弹窗、下拉、提示条、滑块、输入框凹陷、键盘焦点'],
+    note: '三档高度与一档凹陷都由阴影色阶梯生成，主题只调 --we-shadow-strength。',
   },
   {
     id: 'material', category: 'shape', title: '表面材料', status: 'ready',
@@ -80,19 +87,19 @@ export const VISUAL_SLOTS = [
   },
   {
     id: 'cards', category: 'component', title: '卡片与面板', status: 'ready',
-    tokens: ['--we-card-*', '--we-panel-card-*'], usedIn: ['Card、PanelCard、EmptyState'],
+    tokens: ['--we-card-*'], usedIn: ['Card、PanelCard、EmptyState'],
   },
   {
     id: 'entry-cols', category: 'component', title: '条目列与条目行', status: 'ready',
-    tokens: ['--we-col-*'], usedIn: ['世界页三栏：故事线、角色、世界规则'],
-    note: '故事线、角色两栏是真实组件；第三栏只放真实的规则入口卡，「我扮演」区块未放。',
+    tokens: [], usedIn: ['世界页三栏：故事线、角色、世界规则'],
+    note: '栏头与栏内按钮取壳层色板，卡片取卡片 token。故事线、角色两栏是真实组件；第三栏只放真实的规则入口卡，「我扮演」区块未放。',
   },
 
   // ── 壳层与氛围 ──
   {
     id: 'topbar-skin', category: 'shell', title: '顶栏', status: 'ready',
     tokens: ['--we-topbar-*'], usedIn: ['TopBar'],
-    note: '用真实的顶栏样式类搭的样机，不含路由和数据。',
+    note: '颜色全部取壳层色板，这里只认领顶栏高度。用真实的顶栏样式类搭的样机，不含路由和数据。',
   },
   {
     id: 'atmosphere', category: 'shell', title: '背景氛围「光尘」', status: 'ready',
@@ -108,17 +115,17 @@ export const VISUAL_SLOTS = [
   // ── 页面 ──
   {
     id: 'page-canvas', category: 'page', title: '页面大画布', status: 'ready',
-    tokens: ['--we-page-*', '--we-card-name-*', '--we-parchment-*'], usedIn: ['书架页、世界页大标题与纸面'],
+    tokens: ['--we-parchment-*'], usedIn: ['书架页、世界页大标题与纸面'],
     note: '样机：用真实的页头样式类，加上真实的引导、角色卡和纸纹组件拼成，不是整页。',
   },
   {
     id: 'world-card', category: 'page', title: '世界卡与书架空态', status: 'ready',
-    tokens: ['--we-card-overlay-*', '--we-card-cover-*', '--we-bookshelf-*'], usedIn: ['WorldsGrid'],
+    tokens: ['--we-card-overlay-*'], usedIn: ['WorldsGrid'],
     note: '世界卡是真实的 WorldsGrid（假数据）；书架的读取失败与空态按 WorldsPage 的结构用真实样式类搭成样机。',
   },
   {
     id: 'loading', category: 'page', title: '加载占位', status: 'ready',
-    tokens: ['--we-loading-*'], usedIn: ['设置面板加载'],
+    tokens: [], usedIn: ['设置面板加载'],
     note: '样机：设置页的加载态是页面内部状态，无法单独渲染，这里用它的真实样式类搭出同样的结构。',
   },
 
@@ -129,7 +136,7 @@ export const VISUAL_SLOTS = [
   },
   {
     id: 'chat-controls', category: 'chat', title: '翻页按钮与输入栏', status: 'ready',
-    tokens: ['--we-pager-*', '--we-composer-*'], usedIn: ['Pager', 'InputBox'],
+    tokens: [], usedIn: ['Pager', 'InputBox'],
     note: '真实的 InputBox 与 Pager，发送和续写等回调为空。',
   },
 

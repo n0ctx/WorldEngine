@@ -31,7 +31,7 @@ export function AtmosphereDemo() {
           阅读页强度
         </button>
       </div>
-      <div className="we-design-lab__fx-box" style={color ? { '--we-atmosphere-color': color } : undefined}>
+      <div className="we-design-lab__fx-box we-on-shell" style={color ? { '--we-atmosphere-color': color } : undefined}>
         <AtmosphereLayer quiet={quiet} colorKey={color} />
         <p className="we-design-lab__note">光尘铺在内容后面；这里限制在盒子里，真实页面里铺满整个窗口。</p>
       </div>
@@ -45,7 +45,7 @@ export function PanesDemo() {
       <ShellFrame initialLeft>
         <p className="we-design-lab__note">中栏纸面；左抽屉展开，右抽屉收成窄轨。</p>
       </ShellFrame>
-      <div className="we-edit-canvas we-design-lab__canvas-strip">
+      <div className="we-edit-canvas we-design-lab__canvas-strip we-design-lab__desk we-on-shell">
         <p className="we-design-lab__note">页面画布纹理（世界列表、编辑页的底）</p>
       </div>
     </VisualSection>

@@ -546,7 +546,7 @@
   --ink-at: var(--mx, 14px) var(--my, 50%);
   background: radial-gradient(circle at var(--ink-at), color-mix(in srgb, var(--we-color-accent) calc(var(--ink-a) * 0.18), transparent), transparent var(--ink-r)) padding-box,
     var(--we-color-shade-1);
-  box-shadow: var(--we-shadow-paper-indent), var(--we-focus-ring);
+  box-shadow: var(--we-shadow-inset), var(--we-focus-ring);
   animation:
     we-ink-seep var(--ink-bloom) var(--ink-surface) both,
     we-ink-field-dry var(--ink-dry) var(--ink-flow) both;
@@ -556,8 +556,8 @@
   to   { --ink-r: 560px; }
 }
 @keyframes we-ink-field-dry {
-  0%, 40% { --ink-a: 100%; border-color: var(--ink-wet); box-shadow: var(--we-shadow-paper-indent), 0 0 18px -2px var(--ink-glow); }
-  100%    { --ink-a: 0%;   border-color: var(--we-color-border-focus); box-shadow: var(--we-shadow-paper-indent), var(--we-focus-ring); }
+  0%, 40% { --ink-a: 100%; border-color: var(--ink-wet); box-shadow: var(--we-shadow-inset), 0 0 18px -2px var(--ink-glow); }
+  100%    { --ink-a: 0%;   border-color: var(--we-color-border-focus); box-shadow: var(--we-shadow-inset), var(--we-focus-ring); }
 }
 
 /* ── 开关：圆钮像一滴墨被甩过去 ─── */

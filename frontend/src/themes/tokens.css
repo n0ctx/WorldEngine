@@ -41,6 +41,9 @@
   --we-base-info:    #586174;
   --we-base-danger:  #7d766f;
   --we-base-shade:   #171717;  /* 阴影、遮罩、凹陷的底色 */
+  /* 壳层：页面大画布、书桌与顶栏所在的底和上面的字。默认同画布；主题可另起一层深色书桌 */
+  --we-base-shell:    var(--we-base-canvas);
+  --we-base-on-shell: var(--we-base-ink);
   /* 阴影与凹陷的浓度（百分比）：深色主题压得重，纸面主题压得轻 */
   --we-shadow-strength: 100%;
 
@@ -86,8 +89,18 @@
 
   /* 强调色：派生值见下方「主色作用域」块 */
   --we-color-accent:      var(--we-base-accent);
-  /* 顶栏激活态的浅金字，阶段性保留为主题可写，待壳层色板收敛 */
-  --we-color-gold-pale:   #b3aea5;
+
+  /* 壳层色板：书桌、顶栏上的文字与边框，公式同纸面的文字、边框阶梯，底和字换成 shell / on-shell。
+     壳层上的当前项（shell-accent）依赖主色，见下方「主色作用域」块 */
+  --we-color-shell-bg:             var(--we-base-shell);
+  --we-color-shell-text-primary:   var(--we-base-on-shell);
+  --we-color-shell-text-secondary: color-mix(in oklab, var(--we-base-on-shell) 78%, var(--we-base-shell));
+  --we-color-shell-text-tertiary:  color-mix(in oklab, var(--we-base-on-shell) 66%, var(--we-base-shell));
+  --we-color-shell-text-faint:     color-mix(in oklab, var(--we-base-on-shell) 50%, var(--we-base-shell));
+  --we-color-shell-border:         color-mix(in oklab, var(--we-base-on-shell) 14%, var(--we-base-shell));
+  --we-color-shell-border-strong:  color-mix(in oklab, var(--we-base-on-shell) 52%, var(--we-base-shell));
+  --we-color-shell-elevated:       color-mix(in oklab, var(--we-base-on-shell) 6%, var(--we-base-shell));  /* 壳层上的浮层：顶栏下拉、书架空态 */
+  --we-color-shell-hover:          color-mix(in srgb, var(--we-base-on-shell) var(--we-alpha-1), transparent);
 
   /* 状态层：透明度只取 --we-alpha-* 阶梯。悬停、按压朝正文色走（深色主题变亮、浅色主题变暗）；
      凹陷（输入框底、标签、表格格子）用下面的 shade 阶梯 */
@@ -104,6 +117,9 @@
   /* 世界卡封面图上的恒定黑：文字投影、头像圈描边。封面图明暗与主题无关，
      所以不能用随主题变化的 shade；用法：color-mix 取它，浓度按 --we-alpha-* 阶梯 */
   --we-color-cover-scrim: rgb(0 0 0);
+  /* 世界卡封面图上的字：同理恒定，取暖白 */
+  --we-color-on-cover:       #fff8ee;
+  --we-color-on-cover-muted: color-mix(in srgb, var(--we-color-on-cover) var(--we-alpha-5), transparent);
 
   /* 背景氛围「光尘」：外壳在全部内容后画一束斜光和漂浮的微尘（shells/book-spread/atmosphere）。
      颜色随世界封面主色，由外壳在根节点覆盖；主题只调强度与冷暖。 */
@@ -118,24 +134,16 @@
   /* 表面材料（世界入口、台前、消息、输入胶囊、弹窗共用，见 ui.css .we-material）：
      暗色描边包住物件，内侧一圈极淡的光和顶部一条窄高光；表面压一层几乎看不见的静态颗粒；
      接地阴影分近、远两段：近处实、远处淡，悬停只让远影稍微离开 */
-  --we-material-stroke:     color-mix(in srgb, var(--we-base-ink) 16%, transparent);
+  --we-material-stroke:     var(--we-color-shade-4);
   --we-material-sheen:      rgba(255, 255, 255, 0.14);
   --we-material-grain:      0.03;
-  --we-material-shadow-near:
-    0 1px 1px var(--we-color-shade-2),
-    0 2px 4px -2px var(--we-color-shade-2);
-  --we-material-shadow-far:
-    0 12px 24px -14px var(--we-color-shade-3),
-    0 32px 56px -32px var(--we-color-shade-4);
-  --we-material-shadow-lift:
-    0 16px 28px -14px var(--we-color-shade-3),
-    0 40px 68px -34px var(--we-color-shade-4);
-  /* 落地的物件：描边 + 近影 + 远影，用于 --we-material-* 三件套的默认组合 */
-  --we-material-shadow: 0 0 0 1px var(--we-material-stroke), var(--we-material-shadow-near), var(--we-material-shadow-far);
+  /* 落地的物件：描边 + 抬起一档的投影 */
+  --we-material-shadow: 0 0 0 1px var(--we-material-stroke), var(--we-elevation-2);
   /* 页面内容区的底：默认透明让氛围透出；浅色主题可铺回实底 */
   --we-stage-surface:             transparent;
-  /* 浮层（侧栏、设置、弹窗、输入胶囊）的半透明底与背景模糊 */
-  --we-glass-bg:                  color-mix(in srgb, var(--we-color-bg-elevated) 80%, transparent);
+  /* 浮层（侧栏、设置、弹窗、输入胶囊）的半透明底与背景模糊：surface 按主题给的不透明度铺开 */
+  --we-glass-opacity:             80%;
+  --we-glass-bg:                  color-mix(in srgb, var(--we-color-bg-surface) var(--we-glass-opacity), transparent);
   --we-glass-blur:                18px;
   /* 会话页三块悬浮面板：面板间与四周露出氛围的缝隙；中栏是最实的正文纸面，
      两侧是更透的磨砂玻璃（模糊半径沿用 --we-glass-blur） */
@@ -285,123 +293,44 @@
 
   /* ============================================================
    * D 层 · 组件皮肤 token
-   * 历史遗留层，数量过多导致主题作者要拧上百个旋钮才能换一次皮。
-   * 后续步骤会逐步把它们收敛回 B/C 层的组合，新代码不要再往这一层加 token。
+   * 由 B/C 层组合出的整套投影，以及主题可写的卡片与纹理例外。新代码不要再往这一层加 token。
    * ============================================================ */
 
-  /* === 页面大画布 token（WorldsPage / CharactersPage / 编辑页大背景）=== */
-  /* 主题通过覆盖这些 token 在中性画布与不同审美之间切换，无需改组件 CSS */
-  --we-page-canvas-bg:                var(--we-color-bg-canvas);      /* 画布大背景 */
-  --we-page-canvas-fg:                var(--we-color-text-primary);   /* 画布上主文字 */
-  --we-page-canvas-fg-muted:          var(--we-color-text-secondary); /* 画布上次要文字 / 细边框 */
-  --we-page-canvas-fg-deep:           var(--we-color-border-strong);  /* 画布上按钮较深边框 */
-  --we-page-canvas-title-style:       normal;  /* 画布页标题字形 */
-  --we-card-name-font-style:          normal;  /* 卡片名称字形 */
-  --we-bookshelf-empty-bg:            rgba(255, 255, 255, 0.02);
-  --we-bookshelf-empty-border:        rgba(23, 23, 23, 0.06);
+  /* 高度阶梯：都由 shade 阶梯生成，随主题的阴影底色与浓度走。
+     1 静置（卡片、条目行、滑块、翻页钮）；2 抬起（世界卡、弹窗、会话面板、卡片悬停）；
+     3 浮起（下拉、提示条、设置面板、世界卡悬停）；inset 凹陷（输入框、下拉触发器） */
+  --we-elevation-1:
+    0 1px 2px var(--we-color-shade-3),
+    0 2px 6px -2px var(--we-color-shade-2);
+  --we-elevation-2:
+    0 1px 2px var(--we-color-shade-3),
+    0 2px 6px -2px var(--we-color-shade-2),
+    0 12px 24px -12px var(--we-color-shade-3),
+    0 32px 56px -28px var(--we-color-shade-4);
+  --we-elevation-3:
+    0 2px 4px var(--we-color-shade-3),
+    0 4px 10px -4px var(--we-color-shade-2),
+    0 18px 32px -14px var(--we-color-shade-3),
+    0 44px 72px -32px var(--we-color-shade-4);
+  --we-shadow-inset: inset 0 1px 2px var(--we-color-shade-2);
+  /* 阴影出血留白：裁剪容器（overflow-y: auto）为卡片悬停阴影（elevation-2）留出的淡出空间。
+     inline = 左右留白；block = 底部留白，须覆盖纵向出血范围（offset-y + blur − |spread|） */
+  --we-shadow-bleed-inline: 32px;
+  --we-shadow-bleed-block:  64px;
 
-  /* === Component skin tokens === */
-  /* 主按钮 hover 暖色叠加（朱砂调），主题可覆盖以匹配各自配色 */
-  --we-col-btn-primary-hover-bg: rgba(180, 80, 60, 0.12);
+  /* 卡片：底与边框主题可写；悬停 / 选中底不透明（半透明会透出底下画布，文字发糊），在卡底上朝正文色走一小步 */
+  --we-card-bg:       var(--we-color-bg-surface);
+  --we-card-border:   1px solid var(--we-color-border-default);
+  --we-card-hover-bg: color-mix(in oklab, var(--we-base-ink) var(--we-alpha-1), var(--we-card-bg));
+  /* 世界卡封面上的暗罩 */
+  --we-card-overlay-bg:       transparent;
+  --we-card-overlay-hover-bg: var(--we-card-overlay-bg);
 
-  /* Settings 加载占位 scrim（各主题按自身配色覆盖，此处为兜底值） */
-  --we-loading-scrim-bg:
-    linear-gradient(180deg, rgb(255 248 236 / 42%), rgb(245 233 212 / 28%));
-  --we-loading-scrim-border: rgb(120 76 33 / 10%);
-  --we-loading-scrim-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 26%),
-    0 14px 36px rgb(48 31 13 / 10%);
-
-  /* Skeleton 占位块皮肤：走凹陷阶梯，随主题的阴影底色与浓度自动适配，无需主题额外覆写。 */
-  --we-skeleton-base-bg:         var(--we-color-shade-2);
-
-  --we-card-bg: var(--we-color-bg-surface);
-  /* hover/选中背景：必须不透明（半透明会透出底下画布，文字发糊）。默认在卡底色上叠一层浅墨 */
-  --we-card-hover-bg: color-mix(in srgb, var(--we-base-shade) 6%, var(--we-card-bg));
-  --we-card-border: 1px solid var(--we-color-border-default);
-  --we-card-radius: var(--we-radius-sm);
-  --we-card-shadow: var(--we-shadow-paper-lift);
-  --we-card-hover-shadow: var(--we-card-shadow);
-  /* 阴影出血留白：裁剪容器（overflow-y: auto）必须为卡片阴影留出的淡出空间。
-     inline = 左右留白（会收窄卡片内容区，按横向最大阴影出血 + 余量取值）；
-     block = 底部留白（只占垂直呼吸区，须覆盖纵向最大出血范围：offset-y + blur − |spread|）。
-     阴影更大的主题覆写为更大值。 */
-  --we-shadow-bleed-inline: 24px;
-  --we-shadow-bleed-block: 24px;
-  /* 列表型卡（PersonaCard / CharacterCard 等窄长条 list row）：默认沿用 --we-card-shadow，
-     需要在窄行/auto-overflow 容器里收紧远距 bloom 的主题可单独覆写这两个 token。 */
-  /* 卡片 hover 位移：world 卡默认上浮 -4px；硬投影/拟物主题可覆写为 translate(...) 做下压 */
-  /* 列表卡 hover 位移：默认不位移；硬投影/拟物主题可覆写为 translate(...) 制造下压/弹起手感 */
-  --we-panel-card-shadow: 0 0 0 1px color-mix(in srgb, var(--we-base-ink) 3%, transparent);
-
-  /* === 装饰 & 纹理 token（主题可控制显隐与视觉）=== */
+  /* 装饰与纹理：页面画布纹理、羊皮纸纤维层、展示字体的字形（大标题、世界卡名） */
   --we-canvas-texture-image:    none;
-  --we-card-overlay-bg:                  transparent;
-  --we-card-overlay-hover-bg:            var(--we-card-overlay-bg);
-  --we-card-cover-text-color:   var(--we-color-text-primary);
-  --we-card-cover-meta-color:   var(--we-color-text-secondary);
-  --we-col-header-border-color: var(--we-color-border-default);
-  --we-col-btn-border-color:    var(--we-color-border-strong);
-  --we-col-btn-color:           var(--we-color-text-secondary);
   --we-parchment-display:       none;
   --we-parchment-fiber-opacity: 0;
-
-
-  /* === 壳层、分隔与质感 token：核心提供中性值，主题可覆盖 === */
-  --we-topbar-bg:              #2f3136;
-  --we-topbar-border:          rgba(255, 255, 255, 0.08);
-  --we-topbar-item:            rgba(255, 255, 255, 0.58);
-  --we-topbar-item-hover:      rgba(255, 255, 255, 0.82);
-  --we-topbar-sep:             rgba(255, 255, 255, 0.22);
-  --we-topbar-active-bg:       rgba(183, 146, 59, 0.10);
-  --we-topbar-active-ring:     rgba(183, 146, 59, 0.32);
-  --we-topbar-dropdown-bg:     #2f3136;
-  --we-topbar-dropdown-border: rgba(255, 255, 255, 0.12);
-  --we-topbar-dropdown-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
-  --we-topbar-item-hover-bg:   rgba(255, 255, 255, 0.06);
-  --we-topbar-item-dim:        rgba(255, 255, 255, 0.34);
-  --we-topbar-item-muted:      rgba(255, 255, 255, 0.40);
-  --we-topbar-item-faint:      rgba(255, 255, 255, 0.66);
-  --we-topbar-divider:         rgba(255, 255, 255, 0.08);
-
-
-  /* 物理质感阴影：默认中性，主题可替换为纸张、印章等具体材质。 */
-  --we-shadow-paper-lift:
-    0 0 5px rgba(23, 23, 23, 0.12),
-    0 0 12px rgba(23, 23, 23, 0.06);
-  --we-shadow-paper-indent:
-    inset 0 1px 0 rgba(255, 255, 255, 0.22),
-    inset 0 2px 6px rgba(23, 23, 23, 0.07),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.06),
-    0 2px 6px rgba(23, 23, 23, 0.08),
-    0 1px 0 rgba(23, 23, 23, 0.05);
-  --we-shadow-dialog:
-    0 0 0 1px var(--we-color-shade-2),
-    0 4px 18px var(--we-color-shade-2),
-    0 16px 48px var(--we-color-shade-2);
-  /* Toast 卡片：1px 描边 + 轻投影 */
-  --we-shadow-toast:
-    0 0 0 1px var(--we-color-border-subtle),
-    0 4px 12px var(--we-color-shade-2);
-  /* 滑块拇指默认投影 */
-  --we-shadow-range-thumb:
-    0 1px 4px var(--we-color-shade-2);
-
-  /* === Pager（嵌在消息列表底部的翻页按钮胶囊）皮肤 token：中性默认，主题可覆写 === */
-  --we-pager-btn-bg:               var(--we-color-bg-surface);
-  --we-pager-btn-border:           1px solid var(--we-color-border-default);
-  --we-pager-btn-shadow:           none;
-  --we-pager-btn-hover-bg:         var(--we-color-accent-bg);
-  --we-pager-btn-hover-shadow:     none;
-
-  /* === Composer（chat / writing 共用的底部输入栏）皮肤 token：
-     中性默认复刻历史观感，主题可整体改写输入栏质感（描边 / 填充 / 投影物理） === */
-  --we-composer-field-bg:          var(--we-glass-bg);
-  --we-composer-btn-border:        1px solid transparent;
-
-  /* === 标题栏 / 书脊（chat 顶部栏 + 左侧会话列表）chrome：中性默认复刻历史观感 === */
-
-  /* 标题栏记忆钮 + 书脊返回钮等图标按钮 chrome：默认无边透明，主题可改墨环圆钮 */
+  --we-font-display-style:      normal;
 
   /* ============================================================
    * E 层 · 运行时 token
@@ -423,7 +352,7 @@
   --we-color-border-focus:  var(--we-color-accent);
   /* 装饰色：花饰、分隔线等不承载交互的点缀，由主色与三级文字混出 */
   --we-color-ornament:      color-mix(in oklab, var(--we-color-accent) 50%, var(--we-color-text-tertiary));
-  /* 统一焦点环：可与 box-shadow 叠加（如 input 的 paper-indent + focus-ring） */
+  /* 统一焦点环：可与 box-shadow 叠加（如 input 的 shadow-inset + focus-ring） */
   --we-focus-ring: 0 0 0 2px var(--we-color-accent-bg);
   /* range 滑条：由 --range-pct 动态计算填充比例 */
   --we-range-track-bg: linear-gradient(
@@ -437,6 +366,28 @@
   --we-shadow-range-thumb-active:
     0 0 0 3px var(--we-color-accent-bg),
     0 1px 4px var(--we-color-shade-2);
+  /* 壳层上的当前项（顶栏当前世界、面包屑末项）：主色朝壳层文字色混一半 */
+  --we-color-shell-accent:  color-mix(in oklab, var(--we-color-accent) 50%, var(--we-base-on-shell));
+}
+
+/* 直接放在壳层（深色书桌）上、不垫纸面的内容（书架空态、规则页的页头与导航等）：
+   底色、文字、边框、悬停整套换成书桌版，里面的按钮、徽标跟着变成书桌上的样子。
+   里面若嵌着要保持纸面的卡片，不要挂在它们的外层。 */
+.we-on-shell {
+  --we-color-bg-canvas:      var(--we-color-shell-bg);
+  --we-color-bg-surface:     var(--we-color-shell-elevated);
+  --we-color-bg-elevated:    color-mix(in oklab, var(--we-color-white) 4%, var(--we-color-shell-elevated));
+  --we-color-bg-sunken:      color-mix(in oklab, var(--we-base-shade) 8%, var(--we-color-shell-elevated));
+  --we-color-bg-strong:      color-mix(in oklab, var(--we-base-on-shell) 14%, var(--we-color-shell-elevated));
+  --we-color-text-primary:   var(--we-color-shell-text-primary);
+  --we-color-text-secondary: var(--we-color-shell-text-secondary);
+  --we-color-text-tertiary:  var(--we-color-shell-text-tertiary);
+  --we-color-text-faint:     var(--we-color-shell-text-faint);
+  --we-color-border-subtle:  var(--we-color-shell-border);
+  --we-color-border-default: color-mix(in oklab, var(--we-base-on-shell) 30%, var(--we-base-shell));
+  --we-color-border-strong:  var(--we-color-shell-border-strong);
+  --we-color-hover:          var(--we-color-shell-hover);
+  --we-color-pressed:        color-mix(in srgb, var(--we-base-on-shell) var(--we-alpha-2), transparent);
 }
 
 /* 手机上顶栏按钮放大到 44px 触控区，顶栏随之加高 */

@@ -16,7 +16,7 @@ export default function RulesNav({
   const navRef = useRef(null);
 
   return (
-    <nav ref={navRef} className="we-workshop-nav">
+    <nav ref={navRef} className="we-workshop-nav we-on-shell">
       <BounceRail containerRef={navRef} activeKey={`${navMode}:${entryFilter}:${fieldScopeKey}`} />
       <div className="we-workshop-nav-group">
         <div className="we-workshop-nav-group-title">设定条目</div>

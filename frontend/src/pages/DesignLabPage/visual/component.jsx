@@ -85,7 +85,7 @@ export function CardsDemo() {
 export function TopbarDemo() {
   return (
     <VisualSection id="topbar-skin">
-      <div className="we-design-lab__topbar-box">
+      <div className="we-design-lab__topbar-box we-design-lab__desk">
         <div className="we-topbar">
           <div className="we-topbar-left">
             <span className="we-topbar-item we-topbar-crumb-current we-topbar-brand" aria-current="page">WorldEngine</span>

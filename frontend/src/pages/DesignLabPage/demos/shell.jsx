@@ -22,7 +22,7 @@ export function SideDrawerDemo() {
 export function TopBarDemo() {
   return (
     <SlotSection id="topbar">
-      <div className="we-design-lab__topbar-box">
+      <div className="we-design-lab__topbar-box we-design-lab__desk">
         {/* 顶栏里的按钮会跳转页面：给它一套独立的内存路由，跳转只在盒子里生效，不离开实验室 */}
         <LocationContext.Provider value={null}>
           <MemoryRouter>

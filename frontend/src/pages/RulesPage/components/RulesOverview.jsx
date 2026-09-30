@@ -11,7 +11,7 @@ export default function RulesOverview({ entries, fieldsByScope, hint }) {
     .slice(0, 5);
 
   return (
-    <div className="we-workshop-detail-inner we-rules-overview">
+    <div className="we-workshop-detail-inner we-rules-overview we-on-shell">
       <div className="we-workshop-section">
         <span className="we-workshop-section-title">设定条目</span>
         <div className="we-rules-overview-stats">

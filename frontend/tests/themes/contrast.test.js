@@ -9,10 +9,12 @@ import { contrastRatio, hexToRgb } from '../../src/core/utils/color.js';
 const fromRepo = (...parts) => path.resolve(process.cwd(), '..', ...parts);
 const readText = (...parts) => readFileSync(fromRepo(...parts), 'utf8');
 
+// 只取挂在 :root 上的块（含主色作用域）；.we-on-shell 等局部作用域的重定义不算
 function declarations(css) {
   const map = new Map();
-  for (const match of css.replace(/\/\*[\s\S]*?\*\//g, '').matchAll(/(--we-[\w-]+)\s*:\s*([^;]+);/g)) {
-    map.set(match[1], match[2].trim());
+  for (const [, selector, body] of css.replace(/\/\*[\s\S]*?\*\//g, '').matchAll(/([^{}]*)\{([^{}]*)\}/g)) {
+    if (!selector.includes(':root')) continue;
+    for (const match of body.matchAll(/(--we-[\w-]+)\s*:\s*([^;]+);/g)) map.set(match[1], match[2].trim());
   }
   return map;
 }
@@ -79,11 +81,17 @@ const PAIRS = [
   ['--we-color-border-strong', '--we-color-bg-canvas', 3],
   ['--we-color-border-strong', '--we-color-bg-surface', 3],
   ['--we-color-on-accent', '--we-color-accent', 4.5],
+  ['--we-color-shell-text-secondary', '--we-color-shell-bg', 4.5],
+  ['--we-color-shell-text-tertiary', '--we-color-shell-bg', 4.5],
+  ['--we-color-shell-text-faint', '--we-color-shell-bg', 3],
+  ['--we-color-shell-text-faint', '--we-color-shell-elevated', 3],
+  ['--we-color-shell-border-strong', '--we-color-shell-bg', 3],
+  ['--we-color-shell-accent', '--we-color-shell-bg', 4.5],
 ];
 
 describe('推导色的对比度', () => {
   for (const id of THEME_IDS) {
-    it(`${id}：文字各级、强边框、主色按钮文字达到对比度下限`, () => {
+    it(`${id}：纸面与壳层的文字各级、强边框、主色按钮文字达到对比度下限`, () => {
       const theme = declarations(readText('themes', id, 'theme.css'));
       for (const [fg, bg, min] of PAIRS) {
         const ratio = contrastRatio(resolve(fg, theme), resolve(bg, theme));

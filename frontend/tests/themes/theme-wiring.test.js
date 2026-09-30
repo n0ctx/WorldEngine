@@ -11,9 +11,13 @@ import { hexToRgb, relativeLuminance } from '../../src/core/utils/color.js';
 const fromRepo = (...parts) => path.resolve(process.cwd(), '..', ...parts);
 const readText = (...parts) => readFileSync(fromRepo(...parts), 'utf8');
 
+// 只取挂在 :root 上的块；.we-on-shell 等局部作用域的重定义不算
 function declarations(css) {
   const map = new Map();
-  for (const match of css.matchAll(/(--we-[\w-]+)\s*:\s*([^;]+);/g)) map.set(match[1], match[2].trim());
+  for (const [, selector, body] of css.replace(/\/\*[\s\S]*?\*\//g, '').matchAll(/([^{}]*)\{([^{}]*)\}/g)) {
+    if (!selector.includes(':root')) continue;
+    for (const match of body.matchAll(/(--we-[\w-]+)\s*:\s*([^;]+);/g)) map.set(match[1], match[2].trim());
+  }
   return map;
 }
 

@@ -650,7 +650,7 @@
 }
 :where(:root[data-motion="signal"]) :is(.we-input, .we-textarea):focus:not(.we-status-inline-surface *) {
   border-color: var(--we-color-accent);
-  box-shadow: var(--we-shadow-paper-indent);
+  box-shadow: var(--we-shadow-inset);
   outline: 1px solid var(--we-color-accent);
   outline-offset: 3px;
   animation: we-signal-field-lock var(--we-duration-normal) var(--we-cut) both;

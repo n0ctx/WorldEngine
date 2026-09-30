@@ -1,4 +1,4 @@
-import { AccentColorsDemo, BasePaletteDemo, SurfaceColorsDemo, WashColorsDemo } from './color.jsx';
+import { AccentColorsDemo, BasePaletteDemo, ShellColorsDemo, SurfaceColorsDemo, WashColorsDemo } from './color.jsx';
 import { EntryColsDemo } from './cols.jsx';
 import { ChatDemo, CardsDemo, ControlsDemo, TopbarDemo } from './component.jsx';
 import { ChatControlsDemo } from './controls.jsx';
@@ -12,6 +12,7 @@ export const VISUAL_DEMOS = {
   'base-palette': BasePaletteDemo,
   'surface-colors': SurfaceColorsDemo,
   'accent-colors': AccentColorsDemo,
+  'shell-colors': ShellColorsDemo,
   'wash-colors': WashColorsDemo,
   fonts: FontsDemo,
   'type-roles': TypeRolesDemo,

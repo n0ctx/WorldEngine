@@ -118,7 +118,7 @@
   background: var(--we-color-bg-surface);
   border-radius: var(--we-radius-sm);
   padding: var(--we-space-md) var(--we-space-lg);
-  box-shadow: var(--we-shadow-paper-lift),
+  box-shadow: var(--we-elevation-1),
     inset 0 0 0 1px var(--we-color-accent),
     inset 0 0 0 3px color-mix(in srgb, var(--we-color-accent) var(--we-alpha-2), transparent);
 }
@@ -444,7 +444,7 @@
 .we-chat-center-pane .we-option-btn:hover:not(.we-option-btn--disabled) {
   background: var(--we-color-accent-bg);
   border-color: var(--we-color-accent-border);
-  box-shadow: inset 0 1px 0 var(--we-material-sheen), var(--we-material-shadow-near);
+  box-shadow: inset 0 1px 0 var(--we-material-sheen), var(--we-elevation-1);
   transform: translateY(-1px);
 }
 
@@ -1109,7 +1109,7 @@
   align-items: flex-end;
   gap: var(--we-space-sm);
   padding: var(--we-space-xs);
-  background: var(--we-composer-field-bg);
+  background: var(--we-glass-bg);
   border-radius: var(--we-radius-xl);
   box-shadow: var(--we-material-shadow);
   backdrop-filter: blur(var(--we-glass-blur));
@@ -1266,7 +1266,7 @@
   align-items: center;
   justify-content: center;
   background: transparent;
-  border: var(--we-composer-btn-border);
+  border: 1px solid transparent;
   border-radius: var(--we-radius-full);
   color: var(--we-color-text-tertiary);
   cursor: pointer;
@@ -1296,8 +1296,8 @@
   display: block; /* 行内文本域会在下方留出基线空隙，把胶囊撑高、文字偏上 */
   width: 100%;
   /* 可见的输入胶囊由外层 .we-chat-input__row 承担，文本域本身不画框 */
-  /* 单行总高 = 36px，与两侧 36px 的图片 / 发送按钮同高，文字与图标居中对齐 */
-  padding: calc((36px - 1.65em) / 2) var(--we-space-sm); /* design exact: 36px 两侧按钮直径 */
+  /* 单行总高 = 36px，与两侧 36px 的图片 / 发送按钮同高，文字与图标居中对齐；行高取正文角色，内边距跟着它算 */
+  padding: calc((36px - var(--we-type-prose-leading) * 1em) / 2) var(--we-space-sm); /* design exact: 36px 两侧按钮直径 */
   background: transparent;
   border: none;
   font-family: var(--we-font-prose);
@@ -1308,10 +1308,10 @@
   resize: none;
   outline: none;
   min-height: 28px; /* design exact: 单行高度 */
-  /* 上限 ≈ 10 行正文(line-height 1.65)+ 上下 padding + 边框。
+  /* 上限 ≈ 10 行正文 + 上下 padding + 边框。
      缺这个上限时 adjustHeight() 会按 scrollHeight 无限撑高，
      把上方消息区挤成 0 高度；超出后改由 textarea 自身滚动。 */
-  max-height: calc(1.65em * 9 + 36px);
+  max-height: calc(var(--we-type-prose-leading) * 1em * 9 + 36px);
   overflow-y: auto;
 }
 
@@ -1753,7 +1753,7 @@
   line-height: var(--we-type-caption-leading);
   letter-spacing: var(--we-type-caption-tracking);
   font-weight: var(--we-weight-medium);
-  box-shadow: 0 0 0 1px var(--we-material-stroke), var(--we-material-shadow-near);
+  box-shadow: 0 0 0 1px var(--we-material-stroke), var(--we-elevation-1);
   cursor: pointer;
   transition: background var(--we-duration-fast) var(--we-easing-sharp),
               box-shadow var(--we-duration-fast) var(--we-easing-sharp),
@@ -2409,9 +2409,9 @@
   align-items: center;
   justify-content: center;
   padding: 0;
-  background: var(--we-pager-btn-bg);
-  border: var(--we-pager-btn-border);
-  box-shadow: var(--we-pager-btn-shadow);
+  background: var(--we-color-bg-surface);
+  border: 1px solid var(--we-color-border-default);
+  box-shadow: var(--we-elevation-1);
   color: var(--we-color-text-tertiary);
   border-radius: var(--we-radius-full);
   cursor: pointer;
@@ -2424,8 +2424,8 @@
 
 .we-pager-btn:hover:not(:disabled) {
   color: var(--we-color-accent);
-  background: var(--we-pager-btn-hover-bg);
-  box-shadow: var(--we-pager-btn-hover-shadow);
+  background: var(--we-color-accent-bg);
+  box-shadow: 0 0 0 1px var(--we-color-accent-border), var(--we-elevation-1);
   transform: none;
 }
 

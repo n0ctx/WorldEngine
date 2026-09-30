@@ -6,8 +6,8 @@
  *   A. 模板盲区   — 主题可写的内核视觉 token 在 _template/theme.css 里看不到，主题作者无从覆盖（硬错误）
  *   B. 孤悬覆盖   — 主题包覆盖了内核里根本不存在的 token（可能是改名后遗留，硬错误）
  *   C. 主题缺失   — 模板列出的关键 token 某主题没有覆盖（主题可以只覆盖需要的部分，仅提示，不影响退出码）
- *   D. 越权覆盖   — 主题或模板写了由核心推导的 token（硬错误）：语义色 --we-color-*（--we-color-scheme、
- *                   --we-color-gold-pale 除外）与 tokens.css 主色作用域块里的 token，主题只写基础色 --we-base-*
+ *   D. 越权覆盖   — 主题或模板写了白名单（THEME_WRITABLE）以外的核心 token（硬错误）：语义色、壳层色、
+ *                   阴影与高度阶梯、状态层等都由核心从基础色推导，主题只写基础色、字体、圆角与少数质感例外
  *
  * 新增或改名核心 token 时，同一次提交里要同步 _template/theme.css，否则 A 失败。
  *
@@ -75,21 +75,15 @@ function isVisual(token) {
   return !SKIP_PREFIXES.some((p) => token.startsWith(p));
 }
 
-// 主题可写的语义色例外：浏览器明暗方案，以及还没收敛到壳层色板的顶栏浅金字
-const THEME_WRITABLE_COLORS = new Set(['--we-color-scheme', '--we-color-gold-pale']);
-
-/** 由核心推导、主题不写的 token：语义色，以及选择器不只是 :root 的块（主色作用域）里声明的 token */
-function extractDerived(css) {
-  const derived = new Set();
-  const plain = css.replace(/\/\*[\s\S]*?\*\//g, '');
-  for (const token of extractDefined(plain)) {
-    if (token.startsWith('--we-color-') && !THEME_WRITABLE_COLORS.has(token)) derived.add(token);
-  }
-  for (const m of plain.matchAll(/([^{}]*)\{([^{}]*)\}/g)) {
-    if (m[1].trim() !== ':root') for (const token of extractDefined(m[2])) derived.add(token);
-  }
-  return derived;
-}
+// 主题可写的 token：基础色板与阴影浓度、明暗方案、字体、圆角与动效时长，以及少数质感例外。
+// 其余核心 token 由核心推导，主题写了算越权；这里放宽之前先确认它无法由基础色推导出来。
+const THEME_WRITABLE = [
+  '--we-base-', '--we-shadow-strength', '--we-color-scheme', '--we-font-', '--we-radius-', '--we-duration-',
+  '--we-atmosphere-', '--we-material-sheen', '--we-material-grain', '--we-glass-opacity', '--we-glass-blur',
+  '--we-blur-scrim', '--we-stage-surface', '--we-pane-', '--we-card-bg', '--we-card-border', '--we-card-overlay-',
+  '--we-canvas-texture-image', '--we-parchment-',
+];
+const isWritable = (token) => THEME_WRITABLE.some((p) => token.startsWith(p));
 
 function themeIds() {
   return readdirSync(THEMES_DIR, { withFileTypes: true })
@@ -99,13 +93,10 @@ function themeIds() {
 
 // ─── 解析 ─────────────────────────────────────────────────────────────────────
 const coreTokensSet = new Set();
-const derivedSet = new Set();
 for (const f of CORE_FILES) {
-  const css = readCss(f);
-  for (const t of extractDefined(css)) coreTokensSet.add(t);
-  for (const t of extractDerived(css)) derivedSet.add(t);
+  for (const t of extractDefined(readCss(f))) coreTokensSet.add(t);
 }
-const isThemeWritable = (token) => isVisual(token) && !derivedSet.has(token);
+const isThemeWritable = (token) => isVisual(token) && isWritable(token);
 
 const templateTokens = extractDefined(readCss(TEMPLATE_FILE));
 
@@ -130,7 +121,7 @@ for (const [id, tokens] of Object.entries(themes)) {
 // ─── 检查 D：越权覆盖 ─────────────────────────────────────────────────────────
 const overreach = {}; // 来源 -> [token]
 for (const [id, tokens] of Object.entries({ _template: templateTokens, ...themes })) {
-  const bad = [...tokens].filter((t) => derivedSet.has(t)).sort();
+  const bad = [...tokens].filter((t) => coreTokensSet.has(t) && !isWritable(t)).sort();
   if (bad.length) overreach[id] = bad;
 }
 
@@ -171,7 +162,7 @@ for (const [id, tokens] of Object.entries(orphaned)) {
 // ── D ──
 for (const [id, tokens] of Object.entries(overreach)) {
   hasError = true;
-  console.log(`\n✖  [D] 越权覆盖（themes/${id}/theme.css）：这些 token 由核心从基础色推导，主题不写，改写 --we-base-*`);
+  console.log(`\n✖  [D] 越权覆盖（themes/${id}/theme.css）：这些 token 由核心从基础色推导，主题不写，改写 --we-base-* 或白名单里的质感旋钮`);
   console.log(`   共 ${tokens.length} 个：\n`);
   for (const t of tokens) console.log(`   ${t}`);
 }

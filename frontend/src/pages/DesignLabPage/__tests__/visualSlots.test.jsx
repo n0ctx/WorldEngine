@@ -12,7 +12,7 @@ import { VISUAL_CATEGORIES, VISUAL_SLOTS, VISUAL_STATUS_LABEL } from '../visualS
 // 不归视觉位管的核心 token：内部基础色、结构量、运行时变量、固定色集，以及归动效一侧的时长与缓动
 const SKIP_PREFIXES = [
   '--we-z-', '--we-space-', '--we-range-', '--we-status-table-', '--we-worlds-',
-  '--we-danmaku-', '--we-duration-', '--we-easing-', '--we-skeleton-',
+  '--we-danmaku-', '--we-duration-', '--we-easing-',
 ];
 
 // vitest 从 frontend/ 目录启动
