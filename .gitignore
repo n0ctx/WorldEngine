@@ -50,3 +50,4 @@ frontend/coverage/
 /.grok/
 /.agents/
 /skills-lock.json
+/frontend/AGENTS.md
