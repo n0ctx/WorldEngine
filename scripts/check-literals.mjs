@@ -24,7 +24,9 @@
  *   opacity        0 / 1 以外的字面量：弱化文字走文字色阶梯（--we-color-text-*），不可用控件用 --we-opacity-disabled；
  *                  动效包材质里有意保留的记入基线
  *   motion         transition / animation（含 -duration / -delay / -timing-function）里非 0 的 ms、s 时长与延迟、
- *                  cubic-bezier()、steps()、ease / linear 关键字；自定义属性（--x: ...）是 token 定义，不报
+ *                  cubic-bezier()、steps()、ease / linear 关键字，自定义属性（--x: ...）里的也算——
+ *                  动效包的时间阶梯与曲线定义写 guard-allow；JS 里 framer-motion 的数字 duration / delay / 弹簧参数
+ *                  也报（动效包与 core/utils/motion.js 除外），时长改用 useMotion().role()
  *   motion-role    核心样式（不含 themes/motion/）的 transition / animation 里，时长取 --we-motion-<角色>-duration 的一段
  *                  没配同一角色的 -easing，或只写了曲线没写同角色时长；循环角色不查曲线
  *   fallback       var(--we-x, 字面量) 里的字面量回退
@@ -75,7 +77,7 @@ const RULE_HINTS = {
   shadow: '阴影里的颜色改用 `--we-color-*`（或整体用 `--we-shadow-*`）',
   'z-index': '层级改用 `--we-z-*`',
   opacity: '弱化文字改用文字色阶梯 `--we-color-text-secondary / -tertiary / -faint`，不可用控件用 `--we-opacity-disabled`；显隐只用 0 / 1',
-  motion: '时长与缓动改用动效角色 `--we-motion-<角色>-duration / -easing`；动效包自己的材质有意写字面量的，写 guard-allow(literals)',
+  motion: '时长与缓动改用动效角色（CSS `--we-motion-<角色>-duration / -easing`，JS `useMotion().role()`）；动效包的材质时长取本包时间阶梯，阶梯定义处写 guard-allow(literals)',
   'motion-role': '同一段过渡里时长与曲线取同一角色：`var(--we-motion-<角色>-duration) var(--we-motion-<角色>-easing)`',
   fallback: '去掉字面量回退，token 在 tokens.css 里声明即可',
   'mix-percent': 'color-mix 的百分比改用透明度阶梯 `var(--we-alpha-1..5)`（6/12/24/40/64%）；超过一半时把另一侧颜色写在前面取阶梯',

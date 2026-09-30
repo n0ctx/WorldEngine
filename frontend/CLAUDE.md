@@ -36,7 +36,7 @@
 
 1. 改动效包和 `frontend/src/themes/motion/<id>.css`；JS 与 CSS 有意镜像的部分（如信号的 `variants.enter` 与 `we-signal-in`、`SURFACE` 曲线）两边同步改。
 2. 更新 `slots.js`：`blind` 改 `pack`，补 `api` 与 `note`；出样对照改成正式演示，清掉对应出样文件。
-3. 动效值不写字面量：核心用动效角色，包的材质时长写成私有变量（`--ink-*`、`--sig-*`），确需字面量加 `guard-allow(literals)` 写理由。
+3. 动效值不写字面量（CSS 变量声明与 JS 的 framer 过渡也查）：核心用动效角色；包的材质时长取本包时间阶梯（墨流 `--ink-t1..t6`，信号按 `--sig-frame` 帧数与 `--sig-beat / -hold`），字面量只写在阶梯与曲线定义处并加 `guard-allow(literals)`。
 4. 跑 `npm run check:guards`（含 `check:motion`）和 frontend 的 `tests/motion`、`tests/components/motion`、`DesignLabPage` 测试。
 
 ### 新增动效包

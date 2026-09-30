@@ -169,7 +169,7 @@ function analyzeValue(prop, rawValue) {
   else if (prop === 'font-weight' && /^(\d+|bold|bolder|lighter)$/.test(plain)) add('font-weight', [plain]);
   else if (prop === 'z-index' && /^-?\d+$/.test(plain)) add('z-index', [plain]);
   else if (prop === 'opacity' && !hasVar && !/^(0|1|inherit|initial|unset)$/.test(plain)) add('opacity', [plain]);
-  else if (MOTION_PROP_RE.test(prop)) add('motion', motionLiterals(plain));
+  else if (MOTION_PROP_RE.test(prop) || prop.startsWith('--')) add('motion', motionLiterals(plain));
   return found;
 }
 
@@ -341,7 +341,16 @@ export function inspectClassName(node, rel, allow, found) {
 }
 
 // 对象里 CSS 属性名的键（style={{ ... }} 与其他样式对象）
+// JS 动效：framer-motion 过渡与弹簧里的数字时长、延迟、弹簧参数；时长取动效角色 useMotion().role()，
+// 定义动效的地方（动效包、角色表）除外
+const MOTION_KEY_RE = /^(duration|delay|repeatDelay|staggerChildren|delayChildren|visualDuration|bounce|stiffness|damping|mass)$/;
+const MOTION_OWNERS = ['frontend/src/core/motion/packs/', 'frontend/src/core/utils/motion.js'];
+
 export function inspectStyleProperty(node, rel, allow, found) {
   const name = node.type === 'Property' ? keyName(node) : null;
   if (name && STYLE_KEY_RE.test(kebab(name))) analyzeStyleValue(kebab(name), node.value, rel, allow, found);
+  else if (name && MOTION_KEY_RE.test(name) && typeof node.value.value === 'number' && node.value.value !== 0
+    && !MOTION_OWNERS.some((owner) => rel.startsWith(owner)) && !allow.covers(rel, node.loc.start.line)) {
+    found.push({ rel, rule: 'motion', value: `${name}: ${node.value.value}` });
+  }
 }

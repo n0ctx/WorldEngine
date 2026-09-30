@@ -27,6 +27,7 @@ const HOLD = { deleted: 1400, kept: 600 };
 // 翻盖、滑出确认条平滑到位。分格跳会让删除确认一顿一顿；按压仍走瞬时硬切
 const EASE = MOTION.state.ease;
 
+// guard-allow(literals): 翻盖、滑出确认条、回落是这个组件自带的节奏，不随动效包变化；改成节奏角色会明显变快
 const WIDTH = { duration: 0.62, ease: EASE };
 const LID = { duration: 0.6, ease: EASE };
 const WALL = { duration: 0.56, ease: EASE };

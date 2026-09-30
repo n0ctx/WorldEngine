@@ -4,15 +4,19 @@
  * 错位撕裂、切片成字、变化标签、完成确认、章节开场、遮罩、光标整块由本包负责外观。 */
 
 :root[data-motion="signal"] {
-  --sig-cut: steps(1, jump-end);
-  /* 包自己的节拍：一拍是闪两下亮起、撕裂一次、锁定一次的长度，长拍是切片成字的长度；
-     一拍与 packs/signal.js 的 BEAT 同值 */
+  /* guard-allow(literals): 信号的时间单位与硬切曲线。一帧是磷光帧的宽度，闪帧、错拍都按帧数算；
+     一拍是闪两下亮起、撕裂一次、锁定一次的长度（与 packs/signal.js 的 BEAT 同值），长拍是切片成字的长度 */
+  --sig-frame: 30ms;
   --sig-beat: 300ms;
   --sig-hold: 380ms;
+  --sig-cut: steps(1, jump-end);
+  --sig-spin: steps(8, jump-end);
+  --sig-cut4: steps(4, jump-end);
+
   --we-fx-enter: we-signal-in var(--sig-beat) var(--sig-cut) both;
   --we-fx-skeleton: we-signal-buffer calc(var(--we-motion-loop-duration) * 1.5) var(--sig-cut) infinite;
   --we-fx-nudge: we-signal-hop var(--we-motion-loop-duration) var(--sig-cut) infinite;
-  --we-fx-spin: we-tool-spin var(--we-motion-loop-duration) steps(8, jump-end) infinite;
+  --we-fx-spin: we-tool-spin var(--we-motion-loop-duration) var(--sig-spin) infinite;
   --we-fx-typing: we-signal-level-1 var(--we-motion-loop-duration) var(--sig-cut) infinite;
   /* 遮罩底色硬切闪两下亮起；大面板平滑淡入上浮，不抖 */
   --we-fx-scrim: we-signal-blink var(--sig-beat) var(--sig-cut) backwards;
@@ -22,6 +26,7 @@
 }
 @media (prefers-reduced-motion: reduce) {
   :root[data-motion="signal"] {
+    --sig-frame: 0ms;
     --sig-beat: 0ms;
     --sig-hold: 0ms;
   }
@@ -138,6 +143,7 @@
 }
 :where(:root[data-motion="signal"]) .we-fx-glyph::before {
   clip-path: polygon(0 0%, 100% 0%, 100% 16.667%, 0 16.667%, 0 50%, 100% 50%, 100% 66.667%, 0 66.667%);
+  /* guard-allow(literals): 锁定是延迟到点那一刻的硬切，1ms 的动画只为把切片定在终态 */
   animation:
     we-slice-jitter-a calc(var(--slice-step) * 2.2) var(--sig-cut) calc(var(--slice-delay) * -1.7) infinite,
     we-slice-lock 1ms var(--sig-cut) calc(var(--slice-delay) + var(--slice-step) * var(--slice-order-a)) forwards,
@@ -147,6 +153,7 @@
 }
 :where(:root[data-motion="signal"]) .we-fx-glyph__face::before {
   clip-path: polygon(0 16.667%, 100% 16.667%, 100% 33.333%, 0 33.333%, 0 66.667%, 100% 66.667%, 100% 83.333%, 0 83.333%);
+  /* guard-allow(literals): 锁定是延迟到点那一刻的硬切，1ms 的动画只为把切片定在终态 */
   animation:
     we-slice-jitter-b calc(var(--slice-step) * 1.8) var(--sig-cut) calc(var(--slice-delay) * -2.3) infinite,
     we-slice-lock 1ms var(--sig-cut) calc(var(--slice-delay) + var(--slice-step) * var(--slice-order-b)) forwards,
@@ -156,6 +163,7 @@
 }
 :where(:root[data-motion="signal"]) .we-fx-glyph__face::after {
   clip-path: polygon(0 33.333%, 100% 33.333%, 100% 50%, 0 50%, 0 83.333%, 100% 83.333%, 100% 100%, 0 100%);
+  /* guard-allow(literals): 锁定是延迟到点那一刻的硬切，1ms 的动画只为把切片定在终态 */
   animation:
     we-slice-jitter-c calc(var(--slice-step) * 2.6) var(--sig-cut) calc(var(--slice-delay) * -3.1) infinite,
     we-slice-lock 1ms var(--sig-cut) calc(var(--slice-delay) + var(--slice-step) * var(--slice-order-c)) forwards,
@@ -243,7 +251,7 @@
   inset: 0;
   background: var(--change-tone, var(--we-color-text-secondary));
   transform-origin: right;
-  animation: we-glitch-wipe var(--we-fx-burst) steps(4, jump-end) both;
+  animation: we-glitch-wipe var(--we-fx-burst) var(--sig-cut4) both;
 }
 
 @keyframes we-glitch-blink {
@@ -356,8 +364,8 @@
   animation: we-signal-blink var(--sig-beat) var(--sig-cut) both;
 }
 :where(:root[data-motion="signal"]) .we-characters-canvas[data-portal='enter'] .we-worldhub-layout > * {
-  /* guard-allow(literals): 三栏错峰锁定入场，与 packs/signal.js 的 portal 同步，锁定跃迁材质的一部分 */
-  animation: we-signal-in var(--sig-beat) var(--sig-cut) calc(60ms + var(--col, 0) * 70ms) both;
+  /* 三栏逐格错峰锁定，与 packs/signal.js 的 portal 同步 */
+  animation: we-signal-in var(--sig-beat) var(--sig-cut) calc(var(--sig-frame) * 2 * (1 + var(--col, 0))) both;
 }
 
 /* ── 剧情选项：选中的一项被锁定，其余一格格暗下去 ───────────────────────────────────────── */
@@ -553,7 +561,6 @@
    这里是提亮、磷光帧，和普通元素的状态变化。熄灭用本文件顶部的 we-signal-release */
 :root[data-motion="signal"] {
   /* 开关轨道：像电平表一样分四格点亮 */
-  --sig-meter: steps(4, jump-end);
 }
 
 /* 按钮（Button）：按下下沉 1px（framer），底色提亮一格；压住到锁定那一拍，磷光帧硬切外扩两步即灭。
@@ -583,10 +590,10 @@
 :where(:root[data-motion="signal"]) .we-btn:active:not(:disabled)::before {
   opacity: 1;
 }
-/* guard-allow(literals): 磷光帧窗宽是材质的一部分，与 token 节奏无关；窗口落在按下锁定那一拍（状态角色的时长） */
+/* 两帧磷光，窗口前后各差一帧，落在按下锁定那一拍（状态角色的时长） */
 :where(:root[data-motion="signal"]) .we-btn:active:not(:disabled) {
-  animation: we-signal-snap-a 55ms linear calc(var(--we-motion-state-duration) - 25ms),
-    we-signal-snap-b 55ms linear calc(var(--we-motion-state-duration) + 30ms);
+  animation: we-signal-snap-a calc(var(--sig-frame) * 2) var(--sig-cut) calc(var(--we-motion-state-duration) - var(--sig-frame)),
+    we-signal-snap-b calc(var(--sig-frame) * 2) var(--sig-cut) calc(var(--we-motion-state-duration) + var(--sig-frame));
 }
 
 /* 发送键：按下下沉（framer）；落底那一下补一帧磷光。轻点也能撞到窗口 */
@@ -597,9 +604,9 @@
   display: block;
   overflow: visible;
 }
-/* guard-allow(literals): 帧窗落在按下落底的一拍，材质的一部分 */
+/* 两帧磷光，落在按下落底的第三帧 */
 :where(:root[data-motion="signal"]) .we-chat-send-btn:active {
-  animation: we-signal-snap-a 60ms linear 80ms;
+  animation: we-signal-snap-a calc(var(--sig-frame) * 2) var(--sig-cut) calc(var(--sig-frame) * 3);
 }
 
 /* 卡片（Card、角色卡）：悬停浮起、描边硬切成强调色，随后磷光帧两步硬切外扩即灭；按下贴紧复位。
@@ -608,13 +615,13 @@
   position: relative;
   transition: none;
 }
-/* guard-allow(literals): 磷光帧窗口是悬停手感的一部分：紧跟悬停开始（70/130ms） */
+/* 磷光帧紧跟悬停开始：第二帧、第四帧各亮两帧 */
 :where(:root[data-motion="signal"]) :is(.we-card:not(.we-card-flat), .we-character-card):hover {
   translate: 0 -2px;
   border-color: var(--we-color-accent);
   animation:
-    we-signal-snap-a 60ms linear 70ms,
-    we-signal-snap-b 60ms linear 130ms;
+    we-signal-snap-a calc(var(--sig-frame) * 2) var(--sig-cut) calc(var(--sig-frame) * 2),
+    we-signal-snap-b calc(var(--sig-frame) * 2) var(--sig-cut) calc(var(--sig-frame) * 4);
 }
 :where(:root[data-motion="signal"]) :is(.we-card:not(.we-card-flat), .we-character-card):active {
   translate: 0 0;
@@ -630,9 +637,9 @@
 @keyframes we-signal-flood {
   from, to { box-shadow: inset 0 0 0 1px var(--sig-phos), inset 0 0 0 999px color-mix(in srgb, var(--we-color-accent) 20%, transparent); }
 }
-/* guard-allow(literals): 冲洗窗落在按下锁定那一拍（状态角色的时长），与按钮同一手感 */
+/* 两帧冲洗，落在按下锁定那一拍（状态角色的时长）前一帧，与按钮同一手感 */
 :where(:root[data-motion="signal"]) .we-world-card-shell:active {
-  animation: we-signal-flood 60ms linear calc(var(--we-motion-state-duration) - 25ms);
+  animation: we-signal-flood calc(var(--sig-frame) * 2) var(--sig-cut) calc(var(--we-motion-state-duration) - var(--sig-frame));
 }
 :where(:root[data-motion="signal"]) :is(.we-card:not(.we-card-flat), .we-character-card, .we-world-card) > .we-touch-fx {
   display: block;
@@ -679,7 +686,7 @@
   background-repeat: no-repeat;
   background-position: left center;
   background-size: 0% 100%;
-  transition: background-size var(--sig-beat) var(--sig-meter);
+  transition: background-size var(--sig-beat) var(--sig-cut4);
 }
 :where(:root[data-motion="signal"]) .we-toggle-track--enabled {
   background-size: 100% 100%;
@@ -766,6 +773,7 @@
   background: var(--sig-phos);
   opacity: 0;
   pointer-events: none;
+  /* guard-allow(literals): 光标只挂这一个字的一拍，匀速走完，不带缓动 */
   animation: we-stream-char-caret var(--we-stream-char-step) linear var(--we-stream-char-delay);
 }
 

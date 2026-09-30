@@ -2618,6 +2618,7 @@
   will-change: transform;
   pointer-events: auto; /* 接收悬停以暂停（band 整体仍 none，不挡顶栏点击）*/
   animation-name: we-danmaku-marquee;
+  /* guard-allow(literals): 弹幕匀速滚动，不带缓动 */
   animation-timing-function: linear;
   animation-iteration-count: infinite; /* 持续循环滚动 */
 }

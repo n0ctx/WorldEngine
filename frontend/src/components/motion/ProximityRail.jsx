@@ -11,6 +11,7 @@ const MAX_WIDTH = 40;
 const IDLE_RESET_DELAY = 80;
 // 少于这么多项时刻度没有导航价值，不显示
 const MIN_ITEMS = 3;
+// guard-allow(literals): 指针跟随的弹簧是物理参数，不是时长，没有对应的动效角色
 const DASH_SPRING = { stiffness: 320, damping: 34, mass: 0.7 };
 // 助手回复比玩家发言长，刻度也更长
 const PRESETS = {

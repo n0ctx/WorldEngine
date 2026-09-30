@@ -27,7 +27,7 @@ function useTiming() {
   const m = useMotion();
   const state = m.role('state');
   return {
-    fill: { duration: 0.24, ease: state.ease },
+    fill: state,
     pop: { ...state, times: [0, 0.4, 1] },
     tick: { ...state, delay: STAGGER },
     strike: m.role('enter'),
