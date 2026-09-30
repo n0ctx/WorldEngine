@@ -29,20 +29,19 @@ export const VISUAL_SLOTS = [
   },
   {
     id: 'surface-colors', category: 'color', title: '底色、文字与边框', status: 'ready',
-    tokens: ['--we-color-scheme', '--we-color-bg-*', '--we-color-text-*', '--we-color-border-*'],
+    tokens: ['--we-color-scheme', '--we-color-bg-*', '--we-color-text-*', '--we-color-on-accent', '--we-color-border-*', '--we-color-scrim'],
     usedIn: ['全站所有表面、正文、分隔线'],
   },
   {
     id: 'accent-colors', category: 'color', title: '强调与状态', status: 'ready',
-    tokens: ['--we-color-accent*', '--we-color-ornament', '--we-color-gold*', '--we-color-status-*'],
+    tokens: ['--we-color-accent*', '--we-color-ornament', '--we-color-gold-pale', '--we-color-status-*'],
     usedIn: ['主按钮、选中态、徽标、花饰与分隔线、成功 / 警告 / 危险提示'],
   },
   {
     id: 'wash-colors', category: 'color', title: '透明度阶梯与状态层', status: 'ready',
     tokens: [
-      '--we-alpha-*', '--we-color-pressed', '--we-color-highlight-*', '--we-color-shade*',
-      '--we-color-ink-*', '--we-color-shadow-*', '--we-color-overlay-*', '--we-color-paper-*',
-      '--we-color-white', '--we-color-white-*', '--we-color-cover-*', '--we-color-avatar-*',
+      '--we-alpha-*', '--we-color-hover', '--we-color-pressed', '--we-color-highlight-*', '--we-color-shade*',
+      '--we-color-white', '--we-color-cover-*', '--we-color-avatar-*',
     ],
     usedIn: ['输入框底、悬停底、遮罩、阴影、头像占位'],
   },

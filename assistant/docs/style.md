@@ -12,7 +12,7 @@
 - 颜色、圆角、阴影用 `var(--we-color-*)` 等语义 token，不写裸 hex。可用 token 及默认值 read("doc:theme-tokens") 查看。
 - 全局换色时，在 `:root` 里覆写已有的 `--we-*` token。改 `--we-base-*` 会让依赖它的语义色一起变，最省事。
 - 换某个颜色时，先 read 片段全文，把这个颜色的 hex 和所有带透明度的 rgba 写法都找出来一起换，透明度保持不变；边框、阴影、光晕里的同色也要换，否则会留下旧色。
-- "弹窗背景太黑 / 差分太大"只调 `--we-color-bg-overlay` 和 `--we-color-overlay-heavy` 的透明度（常用 0.40-0.55），和换主色是两件事。
+- "弹窗背景太黑 / 差分太大"只在 `:root` 覆写遮罩色 `--we-color-scrim`，如 `color-mix(in srgb, var(--we-base-shade) 45%, transparent)`（常用 40%-55%），和换主色是两件事。
 - 常用类名：聊天 `.we-message-bubble-assistant` / `.we-message-bubble-user` / `.we-message-content` / `.we-think-block`；写作 `.we-writing-prose` / `.we-writing-think`；面板 `.we-panel-card`。要改的元素不在这个列表里时，不猜类名写深层选择器，告诉用户目前没有可靠的类名可用。
 
 ## 正则规则

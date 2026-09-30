@@ -81,7 +81,7 @@ export default function StateFieldList({
         </span>
         <button
           onClick={() => { setEditingField(null); setShowEditor(true); }}
-          className="we-type-caption px-3 py-1 bg-[var(--we-color-accent)] text-[var(--we-color-text-inverse)] rounded-[var(--we-radius-lg)] hover:opacity-90 transition-opacity"
+          className="we-type-caption px-3 py-1 bg-[var(--we-color-accent)] text-[var(--we-color-on-accent)] rounded-[var(--we-radius-lg)] hover:opacity-90 transition-opacity"
         >
           + 添加
         </button>
@@ -144,10 +144,10 @@ function FieldRow({ field, onEdit, onDelete }) {
 
       <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
         <button onClick={onEdit}
-          className="w-6 h-6 flex items-center justify-center rounded-[var(--we-radius-xs)] text-[var(--we-color-text-secondary)] hover:text-[var(--we-color-text-primary)] hover:bg-[var(--we-color-bg-subtle)] transition-colors we-type-caption"
+          className="w-6 h-6 flex items-center justify-center rounded-[var(--we-radius-xs)] text-[var(--we-color-text-secondary)] hover:text-[var(--we-color-text-primary)] hover:bg-[var(--we-color-bg-sunken)] transition-colors we-type-caption"
           title="编辑">✎</button>
         <button onClick={onDelete}
-          className="w-6 h-6 flex items-center justify-center rounded-[var(--we-radius-xs)] text-[var(--we-color-text-secondary)] hover:text-[var(--we-color-text-danger)] hover:bg-[var(--we-color-bg-subtle)] transition-colors we-type-caption"
+          className="w-6 h-6 flex items-center justify-center rounded-[var(--we-radius-xs)] text-[var(--we-color-text-secondary)] hover:text-[var(--we-color-status-danger)] hover:bg-[var(--we-color-bg-sunken)] transition-colors we-type-caption"
           title="删除">✕</button>
       </div>
     </div>

@@ -59,7 +59,7 @@ export default function WritingSpaceConversationPane({ worldId, navigate, config
           </div>
         ) : initError ? (
           <div className="flex-1 flex flex-col items-center justify-center gap-3 px-6 text-center">
-            <p className="we-type-ui text-[var(--we-color-text-danger)]">{initError}</p>
+            <p className="we-type-ui text-[var(--we-color-status-danger)]">{initError}</p>
             <button
               type="button"
               className="we-panel-card-action we-panel-card-action--chip"

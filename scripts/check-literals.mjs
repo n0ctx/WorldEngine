@@ -24,6 +24,8 @@
  *   motion         transition / animation（含 -duration / -delay / -timing-function）里非 0 的 ms、s 时长与延迟、
  *                  cubic-bezier()、steps()、ease / linear 关键字；自定义属性（--x: ...）是 token 定义，不报
  *   fallback       var(--we-x, 字面量) 里的字面量回退
+ *   mix-percent    color-mix() 里的百分比字面量：半透明与混色浓度只取透明度阶梯 var(--we-alpha-*)，
+ *                  超过一半时反过来写（另一侧的颜色取阶梯）；动效包材质里有意保留的记入基线
  *   tailwind       className 里的任意值 text-[12px] / rounded-[8px] / bg-[#fff] / tracking-[..] / leading-[..]，
  *                  以及内置刻度 text-sm、rounded-lg、tracking-wide、leading-tight、font-mono、font-bold、bg-white 等；
  *                  字号、行高、字距、字重一律用 .we-type-* 角色类，[font-size:..] / text-[length:..] 等写法即使引用 var() 也报
@@ -70,6 +72,7 @@ const RULE_HINTS = {
   'z-index': '层级改用 `--we-z-*`',
   motion: '时长与缓动改用 `--we-duration-*` / `--we-easing-*`；动效包自己的材质有意写字面量的，写 guard-allow(literals)',
   fallback: '去掉字面量回退，token 在 tokens.css 里声明即可',
+  'mix-percent': 'color-mix 的百分比改用透明度阶梯 `var(--we-alpha-1..5)`（6/12/24/40/64%）；超过一半时把另一侧颜色写在前面取阶梯',
   tailwind: '文字用 .we-type-<角色> 类；其余改成引用 --we-* 的任意值，如 rounded-[var(--we-radius-md)]、bg-[var(--we-color-bg-surface)]',
 };
 const RULES = Object.keys(RULE_HINTS);

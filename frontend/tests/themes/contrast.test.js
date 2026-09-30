@@ -75,7 +75,7 @@ const PAIRS = [
   ['--we-color-text-tertiary', '--we-color-bg-surface', 4.5],
   ['--we-color-border-strong', '--we-color-bg-canvas', 3],
   ['--we-color-border-strong', '--we-color-bg-surface', 3],
-  ['--we-color-text-inverse', '--we-color-accent', 4.5],
+  ['--we-color-on-accent', '--we-color-accent', 4.5],
 ];
 
 describe('推导色的对比度', () => {

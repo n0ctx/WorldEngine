@@ -29,7 +29,7 @@ const CLEAN_CSS = `/* color: #fff; font-size: 12px; z-index: 5 */
   --ink-flow: cubic-bezier(0.65, 0, 0.35, 1);
   --ink-time: 720ms;
 }
-.clean-mix { color: color-mix(in srgb, var(--we-color-accent) 40%, transparent); content: "#fff"; }
+.clean-mix { color: color-mix(in srgb, var(--we-color-accent) var(--we-alpha-4), transparent); content: "#fff"; }
 `;
 
 const CLEAN_JSX = `export function Clean() {
@@ -80,6 +80,7 @@ const BAD_CSS = `.bad {
   font-size: var(--we-type-ui-size);
   line-height: var(--we-type-body-leading);
 }
+.bad-mix { background: linear-gradient(color-mix(in srgb, var(--we-color-accent) 30%, color-mix(in srgb, var(--we-color-hover) 55%, transparent)) 12%, transparent); }
 .bad-token { font-size: var(--we-text-sm); letter-spacing: var(--we-tracking-wide); font-weight: var(--we-font-ui); }
 `;
 
@@ -135,6 +136,8 @@ test('每条规则的字面量都被报出，并写明改成哪类 token', () =>
     ['fallback', '8px', '去掉字面量回退'],
     ['fallback', '100px', '去掉字面量回退'],
     ['font-weight', '700', '--we-weight-\\*'],
+    ['mix-percent', '30%', '--we-alpha-1\\.\\.5'],
+    ['mix-percent', '55%', '--we-alpha-1\\.\\.5'],
     ['type-role', 'var\\(--we-type-body-leading\\) 与字号角色 ui 不一致', '写齐同一角色'],
     ['type-role', 'ui 角色缺 letter-spacing', '写齐同一角色'],
     ['type-role', 'var\\(--we-text-sm\\)', '写齐同一角色'],
@@ -156,6 +159,7 @@ test('每条规则的字面量都被报出，并写明改成哪类 token', () =>
   }
   assert.doesNotMatch(err, /padding|margin|width|var\(--we-color-x/);
   assert.doesNotMatch(err, /pages\.css \[color\] #333/);
+  assert.doesNotMatch(err, /\[mix-percent\] 12%/, '渐变色标的位置百分比不算');
 });
 
 test('现状与基线一致时通过；字面量挪动位置不影响基线；新增、变多失败', () => {

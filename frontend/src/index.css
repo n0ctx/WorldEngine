@@ -85,7 +85,7 @@ body {
   top: -100px;
   left: 0;
   background: var(--we-color-accent);
-  color: var(--we-color-text-inverse);
+  color: var(--we-color-on-accent);
   padding: var(--we-space-sm) var(--we-space-lg);
   z-index: var(--we-z-toast);
   border-radius: 0 0 var(--we-radius-sm) 0;

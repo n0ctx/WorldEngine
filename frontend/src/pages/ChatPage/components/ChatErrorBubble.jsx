@@ -26,12 +26,12 @@ export default function ChatErrorBubble({ character, errorBubble, generating, on
                   </div>
                 )}
                 <div className="flex items-center gap-2 mt-1">
-                  <span className="we-type-caption px-2 py-1 rounded-[var(--we-radius-full)] bg-[var(--we-color-accent-bg)] text-[var(--we-color-text-danger)] border border-[var(--we-color-border-focus)]">
+                  <span className="we-type-caption px-2 py-1 rounded-[var(--we-radius-full)] bg-[var(--we-color-accent-bg)] text-[var(--we-color-status-danger)] border border-[var(--we-color-border-focus)]">
                     生成失败：{errorBubble.errorMsg}
                   </span>
                   <button
                     onClick={onRetry}
-                    className="we-type-caption px-3 py-1 rounded-[var(--we-radius-lg)] border border-[var(--we-color-border-default)] hover:bg-[var(--we-color-bg-subtle)] transition-colors flex items-center gap-1 text-[var(--we-color-text-secondary)]"
+                    className="we-type-caption px-3 py-1 rounded-[var(--we-radius-lg)] border border-[var(--we-color-border-default)] hover:bg-[var(--we-color-bg-sunken)] transition-colors flex items-center gap-1 text-[var(--we-color-text-secondary)]"
                   >
                     <Icon size={16}>
                       <polyline points="1 4 1 10 7 10" />

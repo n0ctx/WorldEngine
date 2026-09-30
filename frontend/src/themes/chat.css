@@ -94,13 +94,13 @@
   font-size: var(--we-type-prose-size);
   letter-spacing: var(--we-type-prose-tracking);
   line-height: var(--we-type-prose-leading);
-  box-shadow: 0 1px 2px var(--we-color-shadow-md);
+  box-shadow: 0 1px 2px var(--we-color-shade-2);
 }
 
 .we-message-bubble-user {
   width: fit-content;
   max-width: 85%;
-  background: color-mix(in srgb, var(--we-color-accent) 14%, transparent);
+  background: color-mix(in srgb, var(--we-color-accent) var(--we-alpha-2), transparent);
   border-radius: var(--we-radius-lg) var(--we-radius-xs) var(--we-radius-lg) var(--we-radius-lg);
 }
 
@@ -108,7 +108,7 @@
   width: 100%;
   padding-top: var(--we-space-md);
   padding-bottom: var(--we-space-md);
-  background: color-mix(in srgb, var(--we-color-bg-elevated) 72%, transparent);
+  background: color-mix(in srgb, var(--we-color-bg-elevated) var(--we-alpha-5), transparent);
   border-radius: var(--we-radius-xs) var(--we-radius-lg) var(--we-radius-lg) var(--we-radius-lg);
   color: var(--we-color-text-primary);
 }
@@ -118,10 +118,9 @@
   background: var(--we-color-bg-surface);
   border-radius: var(--we-radius-sm);
   padding: var(--we-space-md) var(--we-space-lg);
-  box-shadow:
-    var(--we-shadow-paper-lift),
+  box-shadow: var(--we-shadow-paper-lift),
     inset 0 0 0 1px var(--we-color-accent),
-    inset 0 0 0 3px color-mix(in srgb, var(--we-color-accent) 14%, transparent);
+    inset 0 0 0 3px color-mix(in srgb, var(--we-color-accent) var(--we-alpha-2), transparent);
 }
 
 /* ── Speaker Label ─────────────────────────────────────── */
@@ -161,7 +160,7 @@
   letter-spacing: var(--we-type-prose-tracking);
   line-height: var(--we-type-prose-leading);
   /* 微提亮墨色：近黑正文在浅底上显厚重，回退 10% 朝画布以减轻视觉重量（仍远高于 4.5:1） */
-  color: color-mix(in srgb, var(--we-color-text-primary) 90%, var(--we-color-bg-canvas));
+  color: color-mix(in srgb, var(--we-color-bg-canvas) var(--we-alpha-2), var(--we-color-text-primary));
 }
 
 .we-message-content p      { margin-bottom: 0.5em; }
@@ -194,7 +193,7 @@
 
 /* 引用块 */
 .we-message-content blockquote {
-  background: var(--we-color-paper-overlay);
+  background: var(--we-color-pressed);
   padding: 6px 14px 6px 14px; /* 6px: design exact, 14px: design exact */
   margin: 0.6em 0;
   border-radius: 0 var(--we-radius-none) var(--we-radius-none) 0;
@@ -207,7 +206,7 @@
   font-family: var(--we-font-mono);
   font-size: 0.8em;
   /* 实心底色用 bg-muted：在浅色/深色主题下都保证与周边卡片底色有区分度 */
-  background: var(--we-color-bg-muted);
+  background: var(--we-color-bg-strong);
   padding: 0 var(--we-space-xs);
   border-radius: var(--we-radius-none);
   color: var(--we-color-text-secondary);
@@ -233,12 +232,12 @@
   letter-spacing: var(--we-type-heading-tracking);
 }
 .we-message-content td {
-  border: 1px solid var(--we-color-paper-tint);
+  border: 1px solid var(--we-color-border-subtle);
   padding: 5px var(--we-space-md); /* 5px: design exact */
   color: var(--we-color-text-secondary);
 }
 .we-message-content tr:nth-child(even) td {
-  background: var(--we-color-paper-wash);
+  background: var(--we-color-hover);
 }
 
 /* 水平分隔线 */
@@ -289,23 +288,22 @@
 .we-inline-code {
   font-family: var(--we-font-mono);
   font-size: 0.8em;
-  background: var(--we-color-bg-subtle);
+  background: var(--we-color-bg-sunken);
   padding: 0 var(--we-space-xs);
   border-radius: var(--we-radius-none);
   color: var(--we-color-text-secondary);
-  box-shadow: inset 0 1px 0 var(--we-color-white-sheen-md);
+  box-shadow: inset 0 1px 0 var(--we-color-highlight-2);
 }
 
 .we-code-block {
   margin: 0.75em 0;
   overflow: hidden;
-  border: 1px solid var(--we-color-ink-secondary-wash);
+  border: 1px solid var(--we-color-border-subtle);
   border-radius: var(--we-radius-none);
   background: var(--we-color-bg-surface);
-  box-shadow:
-    inset 0 1px 0 var(--we-color-white-sheen-md),
-    inset 0 0 0 1px var(--we-color-white-wash),
-    0 8px 18px var(--we-color-shadow-sm);
+  box-shadow: inset 0 1px 0 var(--we-color-highlight-2),
+    inset 0 0 0 1px var(--we-color-highlight-1),
+    0 8px 18px var(--we-color-shade-2);
 }
 
 .we-code-block-header {
@@ -313,8 +311,8 @@
   justify-content: space-between;
   align-items: center;
   padding: 4px 10px;
-  border-bottom: 1px solid var(--we-color-ink-secondary-wash-sm);
-  background: var(--we-color-bg-muted);
+  border-bottom: 1px solid var(--we-color-border-subtle);
+  background: var(--we-color-bg-strong);
 }
 
 .we-code-block-lang,
@@ -355,7 +353,7 @@
   letter-spacing: var(--we-type-caption-tracking);
   line-height: var(--we-type-caption-leading);
   color: var(--we-color-text-secondary);
-  background: color-mix(in srgb, var(--we-color-bg-canvas) 36%, transparent);
+  background: color-mix(in srgb, var(--we-color-bg-canvas) var(--we-alpha-4), transparent);
 }
 
 .we-code-block pre code {
@@ -404,19 +402,18 @@
 .we-chat-center-pane::after {
   z-index: 1;
   background: linear-gradient(90deg, transparent 10%, var(--we-material-sheen) 32%, var(--we-material-sheen) 68%, transparent 90%) top / 100% 1px no-repeat;
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--we-material-sheen) 40%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--we-material-sheen) var(--we-alpha-4), transparent);
   transition: box-shadow var(--we-duration-normal) var(--we-easing-ink);
 }
 
 /* 落笔时纸边亮起一圈淡主色：输入框获得焦点，整张纸进入书写状态 */
 .we-chat-center-pane:has(.we-chat-textarea:focus)::after {
-  box-shadow:
-    inset 0 0 0 1px color-mix(in srgb, var(--we-color-accent-border) 70%, transparent),
-    inset 0 -40px 48px -40px color-mix(in srgb, var(--we-color-accent) 18%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--we-color-accent-border) var(--we-alpha-5), transparent),
+    inset 0 -40px 48px -40px color-mix(in srgb, var(--we-color-accent) var(--we-alpha-3), transparent);
 }
 
 .we-chat-center-pane ::selection {
-  background: color-mix(in srgb, var(--we-color-accent) 28%, transparent);
+  background: color-mix(in srgb, var(--we-color-accent) var(--we-alpha-3), transparent);
 }
 
 /* 纸面上的选项：不再框中套框，外框退掉，每条是一枚墨色浮片，悬停浮起并亮起主色描边 */
@@ -436,7 +433,7 @@
 
 .we-chat-center-pane .we-option-btn {
   padding: var(--we-space-sm) var(--we-space-md);
-  background: var(--we-color-ink-wash);
+  background: var(--we-color-shade-1);
   border-color: transparent;
   border-radius: var(--we-radius-md);
   box-shadow: inset 0 1px 0 var(--we-material-sheen);
@@ -525,7 +522,7 @@
   letter-spacing: var(--we-type-heading-tracking);
   color: var(--we-color-text-primary);
   /* 唯一的一层光：自上而下的轻投影，让名字压在氛围上 */
-  text-shadow: 0 1px 2px var(--we-color-shadow-md);
+  text-shadow: 0 1px 2px var(--we-color-shade-2);
 }
 
 .we-speaker-stage__line {
@@ -534,7 +531,7 @@
   font-size: var(--we-type-body-size);
   line-height: var(--we-type-body-leading);
   letter-spacing: var(--we-type-body-tracking);
-  color: color-mix(in srgb, var(--we-color-text-primary) 90%, var(--we-color-bg-canvas));
+  color: color-mix(in srgb, var(--we-color-bg-canvas) var(--we-alpha-2), var(--we-color-text-primary));
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -842,7 +839,7 @@
 .we-writing-annotation--editing {
   text-align: left;
   border-radius: var(--we-radius-sm);
-  background: color-mix(in srgb, var(--we-color-accent) 6%, transparent);
+  background: color-mix(in srgb, var(--we-color-accent) var(--we-alpha-1), transparent);
 }
 
 .we-writing-annotation__text {
@@ -851,9 +848,8 @@
 
 .we-writing-prose--editing {
   border-radius: var(--we-radius-sm);
-  box-shadow:
-    inset 0 0 0 1px var(--we-color-accent),
-    inset 0 0 0 3px color-mix(in srgb, var(--we-color-accent) 14%, transparent);
+  box-shadow: inset 0 0 0 1px var(--we-color-accent),
+    inset 0 0 0 3px color-mix(in srgb, var(--we-color-accent) var(--we-alpha-2), transparent);
 }
 
 .we-message-edit-actions button.primary {
@@ -896,7 +892,7 @@
   align-items: center;
   justify-content: center;
   gap: 10px; /* design exact */
-  color: var(--we-color-gold);
+  color: var(--we-color-ornament);
   font-size: var(--we-glyph-lg);
   margin-bottom: 20px; /* design exact */
 }
@@ -905,7 +901,7 @@
   flex: 1;
   max-width: 120px;
   height: 1px;
-  background: var(--we-color-gold);
+  background: var(--we-color-ornament);
   transform: scaleX(0);
   transform-origin: center;
   transition: transform var(--we-duration-extended) var(--we-easing-ink) 0.1s;
@@ -975,7 +971,7 @@
 .we-writing-think {
   margin: 0 0 var(--we-space-sm);
   border-radius: var(--we-radius-sm);
-  background: color-mix(in srgb, var(--we-color-text-primary) 5%, transparent);
+  background: color-mix(in srgb, var(--we-color-text-primary) var(--we-alpha-1), transparent);
   overflow: hidden;
 }
 
@@ -1021,7 +1017,7 @@
 }
 
 .we-message-actions button.we-message-action-danger {
-  color: var(--we-color-text-danger);
+  color: var(--we-color-status-danger);
 }
 
 /* ── Think Block Content (Markdown in reasoning) ─────── */
@@ -1042,7 +1038,7 @@
   color: inherit;
 }
 .we-think-block-body code {
-  background: var(--we-color-ink-wash-md);
+  background: var(--we-color-shade-2);
   border-radius: var(--we-radius-sm);
   padding: 0 3px; /* design exact */
   font-size: 0.9em;
@@ -1128,9 +1124,8 @@
 
 /* 静止时只有暗描边与高光；聚焦时氛围色边缘光才亮起 */
 .we-chat-input__row:focus-within {
-  --material-rim:
-    inset 0 0 0 1px color-mix(in srgb, var(--we-atmosphere-color) 55%, transparent),
-    inset 0 0 20px -10px color-mix(in srgb, var(--we-atmosphere-color) 60%, transparent);
+  --material-rim: inset 0 0 0 1px color-mix(in srgb, var(--we-atmosphere-color) var(--we-alpha-5), transparent),
+    inset 0 0 20px -10px color-mix(in srgb, var(--we-atmosphere-color) var(--we-alpha-5), transparent);
 }
 
 .we-chat-input__attach-btn {
@@ -1149,7 +1144,7 @@
 
 .we-chat-input__attach-btn:hover:not(:disabled) {
   color: var(--we-color-text-primary);
-  background: var(--we-color-white-wash);
+  background: var(--we-color-hover);
 }
 
 .we-chat-input__attach-btn:focus-visible {
@@ -1178,7 +1173,7 @@
   border: 1px solid var(--we-color-border-default);
   border-top: 2px solid var(--we-color-accent);
   border-radius: var(--we-radius-sm);
-  box-shadow: 0 -4px 16px var(--we-color-shadow-md), 0 0 0 1px var(--we-color-ink-wash);
+  box-shadow: 0 -4px 16px var(--we-color-shade-2), 0 0 0 1px var(--we-color-shade-1);
   overflow: hidden;
   z-index: var(--we-z-dropdown);
 }
@@ -1290,7 +1285,7 @@
 /* 悬停只提亮图标并垫一层极淡的底，不再套主色描边框 */
 .we-chat-quick-btn:hover:not(:disabled) {
   color: var(--we-color-text-primary);
-  background: var(--we-color-white-wash);
+  background: var(--we-color-hover);
 }
 
 .we-chat-quick-btn:focus-visible {
@@ -1347,7 +1342,7 @@
   align-items: center;
   justify-content: center;
   background: var(--we-color-accent);
-  color: var(--we-color-text-inverse);
+  color: var(--we-color-on-accent);
   border: none;
   border-radius: var(--we-radius-full);
   cursor: pointer;
@@ -1366,7 +1361,7 @@
 }
 
 .we-chat-send-btn:disabled {
-  background: var(--we-color-bg-muted);
+  background: var(--we-color-bg-strong);
   color: var(--we-color-text-tertiary);
   opacity: 0.7;
   cursor: not-allowed;
@@ -1378,7 +1373,7 @@
 .we-think-block {
   margin: 0 0 var(--we-space-sm);
   border-radius: var(--we-radius-sm);
-  background: color-mix(in srgb, var(--we-color-text-primary) 5%, transparent);
+  background: color-mix(in srgb, var(--we-color-text-primary) var(--we-alpha-1), transparent);
   overflow: hidden;
 }
 
@@ -1472,7 +1467,7 @@
 }
 
 .we-message-actions button.we-delete-btn--confirming {
-  color: var(--we-color-text-danger);
+  color: var(--we-color-status-danger);
 }
 
 .we-attachment-thumbnail {
@@ -1488,7 +1483,7 @@
   position: fixed;
   inset: 0;
   z-index: var(--we-z-modal);
-  background: var(--we-color-bg-overlay);
+  background: var(--we-color-scrim);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1508,7 +1503,7 @@
   position: fixed;
   inset: var(--we-topbar-height) 0 0 0;
   z-index: calc(var(--we-z-modal) - 1);
-  background: color-mix(in srgb, var(--we-color-bg-overlay) 40%, transparent);
+  background: color-mix(in srgb, var(--we-color-scrim) var(--we-alpha-4), transparent);
   animation: var(--we-fx-scrim);
 }
 
@@ -1538,7 +1533,7 @@
   flex-direction: column;
   height: 100%;
   overflow: hidden;
-  background: color-mix(in srgb, var(--we-color-bg-elevated) 30%, transparent);
+  background: color-mix(in srgb, var(--we-color-bg-elevated) var(--we-alpha-4), transparent);
   backdrop-filter: blur(var(--we-glass-blur));
   border-radius: var(--we-radius-xl);
   box-shadow: var(--we-material-shadow);
@@ -1609,7 +1604,7 @@
 
 .we-asst-drawer__icon-btn:hover {
   color: var(--we-color-text-primary);
-  background: var(--we-color-white-wash);
+  background: var(--we-color-hover);
 }
 
 .we-asst-drawer__icon-btn:focus-visible {
@@ -1625,9 +1620,9 @@
   gap: var(--we-space-sm);
   margin: var(--we-space-xs) var(--we-space-lg) var(--we-space-sm);
   padding: var(--we-space-sm) var(--we-space-md);
-  border: 1px solid color-mix(in srgb, var(--we-color-status-danger) 40%, var(--we-color-border-default));
+  border: 1px solid color-mix(in srgb, var(--we-color-status-danger) var(--we-alpha-4), var(--we-color-border-default));
   border-radius: var(--we-radius-md);
-  background: color-mix(in srgb, var(--we-color-status-danger) 8%, var(--we-color-bg-canvas));
+  background: color-mix(in srgb, var(--we-color-status-danger) var(--we-alpha-1), var(--we-color-bg-canvas));
   font-size: var(--we-type-ui-size);
   line-height: var(--we-type-ui-leading);
   letter-spacing: var(--we-type-ui-tracking);
@@ -1679,7 +1674,7 @@
 
 /* 面板本身已是玻璃，输入胶囊压暗一档，读作嵌在面板里的输入槽 */
 .we-asst-composer .we-chat-input__row {
-  background: color-mix(in srgb, var(--we-color-bg-canvas) 55%, transparent);
+  background: color-mix(in srgb, var(--we-color-bg-canvas) var(--we-alpha-5), transparent);
   backdrop-filter: none;
 }
 
@@ -1794,7 +1789,7 @@
   flex-direction: column;
   gap: var(--we-space-xs);
   padding: var(--we-space-md);
-  background: color-mix(in srgb, var(--we-color-bg-canvas) 35%, transparent);
+  background: color-mix(in srgb, var(--we-color-bg-canvas) var(--we-alpha-4), transparent);
   border: 1px solid var(--we-color-border-subtle);
   border-radius: var(--we-radius-md);
   font-family: var(--we-font-prose);
@@ -1858,8 +1853,8 @@
 
 .we-asst-entry--error {
   border-radius: var(--we-radius-md);
-  border-color: color-mix(in srgb, var(--we-color-status-danger) 40%, var(--we-color-border-default));
-  background: color-mix(in srgb, var(--we-color-status-danger) 6%, var(--we-color-bg-canvas));
+  border-color: color-mix(in srgb, var(--we-color-status-danger) var(--we-alpha-4), var(--we-color-border-default));
+  background: color-mix(in srgb, var(--we-color-status-danger) var(--we-alpha-1), var(--we-color-bg-canvas));
 }
 
 .we-asst-entry__head {
@@ -2127,13 +2122,13 @@
 }
 
 .we-asst-bubble--user {
-  background: color-mix(in srgb, var(--we-color-accent) 16%, transparent);
+  background: color-mix(in srgb, var(--we-color-accent) var(--we-alpha-2), transparent);
   color: var(--we-color-text-primary);
   border-radius: var(--we-radius-lg) var(--we-radius-xs) var(--we-radius-lg) var(--we-radius-lg);
 }
 
 .we-asst-bubble--assistant {
-  background: color-mix(in srgb, var(--we-color-bg-canvas) 55%, transparent);
+  background: color-mix(in srgb, var(--we-color-bg-canvas) var(--we-alpha-5), transparent);
   color: var(--we-color-text-primary);
   border-radius: var(--we-radius-xs) var(--we-radius-lg) var(--we-radius-lg) var(--we-radius-lg);
   box-shadow: 0 0 0 1px var(--we-material-stroke);
@@ -2186,9 +2181,8 @@
 .we-asst-bubble__body a { color: var(--we-color-accent); text-decoration: underline; }
 
 .we-asst-bubble--editing {
-  box-shadow:
-    inset 0 0 0 1px var(--we-color-accent),
-    inset 0 0 0 3px color-mix(in srgb, var(--we-color-accent) 14%, transparent);
+  box-shadow: inset 0 0 0 1px var(--we-color-accent),
+    inset 0 0 0 3px color-mix(in srgb, var(--we-color-accent) var(--we-alpha-2), transparent);
 }
 
 .we-asst-bubble__actions {
@@ -2378,12 +2372,12 @@
   justify-content: center;
   gap: var(--we-space-sm);
   font-size: var(--we-glyph-lg);
-  color: var(--we-color-gold);
+  color: var(--we-color-ornament);
 }
 .we-chapter-fleuron-line {
   width: 40px;
   height: 1px;
-  background: color-mix(in srgb, var(--we-color-gold) 70%, transparent);
+  background: color-mix(in srgb, var(--we-color-ornament) var(--we-alpha-5), transparent);
   display: block;
 }
 

@@ -81,7 +81,7 @@ function useDiaryEnabled(diaryScope) {
 function StateLoadError({ message, onRetry }) {
   return (
     <div className="flex flex-col items-center gap-3 px-4 py-6 text-center">
-      <p className="we-type-ui text-[var(--we-color-text-danger)]">{message}</p>
+      <p className="we-type-ui text-[var(--we-color-status-danger)]">{message}</p>
       <button
         type="button"
         className="we-panel-card-action we-panel-card-action--chip"

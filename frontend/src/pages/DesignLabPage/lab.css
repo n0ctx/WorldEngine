@@ -124,13 +124,13 @@
   padding: var(--we-space-md);
   border: 1px solid var(--we-color-border-subtle);
   border-radius: var(--we-radius-md);
-  background: linear-gradient(160deg, color-mix(in srgb, var(--we-color-accent) 55%, var(--we-color-bg-muted)), var(--we-color-bg-muted));
+  background: linear-gradient(160deg, color-mix(in srgb, var(--we-color-accent) 55%, var(--we-color-bg-strong)), var(--we-color-bg-strong));
   color: var(--we-page-canvas-fg);
   text-align: left;
   cursor: pointer;
 }
 .we-design-lab__portal-card--idle {
-  background: var(--we-color-bg-muted);
+  background: var(--we-color-bg-strong);
   color: var(--we-color-text-tertiary);
   cursor: default;
 }
@@ -149,7 +149,7 @@
   padding: var(--we-space-sm) var(--we-space-md);
   border: 1px solid var(--we-color-border-subtle);
   border-radius: var(--we-radius-sm);
-  background: var(--we-color-bg-muted);
+  background: var(--we-color-bg-strong);
   font-size: var(--we-type-ui-size);
   line-height: var(--we-type-ui-leading);
   letter-spacing: var(--we-type-ui-tracking);

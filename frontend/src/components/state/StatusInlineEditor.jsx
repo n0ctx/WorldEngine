@@ -116,7 +116,7 @@ function BooleanInlineEditor({ draft, setDraft, commit, readDisplay }) {
             onChange={(event) => { setDraft(event.target.checked); commit(event.target.checked); }}
             onBlur={() => commit(draft)}
             className="w-4 h-4"
-            style={{ accentColor: 'var(--we-color-gold)' }}
+            style={{ accentColor: 'var(--we-color-accent)' }}
           />
           <span className="we-status-inline-surface__size-proxy" aria-hidden="true" />
         </div>

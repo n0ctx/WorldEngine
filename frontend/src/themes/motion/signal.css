@@ -390,7 +390,7 @@
 /* ── 状态整理遮罩 ───────────────────────────────────────── */
 /* 一层平的遮罩：「整理中 / 已整理」标签只做底色对比，不画括号、不循环锁定 */
 :where(:root[data-motion="signal"]) :is(.we-state-change-overlay, .we-cast-state-overlay) {
-  background: var(--we-color-paper-overlay);
+  background: var(--we-color-pressed);
 }
 
 /* ── 拖拽排序 ───────────────────────────────────────── */
@@ -479,7 +479,7 @@
 /* 骨架：行切成一格一格的信号格，强调色从左往右一格格填满，停一拍后清空；相邻行错开，像在缓冲。
    卡片骨架不切格，整块一格格填满 */
 :where(:root[data-motion="signal"]) :is(.we-skel, .we-skeleton-block) {
-  background-image: linear-gradient(color-mix(in srgb, var(--we-color-accent) 45%, var(--we-color-bg-muted)) 0 0);
+  background-image: linear-gradient(color-mix(in srgb, var(--we-color-accent) 45%, var(--we-color-bg-strong)) 0 0);
   background-repeat: no-repeat;
   background-size: 0% 100%;
 }
@@ -656,8 +656,8 @@
   animation: we-signal-field-lock var(--we-duration-normal) var(--we-cut) both;
 }
 @keyframes we-signal-field-lock {
-  0%   { outline-color: transparent; outline-offset: 14px; background-color: color-mix(in srgb, var(--we-color-accent) 14%, var(--we-color-ink-wash)); }
-  34%  { outline-color: var(--we-color-accent); outline-offset: 9px; background-color: color-mix(in srgb, var(--we-color-accent) 5%, var(--we-color-ink-wash)); }
+  0%   { outline-color: transparent; outline-offset: 14px; background-color: color-mix(in srgb, var(--we-color-accent) 14%, var(--we-color-shade-1)); }
+  34%  { outline-color: var(--we-color-accent); outline-offset: 9px; background-color: color-mix(in srgb, var(--we-color-accent) 5%, var(--we-color-shade-1)); }
   67%  { outline-color: color-mix(in srgb, var(--we-color-accent) 35%, transparent); outline-offset: 6px; }
   100% { outline-color: var(--we-color-accent); outline-offset: 3px; }
 }

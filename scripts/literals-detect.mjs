@@ -123,6 +123,22 @@ function motionLiterals(plain) {
   return out;
 }
 
+// color-mix() 里各颜色后面跟的百分比字面量（含嵌套的 color-mix）；阶梯写法 var(--we-alpha-*) 不算
+function mixPercentLiterals(text) {
+  const out = [];
+  for (const inner of extractCalls(text, 'color-mix').inners) {
+    let rest = inner;
+    for (let comma = topLevelComma(rest); comma !== -1 || rest; comma = topLevelComma(rest)) {
+      const arg = (comma === -1 ? rest : rest.slice(0, comma)).trim();
+      const pct = /\s(-?\d*\.?\d+%)$/.exec(arg);
+      if (pct) out.push(pct[1]);
+      out.push(...mixPercentLiterals(arg));
+      rest = comma === -1 ? '' : rest.slice(comma + 1);
+    }
+  }
+  return out;
+}
+
 // prop 是小写连字符形式；返回 [{ rule, value }]
 function analyzeValue(prop, rawValue) {
   const found = [];
@@ -143,6 +159,8 @@ function analyzeValue(prop, rawValue) {
     add('shadow', inners.flatMap((inner) => colorLiterals(inner, true)));
     add('color', colorLiterals(rest, true));
   } else add('color', mask(colorLiterals(plain, named)));
+
+  add('mix-percent', mixPercentLiterals(plain));
 
   if (prop === 'font-size' && !hasVar) add('font-size', sizeLiterals(plain, 'px|rem').length ? [plain] : []);
   else if (prop === 'line-height' && !hasVar && /^-?\d*\.?\d+(px|rem)?$/.test(plain) && nonZero(plain)) add('line-height', [plain]);

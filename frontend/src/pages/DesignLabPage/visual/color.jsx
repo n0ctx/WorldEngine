@@ -15,8 +15,8 @@ export function SurfaceColorsDemo() {
   return (
     <VisualSection id="surface-colors">
       <div className="we-design-lab__grid">
-        <SwatchGroup title="底色" prefix="--we-color-" names={['bg-canvas', 'bg-surface', 'bg-elevated', 'bg-subtle', 'bg-muted', 'bg-overlay']} />
-        <SwatchGroup title="文字" prefix="--we-color-" names={['text-primary', 'text-secondary', 'text-tertiary', 'text-inverse', 'text-danger']} />
+        <SwatchGroup title="底色" prefix="--we-color-" names={['bg-canvas', 'bg-surface', 'bg-elevated', 'bg-sunken', 'bg-strong', 'scrim']} />
+        <SwatchGroup title="文字" prefix="--we-color-" names={['text-primary', 'text-secondary', 'text-tertiary', 'on-accent']} />
         <SwatchGroup title="边框" prefix="--we-color-" names={['border-subtle', 'border-default', 'border-strong', 'border-focus']} />
       </div>
     </VisualSection>
@@ -38,7 +38,7 @@ export function WashColorsDemo() {
   return (
     <VisualSection id="wash-colors">
       <div className="we-design-lab__grid">
-        <SwatchGroup title="墨色状态层" prefix="--we-color-" names={['pressed']} />
+        <SwatchGroup title="悬停与按压" prefix="--we-color-" names={['hover', 'pressed']} />
         <SwatchGroup title="阴影与凹陷" prefix="--we-color-" names={['shade-1', 'shade-2', 'shade-3', 'shade-4']} />
         <SwatchGroup title="高光" prefix="--we-color-" names={['highlight-1', 'highlight-2']} />
         <SwatchGroup title="恒定纯白与封面黑" prefix="--we-color-" names={['white', 'cover-scrim']} />

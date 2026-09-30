@@ -80,7 +80,7 @@ function BooleanStateFieldEditor({ local, setLocal, saveValue }) {
         saveValue(e.target.checked);
       }}
       className="w-4 h-4"
-      style={{ accentColor: 'var(--we-color-gold)' }}
+      style={{ accentColor: 'var(--we-color-accent)' }}
     />
   );
 }

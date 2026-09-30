@@ -215,11 +215,11 @@
 }
 :where(:root[data-motion="liquid"]) .we-chapter-fleuron-line:first-child {
   transform-origin: right;
-  background: linear-gradient(to left, var(--we-color-gold), transparent);
+  background: linear-gradient(to left, var(--we-color-ornament), transparent);
 }
 :where(:root[data-motion="liquid"]) .we-chapter-fleuron-line:last-child {
   transform-origin: left;
-  background: linear-gradient(to right, var(--we-color-gold), transparent);
+  background: linear-gradient(to right, var(--we-color-ornament), transparent);
 }
 /* 文字从中点向两边洇出：先是一道细窄的湿痕，横向铺开成整行 */
 :where(:root[data-motion="liquid"]) .we-chapter-header .we-fx-glyph--block > .we-fx-glyph__face {
@@ -484,7 +484,7 @@
 :where(:root[data-motion="liquid"]) .we-card:not(.we-card-flat):hover {
   translate: 0 -4px;
   border-color: color-mix(in srgb, var(--we-color-accent) 40%, var(--we-color-border-default));
-  box-shadow: 0 14px 28px -16px var(--ink-glow), 0 4px 10px -6px var(--we-color-shadow-md);
+  box-shadow: 0 14px 28px -16px var(--ink-glow), 0 4px 10px -6px var(--we-color-shade-2);
 }
 :where(:root[data-motion="liquid"]) .we-character-card {
   transition:
@@ -498,7 +498,7 @@
 }
 :where(:root[data-motion="liquid"]) .we-card:not(.we-card-flat):active {
   translate: 0 2px;
-  box-shadow: 0 1px 2px var(--we-color-shadow-sm);
+  box-shadow: 0 1px 2px var(--we-color-shade-2);
   transition-duration: var(--ink-trail), var(--ink-trail), var(--ink-press-in), var(--ink-press-out), var(--we-duration-normal), var(--ink-press-in);
   transition-timing-function: var(--ink-surface), var(--ink-surface), var(--ink-press-in-ease), var(--ink-spring), var(--we-easing-sharp), var(--ink-press-in-ease);
 }
@@ -544,9 +544,8 @@
 }
 :where(:root[data-motion="liquid"]) :is(.we-input, .we-textarea):focus:not(.we-status-inline-surface *) {
   --ink-at: var(--mx, 14px) var(--my, 50%);
-  background:
-    radial-gradient(circle at var(--ink-at), color-mix(in srgb, var(--we-color-accent) calc(var(--ink-a) * 0.18), transparent), transparent var(--ink-r)) padding-box,
-    var(--we-color-ink-wash);
+  background: radial-gradient(circle at var(--ink-at), color-mix(in srgb, var(--we-color-accent) calc(var(--ink-a) * 0.18), transparent), transparent var(--ink-r)) padding-box,
+    var(--we-color-shade-1);
   box-shadow: var(--we-shadow-paper-indent), var(--we-focus-ring);
   animation:
     we-ink-seep var(--ink-bloom) var(--ink-surface) both,
@@ -674,7 +673,7 @@
   transition: translate var(--we-duration-fast) var(--ink-surface);
 }
 :where(:root[data-motion="liquid"]) :is(.we-sortable-item[data-sort="drag"], .we-sortable-overlay) > :first-child {
-  box-shadow: 0 14px 28px -10px var(--we-color-shadow-lg);
+  box-shadow: 0 14px 28px -10px var(--we-color-shade-3);
   transition: box-shadow var(--we-duration-fast) var(--ink-surface);
 }
 :where(:root[data-motion="liquid"]) .we-sortable-overlay > :first-child {

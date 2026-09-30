@@ -27,7 +27,7 @@ export default class ErrorBoundary extends Component {
     if (this.state.hasError) {
       return (
         <div className="flex flex-col items-center justify-center min-h-screen p-8 text-center">
-          <h1 className="we-type-subheading text-[var(--we-color-text-danger)] mb-4">
+          <h1 className="we-type-subheading text-[var(--we-color-status-danger)] mb-4">
             页面出现错误
           </h1>
           <p className="we-type-ui text-[var(--we-color-text-secondary)] mb-6 max-w-md">
@@ -40,7 +40,7 @@ export default class ErrorBoundary extends Component {
           )}
           <button
             onClick={this.handleReload}
-            className="px-4 py-2 rounded-[var(--we-radius-lg)] bg-[var(--we-color-accent)] text-[var(--we-color-text-inverse)] we-type-ui hover:opacity-90 transition-opacity"
+            className="px-4 py-2 rounded-[var(--we-radius-lg)] bg-[var(--we-color-accent)] text-[var(--we-color-on-accent)] we-type-ui hover:opacity-90 transition-opacity"
           >
             刷新并尝试恢复草稿
           </button>
