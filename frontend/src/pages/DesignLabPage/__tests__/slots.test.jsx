@@ -25,8 +25,16 @@ function packCssApis(css) {
   return [...css.matchAll(/^\s*--we-fx-([a-z]+)\s*:/gm)].map((match) => `css:${match[1]}`);
 }
 
+// 动效包样式选择器里出现的核心类，按 BEM 块名归并
+function packCssHooks(css) {
+  const selectors = [...css.replace(/\/\*[\s\S]*?\*\//g, '').matchAll(/([^{};]+)\{/g)].map((match) => match[1]);
+  return selectors.flatMap((selector) => [...selector.matchAll(/\.(we-[a-z0-9_-]+)/g)].map((match) => match[1].replace(/(__|--).*$/, '')));
+}
+
 const PACK_APIS = Object.values(MOTION_PACKS).map((pack) => new Set(packApis(pack)));
-const CSS_APIS = ['liquid', 'signal'].map((name) => packCssApis(readPackCss(name))).map((apis) => new Set(apis));
+const PACK_HOOKS = new Set(Object.keys(MOTION_PACKS).flatMap((id) => packCssHooks(readPackCss(id))));
+const CLAIMED_HOOKS = SLOTS.flatMap((slot) => slot.hooks ?? []);
+const CSS_APIS = Object.keys(MOTION_PACKS).map((id) => new Set(packCssApis(readPackCss(id))));
 const ALL_APIS = new Set([...PACK_APIS, ...CSS_APIS].flatMap((set) => [...set]));
 const CLAIMED = new Set(SLOTS.flatMap((slot) => slot.api));
 
@@ -39,6 +47,12 @@ describe('动效位清单', () => {
   it('动效位声明的接口都真实存在，没有拼错', () => {
     const unknown = [...CLAIMED].filter((api) => !ALL_APIS.has(api));
     expect(unknown).toEqual([]);
+  });
+
+  it('动效包样式接管的每个核心类都被某个动效位的 hooks 认领，认领的类都真的被接管', () => {
+    expect([...PACK_HOOKS].filter((name) => !CLAIMED_HOOKS.includes(name)).sort()).toEqual([]);
+    expect(CLAIMED_HOOKS.filter((name) => !PACK_HOOKS.has(name))).toEqual([]);
+    expect(new Set(CLAIMED_HOOKS).size).toBe(CLAIMED_HOOKS.length);
   });
 
   it('两个动效包对外接口一致', () => {

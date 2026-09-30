@@ -30,7 +30,7 @@
     "frontend/src/themes/motion/liquid.css::opacity::0.6": 1,
     "frontend/src/themes/motion/liquid.css::opacity::0.8": 1,
     "frontend/src/themes/motion/liquid.css::opacity::0.9": 1,
-    "frontend/src/themes/motion/signal.css::fallback::0ms": 2,
+    "frontend/src/themes/motion/signal.css::fallback::0ms": 1,
     "frontend/src/themes/motion/signal.css::font-weight::300": 3,
     "frontend/src/themes/motion/signal.css::font-weight::400": 2,
     "frontend/src/themes/motion/signal.css::font-weight::500": 1,

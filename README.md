@@ -149,7 +149,7 @@ data/        源码模式的本地数据目录
 # 完整检查：lint、源码守卫、各模块测试
 npm run check
 
-# 只运行八类源码守卫
+# 只运行源码守卫与主题、动效对齐检查
 npm run check:guards
 
 # 分模块测试

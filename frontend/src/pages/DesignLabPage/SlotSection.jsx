@@ -11,6 +11,7 @@ export function SlotMeta({ slot }) {
       {slot.tokens
         ? <span>token：{slot.tokens.length ? slot.tokens.join('、') : '无专属 token'}</span>
         : <span>接口：{slot.api.length ? slot.api.join('、') : '无'}</span>}
+      {slot.hooks && <span>接管：{slot.hooks.map((name) => `.${name}`).join('、')}</span>}
       <span>用在：{slot.usedIn.join('、')}</span>
       {slot.note && <span className="we-design-lab__meta-note">{slot.note}</span>}
     </div>

@@ -8,6 +8,10 @@
  * 动效包可以改写节奏角色：JS 写在包的 rhythm 里，CSS 写在 themes/motion/<id>.css 的 :root[data-motion="<id>"] 里，
  * 两边必须同值、同一组角色，改写的角色必须存在。
  *
+ * 动效包的边界：包样式只能声明两类 --we-* 变量——接口 --we-fx-*（核心样式经它引用包的动画）与节奏角色 --we-motion-*；
+ * 其余变量用本包私有前缀（墨流 --ink-*，信号 --sig-*），不占核心命名。核心引用的每个 --we-fx-* 每个包都要声明，
+ * 包声明的 --we-fx-* 也必须被核心引用。
+ *
  * 退出码：0 通过 / 1 漂移（硬错误，阻塞 CI）
  */
 
@@ -16,11 +20,14 @@ import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const ROOT = path.resolve(__dirname, '..');
+const rootFlag = process.argv.indexOf('--root');
+const ROOT = rootFlag === -1 ? path.resolve(__dirname, '..') : path.resolve(process.argv[rootFlag + 1]);
 const MOTION_JS = path.join(ROOT, 'frontend/src/core/utils/motion.js');
 const TOKENS_CSS = path.join(ROOT, 'frontend/src/themes/tokens.css');
 const MOTION_PACK_JS = path.join(ROOT, 'frontend/src/core/motion/motionPack.js');
 const PACK_CSS_DIR = path.join(ROOT, 'frontend/src/themes/motion');
+const CORE_CSS = ['themes/ui.css', 'themes/pages.css', 'themes/chat.css', 'index.css'].map((rel) => path.join(ROOT, 'frontend/src', rel));
+const stripComments = (text) => text.replace(/\/\*[\s\S]*?\*\//g, '');
 
 const { MOTION, STAGGER } = await import(pathToFileURL(MOTION_JS).href);
 const { MOTION_PACKS } = await import(pathToFileURL(MOTION_PACK_JS).href);
@@ -71,8 +78,10 @@ for (const role of cssRoles) {
 }
 
 // ─── 动效包改写的节奏 ─────────────────────────────────────────────────────────
+const packCss = (id) => stripComments(readFileSync(path.join(PACK_CSS_DIR, `${id}.css`), 'utf8'));
+
 function packRootDecls(id) {
-  const text = readFileSync(path.join(PACK_CSS_DIR, `${id}.css`), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+  const text = packCss(id);
   const root = new RegExp(`(?:^|\\})\\s*:root\\[data-motion="${id}"\\]\\s*\\{([^}]*)\\}`).exec(text)?.[1] ?? '';
   return Object.fromEntries([...root.matchAll(/(--we-motion-[a-z-]+)\s*:\s*([^;]+);/g)].map((m) => [m[1], m[2].trim()]));
 }
@@ -94,6 +103,22 @@ for (const pack of Object.values(MOTION_PACKS)) {
   }
 }
 
+// ─── 动效包的边界与 --we-fx-* 接口 ─────────────────────────────────────────────
+const coreFx = new Set(CORE_CSS.flatMap((file) => [...readFileSync(file, 'utf8').matchAll(/var\(\s*--we-fx-([a-z-]+)/g)].map((m) => m[1])));
+const coreMotionTokens = new Set([...css.matchAll(/(--we-motion-[a-z-]+)\s*:/g)].map((m) => m[1]));
+
+for (const pack of Object.values(MOTION_PACKS)) {
+  const declared = [...packCss(pack.id).matchAll(/(?:^|[;{\s])(--we-[a-z0-9-]+)\s*:/g)].map((m) => m[1]);
+  const fx = new Set();
+  for (const token of declared) {
+    if (token.startsWith('--we-fx-')) fx.add(token.slice('--we-fx-'.length));
+    else if (!token.startsWith('--we-motion-')) errors.push(`包 ${pack.id}：声明了核心命名的 ${token}；包自己的变量改用本包私有前缀`);
+    else if (!coreMotionTokens.has(token)) errors.push(`包 ${pack.id}：${token} 不是 tokens.css 里的节奏角色`);
+  }
+  for (const name of coreFx) if (!fx.has(name)) errors.push(`包 ${pack.id}：核心样式引用了 --we-fx-${name}，${pack.id}.css 没声明`);
+  for (const name of fx) if (!coreFx.has(name)) errors.push(`包 ${pack.id}：声明了 --we-fx-${name}，核心样式没有引用`);
+}
+
 // ─── 输出 ────────────────────────────────────────────────────────────────────
 if (errors.length) {
   console.error('\n✖ 动效角色漂移：motion.js 与 tokens.css 不一致\n');
@@ -102,5 +127,5 @@ if (errors.length) {
   process.exit(1);
 }
 
-console.log(`✓ 动效角色对齐：motion.js ↔ tokens.css 一致（${Object.keys(MOTION).length} 个角色 + 错峰），${Object.keys(MOTION_PACKS).length} 个动效包的节奏改写 JS ↔ CSS 一致`);
+console.log(`✓ 动效角色对齐：motion.js ↔ tokens.css 一致（${Object.keys(MOTION).length} 个角色 + 错峰），${Object.keys(MOTION_PACKS).length} 个动效包的节奏改写 JS ↔ CSS 一致、边界与 --we-fx-* 接口完整`);
 process.exit(0);

@@ -17,17 +17,17 @@
 ### 出样约定
 
 - 出样放 `DesignLabPage/sketch/`，用 `Compare` 做「现在 / 出样 · 未落地」左右对照；界面文案叫「出样」，不叫「提案」。
-- 出样样式的选择器挂在 `.we-sketch-*` 下，不能影响「现在」一侧；优先复用动效包已有的关键帧和 `--ink-*`、`--we-cut` 等变量，不重写。
+- 出样样式的选择器挂在 `.we-sketch-*` 下，不能影响「现在」一侧；优先复用动效包已有的关键帧和 `--ink-*`、`--sig-*` 等变量，不重写。
 - 实验室路由只在开发环境存在，生产构建不含出样样式，不能用 build 通过来证明出样没问题。
-- 新增受动效控制的位置，先在 `slots.js` 登记：走动效包的必须有演示，还没接入的标 `blind`；测试会核对动效包的每个接口都有动效位引用。
+- 新增受动效控制的位置，先在 `slots.js` 登记：走动效包的必须有演示，还没接入的标 `blind`；包样式直接接管的核心类记进 `hooks`。测试核对包的每个接口和接管的类都有动效位认领。
 
 ### 动效设计标准
 
 - 每个包有一个签名动作：墨流是「洇」（湿墨色和光晕从触点扩散，再干成常态色），信号是「锁」（锁定瞬间磷光帧硬切外扩、文字双曝光撕裂，不用扫描线；错位撕裂只在事件瞬间爆一次；锁定跃迁用代码雨）。设计前先说明新动效服务于哪个签名动作，不要各套一遍「缩放弹跳」或「透明度闪烁」。
 - 每个动效位只放一个被记住的动作，其余克制；同一个位置在不同包下功能一致、手感不同。
 - 不缩放会含文字的元素（文字会抖）；大面板不加模糊、不横向抖动。
-- 全站普通过渡（悬停、色变、显隐、折叠、抽屉）的时长与曲线只选动效角色（state / enter / exit / page / loop，`--we-motion-<角色>-duration` 与同角色 `-easing` 成对写，错峰用 `--we-motion-stagger`）；JS 用 `useMotion().role()`，错峰用 `STAGGER`。
-- 角色默认值在 `core/utils/motion.js` 的 `MOTION`；动效包可以改写节奏，JS 写在包的 `rhythm`，CSS 同值写在 `themes/motion/<id>.css` 的 `:root[data-motion]` 里（`check:motion` 核对两边），不另起角色。
+- 普通过渡（悬停、色变、显隐、折叠、抽屉）只选动效角色：CSS 成对写 `--we-motion-<角色>-duration / -easing`，JS 用 `useMotion().role()`；错峰用 `--we-motion-stagger` / `STAGGER`。
+- 角色默认值在 `core/utils/motion.js`；动效包改节奏写在包的 `rhythm`，CSS 同值写在包的 `:root[data-motion]`。
 - 出样必须遵守「减少动态效果」：CSS 出样在媒体查询下静止，JS 走 `useMotion` 的 `reduced`。
 
 ### 落地清单
@@ -36,12 +36,13 @@
 
 1. 改动效包和 `themes/motion/<id>.css`；JS 与 CSS 有意镜像的部分（如信号的 `variants.enter` 与 `we-signal-in`、`SURFACE` 曲线）两边同步改。
 2. 更新 `slots.js`：`blind` 改 `pack`，补 `api` 与 `note`；出样对照改成正式演示，清掉对应出样文件。
-3. 动效值不写字面量：核心用动效角色，动效包自己的材质时长写成包的私有变量（墨流 `--ink-*`、信号 `--sig-*`），在动效里写字面量时加 `guard-allow(literals)` 并写理由；改了角色默认值或包的节奏改写，JS 与 CSS 两边同步，由 `check:motion` 核对。
-4. 跑 `npm run check:guards`、`npm run check:motion`，以及 frontend 的 `tests/motion`、`tests/components/motion` 和 `DesignLabPage` 测试。
+3. 动效值不写字面量：核心用动效角色，包的材质时长写成私有变量（`--ink-*`、`--sig-*`），确需字面量加 `guard-allow(literals)` 写理由。
+4. 跑 `npm run check:guards`（含 `check:motion`）和 frontend 的 `tests/motion`、`tests/components/motion`、`DesignLabPage` 测试。
 
 ### 新增动效包
 
-- 包文件提供完整接口与 `traits`（组件依赖包身份的行为都写在 `traits` 里，组件不按包 id 判断），在注册表登记，并提供同名样式文件 `themes/motion/<id>.css`（按目录自动引入）。
+- 包文件提供完整接口、`traits`（依赖包身份的组件行为都写这里，组件不按包 id 判断）和 `rhythm`（不改节奏写 `{}`），在注册表登记，并提供同名样式 `themes/motion/<id>.css`（按目录自动引入）。
+- 包样式里的 `--we-*` 只能是接口 `--we-fx-*`（核心引用的都要给）和节奏角色 `--we-motion-*`；其余变量用本包私有前缀。
 - 后端 `services/config.js` 的 `MOTION_PACK_IDS` 也要加，否则用户选了新包会被静默改回默认包。
 - 漏接由 `tests/motion/` 下的测试和动效位清单测试报错，照报错补齐，不要绕过。
 

@@ -1,9 +1,10 @@
 /**
  * 动效位清单：全站每一处受（或本该受）动效控制的地方，一处一条。
- * 实验室按它分类展示；测试用它核对动效包的每个接口都有动效位引用、每个动效位都有演示。
+ * 实验室按它分类展示；测试用它核对动效包的每个接口、每个接管的核心类都有动效位认领，每个动效位都有演示。
  *
  * api 写法：variant:<键> / transition:<键> / gesture:<键> / flow / stream / fx / role / css:<键>
  *   css:<键> 对应动效包在 :root 里定义的 --we-fx-<键> 变量。
+ * hooks：动效包样式直接接管的核心类（BEM 块名，不带点）；包 CSS 选择器里出现的每个 .we-* 块都要在这里登记。
  * status：
  *   pack    走动效包，必须有演示
  *   blind   没接进动效包（硬编码或没有动效），切换动效不会变；演示可选
@@ -61,6 +62,7 @@ export const SLOTS = [
   },
   {
     id: 'option-card', category: 'appear', title: '剧情选项卡', status: 'pack',
+    hooks: ['we-option-list', 'we-option-btn'],
     api: ['css:enter'], usedIn: ['OptionCard'],
     note: '选项逐项错开入场；点选后，墨流是墨从点下的位置洇满选中项、其余项由近及远沉下变淡，'
       + '信号是选中项文字双曝光撕裂一次（更重、中段反向），其余项按序变暗、卡面加竖向斜纹。',
@@ -89,6 +91,7 @@ export const SLOTS = [
   },
   {
     id: 'toast', category: 'overlay', title: '提示条', status: 'pack',
+    hooks: ['we-toast-card'],
     api: ['variant:overlayEnter', 'transition:overlay', 'fx'],
     usedIn: ['ToastCard'],
   },
@@ -116,6 +119,7 @@ export const SLOTS = [
   },
   {
     id: 'world-portal', category: 'move', title: '进入世界', status: 'pack',
+    hooks: ['we-portal-veil', 'we-worlds-canvas', 'we-characters-canvas', 'we-worldhub-layout', 'we-worldhub-section-title'],
     api: [], usedIn: ['WorldsPage → CharactersPage', 'AppShell（跨路由遮罩 .we-portal-veil）'],
     note: '没有独立的动效接口：时序（navigate / total）在动效包的 portal 字段，编排在动效包 CSS 里按 data-portal 接管。'
       + '墨流「洇门」：旧页沉入水中，枢纽页从柔焦里浮上来，栏标题从湿墨色干成正文色；'
@@ -139,22 +143,29 @@ export const SLOTS = [
   // ── 按压与悬停 ──
   {
     id: 'press', category: 'press', title: '按钮按压', status: 'pack',
+    hooks: [
+      'we-btn', 'we-btn-primary', 'we-section-tab', 'we-select-option', 'we-settings-nav-item', 'we-chat-slash-item',
+      'we-sm-chip', 'we-chat-quick-btn', 'we-character-card-action-btn', 'we-world-card-action-btn',
+    ],
     api: ['gesture:press', 'transition:press'], usedIn: ['Button', 'TopBar', 'InputBox 工具栏'],
     note: '带字的按钮不缩放。墨流：悬停浮起，按下按进 2px、外沿一圈湿边，墨从触点在按钮里洇开，松手带过冲弹回；'
       + '信号：按下硬切下沉 1px、底色提亮一格，压住到锁定那一拍磷光帧硬切外扩两步即灭（轻点撞不到）。触点涟漪由 useTouchFx 放，只有 Button 带。',
   },
   {
     id: 'portal', category: 'press', title: '入口卡片', status: 'pack',
+    hooks: ['we-world-card', 'we-world-card-shell', 'we-world-card-name'],
     api: ['gesture:portal'], usedIn: ['WorldsGrid'],
     note: '浮起与按下走手势，不缩放；入口卡不画整框——悬停时名字双曝光一次，按下进入时整面冲洗一帧强调色即灭，再进锁定跃迁。演示借世界卡的类名。',
   },
   {
     id: 'sink', category: 'press', title: '发送键', status: 'pack',
+    hooks: ['we-chat-send-btn'],
     api: ['gesture:sink'], usedIn: ['InputBoxComposer'],
     note: '信号按下时落底那一下补一帧磷光（轻点也能撞到）；墨流只有压扁回弹。演示借发送键的类名。',
   },
   {
     id: 'delete-button', category: 'press', title: '删除确认按钮', status: 'pack',
+    hooks: ['we-delete-btn'],
     api: ['transition:press'], usedIn: ['DeleteButton'],
     note: '翻盖和滑出确认条的时长、曲线写死在组件里，不随动效包变化；圆钮的按压走动效包，删除与取消的反馈由动效包样式按 data-status 接管：'
       + '信号是确认删除时整颗按钮压成亮线熄灭、黑一拍后闪回露出对勾；'
@@ -162,8 +173,9 @@ export const SLOTS = [
   },
   {
     id: 'card-hover', category: 'press', title: '卡片悬停与按下', status: 'pack',
+    hooks: ['we-card', 'we-card-flat', 'we-character-card', 'we-touch-fx'],
     api: [], usedIn: ['Card', '角色卡'],
-    note: '没有单独的动效接口：动效包样式按类名接管，触点位置与涟漪由 useTouchFx 放。'
+    note: '动效包样式按类名接管，触点位置与涟漪由 useTouchFx 放。'
       + '墨流：湿墨光晕追着指针走。普通卡片不缩放，悬停浮起，按下按进纸里再回位；角色卡悬停不浮起，按下缓缓微缩，松手用同一段缓动回到原尺寸；'
       + '信号：悬停后磷光帧两步硬切外扩即灭，按下贴紧复位。PanelCard 只用作不可点的面板外壳，不加悬停。',
   },
@@ -175,15 +187,17 @@ export const SLOTS = [
   },
   {
     id: 'input-focus', category: 'input', title: '输入框聚焦', status: 'pack',
+    hooks: ['we-input', 'we-textarea', 'we-status-inline-surface'],
     api: [], usedIn: ['Input', 'Textarea', '各处 .we-input / .we-textarea'],
-    note: '没有单独的动效接口：动效包样式按类名接管，画在输入框自身上（不加外层包装）；状态表格里的行内编辑不画。'
+    note: '动效包样式按类名接管，画在输入框自身上（不加外层包装）；状态表格里的行内编辑不画。'
       + '墨流：湿墨描边从按下的位置漫开、框内晕开淡墨，再干成常态聚焦色，键盘聚焦从左侧开始；'
       + '信号：描边硬切亮起、框内压上一拍强调色，外圈锁定框三拍收紧并在聚焦期间一直套着。',
   },
   {
     id: 'switch-range', category: 'input', title: '开关与滑块', status: 'pack',
+    hooks: ['we-toggle-track', 'we-toggle-thumb', 'we-range'],
     api: [], usedIn: ['ToggleSwitch', 'Range'],
-    note: '没有单独的动效接口：动效包样式按类名接管；开关拨过之后才播圆钮动画。'
+    note: '动效包样式按类名接管；开关拨过之后才播圆钮动画。'
       + '墨流：圆钮拉长甩过去、轨道被墨染满，按住滑块时圆钮胀大带光晕；'
       + '信号：轨道分四格点亮、圆钮硬切到位；按住滑块时圆钮胀大。不再画准星。',
   },
@@ -191,12 +205,14 @@ export const SLOTS = [
   // ── 列表与排序 ──
   {
     id: 'sortable', category: 'list', title: '拖拽排序', status: 'pack',
+    hooks: ['we-sortable-item', 'we-sortable-overlay'],
     api: ['flow'], usedIn: ['SortableList', 'SortableGrid'],
     note: '其余条目让位走 flow；拿起、放下的样子写在动效包 CSS 里，按条目的 data-sort 切换。'
       + '网格（SortableGrid）只有拿在手里的跟手副本随动效包变化，放下仍是固定的回落动画。',
   },
   {
     id: 'badge-empty', category: 'list', title: '徽标与空状态入场', status: 'pack',
+    hooks: ['we-badge', 'we-empty-state'],
     api: ['css:enter'], usedIn: ['Badge', 'EmptyState'],
     note: '徽标和空状态标题的入场写在动效包 CSS 里，说明与按钮随后用 --we-fx-enter 入场；挂载时播一次。'
       + 'Badge 目前只在实验室里用到，接进会频繁刷新的列表前要先确认入场不会反复重播。',
@@ -205,16 +221,19 @@ export const SLOTS = [
   // ── 流式与等待 ──
   {
     id: 'stream', category: 'stream', title: '流式输出', status: 'pack',
+    hooks: ['we-stream-char', 'we-stream-caret', 'we-fx-glyph', 'we-chat-empty-state', 'we-asst-stream-cursor'],
     api: ['stream'], usedIn: ['StreamingMarkdown'],
   },
   {
     id: 'busy', category: 'stream', title: '状态整理遮罩与思考指示', status: 'pack',
+    hooks: ['we-ink-bead', 'we-state-change-overlay', 'we-cast-state-overlay'],
     api: ['fx', 'transition:backdrop'], usedIn: ['StateBusyOverlay', 'MotionOrb'],
     note: '思考指示 MotionOrb 只按动效包 id 选小球，不读 fx() 与过渡；遮罩与「整理中」字样由 StateBusyOverlay 驱动。'
       + '遮罩底色写在动效包 CSS 里；信号只留底色，不画括号。',
   },
   {
     id: 'loops', category: 'stream', title: '循环动画', status: 'pack',
+    hooks: ['we-skel', 'we-skeleton-block', 'we-asst-new-msg-arrow'],
     api: ['css:skeleton', 'css:spin', 'css:typing', 'css:nudge'],
     usedIn: ['骨架屏', '工具运行指示', '打字三点', '新消息箭头'],
   },
@@ -222,14 +241,17 @@ export const SLOTS = [
   // ── 世界改写 ──
   {
     id: 'state-values', category: 'world', title: '状态数值变化', status: 'pack',
+    hooks: ['we-change-tag', 'we-fx-burst', 'we-ink-warp'],
     api: ['fx'], usedIn: ['StatusValueChange', 'ChangeText'],
   },
   {
     id: 'chapter', category: 'world', title: '章节开场', status: 'pack',
+    hooks: ['we-chapter-header', 'we-chapter-title', 'we-chapter-fleuron-line', 'we-chapter-fleuron-mark'],
     api: ['fx'], usedIn: ['ChapterDivider'],
   },
   {
     id: 'done-confirm', category: 'world', title: '完成确认', status: 'pack',
+    hooks: ['we-done-confirm'],
     api: ['fx'], usedIn: ['DoneConfirm'],
   },
 
