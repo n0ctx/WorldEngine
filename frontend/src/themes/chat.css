@@ -44,6 +44,12 @@
 .we-edit-panel-overlay::-webkit-scrollbar-track,
 .we-assistant-scroll::-webkit-scrollbar-track { background: transparent; }
 
+/* 宽屏下位置与跳转由消息刻度（ProximityRail）承担，故隐藏原生滚动条；≤900px 时刻度收起、保留滚动条 */
+@media (min-width: 901px) {
+  .we-chat-area { scrollbar-width: none; }
+  .we-chat-area::-webkit-scrollbar { display: none; }
+}
+
 .we-prose-message-list {
   max-width: var(--we-text-width-prose);
   margin: 0 auto;
