@@ -10,9 +10,13 @@
 
 - 所有启用的片段全局生效，没有按世界区分。chat 片段只放聊天界面的样式，写作界面的样式放 writing 片段。
 - 颜色、圆角、阴影用 `var(--we-color-*)` 等语义 token，不写裸 hex。可用 token 及默认值 read("doc:theme-tokens") 查看。
-- 全局换色时，在 `:root` 里覆写已有的 `--we-*` token。改 `--we-base-*` 会让依赖它的语义色一起变，最省事。
+- 全局换色时，在 `:root` 里覆写 `--we-base-*`（canvas、surface、ink、accent 等），文字、边框、底色、遮罩都由它推导，一起变。语义色 `--we-color-*` 不单独覆写，否则和推导出的同级颜色对不上。
+- 半透明和混色的浓度只取阶梯 `--we-alpha-1` 到 `--we-alpha-5`（6% / 12% / 24% / 40% / 64%），如 `color-mix(in srgb, var(--we-color-accent) var(--we-alpha-2), transparent)`，不写百分比。
+- 文字变弱用 `--we-color-text-secondary` / `-tertiary` / `-faint`，不叠 `opacity`。
+- 字号不单挑：给元素加 `.we-type-<角色>` 类，或在同一条规则里写齐同一角色的 `--we-type-<角色>-size`、`-leading`、`-tracking`。角色有 display、title、heading、subheading、prose、body、ui、caption、eyebrow。
+- 阴影只用 `--we-elevation-1` 到 `-3`（越大越高）和凹陷 `--we-shadow-inset`；嫌阴影太重或太轻，在 `:root` 覆写 `--we-shadow-strength`（如 `35%`）。
 - 换某个颜色时，先 read 片段全文，把这个颜色的 hex 和所有带透明度的 rgba 写法都找出来一起换，透明度保持不变；边框、阴影、光晕里的同色也要换，否则会留下旧色。
-- "弹窗背景太黑 / 差分太大"只在 `:root` 覆写遮罩色 `--we-color-scrim`，如 `color-mix(in srgb, var(--we-base-shade) 45%, transparent)`（常用 40%-55%），和换主色是两件事。
+- "弹窗背景太黑 / 差分太大"只在 `:root` 覆写遮罩色 `--we-color-scrim`，如 `color-mix(in srgb, var(--we-base-shade) var(--we-alpha-4), transparent)`（常用 alpha-4 到 alpha-5），和换主色是两件事。
 - 常用类名：聊天 `.we-message-bubble-assistant` / `.we-message-bubble-user` / `.we-message-content` / `.we-think-block`；写作 `.we-writing-prose` / `.we-writing-think`；面板 `.we-panel-card`。要改的元素不在这个列表里时，不猜类名写深层选择器，告诉用户目前没有可靠的类名可用。
 
 ## 正则规则
