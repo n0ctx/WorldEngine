@@ -12,7 +12,7 @@
   color-scheme: var(--we-color-scheme);
   font-family: var(--we-font-ui);
   font-size:   16px;
-  line-height: var(--we-leading-normal);
+  line-height: var(--we-type-body-leading);
   color:       var(--we-color-text-primary);
   background:  var(--we-color-bg-canvas);
   font-synthesis: none;
@@ -89,7 +89,9 @@ body {
   padding: var(--we-space-sm) var(--we-space-lg);
   z-index: var(--we-z-toast);
   border-radius: 0 0 var(--we-radius-sm) 0;
-  font-size: var(--we-text-body);
+  font-size: var(--we-type-ui-size);
+  line-height: var(--we-type-ui-leading);
+  letter-spacing: var(--we-type-ui-tracking);
   text-decoration: none;
   transition: top var(--we-duration-fast) var(--we-easing-sharp);
 }

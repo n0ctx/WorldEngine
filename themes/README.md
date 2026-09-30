@@ -64,7 +64,8 @@ themes/{theme_id}/
 4. 壳层与装饰：`--we-topbar-*`、`--we-spine-*`、`--we-canvas-texture-image`
 5. 基础色板：`--we-base-*`
 6. 圆角与动效：`--we-radius-*`、`--we-duration-*`、`--we-easing-*`
-7. 排版节奏：`--we-text-*`（字号阶梯）、`--we-leading-*`（行高阶梯）、`--we-tracking-*`（字距阶梯）
+
+字号、行高、字距、字重由核心的字体角色（`--we-type-*`）统一定义，全站一致，主题不覆盖；主题改字体观感用 `--we-font-*`。
 
 如果现有 token 不够用：
 1. 先复用已有的语义 / 结构 token（`tokens.css` 的 B、C 层），能表达就不新增。
@@ -115,7 +116,6 @@ cp -R themes/_template themes/my-theme
 - 基础色板：页面背景、卡片、边框、强调色、状态色
 - 字体：衬线、无衬线、展示字体、印章字体、等宽字体
 - 视觉节奏：圆角、阴影、动效时长、缓动曲线
-- 排版节奏：字号阶梯（`--we-text-*`）、行高阶梯（`--we-leading-*`）、字距阶梯（`--we-tracking-*`）— 改一个 token 批量影响全站对应属性
 - 全局质感：顶部壳层、纸张纹理、书脊阴影、覆盖层
 - 页面大画布：`--we-page-canvas-*`、卡片名称字形、是否显示副标题
 

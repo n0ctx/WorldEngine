@@ -6,10 +6,17 @@ const FONTS = [
   { token: '--we-font-ui', label: '界面字体', sample: '世界规则 · 状态字段 · 开场白 Aa 123' },
   { token: '--we-font-mono', label: '等宽字体', sample: '{ "severity": "medium" }' },
 ];
-const SIZES = ['hero', 'xl', 'lg', 'md', 'base', 'prose', 'control', 'body', 'sm', '2xs', 'xs'];
-const LEADINGS = ['flush', 'tight', 'snug', 'relaxed', 'normal', 'loose', 'prose'];
-const TRACKINGS = ['tight', 'normal', 'wide', 'roomy', 'wider', 'caps', 'airy', 'display'];
-const PARAGRAPH = '雨从傍晚一直下到后半夜。你推开拳场的铁门，潮气和汗味一起涌出来，灯泡在头顶晃。';
+const ROLES = [
+  { id: 'display', use: '世界名、页面大标题', sample: '无限轮回' },
+  { id: 'title', use: '编辑页、设置、工坊标题', sample: '编辑世界' },
+  { id: 'heading', use: '世界卡名、确认框、设置分节', sample: '雨夜里的拳场' },
+  { id: 'subheading', use: '对话框标题、说话人、字段标题', sample: '条目编辑 · Speaker' },
+  { id: 'prose', use: '叙事正文、写作正文、聊天输入', sample: '雨从傍晚一直下到后半夜。你推开拳场的铁门，潮气和汗味一起涌出来。' },
+  { id: 'body', use: '多行说明、提示、输入框', sample: '对话结束后整理要点，下次开场时带上。超过预算时，先丢弃最早的内容。' },
+  { id: 'ui', use: '按钮、下拉、导航、列表条目', sample: '保存 · 恢复默认 · 世界规则 Settings' },
+  { id: 'caption', use: '徽标、tag、时间、元信息', sample: '3 分钟前 · 12 条消息 · v1.4.2' },
+  { id: 'eyebrow', use: '分节标签、表头', sample: '世界规则 STATUS' },
+];
 
 export function FontsDemo() {
   return (
@@ -26,43 +33,18 @@ export function FontsDemo() {
   );
 }
 
-export function TextScaleDemo() {
+export function TypeRolesDemo() {
   return (
-    <VisualSection id="text-scale">
-      {SIZES.map((size) => (
-        <p key={size} className="we-design-lab__type-step" style={{ '--lab-token': `var(--we-text-${size})` }}>
-          {size} · 墨在水中
-        </p>
+    <VisualSection id="type-roles">
+      {ROLES.map((role) => (
+        <div key={role.id} className="we-design-lab__type-role">
+          <p className="we-design-lab__swatch-name">
+            {role.id}
+            <span className="we-design-lab__type-role-use">{role.use}</span>
+          </p>
+          <p className={`we-design-lab__type-role-sample we-type-${role.id}`}>{role.sample}</p>
+        </div>
       ))}
-    </VisualSection>
-  );
-}
-
-export function LeadingTrackingDemo() {
-  return (
-    <VisualSection id="leading-tracking">
-      <div className="we-design-lab__grid">
-        <div>
-          <h3 className="we-design-lab__subheading">行高</h3>
-          <div className="we-design-lab__samples">
-            {LEADINGS.map((name) => (
-              <p key={name} className="we-design-lab__leading-sample" style={{ '--lab-token': `var(--we-leading-${name})` }}>
-                <span className="we-design-lab__swatch-name">{name}</span>
-                {PARAGRAPH}
-              </p>
-            ))}
-          </div>
-        </div>
-        <div>
-          <h3 className="we-design-lab__subheading">字距</h3>
-          {TRACKINGS.map((name) => (
-            <p key={name} className="we-design-lab__tracking-sample" style={{ '--lab-token': `var(--we-tracking-${name})` }}>
-              <span className="we-design-lab__swatch-name">{name}</span>
-              WorldEngine 世界引擎
-            </p>
-          ))}
-        </div>
-      </div>
     </VisualSection>
   );
 }

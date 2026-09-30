@@ -288,7 +288,7 @@ export default function WorldTimelinePanel({
       <MotionDiv layoutScroll className="we-session-list-scroll">
         {loadError ? (
           <div className="flex flex-col items-center gap-3 px-4 py-6 text-center">
-            <p className="[font-size:var(--we-text-body)] text-[var(--we-color-text-danger)]">{loadError}</p>
+            <p className="we-type-ui text-[var(--we-color-text-danger)]">{loadError}</p>
             <button
               type="button"
               className="we-panel-card-action we-panel-card-action--chip"

@@ -15,6 +15,9 @@
  *   font-size      px / rem 字面量
  *   line-height    数字或 px / rem 字面量（0 与 normal 不报）
  *   letter-spacing 非 0 的 em / px / rem 字面量
+ *   font-weight    数字与 bold / bolder / lighter 字面量
+ *   type-role      字号取 --we-type-<角色>-size 的规则块没写齐同一角色的行高与字距，或混用了别的角色；
+ *                  字号 / 行高 / 字距 / 字重里的 var() 不是角色、图标（--we-glyph-*）、--we-leading-flush、字重 token
  *   radius         border-radius（含各角）里非 0 的 px / rem 字面量（含 var() 的表达式不报）
  *   shadow         box-shadow / text-shadow / drop-shadow 里的颜色字面量
  *   z-index        整数字面量（var() 与 calc(var()) 不报）
@@ -22,7 +25,8 @@
  *                  cubic-bezier()、steps()、ease / linear 关键字；自定义属性（--x: ...）是 token 定义，不报
  *   fallback       var(--we-x, 字面量) 里的字面量回退
  *   tailwind       className 里的任意值 text-[12px] / rounded-[8px] / bg-[#fff] / tracking-[..] / leading-[..]，
- *                  以及内置刻度 text-sm、rounded-lg、tracking-wide、leading-tight、font-mono、bg-white 等
+ *                  以及内置刻度 text-sm、rounded-lg、tracking-wide、leading-tight、font-mono、font-bold、bg-white 等；
+ *                  字号、行高、字距、字重一律用 .we-type-* 角色类，[font-size:..] / text-[length:..] 等写法即使引用 var() 也报
  *   padding / margin / gap 不在本守卫范围。
  *
  * 有意保留：JS 在上一行写 `// guard-allow(literals): 理由`；CSS 把同样的 `guard-allow(literals): 理由` 写进块注释，
@@ -42,7 +46,7 @@ import {
   BASELINE_NOTE, allowFailures, baselineFailures, collectAllowMarkers, collectFiles, compareCounts, countKeys, finish,
   isTestPath, loadBaseline, parseArgs, parseFiles, scanHealth, stripCssComments, walk, writeBaseline,
 } from './guard-common.mjs';
-import { inspectClassName, inspectStyleProperty, scanCssFile } from './literals-detect.mjs';
+import { inspectClassName, inspectStyleProperty, scanCssFile, scanCssTypeRoles } from './literals-detect.mjs';
 
 const SCRIPT = 'check-literals.mjs';
 const DEFAULT_BASELINE = path.join('scripts', 'literals-baseline.json');
@@ -55,16 +59,18 @@ const EXCLUDED_DIRS = ['frontend/src/pages/DesignLabPage/'];
 
 const RULE_HINTS = {
   color: '颜色改用 `--we-color-*`（半透明用 color-mix 基于 token）',
-  layer: '不要越过语义层，改用 `--we-color-*` / `--we-text-*` 等语义 token',
-  'font-size': '字号改用 `--we-text-*`',
-  'line-height': '行高改用 `--we-leading-*`',
-  'letter-spacing': '字距改用 `--we-tracking-*`',
+  layer: '不要越过语义层，改用 `--we-color-*` 等语义 token',
+  'font-size': '字号改用字体角色 `--we-type-<角色>-size`（字符图标用 `--we-glyph-*`）',
+  'line-height': '行高改用字体角色 `--we-type-<角色>-leading`（单行居中用 `--we-leading-flush`）',
+  'letter-spacing': '字距改用字体角色 `--we-type-<角色>-tracking`',
+  'font-weight': '字重改用 `--we-weight-*` 或角色的 `--we-type-<角色>-weight`',
+  'type-role': '同一规则块写齐同一角色的 `--we-type-<角色>-size / -leading / -tracking`',
   radius: '圆角改用 `--we-radius-*`',
   shadow: '阴影里的颜色改用 `--we-color-*`（或整体用 `--we-shadow-*`）',
   'z-index': '层级改用 `--we-z-*`',
   motion: '时长与缓动改用 `--we-duration-*` / `--we-easing-*`；动效包自己的材质有意写字面量的，写 guard-allow(literals)',
   fallback: '去掉字面量回退，token 在 tokens.css 里声明即可',
-  tailwind: '改成引用 --we-* 的任意值，如 text-[length:var(--we-text-sm)]、rounded-[var(--we-radius-md)]、bg-[var(--we-color-bg-surface)]',
+  tailwind: '文字用 .we-type-<角色> 类；其余改成引用 --we-* 的任意值，如 rounded-[var(--we-radius-md)]、bg-[var(--we-color-bg-surface)]',
 };
 const RULES = Object.keys(RULE_HINTS);
 
@@ -83,6 +89,7 @@ function collectLiterals(root) {
   });
   const allow = collectAllowMarkers(parsed, 'literals', cssFiles);
   const cssProblems = cssFiles.flatMap((file) => scanCssFile(file, allow, found));
+  cssFiles.forEach((file) => scanCssTypeRoles(file, allow, found));
   for (const file of parsed) {
     for (const [node] of walk(file.tree)) {
       inspectClassName(node, file.rel, allow, found);

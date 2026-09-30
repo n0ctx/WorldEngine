@@ -1,6 +1,7 @@
-/* 动效出样的对照容器（Compare.jsx）：只在设计实验室里生效，不进正式组件与动效包。
+/* 出样的对照容器（Compare.jsx）：只在设计实验室里生效，不进正式组件、动效包与主题。
  * 出样自己的样式放在 sketch/ 下另建文件并在这里 @import，选择器挂在 .we-sketch-* 下，不影响「现在」一侧；
- * 出样可以覆写动效包的 CSS 变量、引用它们的 keyframes（如 signal.css 的 --sig-* / we-signal-*，或 liquid.css 的 --ink-*）。 */
+ * 动效出样可以覆写动效包的 CSS 变量、引用它们的 keyframes（如 signal.css 的 --sig-* / we-signal-*，或 liquid.css 的 --ink-*）；
+ * 视觉出样可以在 .we-sketch-* 上重新声明 token，只作用于出样一侧。 */
 
 .we-sketch-compare {
   display: grid;
@@ -24,14 +25,18 @@
   background: color-mix(in srgb, var(--we-color-accent) 4%, transparent);
 }
 .we-sketch-compare__tag {
-  font-size: var(--we-text-xs);
+  font-size: var(--we-type-caption-size);
+  line-height: var(--we-type-caption-leading);
+  letter-spacing: var(--we-type-caption-tracking);
   color: var(--we-page-canvas-fg-muted);
 }
 .we-sketch-compare__col--sketch .we-sketch-compare__tag {
   color: var(--we-color-accent);
 }
 .we-sketch-compare__same {
-  font-size: var(--we-text-sm);
+  font-size: var(--we-type-ui-size);
+  line-height: var(--we-type-ui-leading);
+  letter-spacing: var(--we-type-ui-tracking);
   color: var(--we-page-canvas-fg-muted);
 }
 .we-sketch-compare__body {

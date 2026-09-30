@@ -149,7 +149,7 @@ export function AttachmentThumbnail({ src }) {
   const url = `/api/uploads/${src}`;
   if (failed) {
     return (
-      <div className="we-attachment-thumbnail flex items-center justify-center [font-size:var(--we-text-xs)] opacity-60">
+      <div className="we-attachment-thumbnail flex items-center justify-center we-type-caption opacity-60">
         图片加载失败
       </div>
     );

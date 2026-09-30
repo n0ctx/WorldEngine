@@ -179,7 +179,7 @@ export default function RegexRuleEditor({ rule, worlds, settingsMode, onSave, on
           >
             <span className={`we-toggle-thumb${form.enabled ? ' we-toggle-thumb--enabled' : ''}`} />
           </button>
-          <span className="[font-size:var(--we-text-body)] text-[var(--we-color-text-secondary)]">{form.enabled ? '已启用' : '已禁用'}</span>
+          <span className="we-type-ui text-[var(--we-color-text-secondary)]">{form.enabled ? '已启用' : '已禁用'}</span>
         </div>
 
         {/* 测试区 */}

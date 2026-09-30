@@ -5,7 +5,7 @@ import { ChatControlsDemo } from './controls.jsx';
 import { LoadingDemo, PageCanvasDemo, WorldCardDemo } from './page.jsx';
 import { AtmosphereDemo, PanesDemo } from './shell.jsx';
 import { MaterialDemo, RadiusDemo, ShadowDemo } from './shape.jsx';
-import { FontsDemo, LeadingTrackingDemo, TextScaleDemo } from './type.jsx';
+import { FontsDemo, TypeRolesDemo } from './type.jsx';
 
 /** 视觉位 id → 演示组件；每个 id 必须在 visualSlots.js 里有对应的视觉位。 */
 export const VISUAL_DEMOS = {
@@ -14,8 +14,7 @@ export const VISUAL_DEMOS = {
   'accent-colors': AccentColorsDemo,
   'wash-colors': WashColorsDemo,
   fonts: FontsDemo,
-  'text-scale': TextScaleDemo,
-  'leading-tracking': LeadingTrackingDemo,
+  'type-roles': TypeRolesDemo,
   radius: RadiusDemo,
   shadow: ShadowDemo,
   material: MaterialDemo,

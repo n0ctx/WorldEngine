@@ -52,12 +52,9 @@ export const VISUAL_SLOTS = [
     tokens: ['--we-font-*'], usedIn: ['界面、叙事正文、标题、等宽'],
   },
   {
-    id: 'text-scale', category: 'type', title: '字号阶梯', status: 'ready',
-    tokens: ['--we-text-*'], usedIn: ['全站字号，改一个 token 批量生效'],
-  },
-  {
-    id: 'leading-tracking', category: 'type', title: '行高与字距', status: 'ready',
-    tokens: ['--we-leading-*', '--we-tracking-*'], usedIn: ['正文行高、标题与标签字距'],
+    id: 'type-roles', category: 'type', title: '字体角色', status: 'ready',
+    tokens: ['--we-type-*', '--we-leading-flush', '--we-glyph-*', '--we-weight-*'],
+    usedIn: ['全站文字：组件只选角色，由角色给齐字号、行高、字距、字重'],
   },
 
   // ── 形状与层次 ──

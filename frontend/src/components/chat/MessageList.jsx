@@ -62,7 +62,7 @@ const MessageList = forwardRef(function MessageList({
         <div className="text-center py-2">
           <button
             type="button"
-            className="[font-size:var(--we-text-xs)] opacity-50 hover:opacity-80 transition-opacity"
+            className="we-type-caption opacity-50 hover:opacity-80 transition-opacity"
             onClick={loadEarlierMessages}
           >
             加载更早消息
@@ -70,7 +70,7 @@ const MessageList = forwardRef(function MessageList({
         </div>
       ) : (
         messages.length > 0 && (
-          <div className="text-center [font-size:var(--we-text-xs)] opacity-25 py-2">— 对话开始 —</div>
+          <div className="text-center we-type-caption opacity-25 py-2">— 对话开始 —</div>
         )
       )}
 

@@ -13,7 +13,7 @@
  *   从 A 层派生、组件必须使用的一套。禁止跳过这一层直接引用基础色。
  *
  * C 层 · 结构 token（--we-space-* / --we-radius-* / --we-blur-* / --we-z-* / --we-duration-* /
- *   --we-easing-* / --we-text-* / --we-leading-* / --we-tracking-* / --we-focus-ring）
+ *   --we-easing-* / --we-type-* / --we-leading-flush / --we-glyph-* / --we-weight-* / --we-focus-ring）
  *   间距、层级、动效节奏（easing）、字号字距等骨架量，跟视觉风格无关，主题不该改这几类。
  *   例外：--we-radius-* / --we-duration-* / --we-focus-ring 是既有主题包
  *   （classic-parchment）实际在覆盖的圆角节奏 /
@@ -269,43 +269,64 @@
   --we-easing-quill:    cubic-bezier(.40, 0, .20, 1);    /* 落笔：盖印、点击确认   → EASE.quill */
   --we-easing-retract:  cubic-bezier(.55, 0, 1, .45);    /* 收回：离场、折叠       → EASE.retract */
 
-  /* §3.2 字号体系 — 12px 为可见文字下限（WCAG 可读性），勿在可见文本上低于此值 */
-  --we-text-xs:      12px;  /* 由 11px 提升至 12px：11px 低于可读下限 */
-  --we-text-2xs:     12px;  /* 紧凑标签、tag、hint（与 xs 同为 12px 下限）*/
-  --we-text-sm:      13px;
-  --we-text-body:    14px;  /* 设置面板/下拉/确认弹窗等控件密集区域的正文 */
-  --we-text-control: 15px;  /* 主输入控件、按钮、select trigger */
-  --we-text-base:    16.5px;
-  --we-text-md:      18px;
-  --we-text-lg:      22px;
-  --we-text-xl:      28px;
-  --we-text-display: 48px;  /* 头像占位等装饰性大字 */
-  --we-text-hero:    clamp(36px, 3.6vw, 56px);  /* 世界名、页面大标题：随视口放大，与正文拉开 */
+  /* === 字体角色 ===
+     组件不单挑字号、行高、字距：选一个角色，同一规则块里把该角色的
+     size / leading / tracking 写齐（字重可改用 --we-weight-*）。12px 是可见文字下限。
+     display 大标题 · title 页面标题 · heading 区块标题 · subheading 小标题与字段标题 ·
+     prose 叙事正文 · body 多行说明与输入框 · ui 按钮、导航、条目 · caption 元信息 · eyebrow 分节标签 */
+  --we-type-display-size:       clamp(36px, 3.6vw, 56px);
+  --we-type-display-leading:    1.1;
+  --we-type-display-tracking:   0.02em;
+  --we-type-display-weight:     600;
+  --we-type-title-size:         28px;
+  --we-type-title-leading:      1.3;
+  --we-type-title-tracking:     0.02em;
+  --we-type-title-weight:       600;
+  --we-type-heading-size:       22px;
+  --we-type-heading-leading:    1.3;
+  --we-type-heading-tracking:   0.02em;
+  --we-type-heading-weight:     500;
+  --we-type-subheading-size:    18px;
+  --we-type-subheading-leading: 1.4;
+  --we-type-subheading-tracking: 0.02em;
+  --we-type-subheading-weight:  500;
+  /* 叙事正文是停留最久的文字，中文长文需要更大的字号与行高 */
+  --we-type-prose-size:         16.5px;
+  --we-type-prose-leading:      2;
+  --we-type-prose-tracking:     0;
+  --we-type-prose-weight:       400;
+  /* 叙事正文阅读行宽：中文约 34–40 字/行；会话消息流与写作正文共用 */
+  --we-type-prose-measure:      40em;
+  --we-type-body-size:          14px;
+  --we-type-body-leading:       1.7;
+  --we-type-body-tracking:      0;
+  --we-type-body-weight:        400;
+  --we-type-ui-size:            14px;
+  --we-type-ui-leading:         1.4;
+  --we-type-ui-tracking:        0;
+  --we-type-ui-weight:          400;
+  --we-type-caption-size:       12px;
+  --we-type-caption-leading:    1.5;
+  --we-type-caption-tracking:   0.02em;
+  --we-type-caption-weight:     400;
+  --we-type-eyebrow-size:       12px;
+  --we-type-eyebrow-leading:    1.3;
+  --we-type-eyebrow-tracking:   0.16em;
+  --we-type-eyebrow-weight:     500;
 
-  --we-leading-flush:  1;
-  --we-leading-tight:  1.3;
-  --we-leading-snug:   1.5;
-  --we-leading-relaxed: 1.6;
-  --we-leading-normal: 1.75;
-  --we-leading-loose:  1.95;
+  /* 单行盒子里的图标、数字居中用，可以单独使用 */
+  --we-leading-flush: 1;
 
-  /* 叙事正文（AI 叙事 / 用户正文）是产品里停留最久的文字，中文长文阅读需要独立于界面基准
-     可调的字号与行高，不要复用 --we-text-base / --we-leading-normal。 */
-  --we-text-prose:    16.5px;  /* 叙事正文字号，与 --we-text-base 同值但独立可调 */
-  --we-leading-prose: 2;       /* 叙事正文行高，中文长文阅读用 */
-  /* 叙事正文阅读行宽：中文约 34–40 字/行；em 单位随 --we-text-prose 缩放。
-     会话页消息流（含头像列）与写作模式正文共用同一读宽。 */
-  --we-text-width-prose: 40em;
+  /* 字符当图标（×、拖拽柄、花饰、序号）的尺寸，不是文字角色 */
+  --we-glyph-sm: 12px;
+  --we-glyph-md: 14px;
+  --we-glyph-lg: 18px;
 
-  /* 字距 Scale（letter-spacing）— 走 token，避免散写 0.04/0.06/0.08/0.1/0.12em 等 */
-  --we-tracking-tight:   0.02em;  /* 标题微调 */
-  --we-tracking-normal:  0.05em;  /* 内文/按钮 */
-  --we-tracking-wide:    0.08em;  /* 装饰副标题 */
-  --we-tracking-roomy:   0.1em;   /* 小标签、时间戳 */
-  --we-tracking-wider:   0.12em;  /* 卡片标题 */
-  --we-tracking-caps:    0.18em;  /* 全大写小标签 */
-  --we-tracking-airy:    0.2em;   /* 更疏的标签、章节副标 */
-  --we-tracking-display: 0.34em;  /* 区块标题 / 章节号 */
+  /* 字重：只有这四档 */
+  --we-weight-light:   300;
+  --we-weight-regular: 400;
+  --we-weight-medium:  500;
+  --we-weight-strong:  600;
 
   /* 统一焦点环：可与 box-shadow 叠加（如 input 的 paper-indent + focus-ring） */
   --we-focus-ring: 0 0 0 2px var(--we-color-accent-bg);

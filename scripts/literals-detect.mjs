@@ -148,6 +148,7 @@ function analyzeValue(prop, rawValue) {
   else if (prop === 'line-height' && !hasVar && /^-?\d*\.?\d+(px|rem)?$/.test(plain) && nonZero(plain)) add('line-height', [plain]);
   else if (prop === 'letter-spacing' && !hasVar) add('letter-spacing', sizeLiterals(plain, 'em|px|rem').length ? [plain] : []);
   else if (RADIUS_RE.test(prop) && !hasVar) add('radius', sizeLiterals(plain, 'px|rem').length ? [plain] : []);
+  else if (prop === 'font-weight' && /^(\d+|bold|bolder|lighter)$/.test(plain)) add('font-weight', [plain]);
   else if (prop === 'z-index' && /^-?\d+$/.test(plain)) add('z-index', [plain]);
   else if (MOTION_PROP_RE.test(prop)) add('motion', motionLiterals(plain));
   return found;
@@ -155,9 +156,11 @@ function analyzeValue(prop, rawValue) {
 
 // ─── CSS ─────────────────────────────────────────────────────────────────────
 // 按 ; 与 } 切出声明，{ 结尾的是选择器 / at-rule 前导，跳过；括号与引号内的分隔符不算。
-// 返回 { declarations: [{ prop, value, line }], balanced }
+// block 是声明所在规则块的序号（遇到第几个 {），同一规则块里的声明序号相同。
+// 返回 { declarations: [{ prop, value, line, block }], balanced }
 function scanCssDeclarations(text) {
   const declarations = [];
+  let blocks = 0;
   let depth = 0;
   let parens = 0;
   let quote = null;
@@ -173,7 +176,7 @@ function scanCssDeclarations(text) {
       if (/^-{0,2}[a-z][\w-]*$/.test(prop)) {
         const lead = segment.length - segment.trimStart().length;
         const leadLines = segment.slice(0, lead).split('\n').length - 1;
-        declarations.push({ prop, value: trimmed.slice(colon + 1).trim(), line: startLine + leadLines });
+        declarations.push({ prop, value: trimmed.slice(colon + 1).trim(), line: startLine + leadLines, block: blocks });
       }
     }
   };
@@ -188,13 +191,48 @@ function scanCssDeclarations(text) {
     else if (ch === ')') parens -= 1;
     else if (parens === 0 && (ch === '{' || ch === ';' || ch === '}')) {
       if (ch !== '{') flush(i);
-      if (ch === '{') depth += 1;
+      if (ch === '{') {
+        depth += 1;
+        blocks += 1;
+      }
       if (ch === '}') depth -= 1;
       start = i + 1;
       startLine = line;
     }
   }
   return { declarations, balanced: depth === 0 && parens === 0 && !quote };
+}
+
+// 字体角色：字号取 --we-type-<角色>-size 时，同一规则块必须写齐同一角色的行高与字距（行高可用 --we-leading-flush）；
+// 字号、行高、字距、字重里的 var() 只能是角色 / 图标 / 字重 token。em、%、calc()、inherit 等相对写法不管。
+const TYPE_TOKEN_RE = {
+  'font-size': /^var\(--we-(?:type-([a-z]+)-size|glyph-[a-z]+)\)$/,
+  'line-height': /^var\(--we-(?:type-([a-z]+)-leading|leading-flush)\)$/,
+  'letter-spacing': /^var\(--we-type-([a-z]+)-tracking\)$/,
+  'font-weight': /^var\(--we-(?:type-[a-z]+-weight|weight-[a-z]+)\)$/,
+};
+
+export function scanCssTypeRoles({ rel, text }, allow, found) {
+  for (const { line, value } of typeRoleHits(scanCssDeclarations(text).declarations)) {
+    if (!allow.covers(rel, line)) found.push({ rel, rule: 'type-role', value });
+  }
+}
+
+function typeRoleHits(declarations) {
+  const hits = [];
+  const blocks = Map.groupBy(declarations.filter((d) => TYPE_TOKEN_RE[d.prop]), (d) => d.block);
+  for (const decls of blocks.values()) {
+    const size = decls.find((d) => d.prop === 'font-size' && TYPE_TOKEN_RE['font-size'].exec(d.value)?.[1]);
+    const role = size && TYPE_TOKEN_RE['font-size'].exec(size.value)[1];
+    for (const d of decls.filter((item) => item.value.startsWith('var('))) {
+      const match = TYPE_TOKEN_RE[d.prop].exec(collapse(d.value.replace(/!important/i, '')));
+      if (!match) hits.push({ line: d.line, value: d.value });
+      else if (role && match[1] && match[1] !== role) hits.push({ line: d.line, value: `${d.value} 与字号角色 ${role} 不一致` });
+    }
+    const missing = role ? ['line-height', 'letter-spacing'].filter((prop) => !decls.some((d) => d.prop === prop)) : [];
+    missing.forEach((prop) => hits.push({ line: size.line, value: `${role} 角色缺 ${prop}` }));
+  }
+  return hits;
 }
 
 export function scanCssFile({ rel, text, comments }, allow, found) {
@@ -212,7 +250,7 @@ export function scanCssFile({ rel, text, comments }, allow, found) {
 
 // ─── JS / JSX ────────────────────────────────────────────────────────────────
 const STYLE_KEY_RE = new RegExp('^(-webkit-)?(color|background|border|outline|fill|stroke|box-shadow|text-shadow|filter|backdrop-filter'
-  + '|caret-color|accent-color|font-size|line-height|letter-spacing|z-index|mask|text-decoration-color|transition|animation|--)');
+  + '|caret-color|accent-color|font-size|font-weight|line-height|letter-spacing|z-index|mask|text-decoration-color|transition|animation|--)');
 const PX_NUMBER_PROPS = /^(font-size|letter-spacing|border(-[a-z]+)*-radius)$/;
 
 const kebab = (key) => key.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`);

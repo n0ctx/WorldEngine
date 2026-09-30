@@ -10,16 +10,19 @@ const CLEAN_CSS = `/* color: #fff; font-size: 12px; z-index: 5 */
   color: var(--we-color-text-primary);
   background: transparent;
   border-color: currentColor;
-  font-size: var(--we-text-sm);
-  line-height: normal;
-  letter-spacing: 0;
+  font-size: var(--we-type-ui-size);
+  line-height: var(--we-type-ui-leading);
+  letter-spacing: var(--we-type-ui-tracking);
+  font-weight: var(--we-weight-medium);
   border-radius: 50%;
   z-index: calc(var(--we-z-modal) + 1);
   box-shadow: var(--we-shadow-md);
   mask-image: linear-gradient(#000, transparent);
   background-image: url("data:image/svg+xml;utf8,<svg fill='%23fff' stroke='#000'/>");
 }
-.clean-em { font-size: 1.2em; line-height: 0; border-radius: var(--we-radius-md); z-index: auto; letter-spacing: 0px; }
+.clean-em { font-size: 1.2em; line-height: 0; border-radius: var(--we-radius-md); z-index: auto; letter-spacing: 0px; font-weight: inherit; }
+.clean-glyph { font-size: var(--we-glyph-md); line-height: var(--we-leading-flush); }
+.clean-flush { font-size: var(--we-type-display-size); line-height: var(--we-leading-flush); letter-spacing: var(--we-type-display-tracking); font-weight: var(--we-type-display-weight); }
 .clean-motion {
   transition: color var(--we-duration-fast) var(--we-easing-sharp), opacity 0s;
   animation: we-fade var(--we-duration-normal) var(--we-cut) both;
@@ -32,8 +35,8 @@ const CLEAN_CSS = `/* color: #fff; font-size: 12px; z-index: 5 */
 const CLEAN_JSX = `export function Clean() {
   return (
     <div
-      className="text-[length:var(--we-text-sm)] rounded-[var(--we-radius-md)] bg-[var(--we-color-bg-surface)] p-4 hover:opacity-90"
-      style={{ color: 'var(--we-color-text-primary)', fontSize: 'var(--we-text-sm)', zIndex: 'var(--we-z-modal)', borderRadius: '50%' }}
+      className="we-type-ui rounded-[var(--we-radius-md)] bg-[var(--we-color-bg-surface)] p-4 hover:opacity-90"
+      style={{ color: 'var(--we-color-text-primary)', fontSize: 'var(--we-type-ui-size)', zIndex: 'var(--we-z-modal)', borderRadius: '50%' }}
     />
   );
 }
@@ -43,7 +46,7 @@ function fixture() {
   const root = makeRoot();
   write(root, 'frontend/src/themes/ui.css', CLEAN_CSS);
   write(root, 'frontend/src/components/Clean.jsx', CLEAN_JSX);
-  write(root, 'frontend/src/themes/tokens.css', ':root { --we-core-a: #fff; --we-text-sm: 12px; }\n');
+  write(root, 'frontend/src/themes/tokens.css', ':root { --we-core-a: #fff; --we-type-ui-size: 14px; }\n');
   write(root, 'frontend/src/themes/fonts.css', '@font-face { font-family: X; src: url(x.woff2); }\n');
   write(root, 'frontend/src/pages/DesignLabPage/Lab.jsx', "export const Lab = () => <i style={{ color: '#fff' }} className=\"text-sm\" />;\n");
   write(root, 'frontend/src/components/__tests__/x.test.jsx', "export const T = () => <i style={{ color: '#fff' }} />;\n");
@@ -71,13 +74,19 @@ const BAD_CSS = `.bad {
   transition: opacity 150ms ease-out, transform var(--we-duration-fast) cubic-bezier(0.16, 1, 0.3, 1);
   animation: we-spin 1.2s steps(4, jump-end) infinite linear;
   animation-delay: 300ms;
+  font-weight: 700;
 }
+.bad-role {
+  font-size: var(--we-type-ui-size);
+  line-height: var(--we-type-body-leading);
+}
+.bad-token { font-size: var(--we-text-sm); letter-spacing: var(--we-tracking-wide); font-weight: var(--we-font-ui); }
 `;
 
 const BAD_JSX = `export function Bad({ open }) {
   return (
     <div
-      className={\`text-sm rounded-lg tracking-wide leading-tight font-mono bg-white/50 \${open ? 'text-[13px] bg-[#fff]' : 'hover:rounded-[6px]'}\`}
+      className={\`text-sm rounded-lg tracking-wide leading-tight font-mono font-bold bg-white/50 [font-size:var(--we-type-ui-size)] text-[length:var(--we-type-ui-size)] \${open ? 'text-[13px] bg-[#fff]' : 'hover:rounded-[6px]'}\`}
       style={{ fontSize: 13, zIndex: 10, borderRadius: 8, lineHeight: 1.4, letterSpacing: '0.1em', boxShadow: '0 0 4px rgba(0,0,0,0.2)', transition: 'opacity 0.3s ease', color: '#ff0000', '--we-x': 'var(--we-core-ink-900)' }}
     />
   );
@@ -107,9 +116,9 @@ test('每条规则的字面量都被报出，并写明改成哪类 token', () =>
     ['color', 'white', '--we-color-\\*'],
     ['color', '#123456', '--we-color-\\*'],
     ['layer', '--we-base-paper-300', '语义层'],
-    ['font-size', '14px', '--we-text-\\*'],
-    ['line-height', '1\\.5', '--we-leading-\\*'],
-    ['letter-spacing', '0\\.05em', '--we-tracking-\\*'],
+    ['font-size', '14px', '--we-type-<角色>-size'],
+    ['line-height', '1\\.5', '--we-type-<角色>-leading'],
+    ['letter-spacing', '0\\.05em', '--we-type-<角色>-tracking'],
     ['radius', '8px', '--we-radius-\\*'],
     ['radius', '0\\.5rem', '--we-radius-\\*'],
     ['shadow', 'rgba\\(0,0,0,0\\.3\\)', '--we-shadow-\\*'],
@@ -125,6 +134,12 @@ test('每条规则的字面量都被报出，并写明改成哪类 token', () =>
     ['fallback', '#333', '去掉字面量回退'],
     ['fallback', '8px', '去掉字面量回退'],
     ['fallback', '100px', '去掉字面量回退'],
+    ['font-weight', '700', '--we-weight-\\*'],
+    ['type-role', 'var\\(--we-type-body-leading\\) 与字号角色 ui 不一致', '写齐同一角色'],
+    ['type-role', 'ui 角色缺 letter-spacing', '写齐同一角色'],
+    ['type-role', 'var\\(--we-text-sm\\)', '写齐同一角色'],
+    ['type-role', 'var\\(--we-tracking-wide\\)', '写齐同一角色'],
+    ['type-role', 'var\\(--we-font-ui\\)', '写齐同一角色'],
   ]) {
     assert.match(err, new RegExp(`${css} \\[${rule}\\] ${value}[^\\n]*${hint}`), `${rule} ${value}`);
   }
@@ -132,7 +147,8 @@ test('每条规则的字面量都被报出，并写明改成哪类 token', () =>
   for (const [rule, value] of [
     ['tailwind', 'text-sm'], ['tailwind', 'rounded-lg'], ['tailwind', 'tracking-wide'], ['tailwind', 'leading-tight'],
     ['tailwind', 'font-mono'], ['tailwind', 'bg-white/50'], ['tailwind', 'text-\\[13px\\]'], ['tailwind', 'bg-\\[#fff\\]'],
-    ['tailwind', 'rounded-\\[6px\\]'],
+    ['tailwind', 'rounded-\\[6px\\]'], ['tailwind', 'font-bold'],
+    ['tailwind', '\\[font-size:var\\(--we-type-ui-size\\)\\]'], ['tailwind', 'text-\\[length:var\\(--we-type-ui-size\\)\\]'],
     ['font-size', '13px'], ['z-index', '10'], ['radius', '8px'], ['line-height', '1\\.4'], ['letter-spacing', '0\\.1em'],
     ['shadow', 'rgba\\(0,0,0,0\\.2\\)'], ['motion', '0\\.3s'], ['color', '#ff0000'], ['layer', '--we-core-ink-900'],
   ]) {
@@ -170,7 +186,7 @@ test('字面量被改成 token 后基线未收紧算虚挂，更新基线后通�
   const root = fixture();
   write(root, 'frontend/src/themes/pages.css', BAD_CSS);
   assert.equal(run(root, '--update-baseline').status, 0);
-  write(root, 'frontend/src/themes/pages.css', BAD_CSS.replace('font-size: 14px', 'font-size: var(--we-text-sm)'));
+  write(root, 'frontend/src/themes/pages.css', BAD_CSS.replace('font-size: 14px', 'font-size: var(--we-glyph-md)'));
   const stale = run(root);
   assert.equal(stale.status, 1);
   assert.match(stale.stderr, /基线与现状对不上[\s\S]*pages\.css::font-size::14px: 记的是 1，实际 0/);

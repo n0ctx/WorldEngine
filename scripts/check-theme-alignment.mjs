@@ -44,9 +44,10 @@ const SKIP_PREFIXES = [
   '--we-worlds-card-',
   '--we-duration-',    // 动效（主题可选覆盖，不强制）
   '--we-easing-',      // 动效缓动
-  '--we-leading-',     // 排版阶梯（模板里已有注释占位）
-  '--we-text-',        // 字号阶梯
-  '--we-tracking-',    // 字距阶梯
+  '--we-type-',        // 字体角色：结构量，全站统一，主题不改
+  '--we-leading-',     // 单行居中行高
+  '--we-glyph-',       // 字符图标尺寸
+  '--we-weight-',      // 字重
   '--we-focus-ring',   // 通用焦点环，通常不需主题定制
   '--we-color-avatar-placeholder', // 业务色，很少主题化
   '--we-color-avatar-text',        // 头像占位圈文字色：按 tokens.css 注释显式恒定，不随主题变化

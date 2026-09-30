@@ -1,5 +1,6 @@
 /**
- * 硬编码字面量守卫里的 Tailwind 判定：className 里的工具类是否写死了字号、圆角、字距、行高、字体或颜色
+ * 硬编码字面量守卫里的 Tailwind 判定：className 里的工具类是否写死了字号、圆角、字距、行高、字重、字体或颜色，
+ * 或绕过字体角色类（.we-type-*）直接给字号、行高、字距、字重
  *
  * 由 literals-detect.mjs 调用；规则说明见 check-literals.mjs 头部注释。
  */
@@ -25,16 +26,23 @@ const TW_SCALES = [
   /^tracking-(tighter|tight|normal|wide|wider|widest)$/,
   /^leading-(none|tight|snug|normal|relaxed|loose|\d+)$/,
   /^font-(mono|sans|serif)$/,
+  /^font-(thin|extralight|light|normal|medium|semibold|bold|extrabold|black)$/,
   /^(bg|text|border)-(black|white)(\/\d+)?$/,
 ];
 
+// 字号、行高、字距、字重一律经 .we-type-* 角色类，任意值写法（含 var()）都算
+const TW_TYPE_PROPERTY_RE = /^\[(font-size|line-height|letter-spacing|font-weight):/;
+
 export function isTailwindLiteral(utility) {
   if (TW_SCALES.some((re) => re.test(utility))) return true;
+  if (TW_TYPE_PROPERTY_RE.test(utility)) return true;
   const m = TW_ARBITRARY_RE.exec(utility);
-  if (!m || m[2].includes('var(')) return false;
+  if (!m) return false;
   const [, kind, inner] = m;
-  const sized = /^(length:)?-?\d*\.?\d+(px|rem)$/.test(inner);
   if (kind === 'tracking' || kind === 'leading') return true;
+  if (kind === 'text' && inner.startsWith('length:')) return true;
+  if (inner.includes('var(')) return false;
+  const sized = /^(length:)?-?\d*\.?\d+(px|rem)$/.test(inner);
   if (kind.startsWith('rounded')) return sized && parseFloat(inner.replace(/^length:/, '')) !== 0;
   if (kind === 'text' && sized) return true;
   return COLOR_LITERAL_RE.test(inner);
