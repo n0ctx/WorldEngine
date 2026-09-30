@@ -473,7 +473,7 @@
   transition:
     --mx var(--ink-trail) var(--ink-surface),
     --my var(--ink-trail) var(--ink-surface),
-    translate var(--we-duration-normal) var(--we-easing-out),
+    translate var(--we-duration-normal) var(--we-easing-ink),
     scale var(--ink-press-out) var(--ink-spring),
     border-color var(--we-duration-normal) var(--we-easing-sharp),
     box-shadow var(--we-duration-slow) var(--ink-surface);
