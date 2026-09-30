@@ -3785,7 +3785,7 @@
   background: linear-gradient(155deg, color-mix(in srgb, var(--we-material-sheen) var(--we-alpha-5), transparent), transparent 38%),
     var(--we-pane-side-bg);
   backdrop-filter: blur(var(--we-glass-blur)) saturate(1.6);
-  border-radius: var(--we-radius-lg);
+  border-radius: var(--we-radius-sm);
   box-shadow: 0 0 0 1px var(--we-material-stroke),
     var(--we-elevation-2);
   transition: flex-basis var(--we-motion-page-duration) var(--we-motion-page-easing),
@@ -3897,7 +3897,7 @@
     z-index: 4;
     min-width: min(86vw, 340px);
     height: calc(100% - var(--we-space-sm) - var(--we-space-xs));
-    border-radius: var(--we-radius-lg);
+    border-radius: var(--we-radius-sm);
   }
   /* 右抽屉定位在正文列（.we-page-right）里，底边没有外层缝隙，上下对称留白 */
   .we-side-drawer--right.we-side-drawer--open {
@@ -3980,7 +3980,7 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  border-radius: 0 0 var(--we-radius-lg) var(--we-radius-lg);
+  border-radius: 0 0 var(--we-radius-sm) var(--we-radius-sm);
 }
 
 .we-side-drawer-content {

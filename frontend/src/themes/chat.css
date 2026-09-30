@@ -373,7 +373,7 @@
   container-type: inline-size;
   isolation: isolate;
   background: var(--we-pane-center-bg);
-  border-radius: var(--we-radius-lg);
+  border-radius: var(--we-radius-sm);
   box-shadow: var(--we-material-shadow);
   animation: var(--we-fx-panel);
 }
