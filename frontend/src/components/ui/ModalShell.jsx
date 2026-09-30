@@ -11,7 +11,7 @@ const MotionDiv = motion.div;
  * - 蒙版：半透背景 + 微 blur，聚焦主体内容
  * - 容器：抬升表面 + 大圆角 + 接地投影，入场走 overlay 弹簧
  * - 无内置 padding，由子组件自行控制布局
- * - 容器自己裁掉溢出，动效包的装饰层（we-panel-edge，如信号锁定的锁定括号）要画在容器外沿，
+ * - 容器自己裁掉溢出，动效包的装饰层（we-panel-edge）要画在容器外沿，
  *   所以放在外面一层入场壳里，与容器同大
  */
 export default function ModalShell({ children, onClose, maxWidth = 'max-w-xl' }) {

@@ -50,7 +50,7 @@ describe('DesignLabPage', () => {
   it('主题与动效只临时预览，不写配置；离开时恢复设置里的选择', async () => {
     const { unmount } = render(<MemoryRouter><DesignLabPage /></MemoryRouter>);
     fireEvent.click(await screen.findByRole('button', { name: 'Neon Noir' }));
-    fireEvent.click(screen.getByRole('button', { name: '信号锁定' }));
+    fireEvent.click(screen.getByRole('button', { name: '信号' }));
 
     expect(themesApi.refreshThemeCss).toHaveBeenCalledWith('neon-noir', { silent: true });
     expect(getMotionPack().id).toBe('signal');

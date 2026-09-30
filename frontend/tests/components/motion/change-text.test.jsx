@@ -93,7 +93,7 @@ describe('ChangeText 信号故障文字', () => {
     });
   });
 
-  it('信号锁定包不加畸变滤镜', () => {
+  it('信号包不加畸变滤镜', () => {
     setMotionPack('signal');
     try {
       const { container } = render(<ChangeText text="62" playKey={1} />);

@@ -63,14 +63,14 @@ export const SLOTS = [
     id: 'option-card', category: 'appear', title: '剧情选项卡', status: 'pack',
     api: ['css:enter'], usedIn: ['OptionCard'],
     note: '选项逐项错开入场；点选后，墨流是墨从点下的位置洇满选中项、其余项由近及远沉下变淡，'
-      + '信号锁定是选中项被括号锁定并撕裂一次、其余项一格格变暗。',
+      + '信号是选中项文字双曝光撕裂一次（更重、中段反向），其余项按序变暗、卡面加竖向斜纹。',
   },
   {
     id: 'legacy-css-enter', category: 'appear', title: '遮罩与大面板的 CSS 入场', status: 'pack',
     api: ['css:scrim', 'css:panel'],
     usedIn: ['设置与编辑页遮罩', '对话面板遮罩', '弹窗遮罩', '写卡助手遮罩', '编辑面板', '会话中栏'],
-    note: '遮罩只让底色入场（--we-fx-scrim），不带着上面的面板一起动：墨流从中央洇开，信号锁定硬切闪两下亮起。'
-      + '大面板走 --we-fx-panel：墨流托起回弹，信号锁定平滑淡入上浮；都不缩放、不模糊。'
+    note: '遮罩只让底色入场（--we-fx-scrim），不带着上面的面板一起动：墨流从中央洇开，信号硬切闪两下亮起。'
+      + '大面板走 --we-fx-panel：墨流托起回弹，信号平滑淡入上浮；都不缩放、不模糊。'
       + '这里用编辑页的遮罩与面板演示。',
   },
 
@@ -80,7 +80,7 @@ export const SLOTS = [
     api: ['variant:overlayEnter', 'variant:overlayBackdrop', 'transition:overlay', 'transition:backdrop', 'gesture:press'],
     usedIn: ['ConfirmModal', 'ModalShell'],
     note: '遮罩底色见「遮罩与大面板的 CSS 入场」。墨流的面板托起带回弹，不带光晕；'
-      + '信号锁定的面板平滑上浮，落位时四角括号三拍锁上、停一会儿后闪一下熄灭。',
+      + '信号的面板平滑淡入上浮，不再画装饰。',
   },
   {
     id: 'dialog', category: 'overlay', title: '对话面板', status: 'pack',
@@ -103,7 +103,7 @@ export const SLOTS = [
     id: 'tabs', category: 'move', title: '页签', status: 'pack',
     api: ['variant:tabEnter', 'transition:move', 'transition:moveTrail', 'transition:overlay'],
     usedIn: ['SectionTabs', 'GooeyNav'],
-    note: '信号锁定：指示线滑到新页签后，短括号三拍锁住页签（拼合导航不加）；内容区原地硬切闪两下后锁定。',
+    note: '信号：指示线滑到新页签后，内容区原地硬切闪两下；不再画括号（拼合导航不加）。',
   },
   {
     id: 'step-track', category: 'move', title: '步骤条', status: 'pack',
@@ -112,14 +112,14 @@ export const SLOTS = [
   {
     id: 'bounce-rail', category: 'move', title: '导航条', status: 'pack',
     api: ['transition:move', 'transition:moveTrail', 'flow'], usedIn: ['BounceRail', '设置页导航', 'WorldTimelinePanel'],
-    note: '信号锁定：圆点沿弧线落位后，小方形准星三拍收紧套住它，停一下后熄灭。',
+    note: '信号：圆点沿弧线跳到位即止，不再画准星。',
   },
   {
     id: 'world-portal', category: 'move', title: '进入世界', status: 'pack',
     api: [], usedIn: ['WorldsPage → CharactersPage', 'AppShell（跨路由遮罩 .we-portal-veil）'],
     note: '没有独立的动效接口：时序（navigate / total）在动效包的 portal 字段，编排在动效包 CSS 里按 data-portal 接管。'
       + '墨流「洇门」：旧页沉入水中，枢纽页从柔焦里浮上来，栏标题从湿墨色干成正文色；'
-      + '信号锁定「锁定跃迁」：旧页横向撕裂一次、暗半拍后硬切熄灭，新页闪两下亮起，视口四角大括号三拍收紧锁定后熄灭（括号画在 .we-portal-veil 上）。'
+      + '信号「锁定跃迁」：旧页横向撕裂一次、暗半拍后硬切熄灭，新旧页之间的一拍黑里落两列硬切下坠的代码雨，新页闪两下亮起（雨画在 .we-portal-veil 上）。'
       + '转场期间旧页禁止二次点击，卡片的触点涟漪与指针光晕由整页退出接管，不重复播放。',
   },
   {
@@ -141,23 +141,23 @@ export const SLOTS = [
     id: 'press', category: 'press', title: '按钮按压', status: 'pack',
     api: ['gesture:press', 'transition:press'], usedIn: ['Button', 'TopBar', 'InputBox 工具栏'],
     note: '带字的按钮不缩放。墨流：悬停浮起，按下按进 2px、外沿一圈湿边，墨从触点在按钮里洇开，松手带过冲弹回；'
-      + '信号锁定：按下硬切下沉 1px、底色提亮一格，短括号卡到四角，松手一起消失。触点涟漪由 useTouchFx 放，只有 Button 带。',
+      + '信号：按下硬切下沉 1px、底色提亮一格，压住到锁定那一拍磷光帧硬切外扩两步即灭（轻点撞不到）。触点涟漪由 useTouchFx 放，只有 Button 带。',
   },
   {
     id: 'portal', category: 'press', title: '入口卡片', status: 'pack',
     api: ['gesture:portal'], usedIn: ['WorldsGrid'],
-    note: '浮起与按下走手势，不缩放；光晕、墨晕、括号与「卡片悬停与按下」同一套。演示借世界卡的类名。',
+    note: '浮起与按下走手势，不缩放；入口卡不画整框——悬停时名字双曝光一次，按下进入时整面冲洗一帧强调色即灭，再进锁定跃迁。演示借世界卡的类名。',
   },
   {
     id: 'sink', category: 'press', title: '发送键', status: 'pack',
     api: ['gesture:sink'], usedIn: ['InputBoxComposer'],
-    note: '信号锁定按下时，短括号从键面分三拍向外弹开熄灭，像一次发射；墨流只有压扁回弹。演示借发送键的类名。',
+    note: '信号按下时落底那一下补一帧磷光（轻点也能撞到）；墨流只有压扁回弹。演示借发送键的类名。',
   },
   {
     id: 'delete-button', category: 'press', title: '删除确认按钮', status: 'pack',
     api: ['transition:press'], usedIn: ['DeleteButton'],
     note: '翻盖和滑出确认条的时长、曲线写死在组件里，不随动效包变化；圆钮的按压走动效包，删除与取消的反馈由动效包样式按 data-status 接管：'
-      + '信号锁定是展开后两个圆钮被括号锁定，确认删除时整颗按钮压成亮线熄灭再闪回对勾；'
+      + '信号是确认删除时整颗按钮压成亮线熄灭、黑一拍后闪回露出对勾；'
       + '墨流是确认删除时按钮被拽着沉没、再浮回露出湿墨对勾，取消时从垃圾桶那一格洇开一圈淡墨。',
   },
   {
@@ -165,7 +165,7 @@ export const SLOTS = [
     api: [], usedIn: ['Card', '角色卡'],
     note: '没有单独的动效接口：动效包样式按类名接管，触点位置与涟漪由 useTouchFx 放。'
       + '墨流：湿墨光晕追着指针走。普通卡片不缩放，悬停浮起，按下按进纸里再回位；角色卡悬停不浮起，按下缓缓微缩，松手用同一段缓动回到原尺寸；'
-      + '信号锁定：悬停时括号三拍锁定，按下括号贴紧、卡面闪一下强调色。PanelCard 只用作不可点的面板外壳，不加悬停。',
+      + '信号：悬停后磷光帧两步硬切外扩即灭，按下贴紧复位。PanelCard 只用作不可点的面板外壳，不加悬停。',
   },
 
   // ── 输入控件 ──
@@ -178,14 +178,14 @@ export const SLOTS = [
     api: [], usedIn: ['Input', 'Textarea', '各处 .we-input / .we-textarea'],
     note: '没有单独的动效接口：动效包样式按类名接管，画在输入框自身上（不加外层包装）；状态表格里的行内编辑不画。'
       + '墨流：湿墨描边从按下的位置漫开、框内晕开淡墨，再干成常态聚焦色，键盘聚焦从左侧开始；'
-      + '信号锁定：描边硬切亮起、框内压上一拍强调色，外圈锁定框三拍收紧并在聚焦期间一直套着。',
+      + '信号：描边硬切亮起、框内压上一拍强调色，外圈锁定框三拍收紧并在聚焦期间一直套着。',
   },
   {
     id: 'switch-range', category: 'input', title: '开关与滑块', status: 'pack',
     api: [], usedIn: ['ToggleSwitch', 'Range'],
     note: '没有单独的动效接口：动效包样式按类名接管；开关拨过之后才播圆钮动画。'
       + '墨流：圆钮拉长甩过去、轨道被墨染满，按住滑块时圆钮胀大带光晕；'
-      + '信号锁定：轨道分四格点亮、圆钮落定时被准星锁住，按住滑块时准星跟着圆钮走。',
+      + '信号：轨道分四格点亮、圆钮硬切到位；按住滑块时圆钮胀大。不再画准星。',
   },
 
   // ── 列表与排序 ──
@@ -211,7 +211,7 @@ export const SLOTS = [
     id: 'busy', category: 'stream', title: '状态整理遮罩与思考指示', status: 'pack',
     api: ['fx', 'transition:backdrop'], usedIn: ['StateBusyOverlay', 'MotionOrb'],
     note: '思考指示 MotionOrb 只按动效包 id 选小球，不读 fx() 与过渡；遮罩与「整理中」字样由 StateBusyOverlay 驱动。'
-      + '遮罩底色与标签外的括号（信号锁定反复收紧锁定）写在动效包 CSS 里。',
+      + '遮罩底色写在动效包 CSS 里；信号只留底色，不画括号。',
   },
   {
     id: 'loops', category: 'stream', title: '循环动画', status: 'pack',

@@ -1,6 +1,6 @@
 /* 动效出样的对照容器（Compare.jsx）：只在设计实验室里生效，不进正式组件与动效包。
  * 出样自己的样式放在 sketch/ 下另建文件并在这里 @import，选择器挂在 .we-sketch-* 下，不影响「现在」一侧；
- * 信号锁定的括号、锁定与熄灭直接用 themes/motion/signal.css 的 --sig-brackets 与 we-signal-* 关键帧，墨流用 liquid.css 的 --ink-*。 */
+ * 出样可以覆写动效包的 CSS 变量、引用它们的 keyframes（如 signal.css 的 --sig-* / we-signal-*，或 liquid.css 的 --ink-*）。 */
 
 .we-sketch-compare {
   display: grid;

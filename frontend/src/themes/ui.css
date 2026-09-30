@@ -361,7 +361,7 @@
   animation: var(--we-fx-scrim);
 }
 
-/* 大面板与导航圆点上的动效装饰层（如信号锁定的锁定括号）：默认不显示，由动效包的样式决定 */
+/* 大面板与导航圆点上的动效装饰挂点：默认不显示，由动效包的样式决定是否画及怎么画 */
 .we-panel-edge,
 .we-bounce-rail__lock {
   display: none;

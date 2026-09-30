@@ -70,7 +70,7 @@ export default function SettingsPage() {
   };
 
   // 加载态与内容态共用同一个面板节点（同样的外层结构），入场只播一次，内容在已落定的面板里替换
-  // 大面板淡入上浮，不走信号锁定：整页横向抖动会把表单内容拽偏，看起来像错位
+  // 大面板淡入上浮，不走信号：整页横向抖动会把表单内容拽偏，看起来像错位
   const panelMotion = {
     variants: m.variant('overlayEnter'),
     initial: 'hidden',

@@ -28,19 +28,19 @@ describe('MotionPackPicker', () => {
     render(<MotionPackPicker />);
     expect(within(card('墨流')).getByText('使用中')).toBeInTheDocument();
 
-    fireEvent.click(within(card('信号锁定')).getByRole('button', { name: '切换' }));
+    fireEvent.click(within(card('信号')).getByRole('button', { name: '切换' }));
 
     expect(getMotionPack().id).toBe('signal');
     expect(document.documentElement.dataset.motion).toBe('signal');
     expect(api.updateConfig).toHaveBeenCalledWith({ ui: { motion: 'signal' } });
-    await waitFor(() => expect(within(card('信号锁定')).getByText('使用中')).toBeInTheDocument());
+    await waitFor(() => expect(within(card('信号')).getByText('使用中')).toBeInTheDocument());
   });
 
   it('保存失败时换回原来的动效包', async () => {
     api.updateConfig.mockRejectedValue(new Error('网络断开'));
     render(<MotionPackPicker />);
 
-    fireEvent.click(within(card('信号锁定')).getByRole('button', { name: '切换' }));
+    fireEvent.click(within(card('信号')).getByRole('button', { name: '切换' }));
 
     await waitFor(() => expect(getMotionPack().id).toBe('liquid'));
     expect(within(card('墨流')).getByText('使用中')).toBeInTheDocument();

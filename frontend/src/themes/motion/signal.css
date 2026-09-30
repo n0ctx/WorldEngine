@@ -1,4 +1,4 @@
-/* 动效包「信号锁定」的样式（JS 侧见 core/motion/packs/signal.js）。
+/* 动效包「信号」的样式（JS 侧见 core/motion/packs/signal.js）。
  * 只在 <html data-motion="signal"> 时生效；:where() 包住作用域，选择器权重与写在内核里一样。
  * 内核样式经下面的 --we-fx-* 引用本包的入场、骨架、转圈等循环动画；
  * 错位撕裂、切片成字、变化标签、完成确认、章节开场、遮罩、光标整块由本包负责外观。 */
@@ -10,39 +10,16 @@
   --we-fx-nudge: we-signal-hop var(--we-duration-loop) var(--we-cut) infinite;
   --we-fx-spin: we-tool-spin var(--we-duration-loop) steps(8, jump-end) infinite;
   --we-fx-typing: we-signal-level-1 var(--we-duration-loop) var(--we-cut) infinite;
-  /* 遮罩底色硬切闪两下亮起；大面板平滑淡入上浮，不抖（锁定括号见下方「大面板、页签与导航条」） */
+  /* 遮罩底色硬切闪两下亮起；大面板平滑淡入上浮，不抖 */
   --we-fx-scrim: we-signal-blink var(--we-duration-normal) var(--we-cut) backwards;
   --we-fx-panel: we-panel-rise var(--we-duration-slow) var(--we-easing-ink) backwards;
-  /* 锁定括号：四角各两笔，铺满所在元素；--sig-brackets-sm 给页签、按钮、圆点这类小目标 */
-  --sig-brackets:
-    linear-gradient(var(--we-color-accent) 0 0) left top / 10px 1px no-repeat,
-    linear-gradient(var(--we-color-accent) 0 0) left top / 1px 10px no-repeat,
-    linear-gradient(var(--we-color-accent) 0 0) right top / 10px 1px no-repeat,
-    linear-gradient(var(--we-color-accent) 0 0) right top / 1px 10px no-repeat,
-    linear-gradient(var(--we-color-accent) 0 0) left bottom / 10px 1px no-repeat,
-    linear-gradient(var(--we-color-accent) 0 0) left bottom / 1px 10px no-repeat,
-    linear-gradient(var(--we-color-accent) 0 0) right bottom / 10px 1px no-repeat,
-    linear-gradient(var(--we-color-accent) 0 0) right bottom / 1px 10px no-repeat;
-  --sig-brackets-sm:
-    linear-gradient(var(--we-color-accent) 0 0) left top / 5px 1px no-repeat,
-    linear-gradient(var(--we-color-accent) 0 0) left top / 1px 5px no-repeat,
-    linear-gradient(var(--we-color-accent) 0 0) right top / 5px 1px no-repeat,
-    linear-gradient(var(--we-color-accent) 0 0) right top / 1px 5px no-repeat,
-    linear-gradient(var(--we-color-accent) 0 0) left bottom / 5px 1px no-repeat,
-    linear-gradient(var(--we-color-accent) 0 0) left bottom / 1px 5px no-repeat,
-    linear-gradient(var(--we-color-accent) 0 0) right bottom / 5px 1px no-repeat,
-    linear-gradient(var(--we-color-accent) 0 0) right bottom / 1px 5px no-repeat;
+  /* 磷光：强调色混进正文主色（text-primary 随主题翻转 → 暗题暖白、亮题深墨），只活在「锁住」的那一两帧里 */
+  --signal-phos: color-mix(in srgb, var(--we-color-accent) 24%, var(--we-color-text-primary));
 }
 
 /* ── 锁定：本包的签名动作 ───────────────────────────────────────── */
-/* 括号画在一个绝对定位的伪元素上（background: var(--sig-brackets)），--lock-gap 是落定后与目标的间距。
-   锁上：从外向内三拍收紧，中间暗一拍；熄灭：暗一拍、亮一拍、灭；都配 var(--we-cut) 用 */
-@keyframes we-signal-lock {
-  0%   { opacity: 0;    inset: calc(var(--lock-gap, 5px) * -3.2); }
-  34%  { opacity: 1;    inset: calc(var(--lock-gap, 5px) * -2.2); }
-  67%  { opacity: 0.35; inset: calc(var(--lock-gap, 5px) * -1.4); }
-  100% { opacity: 1;    inset: calc(var(--lock-gap, 5px) * -1); }
-}
+/* 这个包不画四角括号：锁定瞬间用磷光帧（we-signal-snap-*，只亮一两帧）、文字双曝光撕裂、代码雨；
+   熄灭：暗一拍、亮一拍、灭；都配 var(--we-cut) 用 */
 @keyframes we-signal-release {
   0%   { opacity: 0.35; }
   50%  { opacity: 1; }
@@ -56,7 +33,7 @@
   100% { opacity: 1; }
 }
 
-/* ── 信号锁定入场 ───────────────────────────────────────── */
+/* ── 信号入场 ───────────────────────────────────────── */
 /* 闪两下、抖一下，然后锁定（对应 packs/signal.js variants.enter） */
 @keyframes we-signal-in {
   0%   { opacity: 0;   transform: translateX(-6px); }
@@ -110,7 +87,8 @@
   --slice-order-a: 0;
   --slice-order-b: 1;
   --slice-order-c: 2;
-  --slice-bright: color-mix(in srgb, var(--we-color-accent) 35%, var(--we-color-white));
+  /* 高亮带往正文色里压，不再混白：暗题近白、亮题近墨，双主题都读得出 */
+  --slice-bright: color-mix(in srgb, var(--we-color-accent) 12%, var(--we-color-text-primary));
   position: relative;
 }
 /* 整段文字（ChangeText decode）：按块排版，三层与真字同宽同换行；时长取 --we-fx-decode */
@@ -304,65 +282,15 @@
   content: '▞';
 }
 
-/* ── 大面板、页签与导航条：到位后被括号锁定 ───────────────────────────────────────── */
-/* 大面板（确认弹窗、对话面板、模态壳里的 .we-panel-edge）：面板上浮落位的同时，四角括号从外向内三拍锁上，
-   停留片刻后闪一下熄灭 */
-:where(:root[data-motion="signal"]) .we-panel-edge {
-  --lock-gap: 6px;
-  position: absolute;
-  display: block;
-  opacity: 0;
-  pointer-events: none;
-  background: var(--sig-brackets);
-  animation:
-    we-signal-lock var(--we-duration-normal) var(--we-cut) var(--we-duration-fast) both,
-    we-signal-release var(--we-duration-fast) var(--we-cut) var(--we-duration-loop) forwards;
-}
-
-/* 页签：切换后指示线滑到位，短括号在当前页签里三拍收紧、锁住文字，随后熄灭；刚挂载（如展开侧栏）不播。
-   页签列表横向可滚、纵向会裁掉溢出，括号只能画在页签自己的盒子里，所以从盒边向内收紧；拼合导航自有指示物，不加 */
-:where(:root[data-motion="signal"]) .we-section-tabs--switched:not(.we-section-tabs--gooey) .we-section-tab.active::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  opacity: 0;
-  pointer-events: none;
-  background: var(--sig-brackets-sm);
-  animation:
-    we-signal-lock-inner var(--we-duration-normal) var(--we-cut) var(--we-duration-fast) both,
-    we-signal-release var(--we-duration-fast) var(--we-cut) var(--we-duration-loop) forwards;
-}
-@keyframes we-signal-lock-inner {
-  0%   { opacity: 0;    inset: 0; }
-  34%  { opacity: 1;    inset: 1px 4px; }
-  67%  { opacity: 0.35; inset: 3px 7px; }
-  100% { opacity: 1;    inset: 4px 10px; }
-}
-
-/* 导航条准星：圆点沿弧线落到新项后，BounceRail 在落点放一个 0 尺寸的锚点，
-   准星从外向内三拍收紧套住圆点，停一下后熄灭 */
-:where(:root[data-motion="signal"]) .we-bounce-rail__lock {
-  --lock-gap: 7px;
-  position: absolute;
-  top: 0;
-  left: 0;
-  display: block;
-  pointer-events: none;
-}
-:where(:root[data-motion="signal"]) .we-bounce-rail__lock::before {
-  content: '';
-  position: absolute;
-  opacity: 0;
-  background: var(--sig-brackets-sm);
-  animation:
-    we-signal-lock var(--we-duration-normal) var(--we-cut) both,
-    we-signal-release var(--we-duration-fast) var(--we-cut) calc(var(--we-duration-normal) + var(--we-duration-slow)) forwards;
-}
+/* ── 大面板、页签与导航条 ───────────────────────────────────────── */
+/* 大面板（确认弹窗、对话面板、模态壳里的 .we-panel-edge）：只走 --we-fx-panel 上浮落位，不画装饰。
+   页签：切换后指示线滑到位、内容区硬切闪烁；刚挂载（如展开侧栏）不播。拼合导航自有指示物，不加。
+   导航条：圆点沿弧线跳到位即止（BounceRail 的落点锚点 .we-bounce-rail__lock 保留，不画准星）。 */
 
 /* ── 进入世界「锁定跃迁」：世界选择页 → 世界枢纽的页面转场 ───
    JS 侧时序（navigate / total）见 packs/signal.js 的 portal；遮罩与结构规则见 pages.css。
-   旧页在事件瞬间横向撕裂一次、暗半拍后硬切熄灭；枢纽页硬切闪两下亮起，
-   视口四角的大括号从外三拍收紧、把新世界锁住，停一瞬后闪一下熄灭。全程 steps(1) 硬切。 */
+   旧页在事件瞬间横向撕裂一次、暗半拍后硬切熄灭；新旧页之间的一拍黑里落两列代码雨（见下方），
+   枢纽页硬切闪两下亮起。全程 steps(1) 硬切。 */
 
 /* 撕裂只爆一次：上半切走向左、下半切走向右，整页暗半拍闪回后熄灭 */
 @keyframes we-signal-portal-tear {
@@ -376,15 +304,41 @@
   animation: we-signal-portal-tear var(--we-duration-normal) var(--we-cut) both;
 }
 
-/* 视口锁定括号：四角各两笔，从视口外三拍收紧；旧页熄灭、黑一拍之后才出场 */
-:where(:root[data-motion="signal"]) .we-portal-veil {
-  --lock-gap: 8px;
-  background: var(--sig-brackets);
+/* 代码雨：旧页熄灭与新页亮起之间的一拍黑，落两列硬切下坠的字符——只此一拍，不是环境背景。
+   窗口与 packs/signal.js 的 portal（navigate 0.36s / total 1.06s）同步：旧页熄灭后起落，新页亮起的一拍收掉；
+   两列错拍启动、快慢不一，像一张没解码完的码表 */
+:where(:root[data-motion="signal"]) .we-portal-veil::before,
+:where(:root[data-motion="signal"]) .we-portal-veil::after {
+  content: '雨 0\n拳 1\n場 0\n夜 1\n界 0';
+  position: absolute;
+  top: -42%;
+  /* guard-allow(literals): 代码雨的排版是码表质感的一部分，没有对应 token */
+  font-size: 13px;
+  line-height: 2.1;
+  letter-spacing: 0.6em;
+  white-space: pre;
+  color: color-mix(in srgb, var(--we-color-accent) 52%, transparent);
   opacity: 0;
-  /* guard-allow(literals): 锁定与熄火的出场时刻与 packs/signal.js 的 portal 同步，锁定跃迁材质的一部分 */
-  animation:
-    we-signal-lock var(--we-duration-normal) var(--we-cut) 380ms both,
-    we-signal-release var(--we-duration-fast) var(--we-cut) 880ms forwards;
+  pointer-events: none;
+}
+:where(:root[data-motion="signal"]) .we-portal-veil::before { left: 16%; }
+:where(:root[data-motion="signal"]) .we-portal-veil::after { right: 14%; }
+@keyframes we-signal-rain {
+  0%,   16% { translate: 0 -52%; opacity: 1; }
+  24%,  42% { translate: 0 -36%; opacity: 1; }
+  50%,  68% { translate: 0 -16%; opacity: 1; }
+  76%,  90% { translate: 0 4%;   opacity: 1; }
+  96%, 100% { translate: 0 14%; opacity: 0.5; }
+}
+/* guard-allow(literals): 雨窗的时刻与 packs/signal.js 的 portal 同步，锁定跃迁材质的一部分 */
+:where(:root[data-motion="signal"]) .we-portal-veil::before { animation: we-signal-rain 680ms var(--we-cut) 200ms; }
+/* guard-allow(literals): 同上一行——第二列错拍启动、快慢不一 */
+:where(:root[data-motion="signal"]) .we-portal-veil::after { animation: we-signal-rain 620ms var(--we-cut) 320ms; }
+
+/* 减少动态效果：雨不出现，只留新旧页之间的暗一拍 */
+@media (prefers-reduced-motion: reduce) {
+  :where(:root[data-motion="signal"]) .we-portal-veil::before,
+  :where(:root[data-motion="signal"]) .we-portal-veil::after { animation: none; }
 }
 
 /* 枢纽页：硬切闪两下亮起，三栏逐格锁定入场（--col 见 pages.css） */
@@ -397,36 +351,23 @@
 }
 
 /* ── 剧情选项：选中的一项被锁定，其余一格格暗下去 ───────────────────────────────────────── */
-/* 选中：括号从外向内锁上并一直挂着，文字错位撕裂一次（两路错位色见上方 --glitch-a / --glitch-b） */
+/* 选中：无括号，只有文字本身的双曝光撕裂——分离更重、中段反向一次，尾部鬼影多留半拍（两路错位色见上方 --glitch-a / --glitch-b） */
 :where(:root[data-motion="signal"]) .we-option-list > .we-option-btn--selected {
-  animation: we-signal-option-tear var(--we-duration-normal) var(--we-cut);
-}
-:where(:root[data-motion="signal"]) .we-option-list > .we-option-btn--selected::before {
-  --lock-gap: 4px;
-  content: '';
-  position: absolute;
-  opacity: 0;
-  pointer-events: none;
-  background: var(--sig-brackets);
-  animation: we-signal-lock var(--we-duration-normal) var(--we-cut) both;
+  animation: we-signal-option-tear var(--we-duration-normal) var(--we-cut) both;
 }
 @keyframes we-signal-option-tear {
-  0%   { text-shadow: -3px 0 var(--glitch-b), 3px 0 var(--glitch-a); }
-  34%  { text-shadow: -1px 0 var(--glitch-b), 1px 0 var(--glitch-a); }
-  67%  { text-shadow: none; }
+  0%   { text-shadow: -6px 0 var(--glitch-b), 6px 0 var(--glitch-a); }
+  28%  { text-shadow: 5px 0 color-mix(in srgb, var(--glitch-b) 80%, transparent), -5px 0 color-mix(in srgb, var(--glitch-a) 80%, transparent); }
+  46%  { text-shadow: -3px 0 var(--glitch-b), 3px 0 var(--glitch-a); }
+  62%  { text-shadow: none; }
+  78%  { text-shadow: -2px 0 color-mix(in srgb, var(--glitch-b) 45%, transparent), 2px 0 color-mix(in srgb, var(--glitch-a) 45%, transparent); }
+  100% { text-shadow: none; }
 }
-/* 其余项：由近及远依次硬切变暗，像一道暗下去的波 */
+/* 其余项：不抹到灰，正文对比保住；卡面加竖向信号斜纹，逐项暗下的波仍走 --d 延迟 */
 :where(:root[data-motion="signal"]) .we-option-list > .we-option-btn--dismissed {
-  opacity: 0.32;
+  opacity: 0.55;
+  background-image: repeating-linear-gradient(90deg, color-mix(in srgb, var(--we-color-accent) 9%, transparent) 0 1px, transparent 1px 4px);
   transition: opacity 0s calc(var(--d) * var(--we-duration-fast) / 2);
-}
-
-/* 减少动态效果：一闪而过的锁定括号不出现；选中项的括号是落定后的状态，照常显示 */
-@media (prefers-reduced-motion: reduce) {
-  :where(:root[data-motion="signal"]) :is(.we-panel-edge, .we-bounce-rail__lock),
-  :where(:root[data-motion="signal"]) .we-section-tab.active::before {
-    display: none;
-  }
 }
 
 /* ── 完成确认 ───────────────────────────────────────── */
@@ -447,60 +388,16 @@
 }
 
 /* ── 状态整理遮罩 ───────────────────────────────────────── */
-/* 一层平的遮罩；状态标签外一副括号反复「搜索 → 锁定」：三拍收紧，锁住停一会儿，闪一下松开，再来一轮。
-   括号挂在标签外的那一层（遮罩的直接子元素）上：变化标签本身有切角裁剪，画在它身上会被裁掉 */
+/* 一层平的遮罩：「整理中 / 已整理」标签只做底色对比，不画括号、不循环锁定 */
 :where(:root[data-motion="signal"]) :is(.we-state-change-overlay, .we-cast-state-overlay) {
   background: var(--we-color-paper-overlay);
 }
-:where(:root[data-motion="signal"]) :is(.we-state-change-overlay, .we-cast-state-overlay) > * {
-  position: relative;
-}
-:where(:root[data-motion="signal"]) :is(.we-state-change-overlay, .we-cast-state-overlay) > *::before {
-  --lock-gap: 8px;
-  content: '';
-  position: absolute;
-  inset: calc(var(--lock-gap) * -1);
-  pointer-events: none;
-  background: var(--sig-brackets-sm);
-  animation: we-signal-acquire calc(var(--we-duration-loop) * 1.5) var(--we-cut) infinite;
-}
-@keyframes we-signal-acquire {
-  0%        { opacity: 0;    inset: calc(var(--lock-gap) * -3); }
-  8%        { opacity: 1;    inset: calc(var(--lock-gap) * -2.2); }
-  16%       { opacity: 0.35; inset: calc(var(--lock-gap) * -1.5); }
-  24%, 70%  { opacity: 1;    inset: calc(var(--lock-gap) * -1); }
-  74%       { opacity: 0.35; inset: calc(var(--lock-gap) * -1); }
-  78%       { opacity: 1;    inset: calc(var(--lock-gap) * -1); }
-  82%, 100% { opacity: 0;    inset: calc(var(--lock-gap) * -1); }
-}
 
 /* ── 拖拽排序 ───────────────────────────────────────── */
-/* 拿起：括号三拍锁住条目，描边亮起，原来的位置亮出虚线斜纹落点框；放下：括号一格格贴紧后闪一下熄灭。
+/* 拿起：描边亮起，原来的位置亮出虚线斜纹落点框；放下：贴紧后闪一下熄灭。不画括号。
    列表条目（SortableList）的状态在 data-sort 上；网格（SortableGrid）只有跟手副本 .we-sortable-overlay */
-:where(:root[data-motion="signal"]) :is(.we-sortable-item, .we-sortable-overlay)::before {
-  --lock-gap: 5px;
-  content: '';
-  position: absolute;
-  inset: calc(var(--lock-gap) * -1);
-  pointer-events: none;
-  opacity: 0;
-  background: var(--sig-brackets);
-}
-:where(:root[data-motion="signal"]) :is(.we-sortable-item[data-sort="drag"], .we-sortable-overlay)::before {
-  animation: we-signal-lock var(--we-duration-normal) var(--we-cut) both;
-}
 :where(:root[data-motion="signal"]) :is(.we-sortable-item[data-sort="drag"], .we-sortable-overlay) > :first-child {
   box-shadow: 0 0 0 1px var(--we-color-accent);
-}
-:where(:root[data-motion="signal"]) .we-sortable-item[data-sort="drop"]::before {
-  animation: we-sort-settle-lock var(--we-duration-slow) var(--we-cut) both;
-}
-@keyframes we-sort-settle-lock {
-  0%   { opacity: 1;   inset: calc(var(--lock-gap) * -1); }
-  25%  { opacity: 1;   inset: calc(var(--lock-gap) * -0.6); }
-  50%  { opacity: 1;   inset: calc(var(--lock-gap) * -0.2); }
-  75%  { opacity: 0.3; inset: calc(var(--lock-gap) * -0.2); }
-  100% { opacity: 0;   inset: calc(var(--lock-gap) * -0.2); }
 }
 :where(:root[data-motion="signal"]) .we-sortable-item__slot {
   display: block;
@@ -630,7 +527,7 @@
   80%, 100% { opacity: 0.2; }
 }
 
-/* 新消息箭头：硬切往下跳两格，跳到底时短括号闪一下，像在锁定下方 */
+/* 新消息箭头：硬切往下跳两格的循环，不画括号 */
 :where(:root[data-motion="signal"]) .we-asst-new-msg-arrow {
   position: relative;
   padding: 0 var(--we-space-xxs);
@@ -641,42 +538,28 @@
   60%, 79%  { translate: 0 4px; }
   80%, 100% { translate: 0 0; }
 }
-:where(:root[data-motion="signal"]) .we-asst-new-msg-arrow::after {
-  content: '';
-  position: absolute;
-  inset: -2px -3px;
-  pointer-events: none;
-  opacity: 0;
-  background: var(--sig-brackets-sm);
-  animation: we-signal-hop-lock var(--we-duration-loop) var(--we-cut) infinite;
-}
-@keyframes we-signal-hop-lock {
-  0%, 59%   { opacity: 0; }
-  60%, 69%  { opacity: 1; }
-  70%, 72%  { opacity: 0.3; }
-  73%, 79%  { opacity: 1; }
-  80%, 100% { opacity: 0; }
-}
-
 /* ── 按压、卡片、输入控件：锁 ───────────────────────────────────────── */
-/* 带字的东西一律不缩放，只做下沉、提亮和括号。framer 负责按钮、顶栏、发送、入口卡片的下沉；
-   这里是括号、提亮，和普通元素的状态变化。括号与熄灭用本文件顶部的 we-signal-lock / we-signal-release */
+/* 带字的东西一律不缩放，只做下沉、提亮和磷光帧。framer 负责按钮、顶栏、发送、入口卡片的下沉；
+   这里是提亮、磷光帧，和普通元素的状态变化。熄灭用本文件顶部的 we-signal-release */
 :root[data-motion="signal"] {
-  /* 发送：括号从键面向外弹开熄灭的一趟 */
-  --sig-launch: var(--we-duration-normal);
-  /* 开关准星：锁上、停一拍、熄灭的一整趟 */
-  --sig-reticle: 520ms;
   /* 开关轨道：像电平表一样分四格点亮 */
   --sig-meter: steps(4, jump-end);
 }
 
-/* 按钮（Button）：按下下沉 1px（framer），底色提亮一格，短括号卡到四角；松手一起硬切消失 */
-:where(:root[data-motion="signal"]) .we-btn::before,
-:where(:root[data-motion="signal"]) .we-btn::after {
+/* 按钮（Button）：按下下沉 1px（framer），底色提亮一格；压住到锁定那一拍，磷光帧硬切外扩两步即灭。
+   轻点松手太快就撞不到帧窗——「按住才锁」是有意的手感 */
+:where(:root[data-motion="signal"]) .we-btn::before {
   content: '';
   position: absolute;
   pointer-events: none;
   opacity: 0;
+}
+/* 磷光帧：整框在锁定的一瞬硬切外扩两步即灭；from/to 同值，每段关键帧就是一个时长窗 */
+@keyframes we-signal-snap-a {
+  from, to { box-shadow: 0 0 0 1px var(--signal-phos), 0 0 0 2px color-mix(in srgb, var(--we-color-accent) 55%, transparent); }
+}
+@keyframes we-signal-snap-b {
+  from, to { box-shadow: 0 0 0 1px color-mix(in srgb, var(--signal-phos) 45%, transparent), 0 0 0 4px color-mix(in srgb, var(--we-color-accent) 24%, transparent); }
 }
 /* 提亮：主按钮本身是强调色，往白里提；其余按钮往强调色里提 */
 :where(:root[data-motion="signal"]) .we-btn::before {
@@ -687,19 +570,17 @@
 :where(:root[data-motion="signal"]) .we-btn-primary::before {
   background: color-mix(in srgb, var(--we-color-white) 22%, transparent);
 }
-:where(:root[data-motion="signal"]) .we-btn::after {
-  --lock-gap: 3px;
-  inset: -3px;
-  background: var(--sig-brackets-sm);
-}
 :where(:root[data-motion="signal"]) .we-btn:active:not(:disabled)::before {
   opacity: 1;
 }
-:where(:root[data-motion="signal"]) .we-btn:active:not(:disabled)::after {
-  animation: we-signal-lock var(--we-duration-fast) var(--we-cut) both;
+/* guard-allow(literals): 磷光帧窗宽是材质的一部分，与 token 节奏无关；窗口落在按下锁定那一拍（--we-duration-fast） */
+:where(:root[data-motion="signal"]) .we-btn:active:not(:disabled) {
+  animation:
+    we-signal-snap-a 55ms linear calc(var(--we-duration-fast) - 25ms),
+    we-signal-snap-b 55ms linear calc(var(--we-duration-fast) + 30ms);
 }
 
-/* 发送键：按下下沉（framer），短括号从键面分三拍向外弹开熄灭，像把东西送出去——「锁」倒过来放 */
+/* 发送键：按下下沉（framer）；落底那一下补一帧磷光。轻点也能撞到窗口 */
 :where(:root[data-motion="signal"]) .we-chat-send-btn {
   position: relative;
 }
@@ -707,31 +588,24 @@
   display: block;
   overflow: visible;
 }
-:where(:root[data-motion="signal"]) .we-chat-send-btn .we-touch-fx__ripple {
-  inset: -2px;
-  width: auto;
-  height: auto;
-  margin: 0;
-  border-radius: 0;
-  background: var(--sig-brackets-sm);
-  animation: we-signal-launch var(--sig-launch) var(--we-cut) both;
-}
-@keyframes we-signal-launch {
-  0%   { opacity: 1;    inset: -2px; }
-  34%  { opacity: 1;    inset: -6px; }
-  67%  { opacity: 0.35; inset: -11px; }
-  100% { opacity: 0;    inset: -11px; }
+/* guard-allow(literals): 帧窗落在按下落底的一拍，材质的一部分 */
+:where(:root[data-motion="signal"]) .we-chat-send-btn:active {
+  animation: we-signal-snap-a 60ms linear 80ms;
 }
 
-/* 卡片（Card、角色卡、世界入口卡片）：悬停时四角括号三拍锁定，描边硬切成强调色；
-   按下括号硬切贴紧，卡面压上一层强调色、闪一下熄灭。世界入口卡片自己裁掉溢出，括号画在外层的拖动壳上 */
+/* 卡片（Card、角色卡）：悬停浮起、描边硬切成强调色，随后磷光帧两步硬切外扩即灭；按下贴紧复位。
+   入口卡（世界卡 + 拖动壳）：不画整框——悬停时名字双曝光一次，按下进入时整面冲洗一帧强调色即灭，再交给锁定跃迁的代码雨 */
 :where(:root[data-motion="signal"]) :is(.we-card:not(.we-card-flat), .we-character-card) {
   position: relative;
   transition: none;
 }
+/* guard-allow(literals): 磷光帧窗口是悬停手感的一部分：紧跟悬停开始（70/130ms） */
 :where(:root[data-motion="signal"]) :is(.we-card:not(.we-card-flat), .we-character-card):hover {
   translate: 0 -2px;
   border-color: var(--we-color-accent);
+  animation:
+    we-signal-snap-a 60ms linear 70ms,
+    we-signal-snap-b 60ms linear 130ms;
 }
 :where(:root[data-motion="signal"]) :is(.we-card:not(.we-card-flat), .we-character-card):active {
   translate: 0 0;
@@ -739,23 +613,17 @@
 :where(:root[data-motion="signal"]) .we-world-card-shell {
   position: relative;
 }
-:where(:root[data-motion="signal"]) :is(.we-card:not(.we-card-flat), .we-character-card, .we-world-card-shell)::before {
-  --lock-gap: 5px;
-  content: '';
-  position: absolute;
-  inset: -5px;
-  z-index: var(--we-z-card-content);
-  pointer-events: none;
-  opacity: 0;
-  background: var(--sig-brackets);
+
+/* 入口卡：名字双曝光一次（复用选项撕裂的两路错位色）；按下进入时整面冲洗一帧 */
+:where(:root[data-motion="signal"]) .we-world-card-shell:hover .we-world-card-name {
+  animation: we-signal-option-tear var(--we-duration-fast) var(--we-cut) both;
 }
-:where(:root[data-motion="signal"]) :is(.we-card:not(.we-card-flat), .we-character-card, .we-world-card-shell):hover::before {
-  animation: we-signal-lock var(--we-duration-normal) var(--we-cut) both;
+@keyframes we-signal-flood {
+  from, to { box-shadow: inset 0 0 0 1px var(--signal-phos), inset 0 0 0 999px color-mix(in srgb, var(--we-color-accent) 20%, transparent); }
 }
-:where(:root[data-motion="signal"]) :is(.we-card:not(.we-card-flat), .we-character-card, .we-world-card-shell):active::before {
-  animation: none;
-  opacity: 1;
-  inset: -2px;
+/* guard-allow(literals): 冲洗窗落在按下锁定那一拍（--we-duration-fast），与按钮同一手感 */
+:where(:root[data-motion="signal"]) .we-world-card-shell:active {
+  animation: we-signal-flood 60ms linear calc(var(--we-duration-fast) - 25ms);
 }
 :where(:root[data-motion="signal"]) :is(.we-card:not(.we-card-flat), .we-character-card, .we-world-card) > .we-touch-fx {
   display: block;
@@ -794,7 +662,7 @@
   100% { outline-color: var(--we-color-accent); outline-offset: 3px; }
 }
 
-/* 开关：轨道像电平表一样分四格点亮，圆钮硬切到位，落定的一瞬被小准星三拍锁住后熄灭。
+/* 开关：轨道像电平表一样分四格点亮，圆钮硬切到位。不画准星。
    data-touched 由 ToggleSwitch 在用户拨过之后打上，页面刚加载时不播 */
 :where(:root[data-motion="signal"]) .we-toggle-track {
   background-color: var(--we-color-border-default);
@@ -811,36 +679,8 @@
   position: relative;
   transition: none;
 }
-:where(:root[data-motion="signal"]) [data-touched] > .we-toggle-thumb::after {
-  --lock-gap: 4px;
-  content: '';
-  position: absolute;
-  inset: -4px;
-  pointer-events: none;
-  opacity: 0;
-  background: var(--sig-brackets-sm);
-  animation: we-signal-reticle var(--sig-reticle) var(--we-cut) var(--we-duration-fast) both;
-}
-/* 两个状态各用一份同样的关键帧：类名变了动画才会重播 */
-:where(:root[data-motion="signal"]) [data-touched] > .we-toggle-thumb--enabled::after {
-  animation-name: we-signal-reticle-on;
-}
-@keyframes we-signal-reticle {
-  0%   { opacity: 0;    inset: calc(var(--lock-gap) * -3); }
-  20%  { opacity: 1;    inset: calc(var(--lock-gap) * -2); }
-  40%  { opacity: 0.35; inset: calc(var(--lock-gap) * -1.4); }
-  60%  { opacity: 1;    inset: calc(var(--lock-gap) * -1); }
-  100% { opacity: 0;    inset: calc(var(--lock-gap) * -1); }
-}
-@keyframes we-signal-reticle-on {
-  0%   { opacity: 0;    inset: calc(var(--lock-gap) * -3); }
-  20%  { opacity: 1;    inset: calc(var(--lock-gap) * -2); }
-  40%  { opacity: 0.35; inset: calc(var(--lock-gap) * -1.4); }
-  60%  { opacity: 1;    inset: calc(var(--lock-gap) * -1); }
-  100% { opacity: 0;    inset: calc(var(--lock-gap) * -1); }
-}
 
-/* 滑块：按住时圆钮硬切放大，准星三拍锁上圆钮并跟着拖动（--range-v 由 Range 写在外层），松手硬切消失 */
+/* 滑块：按住时圆钮硬切放大，松手复位。不画准星（--range-v 由 Range 写在外层） */
 :where(:root[data-motion="signal"]) .we-range::-webkit-slider-thumb {
   transition: none;
 }
@@ -850,46 +690,10 @@
 :where(:root[data-motion="signal"]) .we-range:active::-moz-range-thumb {
   transform: scale(1.3);
 }
-:where(:root[data-motion="signal"]) .we-range-field::after {
-  content: '';
-  position: absolute;
-  top: 50%;
-  left: calc(var(--range-v, 0) * (100% - 14px) + 7px);
-  width: 26px;
-  height: 26px;
-  margin: -13px 0 0 -13px;
-  pointer-events: none;
-  opacity: 0;
-  background: var(--sig-brackets-sm);
-}
-:where(:root[data-motion="signal"]) .we-range-field:has(.we-range:active)::after {
-  animation: we-signal-track-lock var(--we-duration-normal) var(--we-cut) both;
-}
-@keyframes we-signal-track-lock {
-  0%   { opacity: 0;    scale: 1.8; }
-  34%  { opacity: 1;    scale: 1.4; }
-  67%  { opacity: 0.35; scale: 1.15; }
-  100% { opacity: 1;    scale: 1; }
-}
 
-/* 删除确认按钮：展开后两个圆钮被短括号依次锁定；确认删除时整颗按钮压成一条亮线熄灭，黑一拍后硬切闪回、露出对勾 */
+/* 删除确认按钮：确认删除时整颗按钮压成一条亮线熄灭，黑一拍后硬切闪回、露出对勾 */
 :where(:root[data-motion="signal"]) .we-delete-btn__slot {
   position: relative;
-}
-:where(:root[data-motion="signal"]) .we-delete-btn__slot::after {
-  --lock-gap: 3px;
-  content: '';
-  position: absolute;
-  pointer-events: none;
-  opacity: 0;
-  background: var(--sig-brackets-sm);
-}
-/* 确认条滑到位之后再锁，两颗依次锁定 */
-:where(:root[data-motion="signal"]) .we-delete-btn[data-state="open"] .we-delete-btn__slot::after {
-  animation: we-signal-lock var(--we-duration-normal) var(--we-cut) var(--we-duration-slow) both;
-}
-:where(:root[data-motion="signal"]) .we-delete-btn[data-state="open"] .we-delete-btn__slot + .we-delete-btn__slot::after {
-  animation-delay: var(--we-duration-extended);
 }
 :where(:root[data-motion="signal"]) .we-delete-btn[data-status="deleted"] {
   animation: we-signal-delete-off calc(var(--we-duration-loop) * 0.6) var(--we-cut) both;
@@ -906,9 +710,9 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  :where(:root[data-motion="signal"]) :is(.we-input, .we-textarea, .we-delete-btn),
-  :where(:root[data-motion="signal"]) :is(.we-btn, .we-card, .we-character-card, .we-world-card-shell, .we-toggle-thumb, .we-range-field, .we-delete-btn__slot)::after,
-  :where(:root[data-motion="signal"]) :is(.we-card, .we-character-card, .we-world-card-shell)::before {
+  /* 一闪而过的磷光帧、冲洗、锁定不出现；落定状态照常显示 */
+  :where(:root[data-motion="signal"]) :is(.we-input, .we-textarea, .we-btn, .we-card, .we-character-card,
+    .we-world-card-shell, .we-delete-btn) {
     animation: none;
   }
 }
@@ -920,7 +724,7 @@
   height: 2px;
   margin-left: var(--we-space-xxs);
   vertical-align: -0.12em;
-  background: var(--we-color-accent);
+  background: var(--signal-phos);
   animation: we-stream-caret var(--we-duration-loop) var(--we-cut) infinite;
 }
 
@@ -929,7 +733,7 @@
   display: inline-block;
   width: 0.55em;
   height: 2px;
-  background: var(--we-color-accent);
+  background: var(--signal-phos);
   margin-left: var(--we-space-xxs);
   vertical-align: -0.12em;
   animation: we-stream-caret var(--we-duration-loop) var(--we-cut) infinite;
@@ -950,7 +754,7 @@
   left: 100%;
   width: 0.55em;
   height: 2px;
-  background: var(--we-color-accent);
+  background: var(--signal-phos);
   opacity: 0;
   pointer-events: none;
   animation: we-stream-char-caret var(--we-stream-char-step) linear var(--we-stream-char-delay);
@@ -975,7 +779,7 @@
   height: 2px;
   margin: 0 calc(-0.55em - 1px) 0 1px;
   vertical-align: -0.12em;
-  background: var(--we-color-accent);
+  background: var(--signal-phos);
   pointer-events: none;
   animation: we-stream-caret var(--we-stream-caret-duration) var(--we-cut) infinite;
 }

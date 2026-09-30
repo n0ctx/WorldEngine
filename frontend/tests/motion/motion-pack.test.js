@@ -56,7 +56,7 @@ describe('动效包', () => {
     }
   });
 
-  it('信号锁定：入场与按压逐帧硬切，换位与大面板走平滑曲线', () => {
+  it('信号：入场与按压逐帧硬切，换位与大面板走平滑曲线', () => {
     const cut = signal.transitions.enter.ease;
     expect(cut(0)).toBe(0);
     expect(cut(0.99)).toBe(0);

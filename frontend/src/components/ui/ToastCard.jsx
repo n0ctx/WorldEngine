@@ -18,7 +18,7 @@ const CLOSE_PATHS = (
   </>
 );
 
-// 提示条：信号锁定入场，内容行抖一下，类型标签被一块实色刷出，标签与正文从乱码解码
+// 提示条：信号入场，内容行抖一下，类型标签被一块实色刷出，标签与正文从乱码解码
 export default function ToastCard({ toast, onClose, onMouseEnter, onMouseLeave }) {
   const meta = TYPE_META[toast.type] || TYPE_META.info;
   const isAssertive = toast.type === 'error';

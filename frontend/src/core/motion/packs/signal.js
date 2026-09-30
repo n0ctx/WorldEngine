@@ -1,4 +1,4 @@
-/* 动效包「信号锁定」：出现、切换、反馈都是一次短促的数字信号——
+/* 动效包「信号」：出现、切换、反馈都是一次短促的数字信号——
  * 硬切闪烁、横向抖动、切片成字、错位撕裂。没有模糊，没有回弹。
  * 大面板、遮罩、换位走平滑曲线：整块内容被抖偏、跟随时一顿一顿都不好看。
  * 样式与关键帧见 themes/motion/signal.css。 */
@@ -18,7 +18,7 @@ const RISE_Y = 8;
 
 export default {
   id: 'signal',
-  name: '信号锁定',
+  name: '信号',
   description: '出现、切换、反馈都是一次短促的数字信号：硬切闪烁、错位撕裂、切片成字。',
   // 依赖包身份的组件行为：写在包里，组件只读这些字段，不按包 id 判断
   traits: {
@@ -40,7 +40,7 @@ export default {
       visible: { opacity: 1, y: 0 },
       exit:    { opacity: 0, y: 6 },
     },
-    // 页签内容：原地闪两下亮起后锁定，不上浮、不看切换方向（页签本身的括号锁定见 signal.css）
+    // 页签内容：原地闪两下亮起后锁定，不上浮、不看切换方向
     tabEnter: {
       hidden:  { opacity: 0 },
       visible: { opacity: FLASH, transition: ENTER },
@@ -80,7 +80,7 @@ export default {
   flow: (duration) => ({ duration, ease: EASE.ink }),
   // 手势目标值，transition 由 useMotion().gesture 配上 press
   gestures: {
-    // 带字的按钮和卡片不缩放：按下硬切下沉；提亮与括号见 signal.css
+    // 带字的按钮和卡片不缩放：按下硬切下沉；提亮与磷光帧见 signal.css
     press:  { whileTap: { y: 1 } },
     // 入口面积大：悬停上移让位，按下落回原位
     portal: { whileHover: { y: -2 }, whileTap: { y: 0 } },
@@ -100,7 +100,7 @@ export default {
     caretOut: DURATION.quick,
   },
   // 世界被改写的一瞬：RGB 错位、切片撕裂、切片成字，只爆发一次后定格
-  // 进入世界的页面转场「锁定跃迁」：旧页撕裂一次后熄灭，新页闪两下亮起、视口括号锁定；CSS 编排在 signal.css
+  // 进入世界的页面转场「锁定跃迁」：旧页撕裂一次后熄灭，新旧页之间的一拍黑落两列代码雨，新页闪两下亮起；CSS 编排在 signal.css
   portal: { navigate: 0.36, total: 1.06 },
   fx: {
     // 错位撕裂一次
