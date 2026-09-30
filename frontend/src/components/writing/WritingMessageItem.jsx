@@ -16,8 +16,6 @@ import StreamingMarkdown, { StreamCaret } from '../chat/StreamingMarkdown.jsx';
 import SeamlessEditableSurface from '../../../../shared/SeamlessEditableSurface.jsx';
 import MessageBlockList from '../message/MessageBlockList.jsx';
 import { useCopyFeedback, useDeleteConfirmation, useMessageBlocks } from '../message/useMessageHooks.js';
-
-
 const REMARK_PLUGINS_W = [remarkGfm];
 const REHYPE_PLUGINS_W = [rehypeRaw, [rehypeSanitize, markdownSanitizeSchema]];
 const THINK_REMARK_PLUGINS_W = [remarkGfm];
@@ -98,7 +96,19 @@ function DeleteBtn({ onDelete }) {
   );
 }
 
-export default function WritingMessageItem({
+// 流式期间 continuingText / streamingText 每个 token 变化都会重渲染整个渲染窗口；
+// 历史消息 message 引用稳定，靠 memo 跳过其正则替换 / 分块 / Markdown 重解析。
+// 回调 props（onEdit 等）是每次渲染新建的薄壳（执行时经 getRuntime() 取最新状态），忽略其引用；
+// onEditAssistant 的有无随 lastAssistantId 切换，比较 Boolean。
+function areWritingItemPropsEqual(prev, next) {
+  return prev.message === next.message
+    && prev.isStreaming === next.isStreaming
+    && prev.showCaret === next.showCaret
+    && prev.worldId === next.worldId
+    && Boolean(prev.onEditAssistant) === Boolean(next.onEditAssistant);
+}
+
+function WritingMessageItem({
   message,
   isStreaming = false,
   showCaret = true,
@@ -290,3 +300,5 @@ export default function WritingMessageItem({
     </div>
   );
 }
+
+export default React.memo(WritingMessageItem, areWritingItemPropsEqual);

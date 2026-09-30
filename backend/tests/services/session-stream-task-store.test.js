@@ -171,6 +171,59 @@ test('旧任务待写进度不覆盖同 session 新任务，新任务首个 delt
   assert.equal(readDbProgress(session.id).streaming_text, 'B1');
 });
 
+function readTaskRow(sessionId) {
+  return sandbox.db
+    .prepare('SELECT status, error FROM session_stream_tasks WHERE session_id = ?')
+    .get(sessionId);
+}
+
+test('hydrate：终态行清除，active 行转 restart 中断；驱逐后中断行保留、recover 走 DB fallback', (t) => {
+  const { session: doneSession } = createChatSessionFixture();
+  store.createSessionStreamTask({ sessionId: doneSession.id, mode: 'chat', messages: [] });
+  store.emitSessionStreamEvent(doneSession.id, { done: true, assistant: { id: 'a1', role: 'assistant', content: 'x' } });
+  store.completeSessionStreamTask(doneSession.id);
+
+  const { session: liveSession } = createChatSessionFixture();
+  store.createSessionStreamTask({ sessionId: liveSession.id, mode: 'chat', messages: [] });
+
+  // 模拟新进程启动：内存清空，只 DB 行残留等 hydrate
+  store.__testables.tasks.clear();
+
+  // 从这里起 mock 定时器：hydrate 恢复中断任务时注册的驱逐 timer 走 mock 时钟
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  store.hydrateSessionStreamTasks();
+
+  // completed 行被清除，不再恢复进内存
+  assert.equal(readTaskRow(doneSession.id), undefined);
+  assert.equal(store.getSessionStreamTaskSnapshot(doneSession.id), null);
+
+  // streaming 行转 restart 中断并恢复，可 recover
+  const recovered = store.getRecoverableSessionStreamTask(liveSession.id);
+  assert.equal(recovered.status, 'failed');
+  assert.equal(recovered.error, 'interrupted by restart');
+
+  // 60s 后中断任务从内存驱逐，但 DB 行保留，recover 仍可从 DB 找回
+  t.mock.timers.tick(61_000);
+  const afterEvict = store.getRecoverableSessionStreamTask(liveSession.id);
+  assert.equal(afterEvict.id, recovered.id);
+  assert.equal(readTaskRow(liveSession.id).error, 'interrupted by restart');
+});
+
+test('终态任务驱逐时同步删除 DB 行，表不随会话数增长', (t) => {
+  const { session } = createChatSessionFixture();
+  store.createSessionStreamTask({ sessionId: session.id, mode: 'chat', messages: [] });
+  store.emitSessionStreamEvent(session.id, { done: true, assistant: { id: 'a1', role: 'assistant', content: 'x' } });
+  // complete 里注册驱逐 timer，必须在 mock 时钟生效后调用
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  store.completeSessionStreamTask(session.id);
+  assert.equal(readTaskRow(session.id).status, 'completed');
+
+  t.mock.timers.tick(61_000);
+
+  assert.equal(readTaskRow(session.id), undefined);
+  assert.equal(store.getSessionStreamTaskSnapshot(session.id), null);
+});
+
 test.after(() => {
   sandbox.cleanup();
 });

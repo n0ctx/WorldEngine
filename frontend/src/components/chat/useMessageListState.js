@@ -1,6 +1,7 @@
 import { useRef, useEffect, useState, useCallback, useMemo, useImperativeHandle, useEffectEvent } from 'react';
 import { getMessages } from '../../core/api/sessions.js';
 import { log } from '../../core/utils/logger.js';
+import useRenderWindow from './useRenderWindow.js';
 
 // 按消息的顶部留白定位到列表顶部
 function scrollToMessageIn(list, messageId) {
@@ -40,12 +41,25 @@ export default function useMessageListState(ref, {
 
   const handleJumpToMessage = useCallback((messageId) => scrollToMessageIn(listRef.current, messageId), []);
 
+  // 翻页：按 pageTurnSize*2 条切片，每次只渲染当前页消息（不是滚动）
+  const pageSize = useMemo(() => {
+    const turn = Number(pageTurnSize);
+    return (Number.isFinite(turn) && turn > 0 ? Math.floor(turn) : 50) * 2;
+  }, [pageTurnSize]);
+  const totalPages = Math.max(1, Math.ceil(messages.length / pageSize));
+  const lastPageIdx = totalPages - 1;
+  const currentPage = pageAnchor.followLast ? lastPageIdx : Math.min(pageAnchor.idx, lastPageIdx);
+  const { pageMessages, hasEarlierMessages, loadEarlierMessages, resetWindow } = useRenderWindow(listRef, {
+    messages, pageSize, followLast: pageAnchor.followLast, currentPage,
+  });
+
   // 初始加载
   useEffect(() => {
     let cancelled = false;
     // 切换 session 必须重置翻页锚点，避免沿用旧会话的页码停在中间历史；与异步加载耦合，无法外提
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setPageAnchor({ idx: 0, followLast: true });
+    resetWindow();
 
     if (!sessionId) {
       const timeoutId = setTimeout(() => {
@@ -91,7 +105,7 @@ export default function useMessageListState(ref, {
     return () => {
       cancelled = true;
     };
-  }, [sessionId, reloadToken]);
+  }, [sessionId, reloadToken, resetWindow]);
 
 
   useImperativeHandle(ref, () => ({
@@ -133,24 +147,11 @@ export default function useMessageListState(ref, {
     },
   }));
 
-  // 翻页：按 pageTurnSize*2 条切片，每次只渲染当前页消息（不是滚动）
-  const pageSize = useMemo(() => {
-    const turn = Number(pageTurnSize);
-    return (Number.isFinite(turn) && turn > 0 ? Math.floor(turn) : 50) * 2;
-  }, [pageTurnSize]);
-  const totalPages = Math.max(1, Math.ceil(messages.length / pageSize));
-  const lastPageIdx = totalPages - 1;
-  const currentPage = pageAnchor.followLast ? lastPageIdx : Math.min(pageAnchor.idx, lastPageIdx);
   const notifyPageInfo = useEffectEvent((info) => onPageInfoChange?.(info));
   useEffect(() => {
     lastPageIdxRef.current = lastPageIdx;
     notifyPageInfo({ totalPages, currentPage });
   }, [totalPages, currentPage, lastPageIdx]);
-  const pageMessages = useMemo(() => {
-    if (messages.length === 0) return messages;
-    const start = currentPage * pageSize;
-    return messages.slice(start, start + pageSize);
-  }, [messages, currentPage, pageSize]);
   const onLastPage = currentPage === lastPageIdx;
 
   // 生成新一轮（流式 / 继续写）时强制跟随末页，避免用户停在旧页时新消息看不见
@@ -192,6 +193,8 @@ export default function useMessageListState(ref, {
     reload: () => setReloadToken((token) => token + 1),
     pageMessages,
     onLastPage,
+    hasEarlierMessages,
+    loadEarlierMessages,
     handleJumpToMessage,
   };
 }

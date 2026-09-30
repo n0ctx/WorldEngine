@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 
 /**
  * 历史冻结选项卡：已使用的选项（不可交互），支持折叠/展开。
  * 与 OptionCard 保持相同的视觉结构，在同一批次 render 中无缝接替活跃选项卡。
+ * 全数据 props（options/selectedIndex 引用稳定），memo 避免流式期间整窗口重渲染。
  */
-export default function FrozenOptionCard({ options, selectedIndex, initialCollapsed }) {
+function FrozenOptionCard({ options, selectedIndex, initialCollapsed }) {
   const [collapsed, setCollapsed] = useState(!!initialCollapsed);
   if (!options?.length) return null;
   return (
@@ -34,3 +35,5 @@ export default function FrozenOptionCard({ options, selectedIndex, initialCollap
     </div>
   );
 }
+
+export default React.memo(FrozenOptionCard);

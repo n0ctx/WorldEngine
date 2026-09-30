@@ -1,6 +1,8 @@
 import { randomUUID } from 'node:crypto';
 
 import {
+  deleteSessionStreamTask,
+  deleteSessionStreamTasks,
   getSessionStreamTask,
   listSessionStreamTasks,
   updateSessionStreamProgress,
@@ -100,6 +102,9 @@ export function hydrateSessionStreamTasks() {
   const rows = listSessionStreamTasks();
   let restored = 0;
   let interrupted = 0;
+  let purged = 0;
+  // 收集要 purge 的 sessionId，循环结束后一次性批量删除，避免循环内逐行 DELETE
+  const toPurge = [];
   for (const row of rows) {
     const task = cloneTask(row);
     if (ACTIVE_STREAM_TASK_STATUSES.has(task.status)) {
@@ -108,12 +113,33 @@ export function hydrateSessionStreamTasks() {
       touch(task);
       persist(task);
       interrupted += 1;
+      tasks.set(task.sessionId, task);
+      // 恢复的中断任务也要安排驱逐：否则每个曾被中断的 session 永久占一行内存；
+      // DB 行保留，驱逐后 recover 仍可走 DB fallback 找回。
+      scheduleEviction(task.sessionId);
+      restored += 1;
+      continue;
+    }
+    // 终态任务（且非 restart 中断残留）不再恢复进内存（恢复后永不被驱逐，会无限堆积）；
+    // 行本身已无用途（recover 链路只认 RESTART_INTERRUPTED_ERROR 的失败行），从 DB 批量删掉。
+    if (!(task.status === 'failed' && task.error === RESTART_INTERRUPTED_ERROR)) {
+      toPurge.push(task.sessionId);
+      purged += 1;
+      continue;
     }
     tasks.set(task.sessionId, task);
+    scheduleEviction(task.sessionId);
     restored += 1;
   }
-  if (restored > 0) {
-    log.info(`HYDRATE  ${formatMeta({ restored, interrupted })}`);
+  if (toPurge.length > 0) {
+    try {
+      deleteSessionStreamTasks(toPurge);
+    } catch (err) {
+      log.error(`HYDRATE PURGE FAIL  ${formatMeta({ count: toPurge.length, msg: err?.message })}`);
+    }
+  }
+  if (restored > 0 || purged > 0) {
+    log.info(`HYDRATE  ${formatMeta({ restored, interrupted, purged })}`);
   }
 }
 
@@ -312,11 +338,22 @@ export function emitSessionStreamEvent(sessionId, payload, { taskId } = {}) {
 
 const TERMINAL_EVICTION_DELAY_MS = 60_000;
 
+function isRestartInterrupted(task) {
+  return task.status === 'failed' && task.error === RESTART_INTERRUPTED_ERROR;
+}
+
 function scheduleEviction(sessionId) {
   setTimeout(() => {
     const current = tasks.get(sessionId);
-    if (current && TERMINAL_STREAM_TASK_STATUSES.has(current.status)) {
-      tasks.delete(sessionId);
+    if (!current || !TERMINAL_STREAM_TASK_STATUSES.has(current.status)) return;
+    tasks.delete(sessionId);
+    // 终态行运行期同步删除，表不随会话数无限增长；restart 中断残留行保留
+    // （recover 链路按 error=RESTART_INTERRUPTED_ERROR 找回，驱逐内存后走 DB fallback）。
+    if (isRestartInterrupted(current)) return;
+    try {
+      deleteSessionStreamTask(sessionId);
+    } catch (err) {
+      log.error(`EVICT PURGE FAIL  ${formatMeta({ session: sessionId.slice(0, 8), msg: err?.message })}`);
     }
   }, TERMINAL_EVICTION_DELAY_MS).unref?.();
 }
@@ -341,3 +378,5 @@ export function failSessionStreamTask(sessionId, error, taskId) {
   persist(task);
   scheduleEviction(sessionId);
 }
+
+export const __testables = { tasks };

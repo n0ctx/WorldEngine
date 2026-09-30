@@ -17,6 +17,9 @@ const TTL_SECONDS = 600;
 const REFRESH_BEFORE_MS = 60 * 1000;
 const MAX_ENTRIES = 64;
 const NEGATIVE_TTL_MS = 5 * 60 * 1000;
+// 负缓存与正缓存同级容量上限：每个 key 只会创建失败重试一段时间，
+// 无界增长意味着 key 空间无限（如每次变化的 system 文本）时内存持续上涨。
+const MAX_NEGATIVE_ENTRIES = 64;
 
 const cache = new Map(); // hash -> { name, expireAt }
 const negative = new Map(); // hash -> retryAt (跳过创建失败的 key 一段时间)
@@ -122,6 +125,10 @@ export async function getOrCreateCache({ model, systemText, baseUrl, apiKey, sig
     return created.name;
   } catch (err) {
     negative.set(key, now + NEGATIVE_TTL_MS);
+    while (negative.size > MAX_NEGATIVE_ENTRIES) {
+      const oldest = negative.keys().next().value;
+      negative.delete(oldest);
+    }
     throw err;
   }
 }

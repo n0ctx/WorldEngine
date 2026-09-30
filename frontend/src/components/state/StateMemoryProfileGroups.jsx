@@ -2,8 +2,7 @@ import StatusSection from './StatusSection.jsx';
 import { updateStateEntity } from '../../core/api/state-memory.js';
 import { log } from '../../core/utils/logger.js';
 import { changedProfileKeys } from './profile-defs.js';
-
-const PROFILE_GROUP_ORDER = ['身份', '外貌', '人格'];
+import { rankProfileGroup } from './profile-groups.js';
 
 function groupProfileDefs(defs) {
   const byGroup = new Map();
@@ -13,13 +12,8 @@ function groupProfileDefs(defs) {
     byGroup.get(group).push(def);
   }
   return [...byGroup.keys()]
-    .sort((a, b) => rankGroup(a) - rankGroup(b))
+    .sort((a, b) => rankProfileGroup(a) - rankProfileGroup(b))
     .map((group) => ({ group, defs: byGroup.get(group) }));
-}
-
-function rankGroup(group) {
-  const index = PROFILE_GROUP_ORDER.indexOf(group);
-  return index === -1 ? PROFILE_GROUP_ORDER.length : index;
 }
 
 /** 档案字段 → 状态行：年龄按出生日期自动计算，只读 */

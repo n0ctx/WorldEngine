@@ -36,7 +36,8 @@ const MessageList = forwardRef(function MessageList({
   onPageInfoChange,
 }, ref) {
   const {
-    listRef, messages, loading, loadError, reload, pageMessages, onLastPage, handleJumpToMessage,
+    listRef, messages, loading, loadError, reload, pageMessages, onLastPage,
+    hasEarlierMessages, loadEarlierMessages, handleJumpToMessage,
   } = useMessageListState(ref, {
     sessionId, onMessagesLoaded, pageTurnSize, onPageInfoChange, generating, continuingMessageId,
   });
@@ -57,8 +58,20 @@ const MessageList = forwardRef(function MessageList({
   return (
     <div className="relative flex-1 min-h-0">
     <div ref={listRef} className="we-chat-area absolute inset-0 overflow-y-auto px-3 pt-2 pb-4">
-      {messages.length > 0 && (
-        <div className="text-center [font-size:var(--we-text-xs)] opacity-25 py-2">— 对话开始 —</div>
+      {hasEarlierMessages ? (
+        <div className="text-center py-2">
+          <button
+            type="button"
+            className="[font-size:var(--we-text-xs)] opacity-50 hover:opacity-80 transition-opacity"
+            onClick={loadEarlierMessages}
+          >
+            加载更早消息
+          </button>
+        </div>
+      ) : (
+        messages.length > 0 && (
+          <div className="text-center [font-size:var(--we-text-xs)] opacity-25 py-2">— 对话开始 —</div>
+        )
       )}
 
       {messages.length === 0 && !generating && (

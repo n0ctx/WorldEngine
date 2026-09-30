@@ -17,7 +17,7 @@ export function profileView(worldId, entityType, profileDefaultsJson) {
   return profile;
 }
 
-export function describeProfileFields(worldId, entityType) {
+function describeProfileFields(worldId, entityType) {
   return getEditableProfileFields(worldId, entityType)
     .map((field) => `${field.label}（${field.key}，${field.kind === 'list' ? '列表' : '文本'}）`)
     .join('、') || '（无）';

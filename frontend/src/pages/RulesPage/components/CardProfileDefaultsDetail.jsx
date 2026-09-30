@@ -1,13 +1,13 @@
 import { useEffect, useState } from 'react';
 import FormGroup from '../../../components/ui/FormGroup';
 import StateValueField from '../../../components/state/StateValueField';
+import { groupRowsByProfile } from '../../../components/state/profile-groups.js';
 import { getCharacterProfileDefaults, updateCharacterProfileDefault } from '../../../core/api/character-state-values.js';
 import { getPersonaProfileDefaults, updatePersonaProfileDefault } from '../../../core/api/persona-state-values.js';
 import { getCharactersByWorld } from '../../../core/api/characters.js';
 import { listPersonas } from '../../../core/api/personas.js';
 import { log } from '../../../core/utils/logger.js';
 
-const PROFILE_GROUP_ORDER = ['身份', '外貌', '人格'];
 const OWNERS = {
   character: {
     label: '角色',
@@ -75,9 +75,7 @@ export default function CardProfileDefaultsDetail({ worldId, scopeKey }) {
 }
 
 function CardProfileGroups({ name, rows, onSave }) {
-  const groups = PROFILE_GROUP_ORDER
-    .map((group) => ({ group, fields: rows.filter((row) => row.group === group) }))
-    .filter(({ fields }) => fields.length > 0);
+  const groups = groupRowsByProfile(rows);
   return (
     <div className="we-workshop-section">
       <span className="we-entry-editor-label">{name}</span>

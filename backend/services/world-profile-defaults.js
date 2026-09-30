@@ -9,7 +9,7 @@ import { parseProfileDefaults } from '../memory/state-memory-schema.js';
 import { parseWorldDate } from '../utils/world-date.js';
 import { isPlaceholderValue } from '../memory/state-memory-schema.js';
 
-export const WORLD_PROFILE_DEFAULT_FIELDS = [
+const WORLD_PROFILE_DEFAULT_FIELDS = [
   { key: 'time', label: '开场时间', type: 'datetime' },
   { key: 'location', label: '开场地点', type: 'text' },
 ];
