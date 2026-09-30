@@ -139,7 +139,7 @@ function accentScopeMisses() {
       else if (selector.includes('.we-accent-scope')) scoped.add(token);
     }
   }
-  const themed = new Set(files.filter((f) => /[\\/]themes[\\/][^_][^\\/]*[\\/]theme\.css$/.test(f))
+  const themed = new Set(files.filter((f) => /[\\/]visual[\\/][^_][^\\/]*[\\/]theme\.css$/.test(f))
     .flatMap((f) => [...readFileSync(f, 'utf8').matchAll(DECL_RE)].map((m) => m[1])));
   const memo = new Map();
   const dependsOnAccent = (token) => {
