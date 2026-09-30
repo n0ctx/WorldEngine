@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Reorder, motion, useDragControls, useMotionValue, useTransform } from 'framer-motion';
 import { useMotion } from '../../core/hooks/useMotion.js';
-import { DURATION } from '../../core/utils/motion.js';
+import { MOTION } from '../../core/utils/motion.js';
 
 /**
  * SortableList — 带平滑滑动动画的可排序列表
@@ -77,7 +77,7 @@ function SortableItem({ item, onDragEnd, renderItem, useHandle }) {
       className="we-sortable-item"
       data-sort={state}
       style={{ y }}
-      transition={m.flow(DURATION.medium)}
+      transition={m.flow(MOTION.enter.duration)}
       onDragStart={() => setState('drag')}
       onDragEnd={(...args) => {
         setState('drop');

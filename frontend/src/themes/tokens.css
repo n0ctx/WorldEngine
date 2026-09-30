@@ -14,10 +14,10 @@
  *   文字与边框朝 surface 混：卡片面是文字最常落的底，对比度按它保证。
  *   依赖世界主色的 token 放在下方「主色作用域」块里，不在 :root 主块里声明。
  *
- * C 层 · 结构 token（--we-space-* / --we-alpha-* / --we-radius-* / --we-blur-* / --we-z-* / --we-duration-* /
- *   --we-easing-* / --we-type-* / --we-leading-flush / --we-glyph-* / --we-weight-* / --we-opacity-disabled）
- *   间距、透明度阶梯、层级、动效节奏、字体角色等骨架量，跟视觉风格无关。
- *   例外：--we-radius-* / --we-duration-* 允许主题覆盖。
+ * C 层 · 结构 token（--we-space-* / --we-alpha-* / --we-radius-* / --we-blur-* / --we-z-* / --we-motion-* /
+ *   --we-type-* / --we-leading-flush / --we-glyph-* / --we-weight-* / --we-opacity-disabled）
+ *   间距、透明度阶梯、层级、动效角色、字体角色等骨架量，跟视觉风格无关。
+ *   例外：--we-radius-* 允许主题覆盖。
  *
  * D 层 · 组件皮肤 token（其余所有绑定到某个具体组件、具体状态的 token）
  *   两个内置主题换肤时确实需要不同取值、且无法用 A/B/C 层组合表达的旋钮。新代码不要
@@ -215,22 +215,20 @@
   --we-z-toast:    400;
   --we-z-tooltip:  500;
 
-  /* === Motion Tokens === */
-  /* 真源：frontend/src/core/utils/motion.js（数值一致性由 scripts/check-motion.mjs 守护）。
-     CSS 各槽按【语义】对齐 JS DURATION：
-       fast=quick(hover 色变) / normal=base(局部反馈) / slow=medium(组件入场) / extended=slow(慢显) / loop=loop(循环指示) */
-  --we-duration-fast:     180ms;  /* hover 色变、工具提示       → motion.js quick  0.18 */
-  --we-duration-normal:   300ms;  /* 元数据、局部反馈           → motion.js base   0.30 */
-  --we-duration-slow:     380ms;  /* 组件入场、Modal 内容       → motion.js medium 0.38 */
-  --we-duration-extended: 500ms;  /* 章节标题、场景分隔线慢显   → motion.js slow   0.50 */
-  --we-duration-loop:     1200ms; /* 循环：打字点、光标呼吸、转圈 → motion.js loop   1.20 */
-
-  /* 具名缓动函数（对应 motion.js EASE，供 CSS transition 引用）*/
-  --we-easing-ink:      cubic-bezier(.22, 1, .36, 1);    /* 墨水浸润：主入场      → EASE.ink */
-  --we-easing-sharp:    cubic-bezier(.25, .46, .45, .94);/* 利落：hover 色变       → EASE.sharp */
-  --we-easing-page:     cubic-bezier(.65, 0, .35, 1);    /* 翻页：路由/壳切换      → EASE.page */
-  --we-easing-quill:    cubic-bezier(.40, 0, .20, 1);    /* 落笔：盖印、点击确认   → EASE.quill */
-  --we-easing-retract:  cubic-bezier(.55, 0, 1, .45);    /* 收回：离场、折叠       → EASE.retract */
+  /* === 动效角色 ===
+     组件不单挑时长和曲线：按用途选一个角色，同一段过渡里时长与曲线取同一角色。
+     这里是默认值，真源是 core/utils/motion.js 的 MOTION / STAGGER；动效包可以在自己的 :root[data-motion] 里改写，
+     与包 JS 的 rhythm 同值。两边都由 scripts/check-motion.mjs 核对。 */
+  --we-motion-state-duration: 180ms;                       /* 状态：悬停、色变、边框、显隐、浮起、小位移 */
+  --we-motion-state-easing:   cubic-bezier(.22, 1, .36, 1);
+  --we-motion-enter-duration: 380ms;                       /* 展开：折叠展开、面板入场 */
+  --we-motion-enter-easing:   cubic-bezier(.22, 1, .36, 1);
+  --we-motion-exit-duration:  300ms;                       /* 收起：折叠收起、离场 */
+  --we-motion-exit-easing:    cubic-bezier(.55, 0, 1, .45);
+  --we-motion-page-duration:  300ms;                       /* 页面：侧抽屉开合、章节开场 */
+  --we-motion-page-easing:    cubic-bezier(.65, 0, .35, 1);
+  --we-motion-loop-duration:  1200ms;                      /* 循环：打字点、光标、转圈；曲线由各自的关键帧定 */
+  --we-motion-stagger:        50ms;                        /* 列表逐项错峰的间隔 */
 
   /* === 字体角色 ===
      组件不单挑字号、行高、字距：选一个角色，同一规则块里把该角色的
@@ -399,15 +397,15 @@
 
 @media (prefers-reduced-motion: reduce) {
   :root {
-    --we-duration-fast:     0ms;
-    --we-duration-normal:   0ms;
-    --we-duration-slow:     0ms;
-    --we-duration-extended: 0ms;
-    --we-duration-loop:     0ms;
-    --we-easing-ink:      linear;
-    --we-easing-sharp:    linear;
-    --we-easing-page:     linear;
-    --we-easing-quill:    linear;
-    --we-easing-retract:  linear;
+    --we-motion-state-duration: 0ms;
+    --we-motion-enter-duration: 0ms;
+    --we-motion-exit-duration:  0ms;
+    --we-motion-page-duration:  0ms;
+    --we-motion-loop-duration:  0ms;
+    --we-motion-stagger:        0ms;
+    --we-motion-state-easing: linear;
+    --we-motion-enter-easing: linear;
+    --we-motion-exit-easing:  linear;
+    --we-motion-page-easing:  linear;
   }
 }

@@ -55,7 +55,7 @@ export default function CharactersPage() {
     initial: { height: 0, opacity: 0, overflow: 'hidden' },
     animate: { height: 'auto', opacity: 1, transitionEnd: { overflow: 'visible' } },
     exit: { height: 0, opacity: 0, overflow: 'hidden' },
-    transition: m.transition('medium'),
+    transition: m.role('enter'),
   };
 
   const charactersById = useMemo(() => {

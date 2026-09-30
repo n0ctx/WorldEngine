@@ -12,7 +12,7 @@ const CLASS_NAMES = {
   panel: 'we-cast-panel',
   scroll: 'we-cast-scroll',
   diaryEntry: 'we-cast-diary-entry',
-  diaryEntryStyle: { transition: 'background var(--we-duration-fast) var(--we-easing-sharp)' },
+  diaryEntryStyle: { transition: 'background var(--we-motion-state-duration) var(--we-motion-state-easing)' },
   diaryMore: 'we-cast-diary-more',
   overlayKey: 'nearby-state-overlay',
   overlay: 'we-cast-state-overlay',

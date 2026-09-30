@@ -8,7 +8,7 @@ import StreamingMarkdown, { StreamCaret } from './StreamingMarkdown.jsx';
 import UserMessageRow from './UserMessageRow.jsx';
 import AssistantMessageRow from './AssistantMessageRow.jsx';
 import { useMotion } from '../../core/hooks/useMotion.js';
-import { DURATION } from '../../core/utils/motion.js';
+import { MOTION } from '../../core/utils/motion.js';
 
 const MotionDiv = motion.div;
 
@@ -85,7 +85,7 @@ function MessageItem({
         data-message-id={message?.id}
         className="we-message-row we-message-assistant"
         {...enterProps}
-        transition={m.transition('enter', { delay: DURATION.base })}
+        transition={m.transition('enter', { delay: MOTION.enter.duration })}
       >
         <div className="we-message-row-inner">
           <div className="we-message-body--assistant">

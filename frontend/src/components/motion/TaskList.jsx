@@ -5,20 +5,13 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useMotion } from '../../core/hooks/useMotion.js';
-import { DURATION, EASE, STAGGER } from '../../core/utils/motion.js';
+import { STAGGER } from '../../core/utils/motion.js';
 
 // 填圈、打勾、划线、弹一下平滑走完。分格跳会让勾选一顿一顿；重排跟指示条同一条平滑曲线
-const EASE_INK = EASE.ink;
-
 const POP_SCALE = [1, 1.08, 1];
 const FLICK = [0, 8, -2, 0];
 const FLICK_TIMES = [0, 0.35, 0.7, 1];
 
-const FILL = { duration: 0.24, ease: EASE_INK };
-const POP = { duration: DURATION.base, ease: EASE_INK, times: [0, 0.4, 1] };
-const TICK = { duration: DURATION.quick, ease: EASE_INK, delay: STAGGER.panel };
-const STRIKE = { duration: DURATION.medium, ease: EASE_INK };
-const NUDGE = { duration: DURATION.base, ease: EASE_INK, times: FLICK_TIMES };
 const INSTANT = { duration: 0 };
 
 // 虚线段均分圆周，圈首尾不留接缝
@@ -29,13 +22,22 @@ const RING_DASH = `1 ${(2 * Math.PI * RING_R) / 13 - 1}`;
 const FILLED = ['tick', 'strike', 'nudge', 'settled', 'unstrike'];
 const STRUCK = ['strike', 'nudge', 'settled'];
 
+// 填圈、打勾、弹一下、抖一下走状态角色，划线走展开角色，都跟当前动效包的节奏
 function useTiming() {
-  const { reduced } = useMotion();
-  return (transition) => (reduced ? INSTANT : transition);
+  const m = useMotion();
+  const state = m.role('state');
+  return {
+    fill: { duration: 0.24, ease: state.ease },
+    pop: { ...state, times: [0, 0.4, 1] },
+    tick: { ...state, delay: STAGGER },
+    strike: m.role('enter'),
+    nudge: { ...state, times: FLICK_TIMES },
+    timing: (transition) => (m.reduced ? INSTANT : transition),
+  };
 }
 
 function TaskCheck({ filled, onDrawn }) {
-  const timing = useTiming();
+  const { timing, fill, pop, tick } = useTiming();
   return (
     <motion.svg
       viewBox="0 0 24 24"
@@ -43,14 +45,14 @@ function TaskCheck({ filled, onDrawn }) {
       className="we-task-check"
       initial={false}
       animate={{ scale: filled ? POP_SCALE : 1 }}
-      transition={filled ? timing(POP) : INSTANT}
+      transition={filled ? timing(pop) : INSTANT}
     >
       <motion.circle
         cx="12" cy="12" r={RING_R}
         fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeDasharray={RING_DASH}
         initial={false}
         animate={{ opacity: filled ? 0 : 1 }}
-        transition={timing(FILL)}
+        transition={timing(fill)}
       />
       <motion.circle
         cx="12" cy="12" r="12"
@@ -58,7 +60,7 @@ function TaskCheck({ filled, onDrawn }) {
         style={{ transformBox: 'view-box', transformOrigin: '12px 12px' }}
         initial={false}
         animate={{ scale: filled ? 1 : 0 }}
-        transition={timing(FILL)}
+        transition={timing(fill)}
       />
       <motion.path
         d="M7.4 12.4 10.6 15.5 16.6 8.9"
@@ -66,7 +68,7 @@ function TaskCheck({ filled, onDrawn }) {
         fill="none" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"
         initial={false}
         animate={{ pathLength: filled ? 1 : 0, opacity: filled ? 1 : 0 }}
-        transition={timing(TICK)}
+        transition={timing(tick)}
         onAnimationComplete={onDrawn}
       />
     </motion.svg>
@@ -74,7 +76,7 @@ function TaskCheck({ filled, onDrawn }) {
 }
 
 function TaskItem({ task, className, onSettled, onReverted }) {
-  const timing = useTiming();
+  const { timing, nudge, strike } = useTiming();
   const [stage, setStage] = useState(task.done ? 'settled' : 'idle');
   const [was, setWas] = useState(task.done);
 
@@ -109,7 +111,7 @@ function TaskItem({ task, className, onSettled, onReverted }) {
       className={className}
       onClick={task.onClick}
       animate={{ x: stage === 'nudge' ? FLICK : 0 }}
-      transition={stage === 'nudge' ? timing(NUDGE) : INSTANT}
+      transition={stage === 'nudge' ? timing(nudge) : INSTANT}
       onAnimationComplete={onFlicked}
     >
       <TaskCheck filled={FILLED.includes(stage)} onDrawn={onDrawn} />
@@ -118,7 +120,7 @@ function TaskItem({ task, className, onSettled, onReverted }) {
           className={`we-task-title${struck ? ' is-struck' : ''}`}
           initial={false}
           animate={{ backgroundSize: `${struck ? 100 : 0}% 2px` }}
-          transition={timing(STRIKE)}
+          transition={timing(strike)}
           onAnimationComplete={onStruck}
         >
           {task.title}

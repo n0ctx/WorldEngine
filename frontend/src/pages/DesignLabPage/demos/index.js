@@ -9,6 +9,7 @@ import { InputFocusDemo, SelectDemo, SwitchRangeDemo } from './input.jsx';
 import { LegacyEnterDemo } from './legacy.jsx';
 import { BusyDemo, LoopsDemo, StreamDemo } from './stream.jsx';
 import { ChapterDemo, DoneConfirmDemo, StateValuesDemo } from './world.jsx';
+import { RhythmDemo } from './rhythm.jsx';
 
 /** 动效位 id → 演示组件；每个 id 必须在 slots.js 里有对应的动效位。 */
 export const DEMOS = {
@@ -47,4 +48,5 @@ export const DEMOS = {
   'state-values': StateValuesDemo,
   chapter: ChapterDemo,
   'done-confirm': DoneConfirmDemo,
+  rhythm: RhythmDemo,
 };

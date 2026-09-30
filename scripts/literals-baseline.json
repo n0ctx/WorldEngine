@@ -1,7 +1,6 @@
 {
   "version": 1,
   "literals": {
-    "frontend/src/themes/chat.css::motion::0.1s": 1,
     "frontend/src/themes/chat.css::motion::linear": 1,
     "frontend/src/themes/chat.css::z-index::1": 1,
     "frontend/src/themes/chat.css::z-index::2": 1,

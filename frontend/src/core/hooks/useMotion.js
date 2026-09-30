@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from 'react';
 import { useReducedMotion } from 'framer-motion';
-import { transitions as sharedTransitions } from '../utils/motion.js';
+import { MOTION } from '../utils/motion.js';
 import { getMotionPack, subscribeMotionPack } from '../motion/motionPack.js';
 
 const MOTION_KEYS = ['x', 'y', 'scale', 'scaleX', 'scaleY', 'rotate', 'filter'];
@@ -17,6 +17,17 @@ function stripMotion(state) {
   if (Array.isArray(next.opacity)) next.opacity = next.opacity[next.opacity.length - 1];
   if (next.transition) next.transition = REDUCED;
   return next;
+}
+
+// 节奏角色 = 全站默认值叠上当前包的改写；按包缓存，引用恒定
+const rhythmCache = new WeakMap();
+function rhythmOf(pack) {
+  let rhythm = rhythmCache.get(pack);
+  if (!rhythm) {
+    rhythm = Object.fromEntries(Object.entries(MOTION).map(([name, role]) => [name, { ...role, ...pack.rhythm[name] }]));
+    rhythmCache.set(pack, rhythm);
+  }
+  return rhythm;
 }
 
 const cssMs = (seconds) => `${Math.round(seconds * 1000)}ms`;
@@ -50,13 +61,14 @@ export function useMotion() {
   return {
     reduced,
     pack,
-    // 先找当前包的预设（enter / overlay / backdrop / move / press），再找共用预设；
-    // reduced 模式下 duration → 0
+    // 当前包的预设（enter / overlay / backdrop / move / moveTrail / press）；reduced 模式下 duration → 0
     transition: (preset, { delay = 0 } = {}) => {
-      const t = pack.transitions[preset] ?? sharedTransitions[preset] ?? sharedTransitions.ink;
       if (reduced) return REDUCED;
+      const t = pack.transitions[preset];
       return delay ? { ...t, delay } : t;
     },
+    // 全站节奏角色（state / enter / exit / page / loop）：默认值叠上当前包的改写；reduced 模式下 duration → 0
+    role: (name) => (reduced ? REDUCED : rhythmOf(pack)[name]),
     // 位移、尺寸、形状变化：名义时长交给当前包决定节奏
     flow: (duration, extra) => (reduced ? INSTANT : { ...pack.flow(duration), ...extra }),
     // 手势 props（whileHover / whileTap / transition），可直接展开到 motion 元素上；

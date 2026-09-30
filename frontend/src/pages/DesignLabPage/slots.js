@@ -2,7 +2,7 @@
  * 动效位清单：全站每一处受（或本该受）动效控制的地方，一处一条。
  * 实验室按它分类展示；测试用它核对动效包的每个接口都有动效位引用、每个动效位都有演示。
  *
- * api 写法：variant:<键> / transition:<键> / gesture:<键> / flow / stream / fx / css:<键>
+ * api 写法：variant:<键> / transition:<键> / gesture:<键> / flow / stream / fx / role / css:<键>
  *   css:<键> 对应动效包在 :root 里定义的 --we-fx-<键> 变量。
  * status：
  *   pack    走动效包，必须有演示
@@ -235,9 +235,11 @@ export const SLOTS = [
 
   // ── 全站节奏 ──
   {
-    id: 'rhythm', category: 'rhythm', title: '全站节奏', status: 'blind',
-    api: [], usedIn: ['全站约 150 处普通 CSS 过渡'],
-    note: '悬停、色变、开合这类过渡只认主题里的时长和曲线，动效包改不了。',
+    id: 'rhythm', category: 'rhythm', title: '全站节奏', status: 'pack',
+    api: ['role'], usedIn: ['全站约 250 处普通 CSS 过渡', 'useMotion().role()'],
+    note: '悬停、色变、显隐、折叠、抽屉这类过渡按用途选动效角色（--we-motion-<角色>-duration / -easing）；'
+      + '默认值在 core/utils/motion.js，动效包可以在 rhythm 里改写，CSS 同值写在自己的 :root 里。'
+      + '墨流：状态变化慢一拍（300ms），墨慢慢洇开；信号：沿用默认。点「播放节奏尺」对比各角色的快慢与曲线。',
   },
 ];
 

@@ -45,8 +45,7 @@ const SKIP_PREFIXES = [
   '--we-worlds-grid-', // JS 运行时 token
   '--we-worlds-visible-',
   '--we-worlds-card-',
-  '--we-duration-',    // 动效（主题可选覆盖，不强制）
-  '--we-easing-',      // 动效缓动
+  '--we-motion-',      // 动效角色：结构量，全站统一，主题不改
   '--we-type-',        // 字体角色：结构量，全站统一，主题不改
   '--we-leading-',     // 单行居中行高
   '--we-glyph-',       // 字符图标尺寸
@@ -75,10 +74,10 @@ function isVisual(token) {
   return !SKIP_PREFIXES.some((p) => token.startsWith(p));
 }
 
-// 主题可写的 token：基础色板与阴影浓度、明暗方案、字体、圆角与动效时长，以及少数质感例外。
+// 主题可写的 token：基础色板与阴影浓度、明暗方案、字体、圆角，以及少数质感例外。
 // 其余核心 token 由核心推导，主题写了算越权；这里放宽之前先确认它无法由基础色推导出来。
 const THEME_WRITABLE = [
-  '--we-base-', '--we-shadow-strength', '--we-color-scheme', '--we-font-', '--we-radius-', '--we-duration-',
+  '--we-base-', '--we-shadow-strength', '--we-color-scheme', '--we-font-', '--we-radius-',
   '--we-atmosphere-', '--we-material-sheen', '--we-material-grain', '--we-glass-opacity', '--we-glass-blur',
   '--we-blur-scrim', '--we-stage-surface', '--we-pane-', '--we-card-bg', '--we-card-border', '--we-card-overlay-',
   '--we-canvas-texture-image', '--we-parchment-',

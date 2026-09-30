@@ -12,7 +12,7 @@ import {
   useTransform,
 } from 'framer-motion';
 import { useMotion } from '../../core/hooks/useMotion.js';
-import { DURATION, EASE as MOTION_EASE, STAGGER } from '../../core/utils/motion.js';
+import { MOTION, STAGGER } from '../../core/utils/motion.js';
 
 const HINGE = '3px 6px';
 const LID_OPEN = -35;
@@ -25,15 +25,12 @@ const PANEL = 60;
 const HOLD = { deleted: 1400, kept: 600 };
 
 // 翻盖、滑出确认条平滑到位。分格跳会让删除确认一顿一顿；按压仍走瞬时硬切
-const EASE = MOTION_EASE.ink;
+const EASE = MOTION.state.ease;
 
 const WIDTH = { duration: 0.62, ease: EASE };
 const LID = { duration: 0.6, ease: EASE };
 const WALL = { duration: 0.56, ease: EASE };
 const IN = { duration: 0.44, ease: EASE, delay: 0.14 };
-const OUT = { duration: DURATION.base, ease: EASE };
-const TAP = { duration: DURATION.quick, ease: EASE };
-const SWAP = { duration: DURATION.quick, ease: EASE };
 const SETTLE = { duration: 0.45, ease: EASE };
 const INSTANT = { duration: 0 };
 
@@ -45,20 +42,21 @@ const ICON = {
   'aria-hidden': true,
 };
 
-const panelMotion = {
-  hidden: { opacity: 0, x: -6, transition: OUT },
-  shown: { opacity: 1, x: 0, transition: { ...IN, staggerChildren: STAGGER.panel } },
-};
+// 收起、按压、图标互换走状态角色，跟当前动效包的节奏
+const panelMotion = (out) => ({
+  hidden: { opacity: 0, x: -6, transition: out },
+  shown: { opacity: 1, x: 0, transition: { ...IN, staggerChildren: STAGGER } },
+});
 
-const circleMotion = {
-  hidden: { opacity: 0, scale: 0.9, transition: OUT },
+const circleMotion = (out) => ({
+  hidden: { opacity: 0, scale: 0.9, transition: out },
   shown: { opacity: 1, scale: 1, transition: IN },
-};
+});
 
 function Circle({ label, onClick, reduced, children }) {
   const m = useMotion();
   return (
-    <motion.div className="we-delete-btn__slot" variants={reduced ? undefined : circleMotion}>
+    <motion.div className="we-delete-btn__slot" variants={reduced ? undefined : circleMotion(m.role('state'))}>
       <motion.button
         type="button"
         aria-label={label}
@@ -84,7 +82,9 @@ export default function DeleteButton({
   disabled = false,
   className = '',
 }) {
-  const { reduced } = useMotion();
+  const m = useMotion();
+  const { reduced } = m;
+  const state = m.role('state');
   const [open, setOpen] = useState(false);
   const [status, setStatus] = useState('idle');
   const trigger = useRef(null);
@@ -144,7 +144,7 @@ export default function DeleteButton({
           setOpen(true);
         }}
         whileTap={reduced || disabled ? undefined : { scale: 0.94 }}
-        transition={TAP}
+        transition={state}
         className="we-delete-btn__trigger"
       >
         <AnimatePresence mode="wait" initial={false}>
@@ -160,7 +160,7 @@ export default function DeleteButton({
               initial={{ opacity: 0, scale: 0.6 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.6 }}
-              transition={timing(SWAP)}
+              transition={timing(state)}
             >
               <motion.path
                 d="M4 12.5 9.5 18 20 7"
@@ -181,7 +181,7 @@ export default function DeleteButton({
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              transition={timing(SWAP)}
+              transition={timing(state)}
             >
               <motion.path d={bin} />
               <motion.g
@@ -207,7 +207,7 @@ export default function DeleteButton({
             key="panel"
             style={{ width: PANEL }}
             className="we-delete-btn__panel"
-            variants={reduced ? undefined : panelMotion}
+            variants={reduced ? undefined : panelMotion(state)}
             initial="hidden"
             animate="shown"
             exit="hidden"

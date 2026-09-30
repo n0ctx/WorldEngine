@@ -254,6 +254,29 @@ function typeRoleHits(declarations) {
   return hits;
 }
 
+// 动效角色：transition / animation 的每一段，时长取 --we-motion-<角色>-duration 时必须配同一角色的 -easing；
+// 循环角色的曲线由关键帧定，不查。只管核心样式，动效包的材质时长归包自己。
+const ROLE_DURATION_RE = /var\(--we-motion-([a-z]+)-duration\)/;
+const ROLE_EASING_RE = /var\(--we-motion-([a-z]+)-easing\)/;
+
+export function scanCssMotionRoles({ rel, text }, allow, found) {
+  for (const { prop, value, line } of scanCssDeclarations(text).declarations) {
+    if ((prop !== 'transition' && prop !== 'animation') || allow.covers(rel, line)) continue;
+    let rest = collapse(value.replace(/!important/i, ''));
+    for (let comma = topLevelComma(rest); rest; comma = topLevelComma(rest)) {
+      const segment = (comma === -1 ? rest : rest.slice(0, comma)).trim();
+      rest = comma === -1 ? '' : rest.slice(comma + 1);
+      const role = ROLE_DURATION_RE.exec(segment)?.[1];
+      const easing = ROLE_EASING_RE.exec(segment)?.[1];
+      let problem = null;
+      if (role && role !== 'loop' && !easing) problem = `${role} 角色缺曲线`;
+      else if (role && easing && role !== easing) problem = `时长 ${role} 配了曲线 ${easing}`;
+      else if (!role && easing) problem = `曲线 ${easing} 没配同角色时长`;
+      if (problem) found.push({ rel, rule: 'motion-role', value: `${segment}：${problem}` });
+    }
+  }
+}
+
 export function scanCssFile({ rel, text, comments }, allow, found) {
   const { declarations, balanced } = scanCssDeclarations(text);
   for (const { prop, value, line } of declarations) {

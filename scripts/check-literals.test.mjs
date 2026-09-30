@@ -24,8 +24,8 @@ const CLEAN_CSS = `/* color: #fff; font-size: 12px; z-index: 5 */
 .clean-glyph { font-size: var(--we-glyph-md); line-height: var(--we-leading-flush); }
 .clean-flush { font-size: var(--we-type-display-size); line-height: var(--we-leading-flush); letter-spacing: var(--we-type-display-tracking); font-weight: var(--we-type-display-weight); }
 .clean-motion {
-  transition: color var(--we-duration-fast) var(--we-easing-sharp), opacity 0s;
-  animation: we-fade var(--we-duration-normal) var(--we-cut) both;
+  transition: color var(--we-motion-state-duration) var(--we-motion-state-easing), opacity 0s;
+  animation: we-fade var(--we-motion-enter-duration) var(--we-motion-enter-easing) both, we-pulse var(--we-motion-loop-duration) infinite;
   --ink-flow: cubic-bezier(0.65, 0, 0.35, 1);
   --ink-time: 720ms;
 }
@@ -74,7 +74,7 @@ const BAD_CSS = `.bad {
   padding: var(--we-space-md, 8px);
   margin: var(--we-space-md, 8px);
   width: var(--we-w, 100px);
-  transition: opacity 150ms ease-out, transform var(--we-duration-fast) cubic-bezier(0.16, 1, 0.3, 1);
+  transition: opacity 150ms ease-out, transform var(--we-motion-state-duration) cubic-bezier(0.16, 1, 0.3, 1);
   animation: we-spin 1.2s steps(4, jump-end) infinite linear;
   animation-delay: 300ms;
   font-weight: 700;
@@ -85,6 +85,10 @@ const BAD_CSS = `.bad {
   line-height: var(--we-type-body-leading);
 }
 .bad-mix { background: linear-gradient(color-mix(in srgb, var(--we-color-accent) 30%, color-mix(in srgb, var(--we-color-hover) 55%, transparent)) 12%, transparent); }
+.bad-motion {
+  transition: color var(--we-motion-state-duration) var(--we-motion-enter-easing);
+  animation: we-x var(--we-motion-exit-duration) var(--we-motion-exit-easing) both, we-y 0s var(--we-motion-page-easing);
+}
 .bad-token { font-size: var(--we-text-sm); letter-spacing: var(--we-tracking-wide); font-weight: var(--we-font-ui); }
 `;
 
@@ -129,13 +133,13 @@ test('每条规则的字面量都被报出，并写明改成哪类 token', () =>
     ['shadow', 'rgba\\(0,0,0,0\\.3\\)', '--we-shadow-\\*'],
     ['shadow', '#abc', '--we-shadow-\\*'],
     ['z-index', '5', '--we-z-\\*'],
-    ['motion', '150ms', '--we-duration-\\*'],
-    ['motion', 'ease-out', '--we-easing-\\*'],
-    ['motion', 'cubic-bezier\\(0\\.16,1,0\\.3,1\\)', '--we-easing-\\*'],
-    ['motion', '1\\.2s', '--we-duration-\\*'],
-    ['motion', 'steps\\(4,jump-end\\)', '--we-easing-\\*'],
-    ['motion', 'linear', '--we-easing-\\*'],
-    ['motion', '300ms', '--we-duration-\\*'],
+    ['motion', '150ms', '--we-motion-<角色>'],
+    ['motion', 'ease-out', '--we-motion-<角色>'],
+    ['motion', 'cubic-bezier\\(0\\.16,1,0\\.3,1\\)', '--we-motion-<角色>'],
+    ['motion', '1\\.2s', '--we-motion-<角色>'],
+    ['motion', 'steps\\(4,jump-end\\)', '--we-motion-<角色>'],
+    ['motion', 'linear', '--we-motion-<角色>'],
+    ['motion', '300ms', '--we-motion-<角色>'],
     ['fallback', '#333', '去掉字面量回退'],
     ['fallback', '8px', '去掉字面量回退'],
     ['fallback', '100px', '去掉字面量回退'],
@@ -148,6 +152,9 @@ test('每条规则的字面量都被报出，并写明改成哪类 token', () =>
     ['type-role', 'var\\(--we-text-sm\\)', '写齐同一角色'],
     ['type-role', 'var\\(--we-tracking-wide\\)', '写齐同一角色'],
     ['type-role', 'var\\(--we-font-ui\\)', '写齐同一角色'],
+    ['motion-role', 'transform var\\(--we-motion-state-duration\\) cubic-bezier\\(0\\.16, 1, 0\\.3, 1\\)：state 角色缺曲线', '取同一角色'],
+    ['motion-role', 'color var\\(--we-motion-state-duration\\) var\\(--we-motion-enter-easing\\)：时长 state 配了曲线 enter', '取同一角色'],
+    ['motion-role', 'we-y 0s var\\(--we-motion-page-easing\\)：曲线 page 没配同角色时长', '取同一角色'],
   ]) {
     assert.match(err, new RegExp(`${css} \\[${rule}\\] ${value}[^\\n]*${hint}`), `${rule} ${value}`);
   }

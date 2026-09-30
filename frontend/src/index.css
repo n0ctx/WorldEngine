@@ -40,7 +40,7 @@ body {
 /* =========================================================
    可达性 — 全局 prefers-reduced-motion 降级
    tokens.css 已将 duration 降为 0；此处对 keyframe 动画显式短路，
-   覆盖所有未走 --we-duration-* 的 animation-duration 字面量。
+   覆盖所有未走 --we-motion-* 的 animation-duration 字面量。
    ========================================================= */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
@@ -71,9 +71,9 @@ body {
      不再用 flex 居中——骨架模拟页面内容应左对齐而非居中；
      padding 交给内层 .we-skeleton-container 提供，避免双重 padding。 */
   min-height: 100svh;
-  /* 加载在 300ms 内完成时占位根本不出现。延迟写死而不走 --we-duration-*：
+  /* 加载在 300ms 内完成时占位根本不出现。延迟写死而不走 --we-motion-*：
      减弱动效模式会把 duration token 置 0，闪烁会回来。 */
-  animation: we-panel-fade var(--we-duration-normal) var(--we-easing-ink) 300ms both;
+  animation: we-panel-fade var(--we-motion-enter-duration) var(--we-motion-enter-easing) 300ms both;
 }
 
 /* =========================================================
@@ -93,7 +93,7 @@ body {
   line-height: var(--we-type-ui-leading);
   letter-spacing: var(--we-type-ui-tracking);
   text-decoration: none;
-  transition: top var(--we-duration-fast) var(--we-easing-sharp);
+  transition: top var(--we-motion-state-duration) var(--we-motion-state-easing);
 }
 .we-skip-link:focus {
   top: 0;

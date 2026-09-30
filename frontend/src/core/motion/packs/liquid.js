@@ -39,6 +39,10 @@ export default {
     // 思考 / 等待中的小球：ink 墨珠（大尺寸是流体），matrix 字符矩阵
     orb: 'ink',
   },
+  // 全站节奏：改写 core/utils/motion.js 的节奏角色；墨是慢慢洇开的，状态变化慢一拍（与 liquid.css 的 --we-motion-* 同值）
+  rhythm: {
+    state: { duration: 0.3 },
+  },
   variants: {
     // 小块入场：从下方的柔焦里浮上来，竖向微微拉长，落位时回弹
     enter: {

@@ -18,7 +18,7 @@ export function DiaryEntry({ entry, index, selected, onSelect, className, style 
   return (
     <div
       className={`we-timeline-entry ${className}${selected ? ` ${className}--selected` : ''}`}
-      style={{ animationDelay: `${index * STAGGER.list}s`, ...style }}
+      style={{ animationDelay: `${index * STAGGER}s`, ...style }}
       onClick={() => onSelect(entry)}
       title="点击注入下轮提示词"
     >

@@ -12,7 +12,7 @@ vi.mock('framer-motion', () => ({
 
 import { useMotion } from '../../src/core/hooks/useMotion.js';
 import { DEFAULT_MOTION_PACK_ID, MOTION_PACKS, setMotionPack } from '../../src/core/motion/motionPack.js';
-import { transitions as sharedTransitions } from '../../src/core/utils/motion.js';
+import { MOTION } from '../../src/core/utils/motion.js';
 
 const pack = MOTION_PACKS[DEFAULT_MOTION_PACK_ID];
 
@@ -22,7 +22,7 @@ describe('useMotion', () => {
   });
   afterEach(() => setMotionPack(DEFAULT_MOTION_PACK_ID));
 
-  it('在普通模式下透传参数，先取当前包的预设再取共用预设', () => {
+  it('在普通模式下透传参数：过渡取当前包的预设，节奏角色取全站共用值', () => {
     mocks.useReducedMotion.mockReturnValue(false);
     const { result } = renderHook(() => useMotion());
 
@@ -30,7 +30,8 @@ describe('useMotion', () => {
     expect(result.current.pack).toBe(pack);
     expect(result.current.transition('enter')).toBe(pack.transitions.enter);
     expect(result.current.transition('enter', { delay: 0.3 })).toEqual({ ...pack.transitions.enter, delay: 0.3 });
-    expect(result.current.transition('medium')).toBe(sharedTransitions.medium);
+    expect(result.current.role('enter')).toEqual({ ...MOTION.enter, ...pack.rhythm.enter });
+    expect(result.current.role('state')).toEqual({ ...MOTION.state, ...pack.rhythm.state });
     expect(result.current.flow(0.25, { delay: 0.1 })).toEqual({ ...pack.flow(0.25), delay: 0.1 });
   });
 
@@ -41,6 +42,7 @@ describe('useMotion', () => {
     expect(result.current.reduced).toBe(true);
     expect(result.current.transition('enter', { delay: 0.3 })).toMatchObject({ duration: 0, delay: 0 });
     expect(result.current.flow(0.25)).toEqual({ duration: 0 });
+    expect(result.current.role('enter')).toMatchObject({ duration: 0 });
   });
 
   it('普通模式下手势配上当前包的按压过渡', () => {

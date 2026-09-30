@@ -333,7 +333,7 @@
   background: none;
   border: none;
   cursor: pointer;
-  transition: color var(--we-duration-fast) var(--we-easing-sharp);
+  transition: color var(--we-motion-state-duration) var(--we-motion-state-easing);
 }
 
 .we-code-block-copy:hover {
@@ -401,7 +401,7 @@
   z-index: 1;
   background: linear-gradient(90deg, transparent 10%, var(--we-material-sheen) 32%, var(--we-material-sheen) 68%, transparent 90%) top / 100% 1px no-repeat;
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--we-material-sheen) var(--we-alpha-4), transparent);
-  transition: box-shadow var(--we-duration-normal) var(--we-easing-ink);
+  transition: box-shadow var(--we-motion-state-duration) var(--we-motion-state-easing);
 }
 
 /* 落笔时纸边亮起一圈淡主色：输入框获得焦点，整张纸进入书写状态 */
@@ -435,10 +435,10 @@
   border-color: transparent;
   border-radius: var(--we-radius-md);
   box-shadow: inset 0 1px 0 var(--we-material-sheen);
-  transition: background-color var(--we-duration-fast) var(--we-easing-sharp),
-              border-color var(--we-duration-fast) var(--we-easing-sharp),
-              box-shadow var(--we-duration-fast) var(--we-easing-sharp),
-              transform var(--we-duration-fast) var(--we-easing-quill);
+  transition: background-color var(--we-motion-state-duration) var(--we-motion-state-easing),
+              border-color var(--we-motion-state-duration) var(--we-motion-state-easing),
+              box-shadow var(--we-motion-state-duration) var(--we-motion-state-easing),
+              transform var(--we-motion-state-duration) var(--we-motion-state-easing);
 }
 
 .we-chat-center-pane .we-option-btn:hover:not(.we-option-btn--disabled) {
@@ -604,7 +604,7 @@
      避免落入无主题控制的系统默认字体 */
   font-family: var(--we-font-mono), var(--we-font-prose);
   font-variant-numeric: tabular-nums;
-  transition: opacity var(--we-duration-fast) var(--we-easing-sharp);
+  transition: opacity var(--we-motion-state-duration) var(--we-motion-state-easing);
 }
 
 .we-token-usage > span {
@@ -629,7 +629,7 @@
   gap: 14px; /* design exact */
   margin-top: var(--we-space-xs);
   opacity: 0;
-  transition: opacity var(--we-duration-normal) var(--we-easing-sharp);
+  transition: opacity var(--we-motion-state-duration) var(--we-motion-state-easing);
   pointer-events: none;
 }
 
@@ -663,7 +663,7 @@
   border: none;
   cursor: pointer;
   padding: 0;
-  transition: color var(--we-duration-fast) var(--we-easing-sharp);
+  transition: color var(--we-motion-state-duration) var(--we-motion-state-easing);
   display: flex;
   align-items: center;
   gap: var(--we-space-xs);
@@ -691,7 +691,7 @@
   padding: 0 var(--we-space-sm);
   white-space: nowrap;
   cursor: default;
-  transition: color var(--we-duration-fast) var(--we-easing-sharp);
+  transition: color var(--we-motion-state-duration) var(--we-motion-state-easing);
   flex-shrink: 0;
 }
 
@@ -824,7 +824,7 @@
   cursor: pointer;
   background: none;
   color: var(--we-color-text-secondary);
-  transition: background-color var(--we-duration-fast) var(--we-easing-sharp);
+  transition: background-color var(--we-motion-state-duration) var(--we-motion-state-easing);
 }
 
 /* ── Prose writing mode overrides ──────────────────────── */
@@ -897,7 +897,7 @@
   background: var(--we-color-ornament);
   transform: scaleX(0);
   transform-origin: center;
-  transition: transform var(--we-duration-extended) var(--we-easing-ink) 0.1s;
+  transition: transform var(--we-motion-page-duration) var(--we-motion-page-easing) calc(var(--we-motion-stagger) * 2);
 }
 
 .we-chapter-header--visible .we-chapter-fleuron-line {
@@ -988,7 +988,7 @@
 
 .we-writing-think-icon {
   flex-shrink: 0;
-  transition: transform var(--we-duration-fast) var(--we-easing-ink);
+  transition: transform var(--we-motion-state-duration) var(--we-motion-state-easing);
 }
 
 .we-writing-think-icon--expanded {
@@ -1128,7 +1128,7 @@
   background: none;
   border: none;
   cursor: pointer;
-  transition: background var(--we-duration-fast) var(--we-easing-sharp), color var(--we-duration-fast) var(--we-easing-sharp);
+  transition: background var(--we-motion-state-duration) var(--we-motion-state-easing), color var(--we-motion-state-duration) var(--we-motion-state-easing);
   border-radius: var(--we-radius-full);
   display: inline-flex;
   align-items: center;
@@ -1181,7 +1181,7 @@
   background: transparent;
   border: none;
   cursor: pointer;
-  transition: background var(--we-duration-fast) var(--we-easing-sharp);
+  transition: background var(--we-motion-state-duration) var(--we-motion-state-easing);
 }
 
 .we-chat-slash-item:hover,
@@ -1270,8 +1270,8 @@
   border-radius: var(--we-radius-full);
   color: var(--we-color-text-tertiary);
   cursor: pointer;
-  transition: color var(--we-duration-fast) var(--we-easing-sharp),
-              background var(--we-duration-fast) var(--we-easing-sharp);
+  transition: color var(--we-motion-state-duration) var(--we-motion-state-easing),
+              background var(--we-motion-state-duration) var(--we-motion-state-easing);
 }
 
 /* 悬停只提亮图标并垫一层极淡的底，不再套主色描边框 */
@@ -1339,8 +1339,8 @@
   border-radius: var(--we-radius-full);
   cursor: pointer;
   /* 陷落 / 回弹由 framer 弹簧驱动（InputBox），CSS 只过渡颜色 */
-  transition: filter var(--we-duration-fast) var(--we-easing-sharp),
-              opacity var(--we-duration-fast) var(--we-easing-sharp);
+  transition: filter var(--we-motion-state-duration) var(--we-motion-state-easing),
+              opacity var(--we-motion-state-duration) var(--we-motion-state-easing);
 }
 
 .we-chat-send-btn:hover:not(:disabled) {
@@ -1389,7 +1389,7 @@
 
 .we-think-block-chevron {
   flex-shrink: 0;
-  transition: transform var(--we-duration-fast) var(--we-easing-ink);
+  transition: transform var(--we-motion-state-duration) var(--we-motion-state-easing);
 }
 
 .we-think-block-chevron--expanded {
@@ -1414,13 +1414,13 @@
   display: grid;
   grid-template-rows: 0fr;
   /* 收起：先快后慢收回（retract）*/
-  transition: grid-template-rows var(--we-duration-normal) var(--we-easing-retract);
+  transition: grid-template-rows var(--we-motion-exit-duration) var(--we-motion-exit-easing);
 }
 
 .we-think-block-body-wrap--open {
   grid-template-rows: 1fr;
   /* 展开：墨水浸润 ease-out（ink）*/
-  transition: grid-template-rows var(--we-duration-normal) var(--we-easing-ink);
+  transition: grid-template-rows var(--we-motion-enter-duration) var(--we-motion-enter-easing);
 }
 
 .we-think-block-body-inner {
@@ -1509,8 +1509,8 @@
   transform: translateX(calc(100% + var(--we-space-lg)));
   opacity: 0;
   pointer-events: none;
-  transition: transform var(--we-duration-normal) var(--we-easing-ink),
-              opacity var(--we-duration-fast) var(--we-easing-ink);
+  transition: transform var(--we-motion-enter-duration) var(--we-motion-enter-easing),
+              opacity var(--we-motion-state-duration) var(--we-motion-state-easing);
 }
 
 .we-asst-drawer--open {
@@ -1590,7 +1590,7 @@
   border-radius: var(--we-radius-full);
   color: var(--we-color-text-tertiary);
   cursor: pointer;
-  transition: color var(--we-duration-fast) var(--we-easing-sharp), background var(--we-duration-fast) var(--we-easing-sharp);
+  transition: color var(--we-motion-state-duration) var(--we-motion-state-easing), background var(--we-motion-state-duration) var(--we-motion-state-easing);
 }
 
 .we-asst-drawer__icon-btn:hover {
@@ -1640,7 +1640,7 @@
   letter-spacing: var(--we-type-caption-tracking);
   color: var(--we-color-text-secondary);
   cursor: pointer;
-  transition: color var(--we-duration-fast) var(--we-easing-sharp), border-color var(--we-duration-fast) var(--we-easing-sharp);
+  transition: color var(--we-motion-state-duration) var(--we-motion-state-easing), border-color var(--we-motion-state-duration) var(--we-motion-state-easing);
 }
 
 .we-asst-error__retry:hover {
@@ -1699,7 +1699,7 @@
   content: '';
   position: absolute;
   background: transparent;
-  transition: background var(--we-duration-fast) var(--we-easing-sharp);
+  transition: background var(--we-motion-state-duration) var(--we-motion-state-easing);
 }
 
 .we-resize-handle--vertical::after {
@@ -1755,9 +1755,9 @@
   font-weight: var(--we-weight-medium);
   box-shadow: 0 0 0 1px var(--we-material-stroke), var(--we-elevation-1);
   cursor: pointer;
-  transition: background var(--we-duration-fast) var(--we-easing-sharp),
-              box-shadow var(--we-duration-fast) var(--we-easing-sharp),
-              transform var(--we-duration-fast) var(--we-easing-sharp);
+  transition: background var(--we-motion-state-duration) var(--we-motion-state-easing),
+              box-shadow var(--we-motion-state-duration) var(--we-motion-state-easing),
+              transform var(--we-motion-state-duration) var(--we-motion-state-easing);
 }
 
 .we-asst-new-msg-btn:hover {
@@ -1971,7 +1971,7 @@
   text-align: left;
   width: 100%;
   cursor: pointer;
-  transition: color var(--we-duration-fast) var(--we-easing-sharp);
+  transition: color var(--we-motion-state-duration) var(--we-motion-state-easing);
 }
 
 .we-asst-think-line:hover { color: var(--we-color-text-secondary); }
@@ -2035,9 +2035,8 @@
   padding: var(--we-space-xxs) var(--we-space-sm);
   border-radius: var(--we-radius-sm);
   cursor: pointer;
-  transition:
-    color var(--we-duration-fast) var(--we-easing-sharp),
-    border-color var(--we-duration-fast) var(--we-easing-sharp);
+  transition: color var(--we-motion-state-duration) var(--we-motion-state-easing),
+    border-color var(--we-motion-state-duration) var(--we-motion-state-easing);
 }
 
 .we-asst-entry__action:hover {
@@ -2179,7 +2178,7 @@
   gap: var(--we-space-xs);
   margin-top: var(--we-space-xs);
   opacity: 0;
-  transition: opacity var(--we-duration-fast) var(--we-easing-sharp);
+  transition: opacity var(--we-motion-state-duration) var(--we-motion-state-easing);
 }
 
 .we-asst-row--user .we-asst-bubble__actions { justify-content: flex-end; }
@@ -2218,8 +2217,8 @@
   background: var(--we-color-accent);
 }
 
-.typing-dot:nth-child(2) { animation-delay: calc(var(--we-duration-loop) / 6); }
-.typing-dot:nth-child(3) { animation-delay: calc(var(--we-duration-loop) / 3); }
+.typing-dot:nth-child(2) { animation-delay: calc(var(--we-motion-loop-duration) / 6); }
+.typing-dot:nth-child(3) { animation-delay: calc(var(--we-motion-loop-duration) / 3); }
 
 /* — 章节标题（WritingSpace）覆盖 chat.css 章节基础规则 ─ */
 
@@ -2319,7 +2318,7 @@
   gap: var(--we-space-md);
   opacity: 0;
   pointer-events: none;
-  transition: opacity var(--we-duration-fast) var(--we-easing-sharp);
+  transition: opacity var(--we-motion-state-duration) var(--we-motion-state-easing);
 }
 
 /* M2: 增加 :focus-within 让键盘用户也能触发悬浮按钮 */
@@ -2343,7 +2342,7 @@
   display: flex;
   align-items: center;
   gap: var(--we-space-xs);
-  transition: color var(--we-duration-fast) var(--we-easing-sharp);
+  transition: color var(--we-motion-state-duration) var(--we-motion-state-easing);
 }
 
 .we-chapter-actions button:hover {
@@ -2415,11 +2414,11 @@
   color: var(--we-color-text-tertiary);
   border-radius: var(--we-radius-full);
   cursor: pointer;
-  transition: color var(--we-duration-fast) var(--we-easing-sharp),
-              background var(--we-duration-fast) var(--we-easing-sharp),
-              border-color var(--we-duration-fast) var(--we-easing-sharp),
-              box-shadow var(--we-duration-fast) var(--we-easing-sharp),
-              transform var(--we-duration-fast) var(--we-easing-sharp);
+  transition: color var(--we-motion-state-duration) var(--we-motion-state-easing),
+              background var(--we-motion-state-duration) var(--we-motion-state-easing),
+              border-color var(--we-motion-state-duration) var(--we-motion-state-easing),
+              box-shadow var(--we-motion-state-duration) var(--we-motion-state-easing),
+              transform var(--we-motion-state-duration) var(--we-motion-state-easing);
 }
 
 .we-pager-btn:hover:not(:disabled) {
@@ -2495,7 +2494,7 @@
   padding: var(--we-space-sm) var(--we-space-md);
   cursor: grab;
   user-select: none;
-  transition: border-color var(--we-duration-fast) var(--we-easing-sharp);
+  transition: border-color var(--we-motion-state-duration) var(--we-motion-state-easing);
 }
 
 .we-css-snippet-row:hover {
@@ -2555,9 +2554,9 @@
   color: var(--we-color-text-tertiary);
   background: transparent;
   cursor: pointer;
-  transition: color var(--we-duration-fast) var(--we-easing-sharp),
-              border-color var(--we-duration-fast) var(--we-easing-sharp),
-              background var(--we-duration-fast) var(--we-easing-sharp);
+  transition: color var(--we-motion-state-duration) var(--we-motion-state-easing),
+              border-color var(--we-motion-state-duration) var(--we-motion-state-easing),
+              background var(--we-motion-state-duration) var(--we-motion-state-easing);
 }
 
 .we-css-snippet-row__toggle--on {
@@ -2576,7 +2575,7 @@
   border: none;
   color: var(--we-color-text-tertiary);
   cursor: pointer;
-  transition: color var(--we-duration-fast) var(--we-easing-sharp);
+  transition: color var(--we-motion-state-duration) var(--we-motion-state-easing);
 }
 
 .we-css-snippet-row__action:hover {

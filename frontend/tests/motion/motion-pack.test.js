@@ -8,6 +8,7 @@ import {
   subscribeMotionPack,
 } from '../../src/core/motion/motionPack.js';
 import signal from '../../src/core/motion/packs/signal.js';
+import { MOTION } from '../../src/core/utils/motion.js';
 
 const shape = (pack) => ({
   variants: Object.keys(pack.variants).sort(),
@@ -29,6 +30,16 @@ describe('动效包', () => {
       expect(typeof pack.flow).toBe('function');
       expect(pack.name).toBeTruthy();
       expect(pack.description).toBeTruthy();
+    }
+  });
+
+  it('每个包都声明节奏改写，只能改已有角色的时长与曲线', () => {
+    for (const pack of Object.values(MOTION_PACKS)) {
+      expect(pack.rhythm, pack.id).toBeTypeOf('object');
+      for (const [role, override] of Object.entries(pack.rhythm)) {
+        expect(MOTION[role], `${pack.id} ${role}`).toBeDefined();
+        expect(Object.keys(override).every((key) => key === 'duration' || key === 'ease'), `${pack.id} ${role}`).toBe(true);
+      }
     }
   });
 

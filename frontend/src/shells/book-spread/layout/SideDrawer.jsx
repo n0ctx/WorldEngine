@@ -11,7 +11,7 @@
 import { useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import Icon from '../../../components/ui/Icon.jsx';
-import { DURATION } from '../../../core/utils/motion.js';
+import { STAGGER } from '../../../core/utils/motion.js';
 import { useMotion } from '../../../core/hooks/useMotion.js';
 
 const MotionDiv = motion.div;
@@ -43,7 +43,7 @@ const CHEVRON_ROTATION = { left: 90, right: -90 };
 const EDGE_OFFSET = { left: -12, right: 12 };
 
 /* 进入会话页时两侧面板在正文之后依次浮现：左侧先，右侧后 */
-const ENTER_DELAY = { left: DURATION.micro, right: DURATION.micro * 2 };
+const ENTER_DELAY = { left: STAGGER * 2, right: STAGGER * 4 };
 
 export default function SideDrawer({ side, open, onToggle, label, footer = null, children }) {
   const m = useMotion();

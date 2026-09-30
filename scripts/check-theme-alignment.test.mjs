@@ -5,7 +5,7 @@ import { useGuardFixture } from './guard-fixture.mjs';
 
 const { makeRoot, write, run } = useGuardFixture('check-theme-alignment.mjs');
 
-const CORE = `:root { --we-base-canvas: #111; --we-base-accent: #f90; --we-color-bg-canvas: var(--we-base-canvas); --we-color-scheme: light; --we-space-md: 12px; --we-elevation-1: 0 1px 2px black; --we-duration-fast: 150ms; }
+const CORE = `:root { --we-base-canvas: #111; --we-base-accent: #f90; --we-color-bg-canvas: var(--we-base-canvas); --we-color-scheme: light; --we-space-md: 12px; --we-elevation-1: 0 1px 2px black; --we-motion-state-duration: 180ms; }
 :root, .we-app-root { --we-color-accent-bg: color-mix(in srgb, var(--we-base-accent) 12%, transparent); --we-focus-ring: 0 0 0 2px red; }
 `;
 
@@ -42,15 +42,16 @@ test('主题覆盖了内核里不存在的 token：失败，并点名主题与 t
   assert.match(result.stdout, /--we-base-gone/);
 });
 
-test('主题写了白名单以外的核心 token（推导出的语义色、主色作用域、阴影组合）：失败，并点名；白名单里的明暗方案与动效时长放行', () => {
-  const root = fixture({ theme: ':root { --we-color-bg-canvas: #000; --we-focus-ring: none; --we-elevation-1: none; --we-color-scheme: dark; --we-duration-fast: 90ms; }\n' });
+test('主题写了白名单以外的核心 token（推导出的语义色、主色作用域、阴影组合、动效角色）：失败，并点名；白名单里的明暗方案放行', () => {
+  const root = fixture({ theme: ':root { --we-color-bg-canvas: #000; --we-focus-ring: none; --we-elevation-1: none; --we-color-scheme: dark; --we-motion-state-duration: 90ms; }\n' });
   const result = run(root);
   assert.equal(result.status, 1);
   assert.match(result.stdout, /\[D\] 越权覆盖（themes\/sample\/theme\.css）/);
   assert.match(result.stdout, /--we-color-bg-canvas/);
   assert.match(result.stdout, /--we-focus-ring/);
   assert.match(result.stdout, /--we-elevation-1/);
-  assert.doesNotMatch(result.stdout, /越权[\s\S]*(--we-color-scheme|--we-duration-fast)/);
+  assert.match(result.stdout, /--we-motion-state-duration/);
+  assert.doesNotMatch(result.stdout, /越权[\s\S]*--we-color-scheme/);
 });
 
 test('不属于主题视觉范围的 token（间距等）不要求出现在模板里', () => {

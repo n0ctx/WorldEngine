@@ -28,7 +28,9 @@
 
 - 每个包有一个签名动作：墨流是「洇」（湿墨色和光晕从触点扩散，再干成常态色），信号是「锁」（锁定瞬间磷光帧硬切外扩、文字双曝光撕裂，不用扫描线；错位撕裂只在事件瞬间爆一次；锁定跃迁用代码雨）。设计前先说明新动效服务于哪个签名动作，不要各套一遍「缩放弹跳」或「透明度闪烁」。
 - 每个动效位只放一个被记住的动作，其余克制；同一个位置在不同包下功能一致、手感不同。
-- 不缩放会含文字的元素（文字会抖）；大面板不加模糊、不横向抖动；时长和缓动优先用 `--we-duration-*`、`--we-easing-*`。
+- 不缩放会含文字的元素（文字会抖）；大面板不加模糊、不横向抖动。
+- 全站普通过渡（悬停、色变、显隐、折叠、抽屉）的时长与曲线只选动效角色（state / enter / exit / page / loop，`--we-motion-<角色>-duration` 与同角色 `-easing` 成对写，错峰用 `--we-motion-stagger`）；JS 用 `useMotion().role()`，错峰用 `STAGGER`。
+- 角色默认值在 `core/utils/motion.js` 的 `MOTION`；动效包可以改写节奏，JS 写在包的 `rhythm`，CSS 同值写在 `themes/motion/<id>.css` 的 `:root[data-motion]` 里（`check:motion` 核对两边），不另起角色。
 - 出样必须遵守「减少动态效果」：CSS 出样在媒体查询下静止，JS 走 `useMotion` 的 `reduced`。
 
 ### 落地清单
@@ -37,7 +39,7 @@
 
 1. 改动效包和 `themes/motion/<id>.css`；JS 与 CSS 有意镜像的部分（如信号的 `variants.enter` 与 `we-signal-in`、`SURFACE` 曲线）两边同步改。
 2. 更新 `slots.js`：`blind` 改 `pack`，补 `api` 与 `note`；出样对照改成正式演示，清掉对应出样文件。
-3. 动效值不写字面量：用时长和缓动 token，动效包自己的材质有意写字面量时加 `guard-allow(literals)` 并写理由；改了时长 token 要同步 `check:motion`。
+3. 动效值不写字面量：核心用动效角色，动效包自己的材质时长写成包的私有变量（墨流 `--ink-*`、信号 `--sig-*`），在动效里写字面量时加 `guard-allow(literals)` 并写理由；改了角色默认值或包的节奏改写，JS 与 CSS 两边同步，由 `check:motion` 核对。
 4. 跑 `npm run check:guards`、`npm run check:motion`，以及 frontend 的 `tests/motion`、`tests/components/motion` 和 `DesignLabPage` 测试。
 
 ### 新增动效包

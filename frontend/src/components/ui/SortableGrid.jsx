@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   DndContext,
   DragOverlay,
@@ -17,7 +17,7 @@ import {
   arrayMove,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { DURATION, EASE } from '../../core/utils/motion.js';
+import { useMotion } from '../../core/hooks/useMotion.js';
 
 /**
  * SortableGrid — 2D 网格内可拖拽重排的容器
@@ -44,9 +44,10 @@ import { DURATION, EASE } from '../../core/utils/motion.js';
  *
  * 跟手副本拿在手里的样子归动效包（themes/motion/*.css 的「拖拽排序」小节，挂在 .we-sortable-overlay 上）。
  */
-const dropAnimation = {
-  duration: DURATION.base * 1000,
-  easing: `cubic-bezier(${EASE.ink.join(', ')})`,
+// 放下回落走状态角色，跟当前动效包的节奏
+const dropAnimationOf = (role) => ({
+  duration: role.duration * 1000,
+  easing: role.ease ? `cubic-bezier(${role.ease.join(', ')})` : 'linear',
   // 用 visibility 而非 opacity 隐藏原位卡片：
   // 入场 we-ink-rise 关键帧 fill-mode:both 把 opacity 永久钉在 1，inline opacity:0 无效；
   // visibility 不在关键帧里，inline 设置生效，且不影响布局占位。
@@ -55,7 +56,7 @@ const dropAnimation = {
       active: { visibility: 'hidden' },
     },
   }),
-};
+});
 
 // 让位靠真实布局变化驱动，所以每次 rect 变化都要放 FLIP 动画，
 // 不能用默认的 defaultAnimateLayoutChanges（排序期间返回 false，会变成硬跳）。
@@ -75,6 +76,8 @@ export default function SortableGrid({
   const [activeId, setActiveId] = useState(null);
   const [draftItems, setDraftItems] = useState(null);
   const [isDropping, setIsDropping] = useState(false);
+  const drop = useMotion().role('state');
+  const dropAnimation = useMemo(() => dropAnimationOf(drop), [drop]);
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: activationDistance } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
@@ -104,7 +107,7 @@ export default function SortableGrid({
     setActiveId(null);
     setDraftItems(null);
     setIsDropping(true);
-    setTimeout(() => setIsDropping(false), DURATION.base * 1000);
+    setTimeout(() => setIsDropping(false), drop.duration * 1000);
     const changed = finalItems.some((item, i) => item.id !== items[i]?.id);
     if (changed) onReorderEnd?.(finalItems);
   }

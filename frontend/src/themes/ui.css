@@ -112,11 +112,10 @@
   color: var(--we-color-text-secondary);
   cursor: pointer;
   /* 按压 / 回弹由 framer 弹簧驱动（Button.jsx），CSS 只过渡颜色与阴影，不碰 transform */
-  transition:
-    background var(--we-duration-fast) var(--we-easing-sharp),
-    border-color var(--we-duration-fast) var(--we-easing-sharp),
-    color var(--we-duration-fast) var(--we-easing-sharp),
-    box-shadow var(--we-duration-fast) var(--we-easing-sharp);
+  transition: background var(--we-motion-state-duration) var(--we-motion-state-easing),
+    border-color var(--we-motion-state-duration) var(--we-motion-state-easing),
+    color var(--we-motion-state-duration) var(--we-motion-state-easing),
+    box-shadow var(--we-motion-state-duration) var(--we-motion-state-easing);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -213,7 +212,7 @@
   outline: none;
   line-height: var(--we-type-body-leading);
   box-shadow: var(--we-shadow-inset);
-  transition: border-color var(--we-duration-normal) var(--we-easing-sharp), background var(--we-duration-normal) var(--we-easing-sharp), box-shadow var(--we-duration-normal) var(--we-easing-sharp);
+  transition: border-color var(--we-motion-state-duration) var(--we-motion-state-easing), background var(--we-motion-state-duration) var(--we-motion-state-easing), box-shadow var(--we-motion-state-duration) var(--we-motion-state-easing);
 }
 /* 抑制 type="number" 原生 spinner，避免双框视觉 */
 .we-input[type="number"] { -webkit-appearance: textfield; appearance: textfield; }
@@ -299,7 +298,7 @@
   box-shadow: none;
 }
 .we-card-ring {
-  transition: border-color var(--we-duration-normal) var(--we-easing-sharp), box-shadow var(--we-duration-normal) var(--we-easing-sharp);
+  transition: border-color var(--we-motion-state-duration) var(--we-motion-state-easing), box-shadow var(--we-motion-state-duration) var(--we-motion-state-easing);
 }
 .we-card-ring:hover {
   border-color: var(--we-color-text-tertiary);
@@ -595,7 +594,7 @@
   align-content: flex-start;
   cursor: text;
   box-shadow: none;
-  transition: border-color var(--we-duration-fast) var(--we-easing-sharp), box-shadow var(--we-duration-fast) var(--we-easing-sharp);
+  transition: border-color var(--we-motion-state-duration) var(--we-motion-state-easing), box-shadow var(--we-motion-state-duration) var(--we-motion-state-easing);
 }
 
 .we-tag-input:focus-within {
@@ -634,7 +633,7 @@
   padding: 0;
   line-height: var(--we-leading-flush);
   font-size: var(--we-glyph-md);
-  transition: color var(--we-duration-fast) var(--we-easing-sharp), opacity var(--we-duration-fast) var(--we-easing-sharp);
+  transition: color var(--we-motion-state-duration) var(--we-motion-state-easing), opacity var(--we-motion-state-duration) var(--we-motion-state-easing);
 }
 
 .we-tag button:hover { color: var(--we-color-accent); }
@@ -753,9 +752,9 @@
   letter-spacing: var(--we-type-ui-tracking);
   color: var(--we-color-text-primary);
   cursor: pointer;
-  transition: background-color var(--we-duration-fast) var(--we-easing-sharp),
-              border-color var(--we-duration-fast) var(--we-easing-sharp),
-              transform var(--we-duration-fast) var(--we-easing-quill);
+  transition: background-color var(--we-motion-state-duration) var(--we-motion-state-easing),
+              border-color var(--we-motion-state-duration) var(--we-motion-state-easing),
+              transform var(--we-motion-state-duration) var(--we-motion-state-easing);
   line-height: var(--we-type-ui-leading);
 }
 /* 剧情选项逐项错开入场，入场本身由动效包决定（--we-fx-enter）；--i 是第几项，由 OptionCard 写入。
@@ -763,7 +762,7 @@
 .we-option-list > .we-option-btn {
   animation: var(--we-fx-enter);
   animation-fill-mode: backwards;
-  animation-delay: calc(var(--i) * var(--we-duration-fast) / 2);
+  animation-delay: calc(var(--i) * var(--we-motion-state-duration) / 2);
 }
 .we-option-btn:hover:not(.we-option-btn--disabled) {
   background: var(--we-color-accent-bg);
@@ -771,7 +770,7 @@
 }
 /* 落笔：选定瞬间的轻按压反馈（quill 缓动）*/
 .we-option-btn:active:not(.we-option-btn--disabled) {
-  transform: translateY(0.5px) scale(0.997);
+  transform: translateY(0.5px);
 }
 .we-option-btn:focus-visible {
   outline: none;
@@ -855,7 +854,7 @@
   cursor: pointer;
   outline: none;
   box-shadow: var(--we-shadow-inset);
-  transition: border-color var(--we-duration-fast) var(--we-easing-sharp), box-shadow var(--we-duration-fast) var(--we-easing-sharp);
+  transition: border-color var(--we-motion-state-duration) var(--we-motion-state-easing), box-shadow var(--we-motion-state-duration) var(--we-motion-state-easing);
   text-align: left;
 }
 .we-select-trigger.has-value {
@@ -928,7 +927,7 @@
   height: 14px;
   flex-shrink: 0;
   color: var(--we-color-text-tertiary);
-  transition: transform var(--we-duration-fast) var(--we-easing-ink);
+  transition: transform var(--we-motion-state-duration) var(--we-motion-state-easing);
 }
 .we-select-trigger.open .we-select-chevron {
   transform: rotate(180deg);
@@ -965,7 +964,7 @@
   white-space: nowrap;
   cursor: pointer;
   user-select: none;
-  transition: background-color var(--we-duration-fast) var(--we-easing-sharp), color var(--we-duration-fast) var(--we-easing-sharp);
+  transition: background-color var(--we-motion-state-duration) var(--we-motion-state-easing), color var(--we-motion-state-duration) var(--we-motion-state-easing);
 }
 .we-select-option__label {
   min-width: 0;
@@ -1025,7 +1024,7 @@
   border-radius: var(--we-radius-full);
   padding: 8px var(--we-space-lg); /* 8px: design exact */
   cursor: pointer;
-  transition: color var(--we-duration-fast) var(--we-easing-sharp), background var(--we-duration-fast) var(--we-easing-sharp);
+  transition: color var(--we-motion-state-duration) var(--we-motion-state-easing), background var(--we-motion-state-duration) var(--we-motion-state-easing);
 }
 .we-confirm-cancel:hover:not(:disabled) {
   color: var(--we-color-text-primary);
@@ -1053,7 +1052,7 @@
   border-radius: var(--we-radius-full);
   padding: 8px var(--we-space-lg); /* 8px: design exact */
   cursor: pointer;
-  transition: filter var(--we-duration-fast) var(--we-easing-sharp);
+  transition: filter var(--we-motion-state-duration) var(--we-motion-state-easing);
 }
 .we-confirm-ok.danger {
   background: var(--we-color-status-danger);
@@ -1153,7 +1152,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: background var(--we-duration-fast) var(--we-easing-sharp);
+  transition: background var(--we-motion-state-duration) var(--we-motion-state-easing);
 }
 
 .we-avatar-mask--rect {
@@ -1170,7 +1169,7 @@
   line-height: var(--we-type-caption-leading);
   letter-spacing: var(--we-type-caption-tracking);
   opacity: 0;
-  transition: opacity var(--we-duration-fast) var(--we-easing-sharp);
+  transition: opacity var(--we-motion-state-duration) var(--we-motion-state-easing);
 }
 
 .we-avatar-wrap:hover .we-avatar-mask span {
@@ -1249,7 +1248,7 @@
   background: linear-gradient(90deg, transparent 10%, var(--we-material-sheen) 32%, var(--we-material-sheen) 68%, transparent 90%) top / 100% 1px no-repeat;
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--we-material-sheen) var(--we-alpha-4), transparent),
     var(--material-rim);
-  transition: box-shadow var(--we-duration-normal) var(--we-easing-sharp);
+  transition: box-shadow var(--we-motion-state-duration) var(--we-motion-state-easing);
 }
 
 .we-atmosphere-canvas {
@@ -1258,7 +1257,7 @@
   width: 100%;
   height: 100%;
   opacity: var(--we-atmosphere-opacity);
-  transition: opacity var(--we-duration-slow) var(--we-easing-ink);
+  transition: opacity var(--we-motion-enter-duration) var(--we-motion-enter-easing);
 }
 
 /* 阅读页：光尘退到最弱，只在面板缝隙与两侧玻璃后隐约可见；颗粒会透过纸面抬亮正文底色，关掉 */
@@ -1336,7 +1335,7 @@
   cursor: pointer;
   color: var(--we-color-text-tertiary);
   border-radius: var(--we-radius-sm);
-  transition: color var(--we-duration-fast) var(--we-easing-sharp);
+  transition: color var(--we-motion-state-duration) var(--we-motion-state-easing);
 }
 
 .we-session-item__icon-btn:hover {
@@ -1536,7 +1535,7 @@
   background: var(--we-color-bg-canvas);
   border: 1px solid var(--we-color-border-default);
   cursor: pointer;
-  transition: background var(--we-duration-fast) var(--we-easing-sharp), border-color var(--we-duration-fast) var(--we-easing-sharp), color var(--we-duration-fast) var(--we-easing-sharp);
+  transition: background var(--we-motion-state-duration) var(--we-motion-state-easing), border-color var(--we-motion-state-duration) var(--we-motion-state-easing), color var(--we-motion-state-duration) var(--we-motion-state-easing);
 }
 .we-trigger-segmented-btn:hover { background: var(--we-color-bg-sunken); }
 .we-trigger-segmented-btn.is-active {
@@ -1769,7 +1768,7 @@
   margin: 0;
   display: inline-block;
   vertical-align: middle;
-  transition: border-color var(--we-duration-fast) var(--we-easing-sharp), background var(--we-duration-fast) var(--we-easing-sharp);
+  transition: border-color var(--we-motion-state-duration) var(--we-motion-state-easing), background var(--we-motion-state-duration) var(--we-motion-state-easing);
 }
 .we-entry-editor-scope-item input[type="checkbox"]:hover {
   border-color: var(--we-color-accent);
@@ -1797,7 +1796,7 @@
   border: none;
   cursor: pointer;
   line-height: var(--we-leading-flush);
-  transition: color var(--we-duration-fast) var(--we-easing-sharp);
+  transition: color var(--we-motion-state-duration) var(--we-motion-state-easing);
 }
 
 .we-regex-dialog-close:hover {
@@ -1945,7 +1944,7 @@
   padding: var(--we-space-sm) var(--we-space-md);
   cursor: grab;
   user-select: none;
-  transition: border-color var(--we-duration-fast) var(--we-easing-sharp);
+  transition: border-color var(--we-motion-state-duration) var(--we-motion-state-easing);
 }
 
 .we-regex-rule-row:hover {
@@ -2019,7 +2018,7 @@
   color: var(--we-color-text-tertiary);
   background: transparent;
   cursor: pointer;
-  transition: border-color var(--we-duration-fast) var(--we-easing-sharp), background var(--we-duration-fast) var(--we-easing-sharp), color var(--we-duration-fast) var(--we-easing-sharp);
+  transition: border-color var(--we-motion-state-duration) var(--we-motion-state-easing), background var(--we-motion-state-duration) var(--we-motion-state-easing), color var(--we-motion-state-duration) var(--we-motion-state-easing);
 }
 
 .we-regex-rule-toggle--enabled {
@@ -2039,7 +2038,7 @@
   color: var(--we-color-text-tertiary);
   cursor: pointer;
   font-size: var(--we-glyph-sm);
-  transition: color var(--we-duration-fast) var(--we-easing-sharp);
+  transition: color var(--we-motion-state-duration) var(--we-motion-state-easing);
 }
 
 .we-regex-rule-icon-btn:hover {
@@ -2062,7 +2061,7 @@
   background: var(--we-color-bg-canvas);
   color: var(--we-color-text-secondary);
   cursor: pointer;
-  transition: border-color var(--we-duration-fast) var(--we-easing-sharp), background var(--we-duration-fast) var(--we-easing-sharp), color var(--we-duration-fast) var(--we-easing-sharp);
+  transition: border-color var(--we-motion-state-duration) var(--we-motion-state-easing), background var(--we-motion-state-duration) var(--we-motion-state-easing), color var(--we-motion-state-duration) var(--we-motion-state-easing);
 }
 
 .we-flags-btn:hover {
@@ -2119,7 +2118,7 @@
   width: 36px;
   align-items: center;
   border-radius: var(--we-radius-full);
-  transition: background var(--we-duration-fast) var(--we-easing-sharp);
+  transition: background var(--we-motion-state-duration) var(--we-motion-state-easing);
   background: var(--we-color-border-default);
   border: none;
   cursor: pointer;
@@ -2141,7 +2140,7 @@
   background: var(--we-color-on-accent);
   box-shadow: 0 1px 3px var(--we-color-shade-3);
   transform: translateX(3px);
-  transition: transform var(--we-duration-fast) var(--we-easing-ink);
+  transition: transform var(--we-motion-state-duration) var(--we-motion-state-easing);
 }
 .we-toggle-thumb--enabled {
   transform: translateX(19px);
@@ -2164,7 +2163,7 @@
   background: var(--we-color-bg-canvas);
   color: var(--we-color-text-primary);
   overflow: hidden;
-  transition: border-color var(--we-duration-normal) var(--we-easing-sharp), box-shadow var(--we-duration-normal) var(--we-easing-sharp);
+  transition: border-color var(--we-motion-state-duration) var(--we-motion-state-easing), box-shadow var(--we-motion-state-duration) var(--we-motion-state-easing);
   display: flex;
   flex-direction: column;
   resize: vertical;
@@ -2196,7 +2195,7 @@
   cursor: pointer;
   line-height: var(--we-type-ui-leading);
   letter-spacing: var(--we-type-ui-tracking);
-  transition: color var(--we-duration-fast) var(--we-easing-sharp), background var(--we-duration-fast) var(--we-easing-sharp);
+  transition: color var(--we-motion-state-duration) var(--we-motion-state-easing), background var(--we-motion-state-duration) var(--we-motion-state-easing);
 }
 
 .we-md-toolbar button::after {
@@ -2208,7 +2207,7 @@
   height: 1.5px;
   background: var(--we-color-accent);
   transform: scaleX(0);
-  transition: transform var(--we-duration-fast) var(--we-easing-ink);
+  transition: transform var(--we-motion-state-duration) var(--we-motion-state-easing);
   opacity: 0;
 }
 
@@ -2301,7 +2300,7 @@
   cursor: pointer;
   background: none;
   outline: none;
-  transition: color var(--we-duration-normal) var(--we-easing-sharp), box-shadow var(--we-duration-normal) var(--we-easing-sharp), background var(--we-duration-normal) var(--we-easing-sharp);
+  transition: color var(--we-motion-state-duration) var(--we-motion-state-easing), box-shadow var(--we-motion-state-duration) var(--we-motion-state-easing), background var(--we-motion-state-duration) var(--we-motion-state-easing);
   white-space: nowrap;
   color: var(--we-color-shell-text-tertiary);
 }
@@ -2431,7 +2430,7 @@
   font-size: var(--we-type-ui-size);
   line-height: var(--we-type-ui-leading);
   letter-spacing: var(--we-type-ui-tracking);
-  transition: background var(--we-duration-fast) var(--we-easing-sharp);
+  transition: background var(--we-motion-state-duration) var(--we-motion-state-easing);
 }
 
 .we-topbar-dropdown-item:hover {
@@ -2453,7 +2452,7 @@
   font-size: var(--we-type-caption-size);
   line-height: var(--we-type-caption-leading);
   letter-spacing: var(--we-type-caption-tracking);
-  transition: color var(--we-duration-fast) var(--we-easing-sharp);
+  transition: color var(--we-motion-state-duration) var(--we-motion-state-easing);
 }
 
 .we-topbar-dropdown-list-btn:hover {
@@ -2656,7 +2655,7 @@
   border-radius: var(--we-radius-sm);
   overflow: hidden;
   box-shadow: var(--we-shadow-inset);
-  transition: border-color var(--we-duration-normal) var(--we-easing-sharp), box-shadow var(--we-duration-normal) var(--we-easing-sharp);
+  transition: border-color var(--we-motion-state-duration) var(--we-motion-state-easing), box-shadow var(--we-motion-state-duration) var(--we-motion-state-easing);
 }
 
 .we-combobox-input {
@@ -2689,7 +2688,7 @@
   background: none;
   border: none;
   cursor: pointer;
-  transition: color var(--we-duration-fast) var(--we-easing-sharp);
+  transition: color var(--we-motion-state-duration) var(--we-motion-state-easing);
 }
 
 .we-combobox-toggle:focus-visible {
@@ -2705,7 +2704,7 @@
 .we-combobox-chevron {
   width: 14px;
   height: 14px;
-  transition: transform var(--we-duration-fast) var(--we-easing-ink);
+  transition: transform var(--we-motion-state-duration) var(--we-motion-state-easing);
 }
 
 .we-settings-panel .we-combobox-input {
@@ -2748,7 +2747,7 @@
   color: var(--we-color-text-secondary);
   cursor: pointer;
   user-select: none;
-  transition: background var(--we-duration-fast) var(--we-easing-sharp);
+  transition: background var(--we-motion-state-duration) var(--we-motion-state-easing);
   list-style: none;
 }
 
@@ -2820,7 +2819,7 @@
   border: 2px solid var(--we-color-accent);
   box-shadow: var(--we-elevation-1);
   cursor: pointer;
-  transition: transform var(--we-duration-fast) var(--we-easing-ink), box-shadow var(--we-duration-fast) var(--we-easing-sharp);
+  transition: transform var(--we-motion-state-duration) var(--we-motion-state-easing), box-shadow var(--we-motion-state-duration) var(--we-motion-state-easing);
 }
 
 .we-range::-webkit-slider-thumb:hover,
@@ -2916,7 +2915,7 @@
   border: none;
   cursor: pointer;
   padding: 0;
-  transition: color var(--we-duration-normal) var(--we-easing-sharp);
+  transition: color var(--we-motion-state-duration) var(--we-motion-state-easing);
   flex-shrink: 0;
   letter-spacing: var(--we-type-caption-tracking);
 }
@@ -2933,7 +2932,7 @@
 .we-status-chevron {
   flex-shrink: 0;
   color: var(--we-color-text-faint);
-  transition: transform var(--we-duration-normal) var(--we-easing-ink);
+  transition: transform var(--we-motion-state-duration) var(--we-motion-state-easing);
 }
 
 /* 空状态文字 */
@@ -3091,7 +3090,7 @@
 }
 .we-status-editable {
   cursor: pointer;
-  transition: color var(--we-duration-fast) var(--we-easing-sharp);
+  transition: color var(--we-motion-state-duration) var(--we-motion-state-easing);
 }
 .we-status-editable:hover {
   color: var(--we-color-accent);
@@ -3207,7 +3206,7 @@
   color: var(--we-color-text-tertiary);
   cursor: pointer;
   text-align: left;
-  transition: color var(--we-duration-fast) var(--we-easing-sharp);
+  transition: color var(--we-motion-state-duration) var(--we-motion-state-easing);
 }
 
 .we-state-change-toggle:hover {
@@ -3290,13 +3289,13 @@
   grid-template-rows: 0fr;
   overflow: hidden;
   /* 收起：先快后慢收回（retract）*/
-  transition: grid-template-rows var(--we-duration-slow) var(--we-easing-retract);
+  transition: grid-template-rows var(--we-motion-exit-duration) var(--we-motion-exit-easing);
 }
 
 .we-status-collapse--open {
   grid-template-rows: 1fr;
   /* 展开：墨水浸润 ease-out（ink）*/
-  transition: grid-template-rows var(--we-duration-slow) var(--we-easing-ink);
+  transition: grid-template-rows var(--we-motion-enter-duration) var(--we-motion-enter-easing);
 }
 
 .we-status-collapse-inner {
@@ -3327,7 +3326,7 @@
   border-radius: var(--we-radius-sm);
   padding: 3px 6px 3px 9px; /* design exact */
   background: transparent;
-  transition: background var(--we-duration-normal) var(--we-easing-sharp), color var(--we-duration-normal) var(--we-easing-sharp);
+  transition: background var(--we-motion-state-duration) var(--we-motion-state-easing), color var(--we-motion-state-duration) var(--we-motion-state-easing);
 }
 .we-diary-entry:hover {
   background: color-mix(in srgb, var(--we-color-bg-surface) var(--we-alpha-5), transparent);
@@ -3429,10 +3428,9 @@
   border-radius: var(--we-radius-xs);
   border: 1px solid transparent;
   background: transparent;
-  transition:
-    color var(--we-duration-fast) var(--we-easing-sharp),
-    border-color var(--we-duration-fast) var(--we-easing-sharp),
-    background-color var(--we-duration-fast) var(--we-easing-sharp);
+  transition: color var(--we-motion-state-duration) var(--we-motion-state-easing),
+    border-color var(--we-motion-state-duration) var(--we-motion-state-easing),
+    background-color var(--we-motion-state-duration) var(--we-motion-state-easing);
 }
 .we-panel-card-actions .we-panel-card-action:hover,
 .we-section-tabs-globals .we-panel-card-action:hover,
@@ -3457,12 +3455,12 @@
   display: grid;
   grid-template-rows: 0fr;
   /* 收起：先快后慢收回（retract）*/
-  transition: grid-template-rows var(--we-duration-slow) var(--we-easing-retract);
+  transition: grid-template-rows var(--we-motion-exit-duration) var(--we-motion-exit-easing);
 }
 .we-panel-card-collapse--open {
   grid-template-rows: 1fr;
   /* 展开：墨水浸润 ease-out（ink）*/
-  transition: grid-template-rows var(--we-duration-slow) var(--we-easing-ink);
+  transition: grid-template-rows var(--we-motion-enter-duration) var(--we-motion-enter-easing);
 }
 .we-panel-card-body {
   min-height: 0;
@@ -3696,7 +3694,7 @@
   padding: 0;
   cursor: pointer;
   color: var(--we-color-text-tertiary);
-  transition: color var(--we-duration-fast) var(--we-easing-sharp);
+  transition: color var(--we-motion-state-duration) var(--we-motion-state-easing);
 }
 .we-toast-card__close:hover {
   color: var(--we-color-text-primary);
@@ -3823,7 +3821,7 @@
   letter-spacing: var(--we-type-ui-tracking);
   color: var(--we-color-text-secondary);
   cursor: pointer;
-  transition: background var(--we-duration-fast) var(--we-easing-sharp), color var(--we-duration-fast) var(--we-easing-sharp), opacity var(--we-duration-fast) var(--we-easing-sharp);
+  transition: background var(--we-motion-state-duration) var(--we-motion-state-easing), color var(--we-motion-state-duration) var(--we-motion-state-easing), opacity var(--we-motion-state-duration) var(--we-motion-state-easing);
 }
 .we-sm-text-btn:hover {
   background: var(--we-color-pressed);
@@ -3857,7 +3855,7 @@
   line-height: var(--we-type-body-leading);
   color: var(--we-color-text-primary);
   outline: none;
-  transition: border-color var(--we-duration-fast) var(--we-easing-sharp), box-shadow var(--we-duration-fast) var(--we-easing-sharp);
+  transition: border-color var(--we-motion-state-duration) var(--we-motion-state-easing), box-shadow var(--we-motion-state-duration) var(--we-motion-state-easing);
 }
 .we-sm-compact-input::placeholder,
 .we-sm-search-input::placeholder {
@@ -3942,7 +3940,7 @@
   color: var(--we-color-text-secondary);
   text-align: left;
   cursor: pointer;
-  transition: background var(--we-duration-fast) var(--we-easing-sharp), color var(--we-duration-fast) var(--we-easing-sharp);
+  transition: background var(--we-motion-state-duration) var(--we-motion-state-easing), color var(--we-motion-state-duration) var(--we-motion-state-easing);
 }
 .we-sm-entity-item:hover {
   background: var(--we-color-hover);
@@ -4039,7 +4037,7 @@
   letter-spacing: var(--we-type-caption-tracking);
   color: var(--we-color-text-secondary);
   cursor: pointer;
-  transition: background var(--we-duration-fast) var(--we-easing-sharp), color var(--we-duration-fast) var(--we-easing-sharp), border-color var(--we-duration-fast) var(--we-easing-sharp);
+  transition: background var(--we-motion-state-duration) var(--we-motion-state-easing), color var(--we-motion-state-duration) var(--we-motion-state-easing), border-color var(--we-motion-state-duration) var(--we-motion-state-easing);
 }
 .we-sm-pin-toggle svg {
   width: 13px;
@@ -4247,7 +4245,7 @@
   field-sizing: content;
   min-height: calc(1lh + 10px);
   outline: none;
-  transition: border-color var(--we-duration-fast) var(--we-easing-sharp), background var(--we-duration-fast) var(--we-easing-sharp);
+  transition: border-color var(--we-motion-state-duration) var(--we-motion-state-easing), background var(--we-motion-state-duration) var(--we-motion-state-easing);
 }
 .we-sm-thread-content:hover {
   border-color: var(--we-color-border-default);
@@ -4280,7 +4278,7 @@
   box-shadow: var(--we-focus-ring);
 }
 .we-sm-chevron {
-  transition: transform var(--we-duration-fast) var(--we-easing-sharp);
+  transition: transform var(--we-motion-state-duration) var(--we-motion-state-easing);
 }
 .we-sm-chevron.is-open {
   transform: rotate(90deg);
@@ -4335,7 +4333,7 @@
   background: none;
   color: inherit;
   cursor: pointer;
-  transition: color var(--we-duration-fast) var(--we-easing-sharp);
+  transition: color var(--we-motion-state-duration) var(--we-motion-state-easing);
 }
 .we-delete-btn__trigger:hover,
 .we-delete-btn[data-state="open"] .we-delete-btn__trigger {
@@ -4475,7 +4473,7 @@
   background: var(--we-color-accent);
   opacity: 0;
   pointer-events: none;
-  transition: opacity var(--we-duration-fast) var(--we-easing-sharp);
+  transition: opacity var(--we-motion-state-duration) var(--we-motion-state-easing);
 }
 .we-bounce-rail.is-visible {
   opacity: 1;
@@ -4494,7 +4492,7 @@
   overflow: hidden;
   border-radius: var(--we-radius-full);
   background: var(--we-color-text-tertiary);
-  transition: background-color var(--we-duration-normal) var(--we-easing-sharp);
+  transition: background-color var(--we-motion-state-duration) var(--we-motion-state-easing);
 }
 .we-step-track__step[data-state="past"] {
   background: var(--we-color-text-primary);
@@ -4550,7 +4548,7 @@
   height: 28px;
   border-radius: var(--we-radius-sm);
   color: var(--we-color-text-tertiary);
-  transition: background-color var(--we-duration-fast) var(--we-easing-sharp), color var(--we-duration-fast) var(--we-easing-sharp);
+  transition: background-color var(--we-motion-state-duration) var(--we-motion-state-easing), color var(--we-motion-state-duration) var(--we-motion-state-easing);
 }
 .we-code-block__copy:hover {
   background: var(--we-color-pressed);
@@ -4625,7 +4623,7 @@
   background-position: 0 52%;
   -webkit-box-decoration-break: clone;
   box-decoration-break: clone;
-  transition: color var(--we-duration-normal) var(--we-easing-sharp);
+  transition: color var(--we-motion-state-duration) var(--we-motion-state-easing);
 }
 @media (prefers-reduced-motion: reduce) {
   .we-task-title { transition: none; }
@@ -4733,7 +4731,7 @@
   height: 1px;
   transform-origin: right center;
   background: color-mix(in srgb, var(--we-color-text-tertiary) var(--we-alpha-5), transparent);
-  transition: background-color var(--we-duration-fast) var(--we-easing-sharp);
+  transition: background-color var(--we-motion-state-duration) var(--we-motion-state-easing);
 }
 .we-proximity-rail__dash--assistant > span {
   background: var(--we-color-text-secondary);

@@ -10,7 +10,13 @@
   --ink-spring-soft: linear(0, 0.037, 0.128, 0.249, 0.381, 0.512, 0.632, 0.738, 0.826, 0.897, 0.951, 0.991, 1.018, 1.034, 1.043, 1.046, 1.045, 1.041, 1.035, 1.029, 1.023, 1.018, 1.013, 1.008, 1.005, 1.003, 1.001, 0.999, 0.998, 0.998, 0.998, 0.998, 0.998, 0.998, 0.999, 0.999, 1);
   --ink-surface: cubic-bezier(0.16, 1, 0.3, 1);
   --ink-sink: cubic-bezier(0.7, 0, 0.84, 0);
-  --ink-flow: var(--we-easing-page);
+  --ink-flow: cubic-bezier(0.65, 0, 0.35, 1);
+  /* 全站节奏：墨是慢慢洇开的，状态变化比默认慢一拍（与 packs/liquid.js 的 rhythm 同值） */
+  --we-motion-state-duration: 300ms;
+  /* 包自己的节拍：卡片与角色卡的投影、按住滑块的光圈、删除确认的沉没与浮回 */
+  --ink-beat: 300ms;
+  --ink-settle: 380ms;
+  --ink-hold: 500ms;
   --ink-wet: color-mix(in oklab, var(--we-color-accent) 72%, var(--we-color-white));
   --ink-glow: color-mix(in srgb, var(--we-color-accent) 55%, transparent);
 
@@ -18,7 +24,7 @@
   --we-fx-skeleton: we-ink-sheen 1.8s var(--ink-flow) infinite;
   --we-fx-nudge: we-ink-bob 1.4s var(--ink-flow) infinite;
   --we-fx-spin: we-tool-spin 0.9s cubic-bezier(0.5, 0.1, 0.5, 0.9) infinite;
-  --we-fx-typing: we-ink-bead-rise var(--we-duration-loop) var(--ink-flow) infinite;
+  --we-fx-typing: we-ink-bead-rise var(--we-motion-loop-duration) var(--ink-flow) infinite;
   /* 遮罩底色从中央洇开；大面板托起、冲过一截再回落，不带光晕（弹窗面板走 packs/liquid.js 的 overlayEnter） */
   --we-fx-scrim: we-ink-pool 900ms var(--ink-surface) backwards;
   --we-fx-panel: we-ink-lift 900ms var(--ink-spring) backwards;
@@ -373,10 +379,9 @@
   filter: blur(1px);
   translate: 0 6px;
   /* guard-allow(literals): 退开的墨沉得比界面过渡慢，时长是这种材质的一部分 */
-  transition:
-    opacity 760ms var(--ink-surface) calc(var(--d) * var(--we-duration-fast) / 2),
-    filter 760ms var(--ink-surface) calc(var(--d) * var(--we-duration-fast) / 2),
-    translate 900ms var(--ink-spring-soft) calc(var(--d) * var(--we-duration-fast) / 2);
+  transition: opacity 760ms var(--ink-surface) calc(var(--d) * var(--we-motion-state-duration) / 2),
+    filter 760ms var(--ink-surface) calc(var(--d) * var(--we-motion-state-duration) / 2),
+    translate 900ms var(--ink-spring-soft) calc(var(--d) * var(--we-motion-state-duration) / 2);
 }
 
 /* ── 交互反馈：按下像按进水面，松手弹回 ───────────────────────────────
@@ -408,13 +413,12 @@
 :where(:root[data-motion="liquid"]) :is(
   .we-section-tab, .we-select-option, .we-settings-nav-item, .we-chat-slash-item, .we-sm-chip
 ) {
-  transition:
-    translate var(--ink-press-out) var(--ink-spring),
-    color var(--we-duration-fast) var(--we-easing-sharp),
-    background-color var(--we-duration-fast) var(--we-easing-sharp),
-    border-color var(--we-duration-fast) var(--we-easing-sharp),
-    box-shadow var(--we-duration-fast) var(--we-easing-sharp),
-    opacity var(--we-duration-fast) var(--we-easing-sharp);
+  transition: translate var(--ink-press-out) var(--ink-spring),
+    color var(--we-motion-state-duration) var(--we-motion-state-easing),
+    background-color var(--we-motion-state-duration) var(--we-motion-state-easing),
+    border-color var(--we-motion-state-duration) var(--we-motion-state-easing),
+    box-shadow var(--we-motion-state-duration) var(--we-motion-state-easing),
+    opacity var(--we-motion-state-duration) var(--we-motion-state-easing);
 
   &:active {
     translate: 0 2px;
@@ -425,13 +429,12 @@
 :where(:root[data-motion="liquid"]) :is(
   .we-chat-quick-btn, .we-character-card-action-btn, .we-world-card-action-btn, .we-toggle-track
 ) {
-  transition:
-    scale var(--ink-press-out) var(--ink-spring),
-    color var(--we-duration-fast) var(--we-easing-sharp),
-    background-color var(--we-duration-fast) var(--we-easing-sharp),
-    border-color var(--we-duration-fast) var(--we-easing-sharp),
-    box-shadow var(--we-duration-fast) var(--we-easing-sharp),
-    opacity var(--we-duration-fast) var(--we-easing-sharp);
+  transition: scale var(--ink-press-out) var(--ink-spring),
+    color var(--we-motion-state-duration) var(--we-motion-state-easing),
+    background-color var(--we-motion-state-duration) var(--we-motion-state-easing),
+    border-color var(--we-motion-state-duration) var(--we-motion-state-easing),
+    box-shadow var(--we-motion-state-duration) var(--we-motion-state-easing),
+    opacity var(--we-motion-state-duration) var(--we-motion-state-easing);
 
   &:active {
     scale: 1.03 0.9;
@@ -442,15 +445,14 @@
 
 /* 按钮（Button）：framer 负责浮起、按进和弹回；这里是按下时外沿一圈湿边，和从触点在按钮里洇开的一滴墨 */
 :where(:root[data-motion="liquid"]) .we-btn {
-  transition:
-    background var(--we-duration-fast) var(--we-easing-sharp),
-    border-color var(--we-duration-fast) var(--we-easing-sharp),
-    color var(--we-duration-fast) var(--we-easing-sharp),
+  transition: background var(--we-motion-state-duration) var(--we-motion-state-easing),
+    border-color var(--we-motion-state-duration) var(--we-motion-state-easing),
+    color var(--we-motion-state-duration) var(--we-motion-state-easing),
     box-shadow var(--ink-dry) var(--ink-flow);
 }
 :where(:root[data-motion="liquid"]) .we-btn:active:not(:disabled) {
   box-shadow: 0 0 0 4px var(--ink-glow);
-  transition-duration: var(--we-duration-fast), var(--we-duration-fast), var(--we-duration-fast), var(--ink-press-in);
+  transition-duration: var(--we-motion-state-duration), var(--we-motion-state-duration), var(--we-motion-state-duration), var(--ink-press-in);
 }
 :where(:root[data-motion="liquid"]) .we-btn > .we-touch-fx {
   display: block;
@@ -470,13 +472,12 @@
    角色卡不浮起：按下整体缓缓微缩，松手用同一段缓动回到原尺寸。
    世界入口卡片的浮起与按进由 framer 的 portal 手势负责，这里只给光晕和墨晕 */
 :where(:root[data-motion="liquid"]) :is(.we-card:not(.we-card-flat), .we-character-card, .we-world-card) {
-  transition:
-    --mx var(--ink-trail) var(--ink-surface),
+  transition: --mx var(--ink-trail) var(--ink-surface),
     --my var(--ink-trail) var(--ink-surface),
-    translate var(--we-duration-normal) var(--we-easing-ink),
+    translate var(--we-motion-state-duration) var(--we-motion-state-easing),
     scale var(--ink-press-out) var(--ink-spring),
-    border-color var(--we-duration-normal) var(--we-easing-sharp),
-    box-shadow var(--we-duration-slow) var(--ink-surface);
+    border-color var(--we-motion-state-duration) var(--we-motion-state-easing),
+    box-shadow var(--ink-settle) var(--ink-surface);
 }
 :where(:root[data-motion="liquid"]) :is(.we-card:not(.we-card-flat), .we-character-card) {
   position: relative;
@@ -487,11 +488,10 @@
   box-shadow: 0 14px 28px -16px var(--ink-glow), 0 4px 10px -6px var(--we-color-shade-2);
 }
 :where(:root[data-motion="liquid"]) .we-character-card {
-  transition:
-    --mx var(--ink-trail) var(--ink-surface),
+  transition: --mx var(--ink-trail) var(--ink-surface),
     --my var(--ink-trail) var(--ink-surface),
-    border-color var(--we-duration-slow) var(--we-easing-page),
-    scale var(--we-duration-slow) var(--we-easing-page);
+    border-color var(--ink-settle) var(--ink-flow),
+    scale var(--ink-settle) var(--ink-flow);
 }
 :where(:root[data-motion="liquid"]) .we-character-card:hover {
   border-color: color-mix(in srgb, var(--we-color-accent) 40%, var(--we-color-border-default));
@@ -499,8 +499,8 @@
 :where(:root[data-motion="liquid"]) .we-card:not(.we-card-flat):active {
   translate: 0 2px;
   box-shadow: 0 1px 2px var(--we-color-shade-2);
-  transition-duration: var(--ink-trail), var(--ink-trail), var(--ink-press-in), var(--ink-press-out), var(--we-duration-normal), var(--ink-press-in);
-  transition-timing-function: var(--ink-surface), var(--ink-surface), var(--ink-press-in-ease), var(--ink-spring), var(--we-easing-sharp), var(--ink-press-in-ease);
+  transition-duration: var(--ink-trail), var(--ink-trail), var(--ink-press-in), var(--ink-press-out), var(--we-motion-state-duration), var(--ink-press-in);
+  transition-timing-function: var(--ink-surface), var(--ink-surface), var(--ink-press-in-ease), var(--ink-spring), var(--we-motion-state-easing), var(--ink-press-in-ease);
 }
 :where(:root[data-motion="liquid"]) .we-character-card:active {
   scale: 0.985;
@@ -513,7 +513,7 @@
     color-mix(in srgb, var(--we-color-accent) 15%, transparent),
     transparent 72%
   );
-  transition: opacity var(--we-duration-extended) var(--ink-surface);
+  transition: opacity var(--ink-hold) var(--ink-surface);
 }
 :where(:root[data-motion="liquid"]) .we-world-card > .we-touch-fx {
   z-index: var(--we-z-card-overlay);
@@ -610,7 +610,7 @@
 :where(:root[data-motion="liquid"]) .we-range:active::-webkit-slider-thumb {
   transform: scale(1.3);
   box-shadow: var(--we-shadow-range-thumb-active), 0 0 0 8px var(--ink-glow);
-  transition-duration: var(--we-duration-fast), var(--we-duration-normal);
+  transition-duration: var(--we-motion-state-duration), var(--ink-beat);
 }
 :where(:root[data-motion="liquid"]) .we-range::-moz-range-thumb {
   transition:
@@ -620,16 +620,15 @@
 :where(:root[data-motion="liquid"]) .we-range:active::-moz-range-thumb {
   transform: scale(1.3);
   box-shadow: var(--we-shadow-range-thumb-active), 0 0 0 8px var(--ink-glow);
-  transition-duration: var(--we-duration-fast), var(--we-duration-normal);
+  transition-duration: var(--we-motion-state-duration), var(--ink-beat);
 }
 
 /* ── 删除确认按钮 ─── */
 /* 确认删除：整颗按钮被往下拽着沉没，再从水面浮回，露出湿墨色的对勾；
    取消：墨从垃圾桶那一格洇开一圈淡墨，慢慢化开（确认条这时已经收起） */
 :where(:root[data-motion="liquid"]) .we-delete-btn[data-status="deleted"] {
-  animation:
-    we-ink-sink var(--we-duration-slow) var(--ink-sink) both,
-    we-ink-resurface var(--ink-knob) var(--ink-spring) var(--we-duration-extended) forwards;
+  animation: we-ink-sink var(--ink-settle) var(--ink-sink) both,
+    we-ink-resurface var(--ink-knob) var(--ink-spring) var(--ink-hold) forwards;
 }
 @keyframes we-ink-resurface {
   0%   { opacity: 0; transform: translateY(14px) scale(0.82, 1.24); filter: blur(4px); }
@@ -637,7 +636,7 @@
   100% { opacity: 1; transform: none; filter: none; }
 }
 :where(:root[data-motion="liquid"]) .we-delete-btn[data-status="deleted"] .we-delete-btn__done {
-  animation: we-ink-mark-dry var(--ink-dry) var(--ink-flow) var(--we-duration-extended) both;
+  animation: we-ink-mark-dry var(--ink-dry) var(--ink-flow) var(--ink-hold) both;
 }
 @keyframes we-ink-mark-dry {
   from { color: var(--ink-wet); filter: drop-shadow(0 0 4px var(--ink-glow)); }
@@ -670,11 +669,11 @@
 }
 :where(:root[data-motion="liquid"]) .we-sortable-item[data-sort="drag"] {
   translate: 0 -8px;
-  transition: translate var(--we-duration-fast) var(--ink-surface);
+  transition: translate var(--we-motion-state-duration) var(--ink-surface);
 }
 :where(:root[data-motion="liquid"]) :is(.we-sortable-item[data-sort="drag"], .we-sortable-overlay) > :first-child {
   box-shadow: 0 14px 28px -10px var(--we-color-shade-3);
-  transition: box-shadow var(--we-duration-fast) var(--ink-surface);
+  transition: box-shadow var(--we-motion-state-duration) var(--ink-surface);
 }
 :where(:root[data-motion="liquid"]) .we-sortable-overlay > :first-child {
   translate: 0 -8px;
@@ -810,7 +809,7 @@
   border-radius: 50%;
   background: var(--we-color-accent);
   box-shadow: 0 0 0.6em color-mix(in srgb, var(--we-color-accent) 55%, transparent);
-  animation: we-ink-breathe 1.4s var(--we-easing-page) infinite;
+  animation: we-ink-breathe 1.4s var(--ink-flow) infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -822,6 +821,10 @@
     --ink-dry: 0ms;
     --ink-trail: 0ms;
     --ink-knob: 0ms;
+    --ink-beat: 0ms;
+    --we-motion-state-duration: 0ms;
+    --ink-settle: 0ms;
+    --ink-hold: 0ms;
   }
   :where(:root[data-motion="liquid"]) :is(.we-input, .we-textarea, .we-toggle-track, .we-toggle-thumb, .we-delete-btn, .we-delete-btn__done),
   :where(:root[data-motion="liquid"]) .we-delete-btn__trigger::after,

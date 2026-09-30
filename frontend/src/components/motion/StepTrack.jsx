@@ -4,7 +4,7 @@
  * 只保留进度轨道，去掉播放 / 暂停控件与自动计时。 */
 import { motion } from 'framer-motion';
 import { useMotion } from '../../core/hooks/useMotion.js';
-import { DURATION } from '../../core/utils/motion.js';
+import { MOTION } from '../../core/utils/motion.js';
 
 // 当前步拉长成进度条：平滑到位。分格跳会让进度条一格一格顿住
 
@@ -27,7 +27,7 @@ export default function StepTrack({ steps, current, size = 28 }) {
   const motionPrefs = useMotion();
   const { reduced } = motionPrefs;
   const m = metricsFor(size);
-  const transition = motionPrefs.flow(DURATION.medium);
+  const transition = motionPrefs.flow(MOTION.enter.duration);
   return (
     <div
       role="img"

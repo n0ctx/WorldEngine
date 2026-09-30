@@ -1,18 +1,12 @@
 #!/usr/bin/env node
 /**
- * 动效 token 漂移检查
+ * 动效角色漂移检查
  *
- * 真源：frontend/src/core/utils/motion.js（DURATION / EASE）。
- * CSS 侧 frontend/src/themes/tokens.css 的 --we-duration-* / --we-easing-* 必须
- * 与真源【语义对齐】，否则 framer-motion 与 CSS transition 表现会分叉。
- *
- * 语义映射：
- *   --we-duration-fast     ↔ DURATION.quick   (hover 色变)
- *   --we-duration-normal   ↔ DURATION.base    (局部反馈)
- *   --we-duration-slow     ↔ DURATION.medium  (组件入场)
- *   --we-duration-extended ↔ DURATION.slow    (慢显)
- *   --we-duration-loop     ↔ DURATION.loop    (循环指示)
- *   --we-easing-ink/sharp/page/quill/retract ↔ EASE.ink/sharp/page/quill/retract
+ * 真源：frontend/src/core/utils/motion.js（MOTION / STAGGER）。
+ * CSS 侧 frontend/src/themes/tokens.css 的 --we-motion-<角色>-duration / -easing 与 --we-motion-stagger
+ * 必须与真源同名同值，否则 framer-motion 与 CSS transition 表现会分叉；两边的角色也必须一一对应。
+ * 动效包可以改写节奏角色：JS 写在包的 rhythm 里，CSS 写在 themes/motion/<id>.css 的 :root[data-motion="<id>"] 里，
+ * 两边必须同值、同一组角色，改写的角色必须存在。
  *
  * 退出码：0 通过 / 1 漂移（硬错误，阻塞 CI）
  */
@@ -25,37 +19,19 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '..');
 const MOTION_JS = path.join(ROOT, 'frontend/src/core/utils/motion.js');
 const TOKENS_CSS = path.join(ROOT, 'frontend/src/themes/tokens.css');
+const MOTION_PACK_JS = path.join(ROOT, 'frontend/src/core/motion/motionPack.js');
+const PACK_CSS_DIR = path.join(ROOT, 'frontend/src/themes/motion');
 
-const { DURATION, EASE } = await import(pathToFileURL(MOTION_JS).href);
+const { MOTION, STAGGER } = await import(pathToFileURL(MOTION_JS).href);
+const { MOTION_PACKS } = await import(pathToFileURL(MOTION_PACK_JS).href);
 
 const css = readFileSync(TOKENS_CSS, 'utf8');
 const errors = [];
-
-// ─── 时长对齐 ────────────────────────────────────────────────────────────────
-const DURATION_MAP = {
-  '--we-duration-fast':     'quick',
-  '--we-duration-normal':   'base',
-  '--we-duration-slow':     'medium',
-  '--we-duration-extended': 'slow',
-  '--we-duration-loop':     'loop',
-};
 
 function cssMs(token) {
   const m = css.match(new RegExp(`${token}\\s*:\\s*(\\d+(?:\\.\\d+)?)ms`));
   return m ? Number(m[1]) : null;
 }
-
-for (const [token, key] of Object.entries(DURATION_MAP)) {
-  const want = Math.round((DURATION[key] ?? NaN) * 1000); // 秒 → ms
-  const got = cssMs(token);
-  if (got === null) errors.push(`时长缺失：${token} 在 tokens.css 未定义`);
-  else if (got !== want) {
-    errors.push(`时长漂移：${token} = ${got}ms，应为 ${want}ms（motion.js DURATION.${key} = ${DURATION[key]}s）`);
-  }
-}
-
-// ─── 缓动对齐 ────────────────────────────────────────────────────────────────
-const EASE_KEYS = ['ink', 'sharp', 'page', 'quill', 'retract'];
 
 function cssBezier(token) {
   const m = css.match(new RegExp(`${token}\\s*:\\s*cubic-bezier\\(([^)]+)\\)`));
@@ -68,24 +44,63 @@ function approx(a, b) {
     && a.every((v, i) => Math.abs(v - b[i]) < 1e-6);
 }
 
-for (const key of EASE_KEYS) {
-  const token = `--we-easing-${key}`;
-  const want = EASE[key];
-  if (!Array.isArray(want)) { errors.push(`真源缺失：EASE.${key} 不是 cubic-bezier 数组`); continue; }
+function checkMs(token, seconds, source) {
+  const want = Math.round(seconds * 1000);
+  const got = cssMs(token);
+  if (got === null) errors.push(`时长缺失：${token} 在 tokens.css 未定义`);
+  else if (got !== want) errors.push(`时长漂移：${token} = ${got}ms，应为 ${want}ms（motion.js ${source} = ${seconds}s）`);
+}
+
+// ─── 角色对齐 ────────────────────────────────────────────────────────────────
+for (const [role, { duration, ease }] of Object.entries(MOTION)) {
+  checkMs(`--we-motion-${role}-duration`, duration, `MOTION.${role}.duration`);
+  if (!ease) continue;
+  const token = `--we-motion-${role}-easing`;
   const got = cssBezier(token);
   if (got === null) errors.push(`缓动缺失：${token} 在 tokens.css 未定义为 cubic-bezier`);
-  else if (!approx(got, want)) {
-    errors.push(`缓动漂移：${token} = cubic-bezier(${got.join(', ')})，应为 cubic-bezier(${want.join(', ')})（motion.js EASE.${key}）`);
+  else if (!approx(got, ease)) {
+    errors.push(`缓动漂移：${token} = cubic-bezier(${got.join(', ')})，应为 cubic-bezier(${ease.join(', ')})（motion.js MOTION.${role}.ease）`);
+  }
+}
+checkMs('--we-motion-stagger', STAGGER, 'STAGGER');
+
+// CSS 多出来的角色
+const cssRoles = new Set([...css.matchAll(/--we-motion-([a-z]+)-(?:duration|easing)\s*:/g)].map((m) => m[1]));
+for (const role of cssRoles) {
+  if (!MOTION[role]) errors.push(`角色缺失：tokens.css 有 --we-motion-${role}-*，motion.js 的 MOTION 没有 ${role}`);
+}
+
+// ─── 动效包改写的节奏 ─────────────────────────────────────────────────────────
+function packRootDecls(id) {
+  const text = readFileSync(path.join(PACK_CSS_DIR, `${id}.css`), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+  const root = new RegExp(`(?:^|\\})\\s*:root\\[data-motion="${id}"\\]\\s*\\{([^}]*)\\}`).exec(text)?.[1] ?? '';
+  return Object.fromEntries([...root.matchAll(/(--we-motion-[a-z-]+)\s*:\s*([^;]+);/g)].map((m) => [m[1], m[2].trim()]));
+}
+
+for (const pack of Object.values(MOTION_PACKS)) {
+  const css = packRootDecls(pack.id);
+  const want = {};
+  for (const [role, override] of Object.entries(pack.rhythm ?? {})) {
+    if (!MOTION[role]) { errors.push(`包 ${pack.id}：rhythm 改写了不存在的角色 ${role}`); continue; }
+    if (override.duration !== undefined) want[`--we-motion-${role}-duration`] = `${Math.round(override.duration * 1000)}ms`;
+    if (override.ease) want[`--we-motion-${role}-easing`] = `cubic-bezier(${override.ease.join(', ')})`;
+  }
+  for (const [token, value] of Object.entries(want)) {
+    if (css[token] === undefined) errors.push(`包 ${pack.id}：JS rhythm 改写了 ${token}，${pack.id}.css 的 :root 里没写（应为 ${value}）`);
+    else if (css[token].replace(/\s+/g, '') !== value.replace(/\s+/g, '')) errors.push(`包 ${pack.id}：${token} CSS 是 ${css[token]}，JS rhythm 是 ${value}`);
+  }
+  for (const token of Object.keys(css)) {
+    if (!(token in want)) errors.push(`包 ${pack.id}：${pack.id}.css 改写了 ${token}，JS 的 rhythm 里没有`);
   }
 }
 
 // ─── 输出 ────────────────────────────────────────────────────────────────────
 if (errors.length) {
-  console.error('\n✖ 动效 token 漂移：motion.js 与 tokens.css 不一致\n');
+  console.error('\n✖ 动效角色漂移：motion.js 与 tokens.css 不一致\n');
   for (const e of errors) console.error(`   ${e}`);
-  console.error('\n   修正方式：以 motion.js 为真源，调整 tokens.css 对应 token。\n');
+  console.error('\n   修正方式：以 motion.js 为真源，调整 tokens.css 对应角色。\n');
   process.exit(1);
 }
 
-console.log(`✓ 动效 token 对齐：motion.js ↔ tokens.css 一致（时长 ${Object.keys(DURATION_MAP).length} 槽 + 缓动 ${EASE_KEYS.length} 条）`);
+console.log(`✓ 动效角色对齐：motion.js ↔ tokens.css 一致（${Object.keys(MOTION).length} 个角色 + 错峰），${Object.keys(MOTION_PACKS).length} 个动效包的节奏改写 JS ↔ CSS 一致`);
 process.exit(0);

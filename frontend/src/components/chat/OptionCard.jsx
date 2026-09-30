@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { StreamCaret } from './StreamingMarkdown.jsx';
-import { DURATION, EASE } from '../../core/utils/motion.js';
+import { useMotion } from '../../core/hooks/useMotion.js';
 
 const MotionDiv = motion.div;
 
@@ -31,6 +31,7 @@ function optionClass({ disabled, selected, dismissed }) {
 }
 
 export default function OptionCard({ options, streaming, onSelect, initialCollapsed, onCollapsedChange }) {
+  const m = useMotion();
   const [collapsed, setCollapsed] = useState(!!initialCollapsed);
   const [selectedIndex, setSelectedIndex] = useState(-1);
 
@@ -56,7 +57,7 @@ export default function OptionCard({ options, streaming, onSelect, initialCollap
     <MotionDiv
       initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: DURATION.quick, ease: EASE.ink }}
+      transition={m.role('state')}
       className="px-4 pb-2 shrink-0"
     >
       <div className="max-w-[800px] mx-auto">

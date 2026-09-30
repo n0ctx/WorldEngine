@@ -4,7 +4,7 @@
  * 只负责画，状态由外层卡片按悬停 / 按下传入，颜色读 --we-* token。 */
 import { motion } from 'framer-motion';
 import { useMotion } from '../../core/hooks/useMotion.js';
-import { DURATION, STAGGER } from '../../core/utils/motion.js';
+import { MOTION, STAGGER } from '../../core/utils/motion.js';
 
 const BASE_WIDTH = 321;
 const BASE_HEIGHT = 270;
@@ -18,7 +18,7 @@ const CARDS = [
   { rest: { x: 3, y: -20, rotate: 2 }, hover: { x: 3, y: -35, rotate: -1 }, open: { x: 0, y: -180, rotate: -3 } },
   { rest: { x: -40, y: -22, rotate: -5 }, hover: { x: -40, y: -44, rotate: -9 }, open: { x: -65, y: -170, rotate: -14 } },
 ];
-const CARD_STAGGER = { hover: STAGGER.panel, open: STAGGER.list };
+const CARD_STAGGER = { hover: STAGGER, open: STAGGER };
 const FLAP_TILT = { rest: -15, hover: -45, open: -55 };
 
 // 卡面：标题条 + 两列八行的文字条
@@ -66,7 +66,7 @@ export default function Folder({ state = 'rest', width = 56 }) {
               className="we-folder__card-slot"
               initial={false}
               animate={card[state]}
-              transition={m.flow(DURATION.medium, { delay: (CARDS.length - 1 - i) * (CARD_STAGGER[state] ?? 0) })}
+              transition={m.flow(MOTION.enter.duration, { delay: (CARDS.length - 1 - i) * (CARD_STAGGER[state] ?? 0) })}
             >
               <Card />
             </motion.span>
@@ -76,7 +76,7 @@ export default function Folder({ state = 'rest', width = 56 }) {
           className="we-folder__flap"
           initial={false}
           animate={{ rotateX: FLAP_TILT[state] }}
-          transition={m.flow(DURATION.medium)}
+          transition={m.flow(MOTION.enter.duration)}
         >
           <span className="we-folder__flap-glass" style={{ clipPath: `path('${FLAP_PATH}')` }} />
           <svg width="321" height="241" viewBox="0 0 321 241" fill="none" className="we-folder__flap-shape">

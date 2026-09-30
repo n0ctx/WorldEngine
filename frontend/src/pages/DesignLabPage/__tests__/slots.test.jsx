@@ -11,7 +11,7 @@ import { CATEGORIES, SLOTS, STATUS_LABEL } from '../slots.js';
 
 // 动效包对外暴露的全部接口，写成与 slots.js 里 api 相同的记法
 function packApis(pack) {
-  const apis = ['flow', 'stream', 'fx'];
+  const apis = ['flow', 'stream', 'fx', 'role'];
   for (const key of Object.keys(pack.variants)) apis.push(`variant:${key}`);
   for (const key of Object.keys(pack.transitions)) apis.push(`transition:${key}`);
   for (const key of Object.keys(pack.gestures)) apis.push(`gesture:${key}`);
