@@ -1,6 +1,6 @@
 import Card from '../../../components/ui/Card.jsx';
 import SectionTitle from '../../../components/ui/SectionTitle.jsx';
-import WorldProfileDefaultsFields from '../../../components/state/WorldProfileDefaultsFields.jsx';
+import WorldProfileDefaultsFields from '../../../components/rules/WorldProfileDefaultsFields.jsx';
 
 /** 规则页「世界状态」里的档案默认值：开场时间、开场地点。 */
 export default function WorldProfileDefaultsDetail({ worldId }) {

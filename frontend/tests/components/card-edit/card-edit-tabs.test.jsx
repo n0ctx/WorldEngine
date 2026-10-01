@@ -8,7 +8,7 @@ vi.mock('../../../src/core/utils/logger.js', () => ({
   log: { warn: vi.fn(), error: vi.fn(), info: vi.fn(), debug: vi.fn() },
 }));
 
-import CardEditTabs from '../../../src/components/state/CardEditTabs.jsx';
+import CardEditTabs from '../../../src/components/card-edit/CardEditTabs.jsx';
 
 const basicTab = { key: 'basic', label: '设定', content: <p>设定页</p> };
 

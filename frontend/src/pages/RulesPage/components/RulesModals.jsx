@@ -1,5 +1,5 @@
 import { AnimatePresence } from 'framer-motion';
-import StateFieldEditor from '../../../components/state/StateFieldEditor';
+import StateFieldEditor from '../../../components/rules/StateFieldEditor';
 import NewSystemWizard from './NewSystemWizard.jsx';
 
 export default function RulesModals({

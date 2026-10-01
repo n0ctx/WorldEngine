@@ -1,7 +1,7 @@
 import { Badge, Button, Card, Checkbox, Input, MarkdownEditor, Select, TagInput } from '../index.js';
-import DatetimeSplitInput from './DatetimeSplitInput';
+import DatetimeSplitInput from '../state/DatetimeSplitInput';
 import { useStateMemorySchema } from '../../core/hooks/useStateMemory.js';
-import { STATE_LIST_MAX_ITEMS } from './stateListLimit.js';
+import { STATE_LIST_MAX_ITEMS } from '../state/stateListLimit.js';
 import {
   ISO_DATETIME_RE,
   findReplacedProfileFieldLabel,

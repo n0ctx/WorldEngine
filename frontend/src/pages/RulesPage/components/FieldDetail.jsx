@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Badge, Button, Card, EmptyState, ListItem, SectionTitle, Skeleton } from '../../../components/index.js';
-import StateFieldEditor from '../../../components/state/StateFieldEditor';
-import EntryEditor from '../../../components/state/EntryEditor';
+import StateFieldEditor from '../../../components/rules/StateFieldEditor';
+import EntryEditor from '../../../components/rules/EntryEditor';
 import { listWorldEntries, getEntryConditions } from '../../../core/api/prompt-entries';
 import { log } from '../../../core/utils/logger.js';
 import { TYPE_LABEL } from '../constants.js';

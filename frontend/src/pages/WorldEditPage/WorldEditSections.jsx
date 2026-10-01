@@ -1,5 +1,5 @@
-import StateFieldList from '../../components/state/StateFieldList';
-import WorldProfileDefaultsFields from '../../components/state/WorldProfileDefaultsFields.jsx';
+import StateFieldList from '../../components/rules/StateFieldList';
+import WorldProfileDefaultsFields from '../../components/rules/WorldProfileDefaultsFields.jsx';
 import AvatarUpload from '../../components/ui/AvatarUpload';
 import Button from '../../components/ui/Button';
 import Divider from '../../components/ui/Divider.jsx';

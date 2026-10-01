@@ -75,7 +75,7 @@ vi.mock('../../src/core/utils/logger.js', () => ({
 
 // EntryEditor / StateFieldEditor / StateValueField 都是复杂子组件，这里只关心 RulesPage 自身的
 // 机制导航、列表筛选、启用开关、删除确认这些结构性行为，子组件内部逻辑各自有单测覆盖。
-vi.mock('../../src/components/state/EntryEditor', () => ({
+vi.mock('../../src/components/rules/EntryEditor', () => ({
   default: ({ entry, onClose }) => (
     <div data-testid="entry-editor">
       <span>条目编辑器：{entry ? entry.title : '（新建）'}</span>
@@ -83,13 +83,13 @@ vi.mock('../../src/components/state/EntryEditor', () => ({
     </div>
   ),
 }));
-vi.mock('../../src/components/state/StateFieldEditor', () => ({
+vi.mock('../../src/components/rules/StateFieldEditor', () => ({
   default: () => <div data-testid="state-field-editor" />,
 }));
 vi.mock('../../src/components/state/StateValueField', () => ({
   default: () => <div data-testid="state-value-field" />,
 }));
-vi.mock('../../src/components/state/WorldProfileDefaultsFields.jsx', () => ({
+vi.mock('../../src/components/rules/WorldProfileDefaultsFields.jsx', () => ({
   default: () => <div data-testid="world-profile-defaults-fields">开场时间</div>,
 }));
 vi.mock('../../src/pages/RulesPage/components/CardProfileDefaultsDetail.jsx', () => ({

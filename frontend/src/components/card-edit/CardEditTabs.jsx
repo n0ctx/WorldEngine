@@ -3,10 +3,10 @@ import { AnimatePresence } from 'framer-motion';
 import Button from '../ui/Button';
 import FormGroup from '../ui/FormGroup';
 import SectionTabs from '../ui/SectionTabs.jsx';
-import StateValueField from './StateValueField';
+import StateValueField from '../state/StateValueField';
 import StateExtractPreviewModal from './StateExtractPreviewModal';
 import { applyExtractedValues } from './applyExtractedValues.js';
-import { groupRowsByProfile } from './profile-groups.js';
+import { groupRowsByProfile } from '../state/profile-groups.js';
 import { log } from '../../core/utils/logger.js';
 
 function ValueRows({ fields, onSave }) {

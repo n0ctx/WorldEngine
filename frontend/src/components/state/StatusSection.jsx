@@ -11,7 +11,7 @@ import {
   formatFieldValue,
   parseArray,
   parseRawValue,
-} from './state-value-format.js';
+} from '../../core/utils/state-value-format.js';
 
 const parseValue = formatFieldValue;
 

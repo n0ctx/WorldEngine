@@ -1,5 +1,5 @@
 import { useLayoutEffect, useRef, useState } from 'react';
-import { stateRowKey } from '../../components/state/state-value-format.js';
+import { stateRowKey } from '../utils/state-value-format.js';
 import { didSessionChange } from './useSessionResetGuard.js';
 
 const EMPTY = { world: [], persona: [], character: [] };

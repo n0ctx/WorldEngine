@@ -7,7 +7,7 @@ vi.mock('../../../src/core/utils/logger.js', () => ({
   log: { error: (...args) => mocks.logError(...args) },
 }));
 
-import StateFieldList from '../../../src/components/state/StateFieldList.jsx';
+import StateFieldList from '../../../src/components/rules/StateFieldList.jsx';
 
 describe('StateFieldList', () => {
   it('删除失败时提示错误，确认框恢复可操作', async () => {

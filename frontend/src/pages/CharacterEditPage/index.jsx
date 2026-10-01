@@ -12,7 +12,7 @@ import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
 import Textarea from '../../components/ui/Textarea';
 import DoneConfirm from './components/DoneConfirm.jsx';
-import CardEditTabs from '../../components/state/CardEditTabs.jsx';
+import CardEditTabs from '../../components/card-edit/CardEditTabs.jsx';
 import EditPageShell from '../layout/EditPageShell';
 import FormGroup from '../../components/ui/FormGroup';
 import AvatarUpload from '../../components/ui/AvatarUpload';

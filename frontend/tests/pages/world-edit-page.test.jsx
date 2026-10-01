@@ -67,7 +67,7 @@ vi.mock('../../src/core/api/persona-state-fields', () => ({
 vi.mock('../../src/core/api/config', () => ({
   getConfig: (...args) => mocks.getConfig(...args),
 }));
-vi.mock('../../src/components/state/StateFieldList', () => ({ default: ({ scope }) => <div>{scope}-fields</div> }));
+vi.mock('../../src/components/rules/StateFieldList', () => ({ default: ({ scope }) => <div>{scope}-fields</div> }));
 vi.mock('../../src/components/ui/AvatarUpload', () => ({
   default: ({ fileInputRef, onFileChange }) => <input ref={fileInputRef} type="file" onChange={onFileChange} />,
 }));

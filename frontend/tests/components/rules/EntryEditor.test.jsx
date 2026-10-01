@@ -60,7 +60,7 @@ vi.mock('../../../src/components/ui/Select', () => ({
   ),
 }));
 
-import EntryEditor from '../../../src/components/state/EntryEditor.jsx';
+import EntryEditor from '../../../src/components/rules/EntryEditor.jsx';
 
 describe('EntryEditor', () => {
   function fillBasicForm() {

@@ -1,4 +1,4 @@
-import EntryEditor from '../../../components/state/EntryEditor';
+import EntryEditor from '../../../components/rules/EntryEditor';
 import EmptyState from '../../../components/ui/EmptyState.jsx';
 import RulesOverview from './RulesOverview.jsx';
 import FieldDetail from './FieldDetail.jsx';

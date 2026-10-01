@@ -33,7 +33,7 @@ vi.mock('../../../src/core/api/state-memory.js', () => ({
   }),
 }));
 
-import StateFieldEditor from '../../../src/components/state/StateFieldEditor.jsx';
+import StateFieldEditor from '../../../src/components/rules/StateFieldEditor.jsx';
 
 describe('StateFieldEditor', () => {
   beforeEach(() => {

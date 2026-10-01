@@ -4,7 +4,7 @@ import Input from '../ui/Input';
 import Select from '../ui/Select';
 import TagInput from '../ui/TagInput';
 import DatetimeSplitInput from './DatetimeSplitInput';
-import { parseLooseJson } from './state-value-format';
+import { parseLooseJson } from '../../core/utils/state-value-format';
 import { STATE_LIST_MAX_ITEMS } from './stateListLimit.js';
 
 const AUTOSAVE_DELAY_MS = 450;

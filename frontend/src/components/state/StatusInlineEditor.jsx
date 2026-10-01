@@ -11,7 +11,7 @@ import {
   formatFieldValue,
   parseArray,
   parseRawValue,
-} from './state-value-format.js';
+} from '../../core/utils/state-value-format.js';
 import { STATE_LIST_MAX_ITEMS } from './stateListLimit.js';
 
 function stringifyTrackValue(value) {

@@ -1,8 +1,8 @@
 import { useRef, useState } from 'react';
 import Button from '../../../components/ui/Button.jsx';
 import Dialog from '../../../components/ui/Dialog.jsx';
-import StateFieldEditor from '../../../components/state/StateFieldEditor';
-import EntryEditor from '../../../components/state/EntryEditor';
+import StateFieldEditor from '../../../components/rules/StateFieldEditor';
+import EntryEditor from '../../../components/rules/EntryEditor';
 import StepTrack from '../../../components/motion/StepTrack.jsx';
 import DefaultValueMatrix from './DefaultValueMatrix.jsx';
 

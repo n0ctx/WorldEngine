@@ -5,7 +5,7 @@ import { cardClassName } from '../ui/cardClassName.js';
 import Checkbox from '../ui/Checkbox';
 import Dialog from '../ui/Dialog';
 import EmptyState from '../ui/EmptyState';
-import { ISO_DATETIME_RE, formatBooleanDisplay, formatDatetimeChinese, parseLooseJson } from './state-value-format';
+import { ISO_DATETIME_RE, formatBooleanDisplay, formatDatetimeChinese, parseLooseJson } from '../../core/utils/state-value-format';
 import { toggleSetValue } from '../../core/utils/toggleSetValue.js';
 
 const EMPTY_DISPLAY = '（未设置）';

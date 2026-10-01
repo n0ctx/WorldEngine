@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import FormGroup from '../ui/FormGroup';
 import Input from '../ui/Input';
-import DatetimeSplitInput from './DatetimeSplitInput.jsx';
+import DatetimeSplitInput from '../state/DatetimeSplitInput.jsx';
 import { getWorldProfileDefaults, updateWorldProfileDefault } from '../../core/api/world-profile-defaults.js';
 import { log } from '../../core/utils/logger.js';
 
