@@ -55,7 +55,7 @@ vi.mock('../../src/core/utils/avatar', () => ({
 }));
 
 import { endPortal } from '../../src/core/motion/portal.js';
-import WorldsPage from '../../src/pages/WorldsPage.jsx';
+import WorldsPage from '../../src/pages/WorldsPage/index.jsx';
 
 describe('WorldsPage', () => {
   beforeEach(() => {

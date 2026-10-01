@@ -76,7 +76,7 @@ vi.mock('../../src/components/state/StateValueField', () => ({
   default: ({ field, onSave }) => <button onClick={() => onSave(field.field_key, '"玩家值"')}>save-{field.field_key}</button>,
 }));
 
-import PersonaEditPage from '../../src/pages/PersonaEditPage.jsx';
+import PersonaEditPage from '../../src/pages/PersonaEditPage/index.jsx';
 
 describe('PersonaEditPage', () => {
   beforeEach(() => {

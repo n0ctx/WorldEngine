@@ -7,7 +7,7 @@ vi.mock('../../components/ui/SectionTabs.jsx', () => ({
 }));
 vi.mock('../layout/EditPageShell', () => ({ default: ({ children }) => <div>{children}</div> }));
 
-const WorldEditPage = (await import('../WorldEditPage.jsx')).default;
+const WorldEditPage = (await import('../WorldEditPage/index.jsx')).default;
 
 afterEach(cleanup);
 

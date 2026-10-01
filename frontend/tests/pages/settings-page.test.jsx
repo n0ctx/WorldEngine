@@ -32,7 +32,7 @@ vi.mock('../../src/components/settings/CustomCssManager', () => ({ default: () =
 vi.mock('../../src/components/settings/RegexRulesManager', () => ({ default: () => <div>REGEX PANEL</div> }));
 vi.mock('../../src/components/settings/FeaturesConfigPanel', () => ({ default: () => <div>FEATURES PANEL</div> }));
 
-import SettingsPage from '../../src/pages/SettingsPage.jsx';
+import SettingsPage from '../../src/pages/SettingsPage/index.jsx';
 
 describe('SettingsPage', () => {
   beforeEach(() => {

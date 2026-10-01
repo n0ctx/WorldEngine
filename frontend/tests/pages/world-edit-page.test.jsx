@@ -96,7 +96,7 @@ vi.mock('../../src/components/ui/SectionTabs.jsx', () => ({
   default: ({ sections }) => <div>{sections.map((section) => <div key={section.key}>{section.content}</div>)}</div>,
 }));
 
-import WorldEditPage from '../../src/pages/WorldEditPage.jsx';
+import WorldEditPage from '../../src/pages/WorldEditPage/index.jsx';
 
 describe('WorldEditPage', () => {
   beforeEach(() => {

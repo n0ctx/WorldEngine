@@ -9,26 +9,26 @@ import {
   createPersona,
   uploadPersonaAvatarById,
   extractPersonaStateValues,
-} from '../core/api/personas';
+} from '../../core/api/personas';
 import {
   getPersonaStateValues,
   getPersonaStateValuesByPersonaId,
   updatePersonaStateValueByPersonaId,
   getPersonaProfileDefaults,
   updatePersonaProfileDefault,
-} from '../core/api/persona-state-values';
-import { downloadPersonaCard } from '../core/api/import-export';
-import { getAvatarColor, getAvatarUrl } from '../core/utils/avatar';
-import MarkdownEditor from '../components/ui/MarkdownEditor';
-import Button from '../components/ui/Button';
-import Input from '../components/ui/Input';
-import Textarea from '../components/ui/Textarea';
-import CardEditTabs from '../components/state/CardEditTabs.jsx';
-import EditPageShell from './layout/EditPageShell';
-import FormGroup from '../components/ui/FormGroup';
-import AvatarUpload from '../components/ui/AvatarUpload';
-import { log } from '../core/utils/logger.js';
-import { useCreateDraftIdentity } from '../core/hooks/useCreateDraftIdentity.js';
+} from '../../core/api/persona-state-values';
+import { downloadPersonaCard } from '../../core/api/import-export';
+import { getAvatarColor, getAvatarUrl } from '../../core/utils/avatar';
+import MarkdownEditor from '../../components/ui/MarkdownEditor';
+import Button from '../../components/ui/Button';
+import Input from '../../components/ui/Input';
+import Textarea from '../../components/ui/Textarea';
+import CardEditTabs from '../../components/state/CardEditTabs.jsx';
+import EditPageShell from '../layout/EditPageShell';
+import FormGroup from '../../components/ui/FormGroup';
+import AvatarUpload from '../../components/ui/AvatarUpload';
+import { log } from '../../core/utils/logger.js';
+import { useCreateDraftIdentity } from '../../core/hooks/useCreateDraftIdentity.js';
 
 function readCreateDraft() {
   try {
