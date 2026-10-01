@@ -3093,10 +3093,10 @@
   width: fit-content;
   max-width: min(320px, 100%);
   overflow: hidden;
-  border-radius: var(--we-radius-md);
+  border-radius: var(--we-radius-sm);
   background: var(--we-color-bg-canvas);
   box-shadow: var(--we-elevation-3);
-  padding: var(--we-space-sm) var(--we-space-sm) var(--we-space-sm) var(--we-space-lg);
+  padding: var(--we-space-xs) var(--we-space-xs) var(--we-space-xs) var(--we-space-md);
 }
 
 .we-toast-card__row {
