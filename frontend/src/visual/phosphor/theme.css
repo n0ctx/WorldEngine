@@ -1,0 +1,66 @@
+:root {
+  /*
+   * 磷光 phosphor —— 配「信号」动效包的深色主题
+   * 两种绿：系统是偏冷的磷光绿（底、正文、边缘高光、对角的绿光），能碰的东西是酸性黄绿（主色），亮到发烫。
+   * 信号的错位撕裂取主色与它的色环对面，黄绿的对面是蓝紫，撕裂一次就闪出一道赛博紫。
+   * 背景氛围是代码雨：多数雨列取系统绿，少数取主色；进入世界后主色由封面接管，系统绿不变。
+   * 形状：没有圆，按钮、头像、状态点都是方块像素。
+   */
+
+  /* § 1 基础色板 */
+  --we-base-canvas:  #030a06;   /* 显像管玻璃的绿黑 */
+  --we-base-surface: #08150e;
+  --we-base-ink:     #c6f6d5;   /* 磷光白：正文与各级灰都带一点绿 */
+  --we-base-accent:  #c8ff00;   /* 酸性黄绿：只给能点的东西；压在上面的字取画布的绿黑 */
+  --we-base-success: #39ff8f;
+  --we-base-warning: #ffb020;   /* 琥珀，和黄绿主色分开 */
+  --we-base-info:    #33dcff;
+  --we-base-danger:  #ff5a36;   /* 红橙 */
+  --we-base-shade:   #000000;
+  --we-shadow-strength: 100%;
+  --we-color-scheme: dark;
+
+  /* § 2 字体：界面全等宽（终端），正文保留无衬线方便长读；大标题与世界卡名用得意黑，字形自带斜切 */
+  --we-font-ui: ui-monospace, SFMono-Regular, 'SF Mono', 'JetBrains Mono', 'Cascadia Mono', Consolas, 'PingFang SC', 'Microsoft YaHei', monospace;
+  --we-font-display: 'Smiley Sans', -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  --we-font-mono: ui-monospace, SFMono-Regular, 'SF Mono', 'JetBrains Mono', 'Cascadia Mono', Consolas, 'PingFang SC', 'Microsoft YaHei', monospace;
+  --we-font-display-style: oblique 8deg;
+
+  /* § 3 形状：像素没有圆 */
+  --we-radius-xs:   0px;
+  --we-radius-sm:   0px;
+  --we-radius-md:   0px;
+  --we-radius-lg:   0px;
+  --we-radius-xl:   0px;
+  --we-radius-full: 0px;
+
+  /* 背景氛围：代码雨。左上一团主色光晕（黄绿 / 世界色），右下常驻一团磷光绿，两种光对打；
+     shade 的色相也是系统雨列的颜色。阅读页把雨压到一半，不抢正文 */
+  --we-atmosphere-kind: rain;
+  --we-atmosphere-shade: rgba(57, 255, 143, 0.38);
+  --we-atmosphere-opacity: 1;
+  --we-atmosphere-opacity-quiet: 0.5;
+  --we-atmosphere-glow-strength: 34%;
+  --we-atmosphere-grain: 0.08;
+
+  /* 表面：顶部高光线是一条磷光绿的屏幕边 */
+  --we-material-sheen: rgba(120, 255, 180, 0.34);
+  --we-material-grain: 0.05;
+
+  /* 浮层：更透，背后的代码雨被糊成失焦的绿点 */
+  --we-glass-opacity: 62%;
+  --we-glass-blur: 14px;
+  --we-pane-center-bg: color-mix(in srgb, var(--we-color-bg-canvas) 84%, transparent);
+  --we-pane-side-bg: color-mix(in srgb, var(--we-color-bg-elevated) 22%, transparent);
+  --we-pane-glow: color-mix(in srgb, var(--we-atmosphere-color) 44%, transparent);
+
+  /* 卡片：磷光细边；封面左上角斜进一道黄绿霓虹，底部压绿黑托住卡名；
+     悬停时霓虹退场，整张封面从底部泛起磷光绿，顶部压暗给简介 */
+  --we-card-border: 1px solid color-mix(in srgb, #39ff8f 42%, transparent);
+  --we-card-overlay-bg:
+    linear-gradient(135deg, rgba(200, 255, 0, 0.36) 0%, rgba(200, 255, 0, 0) 34%),
+    linear-gradient(180deg, rgba(2, 12, 6, 0) 30%, rgba(2, 12, 6, 0.62) 66%, rgba(2, 12, 6, 0.94) 100%);
+  --we-card-overlay-hover-bg:
+    linear-gradient(0deg, rgba(57, 255, 143, 0.34) 0%, rgba(57, 255, 143, 0) 55%),
+    linear-gradient(180deg, rgba(2, 12, 6, 0.86) 0%, rgba(2, 12, 6, 0.42) 45%, rgba(2, 12, 6, 0.6) 70%, rgba(2, 12, 6, 0.94) 100%);
+}

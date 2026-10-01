@@ -15,7 +15,7 @@ export function AtmosphereDemo() {
   const [color, setColor] = useState('');
   return (
     <VisualSection id="atmosphere">
-      <div className="we-design-lab__chips we-design-lab__chips--inline" role="group" aria-label="光尘颜色">
+      <div className="we-design-lab__chips we-design-lab__chips--inline" role="group" aria-label="氛围颜色">
         {DUST_COLORS.map((item) => (
           <button
             key={item.name}
@@ -33,7 +33,7 @@ export function AtmosphereDemo() {
       </div>
       <div className="we-design-lab__fx-box we-on-shell" style={color ? { '--we-atmosphere-color': color } : undefined}>
         <AtmosphereLayer quiet={quiet} colorKey={color} />
-        <p className="we-design-lab__note">光尘铺在内容后面；这里限制在盒子里，真实页面里铺满整个窗口。</p>
+        <p className="we-design-lab__note">氛围铺在内容后面；这里限制在盒子里，真实页面里铺满整个窗口。代码雨里指针附近的字会亮起，点一下炸出冲击波。</p>
       </div>
     </VisualSection>
   );

@@ -1,0 +1,12 @@
+{
+  "id": "phosphor",
+  "name": "磷光",
+  "version": "1.0.0",
+  "author": "WorldEngine",
+  "description": "配「信号」动效的深色主题：显像管绿黑底、磷光绿系统色、酸性黄绿主色，背景是代码雨。",
+  "preview": {
+    "paper": "#030a06",
+    "accent": "#c8ff00",
+    "ink": "#c6f6d5"
+  }
+}

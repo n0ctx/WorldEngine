@@ -1,5 +1,6 @@
 /**
- * 背景氛围层：垫在全部内容后面的一层静态光晕 + 一张画光尘的 canvas。
+ * 背景氛围层：垫在全部内容后面的一层静态光晕 + 一张动态画布。
+ * - 画布画什么由主题的 --we-atmosphere-kind 选：dust 光尘（lightDust.js）/ rain 代码雨（codeRain.js），换主题时随下一次重读切换；
  * - 颜色取 --we-atmosphere-color：进入世界后随封面主色变，书架页悬停入口时由外壳临时覆盖成该世界主色；
  * - 强度由 CSS 按场景取 --we-atmosphere-opacity / --we-atmosphere-opacity-quiet 作用在 canvas 上；
  * - 页面隐藏时停掉循环；系统要求减少动效时不渲染 canvas，只留静态光晕。
@@ -7,11 +8,13 @@
 import { useEffect, useRef } from 'react';
 import { useMotion } from '../../../core/hooks/useMotion.js';
 import { hexToRgb } from '../../../core/utils/color.js';
-import { approachColor, createMoteSprite, createMotes, drawFrame, moteCountFor, releaseMoteSprite, stepMotes } from './lightDust.js';
+import { createRainScene } from './codeRain.js';
+import { createDustScene } from './lightDust.js';
 
 const MAX_DPR = 2;
 // 主题切换不发事件给这里，按固定间隔重读一次 token；已知的换色（colorKey）立即重读
 const TOKEN_REFRESH_SECONDS = 1;
+const SCENES = { dust: createDustScene, rain: createRainScene };
 
 /** 借 canvas 把任意 CSS 颜色规范成 #rrggbb 或 rgba(...)，再转成 {r,g,b} */
 function toRgb(ctx, value) {
@@ -40,15 +43,11 @@ function Canvas({ colorKey }) {
 
     let width = 0;
     let height = 0;
-    let motes = [];
     let frame = 0;
     let last = 0;
-    let time = 0;
     let sinceRead = 0;
-    let target = null;
-    let color = null;
-    let sprite = null;
-    let spriteKey = '';
+    let kind = '';
+    let scene = null;
 
     function resize() {
       const dpr = Math.min(window.devicePixelRatio || 1, MAX_DPR);
@@ -57,30 +56,33 @@ function Canvas({ colorKey }) {
       canvas.width = Math.round(width * dpr);
       canvas.height = Math.round(height * dpr);
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      if (motes.length !== moteCountFor(width)) motes = createMotes(moteCountFor(width), width, height);
+      scene?.resize(width, height);
+    }
+
+    function readTokens() {
+      const style = getComputedStyle(canvas);
+      const wanted = style.getPropertyValue('--we-atmosphere-kind').trim();
+      const next = SCENES[wanted] ? wanted : 'dust';
+      if (next !== kind) {
+        scene?.dispose();
+        ctx.clearRect(0, 0, width, height);
+        kind = next;
+        scene = SCENES[kind](canvas);
+        scene.resize(width, height);
+      }
+      scene.read((token) => toRgb(ctx, style.getPropertyValue(token)));
     }
 
     function tick(now) {
       const dt = last ? Math.min((now - last) / 1000, 0.05) : 0;
       last = now;
-      time += dt;
       sinceRead += dt;
-      if (staleRef.current || sinceRead >= TOKEN_REFRESH_SECONDS) {
-        target = toRgb(ctx, getComputedStyle(canvas).getPropertyValue('--we-atmosphere-color'));
+      if (!scene || staleRef.current || sinceRead >= TOKEN_REFRESH_SECONDS) {
+        readTokens();
         staleRef.current = false;
         sinceRead = 0;
       }
-      if (target) color = color ? approachColor(color, target, dt) : target;
-      if (color) {
-        const key = `${Math.round(color.r)},${Math.round(color.g)},${Math.round(color.b)}`;
-        if (key !== spriteKey) {
-          releaseMoteSprite(sprite);
-          sprite = createMoteSprite(color);
-          spriteKey = key;
-        }
-        stepMotes(motes, dt, width, height);
-        drawFrame(ctx, { motes, sprite, width, height, color, time });
-      }
+      scene.frame(ctx, dt);
       frame = requestAnimationFrame(tick);
     }
 
@@ -90,12 +92,13 @@ function Canvas({ colorKey }) {
       frame = requestAnimationFrame(tick);
     }
 
+    // 停下时连场景一起丢掉：光尘的贴图在 Edge 里只掉引用不会释放，代码雨的指针监听也要撤
     function stop() {
       cancelAnimationFrame(frame);
       frame = 0;
-      releaseMoteSprite(sprite);
-      sprite = null;
-      spriteKey = '';
+      scene?.dispose();
+      scene = null;
+      kind = '';
     }
 
     function onVisibility() {
@@ -110,8 +113,6 @@ function Canvas({ colorKey }) {
 
     return () => {
       stop();
-      releaseMoteSprite(sprite);
-      sprite = null;
       canvas.width = 0;
       canvas.height = 0;
       window.removeEventListener('resize', resize);

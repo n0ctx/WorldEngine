@@ -17,7 +17,7 @@
   --we-base-canvas:  #f7f7f4;   /* 页面底；深色主题须写 6 位十六进制，且不能比 core/utils/accentBasis.js 的取色基准更亮 */
   --we-base-surface: #ffffff;   /* 卡片、面板 */
   --we-base-ink:     #171717;   /* 正文色 */
-  --we-base-accent:  #7d766f;   /* 主题强调色：克制、低饱和，把颜色让给世界封面 */
+  --we-base-accent:  #7d766f;   /* 主题强调色：深色主题进入世界后由封面主色接管 */
   --we-base-success: #4f6a58;
   --we-base-warning: #9a6c35;
   --we-base-info:    #586174;
@@ -51,10 +51,11 @@
   --we-radius-xl:   28px;
   --we-radius-full: 9999px;
 
-  /* 背景氛围「光尘」：外壳在内容后画一束斜光和漂浮的微尘。
+  /* 背景氛围：外壳在内容后画一层动态画布，kind 选 dust 光尘（斜光与微尘）或 rain 代码雨。
      --we-atmosphere-color 默认取主色，进入世界后由外壳按封面主色覆盖 */
+  --we-atmosphere-kind: dust;
   --we-atmosphere-color: var(--we-color-accent);
-  --we-atmosphere-shade: rgba(52, 64, 96, 0.22);   /* 对角暗部的冷色 */
+  --we-atmosphere-shade: rgba(52, 64, 96, 0.22);   /* 对角暗部的冷色；代码雨的系统列取它的色相 */
   --we-atmosphere-opacity: 0.9;                     /* 场景页光尘强度 0–1 */
   --we-atmosphere-opacity-quiet: 0.6;               /* 阅读页光尘强度 */
   --we-atmosphere-glow-strength: 14%;               /* 静态光晕浓度 */

@@ -1,6 +1,7 @@
 /**
  * 光尘：从左上斜入的两道光（一道宽而淡、一道窄而亮），光里漂着缓慢上浮的微尘。
- * 纯绘制与步进逻辑，不依赖 React；AtmosphereLayer 负责循环、暂停与读取主题 token。
+ * 背景氛围的默认一种（--we-atmosphere-kind: dust）。步进与绘制不依赖 React；
+ * AtmosphereLayer 负责循环、暂停与读取主题 token，经 createDustScene 驱动。
  */
 
 // 光束方向：自左上向右下，与水平线约 62°
@@ -14,7 +15,7 @@ const SHAFTS = [
   { width: 0.045, tilt: -4, alpha: 0.22, phase: 2.1 },
 ];
 
-export function moteCountFor(width) {
+function moteCountFor(width) {
   return width < 640 ? 36 : 90;
 }
 
@@ -30,12 +31,12 @@ function spawnMote(width, height, rand, anywhere) {
   };
 }
 
-export function createMotes(count, width, height, rand = Math.random) {
+function createMotes(count, width, height, rand = Math.random) {
   return Array.from({ length: count }, () => spawnMote(width, height, rand, true));
 }
 
 /** 按秒推进：上浮 + 正弦横漂；飘出顶部的从底部重新进场。原地修改以免每帧分配。 */
-export function stepMotes(motes, dt, width, height, rand = Math.random) {
+function stepMotes(motes, dt, width, height, rand = Math.random) {
   for (let i = 0; i < motes.length; i++) {
     const m = motes[i];
     m.phase += dt * 0.5;
@@ -84,7 +85,7 @@ export function releaseMoteSprite(sprite) {
  * 画一帧。time 以秒计，驱动光束的慢速呼吸。
  * color 为 {r,g,b}；整体强度由 CSS 的 opacity 按场景控制，这里按满强度画。
  */
-export function drawFrame(ctx, { motes, sprite, width, height, color, time }) {
+function drawFrame(ctx, { motes, sprite, width, height, color, time }) {
   ctx.clearRect(0, 0, width, height);
 
   const reach = Math.hypot(width, height) * 1.1;
@@ -137,5 +138,46 @@ export function approachColor(current, target, dt) {
     r: current.r + (target.r - current.r) * k,
     g: current.g + (target.g - current.g) * k,
     b: current.b + (target.b - current.b) * k,
+  };
+}
+
+/** 光尘场景：AtmosphereLayer 每帧调 frame，每秒调 read 重读颜色；dispose 时释放贴图 */
+export function createDustScene() {
+  let motes = [];
+  let width = 0;
+  let height = 0;
+  let time = 0;
+  let target = null;
+  let color = null;
+  let sprite = null;
+  let spriteKey = '';
+
+  return {
+    resize(nextWidth, nextHeight) {
+      width = nextWidth;
+      height = nextHeight;
+      if (motes.length !== moteCountFor(width)) motes = createMotes(moteCountFor(width), width, height);
+    },
+    read(readColor) {
+      target = readColor('--we-atmosphere-color');
+    },
+    frame(ctx, dt) {
+      time += dt;
+      if (target) color = color ? approachColor(color, target, dt) : target;
+      if (!color) return;
+      const key = `${Math.round(color.r)},${Math.round(color.g)},${Math.round(color.b)}`;
+      if (key !== spriteKey) {
+        releaseMoteSprite(sprite);
+        sprite = createMoteSprite(color);
+        spriteKey = key;
+      }
+      stepMotes(motes, dt, width, height);
+      drawFrame(ctx, { motes, sprite, width, height, color, time });
+    },
+    dispose() {
+      releaseMoteSprite(sprite);
+      sprite = null;
+      spriteKey = '';
+    },
   };
 }

@@ -9,6 +9,16 @@
   src: url('../assets/fonts/alimama-fangyuanti/alimama-fangyuanti-vf-zh-normal.woff2') format('woff2-variations');
 }
 
+/* 得意黑：单字重、字形自带 8° 斜切，声明成 oblique 让缺字回退的字也斜成同一角度；
+   字重写满区间，避免浏览器给它合成假粗体 */
+@font-face {
+  font-family: 'Smiley Sans';
+  font-style: oblique 8deg;
+  font-display: swap;
+  font-weight: 100 900;
+  src: url('../assets/fonts/smiley-sans/smiley-sans-oblique.woff2') format('woff2');
+}
+
 :root {
   /* 界面字体：按钮、标签、表单、导航、列表 */
   --we-font-ui:
