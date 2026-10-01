@@ -22,7 +22,8 @@ import {
  *   onSave(data)  — 父组件负责调用 API，返回 Promise
  *   onClose()
  */
-export default function StateFieldEditor({ field, scope, onSave, onClose, inline = false }) {
+// dialog：交给外层弹窗的额外参数（向导用它放步骤条、接替上一步）
+export default function StateFieldEditor({ field, scope, onSave, onClose, inline = false, dialog }) {
   const [lockedColumnKeys] = useState(() => createLockedColumnKeys(field));
   const [form, setForm] = useState(() => createStateFieldForm(field));
   const [saving, setSaving] = useState(false);
@@ -78,6 +79,7 @@ export default function StateFieldEditor({ field, scope, onSave, onClose, inline
       onClose={onClose}
       bodyClassName="flex flex-col gap-4"
       footer={actions}
+      {...dialog}
     >
       {fields}
     </Dialog>

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Badge, EmptyState, SectionTitle, Skeleton } from '../index.js';
+import { Badge, Button, EmptyState, SectionTitle, Skeleton } from '../index.js';
 import { ChevronDown } from 'lucide-react';
 import StatusTable from './StatusTable.jsx';
 import StatusValueChange from './StatusValueChange.jsx';
@@ -286,12 +286,14 @@ export default function StatusSection({
             level="eyebrow"
             rule="beside"
             actions={onReset && (
-              <button
+              <Button
+                variant="text"
+                size="sm"
                 className="we-state-section-reset"
                 onClick={(e) => { e.stopPropagation(); if (!resetting) onReset(); }}
               >
                 {resetting ? '…' : '重置'}
-              </button>
+              </Button>
             )}
           >
             {collapsible && <Chevron open={open} />}

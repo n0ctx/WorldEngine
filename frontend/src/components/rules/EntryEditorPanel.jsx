@@ -15,7 +15,8 @@ const TRIGGER_OPTIONS = TRIGGER_SEGMENTS.map((seg) => ({
   ),
 }));
 
-export default function EntryEditorPanel({ model, inline }) {
+// dialog：交给外层弹窗的额外参数（向导用它放步骤条、接替上一步）
+export default function EntryEditorPanel({ model, inline, dialog }) {
   const {
     isNew, form, setForm, saving, onClose,
     addKeyword, removeKeyword,
@@ -192,7 +193,7 @@ export default function EntryEditorPanel({ model, inline }) {
     );
   }
   return (
-    <Dialog size="xl" title={title} busy={saving} onClose={onClose} footer={actions}>
+    <Dialog size="xl" title={title} busy={saving} onClose={onClose} footer={actions} {...dialog}>
       {body}
     </Dialog>
   );

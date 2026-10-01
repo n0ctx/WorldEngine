@@ -1,5 +1,6 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { RotateCcw } from 'lucide-react';
+import Button from '../../../components/ui/Button.jsx';
 import CharacterSeal from '../../../components/chat/CharacterSeal.jsx';
 
 export default function ChatErrorBubble({ character, errorBubble, generating, onRetry, motionPrefs }) {
@@ -29,13 +30,10 @@ export default function ChatErrorBubble({ character, errorBubble, generating, on
                   <span className="we-type-caption px-2 py-1 rounded-[var(--we-radius-full)] bg-[var(--we-color-accent-bg)] text-[var(--we-color-status-danger)] border border-[var(--we-color-border-focus)]">
                     生成失败：{errorBubble.errorMsg}
                   </span>
-                  <button
-                    onClick={onRetry}
-                    className="we-type-caption px-3 py-1 rounded-[var(--we-radius-lg)] border border-[var(--we-color-border-default)] hover:bg-[var(--we-color-bg-sunken)] transition-colors flex items-center gap-1 text-[var(--we-color-text-secondary)]"
-                  >
+                  <Button variant="secondary" size="sm" onClick={onRetry}>
                     <RotateCcw size={16} />
                     重新生成
-                  </button>
+                  </Button>
                 </div>
               </div>
             </div>

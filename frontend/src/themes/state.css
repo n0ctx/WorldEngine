@@ -93,24 +93,15 @@
 /* 标题右侧延伸细线 */
 
 /* 重置按钮：hover 区块或键盘聚焦时显现（M2: 同步绑定 :focus-within 改善可达性） */
-.we-state-section-reset {
-  font-family: var(--we-font-display);
-  font-style: italic;
-  font-size: var(--we-type-caption-size);
-  line-height: var(--we-type-caption-leading);
-  color: transparent;
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 0;
-  transition: color var(--we-motion-state-duration) var(--we-motion-state-easing);
+/* 平时藏起，悬停或聚焦所在区块才浮现；按钮自己的颜色过渡之外再补上显隐的过渡 */
+.we-btn.we-state-section-reset {
   flex-shrink: 0;
-  letter-spacing: var(--we-type-caption-tracking);
+  opacity: 0;
+  transition: color var(--we-motion-state-duration) var(--we-motion-state-easing),
+    opacity var(--we-motion-state-duration) var(--we-motion-state-easing);
 }
 .we-state-section:hover .we-state-section-reset,
-.we-state-section:focus-within .we-state-section-reset { color: var(--we-color-text-tertiary); }
-.we-state-section .we-state-section-reset:hover,
-.we-state-section .we-state-section-reset:focus-visible { color: var(--we-color-accent); }
+.we-state-section:focus-within .we-state-section-reset { opacity: 1; }
 
 .we-state-section-title--collapsible {
   cursor: pointer;
@@ -574,13 +565,7 @@
 
 /* — Timeline 原语补缺（diary-more / timeline-dot / timeline-text / entry-old）─ */
 .we-diary-more {
-  font-size: var(--we-type-caption-size);
-  line-height: var(--we-type-caption-leading);
-  letter-spacing: var(--we-type-caption-tracking);
-  color: var(--we-color-text-tertiary);
-  cursor: pointer;
-  padding: var(--we-space-xs) var(--we-space-xs) 2px; /* 2px: design exact */
-  user-select: none;
+  align-self: flex-start;
 }
 
 .we-timeline-dot {

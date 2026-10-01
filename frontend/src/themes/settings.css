@@ -1031,27 +1031,6 @@
   outline: 2px solid var(--we-color-border-focus);
   outline-offset: 1px;
 }
-.we-provider-safety-refresh {
-  padding: 6px 14px;
-  background: var(--we-color-bg-surface);
-  border: 1px solid var(--we-color-border-default);
-  color: var(--we-color-text-primary);
-  border-radius: var(--we-radius-sm);
-  cursor: pointer;
-  min-height: 32px;
-  font-size: var(--we-type-ui-size);
-  line-height: var(--we-type-ui-leading);
-  letter-spacing: var(--we-type-ui-tracking);
-  transition: background-color var(--we-motion-state-duration) var(--we-motion-state-easing);
-}
-.we-provider-safety-refresh:hover:not(:disabled),
-.we-provider-safety-refresh:focus-visible:not(:disabled) {
-  background: var(--we-color-bg-sunken);
-}
-.we-provider-safety-refresh:disabled {
-  opacity: var(--we-opacity-disabled);
-  cursor: not-allowed;
-}
 .we-provider-safety-list {
   list-style: none;
   margin: 0;

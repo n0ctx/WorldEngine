@@ -559,7 +559,7 @@
 
 /* 按钮（Button）：按下下沉 1px（framer），底色提亮一格；压住到锁定那一拍，磷光帧硬切外扩两步即灭。
    轻点松手太快就撞不到帧窗——「按住才锁」是有意的手感 */
-:where(:root[data-motion="signal"]) .we-btn::before {
+:where(:root[data-motion="signal"]) .we-btn:where(:not(.we-btn-text))::before {
   content: '';
   position: absolute;
   pointer-events: none;
@@ -573,7 +573,7 @@
   from, to { box-shadow: 0 0 0 1px color-mix(in srgb, var(--sig-phos) 45%, transparent), 0 0 0 4px color-mix(in srgb, var(--we-color-accent) 24%, transparent); }
 }
 /* 提亮：实底按钮（主要、危险）往白里提；其余按钮往强调色里提 */
-:where(:root[data-motion="signal"]) .we-btn::before {
+:where(:root[data-motion="signal"]) .we-btn:where(:not(.we-btn-text))::before {
   inset: 0;
   border-radius: inherit;
   background: color-mix(in srgb, var(--we-color-accent) 16%, transparent);
@@ -581,11 +581,11 @@
 :where(:root[data-motion="signal"]) :is(.we-btn-primary, .we-btn-danger:not(.we-btn-icon))::before {
   background: color-mix(in srgb, var(--we-color-white) 22%, transparent);
 }
-:where(:root[data-motion="signal"]) .we-btn:active:not(:disabled)::before {
+:where(:root[data-motion="signal"]) .we-btn:where(:not(.we-btn-text)):active:not(:disabled)::before {
   opacity: 1;
 }
 /* 两帧磷光，窗口前后各差一帧，落在按下锁定那一拍（状态角色的时长） */
-:where(:root[data-motion="signal"]) .we-btn:active:not(:disabled) {
+:where(:root[data-motion="signal"]) .we-btn:where(:not(.we-btn-text)):active:not(:disabled) {
   animation: we-signal-snap-a calc(var(--sig-frame) * 2) var(--sig-cut) calc(var(--we-motion-state-duration) - var(--sig-frame)),
     we-signal-snap-b calc(var(--sig-frame) * 2) var(--sig-cut) calc(var(--we-motion-state-duration) + var(--sig-frame));
 }
@@ -596,7 +596,7 @@
   overflow: visible;
 }
 /* 两帧磷光，落在按下落底的第三帧；发送键也是 Button，选择器要压过上面按钮通用的锁定帧 */
-:where(:root[data-motion="signal"]) .we-btn.we-chat-send-btn:active:not(:disabled) {
+:where(:root[data-motion="signal"]) .we-btn:where(:not(.we-btn-text)).we-chat-send-btn:active:not(:disabled) {
   animation: we-signal-snap-a calc(var(--sig-frame) * 2) var(--sig-cut) calc(var(--sig-frame) * 3);
 }
 

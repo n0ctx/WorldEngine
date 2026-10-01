@@ -1,4 +1,5 @@
 import { forwardRef } from 'react';
+import Button from '../ui/Button.jsx';
 import ProximityRail from '../motion/ProximityRail.jsx';
 import ChangeText from '../motion/ChangeText.jsx';
 import ProseChapters from './ProseChapters.jsx';
@@ -60,13 +61,9 @@ const MessageList = forwardRef(function MessageList({
     <div ref={listRef} className="we-chat-area absolute inset-0 overflow-y-auto px-3 pt-2 pb-4">
       {hasEarlierMessages ? (
         <div className="text-center py-2">
-          <button
-            type="button"
-            className="we-type-caption text-[var(--we-color-text-faint)] hover:text-[var(--we-color-text-secondary)] transition-colors"
-            onClick={loadEarlierMessages}
-          >
+          <Button type="button" variant="text" size="sm" onClick={loadEarlierMessages}>
             加载更早消息
-          </button>
+          </Button>
         </div>
       ) : (
         messages.length > 0 && (

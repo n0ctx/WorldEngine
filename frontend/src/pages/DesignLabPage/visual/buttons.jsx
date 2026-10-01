@@ -5,7 +5,7 @@ import VisualSection from '../VisualSection.jsx';
 
 const noop = () => {};
 
-const TONES = [['primary', '主要'], ['secondary', '次要'], ['ghost', '幽灵'], ['danger', '危险']];
+const TONES = [['primary', '主要'], ['secondary', '次要'], ['ghost', '幽灵'], ['text', '文字'], ['danger', '危险']];
 const SIZES = [['sm', '小 28'], ['md', '中 36'], ['lg', '大 44']];
 const ICON_PX = { sm: 16, md: 20, lg: 20 };
 
@@ -14,7 +14,7 @@ export function ButtonsDemo() {
     <VisualSection id="buttons">
       <div className="we-design-lab__grid">
         <div className="we-design-lab__grid">
-          <h3 className="we-design-lab__subheading">文字按钮：色调 × 尺寸</h3>
+          <h3 className="we-design-lab__subheading">带字按钮：色调 × 尺寸；「文字」色调贴着文字走，用于返回和消息下方这类安静的操作</h3>
           {SIZES.map(([size, label]) => (
             <div key={size} className="we-design-lab__row">
               <span className="we-design-lab__count">{label}</span>

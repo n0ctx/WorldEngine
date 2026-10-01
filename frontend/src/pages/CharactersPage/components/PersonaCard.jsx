@@ -44,14 +44,14 @@ export function PersonaCard({ persona, dragHandleProps, onActivate, onEdit, onDe
         onClick={(e) => e.stopPropagation()}
       >
         {!isActive && (
-          <button
-            onClick={onActivate}
-            className="we-persona-card__activate-btn"
+          <IconButton
+            size="sm"
+            label="激活玩家卡"
             title="设为激活（对话用）"
-            aria-label="激活玩家卡"
+            onClick={onActivate}
           >
             <Check size={16} />
-          </button>
+          </IconButton>
         )}
         <IconButton
           size="sm"

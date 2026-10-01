@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import { ChevronLeft } from 'lucide-react';
 import { useSettingsConfig } from '../../core/hooks/useSettingsConfig';
 import { useEscapeKey } from '../../core/hooks/useEscapeKey.js';
 import { useFocusTrap } from '../../core/hooks/useFocusTrap.js';
@@ -18,8 +19,7 @@ import MotionPackPicker from '../../components/settings/MotionPackPicker.jsx';
 import { NAV_SECTIONS, NAV_KEY, SETTINGS_MODE } from '../../core/constants/settings';
 import { useMotion } from '../../core/hooks/useMotion.js';
 import BounceRail from '../../components/motion/BounceRail.jsx';
-import ListItem from '../../components/ui/ListItem.jsx';
-import SectionTitle from '../../components/ui/SectionTitle.jsx';
+import { Button, ListItem, SectionTitle } from '../../components/index.js';
 
 const SETTINGS_MODE_STORAGE_KEY = 'we:settings:mode';
 
@@ -114,7 +114,10 @@ export default function SettingsPage() {
         {...dialogProps}
       >
         <nav className="we-settings-nav">
-          <button className="we-edit-back" onClick={handleBack}>← 返回</button>
+          <Button variant="text" size="sm" className="we-edit-back" onClick={handleBack}>
+            <ChevronLeft size={16} />
+            返回
+          </Button>
           <div className="we-settings-nav-header">
             <p className="we-settings-nav-title">设置</p>
           </div>

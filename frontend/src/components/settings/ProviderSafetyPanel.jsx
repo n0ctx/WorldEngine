@@ -12,6 +12,7 @@ import {
 } from '../../core/api/provider-safety-events.js';
 import { log } from '../../core/utils/logger.js';
 import CodeBlock from '../motion/CodeBlock.jsx';
+import Button from '../ui/Button.jsx';
 import Card from '../ui/Card.jsx';
 import EmptyState from '../ui/EmptyState.jsx';
 import SectionTitle from '../ui/SectionTitle.jsx';
@@ -185,9 +186,9 @@ export default function ProviderSafetyPanel() {
             ))}
           </select>
         </label>
-        <button type="button" className="we-provider-safety-refresh" onClick={reload} disabled={loading}>
+        <Button type="button" variant="secondary" size="sm" onClick={reload} disabled={loading}>
           {loading ? '加载中…' : '刷新'}
-        </button>
+        </Button>
       </div>
 
       {error && (

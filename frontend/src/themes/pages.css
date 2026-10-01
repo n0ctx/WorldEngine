@@ -535,23 +535,6 @@
 
 .we-onboarding-guide-skip {
   flex-shrink: 0;
-  font-family: var(--we-font-ui);
-  font-size: var(--we-type-caption-size);
-  line-height: var(--we-type-caption-leading);
-  letter-spacing: var(--we-type-caption-tracking);
-  padding: var(--we-space-xs) var(--we-space-md);
-  border-radius: var(--we-radius-sm);
-  border: 1px solid var(--we-color-shell-border-strong);
-  background: transparent;
-  color: var(--we-color-shell-text-secondary);
-  cursor: pointer;
-  transition: border-color var(--we-motion-state-duration) var(--we-motion-state-easing), color var(--we-motion-state-duration) var(--we-motion-state-easing);
-}
-
-.we-onboarding-guide-skip:hover,
-.we-onboarding-guide-skip:focus-visible {
-  border-color: var(--we-color-shell-border-strong);
-  color: var(--we-color-shell-text-primary);
 }
 
 .we-onboarding-steps {
@@ -727,28 +710,6 @@
   gap: var(--we-space-xs);
 }
 
-.we-persona-card__activate-btn {
-  width: 26px;
-  height: 26px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: var(--we-type-ui-size);
-  line-height: var(--we-type-ui-leading);
-  letter-spacing: var(--we-type-ui-tracking);
-  background: none;
-  border: none;
-  cursor: pointer;
-  border-radius: var(--we-radius-sm);
-  color: var(--we-color-text-tertiary);
-  transition: color var(--we-motion-state-duration) var(--we-motion-state-easing), background var(--we-motion-state-duration) var(--we-motion-state-easing);
-}
-
-.we-persona-card__activate-btn:hover {
-  color: var(--we-color-accent);
-  background: var(--we-color-accent-bg);
-}
-
 .we-characters-list {
   display: flex;
   flex-direction: column;
@@ -889,6 +850,8 @@
   min-height: 0;
   overflow-y: auto;
   padding-inline: var(--we-shadow-bleed-inline);
+  /* 栏头在滚动容器之外：栏头下方的间距放在容器里面，最上面一张卡悬停浮起时才不会被容器顶边裁掉 */
+  padding-top: var(--we-space-lg);
   padding-bottom: var(--we-shadow-bleed-block);
   scrollbar-width: thin;
   scrollbar-color: var(--we-color-shell-border-strong) transparent;
@@ -898,6 +861,12 @@
 .we-worldhub-main > .we-worldhub-section-header,
 .we-worldhub-main > .we-storyline-empty {
   margin-inline: var(--we-shadow-bleed-inline);
+}
+.we-worldhub-main > .we-worldhub-section-header {
+  margin-bottom: 0;
+}
+.we-worldhub-main > .we-storyline-empty {
+  margin-top: var(--we-space-lg);
 }
 
 .we-storyline-body::-webkit-scrollbar { width: 4px; }
@@ -1337,24 +1306,9 @@
 }
 
 .we-edit-back {
-  font-family: var(--we-font-prose);
-  font-size: var(--we-type-ui-size);
-  line-height: var(--we-type-ui-leading);
-  letter-spacing: var(--we-type-ui-tracking);
-  color: var(--we-color-text-tertiary);
-  cursor: pointer;
-  border: none;
-  background: none;
-  padding: 0;
-  margin-bottom: var(--we-space-lg);
   display: flex;
-  align-items: center;
-  gap: var(--we-space-sm);
-  transition: color var(--we-motion-state-duration) var(--we-motion-state-easing);
-}
-
-.we-edit-back:hover {
-  color: var(--we-color-text-secondary);
+  width: fit-content;
+  margin-bottom: var(--we-space-lg);
 }
 
 .we-edit-header-row {
@@ -1598,25 +1552,6 @@
   border-radius: var(--we-radius-sm);
   padding: var(--we-space-xxs) var(--we-space-sm);
   display: inline-block;
-}
-
-.we-writing-error-retry {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--we-space-xxs);
-  padding: var(--we-space-xxs) var(--we-space-md);
-  background: none;
-  border: 1px solid var(--we-color-border-default);
-  border-radius: var(--we-radius-md);
-  color: var(--we-color-text-secondary);
-  font-size: var(--we-type-caption-size);
-  line-height: var(--we-type-caption-leading);
-  letter-spacing: var(--we-type-caption-tracking);
-  cursor: pointer;
-  transition: background var(--we-motion-state-duration) var(--we-motion-state-easing);
-}
-.we-writing-error-retry:hover {
-  background: var(--we-color-bg-sunken);
 }
 
 /* ── WorldsPage 错误详情 ── */
@@ -2165,34 +2100,9 @@
   padding: 14px 14px 10px;
 }
 
-/* 页内「返回世界」：对话列 / 写作列 / 规则页页头共用，不随侧栏收起 */
-.we-chat-pane-back,
-.we-workshop-back {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--we-space-xs);
-  font-size: var(--we-type-caption-size);
-  line-height: var(--we-type-caption-leading);
-  letter-spacing: var(--we-type-caption-tracking);
-  font-family: var(--we-font-prose);
-  padding: var(--we-space-xs);
-  border-radius: var(--we-radius-md);
-  color: var(--we-color-text-faint);
-  background: none;
-  border: none;
-  cursor: pointer;
-  transition: color var(--we-motion-state-duration) var(--we-motion-state-easing);
-}
-
+/* 规则页页头的「返回世界」：贴左，不随页头拉满 */
 .we-workshop-back {
   align-self: flex-start;
-}
-
-.we-chat-pane-back:hover,
-.we-chat-pane-back:focus-visible,
-.we-workshop-back:hover,
-.we-workshop-back:focus-visible {
-  color: var(--we-color-text-tertiary);
 }
 
 /* 玻璃面板上的强调按钮：主色淡底 + 细描边，悬停加深一档 */
@@ -2242,28 +2152,12 @@
 .we-cast-panel .we-state-section + .we-state-section,
 .we-cast-panel .we-timeline { border-top: none; }
 /* 角色块 hover 时显现操作按钮（与 we-state-section:hover 规则对称） */
-.we-cast-character-block:hover .we-state-section-reset { color: var(--we-color-text-tertiary); }
+.we-cast-character-block:hover .we-state-section-reset { opacity: 1; }
 /* 角色块内容区：减小顶部间距（StatusSection 自身 padding 已含 14px，此处抵消） */
 .we-cast-char-inner { padding-top: 0; }
 
 .we-cast-diary-more {
-  display: block;
-  width: 100%;
-  text-align: left;
-  background: none;
-  border: none;
-  font-family: inherit;
-  font-size: var(--we-type-caption-size);
-  line-height: var(--we-type-caption-leading);
-  letter-spacing: var(--we-type-caption-tracking);
-  color: var(--we-color-text-tertiary);
-  cursor: pointer;
-  padding: var(--we-space-xs) var(--we-space-xs) 2px; /* 2px: design exact */
-  user-select: none;
-}
-.we-cast-diary-more:disabled {
-  opacity: var(--we-opacity-disabled);
-  cursor: not-allowed;
+  align-self: flex-start;
 }
 .we-cast-add-modal-empty {
   font-size: var(--we-type-ui-size);

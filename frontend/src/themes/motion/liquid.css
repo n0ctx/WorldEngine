@@ -445,20 +445,20 @@
 }
 
 /* 按钮（Button）：framer 负责浮起、按进和弹回；这里是按下时外沿一圈湿边，和从触点在按钮里洇开的一滴墨 */
-:where(:root[data-motion="liquid"]) .we-btn {
+:where(:root[data-motion="liquid"]) .we-btn:where(:not(.we-btn-text)) {
   transition: background var(--we-motion-state-duration) var(--we-motion-state-easing),
     border-color var(--we-motion-state-duration) var(--we-motion-state-easing),
     color var(--we-motion-state-duration) var(--we-motion-state-easing),
     box-shadow var(--ink-dry) var(--ink-flow);
 }
-:where(:root[data-motion="liquid"]) .we-btn:active:not(:disabled) {
+:where(:root[data-motion="liquid"]) .we-btn:where(:not(.we-btn-text)):active:not(:disabled) {
   box-shadow: 0 0 0 4px var(--ink-glow);
   transition-duration: var(--we-motion-state-duration), var(--we-motion-state-duration), var(--we-motion-state-duration), var(--ink-press-in);
 }
-:where(:root[data-motion="liquid"]) .we-btn > .we-touch-fx {
+:where(:root[data-motion="liquid"]) .we-btn:where(:not(.we-btn-text)) > .we-touch-fx {
   display: block;
 }
-:where(:root[data-motion="liquid"]) .we-btn .we-touch-fx__ripple {
+:where(:root[data-motion="liquid"]) .we-btn:where(:not(.we-btn-text)) .we-touch-fx__ripple {
   background: radial-gradient(circle, var(--ink-wet) 0 28%, var(--ink-glow) 52%, transparent 72%);
   animation: we-ink-bloom var(--ink-bloom) var(--ink-surface) both;
 }

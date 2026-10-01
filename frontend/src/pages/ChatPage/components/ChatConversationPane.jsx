@@ -1,5 +1,6 @@
 import { AnimatePresence } from 'framer-motion';
 import { ChevronLeft } from 'lucide-react';
+import Button from '../../../components/ui/Button.jsx';
 import MiddleSummaryModal from '../../../components/session/MiddleSummaryModal.jsx';
 import StateMemoryModal from '../../../components/session/StateMemoryModal.jsx';
 import MessageList from '../../../components/chat/MessageList.jsx';
@@ -46,13 +47,10 @@ export default function ChatConversationPane({
       </AnimatePresence>
 
       <div className="we-chat-pane-nav">
-        <button
-          onClick={onBack}
-          className="we-chat-pane-back"
-        >
-          <ChevronLeft size={14} />
+        <Button variant="text" size="sm" onClick={onBack}>
+          <ChevronLeft size={16} />
           返回世界
-        </button>
+        </Button>
       </div>
 
       <SpeakerStage character={character} />

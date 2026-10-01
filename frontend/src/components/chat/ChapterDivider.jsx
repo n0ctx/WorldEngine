@@ -111,18 +111,18 @@ export default function ChapterDivider({ chapterIndex, title, onEdit, onRegenera
           {(onEdit || onRegenerate) && (
             <div className="we-chapter-actions">
               {onEdit && (
-                <button onClick={startEdit} aria-label="编辑章节标题">
+                <Button variant="text" size="sm" onClick={startEdit} aria-label="编辑章节标题">
                   <SquarePen size={16} />
                   编辑
-                </button>
+                </Button>
               )}
               {onRegenerate && (
-                <button onClick={handleRegenerate} disabled={regenerating} aria-label="重新生成章节标题">
+                <Button variant="text" size="sm" onClick={handleRegenerate} disabled={regenerating} aria-label="重新生成章节标题">
                   {regenerating ? <MotionOrb size={16} /> : (
                     <RotateCcw size={16} />
                   )}
                   {regenerating ? '生成中…' : '重新生成'}
-                </button>
+                </Button>
               )}
             </div>
           )}

@@ -95,7 +95,7 @@
 }
 
 /* ── Button ──
- * 全站只有这一个按钮：色调（primary / secondary / ghost / danger / overlay）× 尺寸（sm / md / lg）。
+ * 全站只有这一个按钮：色调（primary / secondary / ghost / text / danger / overlay）× 尺寸（sm / md / lg）。
  * 高度取控件三档；图标按钮（IconButton，.we-btn-icon）是同一个按钮的方形版本，边长等于高度。
  * 主要按钮每块区域只放一个；危险只用于确认删除这类撤销不了的操作。 */
 .we-btn {
@@ -175,6 +175,17 @@
 .we-btn-ghost:hover:not(:disabled) {
   background: var(--we-color-hover);
   color: var(--we-color-text-primary);
+}
+
+/* 文字：贴着文字走、不占控件高度，三级字色，悬停转强调色；用于返回、消息与章节下方的操作、收起展开这类安静的操作。
+   动效包不给它画按压外框 */
+.we-btn-text {
+  height: auto;
+  padding: var(--we-space-xxs) 0;
+  color: var(--we-color-text-tertiary);
+}
+.we-btn-text:hover:not(:disabled) {
+  color: var(--we-color-accent);
 }
 
 /* 危险：实底危险色 */

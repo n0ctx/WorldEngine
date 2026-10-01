@@ -16,6 +16,7 @@ const MotionDiv = motion.div;
  * - Esc、点空白处、关闭键都调用 onClose；busy 时三者都不生效。焦点圈在弹窗里，关闭后还给打开它的元素。
  * - 传 onSubmit 时页头到页脚包进一个表单，页脚里 type="submit" 的按钮提交。
  * - 嵌套弹窗直接再渲染一个 Dialog，后挂载的叠在上面。
+ * - continued：这个弹窗接替同一流程里的上一个（向导换步）；遮罩和面板不再重播入场，只有正文按前进方向翻进来。
  * - 弹窗里的鼠标事件不再沿 React 树冒泡到外层（设置页遮罩按「按下松开都在面板外」判断关闭）。
  */
 export default function Dialog({
@@ -29,6 +30,7 @@ export default function Dialog({
   onClose,
   onSubmit,
   bodyClassName = '',
+  continued = false,
   children,
 }) {
   const m = useMotion();
@@ -53,7 +55,14 @@ export default function Dialog({
           </IconButton>
         )}
       </header>
-      {children && <div className={['we-dialog__body', bodyClassName].filter(Boolean).join(' ')}>{children}</div>}
+      {children && (
+        <MotionDiv
+          className={['we-dialog__body', bodyClassName].filter(Boolean).join(' ')}
+          {...(continued && { custom: 1, variants: m.variant('tabEnter'), initial: 'hidden', animate: 'visible', transition: m.transition('overlay') })}
+        >
+          {children}
+        </MotionDiv>
+      )}
       {footer && (
         <footer className="we-dialog__footer">
           {footerStart && <div className="we-dialog__footer-start">{footerStart}</div>}
@@ -67,7 +76,7 @@ export default function Dialog({
     <MotionDiv
       className="we-dialog-backdrop"
       variants={m.variant('overlayBackdrop')}
-      initial="hidden"
+      initial={continued ? false : 'hidden'}
       animate="visible"
       exit="hidden"
       transition={m.transition('backdrop')}
@@ -92,7 +101,7 @@ export default function Dialog({
         tabIndex={-1}
         onKeyDown={onTab}
         variants={m.variant('overlayEnter')}
-        initial="hidden"
+        initial={continued ? false : 'hidden'}
         animate="visible"
         exit="exit"
         transition={m.transition('overlay')}

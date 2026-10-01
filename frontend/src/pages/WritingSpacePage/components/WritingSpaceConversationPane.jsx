@@ -43,13 +43,10 @@ export default function WritingSpaceConversationPane({ worldId, navigate, config
           )}
         </AnimatePresence>
         <div className="we-chat-pane-nav">
-          <button
-            onClick={() => navigate(`/worlds/${worldId}`)}
-            className="we-chat-pane-back"
-          >
-            <ChevronLeft size={14} />
+          <Button variant="text" size="sm" onClick={() => navigate(`/worlds/${worldId}`)}>
+            <ChevronLeft size={16} />
             返回世界
-          </button>
+          </Button>
         </div>
 
         {isInitializing ? (
@@ -106,14 +103,10 @@ export default function WritingSpaceConversationPane({ worldId, navigate, config
               <span className="we-writing-error-text we-field-error">
                 生成失败：{error.errorMsg}
               </span>
-              <button
-                type="button"
-                className="we-writing-error-retry"
-                onClick={handleRetryAfterError}
-              >
+              <Button type="button" variant="secondary" size="sm" onClick={handleRetryAfterError}>
                 <RotateCcw size={16} />
                 重新生成
-              </button>
+              </Button>
             </div>
           </div>
         )}

@@ -1,5 +1,7 @@
 import { useId, useRef, useState } from 'react';
 import { AnimatePresence } from 'framer-motion';
+import { ChevronLeft } from 'lucide-react';
+import Button from '../../components/ui/Button.jsx';
 import ConfirmModal from '../../components/ui/ConfirmModal.jsx';
 import Skeleton from '../../components/ui/Skeleton.jsx';
 import { useEscapeKey } from '../../core/hooks/useEscapeKey.js';
@@ -44,8 +46,11 @@ export default function EditPageShell({
       <div className="flex flex-col items-center gap-3">
         <p className="we-edit-empty-text">{loadError}</p>
         <div className="flex gap-3">
-          <button className="we-edit-back" onClick={onClose}>← 返回</button>
-          <button className="we-edit-back" onClick={onRetry}>重试</button>
+          <Button variant="text" size="sm" onClick={onClose}>
+            <ChevronLeft size={16} />
+            返回
+          </Button>
+          <Button variant="secondary" size="sm" onClick={onRetry}>重试</Button>
         </div>
       </div>
     ) : (
@@ -84,7 +89,10 @@ export default function EditPageShell({
       } : {})}
     >
       <div className="we-edit-header">
-        <button className="we-edit-back" onClick={requestClose}>← 返回</button>
+        <Button variant="text" size="sm" className="we-edit-back" onClick={requestClose}>
+          <ChevronLeft size={16} />
+          返回
+        </Button>
         <div className="we-edit-header-row">
           {title && <h1 id={titleId} className="we-edit-title">{title}</h1>}
           {headerActions && <div className="we-edit-header-actions">{headerActions}</div>}

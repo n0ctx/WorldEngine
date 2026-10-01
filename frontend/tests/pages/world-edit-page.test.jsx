@@ -160,12 +160,12 @@ describe('WorldEditPage', () => {
     render(<WorldEditPage />);
     const nameInput = await screen.findByDisplayValue('群星海');
 
-    fireEvent.click(screen.getByText('← 返回'));
+    fireEvent.click(screen.getByRole('button', { name: '返回' }));
     expect(mocks.useNavigate).toHaveBeenCalledWith(-1);
     mocks.useNavigate.mockClear();
 
     fireEvent.change(nameInput, { target: { value: '群星海-修订' } });
-    fireEvent.click(screen.getByText('← 返回'));
+    fireEvent.click(screen.getByRole('button', { name: '返回' }));
     expect(mocks.useNavigate).not.toHaveBeenCalled();
 
     fireEvent.click(await screen.findByText('放弃修改'));

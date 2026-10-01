@@ -129,14 +129,16 @@ function DiaryTab({
               {hasMore && (
                 <>
                   {expanded && olderDiary.map((entry, index) => renderEntry(entry, DIARY_RECENT_LIMIT + index))}
-                  <button
+                  <Button
                     type="button"
+                    variant="text"
+                    size="sm"
                     className={classNames.diaryMore}
                     onClick={() => setExpanded((value) => !value)}
                     aria-expanded={expanded}
                   >
                     {expanded ? '▲ 收起' : `▼ 展开更多（${olderDiary.length} 条）`}
-                  </button>
+                  </Button>
                 </>
               )}
             </div>

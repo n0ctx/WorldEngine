@@ -139,31 +139,6 @@
   gap: var(--we-space-xs);
 }
 
-.we-session-item__delete-confirm {
-  font-size: var(--we-type-caption-size);
-  line-height: var(--we-type-caption-leading);
-  letter-spacing: var(--we-type-caption-tracking);
-  padding: var(--we-space-xxs) var(--we-space-sm);
-  border-radius: var(--we-radius-sm);
-  background: var(--we-color-status-danger);
-  color: var(--we-color-on-accent);
-  border: none;
-  cursor: pointer;
-}
-
-.we-session-item__cancel-confirm {
-  font-size: var(--we-type-caption-size);
-  line-height: var(--we-type-caption-leading);
-  letter-spacing: var(--we-type-caption-tracking);
-  padding: var(--we-space-xxs) var(--we-space-sm);
-  border-radius: var(--we-radius-sm);
-  /* 实心按钮底色用 bg-muted：在浅色/深色主题下都保证与周边卡片底色有区分度 */
-  background: var(--we-color-bg-strong);
-  color: var(--we-color-text-secondary);
-  border: none;
-  cursor: pointer;
-}
-
 /* — Topbar ─ */
 .we-topbar {
   height: var(--we-topbar-height);
@@ -750,25 +725,12 @@
 /* tab 行不再画整条全宽细线（旧版那条在深边框主题下是一条"长黑线"，与选中态绿色指示线并存形成双层下划线）。
    选中 tab 仅由 .we-section-tab-indicator 的绿色短线标识，单条、干净。 */
 /* 重置：默认隐去，hover / 键盘聚焦本区时显现（与 .we-state-section-reset 同语义，弱化危险操作） */
-.we-state-reset {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px; /* design exact */
+/* 平时藏起，悬停或聚焦所在区块才浮现；按钮自己的颜色过渡之外再补上显隐的过渡 */
+.we-btn.we-state-reset {
   flex-shrink: 0;
-  font-family: var(--we-font-display);
-  font-style: italic;
-  font-size: var(--we-type-caption-size);
-  line-height: var(--we-type-caption-leading);
-  color: transparent;
-  background: none;
-  border: none;
-  padding: 0;
-  cursor: pointer;
-  letter-spacing: var(--we-type-caption-tracking);
-  transition: color var(--we-motion-state-duration) var(--we-motion-state-easing);
+  opacity: 0;
+  transition: color var(--we-motion-state-duration) var(--we-motion-state-easing),
+    opacity var(--we-motion-state-duration) var(--we-motion-state-easing);
 }
 .we-state-block:hover .we-state-reset,
-.we-state-block:focus-within .we-state-reset { color: var(--we-color-text-tertiary); }
-.we-state-reset:hover,
-.we-state-reset:focus-visible { color: var(--we-color-accent); }
-.we-state-reset:disabled { color: var(--we-color-text-tertiary); cursor: not-allowed; }
+.we-state-block:focus-within .we-state-reset { opacity: 1; }

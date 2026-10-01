@@ -59,7 +59,7 @@ describe('SettingsPage', () => {
     fireEvent.click(screen.getByText('自定义 CSS'));
     expect(screen.getByText('CSS PANEL')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByText('← 返回'));
+    fireEvent.click(screen.getByRole('button', { name: '返回' }));
     expect(navigate).toHaveBeenCalledWith(-1);
   });
 
@@ -81,7 +81,7 @@ describe('SettingsPage', () => {
     fireEvent.click(screen.getByText('关于'));
     expect(screen.getByText('ABOUT PANEL')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByText('← 返回'));
+    fireEvent.click(screen.getByRole('button', { name: '返回' }));
     expect(navigate).toHaveBeenCalledWith(
       { pathname: '/worlds/1', search: '?tab=a', hash: '#x' },
       { state: { a: 1 } },

@@ -52,8 +52,8 @@
 - 情绪关键词只是参考，要的是统一的高级感，同时大胆有动感，不要畏缩、不要做成模板感的默认样式。
 - 改动会影响所有主题：核心样式（`themes/` 下除 `tokens.css`、`fonts.css`、`motion/` 外的样式文件）和 token 的改动，要在夜航（暗）和古典羊皮纸（亮）两套主题下都看；用户验证时也要两套都交代。
 - 组件样式只消费 token，不写颜色、字号、圆角、阴影、层级等字面量（`literals` 守卫会拦）；能复用已有 token 就复用，确实没有再新增。
-- 按钮只用 `Button` / `IconButton`（色调 primary / secondary / ghost / danger / overlay × 尺寸 sm / md / lg，高度取 `--we-control-h-*`）；`components/ui/` 以外不手写 `we-btn*` 类（`literals` 守卫的 primitive-class 会拦），也不按所在容器改写按钮外观。
-- 弹窗只用 `Dialog`（标准 / alert 确认两种版式 × sm / md / lg / xl 宽度；确认用 `ConfirmModal`）：它自己挂到 body、圈住焦点、统一 Esc / 点空白 / 关闭键，忙时用 `busy` 挡住关闭；调用方用 `AnimatePresence` 包住条件渲染，嵌套弹窗直接再渲染一个，不手写遮罩或层叠包装。
+- 按钮只用 `Button` / `IconButton`（色调 primary / secondary / ghost / text / danger / overlay × 尺寸 sm / md / lg，高度取 `--we-control-h-*`；返回、消息与章节下方的操作、收起展开这类安静的文字操作用 text）；`components/ui/` 以外不手写 `we-btn*` 类（`literals` 守卫的 primitive-class 会拦），也不按所在容器改写按钮外观。
+- 弹窗只用 `Dialog`（标准 / alert 确认两种版式 × sm / md / lg / xl 宽度；确认用 `ConfirmModal`；向导换步时后一步传 `continued` 接替前一步）：它自己挂到 body、圈住焦点、统一 Esc / 点空白 / 关闭键，忙时用 `busy` 挡住关闭；调用方用 `AnimatePresence` 包住条件渲染，嵌套弹窗直接再渲染一个，不手写遮罩或层叠包装。
 - 表单与标签只用 `components/ui/` 的组件：`Badge`（静态标签，矮小、圆角 sm，按 tone 着色）、`SegmentedControl`（单选分段）、`Input` / `Select`（md 36 / sm 28，编辑器与表单行内用 sm）、`Textarea`、`TagInput`、`Checkbox`、`ToggleSwitch`（md / sm）；开关式的文字按钮用 `Button` 加 `aria-pressed`。下拉面板取共用的 `.we-menu` / `.we-menu__item` 表面，定位各自负责。
 - 卡片与占位只用 `components/ui/` 的组件：`Card`（raised 浮起卡放可点的独立内容 / outlined 描边行放编辑器与设置里的一行一项 / sunken 凹陷框在面板里再分一块 × compact / default / spacious；选中一律 `selected` 强调色描边加淡底；只要类名时用 `ui/cardClassName.js`）、`ListItem`（导航与侧栏列表的一行）、`SectionTitle`（section / group / eyebrow 三级，线在下方或右侧）、`Divider`、`Skeleton`（等数据用；等 AI 用文字说明）、`EmptyState`（整页 lg、列表与面板里 sm）。标题与小标题不用斜体，斜体只留给叙事文字。
 - 文字只选字体角色（`.we-type-<角色>` 类，或同一规则块写齐 `--we-type-<角色>-size / -leading / -tracking`），不单独挑字号、行高、字距。

@@ -1,4 +1,5 @@
 import { ChevronRight } from 'lucide-react';
+import Button from '../../../components/ui/Button.jsx';
 import TaskList from '../../../components/motion/TaskList.jsx';
 import { cardClassName } from '../../../components/ui/cardClassName.js';
 
@@ -46,13 +47,15 @@ export function NewWorldGuide({ completed, onStepClick, onDismiss }) {
             世界观、角色、规则是这个产品最重要的三块拼图，做完之后 AI 才知道该怎么陪你讲故事。
           </p>
         </div>
-        <button
+        <Button
           type="button"
-          className="we-onboarding-guide-skip"
+          variant="secondary"
+          size="sm"
+          className="we-onboarding-guide-skip we-on-shell"
           onClick={onDismiss}
         >
           跳过引导
-        </button>
+        </Button>
       </div>
 
       <TaskList

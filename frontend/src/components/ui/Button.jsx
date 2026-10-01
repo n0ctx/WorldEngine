@@ -28,8 +28,8 @@ export default function Button({
         sizeCls[size] ?? '',
         className,
       ].filter(Boolean).join(' ')}
-      {...m.gesture('press', { disabled })}
-      onPointerDown={touch.handlers.onPointerDown}
+      {...(variant === 'text' ? {} : m.gesture('press', { disabled }))}
+      onPointerDown={variant === 'text' ? onPointerDown : touch.handlers.onPointerDown}
       {...props}
     >
       {children}

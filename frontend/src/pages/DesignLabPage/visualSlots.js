@@ -83,7 +83,7 @@ export const VISUAL_SLOTS = [
   {
     id: 'buttons', category: 'component', title: '按钮', status: 'ready',
     tokens: ['--we-control-*'], usedIn: ['Button、IconButton'],
-    note: '全站只有这一个按钮：五种色调 × 三档尺寸；图标按钮是它的方形版本，边长取控件高度。',
+    note: '全站只有这一个按钮：六种色调 × 三档尺寸；文字色调不占控件高度；图标按钮是它的方形版本，边长取控件高度。',
   },
   {
     id: 'dialogs', category: 'component', title: '弹窗', status: 'ready',

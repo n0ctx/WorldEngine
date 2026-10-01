@@ -144,11 +144,11 @@ export const SLOTS = [
   {
     id: 'press', category: 'press', title: '按钮按压', status: 'pack',
     hooks: [
-      'we-btn', 'we-btn-primary', 'we-btn-danger', 'we-btn-icon', 'we-section-tab', 'we-menu', 'we-list-item',
+      'we-btn', 'we-btn-primary', 'we-btn-danger', 'we-btn-icon', 'we-btn-text', 'we-section-tab', 'we-menu', 'we-list-item',
     ],
     api: ['gesture:press', 'transition:press'], usedIn: ['Button', 'TopBar', 'InputBox 工具栏'],
     note: '带字的按钮不缩放。墨流：悬停浮起，按下按进 2px、外沿一圈湿边，墨从触点在按钮里洇开，松手带过冲弹回；'
-      + '信号：按下硬切下沉 1px、底色提亮一格，压住到锁定那一拍磷光帧硬切外扩两步即灭（轻点撞不到）。触点涟漪由 useTouchFx 放，只有 Button 带。',
+      + '信号：按下硬切下沉 1px、底色提亮一格，压住到锁定那一拍磷光帧硬切外扩两步即灭（轻点撞不到）。触点涟漪由 useTouchFx 放，只有 Button 带；文字色调的按钮不浮起、不按压、不画外框。',
   },
   {
     id: 'portal', category: 'press', title: '入口卡片', status: 'pack',

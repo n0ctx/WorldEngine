@@ -8,12 +8,14 @@ import StepTrack from '../../../components/motion/StepTrack.jsx';
 import VisualSection from '../VisualSection.jsx';
 import { SELECT_OPTIONS } from '../demos/fixtures.js';
 
+const WIZARD_STEPS = ['第一步：定义字段', '第二步：设置默认值', '第三步：配触发条目'];
 const SUMMARY = '雨从傍晚一直下到后半夜。沈彦在拳场认出了你，台下有人低声报出一个数字。'.repeat(6);
 
 export function DialogsDemo() {
   const [open, setOpen] = useState(null);
   const [discard, setDiscard] = useState(false);
   const [choice, setChoice] = useState('a');
+  const [step, setStep] = useState(0);
   const close = () => setOpen(null);
   return (
     <VisualSection
@@ -23,12 +25,13 @@ export function DialogsDemo() {
           <Button size="sm" variant="secondary" onClick={() => setOpen('alert')}>确认版式</Button>
           <Button size="sm" variant="secondary" onClick={() => setOpen('form')}>标准 · 中（含下拉、嵌套确认）</Button>
           <Button size="sm" variant="secondary" onClick={() => setOpen('long')}>标准 · 大（长内容、页脚左侧）</Button>
+          <Button size="sm" variant="secondary" onClick={() => { setStep(0); setOpen('wizard'); }}>向导换步</Button>
         </div>
       )}
     >
       <p className="we-design-lab__note">
         标准版式页头放标题、说明和关闭键，页脚按钮靠右；确认版式只有标题、说明和按钮。Tab 只在弹窗里循环，关闭后焦点回到打开它的按钮；
-        下拉打开时 Esc 先收起下拉；嵌套弹窗直接叠在上面。
+        下拉打开时 Esc 先收起下拉；嵌套弹窗直接叠在上面。向导换步时后一步的弹窗接替前一步（continued），遮罩和面板不重播，只有正文翻进来。
       </p>
       <AnimatePresence>
         {open === 'alert' && (
@@ -73,6 +76,20 @@ export function DialogsDemo() {
             )}
           >
             {Array.from({ length: 8 }, (_, i) => <p key={i} className="we-design-lab__prose">{SUMMARY}</p>)}
+          </Dialog>
+        )}
+        {open === 'wizard' && (
+          <Dialog
+            key={step}
+            size="lg"
+            title="新建系统"
+            description={WIZARD_STEPS[step]}
+            continued={step > 0}
+            onClose={close}
+            footerStart={<StepTrack steps={3} current={step} />}
+            footer={<Button onClick={() => (step === 2 ? close() : setStep(step + 1))}>{step === 2 ? '完成' : '下一步'}</Button>}
+          >
+            <p className="we-design-lab__prose">{SUMMARY.slice(0, 60)}</p>
           </Dialog>
         )}
       </AnimatePresence>

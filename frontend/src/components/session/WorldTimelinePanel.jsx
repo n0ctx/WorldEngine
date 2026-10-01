@@ -127,18 +127,20 @@ function TimelineItem({ item, title, index, isActive, editable, onClick, onRenam
         <div className="we-session-item__actions" onClick={(e) => e.stopPropagation()}>
           {confirmDelete ? (
             <div className="we-session-item__confirm-group">
-              <button
+              <Button
+                variant="danger"
+                size="sm"
                 onClick={(e) => { e.stopPropagation(); onDelete(item.id); setConfirmDelete(false); }}
-                className="we-session-item__delete-confirm"
               >
                 删除
-              </button>
-              <button
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
                 onClick={(e) => { e.stopPropagation(); setConfirmDelete(false); }}
-                className="we-session-item__cancel-confirm"
               >
                 取消
-              </button>
+              </Button>
             </div>
           ) : (
             <div className="we-session-item__btn-group">

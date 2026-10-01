@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import Button from '../ui/Button.jsx';
 
 /**
  * 历史冻结选项卡：已使用的选项（不可交互），支持折叠/展开。
@@ -14,7 +15,7 @@ function FrozenOptionCard({ options, selectedIndex, initialCollapsed }) {
         {collapsed ? (
           <div className="we-option-card we-option-card--collapsed we-option-card--history">
             <span className="we-option-collapsed-hint">ξ( ✿＞◡❛)</span>
-            <button className="we-option-dismiss" onClick={() => setCollapsed(false)}>展开</button>
+            <Button variant="text" size="sm" className="we-option-dismiss" onClick={() => setCollapsed(false)}>展开</Button>
           </div>
         ) : (
           <div className="we-option-card we-option-card--history">
@@ -28,7 +29,7 @@ function FrozenOptionCard({ options, selectedIndex, initialCollapsed }) {
                 </div>
               ))}
             </div>
-            <button className="we-option-dismiss" onClick={() => setCollapsed(true)}>折叠</button>
+            <Button variant="text" size="sm" className="we-option-dismiss" onClick={() => setCollapsed(true)}>折叠</Button>
           </div>
         )}
       </div>

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import Button from '../ui/Button.jsx';
 import { StreamCaret } from '../message/StreamingMarkdown.jsx';
 import { useMotion } from '../../core/hooks/useMotion.js';
 
@@ -64,9 +65,9 @@ export default function OptionCard({ options, streaming, onSelect, initialCollap
         {collapsed ? (
           <div className="we-option-card we-option-card--collapsed">
             <span className="we-option-collapsed-hint">ξ( ✿＞◡❛)</span>
-            <button className="we-option-dismiss" onClick={() => handleCollapse(false)}>
+            <Button variant="text" size="sm" className="we-option-dismiss" onClick={() => handleCollapse(false)}>
               展开
-            </button>
+            </Button>
           </div>
         ) : (
           <div className={`we-option-card${streaming ? ' we-option-card--streaming' : ''}`}>
@@ -96,9 +97,9 @@ export default function OptionCard({ options, streaming, onSelect, initialCollap
               </div>
             )}
             {!streaming && (
-              <button className="we-option-dismiss" onClick={() => handleCollapse(true)}>
+              <Button variant="text" size="sm" className="we-option-dismiss" onClick={() => handleCollapse(true)}>
                 折叠
-              </button>
+              </Button>
             )}
           </div>
         )}

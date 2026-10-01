@@ -9,6 +9,7 @@ import { useDisplaySettingsStore } from '../../core/state/displaySettings.js';
 import { useEscapeKey } from '../../core/hooks/useEscapeKey.js';
 import { useFocusTrap } from '../../core/hooks/useFocusTrap.js';
 import { useCopyFeedback } from '../message/useMessageHooks.js';
+import Button from '../ui/Button.jsx';
 import ThinkBlock from '../message/ThinkBlock.jsx';
 import MessageBlockList from '../message/MessageBlockList.jsx';
 
@@ -26,12 +27,9 @@ function CodeBlock({ children, className }) {
         <span className="we-code-block-lang">
           {lang || 'code'}
         </span>
-        <button
-          onClick={copy}
-          className="we-code-block-copy"
-        >
+        <Button variant="text" size="sm" onClick={copy}>
           {copied ? '已复制' : '复制'}
-        </button>
+        </Button>
       </div>
       <pre>
         <code>{code}</code>

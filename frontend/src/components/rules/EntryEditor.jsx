@@ -8,7 +8,7 @@ import { applyConditionPatch, clampActiveTurns, findScopeForFieldLabel, parseKey
 
 export default function EntryEditor({
   worldId, entry, defaultTriggerType,
-  prefillCondition, onClose, onSave, inline = false,
+  prefillCondition, onClose, onSave, inline = false, dialog,
 }) {
   const isNew = !entry?.id;
   const [form, setForm] = useState({
@@ -96,5 +96,5 @@ export default function EntryEditor({
     suggestion, handleAdoptSuggestion, handleDismissSuggestion,
     conditions, fieldTypeMap, rawFieldsByScope, updateCondition, setConditions, handleSave,
   };
-  return <EntryEditorPanel model={model} inline={inline} />;
+  return <EntryEditorPanel model={model} inline={inline} dialog={dialog} />;
 }

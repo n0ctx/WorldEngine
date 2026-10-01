@@ -1,5 +1,6 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { RotateCw } from 'lucide-react';
+import Button from '../ui/Button.jsx';
 import ChangeText from '../motion/ChangeText.jsx';
 import { useMotion } from '../../core/hooks/useMotion.js';
 import { STAGGER } from '../../core/utils/motion.js';
@@ -25,16 +26,18 @@ export function DiaryEntry({ entry, index, selected, onSelect, className }) {
 
 export function ResetAction({ onClick, busy }) {
   return (
-    <button
+    <Button
       type="button"
+      variant="text"
+      size="sm"
       className="we-state-reset"
       onClick={(e) => { e.stopPropagation(); if (!busy) onClick(); }}
       disabled={busy}
       aria-label="重置本区状态"
       title="重置本区状态"
     >
-      {busy ? '…' : (<><RotateCw size={11} /><span>重置</span></>)}
-    </button>
+      {busy ? '…' : (<><RotateCw size={16} /><span>重置</span></>)}
+    </Button>
   );
 }
 

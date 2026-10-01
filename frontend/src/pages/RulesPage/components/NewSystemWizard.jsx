@@ -6,7 +6,7 @@ import EntryEditor from '../../../components/rules/EntryEditor';
 import StepTrack from '../../../components/motion/StepTrack.jsx';
 import DefaultValueMatrix from './DefaultValueMatrix.jsx';
 
-// ── 新建系统向导：定义字段 → 设默认值 → 配触发条目（可跳过）──
+// ── 新建系统向导：定义字段 → 设默认值 → 配触发条目（可跳过）。换步时弹窗接替上一步（continued），三步都带步骤条 ──
 export default function NewSystemWizard({ worldId, scope, scopeKey, onClose, onFinish }) {
   const [step, setStep] = useState(1);
   const [createdField, setCreatedField] = useState(null);
@@ -29,6 +29,7 @@ export default function NewSystemWizard({ worldId, scope, scopeKey, onClose, onF
           setStep(2);
         }}
         onClose={() => { if (!createdRef.current) onClose(); }}
+        dialog={{ footerStart: <StepTrack steps={3} current={0} /> }}
       />
     );
   }
@@ -41,6 +42,7 @@ export default function NewSystemWizard({ worldId, scope, scopeKey, onClose, onF
         description={`设置各${scope.label}默认值`}
         onClose={onClose}
         bodyClassName="flex flex-col gap-4"
+        continued
         footerStart={<StepTrack steps={3} current={1} />}
         footer={(
           <>
@@ -65,6 +67,7 @@ export default function NewSystemWizard({ worldId, scope, scopeKey, onClose, onF
       prefillCondition={{ scope: scope.cnScope, field_label: createdField.label }}
       onClose={() => onFinish(createdField?.field_key)}
       onSave={() => onFinish(createdField?.field_key)}
+      dialog={{ continued: true, footerStart: <StepTrack steps={3} current={2} /> }}
     />
   );
 }
