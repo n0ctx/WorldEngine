@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { AnimatePresence } from 'framer-motion';
-import { Plus } from 'lucide-react';
+import { Plus, RotateCw } from 'lucide-react';
 
 import Button from '../../../components/ui/Button.jsx';
 import EmptyState from '../../../components/ui/EmptyState.jsx';
@@ -10,7 +10,6 @@ import SessionStatePanel from '../../../components/state/SessionStatePanel.jsx';
 import useEntitySections from '../../../components/state/useEntitySections.jsx';
 import AddEntityFromCardModal from './AddEntityFromCardModal.jsx';
 import { useStateMemoryPanelData } from '../../../core/hooks/useStateMemory.js';
-import { RefreshIcon } from '../../../components/state/panel-parts.jsx';
 
 const CLASS_NAMES = {
   panel: 'we-cast-panel',
@@ -34,7 +33,7 @@ function EmptyNearbyTab({ loading, error, onRetry }) {
           <div className="we-cast-error">
             <p className="we-field-error">{error}</p>
             <Button type="button" size="sm" variant="ghost" onClick={onRetry}>
-              <RefreshIcon /><span>重试</span>
+              <RotateCw size={11} /><span>重试</span>
             </Button>
           </div>
         ) : (

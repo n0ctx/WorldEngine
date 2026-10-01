@@ -655,6 +655,12 @@
   margin: 0 0 var(--we-space-md);
 }
 
+.we-settings-about-link {
+  color: var(--we-color-accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
 .we-settings-about-code {
   font-family: var(--we-font-mono);
   font-size: var(--we-type-body-size);

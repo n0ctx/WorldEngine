@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Badge, EmptyState, SectionTitle, Skeleton } from '../index.js';
-import Icon from '../ui/Icon.jsx';
+import { ChevronDown } from 'lucide-react';
 import StatusTable from './StatusTable.jsx';
 import StatusValueChange from './StatusValueChange.jsx';
 import InlineEditor from './StatusInlineEditor.jsx';
@@ -29,17 +29,11 @@ function canEditRow(row, onSave) {
 
 function Chevron({ open }) {
   return (
-    <Icon
+    <ChevronDown
       size={16}
-      viewBox="0 0 10 10"
-      strokeWidth="2.5"
       className="we-status-chevron"
-      style={{
-        transform: open ? 'rotate(0deg)' : 'rotate(-90deg)',
-      }}
-    >
-      <polyline points="2,3.5 5,6.5 8,3.5" />
-    </Icon>
+      style={{ transform: open ? 'rotate(0deg)' : 'rotate(-90deg)', }}
+    />
   );
 }
 

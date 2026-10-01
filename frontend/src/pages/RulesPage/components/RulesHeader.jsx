@@ -1,13 +1,11 @@
 import Button from '../../../components/ui/Button.jsx';
-import Icon from '../../../components/ui/Icon.jsx';
+import { ChevronLeft } from 'lucide-react';
 
 export default function RulesHeader({ onBack, onOpenWizard }) {
   return (
     <>
       <button className="we-workshop-back we-on-shell" onClick={onBack}>
-        <Icon size={14}>
-          <polyline points="15 18 9 12 15 6" />
-        </Icon>
+        <ChevronLeft size={14} />
         返回世界
       </button>
       <header className="we-workshop-header we-on-shell">

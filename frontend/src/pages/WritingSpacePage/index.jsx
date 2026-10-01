@@ -2,7 +2,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import PageLayout from '../layout/PageLayout.jsx';
 import NearbyPanel from './components/NearbyPanel.jsx';
 import WorldTimelinePanel from '../../components/session/WorldTimelinePanel.jsx';
-import Icon from '../../components/ui/Icon.jsx';
+import { Plus } from 'lucide-react';
 import Button from '../../components/ui/Button.jsx';
 import { log } from '../../core/utils/logger.js';
 import { usePageConfig } from '../../core/hooks/usePageConfig.js';
@@ -43,10 +43,7 @@ export default function WritingSpacePage() {
           onActiveSessionRenamed={(title) => setCurrentSession((prev) => (prev ? { ...prev, title } : prev))}
           headerRight={(
             <Button size="sm" variant="secondary" className="we-session-list-create" onClick={lifecycle.handleCreateWritingSession} aria-label="新建会话">
-              <Icon size={16} strokeWidth="2.5">
-                <line x1="12" y1="5" x2="12" y2="19" />
-                <line x1="5" y1="12" x2="19" y2="12" />
-              </Icon>
+              <Plus size={16} />
               新建会话
             </Button>
           )}

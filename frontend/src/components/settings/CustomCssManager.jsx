@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { PencilLine } from 'lucide-react';
 import { AnimatePresence } from 'framer-motion';
 import { Button, Card, EmptyState, IconButton, Input, SectionTitle, Skeleton, SortableList, Textarea, ToggleSwitch } from '../index.js';
 import {
@@ -8,7 +9,6 @@ import {
 import { useAppModeStore } from '../../core/state/appMode';
 import DeleteButton from '../motion/DeleteButton.jsx';
 import Dialog from '../ui/Dialog';
-import Icon from '../ui/Icon';
 import DragHandle from '../ui/DragHandle.jsx';
 import { SETTINGS_MODE } from '../../core/constants/settings';
 import { log } from '../../core/utils/logger.js';
@@ -169,10 +169,7 @@ function SnippetRow({ snippet, onEdit, onToggle, onDelete }) {
       <div className="we-css-snippet-row__actions">
         <ToggleSwitch size="sm" checked={!!snippet.enabled} onChange={onToggle} label="启用片段" />
         <IconButton size="sm" label="编辑" onClick={onEdit}>
-          <Icon>
-            <path d="M12 20h9" />
-            <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
-          </Icon>
+          <PencilLine size={16} />
         </IconButton>
         <DeleteButton label={`删除片段「${snippet.name}」`} onConfirm={onDelete} />
       </div>

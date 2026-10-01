@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import EmptyState from '../ui/EmptyState.jsx';
-import Icon from '../ui/Icon.jsx';
+import { Search } from 'lucide-react';
 import Input from '../ui/Input.jsx';
 import ListItem from '../ui/ListItem.jsx';
 import SectionTitle from '../ui/SectionTitle.jsx';
@@ -40,10 +40,7 @@ function groupEntitiesByType(entities, types) {
 
 function SearchIcon() {
   return (
-    <Icon size={16} className="we-sm-search-icon">
-      <circle cx="11" cy="11" r="7" />
-      <path d="M20 20l-3.5-3.5" />
-    </Icon>
+    <Search size={16} className="we-sm-search-icon" />
   );
 }
 

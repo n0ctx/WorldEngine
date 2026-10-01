@@ -3,7 +3,7 @@ import Badge from '../ui/Badge.jsx';
 import Button from '../ui/Button.jsx';
 import Card from '../ui/Card.jsx';
 import EmptyState from '../ui/EmptyState.jsx';
-import Icon from '../ui/Icon.jsx';
+import { ChevronRight } from 'lucide-react';
 import { updateStateThread } from '../../core/api/state-memory.js';
 import { isImeComposing } from '../../core/utils/ime.js';
 import { log } from '../../core/utils/logger.js';
@@ -78,9 +78,7 @@ function ThreadRow({ sessionId, thread, entities, reload }) {
 
 function Chevron({ open }) {
   return (
-    <Icon size={16} className={`we-sm-chevron${open ? ' is-open' : ''}`}>
-      <path d="M9 6l6 6-6 6" />
-    </Icon>
+    <ChevronRight size={16} className={`we-sm-chevron${open ? ' is-open' : ''}`} />
   );
 }
 

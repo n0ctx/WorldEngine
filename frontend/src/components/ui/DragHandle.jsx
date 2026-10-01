@@ -1,4 +1,4 @@
-import Icon from './Icon.jsx';
+import { GripVertical } from 'lucide-react';
 
 /**
  * DragHandle — 列表项拖拽手柄图标（替代盲文字符 ⠿ 等 emoji-as-icon）。
@@ -6,14 +6,5 @@ import Icon from './Icon.jsx';
  * 定位与悬停加深由调用方的容器类（如 .we-char-drag）控制；颜色继承 currentColor。
  */
 export default function DragHandle({ className }) {
-  return (
-    <Icon size={16} className={className}>
-      <circle cx="9" cy="6" r="1.4" fill="currentColor" stroke="none" />
-      <circle cx="9" cy="12" r="1.4" fill="currentColor" stroke="none" />
-      <circle cx="9" cy="18" r="1.4" fill="currentColor" stroke="none" />
-      <circle cx="15" cy="6" r="1.4" fill="currentColor" stroke="none" />
-      <circle cx="15" cy="12" r="1.4" fill="currentColor" stroke="none" />
-      <circle cx="15" cy="18" r="1.4" fill="currentColor" stroke="none" />
-    </Icon>
-  );
+  return <GripVertical size={16} className={className} />;
 }

@@ -10,7 +10,7 @@
  */
 import { useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import Icon from '../../../components/ui/Icon.jsx';
+import { ChevronDown, PanelRight, TextAlignStart } from 'lucide-react';
 import IconButton from '../../../components/ui/IconButton.jsx';
 import { STAGGER } from '../../../core/utils/motion.js';
 import { useMotion } from '../../../core/hooks/useMotion.js';
@@ -23,17 +23,10 @@ const MotionDiv = motion.div;
    把「再点一次会关掉」讲明白。 */
 const COLLAPSED_GLYPH = {
   left: (
-    <Icon size={16} viewBox="0 0 16 16" strokeWidth="1.6">
-      <line x1="3" y1="4.5" x2="13" y2="4.5" />
-      <line x1="3" y1="8" x2="13" y2="8" />
-      <line x1="3" y1="11.5" x2="9.5" y2="11.5" />
-    </Icon>
+    <TextAlignStart size={16} />
   ),
   right: (
-    <Icon size={16} viewBox="0 0 16 16" strokeWidth="1.6">
-      <rect x="2.5" y="3" width="11" height="10" rx="1.5" />
-      <line x1="9" y1="3" x2="9" y2="13" />
-    </Icon>
+    <PanelRight size={16} />
   ),
 };
 
@@ -97,14 +90,10 @@ export default function SideDrawer({ side, open, onToggle, label, footer = null,
           aria-expanded={open}
         >
           {open ? (
-            <Icon
+            <ChevronDown
               size={16}
-              viewBox="0 0 10 10"
-              strokeWidth="2.5"
               style={{ transform: `rotate(${CHEVRON_ROTATION[side]}deg)` }}
-            >
-              <polyline points="2,3.5 5,6.5 8,3.5" />
-            </Icon>
+            />
           ) : COLLAPSED_GLYPH[side]}
         </IconButton>
         {/* 展开时宽度先让出来（CSS 过渡 base 时长），走过大半后内容从外侧边缘带着轻微模糊浮进来；

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import Folder from '../../../components/motion/Folder.jsx';
 import Card from '../../../components/ui/Card.jsx';
-import Icon from '../../../components/ui/Icon.jsx';
+import { ChevronRight } from 'lucide-react';
 
 // ── 世界规则入口卡：悬停时文件夹里的卡片错开，按下时飞出 ──────────────────────
 
@@ -30,9 +30,7 @@ export function RulesEntryCard({ entryCount, fieldCount, onOpen }) {
           {entryCount} 条设定 · {fieldCount} 个状态字段
         </p>
       </div>
-      <Icon size={16}>
-        <polyline points="9 18 15 12 9 6" />
-      </Icon>
+      <ChevronRight size={16} />
     </Card>
   );
 }

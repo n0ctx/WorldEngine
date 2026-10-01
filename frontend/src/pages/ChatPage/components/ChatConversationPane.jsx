@@ -1,5 +1,5 @@
 import { AnimatePresence } from 'framer-motion';
-import Icon from '../../../components/ui/Icon.jsx';
+import { ChevronLeft } from 'lucide-react';
 import MiddleSummaryModal from '../../../components/session/MiddleSummaryModal.jsx';
 import StateMemoryModal from '../../../components/session/StateMemoryModal.jsx';
 import MessageList from '../../../components/chat/MessageList.jsx';
@@ -50,9 +50,7 @@ export default function ChatConversationPane({
           onClick={onBack}
           className="we-chat-pane-back"
         >
-          <Icon size={14}>
-            <polyline points="15 18 9 12 15 6" />
-          </Icon>
+          <ChevronLeft size={14} />
           返回世界
         </button>
       </div>

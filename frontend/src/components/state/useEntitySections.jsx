@@ -1,37 +1,12 @@
 import { useMemo, useState } from 'react';
 import { AnimatePresence } from 'framer-motion';
+import { Book, Pin, Trash2 } from 'lucide-react';
 import Button from '../ui/Button.jsx';
 import ConfirmModal from '../ui/ConfirmModal.jsx';
 import MakeCardModal from './MakeCardModal.jsx';
 import EntityStateBlock from './EntityStateBlock.jsx';
 import { deleteStateEntity, updateStateEntity } from '../../core/api/state-memory.js';
 import { log } from '../../core/utils/logger.js';
-
-// 图标画成静态 JSX 元素常量而非组件函数：这个文件的默认导出是 hook 而非组件，
-// react-refresh/only-export-components 不允许同文件里再出现「看起来像组件」的
-// 具名函数声明。
-const pinIcon = (
-  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-    <line x1="12" y1="17" x2="12" y2="22" />
-    <path d="M5 17h14l-1.4-1.4A2 2 0 0 1 17 14.2V9a5 5 0 0 0-10 0v5.2a2 2 0 0 1-.6 1.4L5 17z" />
-  </svg>
-);
-
-const cardIcon = (
-  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-    <path d="M4 4h13a2 2 0 0 1 2 2v14H6a2 2 0 0 1-2-2V4z" />
-    <line x1="8" y1="4" x2="8" y2="20" />
-  </svg>
-);
-
-const trashIcon = (
-  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-    <polyline points="3 6 5 6 21 6" />
-    <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
-    <path d="M10 11v6M14 11v6" />
-    <path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2" />
-  </svg>
-);
 
 /** NPC 页签候选：active 的角色实体，排除玩家、排除主角色（card_id 等于 mainCharacterId），要求在场或置顶 */
 function isNpcCandidate(entity, presentIds, mainCharacterId) {
@@ -100,7 +75,7 @@ export default function useEntitySections({
           onClick={() => togglePinned(entity)}
           title={entity.pinned ? '取消置顶' : '置顶'}
         >
-          {pinIcon}<span>{entity.pinned ? '取消置顶' : '置顶'}</span>
+          <Pin size={11} /><span>{entity.pinned ? '取消置顶' : '置顶'}</span>
         </Button>
         <Button
           type="button"
@@ -109,7 +84,7 @@ export default function useEntitySections({
           onClick={() => setMakeCardEntity(entity)}
           title="制成角色卡"
         >
-          {cardIcon}<span>制成角色卡</span>
+          <Book size={11} /><span>制成角色卡</span>
         </Button>
         <Button
           type="button"
@@ -118,7 +93,7 @@ export default function useEntitySections({
           onClick={() => setDeleteTarget(entity)}
           title="删除"
         >
-          {trashIcon}<span>删除</span>
+          <Trash2 size={11} /><span>删除</span>
         </Button>
       </>
     );

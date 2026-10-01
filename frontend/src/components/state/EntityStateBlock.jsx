@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import Icon from '../ui/Icon.jsx';
+import { ChevronDown } from 'lucide-react';
 import StateMemoryDynamicState from './StateMemoryDynamicState.jsx';
 import StateMemoryProfileGroups from './StateMemoryProfileGroups.jsx';
 import { changedProfileKeys, visibleProfileDefs } from './profile-defs.js';
@@ -86,9 +86,7 @@ export default function EntityStateBlock({
         onClick={() => setExpanded((v) => !v)}
         aria-expanded={expanded}
       >
-        <Icon size={16} viewBox="0 0 10 10" strokeWidth="2.5" className="we-status-chevron" style={{ transform: expanded ? 'rotate(0deg)' : 'rotate(-90deg)' }}>
-          <polyline points="2,3.5 5,6.5 8,3.5" />
-        </Icon>
+        <ChevronDown size={16} className="we-status-chevron" style={{ transform: expanded ? 'rotate(0deg)' : 'rotate(-90deg)' }} />
         <span>{expanded ? '收起档案' : `查看全部档案（${profileDefs.length} 项）`}</span>
       </button>
 

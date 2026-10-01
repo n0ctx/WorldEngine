@@ -3,7 +3,7 @@ import { AnimatePresence } from 'framer-motion';
 import Badge from '../ui/Badge.jsx';
 import Button from '../ui/Button.jsx';
 import ConfirmModal from '../ui/ConfirmModal.jsx';
-import Icon from '../ui/Icon.jsx';
+import { Pin } from 'lucide-react';
 import { deleteStateEntity, updateStateEntity } from '../../core/api/state-memory.js';
 import { log } from '../../core/utils/logger.js';
 import StateMemoryDynamicState from '../state/StateMemoryDynamicState.jsx';
@@ -12,10 +12,7 @@ import { visibleProfileDefs } from '../state/profile-defs.js';
 
 export function PinIcon() {
   return (
-    <Icon size={16}>
-      <path d="M12 17v5" />
-      <path d="M9 3h6l-1 6 4 4v2H6v-2l4-4z" />
-    </Icon>
+    <Pin size={16} />
   );
 }
 

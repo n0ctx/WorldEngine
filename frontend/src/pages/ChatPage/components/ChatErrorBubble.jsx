@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from 'framer-motion';
-import Icon from '../../../components/ui/Icon.jsx';
+import { RotateCcw } from 'lucide-react';
 import CharacterSeal from '../../../components/chat/CharacterSeal.jsx';
 
 export default function ChatErrorBubble({ character, errorBubble, generating, onRetry, motionPrefs }) {
@@ -33,10 +33,7 @@ export default function ChatErrorBubble({ character, errorBubble, generating, on
                     onClick={onRetry}
                     className="we-type-caption px-3 py-1 rounded-[var(--we-radius-lg)] border border-[var(--we-color-border-default)] hover:bg-[var(--we-color-bg-sunken)] transition-colors flex items-center gap-1 text-[var(--we-color-text-secondary)]"
                   >
-                    <Icon size={16}>
-                      <polyline points="1 4 1 10 7 10" />
-                      <path d="M3.51 15a9 9 0 1 0 .49-4.98" />
-                    </Icon>
+                    <RotateCcw size={16} />
                     重新生成
                   </button>
                 </div>

@@ -1,5 +1,5 @@
 import { useId, useState, useRef } from 'react';
-import { Check } from 'lucide-react';
+import { Check, ChevronDown } from 'lucide-react';
 import { isImeComposing } from '../../core/utils/ime.js';
 import { useClickOutside } from '../../core/hooks/useClickOutside.js';
 
@@ -164,14 +164,10 @@ export default function ModelCombobox({
           className="we-combobox-toggle"
           aria-label={open ? '收起列表' : '展开列表'}
         >
-          <svg
+          <ChevronDown
             className="we-combobox-chevron"
             style={{ transform: open ? 'rotate(180deg)' : 'none' }}
-            viewBox="0 0 16 16" fill="none" stroke="currentColor"
-            strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"
-          >
-            <path d="M4 6l4 4 4-4" />
-          </svg>
+          />
         </button>
       </div>
       {open && filtered.length > 0 && (

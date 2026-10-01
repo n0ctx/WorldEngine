@@ -104,9 +104,6 @@ vi.mock('../../src/components', () => ({
   ),
   SortableList: ({ items, renderItem }) => <div>{items.map((item) => <div key={item.id}>{renderItem(item, {})}</div>)}</div>,
 }));
-vi.mock('../../src/components/ui/Icon.jsx', () => ({
-  default: ({ children, ...props }) => <svg {...props}>{children}</svg>,
-}));
 
 import CharactersPage from '../../src/pages/CharactersPage/index.jsx';
 

@@ -1,11 +1,10 @@
 /* book-spread shell top bar — three-level breadcrumb + shell chrome */
 import { useState, useEffect, useId, useRef } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Check } from 'lucide-react';
+import { Check, ChevronDown, Settings, Sparkles } from 'lucide-react';
 import { useMotion } from '../../../core/hooks/useMotion.js';
 import { useClickOutside } from '../../../core/hooks/useClickOutside.js';
 import { useEscapeKey } from '../../../core/hooks/useEscapeKey.js';
-import Icon from '../../../components/ui/Icon.jsx';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { getWorlds } from '../../../core/api/worlds.js';
 import { getCharacter } from '../../../core/api/characters.js';
@@ -80,7 +79,7 @@ function WorldSelector({ effectiveWorldId, isCurrentLevel }) {
           transition={m.transition('press')}
           aria-hidden="true"
         >
-          <Icon size={16} viewBox="0 0 10 10" strokeWidth="1.6"><polyline points="2,3.5 5,6.5 8,3.5" /></Icon>
+          <ChevronDown size={16} />
         </motion.span>
       </button>
 
@@ -252,10 +251,7 @@ export default function TopBar() {
           aria-pressed={isAssistantOpen}
           {...m.gesture('press')}
         >
-          <Icon size={20} strokeWidth="1.6">
-            <path d="M12 3l1.9 4.6L18.5 9.5l-4.6 1.9L12 16l-1.9-4.6L5.5 9.5l4.6-1.9z" />
-            <path d="M19 15l.8 1.9 1.9.8-1.9.8L19 20.4l-.8-1.9-1.9-.8 1.9-.8z" />
-          </Icon>
+          <Sparkles size={20} />
           <span className="we-topbar-item-label">助手</span>
         </motion.button>
 
@@ -279,10 +275,7 @@ export default function TopBar() {
           title="设置"
           {...m.gesture('press')}
         >
-          <Icon size={20} strokeWidth="1.6" className="we-topbar-settings-icon">
-            <circle cx="12" cy="12" r="3" />
-            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
-          </Icon>
+          <Settings size={20} className="we-topbar-settings-icon" />
         </motion.button>
       </div>
     </div>

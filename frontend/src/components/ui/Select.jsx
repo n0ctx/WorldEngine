@@ -2,7 +2,7 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Check } from 'lucide-react';
+import { Check, ChevronDown } from 'lucide-react';
 import { useClickOutside } from '../../core/hooks/useClickOutside.js';
 import { useMotion } from '../../core/hooks/useMotion.js';
 
@@ -201,18 +201,7 @@ export default function Select({
         ].filter(Boolean).join(' ')}
       >
         <span>{selected ? selected.label : '—'}</span>
-        <svg
-          className="we-select-chevron"
-          viewBox="0 0 16 16"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          aria-hidden="true"
-        >
-          <path d="M4 6l4 4 4-4" />
-        </svg>
+        <ChevronDown className="we-select-chevron" />
       </button>
       {createPortal(
         <AnimatePresence>

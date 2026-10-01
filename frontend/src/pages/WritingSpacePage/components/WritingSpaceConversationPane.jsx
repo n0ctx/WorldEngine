@@ -5,7 +5,7 @@ import Pager from '../../../components/chat/Pager.jsx';
 import ProviderSafetyBanner from '../../../components/ui/ProviderSafetyBanner.jsx';
 import MiddleSummaryModal from '../../../components/session/MiddleSummaryModal.jsx';
 import StateMemoryModal from '../../../components/session/StateMemoryModal.jsx';
-import Icon from '../../../components/ui/Icon.jsx';
+import { ChevronLeft, RotateCcw } from 'lucide-react';
 import Button from '../../../components/ui/Button.jsx';
 
 export default function WritingSpaceConversationPane({ worldId, navigate, config, pageState, lifecycle, stream }) {
@@ -47,9 +47,7 @@ export default function WritingSpaceConversationPane({ worldId, navigate, config
             onClick={() => navigate(`/worlds/${worldId}`)}
             className="we-chat-pane-back"
           >
-            <Icon size={14}>
-              <polyline points="15 18 9 12 15 6" />
-            </Icon>
+            <ChevronLeft size={14} />
             返回世界
           </button>
         </div>
@@ -113,10 +111,7 @@ export default function WritingSpaceConversationPane({ worldId, navigate, config
                 className="we-writing-error-retry"
                 onClick={handleRetryAfterError}
               >
-                <Icon size={16}>
-                  <polyline points="1 4 1 10 7 10" />
-                  <path d="M3.51 15a9 9 0 1 0 .49-4.98" />
-                </Icon>
+                <RotateCcw size={16} />
                 重新生成
               </button>
             </div>

@@ -2,7 +2,7 @@ import Badge from '../../../components/ui/Badge.jsx';
 import Card from '../../../components/ui/Card.jsx';
 import CharacterSeal from '../../../components/chat/CharacterSeal.jsx';
 import DragHandle from '../../../components/ui/DragHandle.jsx';
-import Icon from '../../../components/ui/Icon.jsx';
+import { Check, PencilLine, X } from 'lucide-react';
 import IconButton from '../../../components/ui/IconButton.jsx';
 import { useDragAwareClick } from './useDragAwareClick.js';
 
@@ -50,9 +50,7 @@ export function PersonaCard({ persona, dragHandleProps, onActivate, onEdit, onDe
             title="设为激活（对话用）"
             aria-label="激活玩家卡"
           >
-            <Icon size={16}>
-              <polyline points="20 6 9 17 4 12" />
-            </Icon>
+            <Check size={16} />
           </button>
         )}
         <IconButton
@@ -61,10 +59,7 @@ export function PersonaCard({ persona, dragHandleProps, onActivate, onEdit, onDe
           title="编辑"
           onClick={onEdit}
         >
-          <Icon size={16}>
-            <path d="M12 20h9" />
-            <path d="M16.5 3.5a2.12 2.12 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
-          </Icon>
+          <PencilLine size={16} />
         </IconButton>
         <IconButton
           size="sm"
@@ -74,10 +69,7 @@ export function PersonaCard({ persona, dragHandleProps, onActivate, onEdit, onDe
           onClick={onDelete}
           disabled={persona._isLast}
         >
-          <Icon size={16}>
-            <line x1="18" y1="6" x2="6" y2="18" />
-            <line x1="6" y1="6" x2="18" y2="18" />
-          </Icon>
+          <X size={16} />
         </IconButton>
       </div>
     </Card>
