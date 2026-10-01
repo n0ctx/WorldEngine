@@ -4,6 +4,7 @@ import { useMotion } from '../../core/hooks/useMotion.js';
 import { MOTION_PACKS, setMotionPack } from '../../core/motion/motionPack.js';
 import Button from '../ui/Button.jsx';
 import Badge from '../ui/Badge.jsx';
+import Card from '../ui/Card.jsx';
 import { log } from '../../core/utils/logger.js';
 
 // 动效包选择：点切换立刻生效（整个应用一起换），同时写进配置；保存失败时换回原来的包
@@ -30,7 +31,7 @@ export default function MotionPackPicker() {
       {Object.values(MOTION_PACKS).map((pack) => {
         const isActive = pack.id === active;
         return (
-          <article key={pack.id} className={`we-theme-card${isActive ? ' active' : ''}`}>
+          <Card as="article" key={pack.id} variant="outlined" density="compact" selected={isActive} className="we-theme-card">
             <div className="we-theme-card-main">
               <div className="we-theme-meta">
                 <div className="we-theme-title-row">
@@ -47,7 +48,7 @@ export default function MotionPackPicker() {
                 </Button>
               </div>
             )}
-          </article>
+          </Card>
         );
       })}
     </div>

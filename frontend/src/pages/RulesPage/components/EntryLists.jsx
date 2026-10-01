@@ -1,5 +1,7 @@
 import Badge from '../../../components/ui/Badge.jsx';
+import Card from '../../../components/ui/Card.jsx';
 import DragHandle from '../../../components/ui/DragHandle.jsx';
+import EmptyState from '../../../components/ui/EmptyState.jsx';
 import SortableList from '../../../components/ui/SortableList.jsx';
 import ToggleSwitch from '../../../components/ui/ToggleSwitch.jsx';
 import DeleteButton from '../../../components/motion/DeleteButton.jsx';
@@ -9,16 +11,20 @@ import { TRIGGER_LABEL } from '../constants.js';
 //    筛选后的子集内拖拽会破坏真实顺序，拖拽排序统一放到「调整顺序」视图里做）──
 export function EntryPlainList({ entries, selectedId, onSelect, onToggle, onDelete }) {
   if (entries.length === 0) {
-    return <div className="we-entry-section-empty">暂无条目</div>;
+    return <EmptyState size="sm" title="暂无条目" />;
   }
   return (
     <div className="we-entry-section-list" data-testid="entry-list">
       {entries.map((entry) => (
-        <div
+        <Card
           key={entry.id}
+          variant="outlined"
+          density="compact"
+          interactive
+          selected={entry.id === selectedId}
           role="button"
           tabIndex={0}
-          className={`we-entry-section-row we-entry-section-row--selectable${entry.enabled === 0 ? ' we-entry-section-row--disabled' : ''}${entry.id === selectedId ? ' is-selected' : ''}`}
+          className={`we-entry-section-row${entry.enabled === 0 ? ' we-entry-section-row--disabled' : ''}`}
           onClick={() => onSelect(entry)}
           onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelect(entry); } }}
         >
@@ -45,7 +51,7 @@ export function EntryPlainList({ entries, selectedId, onSelect, onToggle, onDele
             </span>
             <DeleteButton label={`删除条目「${entry.title || '（无标题）'}」`} onConfirm={() => onDelete(entry)} />
           </div>
-        </div>
+        </Card>
       ))}
     </div>
   );
@@ -54,7 +60,7 @@ export function EntryPlainList({ entries, selectedId, onSelect, onToggle, onDele
 // ── 设定条目：完整注入顺序视图（跨全部 trigger_type 一起拖拽，落库到 sort_order）──
 export function EntryOrderList({ entries, onReorder, onReorderEnd, onToggle }) {
   if (entries.length === 0) {
-    return <div className="we-entry-section-empty">暂无条目</div>;
+    return <EmptyState size="sm" title="暂无条目" />;
   }
   return (
     <SortableList
@@ -64,7 +70,7 @@ export function EntryOrderList({ entries, onReorder, onReorderEnd, onToggle }) {
       useHandle
       style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}
       renderItem={(entry, dragHandleProps) => (
-        <div className={`we-entry-section-row${entry.enabled === 0 ? ' we-entry-section-row--disabled' : ''}`}>
+        <Card variant="outlined" density="compact" className={`we-entry-section-row${entry.enabled === 0 ? ' we-entry-section-row--disabled' : ''}`}>
           <span className="we-entry-section-drag" {...dragHandleProps}><DragHandle /></span>
           <div className="we-entry-section-main">
             <div className="we-entry-section-title-line">
@@ -77,7 +83,7 @@ export function EntryOrderList({ entries, onReorder, onReorderEnd, onToggle }) {
               <ToggleSwitch size="sm" checked={entry.enabled !== 0} onChange={() => onToggle(entry)} label="启用条目" />
             </span>
           </div>
-        </div>
+        </Card>
       )}
     />
   );

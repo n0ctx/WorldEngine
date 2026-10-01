@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import Badge from '../ui/Badge.jsx';
 import Button from '../ui/Button.jsx';
+import Card from '../ui/Card.jsx';
+import EmptyState from '../ui/EmptyState.jsx';
 import Icon from '../ui/Icon.jsx';
 import { updateStateThread } from '../../core/api/state-memory.js';
 import { isImeComposing } from '../../core/utils/ime.js';
@@ -31,7 +33,7 @@ function ThreadRow({ sessionId, thread, entities, reload }) {
   }
 
   return (
-    <li className={`we-sm-thread-item${active ? '' : ' is-closed'}`}>
+    <Card as="li" variant="sunken" density="compact" className={`we-sm-thread-item${active ? '' : ' is-closed'}`}>
       <div className="we-sm-thread-head">
         <Badge>{thread.kind}</Badge>
         <span className="we-sm-thread-meta">
@@ -70,7 +72,7 @@ function ThreadRow({ sessionId, thread, entities, reload }) {
         onBlur={() => { if (content.trim() && content !== thread.content) commit({ content: content.trim() }); }}
       />
       {error && <p className="we-settings-toggle-hint text-[var(--we-color-accent)]" role="alert">{error}</p>}
-    </li>
+    </Card>
   );
 }
 
@@ -108,10 +110,7 @@ export default function StateMemoryThreadTab({ sessionId, data, reload }) {
       <p className="we-sm-intro">尚未了结的承诺、任务、冲突等。进行中的事项会提醒 AI 延续剧情；长时间没再被提到的会搁置，不再提醒；了结后不再提供。</p>
 
       {active.length === 0 ? (
-        <div className="we-sm-empty">
-          <p className="we-sm-empty-title">暂无未了事项</p>
-          <p className="we-sm-empty-hint">剧情里出现承诺、任务、冲突等时，AI 会自动记录。</p>
-        </div>
+        <EmptyState size="sm" title="暂无未了事项" hint="剧情里出现承诺、任务、冲突等时，AI 会自动记录。" />
       ) : (
         <ul className="we-sm-thread-list">
           {active.map((thread) => (

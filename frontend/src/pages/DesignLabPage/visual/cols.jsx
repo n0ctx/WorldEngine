@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import { CastColumn } from '../../CharactersPage/components/CastColumn.jsx';
 import { RulesEntryCard } from '../../CharactersPage/components/RulesEntryCard.jsx';
 import { StorylineColumn } from '../../CharactersPage/components/StorylineColumn.jsx';
+import SectionTitle from '../../../components/ui/SectionTitle.jsx';
 import VisualSection from '../VisualSection.jsx';
 import { CAST, STORYLINES } from '../demos/fixtures.js';
 
@@ -38,9 +39,9 @@ export function EntryColsDemo() {
         />
         <div className="we-worldhub-side">
           <div className="we-worldhub-section">
-            <div className="we-worldhub-section-header">
-              <span className="we-worldhub-section-title">世界规则</span>
-            </div>
+            <SectionTitle level="eyebrow" rule="under" className="we-worldhub-section-header we-on-shell">
+              世界规则
+            </SectionTitle>
             <RulesEntryCard entryCount={12} fieldCount={5} onOpen={noop} />
           </div>
         </div>

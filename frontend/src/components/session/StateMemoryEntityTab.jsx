@@ -1,6 +1,9 @@
 import { useMemo, useState } from 'react';
+import EmptyState from '../ui/EmptyState.jsx';
 import Icon from '../ui/Icon.jsx';
 import Input from '../ui/Input.jsx';
+import ListItem from '../ui/ListItem.jsx';
+import SectionTitle from '../ui/SectionTitle.jsx';
 import StateMemoryEntityDetail, { PinIcon } from './StateMemoryEntityDetail.jsx';
 
 const ENTITY_TYPE_LABELS = {
@@ -47,9 +50,9 @@ function SearchIcon() {
 function EntityListItem({ entity, active, present, onSelect }) {
   const retired = entity.status === 'retired';
   return (
-    <button
-      type="button"
-      className={`we-sm-entity-item${active ? ' active' : ''}${retired ? ' is-retired' : ''}`}
+    <ListItem
+      selected={active}
+      className={`we-sm-entity-item${retired ? ' is-retired' : ''}`}
       title={entity.name}
       onClick={onSelect}
     >
@@ -57,7 +60,7 @@ function EntityListItem({ entity, active, present, onSelect }) {
       <span className="we-sm-entity-name">{entity.name}</span>
       {entity.pinned && <span className="we-sm-entity-pin" aria-label="已置顶"><PinIcon /></span>}
       {retired && <span className="we-sm-entity-retired">已退场</span>}
-    </button>
+    </ListItem>
   );
 }
 
@@ -96,15 +99,14 @@ export default function StateMemoryEntityTab({ sessionId, data, schema, reload, 
           />
         </label>
         {groups.length === 0 && (
-          <p className="we-section-empty">{search.trim() ? '没有匹配的名字' : '暂无记录'}</p>
+          <EmptyState size="sm" title={search.trim() ? '没有匹配的名字' : '暂无记录'} />
         )}
         {groups.map(({ type, entities: groupEntities }) => (
           <div key={type} className="we-sm-entity-group">
             {groups.length > 1 && (
-              <div className="we-sm-group-title">
-                <span>{ENTITY_TYPE_LABELS[type] ?? type}</span>
-                <span className="we-sm-group-count">{groupEntities.length}</span>
-              </div>
+              <SectionTitle level="eyebrow" actions={<span className="we-sm-group-count">{groupEntities.length}</span>}>
+                {ENTITY_TYPE_LABELS[type] ?? type}
+              </SectionTitle>
             )}
             {groupEntities.map((entity) => (
               <EntityListItem
@@ -131,7 +133,7 @@ export default function StateMemoryEntityTab({ sessionId, data, schema, reload, 
             onClosed={() => setSelectedId(null)}
           />
         ) : (
-          <p className="we-section-empty">选择左侧条目查看详情</p>
+          <EmptyState size="sm" title="选择左侧条目查看详情" />
         )}
       </div>
     </div>

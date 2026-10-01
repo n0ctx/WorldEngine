@@ -38,7 +38,7 @@ describe('ThemeManager', () => {
 
     await waitFor(() => expect(config.updateConfig).toHaveBeenCalledWith({ ui: { theme: 'ink' } }));
     expect(themes.applyVisualTheme).toHaveBeenCalledWith('ink');
-    await waitFor(() => expect(screen.getByText('墨色').closest('.we-theme-card')).toHaveClass('active'));
+    await waitFor(() => expect(screen.getByText('墨色').closest('.we-theme-card')).toHaveClass('is-selected'));
   });
 
   it('只提供切换：不再有导入、导出、删除入口，当前项标为使用中', async () => {
@@ -60,7 +60,7 @@ describe('ThemeManager', () => {
 
     await waitFor(() => expect(config.updateConfig).toHaveBeenCalledTimes(1));
     expect(themes.applyVisualTheme).not.toHaveBeenCalled();
-    expect(screen.getByText('羊皮纸').closest('.we-theme-card')).toHaveClass('active');
-    expect(screen.getByText('墨色').closest('.we-theme-card')).not.toHaveClass('active');
+    expect(screen.getByText('羊皮纸').closest('.we-theme-card')).toHaveClass('is-selected');
+    expect(screen.getByText('墨色').closest('.we-theme-card')).not.toHaveClass('is-selected');
   });
 });

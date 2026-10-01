@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import Badge from '../ui/Badge';
 import Button from '../ui/Button';
+import { cardClassName } from '../ui/cardClassName.js';
 import Checkbox from '../ui/Checkbox';
 import Dialog from '../ui/Dialog';
+import EmptyState from '../ui/EmptyState';
 import { ISO_DATETIME_RE, formatBooleanDisplay, formatDatetimeChinese, parseLooseJson } from './state-value-format';
 import { toggleSetValue } from '../../core/utils/toggleSetValue.js';
 
@@ -155,7 +157,11 @@ export default function StateExtractPreviewModal({ onExtract, onConfirm, onClose
       )}
 
       {isEmpty && (
-        <p className="we-section-empty">AI 未能从当前人设正文中提取到任何状态字段建议，可先完善人设正文（简介/系统提示词）后重试</p>
+        <EmptyState
+          size="sm"
+          title="AI 未能从当前人设正文中提取到任何状态字段建议"
+          hint="可先完善人设正文（简介/系统提示词）后重试"
+        />
       )}
 
       {!isLoading && rows.length > 0 && (
@@ -172,7 +178,12 @@ export default function StateExtractPreviewModal({ onExtract, onConfirm, onClose
             {rows.map((row) => (
               <Checkbox
                 key={row.field_key}
-                className={`we-extract-row${row.isOverride ? ' we-extract-row--override' : ''}`}
+                className={cardClassName({
+                  variant: 'outlined',
+                  density: 'compact',
+                  interactive: true,
+                  className: `we-extract-row${row.isOverride ? ' we-extract-row--override' : ''}`,
+                })}
                 checked={selected.has(row.field_key)}
                 onChange={() => toggle(row.field_key)}
                 aria-label={`勾选写入 ${row.label}`}

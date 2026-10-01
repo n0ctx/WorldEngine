@@ -1,6 +1,7 @@
 import { useId, useState } from 'react';
 import Badge from '../ui/Badge.jsx';
 import Button from '../ui/Button.jsx';
+import EmptyState from '../ui/EmptyState.jsx';
 import Input from '../ui/Input.jsx';
 import IconButton from '../ui/IconButton.jsx';
 import Icon from '../ui/Icon.jsx';
@@ -156,10 +157,7 @@ export default function StateMemoryRelationTab({ sessionId, data, schema, reload
       )}
 
       {relations.length === 0 && !adding && (
-        <div className="we-sm-empty">
-          <p className="we-sm-empty-title">还没有记录关系</p>
-          <p className="we-sm-empty-hint">AI 在剧情里发现关系时会自动记录，也可以手动添加。</p>
-        </div>
+        <EmptyState size="sm" title="还没有记录关系" hint="AI 在剧情里发现关系时会自动记录，也可以手动添加。" />
       )}
 
       <ul className="we-sm-relation-list">

@@ -4,6 +4,7 @@ import Select from '../ui/Select';
 import Button from '../ui/Button';
 import ModelSelector from './ModelSelector';
 import FormGroup from '../ui/FormGroup';
+import SectionTitle from '../ui/SectionTitle';
 import LlmConnectionTest from './LlmConnectionTest';
 import { DEFAULT_BASE_URLS, getProviderDisplaySettings } from '../../core/constants/settings';
 import { log } from '../../core/utils/logger.js';
@@ -38,7 +39,7 @@ export default function AuxLlmBlock({ providers, config, onProviderChange, onBas
 
   return (
     <div className="we-settings-field-group">
-      <p className="we-settings-subsection-title">副模型(LLM)</p>
+      <SectionTitle level="group" as="p">副模型(LLM)</SectionTitle>
 
       <FormGroup label="Provider" hint={`用于摘要、状态栏、记忆展开、日记、标题等后台任务；${fallbackHint}。`} variant="settings">
         <Select

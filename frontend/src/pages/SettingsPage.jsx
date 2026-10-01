@@ -18,6 +18,8 @@ import MotionPackPicker from '../components/settings/MotionPackPicker.jsx';
 import { NAV_SECTIONS, NAV_KEY, SETTINGS_MODE } from '../core/constants/settings';
 import { useMotion } from '../core/hooks/useMotion.js';
 import BounceRail from '../components/motion/BounceRail.jsx';
+import ListItem from '../components/ui/ListItem.jsx';
+import SectionTitle from '../components/ui/SectionTitle.jsx';
 
 const SETTINGS_MODE_STORAGE_KEY = 'we:settings:mode';
 
@@ -119,15 +121,15 @@ export default function SettingsPage() {
           <div ref={navItemsRef} className="we-settings-nav-items">
             <BounceRail containerRef={navItemsRef} activeKey={activeSection} />
             {NAV_SECTIONS.map((s) => (
-              <button
+              <ListItem
                 key={s.key}
                 data-bounce-item
-                className={`we-settings-nav-item${activeSection === s.key ? ' active' : ''}`}
+                selected={activeSection === s.key}
                 aria-current={activeSection === s.key ? 'page' : undefined}
                 onClick={() => setActiveSection(s.key)}
               >
                 {s.label}
-              </button>
+              </ListItem>
             ))}
           </div>
           <div className="we-settings-nav-footer">
@@ -209,21 +211,21 @@ export default function SettingsPage() {
             )}
             {activeSection === NAV_KEY.CSS && (
               <div className="we-settings-section">
-                <h2 className="we-settings-section-title">自定义 CSS</h2>
+                <SectionTitle level="section" rule="under" as="h2">自定义 CSS</SectionTitle>
                 <CustomCssManager settingsMode={settingsMode} />
               </div>
             )}
             {activeSection === NAV_KEY.THEME && (
               <div className="we-settings-section">
-                <h2 className="we-settings-section-title">视觉</h2>
+                <SectionTitle level="section" rule="under" as="h2">视觉</SectionTitle>
                 <ThemeManager />
-                <h2 className="we-settings-section-title we-settings-section-title--sub">动效</h2>
+                <SectionTitle level="section" rule="under" as="h2" className="we-settings-section-title--sub">动效</SectionTitle>
                 <MotionPackPicker />
               </div>
             )}
             {activeSection === NAV_KEY.REGEX && (
               <div className="we-settings-section">
-                <h2 className="we-settings-section-title">正则规则</h2>
+                <SectionTitle level="section" rule="under" as="h2">正则规则</SectionTitle>
                 <RegexRulesManager settingsMode={settingsMode} />
               </div>
             )}

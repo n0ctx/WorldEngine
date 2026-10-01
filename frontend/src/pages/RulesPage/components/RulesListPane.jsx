@@ -1,6 +1,9 @@
 import Badge from '../../../components/ui/Badge.jsx';
 import DeleteButton from '../../../components/motion/DeleteButton.jsx';
 import Button from '../../../components/ui/Button.jsx';
+import Card from '../../../components/ui/Card.jsx';
+import EmptyState from '../../../components/ui/EmptyState.jsx';
+import SectionTitle from '../../../components/ui/SectionTitle.jsx';
 import { EntryOrderList, EntryPlainList } from './EntryLists.jsx';
 import { TRIGGER_LABEL, TYPE_LABEL } from '../constants.js';
 
@@ -16,29 +19,32 @@ export default function RulesListPane({
   if (navMode === 'entries') {
     return (
       <section className="we-workshop-list">
-        <div className="we-workshop-list-head we-on-shell">
-          <span>
-            {entryFilter === 'all' ? '全部条目' : `「${TRIGGER_LABEL[entryFilter]}」条目`}
-          </span>
-          <div className="we-workshop-list-actions">
-            <Button
-              size="sm"
-              variant={orderMode ? 'primary' : 'secondary'}
-              onClick={() => { setOrderMode((v) => !v); setSelectedEntryId(null); setCreatingEntry(false); }}
-            >
-              {orderMode ? '完成排序' : '调整顺序'}
-            </Button>
-            {!orderMode && (
+        <SectionTitle
+          level="eyebrow"
+          className="we-on-shell"
+          actions={(
+            <>
               <Button
                 size="sm"
-                variant="secondary"
-                onClick={() => { setCreatingEntry(true); setSelectedEntryId(null); }}
+                variant={orderMode ? 'primary' : 'secondary'}
+                onClick={() => { setOrderMode((v) => !v); setSelectedEntryId(null); setCreatingEntry(false); }}
               >
-                + 新建
+                {orderMode ? '完成排序' : '调整顺序'}
               </Button>
-            )}
-          </div>
-        </div>
+              {!orderMode && (
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => { setCreatingEntry(true); setSelectedEntryId(null); }}
+                >
+                  + 新建
+                </Button>
+              )}
+            </>
+          )}
+        >
+          {entryFilter === 'all' ? '全部条目' : `「${TRIGGER_LABEL[entryFilter]}」条目`}
+        </SectionTitle>
 
         {orderMode ? (
           <EntryOrderList
@@ -62,17 +68,24 @@ export default function RulesListPane({
 
   return (
     <section className="we-workshop-list">
-      <div className="we-workshop-list-head we-on-shell">
-        <span>{fieldScope.label}字段</span>
-        <Button size="sm" variant="secondary" onClick={() => setCreatingField(true)}>+ 添加</Button>
-      </div>
+      <SectionTitle
+        level="eyebrow"
+        className="we-on-shell"
+        actions={<Button size="sm" variant="secondary" onClick={() => setCreatingField(true)}>+ 添加</Button>}
+      >
+        {fieldScope.label}字段
+      </SectionTitle>
       {PROFILE_BADGE[fieldScope.key] && (
         <div className="we-entry-section-list">
-          <div
+          <Card
+            variant="outlined"
+            density="compact"
+            interactive
+            selected={selectedFieldKey === 'profile'}
             role="button"
             tabIndex={0}
             data-testid={`${fieldScope.key}-profile-defaults`}
-            className={`we-entry-section-row we-entry-section-row--selectable${selectedFieldKey === 'profile' ? ' is-selected' : ''}`}
+            className="we-entry-section-row"
             onClick={() => setSelectedFieldKey('profile')}
             onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelectedFieldKey('profile'); } }}
           >
@@ -82,19 +95,23 @@ export default function RulesListPane({
                 <Badge>{PROFILE_BADGE[fieldScope.key]}</Badge>
               </div>
             </div>
-          </div>
+          </Card>
         </div>
       )}
       {fields.length === 0 ? (
-        <div className="we-entry-section-empty">暂无字段</div>
+        <EmptyState size="sm" title="暂无字段" />
       ) : (
         <div className="we-entry-section-list" data-testid="field-list">
           {fields.map((f) => (
-            <div
+            <Card
               key={f.field_key}
+              variant="outlined"
+              density="compact"
+              interactive
+              selected={f.field_key === selectedFieldKey}
               role="button"
               tabIndex={0}
-              className={`we-entry-section-row we-entry-section-row--selectable${f.field_key === selectedFieldKey ? ' is-selected' : ''}`}
+              className="we-entry-section-row"
               onClick={() => setSelectedFieldKey(f.field_key)}
               onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelectedFieldKey(f.field_key); } }}
             >
@@ -107,7 +124,7 @@ export default function RulesListPane({
               <div className="we-entry-section-actions">
                 <DeleteButton label={`删除字段「${f.label}」`} onConfirm={() => onDeleteField(f)} />
               </div>
-            </div>
+            </Card>
           ))}
         </div>
       )}

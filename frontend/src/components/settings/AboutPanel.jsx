@@ -1,7 +1,10 @@
+import Divider from '../ui/Divider';
+import SectionTitle from '../ui/SectionTitle';
+
 export default function AboutPanel() {
   return (
     <div>
-      <h2 className="we-settings-section-title">关于</h2>
+      <SectionTitle level="section" rule="under" as="h2">关于</SectionTitle>
       <div className="we-settings-field-group">
         <div>
           <p className="we-settings-about-name">
@@ -12,7 +15,7 @@ export default function AboutPanel() {
           </p>
         </div>
 
-        <hr className="we-settings-divider" />
+        <Divider size="lg" />
 
         <div>
           <p className="we-settings-about-heading">

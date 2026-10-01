@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import Input from '../ui/Input.jsx';
+import SectionTitle from '../ui/SectionTitle.jsx';
 import DatetimeSplitInput from './DatetimeSplitInput.jsx';
 import { formatDatetimeChinese } from './state-value-format.js';
 import { isImeComposing } from '../../core/utils/ime.js';
@@ -111,9 +112,7 @@ export default function WorldProfileGroup({ sessionId, world, entities, reload, 
 
   return (
     <div className="we-state-section we-world-profile-group">
-      <div className="we-state-section-title">
-        <span className="we-section-label">现状</span>
-      </div>
+      <SectionTitle level="eyebrow" rule="beside">现状</SectionTitle>
       <div className="we-fields-list">
         <WorldTimeField time={world?.time ?? null} onCommit={handleTimeCommit} />
         <WorldLocationField

@@ -1,3 +1,4 @@
+import SectionTitle from '../../../components/ui/SectionTitle.jsx';
 import { PersonaSwitchPanel } from './PersonaSwitchPanel.jsx';
 import { RulesEntryCard } from './RulesEntryCard.jsx';
 
@@ -27,9 +28,9 @@ export function SideColumn({
   return (
     <div className="we-worldhub-side">
       <div className="we-worldhub-section">
-        <div className="we-worldhub-section-header">
-          <span className="we-worldhub-section-title">我扮演</span>
-        </div>
+        <SectionTitle level="eyebrow" rule="under" className="we-worldhub-section-header we-on-shell">
+          我扮演
+        </SectionTitle>
 
         {/* 收起行与展开列表同时收放高度，读作同一块区域平滑长高 / 缩回 */}
         <PersonaSwitchPanel
@@ -55,9 +56,9 @@ export function SideColumn({
 
       {/* 世界规则 */}
       <div className="we-worldhub-section">
-        <div className="we-worldhub-section-header">
-          <span className="we-worldhub-section-title">世界规则</span>
-        </div>
+        <SectionTitle level="eyebrow" rule="under" className="we-worldhub-section-header we-on-shell">
+          世界规则
+        </SectionTitle>
         <RulesEntryCard
           entryCount={entryCount}
           fieldCount={fieldCount}

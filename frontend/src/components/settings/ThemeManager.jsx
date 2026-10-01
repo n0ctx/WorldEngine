@@ -5,6 +5,8 @@ import { refreshCustomCss } from '../../core/api/custom-css-snippets.js';
 import { useAppModeStore } from '../../core/state/appMode.js';
 import Button from '../ui/Button.jsx';
 import Badge from '../ui/Badge.jsx';
+import Card from '../ui/Card.jsx';
+import Skeleton from '../ui/Skeleton.jsx';
 import { log } from '../../core/utils/logger.js';
 
 export default function ThemeManager() {
@@ -44,14 +46,14 @@ export default function ThemeManager() {
     }
   }
 
-  if (loading) return <p className="we-theme-empty">加载中…</p>;
+  if (loading) return <Skeleton />;
 
   return (
     <div className="we-theme-list">
       {VISUAL_THEMES.map((theme) => {
         const active = theme.id === activeTheme;
         return (
-          <article key={theme.id} className={`we-theme-card${active ? ' active' : ''}`}>
+          <Card as="article" key={theme.id} variant="outlined" density="compact" selected={active} className="we-theme-card">
             <div className="we-theme-card-main">
               <ThemeSwatch theme={theme} />
               <div className="we-theme-meta">
@@ -69,7 +71,7 @@ export default function ThemeManager() {
                 </Button>
               </div>
             )}
-          </article>
+          </Card>
         );
       })}
     </div>

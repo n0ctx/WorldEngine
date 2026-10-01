@@ -1,5 +1,6 @@
 import Icon from '../../../components/ui/Icon.jsx';
 import TaskList from '../../../components/motion/TaskList.jsx';
+import { cardClassName } from '../../../components/ui/cardClassName.js';
 
 // ── NewWorldGuide（新世界搭建引导）──────────────────────────────────────────
 //
@@ -56,7 +57,7 @@ export function NewWorldGuide({ completed, onStepClick, onDismiss }) {
 
       <TaskList
         className="we-onboarding-steps"
-        itemClassName="we-onboarding-step"
+        itemClassName={cardClassName({ interactive: true, className: 'we-onboarding-step' })}
         tasks={GUIDE_STEPS.map((step) => ({
           id: step.key,
           title: step.title,

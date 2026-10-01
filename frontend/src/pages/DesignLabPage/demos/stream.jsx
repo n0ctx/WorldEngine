@@ -3,6 +3,7 @@ import { StateBusyOverlay } from '../../../components/state/panel-parts.jsx';
 import StreamingMarkdown from '../../../components/chat/StreamingMarkdown.jsx';
 import MotionOrb from '../../../components/motion/MotionOrb.jsx';
 import Button from '../../../components/ui/Button.jsx';
+import Skeleton from '../../../components/ui/Skeleton.jsx';
 import SlotSection from '../SlotSection.jsx';
 import { PROSE } from './fixtures.js';
 
@@ -59,11 +60,7 @@ export function BusyDemo() {
     >
       <div className="we-design-lab__wait">
         <div className="we-design-lab__busy">
-          <div className="we-skel-stack">
-            <span className="we-skel we-skel-line" />
-            <span className="we-skel we-skel-line" />
-            <span className="we-skel we-skel-line" />
-          </div>
+          <Skeleton />
           <StateBusyOverlay
             isUpdating={busy}
             justChanged={done}
@@ -86,10 +83,8 @@ export function LoopsDemo() {
   return (
     <SlotSection id="loops">
       <div className="we-design-lab__row">
-        <div className="we-skel-stack we-design-lab__loop-skel">
-          <span className="we-skel we-skel-line" />
-          <span className="we-skel we-skel-line" />
-        </div>
+        <Skeleton lines={[100, 70]} className="we-design-lab__loop-skel" />
+        <Skeleton block className="we-design-lab__loop-skel" />
         <span aria-label="打字三点">
           {[0, 1, 2].map((i) => <span key={i} className="typing-dot typing-dot-accent" />)}
         </span>

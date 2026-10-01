@@ -1,8 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 
-import Button from '../ui/Button.jsx';
+import { Button, EmptyState, SectionTitle, Skeleton } from '../index.js';
 import SectionTabs from '../ui/SectionTabs.jsx';
-import PanelCard from '../ui/PanelCard.jsx';
 import EntityStateBlock from './EntityStateBlock.jsx';
 import StatusSection from './StatusSection.jsx';
 import WorldProfileGroup from './WorldProfileGroup.jsx';
@@ -111,24 +110,19 @@ function DiaryTab({
       selected={selectedEntry?.date_str === entry.date_str}
       onSelect={handleDiarySelect}
       className={classNames.diaryEntry}
-      style={classNames.diaryEntryStyle}
     />
   );
 
   return (
     <div className="we-panel-tab-body">
-      <PanelCard variant="headerless">
+      <div className="p-1">
         <div className="we-timeline we-timeline--in-card">
           {entries === null && !error ? (
-            <div className="we-skel-stack" aria-busy="true">
-              {[85, 65, 90].map((width, index) => (
-                <div key={index} className="we-skel we-skel-line" style={{ '--skel-width': `${width}%` }} />
-              ))}
-            </div>
+            <Skeleton lines={[85, 65, 90]} />
           ) : error ? (
             <StateLoadError message="日记加载失败" onRetry={retry} />
           ) : !hasDiary ? (
-            <p className="we-section-empty">暂无日记</p>
+            <EmptyState size="sm" title="暂无日记" />
           ) : (
             <div className="we-timeline-list">
               {recentDiary.map((entry, index) => renderEntry(entry, index))}
@@ -148,7 +142,7 @@ function DiaryTab({
             </div>
           )}
         </div>
-      </PanelCard>
+      </div>
     </div>
   );
 }
@@ -165,11 +159,14 @@ function WorldTab({
 }) {
   return (
     <section className="we-state-block we-state-block--world">
-      <header className="we-state-block-head">
-        <span className="we-state-block-label">{worldName || '世界'}</span>
-        <span className="we-section-rule" />
-        <ResetAction onClick={handleResetWorld} busy={worldResetting} />
-      </header>
+      <SectionTitle
+        level="group"
+        rule="beside"
+        as="span"
+        actions={<ResetAction onClick={handleResetWorld} busy={worldResetting} />}
+      >
+        {worldName || '世界'}
+      </SectionTitle>
       {stateError ? renderLoadError('世界状态加载失败') : (
         <WorldProfileGroup
           sessionId={sessionId}
@@ -206,7 +203,7 @@ function PlayerTab({
 
   return (
     <div className="we-panel-tab-body">
-      <PanelCard variant="headerless">
+      <div className="p-1">
         {stateError ? renderLoadError('玩家状态加载失败') : (
           playerEntity ? (
             <EntityStateBlock
@@ -233,7 +230,7 @@ function PlayerTab({
             />
           )
         )}
-      </PanelCard>
+      </div>
     </div>
   );
 }
@@ -405,7 +402,6 @@ export default function SessionStatePanel({
     <div className={classNames.panel}>
       <div className={classNames.scroll}>
         {worldTab}
-        <div className="we-state-divider" aria-hidden="true" />
         <section className="we-state-block we-state-block--cast">
           <SectionTabs sections={sections} defaultKey="player" globalActions={globalActions} />
         </section>

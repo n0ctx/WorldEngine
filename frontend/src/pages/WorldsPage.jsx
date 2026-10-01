@@ -6,6 +6,7 @@ import useStore from '../core/state/index';
 import ConfirmModal from '../components/ui/ConfirmModal';
 import EmptyState from '../components/ui/EmptyState.jsx';
 import Button from '../components/ui/Button.jsx';
+import Skeleton from '../components/ui/Skeleton.jsx';
 import ChangeText from '../components/motion/ChangeText.jsx';
 import MotionOrb from '../components/motion/MotionOrb.jsx';
 import { useMotion } from '../core/hooks/useMotion.js';
@@ -79,7 +80,7 @@ export default function WorldsPage() {
               aria-hidden="true"
               className={`we-world-card-shell${index === 0 ? ' we-world-card-shell--feature' : ''}`}
             >
-              <div className="we-skeleton-block we-skeleton-block--card" />
+              <Skeleton block />
             </div>
           ))}
         </div>

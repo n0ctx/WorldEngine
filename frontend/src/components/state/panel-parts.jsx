@@ -14,11 +14,11 @@ export function RefreshIcon() {
   );
 }
 
-export function DiaryEntry({ entry, index, selected, onSelect, className, style }) {
+export function DiaryEntry({ entry, index, selected, onSelect, className }) {
   return (
     <div
       className={`we-timeline-entry ${className}${selected ? ` ${className}--selected` : ''}`}
-      style={{ animationDelay: `${index * STAGGER}s`, ...style }}
+      style={{ animationDelay: `${index * STAGGER}s` }}
       onClick={() => onSelect(entry)}
       title="点击注入下轮提示词"
     >

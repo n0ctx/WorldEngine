@@ -7,7 +7,7 @@ import SessionStatePanel from './SessionStatePanel.jsx';
 import EntityStateBlock from './EntityStateBlock.jsx';
 import StateMemoryDynamicState from './StateMemoryDynamicState.jsx';
 import useEntitySections from './useEntitySections.jsx';
-import PanelCard from '../ui/PanelCard.jsx';
+import EmptyState from '../ui/EmptyState.jsx';
 import { ResetAction } from './panel-parts.jsx';
 import { log } from '../../core/utils/logger.js';
 
@@ -87,9 +87,9 @@ export default function StatePanel({ sessionId, character, worldId, persona, onD
       actions: <ResetAction onClick={handleResetChar} busy={charResetting} />,
       content: (
         <div className="we-panel-tab-body">
-          <PanelCard variant="headerless">
-            {character ? renderCharacterBody() : <p className="we-section-empty">尚未选择角色</p>}
-          </PanelCard>
+          <div className="p-1">
+            {character ? renderCharacterBody() : <EmptyState size="sm" title="尚未选择角色" />}
+          </div>
         </div>
       ),
     }, ...npcSections];

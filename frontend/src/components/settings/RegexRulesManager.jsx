@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import { PencilLine } from 'lucide-react';
+import { Button, Card, EmptyState, IconButton, SectionTitle, Skeleton, SortableList, ToggleSwitch } from '../index.js';
 import {
   listRegexRules,
   createRegexRule,
@@ -12,11 +13,7 @@ import { getWorlds } from '../../core/api/worlds.js';
 import DragHandle from '../ui/DragHandle.jsx';
 import { invalidateCache, loadRules } from '../../core/utils/regex-runner.js';
 import RegexRuleEditor from './RegexRuleEditor.jsx';
-import Button from '../ui/Button.jsx';
-import IconButton from '../ui/IconButton.jsx';
-import ToggleSwitch from '../ui/ToggleSwitch.jsx';
 import DeleteButton from '../motion/DeleteButton.jsx';
-import SortableList from '../ui/SortableList.jsx';
 import { SETTINGS_MODE } from '../../core/constants/settings';
 import { log } from '../../core/utils/logger.js';
 import {
@@ -103,7 +100,7 @@ export default function RegexRulesManager({ settingsMode = SETTINGS_MODE.CHAT })
   }
 
   if (loading) {
-    return <p className="we-regex-manager-loading">加载中…</p>;
+    return <Skeleton />;
   }
 
   const rulesByScope = SCOPE_ORDER.reduce((acc, scope) => {
@@ -123,16 +120,16 @@ export default function RegexRulesManager({ settingsMode = SETTINGS_MODE.CHAT })
       {SCOPE_ORDER.map((scope) => (
         <div key={scope}>
           <div className="we-regex-scope-head">
-            <span className="we-regex-scope-title">
+            <SectionTitle level="eyebrow" as="span" className="we-regex-scope-title">
               {SCOPE_LABELS[scope]}
-            </span>
+            </SectionTitle>
             <span className="we-regex-scope-hint">
               — {SCOPE_HINTS[scope]}
             </span>
           </div>
 
           {rulesByScope[scope].length === 0 ? (
-            <p className="we-regex-scope-empty">暂无规则</p>
+            <EmptyState size="sm" title="暂无规则" />
           ) : (
             <SortableList
               items={rulesByScope[scope]}
@@ -171,7 +168,7 @@ export default function RegexRulesManager({ settingsMode = SETTINGS_MODE.CHAT })
 
 function RuleRow({ rule, worldName, onEdit, onToggle, onDelete }) {
   return (
-    <div className="we-regex-rule-row">
+    <Card variant="outlined" density="compact" className="we-regex-rule-row">
       <span className="we-regex-rule-drag"><DragHandle /></span>
 
       <div className="we-regex-rule-main">
@@ -195,6 +192,6 @@ function RuleRow({ rule, worldName, onEdit, onToggle, onDelete }) {
         </IconButton>
         <DeleteButton label={`删除正则规则「${rule.name}」`} onConfirm={onDelete} />
       </div>
-    </div>
+    </Card>
   );
 }

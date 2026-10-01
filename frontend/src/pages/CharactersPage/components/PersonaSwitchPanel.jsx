@@ -1,6 +1,8 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { SortableList } from '../../../components';
 import Button from '../../../components/ui/Button.jsx';
+import Card from '../../../components/ui/Card.jsx';
+import EmptyState from '../../../components/ui/EmptyState.jsx';
 import CharacterSeal from '../../../components/chat/CharacterSeal.jsx';
 import { PersonaCard } from './PersonaCard.jsx';
 
@@ -29,7 +31,7 @@ export function PersonaSwitchPanel({
     <AnimatePresence initial={false}>
       {!personaExpanded ? (
         <motion.div key="persona-row" {...personaSwitchMotion}>
-          <div className="we-persona-switch-row">
+          <Card variant="outlined" density="compact" className="we-persona-switch-row">
             {activePersona ? (
               <>
                 <CharacterSeal character={activePersona} size={32} />
@@ -63,7 +65,7 @@ export function PersonaSwitchPanel({
             >
               切换
             </Button>
-          </div>
+          </Card>
         </motion.div>
       ) : (
         <motion.div key="persona-panel" {...personaSwitchMotion}>
@@ -110,9 +112,7 @@ export function PersonaSwitchPanel({
             <div className="we-characters-col-list we-persona-switch-list">
               {personas.length === 0 ? (
                 loading ? null : (
-                  <p className="we-characters-empty-text we-characters-empty-text--centered">
-                    暂无玩家卡
-                  </p>
+                  <EmptyState size="sm" title="暂无玩家卡" />
                 )
               ) : (
                 <SortableList

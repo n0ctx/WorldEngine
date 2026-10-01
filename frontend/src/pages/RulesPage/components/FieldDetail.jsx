@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
-import Badge from '../../../components/ui/Badge.jsx';
-import Button from '../../../components/ui/Button.jsx';
+import { Badge, Button, Card, EmptyState, ListItem, SectionTitle, Skeleton } from '../../../components/index.js';
 import StateFieldEditor from '../../../components/state/StateFieldEditor';
 import EntryEditor from '../../../components/state/EntryEditor';
 import { listWorldEntries, getEntryConditions } from '../../../core/api/prompt-entries';
@@ -15,10 +14,10 @@ export default function FieldDetail({ worldId, scope, scopeKey, field, onDefinit
   const [editingDef, setEditingDef] = useState(false); // 是否就地展开「编辑定义」
 
   return (
-    <div className="we-entry-editor-panel we-workshop-detail-inner">
+    <Card variant="sunken" className="we-entry-editor-panel we-workshop-detail-inner">
       <div className="we-workshop-detail-head">
         <div>
-          <h3 className="we-entry-editor-title we-workshop-detail-title">{field.label}</h3>
+          <SectionTitle level="group">{field.label}</SectionTitle>
           <Badge>{TYPE_LABEL[field.type] ?? field.type}</Badge>
           {field.description && <p className="we-workshop-detail-desc">{field.description}</p>}
         </div>
@@ -71,7 +70,7 @@ export default function FieldDetail({ worldId, scope, scopeKey, field, onDefinit
           />
         </div>
       )}
-    </div>
+    </Card>
   );
 }
 
@@ -121,21 +120,21 @@ function RelatedEntries({ worldId, scope, field, reloadKey, onNew, onEdit }) {
         <Button size="sm" variant="secondary" onClick={onNew}>+ 新建条目</Button>
       </div>
       {loading ? (
-        <p className="we-workshop-empty">加载中…</p>
+        <Skeleton />
       ) : items.length === 0 ? (
-        <p className="we-workshop-empty">暂无引用该字段的条目</p>
+        <EmptyState size="sm" title="暂无引用该字段的条目" />
       ) : (
         <ul className="we-workshop-entry-items">
           {items.map(({ entry, otherFields }) => (
             <li key={entry.id}>
-              <button className="we-workshop-entry-item" onClick={() => onEdit(entry)}>
+              <ListItem onClick={() => onEdit(entry)}>
                 <span className="we-workshop-entry-title">{entry.title || '（无标题）'}</span>
                 {otherFields.length > 0 && (
                   <span className="we-workshop-entry-cross" title={`还引用了：${otherFields.join('、')}`}>
                     还引用了：{otherFields.join('、')}
                   </span>
                 )}
-              </button>
+              </ListItem>
             </li>
           ))}
         </ul>

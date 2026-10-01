@@ -1,4 +1,5 @@
 import Button from '../ui/Button';
+import SectionTitle from '../ui/SectionTitle';
 import MarkdownEditor from '../ui/MarkdownEditor';
 import FormGroup from '../ui/FormGroup';
 import { SETTINGS_MODE } from '../../core/constants/settings';
@@ -15,7 +16,7 @@ export default function PromptConfigPanel({
 }) {
   return (
     <div>
-      <h2 className="we-settings-section-title">全局提示词</h2>
+      <SectionTitle level="section" rule="under" as="h2">全局提示词</SectionTitle>
 
       {settingsMode === SETTINGS_MODE.WRITING ? (
         <>

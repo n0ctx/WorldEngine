@@ -67,9 +67,9 @@ export function CardHoverDemo() {
   return (
     <SlotSection id="card-hover">
       <div className="we-design-lab__row">
-        {['contained', 'ring', 'whisper'].map((elevation) => (
-          <Card key={elevation} elevation={elevation} className="we-design-lab__card-sample">{elevation}</Card>
-        ))}
+        <Card interactive tabIndex={0} className="we-design-lab__card-sample">浮起卡</Card>
+        <Card interactive selected tabIndex={0} className="we-design-lab__card-sample">选中</Card>
+        <Card variant="outlined" interactive tabIndex={0} className="we-design-lab__card-sample">描边行（不接管）</Card>
       </div>
     </SlotSection>
   );

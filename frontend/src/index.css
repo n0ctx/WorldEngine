@@ -76,8 +76,9 @@ body {
 .we-route-fallback {
   /* 撑满视口，避免路由切换瞬间骨架坍缩为一小条。
      不再用 flex 居中——骨架模拟页面内容应左对齐而非居中；
-     padding 交给内层 .we-skeleton-container 提供，避免双重 padding。 */
+     骨架本身不带留白，由这里提供。 */
   min-height: 100svh;
+  padding: var(--we-space-xl);
   /* 加载在 300ms 内完成时占位根本不出现。延迟写死而不走 --we-motion-*：
      减弱动效模式会把 duration token 与延迟都清零，闪烁会回来（上方全局降级里单独保留了这个延迟）。 */
   animation: we-panel-fade var(--we-motion-enter-duration) var(--we-motion-enter-easing) 300ms both;

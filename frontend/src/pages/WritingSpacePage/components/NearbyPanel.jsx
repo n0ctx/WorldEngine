@@ -2,9 +2,10 @@ import { useState } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import { Plus } from 'lucide-react';
 
-import PanelCard from '../../../components/ui/PanelCard.jsx';
 import Button from '../../../components/ui/Button.jsx';
+import EmptyState from '../../../components/ui/EmptyState.jsx';
 import IconButton from '../../../components/ui/IconButton.jsx';
+import Skeleton from '../../../components/ui/Skeleton.jsx';
 import SessionStatePanel from '../../../components/state/SessionStatePanel.jsx';
 import useEntitySections from '../../../components/state/useEntitySections.jsx';
 import AddEntityFromCardModal from './AddEntityFromCardModal.jsx';
@@ -14,8 +15,7 @@ import { RefreshIcon } from '../../../components/state/panel-parts.jsx';
 const CLASS_NAMES = {
   panel: 'we-cast-panel',
   scroll: 'we-cast-scroll',
-  diaryEntry: 'we-cast-diary-entry',
-  diaryEntryStyle: { transition: 'background var(--we-motion-state-duration) var(--we-motion-state-easing)' },
+  diaryEntry: 'we-diary-entry',
   diaryMore: 'we-cast-diary-more',
   overlayKey: 'nearby-state-overlay',
   overlay: 'we-cast-state-overlay',
@@ -27,13 +27,9 @@ const CLASS_NAMES = {
 function EmptyNearbyTab({ loading, error, onRetry }) {
   return (
     <div className="we-panel-tab-body">
-      <PanelCard variant="headerless">
+      <div className="p-1">
         {loading ? (
-          <div className="we-skel-stack" aria-busy="true">
-            {[80, 65, 70].map((w, i) => (
-              <div key={i} className="we-skel we-skel-line" style={{ '--skel-width': `${w}%` }} />
-            ))}
-          </div>
+          <Skeleton lines={[80, 65, 70]} />
         ) : error ? (
           <div className="we-cast-error">
             <p className="we-field-error">{error}</p>
@@ -42,9 +38,9 @@ function EmptyNearbyTab({ loading, error, onRetry }) {
             </Button>
           </div>
         ) : (
-          <p className="we-cast-empty">AI 记录到的在场角色和你置顶的角色会显示在这里</p>
+          <EmptyState size="sm" title="AI 记录到的在场角色和你置顶的角色会显示在这里" />
         )}
-      </PanelCard>
+      </div>
     </div>
   );
 }

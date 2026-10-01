@@ -1,11 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import { PencilLine, Trash2 } from 'lucide-react';
-import { SortableList } from '../index';
-import Badge from '../ui/Badge.jsx';
-import Button from '../ui/Button.jsx';
-import ConfirmModal from '../ui/ConfirmModal.jsx';
-import IconButton from '../ui/IconButton.jsx';
+import { Badge, Button, Card, ConfirmModal, EmptyState, IconButton, SectionTitle, Skeleton, SortableList } from '../index.js';
 import DragHandle from '../ui/DragHandle.jsx';
 import StateFieldEditor from './StateFieldEditor';
 import { log } from '../../core/utils/logger.js';
@@ -79,19 +75,21 @@ export default function StateFieldList({
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-2">
-        <span className="we-type-eyebrow text-[var(--we-color-text-tertiary)] uppercase">
-          {scope === 'world' ? '世界状态字段' : scope === 'persona' ? '玩家状态字段' : '角色状态字段'}
-        </span>
-        <Button size="sm" onClick={() => { setEditingField(null); setShowEditor(true); }}>
-          + 添加
-        </Button>
-      </div>
+      <SectionTitle
+        level="eyebrow"
+        actions={(
+          <Button size="sm" onClick={() => { setEditingField(null); setShowEditor(true); }}>
+            + 添加
+          </Button>
+        )}
+      >
+        {scope === 'world' ? '世界状态字段' : scope === 'persona' ? '玩家状态字段' : '角色状态字段'}
+      </SectionTitle>
 
       {loading ? (
-        <p className="we-type-caption text-[var(--we-color-text-faint)] py-3 text-center">加载中…</p>
+        <Skeleton />
       ) : fields.length === 0 ? (
-        <p className="we-type-caption text-[var(--we-color-text-faint)] italic py-3 text-center">暂无字段</p>
+        <EmptyState size="sm" title="暂无字段" />
       ) : (
         <div className="flex flex-col gap-2">
           <SortableList
@@ -139,7 +137,7 @@ export default function StateFieldList({
 
 function FieldRow({ field, onEdit, onDelete }) {
   return (
-    <div className="we-field-row group flex items-center gap-2 px-3 py-2 select-none cursor-grab active:cursor-grabbing">
+    <Card variant="outlined" density="compact" className="group flex items-center gap-2 select-none cursor-grab active:cursor-grabbing">
       <DragHandle className="flex-shrink-0 text-[var(--we-color-text-faint)] group-hover:text-[var(--we-color-text-tertiary)] transition-colors" />
 
       <div className="flex-1 min-w-0 flex items-center gap-2">
@@ -159,6 +157,6 @@ function FieldRow({ field, onEdit, onDelete }) {
           <Trash2 size={16} />
         </IconButton>
       </div>
-    </div>
+    </Card>
   );
 }

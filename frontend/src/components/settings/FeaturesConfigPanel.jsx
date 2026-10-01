@@ -2,6 +2,8 @@ import ToggleSwitch from '../ui/ToggleSwitch';
 import SegmentedControl from '../ui/SegmentedControl';
 import Input from '../ui/Input';
 import FormGroup from '../ui/FormGroup';
+import Divider from '../ui/Divider';
+import SectionTitle from '../ui/SectionTitle';
 import { SETTINGS_MODE, DIARY_DATE_MODE } from '../../core/constants/settings';
 
 const DIARY_DATE_OPTIONS = [
@@ -77,7 +79,7 @@ function MemorySettings({
 
   return (
     <>
-      <p className="we-settings-subsection-title">记忆</p>
+      <SectionTitle level="group" as="p">记忆</SectionTitle>
 
       <div className="we-settings-field-group">
         <FormGroup
@@ -192,8 +194,8 @@ function ResponseSettings({
 
   return (
     <>
-      <hr className="we-settings-divider" />
-      <p className="we-settings-subsection-title">思维链</p>
+      <Divider size="lg" />
+      <SectionTitle level="group" as="p">思维链</SectionTitle>
 
       <ToggleRow
         label="渲染思维链"
@@ -210,8 +212,8 @@ function ResponseSettings({
         disabled={!showThinking}
       />
 
-      <hr className="we-settings-divider" />
-      <p className="we-settings-subsection-title">Token 消耗</p>
+      <Divider size="lg" />
+      <SectionTitle level="group" as="p">Token 消耗</SectionTitle>
 
       <ToggleRow
         label="显示 token 消耗"
@@ -220,8 +222,8 @@ function ResponseSettings({
         onChange={onToggleShowTokenUsage}
       />
 
-      <hr className="we-settings-divider" />
-      <p className="we-settings-subsection-title">弹幕</p>
+      <Divider size="lg" />
+      <SectionTitle level="group" as="p">弹幕</SectionTitle>
 
       <ToggleRow
         label="弹幕"
@@ -257,8 +259,8 @@ function ResponseSettings({
         </>
       )}
 
-      <hr className="we-settings-divider" />
-      <p className="we-settings-subsection-title">选项</p>
+      <Divider size="lg" />
+      <SectionTitle level="group" as="p">选项</SectionTitle>
 
       <ToggleRow
         label={isChat ? '对话选项' : '写作选项'}
@@ -294,8 +296,8 @@ function TurnSettings({
     <>
       {!isChat && (
         <>
-          <hr className="we-settings-divider" />
-          <p className="we-settings-subsection-title">分章</p>
+          <Divider size="lg" />
+          <SectionTitle level="group" as="p">分章</SectionTitle>
 
           <div className="we-settings-field-group">
             <FormGroup
@@ -318,8 +320,8 @@ function TurnSettings({
         </>
       )}
 
-      <hr className="we-settings-divider" />
-      <p className="we-settings-subsection-title">翻页</p>
+      <Divider size="lg" />
+      <SectionTitle level="group" as="p">翻页</SectionTitle>
 
       <div className="we-settings-field-group">
         <FormGroup
@@ -407,7 +409,7 @@ export default function FeaturesConfigPanel({
 
   return (
     <div>
-      <h2 className="we-settings-section-title">功能配置</h2>
+      <SectionTitle level="section" rule="under" as="h2">功能配置</SectionTitle>
       <div className="we-settings-section-body">
         <MemorySettings {...memorySettings} />
         <ResponseSettings {...responseSettings} />

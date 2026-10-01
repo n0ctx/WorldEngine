@@ -441,7 +441,7 @@
   75%  { clip-path: inset(0 20% 0 0);  transform: translateX(-1px); }
   100% { clip-path: inset(0);          transform: none; }
 }
-:where(:root[data-motion="signal"]) .we-empty-state__title {
+:where(:root[data-motion="signal"]) .we-empty-state:not(.we-empty-state--sm) > .we-empty-state__title {
   --glitch-a: var(--we-color-accent);
   --glitch-b: hsl(from var(--we-color-accent) calc(h + 180) s l);
   position: relative;
@@ -458,7 +458,7 @@
   100% { clip-path: inset(0);         text-shadow: none; }
 }
 /* 标题本身被逐格裁出，光标要落在已露出部分的右缘内侧才不被裁掉 */
-:where(:root[data-motion="signal"]) .we-empty-state__title::after {
+:where(:root[data-motion="signal"]) .we-empty-state:not(.we-empty-state--sm) > .we-empty-state__title::after {
   content: '';
   position: absolute;
   top: 12%;
@@ -479,7 +479,7 @@
   75%  { left: calc(86% - 2px); }
   100% { left: calc(100% - 2px);  opacity: 0; }
 }
-:where(:root[data-motion="signal"]) :is(.we-empty-state__hint, .we-empty-state__actions) {
+:where(:root[data-motion="signal"]) .we-empty-state:not(.we-empty-state--sm) > :is(.we-empty-state__hint, .we-empty-state__actions) {
   animation: var(--we-fx-enter);
   animation-delay: calc(var(--sig-hold) + var(--sig-beat));
 }
@@ -490,17 +490,17 @@
 /* ── 循环：骨架、打字三点、新消息箭头 ───────────────────────────────────────── */
 /* 骨架：行切成一格一格的信号格，强调色从左往右一格格填满，停一拍后清空；相邻行错开，像在缓冲。
    卡片骨架不切格，整块一格格填满 */
-:where(:root[data-motion="signal"]) :is(.we-skel, .we-skeleton-block) {
+:where(:root[data-motion="signal"]) .we-skel {
   background-image: linear-gradient(color-mix(in srgb, var(--we-color-accent) 45%, var(--we-color-bg-strong)) 0 0);
   background-repeat: no-repeat;
   background-size: 0% 100%;
 }
-:where(:root[data-motion="signal"]) :is(.we-skel, .we-skeleton-block:not(.we-skeleton-block--card)) {
+:where(:root[data-motion="signal"]) .we-skel:not(.we-skel--block) {
   -webkit-mask-image: repeating-linear-gradient(90deg, #000 0 14px, transparent 14px 17px);
   mask-image: repeating-linear-gradient(90deg, #000 0 14px, transparent 14px 17px);
 }
-:where(:root[data-motion="signal"]) :is(.we-skel, .we-skeleton-block):nth-child(3n + 2) { animation-delay: calc(var(--we-motion-loop-duration) * -0.3); }
-:where(:root[data-motion="signal"]) :is(.we-skel, .we-skeleton-block):nth-child(3n) { animation-delay: calc(var(--we-motion-loop-duration) * -0.6); }
+:where(:root[data-motion="signal"]) .we-skel:nth-child(3n + 2) { animation-delay: calc(var(--we-motion-loop-duration) * -0.3); }
+:where(:root[data-motion="signal"]) .we-skel:nth-child(3n) { animation-delay: calc(var(--we-motion-loop-duration) * -0.6); }
 @keyframes we-signal-buffer {
   0%        { background-size: 0% 100%; }
   12%       { background-size: 17% 100%; }
@@ -602,19 +602,19 @@
 
 /* 卡片（Card、角色卡）：悬停浮起、描边硬切成强调色，随后磷光帧两步硬切外扩即灭；按下贴紧复位。
    入口卡（世界卡 + 拖动壳）：不画整框——悬停时名字双曝光一次，按下进入时整面冲洗一帧强调色即灭，再交给锁定跃迁的代码雨 */
-:where(:root[data-motion="signal"]) :is(.we-card:not(.we-card-flat), .we-character-card) {
+:where(:root[data-motion="signal"]) :is(.we-card--raised.is-interactive, .we-character-card) {
   position: relative;
   transition: none;
 }
 /* 磷光帧紧跟悬停开始：第二帧、第四帧各亮两帧 */
-:where(:root[data-motion="signal"]) :is(.we-card:not(.we-card-flat), .we-character-card):hover {
+:where(:root[data-motion="signal"]) :is(.we-card--raised.is-interactive, .we-character-card):hover {
   translate: 0 -2px;
   border-color: var(--we-color-accent);
   animation:
     we-signal-snap-a calc(var(--sig-frame) * 2) var(--sig-cut) calc(var(--sig-frame) * 2),
     we-signal-snap-b calc(var(--sig-frame) * 2) var(--sig-cut) calc(var(--sig-frame) * 4);
 }
-:where(:root[data-motion="signal"]) :is(.we-card:not(.we-card-flat), .we-character-card):active {
+:where(:root[data-motion="signal"]) :is(.we-card--raised.is-interactive, .we-character-card):active {
   translate: 0 0;
 }
 :where(:root[data-motion="signal"]) .we-world-card-shell {
@@ -632,13 +632,13 @@
 :where(:root[data-motion="signal"]) .we-world-card-shell:active {
   animation: we-signal-flood calc(var(--sig-frame) * 2) var(--sig-cut) calc(var(--we-motion-state-duration) - var(--sig-frame));
 }
-:where(:root[data-motion="signal"]) :is(.we-card:not(.we-card-flat), .we-character-card, .we-world-card) > .we-touch-fx {
+:where(:root[data-motion="signal"]) :is(.we-card--raised.is-interactive, .we-character-card, .we-world-card) > .we-touch-fx {
   display: block;
 }
 :where(:root[data-motion="signal"]) .we-world-card > .we-touch-fx {
   z-index: var(--we-z-card-overlay);
 }
-:where(:root[data-motion="signal"]) :is(.we-card:not(.we-card-flat), .we-character-card, .we-world-card) .we-touch-fx__ripple {
+:where(:root[data-motion="signal"]) :is(.we-card--raised.is-interactive, .we-character-card, .we-world-card) .we-touch-fx__ripple {
   inset: 0;
   width: auto;
   height: auto;

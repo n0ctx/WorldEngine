@@ -1,6 +1,7 @@
 import { useId, useRef, useState } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import ConfirmModal from '../../components/ui/ConfirmModal.jsx';
+import Skeleton from '../../components/ui/Skeleton.jsx';
 import { useEscapeKey } from '../../core/hooks/useEscapeKey.js';
 import { useFocusTrap } from '../../core/hooks/useFocusTrap.js';
 
@@ -48,7 +49,7 @@ export default function EditPageShell({
         </div>
       </div>
     ) : (
-      <p className="we-edit-empty-text">加载中…</p>
+      <Skeleton className="w-64" />
     );
     if (isOverlay) {
       return (

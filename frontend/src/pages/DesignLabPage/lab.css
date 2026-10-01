@@ -239,8 +239,7 @@
 }
 
 /* 状态数值变化：演示 stage 带 we-state-panel，生产同作用域规则在此让位 */
-.we-design-lab__stage .we-status-key,
-.we-design-lab__stage .we-section-empty {
+.we-design-lab__stage .we-status-key {
   color: var(--we-color-shell-text-secondary);
 }
 .we-design-lab__stage.we-state-panel .we-status-field .we-status-value {

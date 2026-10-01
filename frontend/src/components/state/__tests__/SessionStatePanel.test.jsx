@@ -58,7 +58,6 @@ vi.mock('../../ui/SectionTabs.jsx', () => {
   }
   return { default: MockSectionTabs };
 });
-vi.mock('../../ui/PanelCard.jsx', () => ({ default: ({ children }) => <div>{children}</div> }));
 vi.mock('../StatusSection.jsx', () => ({
   default: ({ className, onSave }) => (
     <button type="button" onClick={() => onSave('weather', JSON.stringify('clear'))}>{className}</button>
@@ -193,10 +192,10 @@ it('选择日记后注入内容，同一条可取消，切换会话会清空选�
 
 it('加载期间标记忙碌，状态错误仍可通过可访问按钮重试', () => {
   harness.state = state({ stateData: null, diaryEntries: null, stateError: 'load failed' });
-  const { container } = render(<SessionStatePanel {...props()} />);
+  render(<SessionStatePanel {...props()} />);
   fireEvent.click(screen.getByRole('tab', { name: '日记' }));
 
-  expect(container.querySelector('[aria-busy="true"]')).toBeInTheDocument();
+  expect(screen.getByRole('status', { name: '加载中' })).toBeInTheDocument();
   const retryButtons = screen.getAllByRole('button', { name: '重试' });
   fireEvent.click(retryButtons[0]);
   expect(harness.retryStateLoad).toHaveBeenCalledTimes(1);

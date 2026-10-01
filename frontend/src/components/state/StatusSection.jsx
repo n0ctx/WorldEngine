@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import Badge from '../ui/Badge.jsx';
+import { Badge, EmptyState, SectionTitle, Skeleton } from '../index.js';
 import Icon from '../ui/Icon.jsx';
 import StatusTable from './StatusTable.jsx';
 import StatusValueChange from './StatusValueChange.jsx';
@@ -25,19 +25,6 @@ function parseTableValue(effectiveValueJson) {
 
 function canEditRow(row, onSave) {
   return row.update_mode !== 'system_rule' && !!onSave;
-}
-
-function SkeletonRows() {
-  return (
-    <div className="we-status-skeleton">
-      {[60, 80, 45].map((w, i) => (
-        <div key={i}>
-          <div className="we-skel we-status-skeleton-key" />
-          <div className="we-skel we-status-skeleton-value" style={{ '--skel-width': `${w}%` }} />
-        </div>
-      ))}
-    </div>
-  );
 }
 
 function Chevron({ open }) {
@@ -254,8 +241,8 @@ export default function StatusSection({
 
   const body = (
     <>
-      {isLoading && <SkeletonRows />}
-      {isEmpty && (emptyContent ?? <p className="we-section-empty">暂无数据</p>)}
+      {isLoading && <Skeleton lines={[60, 80, 45]} />}
+      {isEmpty && (emptyContent ?? <EmptyState size="sm" title="暂无数据" />)}
       {!isLoading && !isEmpty && (
         <div className={`we-fields-list${gridLayout ? ' we-fields-list--grid' : ''}`}>
           {rows?.map((row, index) => {
@@ -298,20 +285,24 @@ export default function StatusSection({
     <div className={`we-state-section ${className || ''}`}>
       {showTitle && (
         <div
-          className={`we-state-section-title${collapsible ? ' we-state-section-title--collapsible' : ''}`}
+          className={collapsible ? 'we-state-section-title--collapsible' : undefined}
           onClick={collapsible ? () => setOpen((o) => !o) : undefined}
         >
-          {collapsible && <Chevron open={open} />}
-          <span className="we-section-label">{title}</span>
-          <span className="we-section-rule" />
-          {onReset && (
-            <button
-              className="we-state-section-reset"
-              onClick={(e) => { e.stopPropagation(); if (!resetting) onReset(); }}
-            >
-              {resetting ? '…' : '重置'}
-            </button>
-          )}
+          <SectionTitle
+            level="eyebrow"
+            rule="beside"
+            actions={onReset && (
+              <button
+                className="we-state-section-reset"
+                onClick={(e) => { e.stopPropagation(); if (!resetting) onReset(); }}
+              >
+                {resetting ? '…' : '重置'}
+              </button>
+            )}
+          >
+            {collapsible && <Chevron open={open} />}
+            {title}
+          </SectionTitle>
         </div>
       )}
 

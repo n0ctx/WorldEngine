@@ -1,6 +1,8 @@
-import { Badge, Button, Card, Checkbox, Input, PanelCard, Range, SegmentedControl, Select, TagInput, Textarea, ToggleSwitch } from '../../../components/index.js';
+import {
+  Badge, Button, Card, Checkbox, Divider, EmptyState, Input, ListItem, Range, SectionTitle, SegmentedControl, Select, Skeleton, TagInput, Textarea, ToggleSwitch,
+} from '../../../components/index.js';
 import { useState } from 'react';
-import EmptyState from '../../../components/ui/EmptyState.jsx';
+import { Check } from 'lucide-react';
 import MessageItem from '../../../components/chat/MessageItem.jsx';
 import VisualSection from '../VisualSection.jsx';
 import { SELECT_OPTIONS } from '../demos/fixtures.js';
@@ -71,14 +73,29 @@ export function CardsDemo() {
   return (
     <VisualSection id="cards">
       <div className="we-design-lab__grid">
-        <div className="we-design-lab__row">
-          {['contained', 'flat', 'ring', 'whisper'].map((elevation) => (
-            <Card key={elevation} elevation={elevation} className="we-design-lab__card-sample">{elevation}</Card>
-          ))}
+        <div className="we-design-lab__surfaces">
+          <SectionTitle level="eyebrow" rule="beside">浮起卡 · 可点的独立内容</SectionTitle>
+          <Card interactive tabIndex={0}>雨夜拳手 · 沉默寡言的地下拳场常客</Card>
+          <Card interactive selected density="compact" tabIndex={0}>林默（当前扮演）</Card>
+          <SectionTitle level="eyebrow" rule="beside">描边行 · 编辑器与设置里一行一项</SectionTitle>
+          <Card variant="outlined" density="compact" interactive tabIndex={0}>开场白</Card>
+          <Card variant="outlined" density="compact" interactive selected tabIndex={0}>古典羊皮纸</Card>
+          <SectionTitle level="eyebrow" rule="beside">凹陷框 · 面板里再分一块</SectionTitle>
+          <Card variant="sunken">找到那张欠条的主人</Card>
         </div>
-        <PanelCard title="面板卡片" actions={<Button variant="ghost" size="sm">操作</Button>}>
-          <p className="we-design-lab__note">面板正文：状态、规则与设定都放在这一类容器里。</p>
-        </PanelCard>
+        <div className="we-design-lab__surfaces">
+          <SectionTitle level="section" rule="under">区块标题</SectionTitle>
+          <SectionTitle level="group">小标题</SectionTitle>
+          <SectionTitle level="eyebrow" actions={<Button variant="ghost" size="sm">新建</Button>}>分节标签</SectionTitle>
+          <div className="we-design-lab__nav-sample">
+            <ListItem selected aria-current="page">设定条目</ListItem>
+            <ListItem>状态字段</ListItem>
+          </div>
+          <Divider />
+          <Skeleton />
+          <Divider size="lg" />
+          <EmptyState size="sm" title="还没有记录关系" hint="对话里出现的人物关系会自动记在这里。" />
+        </div>
         <EmptyState
           title="还没有世界"
           hint="创建第一个世界，开始写故事。"
@@ -102,11 +119,14 @@ export function TopbarDemo() {
               <button type="button" className="we-topbar-item we-topbar-item--active">
                 <span className="we-topbar-world-name">无限轮回</span>
               </button>
-              <div className="we-topbar-dropdown">
-                <button type="button" className="we-topbar-dropdown-item we-topbar-dropdown-item--active">无限轮回</button>
-                <button type="button" className="we-topbar-dropdown-item">凡人修仙</button>
-                <div className="we-topbar-dropdown-divider" />
-                <button type="button" className="we-topbar-dropdown-list-btn">前往世界列表</button>
+              <div className="we-menu we-topbar-dropdown we-on-shell">
+                <button type="button" className="we-menu__item" aria-current="true">
+                  <span className="we-menu__label">无限轮回</span>
+                  <Check size={14} className="we-menu__check" aria-hidden="true" />
+                </button>
+                <button type="button" className="we-menu__item"><span className="we-menu__label">凡人修仙</span></button>
+                <div className="we-menu__divider" />
+                <button type="button" className="we-menu__item">前往世界列表</button>
               </div>
             </div>
             <span className="we-topbar-sep" aria-hidden="true">/</span>

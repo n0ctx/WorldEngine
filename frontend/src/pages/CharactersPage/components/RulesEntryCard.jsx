@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import Folder from '../../../components/motion/Folder.jsx';
+import Card from '../../../components/ui/Card.jsx';
 import Icon from '../../../components/ui/Icon.jsx';
 
 // ── 世界规则入口卡：悬停时文件夹里的卡片错开，按下时飞出 ──────────────────────
@@ -9,8 +10,10 @@ export function RulesEntryCard({ entryCount, fieldCount, onOpen }) {
   const [pressed, setPressed] = useState(false);
   const folderState = pressed ? 'open' : hovered ? 'hover' : 'rest';
   return (
-    <button
+    <Card
+      as="button"
       type="button"
+      interactive
       className="we-rules-entry-card"
       onClick={onOpen}
       onPointerEnter={() => setHovered(true)}
@@ -30,6 +33,6 @@ export function RulesEntryCard({ entryCount, fieldCount, onOpen }) {
       <Icon size={16}>
         <polyline points="9 18 15 12 9 6" />
       </Icon>
-    </button>
+    </Card>
   );
 }

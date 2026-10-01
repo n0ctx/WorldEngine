@@ -328,25 +328,165 @@
 }
 
 /* ── Card ── */
+/* 三种表面：raised 浮起卡 / outlined 描边行 / sunken 凹陷框；三档密度，compact 用小圆角。
+   可点的加 .is-interactive，选中 .is-selected 统一强调色描边加淡底 */
 .we-card {
-  background: var(--we-card-bg);
+  position: relative;
+  padding: var(--we-space-md) var(--we-space-lg);
   border: var(--we-card-border);
   border-radius: var(--we-radius-md);
-  padding: 20px;
+  background: var(--we-card-bg);
+  color: var(--we-color-text-primary);
+  transition:
+    box-shadow var(--we-motion-state-duration) var(--we-motion-state-easing),
+    border-color var(--we-motion-state-duration) var(--we-motion-state-easing),
+    background-color var(--we-motion-state-duration) var(--we-motion-state-easing);
 }
-.we-card-flat {
-  border: none;
-  box-shadow: none;
+.we-card--compact {
+  padding: var(--we-space-sm) var(--we-space-md);
+  border-radius: var(--we-radius-sm);
 }
-.we-card-ring {
-  transition: border-color var(--we-motion-state-duration) var(--we-motion-state-easing), box-shadow var(--we-motion-state-duration) var(--we-motion-state-easing);
+.we-card--spacious {
+  padding: var(--we-space-lg) var(--we-space-xl);
 }
-.we-card-ring:hover {
-  border-color: var(--we-color-text-tertiary);
-  box-shadow: 0 0 0 1px var(--we-color-text-tertiary);
-}
-.we-card-whisper {
+.we-card--raised {
   box-shadow: var(--we-elevation-1);
+}
+.we-card--sunken {
+  border-color: var(--we-color-border-subtle);
+  background: var(--we-color-bg-sunken);
+}
+.we-card.is-interactive {
+  cursor: pointer;
+}
+.we-card--raised.is-interactive:hover {
+  box-shadow: var(--we-elevation-2);
+}
+.we-card--outlined.is-interactive:hover {
+  border-color: var(--we-color-text-tertiary);
+}
+.we-card.is-interactive:focus-visible {
+  outline: none;
+  box-shadow: var(--we-focus-ring);
+}
+.we-card--raised.is-interactive:focus-visible {
+  box-shadow: var(--we-focus-ring), var(--we-elevation-2);
+}
+/* 强调色淡底是半透明的，先垫一层实色纸面，免得透出下面的书桌 */
+.we-card.is-selected,
+.we-card.is-selected:hover {
+  border-color: var(--we-color-accent-border);
+  background-color: var(--we-color-bg-canvas);
+  background-image: linear-gradient(var(--we-color-accent-bg), var(--we-color-accent-bg));
+}
+
+/* ── ListItem ── */
+/* 导航与侧栏列表的一行：无框，悬停浅底，选中强调色淡底 */
+.we-list-item {
+  display: flex;
+  align-items: center;
+  gap: var(--we-space-sm);
+  width: 100%;
+  min-width: 0;
+  min-height: var(--we-control-h-md);
+  padding: 0 var(--we-space-md);
+  border: none;
+  border-radius: var(--we-radius-sm);
+  background: transparent;
+  color: var(--we-color-text-secondary);
+  font-size: var(--we-type-ui-size);
+  line-height: var(--we-type-ui-leading);
+  letter-spacing: var(--we-type-ui-tracking);
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background-color var(--we-motion-state-duration) var(--we-motion-state-easing),
+    color var(--we-motion-state-duration) var(--we-motion-state-easing);
+}
+.we-list-item:hover {
+  background: var(--we-color-hover);
+  color: var(--we-color-text-primary);
+}
+.we-list-item.is-selected {
+  background: var(--we-color-accent-bg);
+  color: var(--we-color-text-primary);
+}
+.we-list-item:focus-visible {
+  outline: none;
+  box-shadow: var(--we-focus-ring);
+}
+
+/* ── Divider ── */
+.we-divider {
+  height: 1px;
+  margin: var(--we-space-md) 0;
+  border: none;
+  background: var(--we-color-border-subtle);
+}
+.we-divider--lg {
+  margin: var(--we-space-xl) 0;
+}
+
+/* ── SectionTitle ── */
+/* 三级：section 区块标题 / group 小标题 / eyebrow 分节标签；线可在下方（under）或右侧延到行尾（beside） */
+.we-section-title {
+  display: flex;
+  align-items: center;
+  gap: var(--we-space-sm);
+  min-width: 0;
+  color: var(--we-color-text-primary);
+}
+.we-section-title__text {
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  font: inherit;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.we-section-title__actions {
+  order: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--we-space-xs);
+  margin-left: auto;
+  flex-shrink: 0;
+}
+.we-section-title--section {
+  margin-bottom: var(--we-space-lg);
+  font-family: var(--we-font-display);
+  font-size: var(--we-type-heading-size);
+  line-height: var(--we-type-heading-leading);
+  letter-spacing: var(--we-type-heading-tracking);
+  font-weight: var(--we-type-heading-weight);
+}
+.we-section-title--group {
+  margin-bottom: var(--we-space-sm);
+  font-family: var(--we-font-display);
+  font-size: var(--we-type-subheading-size);
+  line-height: var(--we-type-subheading-leading);
+  letter-spacing: var(--we-type-subheading-tracking);
+  font-weight: var(--we-type-subheading-weight);
+}
+.we-section-title--eyebrow {
+  margin-bottom: var(--we-space-sm);
+  font-family: var(--we-font-display);
+  font-size: var(--we-type-eyebrow-size);
+  line-height: var(--we-type-eyebrow-leading);
+  letter-spacing: var(--we-type-eyebrow-tracking);
+  font-weight: var(--we-type-eyebrow-weight);
+  color: var(--we-color-text-tertiary);
+}
+.we-section-title--rule-under {
+  padding-bottom: var(--we-space-md);
+  border-bottom: 1px solid var(--we-color-border-subtle);
+}
+.we-section-title--rule-beside::after {
+  content: '';
+  order: 1;
+  flex: 1;
+  height: 1px;
+  background: var(--we-color-border-subtle);
 }
 
 /* ── EmptyState ── */
@@ -384,6 +524,26 @@
   display: flex;
   gap: var(--we-space-md);
   margin-top: var(--we-space-sm);
+}
+/* 行内档：放在列表、面板里，一句说明加一行可选补充 */
+.we-empty-state--sm {
+  gap: var(--we-space-xxs);
+  padding: var(--we-space-lg) var(--we-space-md);
+}
+.we-empty-state--sm .we-empty-state__title {
+  font-family: inherit;
+  font-size: var(--we-type-ui-size);
+  line-height: var(--we-type-ui-leading);
+  letter-spacing: var(--we-type-ui-tracking);
+  font-weight: var(--we-type-ui-weight);
+  color: var(--we-color-text-tertiary);
+}
+.we-empty-state--sm .we-empty-state__hint {
+  max-width: 32em;
+  font-size: var(--we-type-caption-size);
+  line-height: var(--we-type-caption-leading);
+  letter-spacing: var(--we-type-caption-tracking);
+  color: var(--we-color-text-tertiary);
 }
 
 /* ── Badge ── */
@@ -685,11 +845,6 @@
   display: flex;
   align-items: flex-start;
   gap: var(--we-space-sm);
-  padding: var(--we-space-sm) var(--we-space-md);
-  border: 1px solid var(--we-color-border-default);
-  border-radius: var(--we-radius-sm);
-  background: var(--we-color-bg-surface);
-  cursor: pointer;
 }
 
 .we-extract-row--override {
@@ -1366,21 +1521,6 @@
 /* 条目编辑器就地内嵌：铺满详情列、随内容流动；弹窗模式由 Dialog 承载 */
 .we-entry-editor-panel {
   width: 100%;
-  padding: var(--we-space-md);
-  border: 1px solid var(--we-color-border-default);
-  border-radius: var(--we-radius-lg);
-  background: var(--we-color-bg-sunken);
-}
-
-.we-entry-editor-title {
-  font-family: var(--we-font-display);
-  font-size: var(--we-type-subheading-size);
-  line-height: var(--we-type-subheading-leading);
-  letter-spacing: var(--we-type-subheading-tracking);
-  font-weight: var(--we-type-subheading-weight);
-  color: var(--we-color-text-primary);
-  font-style: italic;
-  margin-bottom: var(--we-space-lg);
 }
 
 .we-entry-editor-label {
@@ -1616,16 +1756,6 @@
 }
 
 /* ── RegexRulesManager ── */
-.we-regex-manager-loading {
-  font-family: var(--we-font-prose);
-  font-size: var(--we-type-ui-size);
-  line-height: var(--we-type-ui-leading);
-  letter-spacing: var(--we-type-ui-tracking);
-  color: var(--we-color-text-tertiary);
-  font-style: italic;
-  padding: var(--we-space-sm) 0;
-}
-
 .we-regex-manager {
   display: flex;
   flex-direction: column;
@@ -1655,13 +1785,7 @@
 }
 
 .we-regex-scope-title {
-  font-family: var(--we-font-display);
-  font-size: var(--we-type-eyebrow-size);
-  line-height: var(--we-type-eyebrow-leading);
-  font-weight: var(--we-type-eyebrow-weight);
-  letter-spacing: var(--we-type-eyebrow-tracking);
-  text-transform: uppercase;
-  color: var(--we-color-text-tertiary);
+  margin-bottom: 0;
 }
 
 .we-regex-scope-hint {
@@ -1670,16 +1794,6 @@
   line-height: var(--we-type-caption-leading);
   letter-spacing: var(--we-type-caption-tracking);
   color: var(--we-color-text-faint);
-}
-
-.we-regex-scope-empty {
-  font-family: var(--we-font-prose);
-  font-size: var(--we-type-caption-size);
-  line-height: var(--we-type-caption-leading);
-  letter-spacing: var(--we-type-caption-tracking);
-  color: var(--we-color-text-faint);
-  font-style: italic;
-  margin-left: var(--we-space-xs);
 }
 
 .we-regex-rule-list {
@@ -1692,17 +1806,8 @@
   display: flex;
   align-items: center;
   gap: var(--we-space-sm);
-  background: var(--we-color-bg-surface);
-  border: 1px solid var(--we-color-border-default);
-  border-radius: var(--we-radius-xs);
-  padding: var(--we-space-sm) var(--we-space-md);
   cursor: grab;
   user-select: none;
-  transition: border-color var(--we-motion-state-duration) var(--we-motion-state-easing);
-}
-
-.we-regex-rule-row:hover {
-  border-color: var(--we-color-text-tertiary);
 }
 
 .we-regex-rule-drag {
@@ -1816,7 +1921,7 @@
 /* ==========================================================
    以下规则从 frontend/src/index.css 迁移（B1 文件拆分）
    通用控件原语：spinner / MarkdownEditor / Topbar / CodeMirror
-   / Combobox / Range / 骨架屏 / StatusField 原语 / Timeline / PanelCard
+   / Combobox / Range / 骨架屏 / StatusField 原语 / Timeline
    ========================================================= */
 
 /* — MarkdownEditor 工具栏 + 容器 ─ */
@@ -2405,6 +2510,12 @@
   height: 12px; /* design exact: 骨架行高 */
   width: var(--skel-width, 100%);
 }
+/* 整块占位（卡片、封面）：默认 16:10，放进定高格子时由格子撑满 */
+.we-skel--block {
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  border-radius: var(--we-radius-md);
+}
 
 .we-cast-error {
   display: flex;
@@ -2422,30 +2533,8 @@
 .we-timeline + .we-state-section { border-top: 1px solid var(--we-color-border-default); }
 
 /* 区块标题行 */
-.we-state-section-title {
-  display: flex;
-  align-items: center;
-  gap: 7px; /* design exact */
-  margin-bottom: 10px; /* design exact */
-}
 
-.we-section-label {
-  font-family: var(--we-font-display);
-  font-size: var(--we-type-eyebrow-size);
-  line-height: var(--we-type-eyebrow-leading);
-  font-weight: var(--we-type-eyebrow-weight);
-  letter-spacing: var(--we-type-eyebrow-tracking);
-  text-transform: uppercase;
-  color: var(--we-color-text-tertiary);
-  white-space: nowrap;
-  flex-shrink: 0;
-}
 /* 标题右侧延伸细线 */
-.we-section-rule {
-  flex: 1;
-  height: 1px;
-  background: var(--we-color-border-subtle);
-}
 
 /* 重置按钮：hover 区块或键盘聚焦时显现（M2: 同步绑定 :focus-within 改善可达性） */
 .we-state-section-reset {
@@ -2479,15 +2568,6 @@
 }
 
 /* 空状态文字 */
-.we-section-empty {
-  font-family: var(--we-font-display);
-  font-size: var(--we-type-caption-size);
-  line-height: var(--we-type-caption-leading);
-  font-style: italic;
-  color: var(--we-color-text-faint);
-  margin: 0;
-  letter-spacing: var(--we-type-caption-tracking);
-}
 
 /* ── 字段列表 ─── */
 .we-fields-list {
@@ -2499,23 +2579,8 @@
   animation: var(--we-fx-enter);
 }
 
-.we-status-skeleton {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  padding-top: var(--we-space-xxs);
-}
 
-.we-status-skeleton-key {
-  height: 8px;
-  width: 30%;
-  margin-bottom: var(--we-space-xs);
-}
 
-.we-status-skeleton-value {
-  height: 10px;
-  width: var(--skel-width);
-}
 
 /* 字段行：竖排，标签在上，值在下，完整显示 */
 .we-status-field {
@@ -2883,10 +2948,7 @@
   height: 10px;
 }
 
-/* — PanelCard + SectionTabs + Fields 网格 ─ */
-/* =========================================================
-   右侧栏：PanelCard（参考 Image #3 布局）
-   ========================================================= */
+/* — 右侧栏：SectionTabs + Fields 网格 ─ */
 
 /* tab 内容容器（card 间距） */
 .we-state-panel .we-panel-tab-body,
@@ -2895,92 +2957,6 @@
   flex-direction: column;
   gap: var(--we-space-sm);
   padding: 0;
-}
-
-/* PanelCard */
-.we-panel-card {
-  background: var(--we-color-bg-surface);
-  border: 1px solid var(--we-color-border-default);
-  border-radius: var(--we-radius-md);
-  box-shadow: none;
-  overflow: hidden;
-}
-.we-panel-card-header {
-  display: flex;
-  align-items: center;
-  gap: var(--we-space-sm);
-  padding: 10px 14px; /* 10px: design exact, 14px: design exact */
-  background: transparent;
-  border: none;
-  width: 100%;
-  text-align: left;
-}
-.we-panel-card-icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--we-color-accent);
-  flex-shrink: 0;
-}
-.we-panel-card-title {
-  flex: 1;
-  font-family: var(--we-font-prose);
-  font-size: var(--we-type-ui-size);
-  line-height: var(--we-type-ui-leading);
-  font-weight: var(--we-weight-medium);
-  color: var(--we-color-text-primary);
-  letter-spacing: var(--we-type-ui-tracking);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.we-panel-card-title:lang(en) {
-  letter-spacing: var(--we-type-ui-tracking);
-}
-.we-panel-card-actions {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px; /* design exact */
-  flex-shrink: 0;
-}
-/* H1: 通过提高特异性消除 !important —— 用 .we-panel-card-actions 父级 + 自身 chip class */
-.we-panel-card-collapse {
-  display: grid;
-  grid-template-rows: 0fr;
-  /* 收起：先快后慢收回（retract）*/
-  transition: grid-template-rows var(--we-motion-exit-duration) var(--we-motion-exit-easing);
-}
-.we-panel-card-collapse--open {
-  grid-template-rows: 1fr;
-  /* 展开：墨水浸润 ease-out（ink）*/
-  transition: grid-template-rows var(--we-motion-enter-duration) var(--we-motion-enter-easing);
-}
-.we-panel-card-body {
-  min-height: 0;
-  overflow: hidden;
-}
-.we-panel-card-collapse--open > .we-panel-card-body {
-  padding: 0 14px var(--we-space-md); /* 14px: design exact */
-  border-top: 1px solid color-mix(in srgb, var(--we-color-border-default) var(--we-alpha-5), transparent);
-}
-
-/* headerless StatusSection（在 PanelCard 内）去掉旧分隔线和顶部内边距 */
-.we-panel-card-body .we-state-section--headerless {
-  padding: 10px 0 2px;
-  border-top: none;
-}
-
-/* ── PanelCard variant: headerless（无 header，内容直接开始） ─── */
-.we-panel-card--headerless {
-  background: transparent;
-  border: none;
-  box-shadow: none;
-  border-radius: 0;
-  overflow: visible;
-}
-.we-panel-card--headerless .we-panel-card-collapse--open > .we-panel-card-body {
-  padding: var(--we-space-xs);
-  border-top: none;
 }
 
 /* card 内的 timeline：取消 border-top 与额外 padding */
@@ -3190,24 +3166,6 @@
 .we-sm-tab-head .we-btn {
   flex-shrink: 0;
 }
-.we-sm-empty {
-  padding: var(--we-space-2xl) var(--we-space-lg);
-  text-align: center;
-}
-.we-sm-empty-title {
-  margin: 0 0 var(--we-space-xs);
-  font-size: var(--we-type-ui-size);
-  line-height: var(--we-type-ui-leading);
-  letter-spacing: var(--we-type-ui-tracking);
-  color: var(--we-color-text-secondary);
-}
-.we-sm-empty-hint {
-  margin: 0;
-  font-size: var(--we-type-body-size);
-  line-height: var(--we-type-body-leading);
-  letter-spacing: var(--we-type-body-tracking);
-  color: var(--we-color-text-tertiary);
-}
 
 /* 角色与事物：左列表 + 右详情 */
 .we-sm-entity-tab {
@@ -3255,45 +3213,8 @@
   flex-direction: column;
   gap: 1px;
 }
-.we-sm-group-title {
-  display: flex;
-  align-items: baseline;
-  gap: var(--we-space-xs);
-  padding: var(--we-space-xs) var(--we-space-sm) var(--we-space-xxs);
-  font-size: var(--we-type-caption-size);
-  line-height: var(--we-type-caption-leading);
-  letter-spacing: var(--we-type-caption-tracking);
-  color: var(--we-color-text-tertiary);
-}
 .we-sm-group-count {
   color: var(--we-color-text-faint);
-}
-.we-sm-entity-item {
-  display: flex;
-  align-items: center;
-  gap: var(--we-space-sm);
-  width: 100%;
-  min-width: 0;
-  padding: 6px var(--we-space-sm);
-  border-radius: var(--we-radius-sm);
-  font-size: var(--we-type-ui-size);
-  line-height: var(--we-type-ui-leading);
-  letter-spacing: var(--we-type-ui-tracking);
-  color: var(--we-color-text-secondary);
-  text-align: left;
-  cursor: pointer;
-  transition: background var(--we-motion-state-duration) var(--we-motion-state-easing), color var(--we-motion-state-duration) var(--we-motion-state-easing);
-}
-.we-sm-entity-item:hover {
-  background: var(--we-color-hover);
-}
-.we-sm-entity-item.active {
-  background: var(--we-color-pressed);
-  color: var(--we-color-text-primary);
-}
-.we-sm-entity-item:focus-visible {
-  outline: none;
-  box-shadow: var(--we-focus-ring);
 }
 .we-sm-entity-item.is-retired .we-sm-entity-name {
   color: var(--we-color-text-tertiary);
@@ -3371,9 +3292,6 @@
   align-items: center;
   gap: var(--we-space-xs);
   flex-shrink: 0;
-}
-.we-sm-detail > .we-section-empty {
-  padding: var(--we-space-lg) 0;
 }
 /* 分组靠组标题的横线区分，组与组之间不再画分隔线 */
 .we-sm-detail .we-state-section + .we-state-section { border-top: none; }
@@ -3479,10 +3397,6 @@
   display: flex;
   flex-direction: column;
   gap: var(--we-space-xs);
-  padding: var(--we-space-sm) var(--we-space-md) var(--we-space-md);
-  border: 1px solid var(--we-color-border-subtle);
-  border-radius: var(--we-radius-md);
-  background: var(--we-color-shade-1);
 }
 .we-sm-thread-item.is-closed {
   background: transparent;

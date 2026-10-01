@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import Dialog from '../ui/Dialog.jsx';
 import SectionTabs from '../ui/SectionTabs.jsx';
+import Skeleton from '../ui/Skeleton.jsx';
 import { useStateMemory, useStateMemorySchema } from '../../core/hooks/useStateMemory.js';
 import StateMemoryEntityTab from './StateMemoryEntityTab.jsx';
 import StateMemoryRelationTab from './StateMemoryRelationTab.jsx';
@@ -58,7 +59,7 @@ export default function StateMemoryModal({ sessionId, onClose }) {
       onClose={onClose}
     >
       {loading && !data ? (
-        <p className="we-settings-toggle-hint">加载中…</p>
+        <Skeleton />
       ) : error ? (
         <p className="we-settings-toggle-hint mt-2 text-[var(--we-color-accent)]" role="alert">{error}</p>
       ) : (

@@ -4,6 +4,7 @@ import Dialog from '../ui/Dialog.jsx';
 import ConfirmModal from '../ui/ConfirmModal.jsx';
 import Textarea from '../ui/Textarea.jsx';
 import Button from '../ui/Button.jsx';
+import Skeleton from '../ui/Skeleton.jsx';
 import { getMiddleSummary, updateMiddleSummary } from '../../core/api/middle-summary.js';
 
 export default function MiddleSummaryModal({ sessionId, onClose }) {
@@ -67,7 +68,7 @@ export default function MiddleSummaryModal({ sessionId, onClose }) {
         {coveredTo > 0 ? `已覆盖到第 ${coveredTo} 轮` : '尚未覆盖任何轮次'}
       </p>
       {loading ? (
-        <p className="we-settings-toggle-hint">加载中…</p>
+        <Skeleton />
       ) : (
         <Textarea
           value={content}

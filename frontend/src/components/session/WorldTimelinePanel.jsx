@@ -18,7 +18,7 @@
  * 会通过 chatSessionListBridge / writingSessionListBridge 把结果广播过来，本组件按 currentMode
  * 订阅对应的 bridge，把新会话 / 新标题合并进时间线，不用整表重新拉取。
  */
-import { Button, IconButton, Input } from '../index.js';
+import { Button, EmptyState, IconButton, Input } from '../index.js';
 import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { PencilLine, Trash2 } from 'lucide-react';
@@ -275,7 +275,7 @@ export default function WorldTimelinePanel({
             </Button>
           </div>
         ) : !loading && timeline.length === 0 ? (
-          <p className="we-session-list-empty">暂无故事线</p>
+          <EmptyState size="sm" title="暂无故事线" />
         ) : (
           <div className="we-storyline-list we-storyline-list--timeline">
             {timeline.map((item, index) => (

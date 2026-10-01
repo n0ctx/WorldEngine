@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Card, EmptyState, SectionTitle } from '../../../components/index.js';
 import FormGroup from '../../../components/ui/FormGroup';
 import StateValueField from '../../../components/state/StateValueField';
 import { groupRowsByProfile } from '../../../components/state/profile-groups.js';
@@ -51,17 +52,17 @@ export default function CardProfileDefaultsDetail({ worldId, scopeKey }) {
   }
 
   return (
-    <div className="we-entry-editor-panel we-workshop-detail-inner">
+    <Card variant="sunken" className="we-entry-editor-panel we-workshop-detail-inner">
       <div className="we-workshop-detail-head">
         <div>
-          <h3 className="we-entry-editor-title we-workshop-detail-title">档案默认值</h3>
+          <SectionTitle level="group">档案默认值</SectionTitle>
           <p className="we-workshop-detail-desc">
             每张{owner.label}卡的身份、外貌{scopeKey === 'character' ? '、人格' : ''}。新会话开始时带入，已有会话不受影响。
           </p>
         </div>
       </div>
       {cards.length === 0 ? (
-        <p className="we-workshop-empty">暂无{owner.label}</p>
+        <EmptyState size="sm" title={`暂无${owner.label}`} />
       ) : cards.map((card) => (
         <CardProfileGroups
           key={card.id}
@@ -70,7 +71,7 @@ export default function CardProfileDefaultsDetail({ worldId, scopeKey }) {
           onSave={(fieldKey, valueJson) => save(card.id, fieldKey, valueJson)}
         />
       ))}
-    </div>
+    </Card>
   );
 }
 

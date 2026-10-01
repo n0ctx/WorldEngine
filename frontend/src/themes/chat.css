@@ -866,41 +866,6 @@
   margin-bottom: var(--we-space-sm);
 }
 
-.we-chapter-title {
-  font-family: var(--we-font-display);
-  font-style: italic;
-  font-weight: var(--we-weight-light);
-  font-size: var(--we-type-heading-size);
-  line-height: var(--we-type-heading-leading);
-  letter-spacing: var(--we-type-heading-tracking);
-  color: var(--we-color-text-primary);
-  margin: 0 0 10px; /* design exact */
-}
-
-.we-chapter-fleuron {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px; /* design exact */
-  color: var(--we-color-ornament);
-  font-size: var(--we-glyph-lg);
-  margin-bottom: 20px; /* design exact */
-}
-
-.we-chapter-fleuron-line {
-  flex: 1;
-  max-width: 120px;
-  height: 1px;
-  background: var(--we-color-ornament);
-  transform: scaleX(0);
-  transform-origin: center;
-  transition: transform var(--we-motion-page-duration) var(--we-motion-page-easing) calc(var(--we-motion-stagger) * 2);
-}
-
-.we-chapter-header--visible .we-chapter-fleuron-line {
-  transform: scaleX(1);
-}
-
 /* ── Writing space: prose & annotation ────────────────── */
 
 .we-writing-prose {
@@ -2177,14 +2142,22 @@
   align-items: center;
   justify-content: center;
   gap: var(--we-space-sm);
+  margin-bottom: 20px; /* design exact */
   font-size: var(--we-glyph-lg);
   color: var(--we-color-ornament);
 }
 .we-chapter-fleuron-line {
-  width: 40px;
+  display: block;
+  flex: 1;
+  max-width: 120px;
   height: 1px;
   background: color-mix(in srgb, var(--we-color-ornament) var(--we-alpha-5), transparent);
-  display: block;
+  transform: scaleX(0);
+  transform-origin: center;
+  transition: transform var(--we-motion-page-duration) var(--we-motion-page-easing) calc(var(--we-motion-stagger) * 2);
+}
+.we-chapter-header--visible .we-chapter-fleuron-line {
+  transform: scaleX(1);
 }
 
 /* ============================================================
@@ -2244,24 +2217,7 @@
 }
 
 .we-css-snippet-list__title {
-  font-family: var(--we-font-display);
-  font-size: var(--we-type-eyebrow-size);
-  line-height: var(--we-type-eyebrow-leading);
-  font-weight: var(--we-type-eyebrow-weight);
-  letter-spacing: var(--we-type-eyebrow-tracking);
-  text-transform: uppercase;
-  color: var(--we-color-text-tertiary);
-}
-
-.we-css-snippet-empty {
-  font-family: var(--we-font-prose);
-  font-size: var(--we-type-body-size);
-  line-height: var(--we-type-body-leading);
-  letter-spacing: var(--we-type-body-tracking);
-  font-style: italic;
-  color: var(--we-color-text-tertiary);
-  text-align: center;
-  padding: var(--we-space-md) 0;
+  margin-bottom: 0;
 }
 
 .we-css-snippet-list {
@@ -2274,16 +2230,8 @@
   display: flex;
   align-items: center;
   gap: var(--we-space-sm);
-  background: var(--we-color-bg-surface);
-  border: 1px solid var(--we-color-border-default);
-  padding: var(--we-space-sm) var(--we-space-md);
   cursor: grab;
   user-select: none;
-  transition: border-color var(--we-motion-state-duration) var(--we-motion-state-easing);
-}
-
-.we-css-snippet-row:hover {
-  border-color: var(--we-color-text-tertiary);
 }
 
 .we-css-snippet-row__drag {

@@ -4,6 +4,8 @@ import MainLlmBlock from './MainLlmBlock';
 import AuxLlmBlock from './AuxLlmBlock';
 import AssistantModelBlock from './AssistantModelBlock';
 import FormGroup from '../ui/FormGroup';
+import Divider from '../ui/Divider';
+import SectionTitle from '../ui/SectionTitle';
 import Button from '../ui/Button';
 import Input from '../ui/Input';
 import { LLM_PROVIDERS, SETTINGS_MODE } from '../../core/constants/settings';
@@ -22,7 +24,7 @@ export default function LlmConfigPanel({
 
   return (
     <div className="we-settings-llm-panel">
-      <h2 className="we-settings-section-title">LLM 配置</h2>
+      <SectionTitle level="section" rule="under" as="h2">LLM 配置</SectionTitle>
 
       {/* 主模型区块：对话/写作共用 MainLlmBlock，inheritFrom 切换继承语义 */}
       {settingsMode === SETTINGS_MODE.WRITING ? (
@@ -61,7 +63,7 @@ export default function LlmConfigPanel({
       )}
 
       {/* 副模型按 settingsMode 分别渲染（写作 tab 与对话 tab 各自独立配置） */}
-      <hr className="we-settings-divider" />
+      <Divider size="lg" />
 
       {settingsMode === SETTINGS_MODE.WRITING ? (
         <AuxLlmBlock
@@ -92,17 +94,17 @@ export default function LlmConfigPanel({
         />
       )}
 
-      <hr className="we-settings-divider" />
+      <Divider size="lg" />
 
       <AssistantModelBlock
         modelSource={assistantModelSource}
         onModelSourceChange={onAssistantModelSourceChange}
       />
 
-      <hr className="we-settings-divider" />
+      <Divider size="lg" />
 
       <div className="we-settings-field-group">
-        <p className="we-settings-subsection-title">网络代理</p>
+        <SectionTitle level="group" as="p">网络代理</SectionTitle>
         <FormGroup label="HTTP 代理地址" hint="仅对 LLM 网络请求生效，留空不使用代理。支持 http:// 和 socks5:// 协议，修改后立即生效。" variant="settings">
           <div className="we-settings-inline-field-row">
             <Input

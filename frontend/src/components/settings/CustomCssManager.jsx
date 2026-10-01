@@ -1,16 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
 import { AnimatePresence } from 'framer-motion';
+import { Button, Card, EmptyState, IconButton, Input, SectionTitle, Skeleton, SortableList, Textarea, ToggleSwitch } from '../index.js';
 import {
   listSnippets, createSnippet, updateSnippet, deleteSnippet,
   reorderSnippets, refreshCustomCss,
 } from '../../core/api/custom-css-snippets';
 import { useAppModeStore } from '../../core/state/appMode';
-import Button from '../ui/Button';
-import IconButton from '../ui/IconButton';
-import Input from '../ui/Input';
-import ToggleSwitch from '../ui/ToggleSwitch';
-import Textarea from '../ui/Textarea';
-import SortableList from '../ui/SortableList';
 import DeleteButton from '../motion/DeleteButton.jsx';
 import Dialog from '../ui/Dialog';
 import Icon from '../ui/Icon';
@@ -112,7 +107,7 @@ export default function CustomCssManager({ settingsMode = SETTINGS_MODE.CHAT }) 
       </div>
 
       <div className="we-css-snippet-list__header">
-        <span className="we-css-snippet-list__title">自定义 CSS 片段</span>
+        <SectionTitle level="eyebrow" as="span" className="we-css-snippet-list__title">自定义 CSS 片段</SectionTitle>
         <Button
           variant="secondary"
           size="sm"
@@ -123,9 +118,9 @@ export default function CustomCssManager({ settingsMode = SETTINGS_MODE.CHAT }) 
       </div>
 
       {loading ? (
-        <p className="we-css-snippet-empty">加载中…</p>
+        <Skeleton />
       ) : snippets.length === 0 ? (
-        <p className="we-css-snippet-empty">暂无 CSS 片段</p>
+        <EmptyState size="sm" title="暂无 CSS 片段" />
       ) : (
         <SortableList
           items={snippets}
@@ -159,7 +154,7 @@ export default function CustomCssManager({ settingsMode = SETTINGS_MODE.CHAT }) 
 
 function SnippetRow({ snippet, onEdit, onToggle, onDelete }) {
   return (
-    <div className="we-css-snippet-row">
+    <Card variant="outlined" density="compact" className="we-css-snippet-row">
       <span className="we-css-snippet-row__drag"><DragHandle /></span>
 
       <div className="we-css-snippet-row__main">
@@ -181,7 +176,7 @@ function SnippetRow({ snippet, onEdit, onToggle, onDelete }) {
         </IconButton>
         <DeleteButton label={`删除片段「${snippet.name}」`} onConfirm={onDelete} />
       </div>
-    </div>
+    </Card>
   );
 }
 

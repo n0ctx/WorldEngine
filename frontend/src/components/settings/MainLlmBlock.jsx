@@ -5,6 +5,7 @@ import Button from '../ui/Button';
 import Range from '../ui/Range';
 import ModelSelector from './ModelSelector';
 import FormGroup from '../ui/FormGroup';
+import SectionTitle from '../ui/SectionTitle';
 import FieldLabel from '../ui/FieldLabel';
 import LlmConnectionTest from './LlmConnectionTest';
 import { DEFAULT_BASE_URLS, getProviderDisplaySettings } from '../../core/constants/settings';
@@ -243,7 +244,7 @@ export default function MainLlmBlock({
 
   return (
     <div className="we-settings-field-group">
-      <p className="we-settings-subsection-title">{title}</p>
+      <SectionTitle level="group" as="p">{title}</SectionTitle>
       <MainLlmProviderSettings
         providers={providers}
         config={currentConfig}

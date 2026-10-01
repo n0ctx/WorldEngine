@@ -1,4 +1,5 @@
 import { lazy, Suspense } from 'react';
+import Skeleton from './Skeleton.jsx';
 
 const MarkdownEditorInner = lazy(() => import('./MarkdownEditorInner.jsx'));
 
@@ -24,7 +25,7 @@ export default function MarkdownEditor(props) {
             className="we-md-content"
             style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
           >
-            <span className="we-edit-empty-text">编辑器加载中…</span>
+            <Skeleton className="w-48" label="编辑器加载中" />
           </div>
         </div>
       )}

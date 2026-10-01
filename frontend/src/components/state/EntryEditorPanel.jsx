@@ -1,10 +1,6 @@
 import { X } from 'lucide-react';
-import Button from '../ui/Button';
+import { Button, Card, IconButton, Input, MarkdownEditor, SectionTitle, SegmentedControl } from '../index.js';
 import Dialog from '../ui/Dialog';
-import IconButton from '../ui/IconButton';
-import Input from '../ui/Input';
-import MarkdownEditor from '../ui/MarkdownEditor';
-import SegmentedControl from '../ui/SegmentedControl';
 import EntryEditorKeywordFields from './EntryEditorKeywordFields.jsx';
 import EntryEditorStateFields from './EntryEditorStateFields.jsx';
 import { clampActiveTurns, clampToken, emptyCondition, TRIGGER_SEGMENTS } from './entryEditorRules.js';
@@ -188,11 +184,11 @@ export default function EntryEditorPanel({ model, inline }) {
 
   if (inline) {
     return (
-      <div className="we-entry-editor-panel" onClick={(e) => e.stopPropagation()}>
-        <h3 className="we-entry-editor-title">{title}</h3>
+      <Card variant="sunken" className="we-entry-editor-panel" onClick={(e) => e.stopPropagation()}>
+        <SectionTitle level="group">{title}</SectionTitle>
         {body}
         <div className="we-entry-editor-footer">{actions}</div>
-      </div>
+      </Card>
     );
   }
   return (

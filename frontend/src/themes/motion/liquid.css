@@ -350,7 +350,7 @@
   animation: we-ink-portal-rise-soft var(--ink-t4) var(--ink-spring) calc(var(--ink-t1) * (1 + var(--col, 0))) both;
 }
 /* 栏标题：世界的主色留在字上，湿墨色带光晕慢慢干成常态 */
-:where(:root[data-motion="liquid"]) .we-characters-canvas[data-portal='enter'] .we-worldhub-section-title {
+:where(:root[data-motion="liquid"]) .we-characters-canvas[data-portal='enter'] .we-worldhub-section-header .we-section-title__text {
   animation: we-ink-dry var(--ink-t5) var(--ink-flow) calc(var(--ink-t1) / 2) both;
 }
 
@@ -414,7 +414,7 @@
 }
 
 :where(:root[data-motion="liquid"]) :is(
-  .we-section-tab, .we-menu__item, .we-settings-nav-item
+  .we-section-tab, .we-menu__item, .we-list-item
 ) {
   transition: translate var(--ink-press-out) var(--ink-spring),
     color var(--we-motion-state-duration) var(--we-motion-state-easing),
@@ -472,7 +472,7 @@
    按下从触点洇开一圈墨晕，卡片按进纸里、投影收拢，松手直接回到原位。
    角色卡不浮起：按下整体缓缓微缩，松手用同一段缓动回到原尺寸。
    世界入口卡片的浮起与按进由 framer 的 portal 手势负责，这里只给光晕和墨晕 */
-:where(:root[data-motion="liquid"]) :is(.we-card:not(.we-card-flat), .we-character-card, .we-world-card) {
+:where(:root[data-motion="liquid"]) :is(.we-card--raised.is-interactive, .we-character-card, .we-world-card) {
   transition: --mx var(--ink-trail) var(--ink-surface),
     --my var(--ink-trail) var(--ink-surface),
     translate var(--we-motion-state-duration) var(--we-motion-state-easing),
@@ -480,10 +480,10 @@
     border-color var(--we-motion-state-duration) var(--we-motion-state-easing),
     box-shadow var(--ink-t2) var(--ink-surface);
 }
-:where(:root[data-motion="liquid"]) :is(.we-card:not(.we-card-flat), .we-character-card) {
+:where(:root[data-motion="liquid"]) :is(.we-card--raised.is-interactive, .we-character-card) {
   position: relative;
 }
-:where(:root[data-motion="liquid"]) .we-card:not(.we-card-flat):hover {
+:where(:root[data-motion="liquid"]) .we-card--raised.is-interactive:not(.we-character-card):hover {
   translate: 0 -4px;
   border-color: color-mix(in srgb, var(--we-color-accent) 40%, var(--we-color-border-default));
   box-shadow: 0 14px 28px -16px var(--ink-glow), 0 4px 10px -6px var(--we-color-shade-2);
@@ -497,7 +497,7 @@
 :where(:root[data-motion="liquid"]) .we-character-card:hover {
   border-color: color-mix(in srgb, var(--we-color-accent) 40%, var(--we-color-border-default));
 }
-:where(:root[data-motion="liquid"]) .we-card:not(.we-card-flat):active {
+:where(:root[data-motion="liquid"]) .we-card--raised.is-interactive:not(.we-character-card):active {
   translate: 0 2px;
   box-shadow: 0 1px 2px var(--we-color-shade-2);
   transition-duration: var(--ink-trail), var(--ink-trail), var(--ink-press-in), var(--ink-press-out), var(--we-motion-state-duration), var(--ink-press-in);
@@ -506,7 +506,7 @@
 :where(:root[data-motion="liquid"]) .we-character-card:active {
   scale: 0.985;
 }
-:where(:root[data-motion="liquid"]) :is(.we-card:not(.we-card-flat), .we-character-card, .we-world-card) > .we-touch-fx {
+:where(:root[data-motion="liquid"]) :is(.we-card--raised.is-interactive, .we-character-card, .we-world-card) > .we-touch-fx {
   display: block;
   opacity: 0;
   background: radial-gradient(
@@ -519,10 +519,10 @@
 :where(:root[data-motion="liquid"]) .we-world-card > .we-touch-fx {
   z-index: var(--we-z-card-overlay);
 }
-:where(:root[data-motion="liquid"]) :is(.we-card:not(.we-card-flat), .we-character-card, .we-world-card):hover > .we-touch-fx {
+:where(:root[data-motion="liquid"]) :is(.we-card--raised.is-interactive, .we-character-card, .we-world-card):hover > .we-touch-fx {
   opacity: 1;
 }
-:where(:root[data-motion="liquid"]) :is(.we-card:not(.we-card-flat), .we-character-card, .we-world-card) .we-touch-fx__ripple {
+:where(:root[data-motion="liquid"]) :is(.we-card--raised.is-interactive, .we-character-card, .we-world-card) .we-touch-fx__ripple {
   background: radial-gradient(
     circle,
     transparent 48%,
@@ -744,7 +744,7 @@
   from { opacity: 1; transform: scaleX(0.25); }
   to   { opacity: 0; transform: scaleX(1.3); }
 }
-:where(:root[data-motion="liquid"]) .we-empty-state__title {
+:where(:root[data-motion="liquid"]) .we-empty-state:not(.we-empty-state--sm) > .we-empty-state__title {
   -webkit-mask-image: linear-gradient(90deg, #000 0 40%, transparent 60% 100%);
   mask-image: linear-gradient(90deg, #000 0 40%, transparent 60% 100%);
   -webkit-mask-size: 260% 100%;
@@ -753,7 +753,7 @@
   mask-repeat: no-repeat;
   animation: we-ink-spread var(--ink-t5) var(--ink-surface) var(--ink-t3) both;
 }
-:where(:root[data-motion="liquid"]) :is(.we-empty-state__hint, .we-empty-state__actions) {
+:where(:root[data-motion="liquid"]) .we-empty-state:not(.we-empty-state--sm) > :is(.we-empty-state__hint, .we-empty-state__actions) {
   animation: var(--we-fx-enter);
   /* 等标题洇开一半再浮上来 */
   animation-delay: calc(var(--ink-t3) + var(--ink-t2));
@@ -773,7 +773,7 @@
 }
 
 /* 一道湿润的光泽流过 */
-:where(:root[data-motion="liquid"]) :is(.we-skel, .we-skeleton-block) {
+:where(:root[data-motion="liquid"]) .we-skel {
   background-image: linear-gradient(100deg, transparent 30%, color-mix(in srgb, var(--we-color-accent) 14%, transparent) 50%, transparent 70%);
   background-size: 250% 100%;
   background-repeat: no-repeat;
@@ -820,7 +820,7 @@
   :where(:root[data-motion="liquid"]) .we-character-card:active {
     scale: none;
   }
-  :where(:root[data-motion="liquid"]) .we-empty-state__title {
+  :where(:root[data-motion="liquid"]) .we-empty-state:not(.we-empty-state--sm) > .we-empty-state__title {
     -webkit-mask-image: none;
     mask-image: none;
   }

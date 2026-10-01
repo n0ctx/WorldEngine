@@ -12,6 +12,9 @@ import {
 } from '../../core/api/provider-safety-events.js';
 import { log } from '../../core/utils/logger.js';
 import CodeBlock from '../motion/CodeBlock.jsx';
+import Card from '../ui/Card.jsx';
+import EmptyState from '../ui/EmptyState.jsx';
+import SectionTitle from '../ui/SectionTitle.jsx';
 import { toggleSetValue } from '../../core/utils/toggleSetValue.js';
 import { providerSafetyMetaRows } from '../../core/utils/provider-safety.js';
 
@@ -139,7 +142,7 @@ export default function ProviderSafetyPanel() {
 
   return (
     <div className="we-provider-safety-panel">
-      <h2 className="we-settings-section-title">Provider 安全信号</h2>
+      <SectionTitle level="section" rule="under" as="h2">Provider 安全信号</SectionTitle>
       <p className="we-provider-safety-panel__hint">
         监听 Provider 返回的安全 / 拒绝 / 敏感 / 过滤 / 截断信号。不展示原始敏感文本，只记录归一化后的元数据。
       </p>
@@ -192,14 +195,17 @@ export default function ProviderSafetyPanel() {
       )}
 
       {!loading && events.length === 0 ? (
-        <div className="we-provider-safety-panel__empty">暂无信号记录。</div>
+        <EmptyState size="sm" title="暂无信号记录" />
       ) : (
         <ul className="we-provider-safety-list" aria-label="信号列表">
           {events.map((e) => {
             const open = expanded.has(e.id);
             return (
-              <li
+              <Card
+                as="li"
                 key={e.id}
+                variant="outlined"
+                density="compact"
                 className={`we-provider-safety-row we-provider-safety-row--${e.severity || 'unknown'}`}
               >
                 <button
@@ -222,7 +228,7 @@ export default function ProviderSafetyPanel() {
                     <MetaTable event={e} />
                   </div>
                 )}
-              </li>
+              </Card>
             );
           })}
         </ul>

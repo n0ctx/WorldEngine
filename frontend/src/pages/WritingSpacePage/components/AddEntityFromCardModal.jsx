@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import Dialog from '../../../components/ui/Dialog.jsx';
 import Button from '../../../components/ui/Button.jsx';
+import EmptyState from '../../../components/ui/EmptyState.jsx';
+import Skeleton from '../../../components/ui/Skeleton.jsx';
 import CharacterSeal from '../../../components/chat/CharacterSeal.jsx';
 import { getCharactersByWorld } from '../../../core/api/characters.js';
 import { createEntityFromCard } from '../../../core/api/state-memory.js';
@@ -36,11 +38,9 @@ export default function AddEntityFromCardModal({ worldId, sessionId, entities, o
 
   return (
     <Dialog size="sm" title="从角色卡添加" onClose={onClose}>
-      {chars === null && (
-        <p className="we-cast-add-modal-empty">加载中…</p>
-      )}
+      {chars === null && <Skeleton />}
       {chars !== null && chars.length === 0 && (
-        <p className="we-cast-add-modal-empty">该世界暂无角色卡</p>
+        <EmptyState size="sm" title="该世界暂无角色卡" />
       )}
       {chars !== null && chars.map((c) => {
         const taken = occupiedCardIds.has(c.id);

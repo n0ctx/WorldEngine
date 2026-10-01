@@ -1,4 +1,6 @@
 import Button from '../../../components/ui/Button.jsx';
+import EmptyState from '../../../components/ui/EmptyState.jsx';
+import SectionTitle from '../../../components/ui/SectionTitle.jsx';
 import { storylineTitle } from '../../../core/hooks/storyline.js';
 import { StorylineItem, ContinueCard } from './StorylineItem.jsx';
 
@@ -10,25 +12,32 @@ export function StorylineColumn({ loading, timeline, charactersById, onCreateSto
 
   return (
     <div className="we-worldhub-main">
-      <div className="we-worldhub-section-header we-on-shell">
-        <span className="we-worldhub-section-title">故事线</span>
-        <Button
-          type="button"
-          size="sm"
-          variant="secondary"
-          onClick={onCreateStoryline}
-          title="新建写作故事线"
-        >
-          + 新建
-        </Button>
-      </div>
+      <SectionTitle
+        level="eyebrow"
+        rule="under"
+        className="we-worldhub-section-header we-on-shell"
+        actions={(
+          <Button
+            type="button"
+            size="sm"
+            variant="secondary"
+            onClick={onCreateStoryline}
+            title="新建写作故事线"
+          >
+            + 新建
+          </Button>
+        )}
+      >
+        故事线
+      </SectionTitle>
 
       {loading ? null : timeline.length === 0 ? (
-        <div className="we-storyline-empty">
-          <p className="we-characters-empty-text">
-            还没有故事线，点击「+ 新建」开始写作，或在右侧选择一个角色开始对话
-          </p>
-        </div>
+        <EmptyState
+          size="sm"
+          className="we-storyline-empty"
+          title="还没有故事线"
+          hint="点击「+ 新建」开始写作，或在右侧选择一个角色开始对话。"
+        />
       ) : (
         <div className="we-storyline-body">
           {continueItem && (

@@ -1,5 +1,7 @@
+import Card from '../../../components/ui/Card.jsx';
 import Icon from '../../../components/ui/Icon.jsx';
 import IconButton from '../../../components/ui/IconButton.jsx';
+import SectionTitle from '../../../components/ui/SectionTitle.jsx';
 import StorylineModeBadge from '../../../components/session/StorylineModeBadge.jsx';
 import { relativeTime } from '../../../core/utils/time.js';
 
@@ -36,7 +38,9 @@ export function StorylineItem({ item, title, onClick, onDelete }) {
   }
 
   return (
-    <div
+    <Card
+      density="compact"
+      interactive
       className="we-storyline-item"
       onClick={onClick}
       onKeyDown={handleKeyDown}
@@ -52,7 +56,7 @@ export function StorylineItem({ item, title, onClick, onDelete }) {
       </div>
       <span className="we-storyline-item-time">{relativeTime(item.updated_at)}</span>
       <StorylineDeleteButton onDelete={onDelete} />
-    </div>
+    </Card>
   );
 }
 
@@ -65,7 +69,9 @@ export function ContinueCard({ item, title, onClick, onDelete }) {
   }
 
   return (
-    <div
+    <Card
+      density="spacious"
+      interactive
       className="we-storyline-continue"
       onClick={onClick}
       onKeyDown={handleKeyDown}
@@ -73,7 +79,7 @@ export function ContinueCard({ item, title, onClick, onDelete }) {
       tabIndex={0}
     >
       <div className="we-storyline-continue-head">
-        <span className="we-storyline-continue-label">继续上次</span>
+        <SectionTitle level="eyebrow" className="we-storyline-continue-label">继续上次</SectionTitle>
         <StorylineModeBadge mode={item.mode} />
         <StorylineDeleteButton onDelete={onDelete} />
       </div>
@@ -82,6 +88,6 @@ export function ContinueCard({ item, title, onClick, onDelete }) {
         <p className="we-storyline-continue-snippet">{item.last_message}</p>
       )}
       <p className="we-storyline-continue-time">{relativeTime(item.updated_at)}</p>
-    </div>
+    </Card>
   );
 }

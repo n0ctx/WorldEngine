@@ -96,8 +96,10 @@ export const VISUAL_SLOTS = [
     note: '没有专属 token，全部由色彩、圆角、阴影几类 token 组合而成。',
   },
   {
-    id: 'cards', category: 'component', title: '卡片与面板', status: 'ready',
-    tokens: ['--we-card-*'], usedIn: ['Card、PanelCard、EmptyState'],
+    id: 'cards', category: 'component', title: '卡片、列表项与空状态', status: 'ready',
+    tokens: ['--we-card-*'], usedIn: ['Card、ListItem、SectionTitle、Divider、Skeleton、EmptyState'],
+    note: '卡片三种表面：浮起卡放可点的独立内容，描边行放一行一项，凹陷框在面板里再分一块；选中统一强调色描边加淡底。'
+      + '空状态整页用 lg、列表与面板里用 sm；等数据用骨架，等 AI 用文字。',
   },
   {
     id: 'entry-cols', category: 'component', title: '条目列与条目行', status: 'ready',

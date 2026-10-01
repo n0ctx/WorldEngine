@@ -2,6 +2,7 @@ import StateFieldList from '../../components/state/StateFieldList';
 import WorldProfileDefaultsFields from '../../components/state/WorldProfileDefaultsFields.jsx';
 import AvatarUpload from '../../components/ui/AvatarUpload';
 import Button from '../../components/ui/Button';
+import Divider from '../../components/ui/Divider.jsx';
 import FormGroup from '../../components/ui/FormGroup';
 import Input from '../../components/ui/Input';
 import Textarea from '../../components/ui/Textarea';
@@ -211,7 +212,7 @@ function StateTemplatesSection({ worldId, navigate, diaryChatDateMode }) {
         deleteFn={deleteWorldStateField}
         reorderFn={reorderWorldStateFields}
       />
-      <div className="we-edit-state-sep" />
+      <Divider size="lg" />
       <StateFieldList
         scope="character"
         worldId={worldId}
@@ -221,7 +222,7 @@ function StateTemplatesSection({ worldId, navigate, diaryChatDateMode }) {
         deleteFn={deleteCharacterStateField}
         reorderFn={reorderCharacterStateFields}
       />
-      <div className="we-edit-state-sep" />
+      <Divider size="lg" />
       <StateFieldList
         scope="persona"
         worldId={worldId}

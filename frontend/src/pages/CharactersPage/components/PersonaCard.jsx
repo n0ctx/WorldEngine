@@ -1,4 +1,5 @@
 import Badge from '../../../components/ui/Badge.jsx';
+import Card from '../../../components/ui/Card.jsx';
 import CharacterSeal from '../../../components/chat/CharacterSeal.jsx';
 import DragHandle from '../../../components/ui/DragHandle.jsx';
 import Icon from '../../../components/ui/Icon.jsx';
@@ -13,8 +14,11 @@ export function PersonaCard({ persona, dragHandleProps, onActivate, onEdit, onDe
   const clickProps = useDragAwareClick(isActive ? onCardClick : undefined);
 
   return (
-    <div
-      className={`we-persona-card${isActive ? ' we-persona-card--active' : ' we-persona-card--inactive'}`}
+    <Card
+      density="compact"
+      interactive={isActive}
+      selected={isActive}
+      className="we-persona-card"
       role={isActive ? 'button' : undefined}
       tabIndex={isActive ? 0 : undefined}
       onMouseDown={isActive ? clickProps.onMouseDown : undefined}
@@ -76,6 +80,6 @@ export function PersonaCard({ persona, dragHandleProps, onActivate, onEdit, onDe
           </Icon>
         </IconButton>
       </div>
-    </div>
+    </Card>
   );
 }

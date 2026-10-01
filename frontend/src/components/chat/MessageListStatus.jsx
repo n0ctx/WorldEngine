@@ -1,19 +1,21 @@
 import Button from '../ui/Button.jsx';
+import EmptyState from '../ui/EmptyState.jsx';
+import Skeleton from '../ui/Skeleton.jsx';
 
 // MessageList 的加载中 / 未选会话 / 加载失败态
 export default function MessageListStatus({ loading, sessionId, loadError, onRetry }) {
   if (loading) {
     return (
-      <div className="flex-1 flex items-center justify-center text-[var(--we-color-text-faint)] we-type-ui">
-        加载中…
+      <div className="flex-1 flex items-center justify-center">
+        <Skeleton className="w-48" />
       </div>
     );
   }
 
   if (!sessionId) {
     return (
-      <div className="flex-1 flex items-center justify-center text-[var(--we-color-text-faint)] we-type-ui">
-        请选择或创建一个对话
+      <div className="flex-1 flex items-center justify-center">
+        <EmptyState size="sm" title="请选择或创建一个对话" />
       </div>
     );
   }

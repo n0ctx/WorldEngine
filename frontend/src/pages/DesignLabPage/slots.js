@@ -119,7 +119,7 @@ export const SLOTS = [
   },
   {
     id: 'world-portal', category: 'move', title: '进入世界', status: 'pack',
-    hooks: ['we-portal-veil', 'we-worlds-canvas', 'we-characters-canvas', 'we-worldhub-layout', 'we-worldhub-section-title'],
+    hooks: ['we-portal-veil', 'we-worlds-canvas', 'we-characters-canvas', 'we-worldhub-layout', 'we-worldhub-section-header', 'we-section-title'],
     api: [], usedIn: ['WorldsPage → CharactersPage', 'AppShell（跨路由遮罩 .we-portal-veil）'],
     note: '没有独立的动效接口：时序（navigate / total）在动效包的 portal 字段，编排在动效包 CSS 里按 data-portal 接管。'
       + '墨流「洇门」：旧页沉入水中，枢纽页从柔焦里浮上来，栏标题从湿墨色干成正文色；'
@@ -144,7 +144,7 @@ export const SLOTS = [
   {
     id: 'press', category: 'press', title: '按钮按压', status: 'pack',
     hooks: [
-      'we-btn', 'we-btn-primary', 'we-btn-danger', 'we-btn-icon', 'we-section-tab', 'we-menu', 'we-settings-nav-item',
+      'we-btn', 'we-btn-primary', 'we-btn-danger', 'we-btn-icon', 'we-section-tab', 'we-menu', 'we-list-item',
     ],
     api: ['gesture:press', 'transition:press'], usedIn: ['Button', 'TopBar', 'InputBox 工具栏'],
     note: '带字的按钮不缩放。墨流：悬停浮起，按下按进 2px、外沿一圈湿边，墨从触点在按钮里洇开，松手带过冲弹回；'
@@ -172,11 +172,12 @@ export const SLOTS = [
   },
   {
     id: 'card-hover', category: 'press', title: '卡片悬停与按下', status: 'pack',
-    hooks: ['we-card', 'we-card-flat', 'we-character-card', 'we-touch-fx'],
-    api: [], usedIn: ['Card', '角色卡'],
+    hooks: ['we-card', 'we-character-card', 'we-touch-fx'],
+    api: [], usedIn: ['Card（可点的浮起卡）', '角色卡'],
     note: '动效包样式按类名接管，触点位置与涟漪由 useTouchFx 放。'
+      + '只接管可点的浮起卡（variant="raised" interactive）；描边行与凹陷框不浮起。'
       + '墨流：湿墨光晕追着指针走。普通卡片不缩放，悬停浮起，按下按进纸里再回位；角色卡悬停不浮起，按下缓缓微缩，松手用同一段缓动回到原尺寸；'
-      + '信号：悬停后磷光帧两步硬切外扩即灭，按下贴紧复位。PanelCard 只用作不可点的面板外壳，不加悬停。',
+      + '信号：悬停后磷光帧两步硬切外扩即灭，按下贴紧复位。',
   },
 
   // ── 输入控件 ──
@@ -213,7 +214,7 @@ export const SLOTS = [
     id: 'badge-empty', category: 'list', title: '徽标与空状态入场', status: 'pack',
     hooks: ['we-badge', 'we-empty-state'],
     api: ['css:enter'], usedIn: ['Badge', 'EmptyState'],
-    note: '徽标和空状态标题的入场写在动效包 CSS 里，说明与按钮随后用 --we-fx-enter 入场；挂载时播一次。'
+    note: '徽标和整页空状态标题的入场写在动效包 CSS 里（行内空状态 size="sm" 不播），说明与按钮随后用 --we-fx-enter 入场；挂载时播一次。'
       + 'Badge 目前只在实验室里用到，接进会频繁刷新的列表前要先确认入场不会反复重播。',
   },
 
@@ -232,7 +233,7 @@ export const SLOTS = [
   },
   {
     id: 'loops', category: 'stream', title: '循环动画', status: 'pack',
-    hooks: ['we-skel', 'we-skeleton-block', 'we-asst-new-msg-arrow'],
+    hooks: ['we-skel', 'we-asst-new-msg-arrow'],
     api: ['css:skeleton', 'css:spin', 'css:typing', 'css:nudge'],
     usedIn: ['骨架屏', '工具运行指示', '打字三点', '新消息箭头'],
   },

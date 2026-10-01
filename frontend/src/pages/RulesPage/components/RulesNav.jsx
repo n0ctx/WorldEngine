@@ -1,13 +1,16 @@
 import { useRef } from 'react';
 import Badge from '../../../components/ui/Badge.jsx';
 import BounceRail from '../../../components/motion/BounceRail.jsx';
+import ListItem from '../../../components/ui/ListItem.jsx';
+import SectionTitle from '../../../components/ui/SectionTitle.jsx';
 import { FIELD_SCOPE_KEYS, SCOPES, TRIGGER_TYPES } from '../constants.js';
 
-// 左栏导航项：选中态同时写 class（底色）和 aria-current（读屏，也是弹跳圆点的定位依据）
+// 左栏导航项：选中态同时写 selected（底色）和 aria-current（读屏，也是弹跳圆点的定位依据）
 const navItemProps = (active) => ({
   'data-bounce-item': true,
   'aria-current': active ? 'page' : undefined,
-  className: `we-workshop-nav-item${active ? ' is-active' : ''}`,
+  selected: active,
+  className: 'we-workshop-nav-item',
 });
 
 export default function RulesNav({
@@ -20,17 +23,17 @@ export default function RulesNav({
     <nav ref={navRef} className="we-workshop-nav we-on-shell">
       <BounceRail containerRef={navRef} activeKey={`${navMode}:${entryFilter}:${fieldScopeKey}`} />
       <div className="we-workshop-nav-group">
-        <div className="we-workshop-nav-group-title">设定条目</div>
-        <button
+        <SectionTitle level="eyebrow" className="we-workshop-nav-group-title">设定条目</SectionTitle>
+        <ListItem
           data-testid="nav-entries-all"
           {...navItemProps(navMode === 'entries' && entryFilter === 'all')}
           onClick={() => onSelectEntryGroup('all')}
         >
           <span>全部</span>
           <Badge>{entries.length}</Badge>
-        </button>
+        </ListItem>
         {TRIGGER_TYPES.map(({ key, label }) => (
-          <button
+          <ListItem
             key={key}
             data-testid={`nav-entries-${key}`}
             {...navItemProps(navMode === 'entries' && entryFilter === key)}
@@ -38,14 +41,14 @@ export default function RulesNav({
           >
             <span>{label}</span>
             <Badge>{triggerCounts[key]}</Badge>
-          </button>
+          </ListItem>
         ))}
       </div>
 
       <div className="we-workshop-nav-group">
-        <div className="we-workshop-nav-group-title">状态字段</div>
+        <SectionTitle level="eyebrow" className="we-workshop-nav-group-title">状态字段</SectionTitle>
         {FIELD_SCOPE_KEYS.map((k) => (
-          <button
+          <ListItem
             key={k}
             data-testid={`nav-fields-${k}`}
             {...navItemProps(navMode === 'fields' && fieldScopeKey === k)}
@@ -53,7 +56,7 @@ export default function RulesNav({
           >
             <span>{SCOPES[k].label}状态</span>
             <Badge>{fieldsByScope[k].length}</Badge>
-          </button>
+          </ListItem>
         ))}
       </div>
     </nav>

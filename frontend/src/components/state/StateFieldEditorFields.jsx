@@ -1,4 +1,4 @@
-import { Badge, Button, Checkbox, Input, MarkdownEditor, Select, TagInput } from '../index.js';
+import { Badge, Button, Card, Checkbox, Input, MarkdownEditor, Select, TagInput } from '../index.js';
 import DatetimeSplitInput from './DatetimeSplitInput';
 import { useStateMemorySchema } from '../../core/hooks/useStateMemory.js';
 import { STATE_LIST_MAX_ITEMS } from './stateListLimit.js';
@@ -201,7 +201,7 @@ function TableColumnsEditor({ form, setForm, lockedColumnKeys }) {
         {form.table_columns.map((column, index) => {
           const keyLocked = lockedColumnKeys.has(column.key);
           return (
-            <div key={index} className="we-state-table-col-card">
+            <Card key={index} variant="outlined" className="we-state-table-col-card">
               <div className="we-state-table-col-header">
                 <span className="we-state-table-col-title">列 {index + 1}</span>
                 {keyLocked && (
@@ -250,7 +250,7 @@ function TableColumnsEditor({ form, setForm, lockedColumnKeys }) {
                   </div>
                 </div>
               </div>
-            </div>
+            </Card>
           );
         })}
       </div>

@@ -1,25 +1,25 @@
 import CharacterSeal from '../../../components/chat/CharacterSeal.jsx';
+import Card from '../../../components/ui/Card.jsx';
 import DragHandle from '../../../components/ui/DragHandle.jsx';
 import Icon from '../../../components/ui/Icon.jsx';
 import IconButton from '../../../components/ui/IconButton.jsx';
-import { useTouchFx } from '../../../components/motion/useTouchFx.jsx';
 import { useDragAwareClick } from './useDragAwareClick.js';
 
 // ── CharacterCard（内联组件，紧凑变体）──────────────────────────────────────
 
 export function CharacterCard({ char, dragHandleProps, onCardClick, onEdit, onDelete }) {
   const clickProps = useDragAwareClick(onCardClick);
-  const touch = useTouchFx();
 
   return (
-    <div
+    <Card
+      density="compact"
+      interactive
       className="we-character-card we-character-card--compact"
       role="button"
       tabIndex={0}
       onMouseDown={clickProps.onMouseDown}
       onClick={clickProps.onClick}
       onKeyDown={clickProps.onKeyDown}
-      {...touch.handlers}
     >
       <div className="we-character-card-body">
         <span className="we-char-drag" {...dragHandleProps}><DragHandle /></span>
@@ -64,7 +64,6 @@ export function CharacterCard({ char, dragHandleProps, onCardClick, onEdit, onDe
           </Icon>
         </IconButton>
       </div>
-      {touch.fx}
-    </div>
+    </Card>
   );
 }

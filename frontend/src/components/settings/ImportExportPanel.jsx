@@ -5,6 +5,7 @@ import { downloadGlobalSettings, importGlobalSettings, downloadMigration, import
 import { refreshCustomCss } from '../../core/api/custom-css-snippets';
 import { invalidateCache, loadRules } from '../../core/utils/regex-runner';
 import Button from '../ui/Button';
+import SectionTitle from '../ui/SectionTitle';
 import ConfirmModal from '../ui/ConfirmModal';
 import { SETTINGS_MODE } from '../../core/constants/settings';
 
@@ -114,7 +115,7 @@ export default function ImportExportPanel({ settingsMode, onImportSuccess }) {
 
   return (
     <div>
-      <h2 className="we-settings-section-title">导入导出</h2>
+      <SectionTitle level="section" rule="under" as="h2">导入导出</SectionTitle>
 
       <div className="we-settings-field-group">
         <p className="we-settings-body-copy">
@@ -151,7 +152,7 @@ export default function ImportExportPanel({ settingsMode, onImportSuccess }) {
       </div>
 
       <div className="we-settings-field-group">
-        <h3 className="we-settings-field-label">全量迁移</h3>
+        <SectionTitle level="group" as="h3">全量迁移</SectionTitle>
         <p className="we-settings-body-copy">
           将当前所有配置打包导出，包含对话与写作两套全局设置（提示词、CSS、正则规则、写作 LLM 配置）以及全部世界卡数据。导入时会覆盖全局设置并新建所有世界，适合整机迁移或备份还原。不含 API Key。
         </p>

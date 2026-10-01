@@ -1,5 +1,6 @@
 import Select from '../ui/Select';
 import FormGroup from '../ui/FormGroup';
+import SectionTitle from '../ui/SectionTitle';
 
 /**
  * 写作助手模型选择区块
@@ -8,7 +9,7 @@ import FormGroup from '../ui/FormGroup';
 export default function AssistantModelBlock({ modelSource, onModelSourceChange }) {
   return (
     <div className="we-settings-field-group">
-      <p className="we-settings-subsection-title">写作助手模型(LLM)</p>
+      <SectionTitle level="group" as="p">写作助手模型(LLM)</SectionTitle>
 
       <FormGroup label="模型来源" hint="写作助手（创建/编辑卡片）使用的 LLM 模型来源。" variant="settings">
         <Select

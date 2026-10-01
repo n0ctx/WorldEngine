@@ -133,7 +133,7 @@ describe('StateMemoryModal', () => {
     const player = { ...baseEntities[1], entity_id: 'e3', seq: 3, type: 'player', name: '旅人', status: 'active', activeProfileFields: [] };
     setup({ ...baseData, entities: [...baseEntities, player] });
     await screen.findByLabelText('搜索实体');
-    const titles = [...entityList().querySelectorAll('.we-sm-group-title')].map((el) => el.firstChild.textContent);
+    const titles = [...entityList().querySelectorAll('.we-section-title__text')].map((el) => el.textContent);
     expect(titles).toEqual(['玩家', '角色']);
     expect(screen.getByRole('tab', { name: /角色\s*2/ })).toBeInTheDocument();
   });

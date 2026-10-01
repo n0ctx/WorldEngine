@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import Button from '../../../components/ui/Button.jsx';
+import EmptyState from '../../../components/ui/EmptyState.jsx';
+import Skeleton from '../../../components/ui/Skeleton.jsx';
 import StateValueField from '../../../components/state/StateValueField';
 import { log } from '../../../core/utils/logger.js';
 
@@ -75,9 +77,9 @@ export default function DefaultValueMatrix({ worldId, scope, field }) {
       <span className="we-entry-editor-label">各{scope.label}默认值</span>
 
       {loading ? (
-        <p className="we-workshop-empty">加载中…</p>
+        <Skeleton />
       ) : instances.length === 0 ? (
-        <p className="we-workshop-empty">暂无{scope.label}</p>
+        <EmptyState size="sm" title={`暂无${scope.label}`} />
       ) : (
         <div className="we-workshop-matrix">
           {bulkField && instances.length > 1 && (

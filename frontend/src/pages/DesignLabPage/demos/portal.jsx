@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import Button from '../../../components/ui/Button.jsx';
+import SectionTitle from '../../../components/ui/SectionTitle.jsx';
 import { useMotion } from '../../../core/hooks/useMotion.js';
 import SlotSection from '../SlotSection.jsx';
 
@@ -69,16 +70,16 @@ export function WorldPortalDemo() {
           >
             <div className="we-worldhub-layout">
               <div className="we-design-lab__portal-col">
-                <span className="we-worldhub-section-title">故事线</span>
+                <SectionTitle level="eyebrow" className="we-worldhub-section-header we-on-shell">故事线</SectionTitle>
                 <span className="we-design-lab__portal-item">地下拳场的雨夜</span>
                 <span className="we-design-lab__portal-item">码头欠条</span>
               </div>
               <div className="we-design-lab__portal-col">
-                <span className="we-worldhub-section-title">角色</span>
+                <SectionTitle level="eyebrow" className="we-worldhub-section-header we-on-shell">角色</SectionTitle>
                 {CAST.map((name) => <span key={name} className="we-design-lab__portal-item">{name}</span>)}
               </div>
               <div className="we-design-lab__portal-col">
-                <span className="we-worldhub-section-title">我扮演</span>
+                <SectionTitle level="eyebrow" className="we-worldhub-section-header we-on-shell">我扮演</SectionTitle>
                 <span className="we-design-lab__portal-item">拳手</span>
               </div>
             </div>
