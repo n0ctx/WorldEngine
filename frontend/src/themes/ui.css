@@ -547,15 +547,15 @@
 }
 
 /* ── Badge ── */
-/* 静态标签：小方角、浅底、无描边，和可点的胶囊按钮区分开；色调只换 --badge-tone */
+/* 静态标签：矮小、浅底、无描边，和可点的按钮区分开；色调只换 --badge-tone */
 .we-badge {
   --badge-tone: var(--we-color-text-secondary);
   display: inline-flex;
   align-items: center;
   gap: var(--we-space-xxs);
   max-width: 100%;
-  padding: var(--we-space-xxs) var(--we-space-sm);
-  border-radius: var(--we-radius-xs);
+  padding: 0 var(--we-space-xs);
+  border-radius: var(--we-radius-sm);
   background: color-mix(in srgb, var(--badge-tone) var(--we-alpha-2), transparent);
   color: var(--badge-tone);
   font-family: var(--we-font-ui);
