@@ -3,7 +3,7 @@
  * 硬编码字面量守卫：视觉值该走 token 的地方写了字面量就报
  *
  * 扫描范围（frontend/src）：
- *   - CSS：themes/ui.css、pages.css、chat.css、themes/motion/*.css
+ *   - CSS：themes/ 下的组件与页面样式（ui / shell / state / rules / settings / assistant / pages / chat）、themes/motion/*.css
  *   - JS/JSX（不含测试）：style 对象里的 CSS 属性、className 字符串
  *   不扫：themes/tokens.css、fonts.css、visual/<主题 id>/theme.css（那是 token 定义）、pages/DesignLabPage/（设计实验室）、
  *   测试文件；CSS 注释与 JS 注释里的内容不算；mask 属性里的 #000（取 alpha 通道）不算。
@@ -63,8 +63,8 @@ const SCRIPT = 'check-literals.mjs';
 const DEFAULT_BASELINE = path.join('scripts', 'literals-baseline.json');
 const SRC_DIR = 'frontend/src';
 const CSS_FILES = new Set([
-  'frontend/src/themes/ui.css', 'frontend/src/themes/pages.css', 'frontend/src/themes/chat.css',
-]);
+  'ui', 'shell', 'state', 'rules', 'settings', 'assistant', 'pages', 'chat',
+].map((name) => `frontend/src/themes/${name}.css`));
 const CSS_DIRS = ['frontend/src/themes/motion/'];
 const EXCLUDED_DIRS = ['frontend/src/pages/DesignLabPage/'];
 

@@ -68,7 +68,7 @@ export default function SideDrawer({ side, open, onToggle, label, footer = null,
 
   return (
     <>
-      {/* 遮罩只在窄屏浮层模式下显示（见 pages.css）：点一下收起抽屉 */}
+      {/* 遮罩只在窄屏浮层模式下显示（见 shell.css）：点一下收起抽屉 */}
       <AnimatePresence>
         {open && (
           <MotionDiv

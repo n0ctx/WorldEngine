@@ -5,7 +5,7 @@
    全局排版基线
    颜色/字体/圆角 token 全部走 frontend/src/themes/tokens.css 与
    frontend/src/themes/fonts.css。
-   组件 CSS 全部已搬到 frontend/src/themes/ui.css / pages.css / chat.css；
+   组件与页面 CSS 在 frontend/src/themes/ 下按领域分文件（引入顺序见 main.jsx）；
    本文件只承载全局基线、可达性降级、通用工具类与根容器。
    ========================================================= */
 :root {

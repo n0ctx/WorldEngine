@@ -26,7 +26,10 @@ const MOTION_JS = path.join(ROOT, 'frontend/src/core/utils/motion.js');
 const TOKENS_CSS = path.join(ROOT, 'frontend/src/themes/tokens.css');
 const MOTION_PACK_JS = path.join(ROOT, 'frontend/src/core/motion/motionPack.js');
 const PACK_CSS_DIR = path.join(ROOT, 'frontend/src/themes/motion');
-const CORE_CSS = ['themes/ui.css', 'themes/pages.css', 'themes/chat.css', 'index.css'].map((rel) => path.join(ROOT, 'frontend/src', rel));
+const CORE_CSS = [
+  ...['ui', 'shell', 'state', 'rules', 'settings', 'assistant', 'pages', 'chat'].map((name) => `themes/${name}.css`),
+  'index.css',
+].map((rel) => path.join(ROOT, 'frontend/src', rel));
 const stripComments = (text) => text.replace(/\/\*[\s\S]*?\*\//g, '');
 
 const { MOTION, STAGGER } = await import(pathToFileURL(MOTION_JS).href);

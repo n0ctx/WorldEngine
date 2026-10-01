@@ -1,0 +1,774 @@
+/* 壳层：背景氛围、书页、顶栏与弹幕带、两侧抽屉（frontend/src/shells/ 与 TopBar） */
+
+/* ── 背景氛围（光尘）── */
+/* 固定铺满视口，z-index -1 落在根节点底色之上、全部内容之下（根节点 isolation: isolate） */
+.we-atmosphere {
+  position: fixed;
+  inset: 0;
+  z-index: var(--we-z-behind);
+  pointer-events: none;
+  background:
+    radial-gradient(
+      70% 60% at 14% -6%,
+      color-mix(in srgb, var(--we-atmosphere-color) var(--we-atmosphere-glow-strength), transparent) 0%,
+      transparent 72%
+    ),
+    radial-gradient(60% 70% at 104% 108%, var(--we-atmosphere-shade) 0%, transparent 70%);
+}
+
+/* 胶片颗粒：静态噪点压在光尘之上，减少动效时也保留 */
+.we-atmosphere::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  opacity: var(--we-atmosphere-grain);
+  background-image: var(--we-grain-image);
+  background-size: 160px 160px;
+  mix-blend-mode: overlay;
+}
+
+/* 表面材料：宿主自己画底色和外侧描边/阴影（0 0 0 1px --we-material-stroke + 近/远接地影），
+   这里只补两层不动的质地——::before 是压在底色上、正文下的静态颗粒；
+   ::after 是内侧一圈极淡的边缘光和顶部一条窄高光。
+   宿主可设 --material-rim 追加氛围色边缘光（只加在 ::after，与表面分开）。 */
+.we-material {
+  --material-rim: 0 0 #0000;
+  position: relative;
+  isolation: isolate;
+}
+
+.we-material::before,
+.we-material::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+.we-material::before {
+  z-index: var(--we-z-behind);
+  opacity: var(--we-material-grain);
+  background-image: var(--we-grain-image);
+  background-size: 160px 160px;
+  mix-blend-mode: overlay;
+}
+
+.we-material::after {
+  z-index: 1;
+  background: linear-gradient(90deg, transparent 10%, var(--we-material-sheen) 32%, var(--we-material-sheen) 68%, transparent 90%) top / 100% 1px no-repeat;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--we-material-sheen) var(--we-alpha-4), transparent),
+    var(--material-rim);
+  transition: box-shadow var(--we-motion-state-duration) var(--we-motion-state-easing);
+}
+
+.we-atmosphere-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: var(--we-atmosphere-opacity);
+  transition: opacity var(--we-motion-enter-duration) var(--we-motion-enter-easing);
+}
+
+/* 阅读页：光尘退到最弱，只在面板缝隙与两侧玻璃后隐约可见；颗粒会透过纸面抬亮正文底色，关掉 */
+.we-atmosphere--quiet .we-atmosphere-canvas {
+  opacity: var(--we-atmosphere-opacity-quiet);
+}
+
+.we-atmosphere--quiet::after {
+  opacity: 0;
+}
+
+/* ── BookSpread ── */
+.we-book-spread-outer {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 三块悬浮面板（左抽屉 / 正文 / 右抽屉）铺在桌面上：四周与面板之间留同一道缝隙露出氛围，
+   面板不直接贴在顶栏下沿。只有这一层裁切，面板的投影能落进缝隙。
+   两侧面板背后垫环境光（暖）与暗部（冷），中栏纸面把它挡住，只从两侧玻璃与缝隙透出来 */
+.we-book-spread-inner {
+  flex: 1;
+  display: flex;
+  gap: var(--we-pane-gap);
+  width: 100%;
+  position: relative;
+  overflow: hidden;
+  min-height: 0;
+  padding: var(--we-pane-gap);
+  background:
+    radial-gradient(28% 55% at 8% 30%, var(--we-pane-glow), transparent 70%),
+    radial-gradient(32% 60% at 92% 72%, var(--we-pane-glow), transparent 70%),
+    radial-gradient(30% 45% at 4% 96%, var(--we-atmosphere-shade), transparent 70%),
+    var(--we-stage-surface);
+}
+
+@media (min-width: 768px) {
+  .we-app-root:has(.we-chat-center-pane) .we-book-spread-inner {
+    padding-top: var(--we-space-sm);
+  }
+}
+
+@media (max-width: 900px) {
+  .we-book-spread-inner {
+    gap: min(var(--we-pane-gap), var(--we-space-sm));
+    padding: min(var(--we-pane-gap), var(--we-space-sm));
+  }
+}
+
+/* .we-session-item__* 系列现挂在 .we-storyline-item（见下方）下渲染；显隐由
+   WorldTimelinePanel 的 hovered/editing state 控制挂载与否，这里不再需要
+   opacity/hover 兜底。 */
+.we-session-item__actions {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+}
+
+.we-session-item__btn-group {
+  display: flex;
+  gap: var(--we-space-xs);
+}
+
+.we-session-item__confirm-group {
+  display: flex;
+  gap: var(--we-space-xs);
+}
+
+.we-session-item__delete-confirm {
+  font-size: var(--we-type-caption-size);
+  line-height: var(--we-type-caption-leading);
+  letter-spacing: var(--we-type-caption-tracking);
+  padding: var(--we-space-xxs) var(--we-space-sm);
+  border-radius: var(--we-radius-sm);
+  background: var(--we-color-status-danger);
+  color: var(--we-color-on-accent);
+  border: none;
+  cursor: pointer;
+}
+
+.we-session-item__cancel-confirm {
+  font-size: var(--we-type-caption-size);
+  line-height: var(--we-type-caption-leading);
+  letter-spacing: var(--we-type-caption-tracking);
+  padding: var(--we-space-xxs) var(--we-space-sm);
+  border-radius: var(--we-radius-sm);
+  /* 实心按钮底色用 bg-muted：在浅色/深色主题下都保证与周边卡片底色有区分度 */
+  background: var(--we-color-bg-strong);
+  color: var(--we-color-text-secondary);
+  border: none;
+  cursor: pointer;
+}
+
+/* — Topbar ─ */
+.we-topbar {
+  height: var(--we-topbar-height);
+  flex-shrink: 0;
+  /* 顶栏退到边缘：默认无底色、无分隔线，只剩贴边的一行导航 */
+  background: transparent;
+  border-bottom: 1px solid transparent;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  padding: 0 var(--we-space-lg);
+  z-index: var(--we-z-dropdown);
+  position: relative;
+}
+
+/* 左侧：品牌 + 面包屑导航 */
+.we-topbar-left {
+  display: flex;
+  align-items: center;
+  gap: var(--we-space-xs);
+  min-width: 0;
+}
+
+/* 中间：弹幕槽位，占满 1fr */
+.we-topbar-center {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+}
+
+/* 右侧：操作按钮组 */
+.we-topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--we-space-sm);
+}
+
+/* 书架页品牌文字：沿用 crumb-current 高对比样式 */
+.we-topbar-brand {
+  white-space: nowrap;
+}
+
+.we-topbar-world-wrap {
+  position: relative;
+  /* inline-flex + 居中：避免 block 包裹层的行盒基线把内部按钮下压 1px，与兄弟项错位 */
+  display: inline-flex;
+  align-items: center;
+}
+
+.we-topbar-item {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--we-font-ui);
+  font-size: var(--we-type-caption-size);
+  line-height: var(--we-leading-flush);
+  letter-spacing: var(--we-type-caption-tracking);
+  min-height: var(--we-space-xl);
+  padding: 0 var(--we-space-sm);
+  border: none;
+  border-radius: var(--we-radius-full);
+  cursor: pointer;
+  background: none;
+  outline: none;
+  transition: color var(--we-motion-state-duration) var(--we-motion-state-easing), box-shadow var(--we-motion-state-duration) var(--we-motion-state-easing), background var(--we-motion-state-duration) var(--we-motion-state-easing);
+  white-space: nowrap;
+  color: var(--we-color-shell-text-tertiary);
+}
+
+.we-topbar-item:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--we-color-shell-accent) var(--we-alpha-4), transparent);
+  outline-offset: 1px;
+}
+
+.we-topbar-item:hover {
+  color: var(--we-color-shell-text-primary);
+  background: var(--we-color-shell-hover);
+}
+
+.we-topbar-item--active {
+  color: var(--we-color-shell-accent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--we-color-shell-accent) var(--we-alpha-4), transparent);
+  background: color-mix(in srgb, var(--we-color-shell-accent) var(--we-alpha-2), transparent);
+}
+
+/* 顶栏按钮：移动端触控目标 ≥ 44px（WCAG SC 2.5.5 Target Size）
+   桌面端保持上方精巧尺寸不变；仅在 max-width: 767px 下放大命中区，
+   min-width: 44px 保证纯图标按钮也满足触控目标。 */
+@media (max-width: 767px) {
+  .we-topbar-item {
+    min-height: 44px;
+    min-width: 44px;
+    padding: 0 var(--we-space-md);
+    font-size: var(--we-type-ui-size);
+    line-height: var(--we-type-ui-leading);
+    letter-spacing: var(--we-type-ui-tracking);
+  }
+}
+
+/* 面包屑当前层：非按钮，不可点，用主色系文字与其余可点层级区分 */
+.we-topbar-crumb-current {
+  color: var(--we-color-shell-accent);
+  font-weight: var(--we-weight-strong);
+  cursor: default;
+  max-width: 240px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.we-topbar-caret {
+  display: inline-flex;
+  align-items: center;
+  margin-left: var(--we-space-xs);
+  color: var(--we-color-shell-text-faint);
+}
+.we-topbar-item:hover .we-topbar-caret {
+  color: var(--we-color-shell-text-tertiary);
+}
+.we-topbar-caret svg {
+  width: 11px;  /* design exact: 顶栏 caret 视觉尺寸，小于 Icon 最小档 16 */
+  height: 11px;
+}
+
+.we-page-body {
+  flex: 1;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.we-memory-recall {
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--we-space-sm);
+  padding: var(--we-space-sm) 0;
+  min-height: var(--we-space-2xl);
+  font-size: var(--we-type-caption-size);
+  line-height: var(--we-type-caption-leading);
+  letter-spacing: var(--we-type-caption-tracking);
+}
+
+.we-memory-recall__label {
+  color: var(--we-color-accent);
+}
+
+.we-memory-recall__summary {
+  color: var(--we-color-text-tertiary);
+}
+
+/* 世界下拉：跟在顶栏按钮下面，挂 we-on-shell 换书桌配色；表面与行取菜单 */
+.we-topbar-dropdown {
+  position: absolute;
+  top: 40px;
+  left: 0;
+  min-width: 180px;
+  z-index: var(--we-z-fixed);
+  transform-origin: top;
+}
+
+.we-topbar-sep {
+  color: var(--we-color-shell-text-faint);
+  font-size: var(--we-type-caption-size);
+  line-height: var(--we-type-caption-leading);
+  letter-spacing: var(--we-type-caption-tracking);
+  user-select: none;
+}
+
+.we-topbar-settings-btn {
+  width: var(--we-space-xl);
+  height: var(--we-space-xl);
+  padding: 0;
+}
+
+.we-topbar-actions .we-topbar-item {
+  gap: var(--we-space-xs);
+}
+
+.we-topbar-actions svg {
+  width: var(--we-space-lg);
+  height: var(--we-space-lg);
+}
+
+@media (max-width: 767px) {
+  .we-topbar-actions svg {
+    width: 20px;
+    height: 20px;
+  }
+}
+
+/* 当前世界名：用展示字体，在一排小字导航里是唯一有分量的一项 */
+.we-topbar-world-name {
+  font-family: var(--we-font-display);
+  font-size: var(--we-type-ui-size);
+  line-height: var(--we-type-ui-leading);
+  font-weight: var(--we-weight-strong);
+  letter-spacing: var(--we-type-ui-tracking);
+}
+
+.we-topbar-brand {
+  font-family: var(--we-font-display);
+  font-size: var(--we-type-ui-size);
+  line-height: var(--we-type-ui-leading);
+  letter-spacing: var(--we-type-ui-tracking);
+}
+
+/* 窄屏：按钮只留图标（aria-label 仍在），世界名回到正文字号，给面包屑让出宽度 */
+@media (max-width: 767px) {
+  .we-topbar-item-label {
+    display: none;
+  }
+
+  .we-topbar-world-name,
+  .we-topbar-brand {
+    font-size: var(--we-type-subheading-size);
+    line-height: var(--we-type-subheading-leading);
+    letter-spacing: var(--we-type-subheading-tracking);
+  }
+}
+
+/* ===== 弹幕带（顶部栏中间单行滚动跑马灯）===== */
+.we-topbar-danmaku-slot {
+  flex: 1 1 auto;
+  min-width: 0;
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+}
+
+.we-danmaku-band {
+  width: 100%;
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  pointer-events: none;
+  mask-image: linear-gradient(to right, transparent, #000 6%, #000 94%, transparent);
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 6%, #000 94%, transparent);
+}
+
+.we-danmaku-track {
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+  will-change: transform;
+  pointer-events: auto; /* 接收悬停以暂停（band 整体仍 none，不挡顶栏点击）*/
+  animation-name: we-danmaku-marquee;
+  /* guard-allow(literals): 弹幕匀速滚动，不带缓动 */
+  animation-timing-function: linear;
+  animation-iteration-count: infinite; /* 持续循环滚动 */
+}
+
+.we-danmaku-track:hover {
+  animation-play-state: paused; /* 鼠标悬停时暂停滚动 */
+}
+
+.we-danmaku-bullet {
+  /* 每条自带右间距 → 复制两份后整条轨道严格周期，平移 -50% 无缝衔接不跳帧 */
+  margin-right: 2.6rem;
+  font-size: var(--we-type-ui-size);
+  letter-spacing: var(--we-type-ui-tracking);
+  font-weight: var(--we-weight-strong);
+  line-height: var(--we-leading-flush);
+  color: var(--we-danmaku-color);
+  text-shadow:
+    0 1px 2px var(--we-danmaku-shadow),
+    0 0 2px var(--we-danmaku-shadow);
+}
+
+@keyframes we-danmaku-marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%); /* 复制两份内容，平移半程即无缝接上 */
+  }
+}
+
+/* 触屏没有真正的 hover：消息与章节的操作按钮常驻显示，否则永远点不到 */
+@media (hover: none) {
+  .we-message-actions,
+  .we-chapter-actions {
+    opacity: 1;
+    pointer-events: auto;
+  }
+}
+
+/* ==========================================================
+   SideDrawer — 两侧「窄轨 / 展开」抽屉（第 10 步：正文常驻主角，
+   两侧只在需要时唤出）。轨宽固定 52px，只放一个切换图标按钮；
+   展开时让出 flex-basis，正文（.we-page-right 里的 flex:1）随之收窄——
+   「推开正文」而非浮层：两侧本来就是 book-spread 里的行内 flex 兄弟节点，
+   展开收起复用已有的 flex 布局最省事，也不会在 1024px 窄屏下叠住正文。
+   表面是悬浮在氛围上的磨砂玻璃面板：比正文纸面更透，靠缝隙、描边与投影和正文分开。
+   光从左上方斜照在玻璃上：::after 是顶部一条两端渐隐的镜面线和内侧一圈边缘光。
+   ========================================================= */
+.we-side-drawer {
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: linear-gradient(155deg, color-mix(in srgb, var(--we-material-sheen) var(--we-alpha-5), transparent), transparent 38%),
+    var(--we-pane-side-bg);
+  backdrop-filter: blur(var(--we-glass-blur)) saturate(1.6);
+  border-radius: var(--we-radius-md);
+  box-shadow: 0 0 0 1px var(--we-material-stroke),
+    var(--we-elevation-2);
+  transition: flex-basis var(--we-motion-page-duration) var(--we-motion-page-easing),
+    min-width var(--we-motion-page-duration) var(--we-motion-page-easing),
+    max-width var(--we-motion-page-duration) var(--we-motion-page-easing),
+    margin var(--we-motion-page-duration) var(--we-motion-page-easing);
+}
+
+/* 收起态显式写 min-width: 0：从默认的 auto 切到展开态的像素下限无法插值，宽度会一步跳满 */
+.we-side-drawer::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: 1;
+  background: linear-gradient(90deg, transparent 10%, var(--we-material-sheen) 32%, var(--we-material-sheen) 68%, transparent 90%) top / 100% 1px no-repeat;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--we-material-sheen) var(--we-alpha-4), transparent);
+}
+
+.we-side-drawer--left {
+  flex: 0 0 52px;
+  min-width: 0;
+}
+
+.we-side-drawer--left.we-side-drawer--open {
+  flex: 0 0 16%;
+  min-width: 216px;
+  max-width: 280px;
+}
+
+.we-side-drawer--right {
+  flex: 0 0 52px;
+  min-width: 0;
+}
+
+.we-side-drawer--right.we-side-drawer--open {
+  flex: 0 0 28%;
+  min-width: 360px;
+  max-width: 520px;
+}
+
+/* 内容始终按展开态的下限排版，宽度过渡途中由 .we-side-drawer-content 裁切，不被挤窄 */
+.we-side-drawer--left .we-side-drawer-content > * {
+  min-width: 216px;
+}
+
+.we-side-drawer--right .we-side-drawer-content > * {
+  min-width: 360px;
+}
+
+/* 窄屏（≤1180px）：推开正文会把正文挤得太窄，抽屉改为浮在正文之上。
+   收起轨仍占 52px；展开时用负外边距把多出的宽度抵掉，布局里仍只占 52px，
+   正文宽度不变，抽屉盖在正文上，由下方遮罩兜住点击。 */
+@media (max-width: 1180px) {
+  /* 浮层压在遮罩上，玻璃取弹层那档更实的底，否则会透出遮罩的暗色而发灰 */
+  .we-side-drawer--open {
+    z-index: 4;
+    background: linear-gradient(155deg, color-mix(in srgb, var(--we-material-sheen) var(--we-alpha-5), transparent), transparent 38%),
+      var(--we-glass-bg);
+    box-shadow: 0 0 0 1px var(--we-material-stroke),
+      var(--we-elevation-3);
+  }
+  .we-side-drawer--left.we-side-drawer--open {
+    flex-basis: 280px;
+    min-width: 280px;
+    max-width: 280px;
+    margin-inline-end: calc(52px - 280px);
+  }
+  .we-side-drawer--right.we-side-drawer--open {
+    flex-basis: min(360px, 44vw);
+    min-width: min(360px, 44vw);
+    max-width: min(360px, 44vw);
+    margin-inline-start: calc(52px - min(360px, 44vw));
+  }
+  .we-side-drawer--left .we-side-drawer-content > * {
+    min-width: 280px;
+  }
+  .we-side-drawer--right .we-side-drawer-content > * {
+    min-width: min(360px, 44vw);
+  }
+}
+
+/* 手机（≤767px）：两条窄轨也放不下，收起时抽屉缩成一颗圆形玻璃按钮，
+   悬浮在正文左上角 / 右上角，不占布局；展开时从同一位置长成贴边的侧抽屉。
+   高度直接到位、只过渡宽度：内容挂载时面板已是全高，里面的选项卡不会把滚动位置带走。 */
+@media (max-width: 767px) {
+  .we-side-drawer,
+  .we-side-drawer--left.we-side-drawer--open,
+  .we-side-drawer--right.we-side-drawer--open {
+    position: absolute;
+    top: var(--we-space-xs);
+    z-index: 2;
+    width: 40px;
+    height: 40px;
+    min-width: 0;
+    max-width: none;
+    margin: 0;
+    border-radius: var(--we-radius-full);
+  }
+  .we-side-drawer--left {
+    left: calc(var(--we-space-sm) + var(--we-space-xs));
+  }
+  .we-side-drawer--right {
+    right: var(--we-space-xs);
+  }
+  .we-side-drawer--left.we-side-drawer--open,
+  .we-side-drawer--right.we-side-drawer--open {
+    z-index: 4;
+    min-width: min(86vw, 340px);
+    height: calc(100% - var(--we-space-sm) - var(--we-space-xs));
+    border-radius: var(--we-radius-md);
+  }
+  /* 右抽屉定位在正文列（.we-page-right）里，底边没有外层缝隙，上下对称留白 */
+  .we-side-drawer--right.we-side-drawer--open {
+    height: calc(100% - var(--we-space-xs) * 2);
+  }
+  .we-side-drawer--left .we-side-drawer-content > *,
+  .we-side-drawer--right .we-side-drawer-content > * {
+    min-width: min(86vw, 340px);
+  }
+}
+
+/* 浮层模式下展开抽屉时垫一层遮罩：点一下收起，同时挡住另一侧的按钮，同一时间只开一侧 */
+.we-side-drawer-scrim {
+  display: none;
+}
+
+@media (max-width: 1180px) {
+  .we-side-drawer-scrim {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 3;
+    background: var(--we-color-scrim);
+  }
+}
+
+/* 抽屉开关：中号图标按钮四周各让一格，悬停的圆底不碰抽屉边框；在 52px 窄轨里正好居中，展开后仍留在原位 */
+.we-side-drawer-toggle {
+  margin: var(--we-space-sm);
+}
+
+/* 裁切层：自己不动，滑入的内容被它挡在抽屉边框之内 */
+.we-side-drawer-clip {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: 0 0 var(--we-radius-md) var(--we-radius-md);
+}
+
+.we-side-drawer-content {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 记忆检索指示器收起窄轨时也要露出来，但 52px 塞不下文字标签，只留三个点 */
+.we-side-drawer--left:not(.we-side-drawer--open) .we-memory-recall {
+  flex-direction: column;
+  padding: var(--we-space-xs) 0;
+}
+.we-side-drawer--left:not(.we-side-drawer--open) .we-memory-recall__label,
+.we-side-drawer--left:not(.we-side-drawer--open) .we-memory-recall__summary {
+  display: none;
+}
+
+.we-page-right {
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  border-radius: 0;
+  padding: 44px 52px 28px 60px;
+}
+
+.we-page-right--flush {
+  padding: 0;
+}
+
+.we-page-right__body {
+  display: flex;
+  flex: 1;
+  gap: var(--we-pane-gap);
+  min-height: 0;
+  min-width: 0;
+}
+
+@media (max-width: 900px) {
+  .we-page-right__body {
+    gap: min(var(--we-pane-gap), var(--we-space-sm));
+  }
+}
+
+.we-character-seal {
+  width: var(--seal-size);
+  height: var(--seal-size);
+  flex-shrink: 0;
+  object-fit: cover;
+  border-radius: var(--we-radius-sm);
+  /* 只留一层自上而下的轻投影，不描边、不套环 */
+  box-shadow: 0 1px 3px var(--we-color-shade-2);
+}
+
+.we-parchment-texture,
+.we-parchment-texture-noise,
+.we-parchment-texture-fiber {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.we-parchment-texture {
+  z-index: var(--parchment-z);
+  display: var(--we-parchment-display, block);
+}
+
+.we-parchment-texture-noise {
+  z-index: var(--parchment-z);
+  opacity: var(--parchment-opacity);
+  mix-blend-mode: var(--parchment-blend);
+  background-image: var(--parchment-noise-image);
+  background-repeat: repeat;
+  background-size: 256px 256px;
+}
+
+.we-parchment-texture-fiber {
+  z-index: var(--parchment-fiber-z);
+  opacity: var(--we-parchment-fiber-opacity);
+  mix-blend-mode: var(--parchment-blend);
+  background-image: var(--parchment-fiber-image);
+  background-repeat: repeat;
+  background-size: 128px 128px;
+}
+
+/* 完成确认（DoneConfirm）：右下角一块大字，出现与收场由动效包决定 */
+.we-done-confirm {
+  position: fixed;
+  right: 40px;
+  bottom: 40px;
+  z-index: var(--we-z-tooltip);
+  padding: var(--we-space-sm) var(--we-space-lg);
+  font-family: var(--we-font-display);
+  font-size: var(--we-type-title-size);
+  line-height: var(--we-type-title-leading);
+  font-weight: var(--we-weight-strong);
+  letter-spacing: var(--we-type-title-tracking);
+  color: var(--we-color-accent);
+  background: color-mix(in srgb, var(--we-color-accent) var(--we-alpha-2), var(--we-color-bg-canvas));
+  pointer-events: none;
+}
+
+.we-state-scroll {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 14px; /* design exact */
+  scrollbar-width: thin;
+  scrollbar-color: var(--we-color-border-default) transparent;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.we-state-scroll::-webkit-scrollbar { width: 4px; }
+.we-state-scroll::-webkit-scrollbar-track { background: transparent; }
+.we-state-scroll::-webkit-scrollbar-thumb { background: var(--we-color-border-default); border-radius: var(--we-radius-full); }
+
+/* 细线分隔 —— 取代 ❦ fleuron，两端渐隐与 flush header 同语言 */
+/* tab 行不再画整条全宽细线（旧版那条在深边框主题下是一条"长黑线"，与选中态绿色指示线并存形成双层下划线）。
+   选中 tab 仅由 .we-section-tab-indicator 的绿色短线标识，单条、干净。 */
+/* 重置：默认隐去，hover / 键盘聚焦本区时显现（与 .we-state-section-reset 同语义，弱化危险操作） */
+.we-state-reset {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px; /* design exact */
+  flex-shrink: 0;
+  font-family: var(--we-font-display);
+  font-style: italic;
+  font-size: var(--we-type-caption-size);
+  line-height: var(--we-type-caption-leading);
+  color: transparent;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  letter-spacing: var(--we-type-caption-tracking);
+  transition: color var(--we-motion-state-duration) var(--we-motion-state-easing);
+}
+.we-state-block:hover .we-state-reset,
+.we-state-block:focus-within .we-state-reset { color: var(--we-color-text-tertiary); }
+.we-state-reset:hover,
+.we-state-reset:focus-visible { color: var(--we-color-accent); }
+.we-state-reset:disabled { color: var(--we-color-text-tertiary); cursor: not-allowed; }

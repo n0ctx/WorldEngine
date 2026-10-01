@@ -50,7 +50,7 @@
 
 - 站点的视觉原则是「把颜色让给世界封面」：世界主色由封面提取、只在深色主题下覆盖强调色，全站只此一处彩色。所以主题自带的强调色要克制、低饱和，新主题不要靠大面积高饱和色出效果。
 - 情绪关键词只是参考，要的是统一的高级感，同时大胆有动感，不要畏缩、不要做成模板感的默认样式。
-- 改动会影响所有主题：核心样式（`ui.css` / `pages.css` / `chat.css`）和 token 的改动，要在夜航（暗）和古典羊皮纸（亮）两套主题下都看；用户验证时也要两套都交代。
+- 改动会影响所有主题：核心样式（`themes/` 下除 `tokens.css`、`fonts.css`、`motion/` 外的样式文件）和 token 的改动，要在夜航（暗）和古典羊皮纸（亮）两套主题下都看；用户验证时也要两套都交代。
 - 组件样式只消费 token，不写颜色、字号、圆角、阴影、层级等字面量（`literals` 守卫会拦）；能复用已有 token 就复用，确实没有再新增。
 - 按钮只用 `Button` / `IconButton`（色调 primary / secondary / ghost / danger / overlay × 尺寸 sm / md / lg，高度取 `--we-control-h-*`）；`components/ui/` 以外不手写 `we-btn*` 类（`literals` 守卫的 primitive-class 会拦），也不按所在容器改写按钮外观。
 - 弹窗只用 `Dialog`（标准 / alert 确认两种版式 × sm / md / lg / xl 宽度；确认用 `ConfirmModal`）：它自己挂到 body、圈住焦点、统一 Esc / 点空白 / 关闭键，忙时用 `busy` 挡住关闭；调用方用 `AnimatePresence` 包住条件渲染，嵌套弹窗直接再渲染一个，不手写遮罩或层叠包装。

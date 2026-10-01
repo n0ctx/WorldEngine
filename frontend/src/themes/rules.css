@@ -1,0 +1,263 @@
+/* 规则编辑器：条目编辑器、状态条件行、状态字段编辑器（components/rules） */
+
+/* ── EntryEditor ── */
+/* 条目编辑器就地内嵌：铺满详情列、随内容流动；弹窗模式由 Dialog 承载 */
+.we-entry-editor-panel {
+  width: 100%;
+}
+
+.we-entry-editor-label {
+  display: block;
+  font-size: var(--we-type-caption-size);
+  line-height: var(--we-type-caption-leading);
+  letter-spacing: var(--we-type-caption-tracking);
+  color: var(--we-color-text-secondary);
+  margin-bottom: var(--we-space-xs);
+}
+
+.we-entry-editor-hint {
+  font-size: var(--we-type-caption-size);
+  line-height: var(--we-type-caption-leading);
+  letter-spacing: var(--we-type-caption-tracking);
+  color: var(--we-color-text-tertiary, var(--we-color-text-secondary));
+  font-style: italic;
+}
+
+.we-entry-editor-cached-note {
+  font-size: var(--we-type-caption-size);
+  line-height: var(--we-type-caption-leading);
+  letter-spacing: var(--we-type-caption-tracking);
+  color: var(--we-color-text-secondary);
+  margin: var(--we-space-sm) 0 var(--we-space-md);
+  padding: var(--we-space-xs) var(--we-space-sm);
+  border-radius: var(--we-radius-sm);
+  box-shadow: 0 0 0 1px var(--we-color-border-default);
+  background: var(--we-color-bg-elevated, var(--we-color-bg-canvas));
+}
+
+.we-entry-editor-field-mb {
+  margin-bottom: var(--we-space-md);
+}
+
+.we-entry-editor-content-wrap {
+  margin-bottom: var(--we-space-md);
+}
+
+/* 触发机制色点：全站唯一彩色是主色 accent（见 we-entry-section-toggle 旁注），
+   这里不引入第二种彩色，改用形状区分四种机制，颜色统一取中性 tertiary 文字色。 */
+.we-trigger-dot {
+  display: inline-block;
+  flex-shrink: 0;
+  width: 10px;
+  height: 10px;
+  margin-right: var(--we-space-xs);
+}
+.we-trigger-dot--always {
+  border-radius: 50%;
+  background: var(--we-color-text-tertiary);
+}
+.we-trigger-dot--keyword {
+  border-radius: var(--we-radius-xs);
+  background: var(--we-color-text-tertiary);
+  transform: rotate(45deg);
+}
+.we-trigger-dot--llm {
+  border-radius: 50%;
+  background: transparent;
+  /* 8px 时描边圆很容易被看成实心圆的残缺渲染——加粗描边、内缩尺寸拉开与
+     --always 实心圆的差距，纯形状编码在小尺寸下才站得住。 */
+  width: 8px;
+  height: 8px;
+  margin: 1px var(--we-space-xs) 1px 1px;
+  border: 2px solid var(--we-color-text-tertiary);
+  box-sizing: border-box;
+}
+.we-trigger-dot--state {
+  background: var(--we-color-text-tertiary);
+  clip-path: polygon(50% 0%, 0% 100%, 100% 100%);
+}
+
+
+/* 智能建议卡片：非侵入提示，用户可采用/忽略 */
+.we-trigger-suggestion {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--we-space-sm);
+  padding: var(--we-space-sm) var(--we-space-md);
+  border-radius: var(--we-radius-md);
+  background: var(--we-color-accent-bg);
+  font-size: var(--we-type-caption-size);
+  line-height: var(--we-type-caption-leading);
+  letter-spacing: var(--we-type-caption-tracking);
+  color: var(--we-color-text-secondary);
+}
+.we-trigger-suggestion-text { flex: 1; min-width: 0; }
+.we-trigger-suggestion-actions {
+  display: flex;
+  gap: var(--we-space-xs);
+  flex-shrink: 0;
+}
+
+.we-entry-editor-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--we-space-md);
+}
+
+/* ── 状态条件行（EntryEditor state 类型） ── */
+
+.we-entry-condition {
+  display: flex;
+  align-items: center;
+  gap: 6px; /* design exact */
+  margin-bottom: 6px; /* design exact */
+}
+
+.we-entry-condition-field {
+  flex: 2;
+  min-width: 0;
+  display: flex;
+  gap: 6px; /* design exact */
+  align-items: center;
+}
+
+.we-entry-condition-field .we-select {
+  flex: 1;
+  min-width: 60px;
+}
+
+.we-entry-condition-field .we-select:first-child {
+  flex: 0 0 88px;
+}
+
+.we-entry-condition-op {
+  flex-shrink: 0;
+  width: 108px;
+}
+
+.we-entry-condition-op .we-select-trigger > span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.we-entry-condition-value {
+  flex: 1;
+  min-width: 0;
+  width: auto;
+  padding: 6px 10px;
+  font-size: var(--we-type-ui-size);
+  letter-spacing: var(--we-type-ui-tracking);
+  line-height: var(--we-type-ui-leading);
+  box-shadow: var(--we-shadow-inset);
+}
+
+.we-entry-condition-logic-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--we-space-xs);
+}
+.we-entry-condition-logic-row .we-entry-editor-label {
+  margin-bottom: 0;
+}
+
+/* 顺序权重 + 生效轮数 同行布局；触发范围多选 */
+.we-entry-editor-inline-row {
+  display: flex;
+  gap: var(--we-space-md);
+  align-items: flex-start;
+}
+.we-entry-editor-inline-col {
+  display: flex;
+  flex-direction: column;
+}
+.we-entry-editor-scope-row {
+  display: flex;
+  gap: var(--we-space-md);
+  align-items: center;
+}
+
+.we-state-field-required {
+  color: var(--we-color-accent);
+}
+
+.we-state-field-hint {
+  font-size: var(--we-type-body-size);
+  letter-spacing: var(--we-type-body-tracking);
+  color: var(--we-color-text-tertiary);
+  font-family: var(--we-font-prose);
+  line-height: var(--we-type-body-leading);
+}
+
+.we-state-field-error {
+  font-family: var(--we-font-prose);
+  font-size: var(--we-type-body-size);
+  line-height: var(--we-type-body-leading);
+  letter-spacing: var(--we-type-body-tracking);
+  color: var(--we-color-accent);
+}
+
+/* 表格列编辑器 */
+.we-state-table-cols {
+  display: flex;
+  flex-direction: column;
+  gap: var(--we-space-sm);
+}
+
+.we-state-table-col-card {
+  padding: 0;
+  overflow: hidden;
+}
+
+.we-state-table-col-header {
+  display: flex;
+  align-items: center;
+  gap: var(--we-space-sm);
+  padding: var(--we-space-sm) var(--we-space-md);
+  background: var(--we-color-bg-surface);
+  border-bottom: 1px solid var(--we-color-border-default);
+}
+
+.we-state-table-col-title {
+  font-family: var(--we-font-prose);
+  font-size: var(--we-type-ui-size);
+  line-height: var(--we-type-ui-leading);
+  letter-spacing: var(--we-type-ui-tracking);
+  font-weight: var(--we-weight-strong);
+  color: var(--we-color-text-secondary);
+  flex: 1;
+}
+
+.we-state-table-col-body {
+  padding: var(--we-space-md);
+  display: flex;
+  flex-direction: column;
+  gap: var(--we-space-md);
+}
+
+.we-state-table-col-row2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--we-space-md);
+}
+
+.we-state-table-col-row3 {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: var(--we-space-md);
+}
+
+.we-state-table-col-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--we-space-xs);
+}
+
+.we-state-table-col-field-label {
+  font-size: var(--we-type-caption-size);
+  line-height: var(--we-type-caption-leading);
+  letter-spacing: var(--we-type-caption-tracking);
+  color: var(--we-color-text-tertiary);
+  font-style: italic;
+}

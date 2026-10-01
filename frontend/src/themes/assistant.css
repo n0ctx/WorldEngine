@@ -1,0 +1,686 @@
+/* 写卡助手抽屉（assistant/client） */
+
+/* ── Assistant Drawer · 外壳 ────────
+   浮在顶栏下方的一张玻璃面板：四周留出页边，不贴边、不画硬边线；
+   与弹窗、输入胶囊同一种材料（.we-material + 暗描边 + 近实远淡的阴影）。遮罩只铺顶栏以下。 */
+
+.we-asst-backdrop {
+  position: fixed;
+  inset: var(--we-topbar-height) 0 0 0;
+  z-index: calc(var(--we-z-modal) - 1);
+  background: color-mix(in srgb, var(--we-color-scrim) var(--we-alpha-4), transparent);
+  animation: var(--we-fx-scrim);
+}
+
+.we-asst-drawer {
+  position: fixed;
+  top: calc(var(--we-topbar-height) + var(--we-space-sm));
+  right: var(--we-space-sm);
+  bottom: var(--we-space-sm);
+  max-width: calc(100vw - 2 * var(--we-space-sm));
+  z-index: var(--we-z-modal);
+  /* 收起时连同页边一起移出视口，阴影不会在右缘留下暗边 */
+  transform: translateX(calc(100% + var(--we-space-lg)));
+  opacity: 0;
+  pointer-events: none;
+  transition: transform var(--we-motion-enter-duration) var(--we-motion-enter-easing),
+              opacity var(--we-motion-state-duration) var(--we-motion-state-easing);
+}
+
+.we-asst-drawer--open {
+  transform: none;
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.we-asst-drawer__surface {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--we-color-bg-elevated) var(--we-alpha-4), transparent);
+  backdrop-filter: blur(var(--we-glass-blur));
+  border-radius: var(--we-radius-xl);
+  box-shadow: var(--we-material-shadow);
+}
+
+/* 调宽手柄只占面板中段，避开圆角 */
+.we-asst-drawer__resize {
+  left: -4px;
+  top: var(--we-space-xl);
+  width: 8px;
+  height: calc(100% - 2 * var(--we-space-xl));
+}
+
+.we-asst-drawer__header {
+  display: flex;
+  align-items: center;
+  gap: var(--we-space-sm);
+  flex-shrink: 0;
+  height: 52px; /* design exact: 32px 图标按钮 + 上下留白 */
+  padding: 0 var(--we-space-sm) 0 var(--we-space-lg);
+}
+
+.we-asst-drawer__title {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--we-space-xs);
+  font-family: var(--we-font-display);
+  font-size: var(--we-type-subheading-size);
+  line-height: var(--we-type-subheading-leading);
+  font-weight: var(--we-type-subheading-weight);
+  color: var(--we-color-text-primary);
+  letter-spacing: var(--we-type-subheading-tracking);
+  white-space: nowrap;
+}
+
+.we-asst-drawer__status {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--we-space-xs);
+  font-size: var(--we-type-caption-size);
+  line-height: var(--we-type-caption-leading);
+  letter-spacing: var(--we-type-caption-tracking);
+  color: var(--we-color-text-tertiary);
+  white-space: nowrap;
+}
+
+.we-asst-drawer__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--we-space-xxs);
+  margin-left: auto;
+}
+
+/* 失败提示：整圈描边 + 淡底，重试按钮跟在文字后 */
+.we-asst-error {
+  display: flex;
+  align-items: center;
+  gap: var(--we-space-sm);
+  margin: var(--we-space-xs) var(--we-space-lg) var(--we-space-sm);
+  padding: var(--we-space-sm) var(--we-space-md);
+  border: 1px solid color-mix(in srgb, var(--we-color-status-danger) var(--we-alpha-4), var(--we-color-border-default));
+  border-radius: var(--we-radius-md);
+  background: color-mix(in srgb, var(--we-color-status-danger) var(--we-alpha-1), var(--we-color-bg-canvas));
+  font-size: var(--we-type-ui-size);
+  line-height: var(--we-type-ui-leading);
+  letter-spacing: var(--we-type-ui-tracking);
+  color: var(--we-color-text-primary);
+}
+
+.we-asst-error__text {
+  flex: 1;
+  min-width: 0;
+  word-break: break-word;
+}
+
+.we-asst-error__retry {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--we-space-xs);
+  padding: var(--we-space-xxs) var(--we-space-sm);
+  background: none;
+  border: 1px solid var(--we-color-border-default);
+  border-radius: var(--we-radius-full);
+  font-size: var(--we-type-caption-size);
+  line-height: var(--we-type-caption-leading);
+  letter-spacing: var(--we-type-caption-tracking);
+  color: var(--we-color-text-secondary);
+  cursor: pointer;
+  transition: color var(--we-motion-state-duration) var(--we-motion-state-easing), border-color var(--we-motion-state-duration) var(--we-motion-state-easing);
+}
+
+.we-asst-error__retry:hover {
+  color: var(--we-color-text-primary);
+  border-color: var(--we-color-border-strong);
+}
+
+.we-asst-error__retry:focus-visible {
+  outline: none;
+  box-shadow: var(--we-focus-ring);
+}
+
+/* 输入区：与对话页同一只输入胶囊（.we-chat-input__row），抽屉窄，字号降一档 */
+.we-asst-drawer__title svg {
+  color: var(--we-color-accent);
+}
+
+.we-asst-composer {
+  flex-shrink: 0;
+  padding: var(--we-space-sm) var(--we-space-md) var(--we-space-md);
+}
+
+/* 面板本身已是玻璃，输入胶囊压暗一档，读作嵌在面板里的输入槽 */
+.we-asst-composer .we-chat-input__row {
+  background: color-mix(in srgb, var(--we-color-bg-canvas) var(--we-alpha-5), transparent);
+  backdrop-filter: none;
+}
+
+.we-asst-composer__textarea {
+  font-size: var(--we-type-body-size);
+  line-height: var(--we-type-body-leading);
+  letter-spacing: var(--we-type-body-tracking);
+}
+
+.we-asst-composer__hint {
+  margin-top: var(--we-space-xs);
+  font-size: var(--we-type-caption-size);
+  line-height: var(--we-type-caption-leading);
+  letter-spacing: var(--we-type-caption-tracking);
+  color: var(--we-color-text-tertiary);
+  text-align: center;
+}
+
+/* 拖拽调宽手柄：hover / 聚焦 / 拖动时显出一条中性细线 */
+.we-resize-handle {
+  position: absolute;
+  z-index: var(--we-z-action);
+  touch-action: none;
+  outline: none;
+}
+
+.we-resize-handle--vertical { cursor: ew-resize; }
+.we-resize-handle--horizontal { cursor: ns-resize; }
+
+.we-resize-handle::after {
+  content: '';
+  position: absolute;
+  background: transparent;
+  transition: background var(--we-motion-state-duration) var(--we-motion-state-easing);
+}
+
+.we-resize-handle--vertical::after {
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 2px;
+  transform: translateX(-50%);
+}
+
+.we-resize-handle--horizontal::after {
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 2px;
+  transform: translateY(-50%);
+}
+
+.we-resize-handle:hover::after,
+.we-resize-handle:active::after,
+.we-resize-handle:focus-visible::after {
+  background: var(--we-color-border-strong);
+}
+
+/* ── Assistant Drawer · 过程卡（工具调用 / 错误 / 等待） ──────── */
+
+/* 上下边缘淡出：消息滚进标题栏和输入区下方时不留硬切边 */
+.we-asst-stream {
+  mask-image: linear-gradient(to bottom, transparent, #000 var(--we-space-lg), #000 calc(100% - var(--we-space-lg)), transparent);
+  padding: var(--we-space-md) var(--we-space-lg);
+  display: flex;
+  flex-direction: column;
+  gap: var(--we-space-sm);
+}
+
+.we-asst-new-msg-btn {
+  position: absolute;
+  bottom: var(--we-space-md);
+  right: var(--we-space-lg);
+  z-index: var(--we-z-action);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--we-space-xs);
+  padding: var(--we-space-xs) var(--we-space-md);
+  border-radius: var(--we-radius-full);
+  border: none;
+  background: var(--we-glass-bg);
+  backdrop-filter: blur(var(--we-glass-blur));
+  color: var(--we-color-text-secondary);
+  font-size: var(--we-type-caption-size);
+  line-height: var(--we-type-caption-leading);
+  letter-spacing: var(--we-type-caption-tracking);
+  font-weight: var(--we-weight-medium);
+  box-shadow: 0 0 0 1px var(--we-material-stroke), var(--we-elevation-1);
+  cursor: pointer;
+  transition: background var(--we-motion-state-duration) var(--we-motion-state-easing),
+              box-shadow var(--we-motion-state-duration) var(--we-motion-state-easing),
+              transform var(--we-motion-state-duration) var(--we-motion-state-easing);
+}
+
+.we-asst-new-msg-btn:hover {
+  background: var(--we-color-bg-surface);
+  transform: translateY(-1px);
+}
+
+.we-asst-new-msg-btn:active {
+  transform: translateY(1px);
+}
+
+.we-asst-new-msg-arrow {
+  display: block;
+  animation: var(--we-fx-nudge);
+}
+
+.we-asst-entry {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--we-space-xs);
+  padding: var(--we-space-md);
+  background: color-mix(in srgb, var(--we-color-bg-canvas) var(--we-alpha-4), transparent);
+  border: 1px solid var(--we-color-border-subtle);
+  border-radius: var(--we-radius-md);
+  font-family: var(--we-font-prose);
+  color: var(--we-color-text-primary);
+  animation: var(--we-fx-enter);
+}
+
+.we-asst-entry--tool,
+.we-asst-entry--tool-running {
+  max-width: 88%;
+  align-self: flex-start;
+}
+
+/* 工具卡：缩小 + 淡色 + 线条图标（弱化为过程信息，不与对话气泡争视觉） */
+.we-asst-entry--tool,
+.we-asst-entry--tool-running {
+  padding: var(--we-space-xs) var(--we-space-md);
+  border-radius: var(--we-radius-full);
+}
+
+.we-asst-entry--tool .we-asst-entry__head,
+.we-asst-entry--tool-running .we-asst-entry__head {
+  font-size: var(--we-type-caption-size);
+  line-height: var(--we-type-caption-leading);
+  letter-spacing: var(--we-type-caption-tracking);
+  gap: var(--we-space-xs);
+  flex-wrap: wrap;
+}
+
+.we-asst-entry--tool .we-asst-entry__title,
+.we-asst-entry--tool-running .we-asst-entry__title {
+  font-weight: var(--we-weight-regular);
+  color: var(--we-color-text-tertiary);
+  font-size: var(--we-type-caption-size);
+  line-height: var(--we-type-caption-leading);
+  letter-spacing: var(--we-type-caption-tracking);
+}
+
+.we-asst-entry--tool .we-asst-entry__sub,
+.we-asst-entry--tool-running .we-asst-entry__sub {
+  font-size: var(--we-type-caption-size);
+  line-height: var(--we-type-caption-leading);
+  letter-spacing: var(--we-type-caption-tracking);
+  color: var(--we-color-text-tertiary);
+}
+
+.we-asst-entry--tool-running .we-asst-entry__title,
+.we-asst-entry--tool-running .we-asst-entry__sub {
+  color: var(--we-color-text-faint);
+}
+
+.we-asst-tool__icon {
+  flex-shrink: 0;
+  color: var(--we-color-text-tertiary);
+}
+
+.we-asst-entry--error .we-asst-tool__icon {
+  color: var(--we-color-status-danger);
+}
+
+.we-asst-entry--error {
+  border-radius: var(--we-radius-md);
+  border-color: color-mix(in srgb, var(--we-color-status-danger) var(--we-alpha-4), var(--we-color-border-default));
+  background: color-mix(in srgb, var(--we-color-status-danger) var(--we-alpha-1), var(--we-color-bg-canvas));
+}
+
+.we-asst-entry__head {
+  display: flex;
+  align-items: center;
+  gap: var(--we-space-sm);
+  font-size: var(--we-type-ui-size);
+  letter-spacing: var(--we-type-ui-tracking);
+  line-height: var(--we-type-ui-leading);
+}
+
+.we-asst-entry__title {
+  font-weight: var(--we-weight-medium);
+  color: var(--we-color-text-primary);
+}
+
+.we-asst-entry__sub {
+  color: var(--we-color-text-secondary);
+  font-size: var(--we-type-ui-size);
+  line-height: var(--we-type-ui-leading);
+  letter-spacing: var(--we-type-ui-tracking);
+}
+
+.we-asst-entry__sub::before {
+  content: '·';
+  margin: 0 var(--we-space-xs);
+  color: var(--we-color-text-tertiary);
+}
+
+/* 流式运行指示器（替代红绿点） */
+.we-asst-tool__spinner {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border: 1.5px solid var(--we-color-text-tertiary);
+  border-top-color: transparent;
+  border-radius: var(--we-radius-full);
+  animation: var(--we-fx-spin);
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+.we-asst-entry--tool-running .we-asst-tool__spinner {
+  border-color: var(--we-color-accent);
+  border-top-color: transparent;
+}
+
+@keyframes we-tool-spin {
+  to { transform: rotate(360deg); }
+}
+
+.we-asst-entry__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: var(--we-radius-full);
+  flex-shrink: 0;
+}
+
+.we-asst-entry__dot--error { background: var(--we-color-status-danger); }
+
+.we-asst-entry__body {
+  font-size: var(--we-type-body-size);
+  letter-spacing: var(--we-type-body-tracking);
+  line-height: var(--we-type-body-leading);
+  color: var(--we-color-text-primary);
+  word-break: break-word;
+}
+
+.we-asst-entry__body p { margin: 0 0 var(--we-space-xs); }
+.we-asst-entry__body p:last-child { margin: 0; }
+.we-asst-entry__body ul,
+.we-asst-entry__body ol { margin: var(--we-space-xs) 0; padding-left: var(--we-space-lg); }
+.we-asst-entry__body li { margin-bottom: 2px; line-height: var(--we-type-body-leading); }
+.we-asst-entry__body code {
+  font-family: var(--we-font-mono);
+  font-size: 0.92em;
+  background: var(--we-color-bg-surface);
+  padding: 0 var(--we-space-xs);
+  border-radius: var(--we-radius-sm);
+  color: var(--we-color-text-secondary);
+}
+.we-asst-entry__body pre {
+  margin: var(--we-space-xs) 0;
+  padding: var(--we-space-sm);
+  background: var(--we-color-bg-surface);
+  border-radius: var(--we-radius-sm);
+  overflow-x: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--we-color-border-default) transparent;
+  font-family: var(--we-font-mono);
+  font-size: var(--we-type-caption-size);
+  line-height: var(--we-type-caption-leading);
+  letter-spacing: var(--we-type-caption-tracking);
+}
+.we-asst-entry__body pre::-webkit-scrollbar { height: 4px; }
+.we-asst-entry__body pre::-webkit-scrollbar-track { background: transparent; }
+.we-asst-entry__body pre::-webkit-scrollbar-thumb {
+  background: var(--we-color-border-default);
+  border-radius: var(--we-radius-full);
+}
+.we-asst-entry__body blockquote {
+  padding-left: var(--we-space-md);
+  margin: var(--we-space-xs) 0;
+  color: var(--we-color-text-secondary);
+  font-style: italic;
+}
+.we-asst-entry__body a { color: var(--we-color-accent); text-decoration: underline; }
+
+/* 思考断句行（卡片之间，不是卡片本身） */
+.we-asst-think-line {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--we-space-sm);
+  padding: 0 var(--we-space-md);
+  margin: 2px 0; /* design exact */
+  font-family: var(--we-font-prose);
+  font-style: italic;
+  font-size: var(--we-type-body-size);
+  letter-spacing: var(--we-type-body-tracking);
+  color: var(--we-color-text-tertiary);
+  line-height: var(--we-type-body-leading);
+  background: none;
+  border: none;
+  text-align: left;
+  width: 100%;
+  cursor: pointer;
+  transition: color var(--we-motion-state-duration) var(--we-motion-state-easing);
+}
+
+.we-asst-think-line:hover { color: var(--we-color-text-secondary); }
+.we-asst-think-line:focus-visible {
+  outline: 2px solid var(--we-color-border-focus);
+  outline-offset: 2px;
+  border-radius: var(--we-radius-sm);
+}
+
+.we-asst-think-line__mark {
+  flex-shrink: 0;
+  color: var(--we-color-ornament);
+  margin-top: 1px;
+}
+
+.we-asst-think-line__label {
+  flex-shrink: 0;
+  font-style: normal;
+  font-family: var(--we-font-display);
+  font-size: var(--we-type-eyebrow-size);
+  line-height: var(--we-type-eyebrow-leading);
+  font-weight: var(--we-type-eyebrow-weight);
+  letter-spacing: var(--we-type-eyebrow-tracking);
+  color: var(--we-color-text-tertiary);
+}
+
+.we-asst-think-line__preview {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.we-asst-think-line__body {
+  display: block;
+  padding: var(--we-space-sm) var(--we-space-md) 0;
+  font-family: var(--we-font-prose);
+  font-style: italic;
+  font-size: var(--we-type-body-size);
+  letter-spacing: var(--we-type-body-tracking);
+  color: var(--we-color-text-tertiary);
+  line-height: var(--we-type-body-leading);
+}
+
+.we-asst-think-line__body p { margin: 0 0 var(--we-space-xs); }
+.we-asst-think-line__body p:last-child { margin: 0; }
+
+.we-asst-entry__action {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--we-space-xxs);
+  font-family: var(--we-font-display);
+  font-style: italic;
+  font-size: var(--we-type-caption-size);
+  line-height: var(--we-type-caption-leading);
+  letter-spacing: var(--we-type-caption-tracking);
+  color: var(--we-color-text-tertiary);
+  background: none;
+  border: 1px solid transparent;
+  padding: var(--we-space-xxs) var(--we-space-sm);
+  border-radius: var(--we-radius-sm);
+  cursor: pointer;
+  transition: color var(--we-motion-state-duration) var(--we-motion-state-easing),
+    border-color var(--we-motion-state-duration) var(--we-motion-state-easing);
+}
+
+.we-asst-entry__action:hover {
+  color: var(--we-color-accent);
+  border-color: var(--we-color-border-subtle);
+}
+
+.we-asst-entry__action:focus-visible {
+  outline: 2px solid var(--we-color-border-focus);
+  outline-offset: 1px;
+}
+
+.we-asst-entry__action--danger,
+.we-asst-entry__action--danger:hover { color: var(--we-color-status-danger); }
+
+/* 空状态 */
+.we-asst-empty {
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--we-space-sm);
+  padding: var(--we-space-xl) var(--we-space-lg);
+  text-align: center;
+}
+
+.we-asst-empty__title {
+  font-family: var(--we-font-display);
+  font-style: italic;
+  font-size: var(--we-type-subheading-size);
+  line-height: var(--we-type-subheading-leading);
+  letter-spacing: var(--we-type-subheading-tracking);
+  font-weight: var(--we-type-subheading-weight);
+  color: var(--we-color-text-secondary);
+}
+
+.we-asst-empty__hint {
+  max-width: 240px;
+  font-family: var(--we-font-prose);
+  font-size: var(--we-type-body-size);
+  letter-spacing: var(--we-type-body-tracking);
+  line-height: var(--we-type-body-leading);
+  color: var(--we-color-text-tertiary);
+}
+
+/* ── Assistant Drawer · Bubbles（用户/助手对话气泡） ──────
+   与对话页同一套气泡语言：玩家侧淡强调色、尖角朝右上；助手侧压暗一档的内嵌底、尖角朝左上。 */
+
+.we-asst-row {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+.we-asst-row--user      { align-items: flex-end; }
+.we-asst-row--assistant { align-items: flex-start; }
+
+.we-asst-bubble {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--we-space-xs);
+  max-width: 88%;
+  padding: var(--we-space-sm) var(--we-space-md);
+  font-family: var(--we-font-prose);
+  font-size: var(--we-type-body-size);
+  letter-spacing: var(--we-type-body-tracking);
+  line-height: var(--we-type-body-leading);
+  animation: var(--we-fx-enter);
+}
+
+.we-asst-bubble--user {
+  background: color-mix(in srgb, var(--we-color-accent) var(--we-alpha-2), transparent);
+  color: var(--we-color-text-primary);
+  border-radius: var(--we-radius-lg) var(--we-radius-xs) var(--we-radius-lg) var(--we-radius-lg);
+}
+
+.we-asst-bubble--assistant {
+  background: color-mix(in srgb, var(--we-color-bg-canvas) var(--we-alpha-5), transparent);
+  color: var(--we-color-text-primary);
+  border-radius: var(--we-radius-xs) var(--we-radius-lg) var(--we-radius-lg) var(--we-radius-lg);
+  box-shadow: 0 0 0 1px var(--we-material-stroke);
+}
+
+.we-asst-bubble__body {
+  word-break: break-word;
+}
+
+.we-asst-bubble__body--pre { white-space: pre-wrap; }
+
+.we-asst-bubble__body p { margin: 0 0 var(--we-space-xs); }
+.we-asst-bubble__body p:last-child { margin: 0; }
+.we-asst-bubble__body ul,
+.we-asst-bubble__body ol { margin: var(--we-space-xs) 0; padding-left: var(--we-space-lg); }
+.we-asst-bubble__body li { margin-bottom: 2px; line-height: var(--we-type-body-leading); }
+.we-asst-bubble__body code {
+  font-family: var(--we-font-mono);
+  font-size: 0.92em;
+  background: var(--we-color-bg-surface);
+  padding: 0 var(--we-space-xs);
+  border-radius: var(--we-radius-sm);
+  color: var(--we-color-text-secondary);
+}
+.we-asst-bubble__body pre {
+  margin: var(--we-space-xs) 0;
+  padding: var(--we-space-sm);
+  background: var(--we-color-bg-surface);
+  border-radius: var(--we-radius-sm);
+  overflow-x: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--we-color-border-default) transparent;
+  font-family: var(--we-font-mono);
+  font-size: var(--we-type-caption-size);
+  line-height: var(--we-type-caption-leading);
+  letter-spacing: var(--we-type-caption-tracking);
+}
+.we-asst-bubble__body pre::-webkit-scrollbar { height: 4px; }
+.we-asst-bubble__body pre::-webkit-scrollbar-track { background: transparent; }
+.we-asst-bubble__body pre::-webkit-scrollbar-thumb {
+  background: var(--we-color-border-default);
+  border-radius: var(--we-radius-full);
+}
+.we-asst-bubble__body blockquote {
+  padding-left: var(--we-space-md);
+  margin: var(--we-space-xs) 0;
+  color: var(--we-color-text-secondary);
+  font-style: italic;
+}
+.we-asst-bubble__body a { color: var(--we-color-accent); text-decoration: underline; }
+
+.we-asst-bubble--editing {
+  box-shadow: inset 0 0 0 1px var(--we-color-accent),
+    inset 0 0 0 3px color-mix(in srgb, var(--we-color-accent) var(--we-alpha-2), transparent);
+}
+
+.we-asst-bubble__actions {
+  display: flex;
+  gap: var(--we-space-xs);
+  margin-top: var(--we-space-xs);
+  opacity: 0;
+  transition: opacity var(--we-motion-state-duration) var(--we-motion-state-easing);
+}
+
+.we-asst-row--user .we-asst-bubble__actions { justify-content: flex-end; }
+
+.we-asst-row:hover .we-asst-bubble__actions,
+.we-asst-row:focus-within .we-asst-bubble__actions,
+.we-asst-bubble__actions--visible {
+  opacity: 1;
+}
+
+/* Pending typing dots */
+.we-asst-entry__pending {
+  display: inline-flex;
+  gap: var(--we-space-xs);
+  align-items: center;
+  height: 18px;
+}

@@ -39,7 +39,9 @@ function fixture({ tokens = TOKENS, calm = CALM_CSS, slow = SLOW_CSS } = {}) {
   write(root, 'frontend/src/core/motion/motionPack.js', PACKS_JS);
   write(root, 'frontend/src/themes/tokens.css', tokens);
   write(root, 'frontend/src/themes/ui.css', '.a { animation: var(--we-fx-enter); }\n');
-  for (const rel of ['themes/pages.css', 'themes/chat.css', 'index.css']) write(root, `frontend/src/${rel}`, '');
+  for (const rel of ['shell', 'state', 'rules', 'settings', 'assistant', 'pages', 'chat'].map((n) => `themes/${n}.css`).concat('index.css')) {
+    write(root, `frontend/src/${rel}`, '');
+  }
   write(root, 'frontend/src/themes/motion/calm.css', calm);
   write(root, 'frontend/src/themes/motion/slow.css', slow);
   return root;

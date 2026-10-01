@@ -12,7 +12,8 @@
 frontend/src/themes/
   - tokens.css: 核心默认 token，保持中性
   - fonts.css: 核心字体默认值，保持中性
-  - ui.css / pages.css / chat.css: 组件与页面样式，只消费 token
+  - ui.css: components/ui 的基础组件样式；shell / state / rules / settings / assistant / chat.css 按领域放组件样式；
+    pages.css 放页面布局。都只消费 token；新增样式放进所属领域的文件，main.jsx 按这个顺序引入
   - motion/<pack-id>.css: 动效包样式，只声明 --we-fx-* 接口与 --we-motion-* 节奏变量
 
 frontend/src/visual/<theme-id>/
