@@ -1,5 +1,5 @@
 import React from 'react';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import StateValueField from '../../../src/components/state/StateValueField.jsx';
 
@@ -130,10 +130,8 @@ describe('StateValueField', () => {
       />,
     );
 
-    const group = screen.getByRole('group', { name: '列表项标签输入区' });
-    fireEvent.keyDown(group, { key: 'Enter' });
-    const input = screen.getByPlaceholderText('');
-    expect(input).toHaveFocus();
+    const group = screen.getByRole('group', { name: '列表项' });
+    const input = within(group).getByRole('textbox');
     fireEvent.change(input, { target: { value: ' 新项 ' } });
     fireEvent.keyDown(input, { key: 'Enter' });
     expect(onSave).toHaveBeenLastCalledWith('tags', JSON.stringify(['旧项', '新项']));

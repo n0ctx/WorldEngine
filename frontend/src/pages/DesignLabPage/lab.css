@@ -243,8 +243,7 @@
 .we-design-lab__stage .we-section-empty {
   color: var(--we-color-shell-text-secondary);
 }
-.we-design-lab__stage.we-state-panel .we-status-field .we-status-value,
-.we-design-lab__stage.we-state-panel .we-status-tag {
+.we-design-lab__stage.we-state-panel .we-status-field .we-status-value {
   color: var(--we-color-shell-text-primary);
 }
 

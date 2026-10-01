@@ -1,3 +1,4 @@
+import Badge from '../../../components/ui/Badge.jsx';
 import CharacterSeal from '../../../components/chat/CharacterSeal.jsx';
 import DragHandle from '../../../components/ui/DragHandle.jsx';
 import Icon from '../../../components/ui/Icon.jsx';
@@ -29,7 +30,7 @@ export function PersonaCard({ persona, dragHandleProps, onActivate, onEdit, onDe
         <div className="we-character-card-info">
           <div className="we-persona-card-name-row">
             <p className="we-character-card-name">{persona.name || '（未命名玩家）'}</p>
-            {isActive && <span className="we-persona-card__badge">激活</span>}
+            {isActive && <Badge tone="accent">激活</Badge>}
           </div>
         </div>
       </div>

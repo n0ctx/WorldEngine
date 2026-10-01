@@ -3,6 +3,7 @@ import { updateConfig } from '../../core/api/config.js';
 import { useMotion } from '../../core/hooks/useMotion.js';
 import { MOTION_PACKS, setMotionPack } from '../../core/motion/motionPack.js';
 import Button from '../ui/Button.jsx';
+import Badge from '../ui/Badge.jsx';
 import { log } from '../../core/utils/logger.js';
 
 // 动效包选择：点切换立刻生效（整个应用一起换），同时写进配置；保存失败时换回原来的包
@@ -34,7 +35,7 @@ export default function MotionPackPicker() {
               <div className="we-theme-meta">
                 <div className="we-theme-title-row">
                   <h3 className="we-theme-name">{pack.name}</h3>
-                  {isActive && <span className="we-theme-badge we-theme-badge-active">使用中</span>}
+                  {isActive && <Badge tone="accent">使用中</Badge>}
                 </div>
                 <p className="we-theme-desc">{pack.description}</p>
               </div>

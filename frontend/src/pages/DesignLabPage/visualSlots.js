@@ -92,7 +92,7 @@ export const VISUAL_SLOTS = [
   },
   {
     id: 'controls', category: 'component', title: '表单控件与徽标', status: 'ready',
-    tokens: [], usedIn: ['Badge、Input、Textarea、Select、ToggleSwitch、Range'],
+    tokens: [], usedIn: ['Badge、SegmentedControl、Input、Textarea、Select、TagInput、Checkbox、ToggleSwitch、Range'],
     note: '没有专属 token，全部由色彩、圆角、阴影几类 token 组合而成。',
   },
   {

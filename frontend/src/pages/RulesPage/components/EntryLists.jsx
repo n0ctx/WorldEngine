@@ -1,5 +1,7 @@
+import Badge from '../../../components/ui/Badge.jsx';
 import DragHandle from '../../../components/ui/DragHandle.jsx';
 import SortableList from '../../../components/ui/SortableList.jsx';
+import ToggleSwitch from '../../../components/ui/ToggleSwitch.jsx';
 import DeleteButton from '../../../components/motion/DeleteButton.jsx';
 import { TRIGGER_LABEL } from '../constants.js';
 
@@ -23,12 +25,12 @@ export function EntryPlainList({ entries, selectedId, onSelect, onToggle, onDele
           <div className="we-entry-section-main">
             <div className="we-entry-section-title-line">
               <span className="we-entry-section-name">{entry.title || '（无标题）'}</span>
-              <span className="we-entry-section-badge">{TRIGGER_LABEL[entry.trigger_type]}</span>
+              <Badge>{TRIGGER_LABEL[entry.trigger_type]}</Badge>
               {entry.trigger_type === 'always' && entry.token === 0 && entry.enabled !== 0 && (
-                <span className="we-entry-cached-badge" title="此条目进入 prompt 缓存前缀，稳定不变以提高缓存命中率">已缓存</span>
+                <Badge title="此条目进入 prompt 缓存前缀，稳定不变以提高缓存命中率">已缓存</Badge>
               )}
               {entry.trigger_type === 'keyword' && entry.active_turns === 0 && entry.enabled !== 0 && (
-                <span className="we-entry-cached-badge" title="命中后永久生效">永久</span>
+                <Badge title="命中后永久生效">永久</Badge>
               )}
             </div>
             {entry.trigger_type === 'keyword' && entry.keywords?.length > 0 && (
@@ -38,14 +40,9 @@ export function EntryPlainList({ entries, selectedId, onSelect, onToggle, onDele
             )}
           </div>
           <div className="we-entry-section-actions">
-            <button
-              onClick={(e) => { e.stopPropagation(); onToggle(entry); }}
-              className={`we-entry-section-toggle${entry.enabled === 0 ? ' we-entry-section-toggle--off' : ''}`}
-              aria-label={entry.enabled === 0 ? '启用条目' : '禁用条目'}
-              title={entry.enabled === 0 ? '已禁用，点击启用' : '点击禁用'}
-            >
-              <span className="we-entry-section-toggle-thumb" />
-            </button>
+            <span onClick={(e) => e.stopPropagation()}>
+              <ToggleSwitch size="sm" checked={entry.enabled !== 0} onChange={() => onToggle(entry)} label="启用条目" />
+            </span>
             <DeleteButton label={`删除条目「${entry.title || '（无标题）'}」`} onConfirm={() => onDelete(entry)} />
           </div>
         </div>
@@ -72,18 +69,13 @@ export function EntryOrderList({ entries, onReorder, onReorderEnd, onToggle }) {
           <div className="we-entry-section-main">
             <div className="we-entry-section-title-line">
               <span className="we-entry-section-name">{entry.title || '（无标题）'}</span>
-              <span className="we-entry-section-badge">{TRIGGER_LABEL[entry.trigger_type]}</span>
+              <Badge>{TRIGGER_LABEL[entry.trigger_type]}</Badge>
             </div>
           </div>
           <div className="we-entry-section-actions">
-            <button
-              onClick={(e) => { e.stopPropagation(); onToggle(entry); }}
-              className={`we-entry-section-toggle${entry.enabled === 0 ? ' we-entry-section-toggle--off' : ''}`}
-              aria-label={entry.enabled === 0 ? '启用条目' : '禁用条目'}
-              title={entry.enabled === 0 ? '已禁用，点击启用' : '点击禁用'}
-            >
-              <span className="we-entry-section-toggle-thumb" />
-            </button>
+            <span onClick={(e) => e.stopPropagation()}>
+              <ToggleSwitch size="sm" checked={entry.enabled !== 0} onChange={() => onToggle(entry)} label="启用条目" />
+            </span>
           </div>
         </div>
       )}

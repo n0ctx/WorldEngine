@@ -22,6 +22,7 @@ import { getAvatarColor, getAvatarUrl } from '../core/utils/avatar';
 import MarkdownEditor from '../components/ui/MarkdownEditor';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
+import Textarea from '../components/ui/Textarea';
 import CardEditTabs from '../components/state/CardEditTabs.jsx';
 import EditPageShell from './layout/EditPageShell';
 import FormGroup from '../components/ui/FormGroup';
@@ -232,8 +233,7 @@ export default function PersonaEditPage() {
           <Input value={name} onChange={e => setName(e.target.value)} placeholder="你在这个世界里的名字" />
         </FormGroup>
         <FormGroup label="简介" hint="纯展示用途，不注入提示词">
-          <textarea
-            className="we-textarea"
+          <Textarea
             rows={3}
             value={description}
             onChange={e => setDescription(e.target.value)}

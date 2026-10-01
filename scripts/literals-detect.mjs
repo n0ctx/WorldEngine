@@ -314,7 +314,7 @@ function analyzeStyleValue(prop, node, rel, allow, found) {
 }
 
 // 基础控件的类只许它自己的组件写：别处手抄类名就是绕过组件另做一份
-const PRIMITIVE_CLASS_RE = /^we-btn(-|$)/;
+const PRIMITIVE_CLASS_RE = /^we-(btn|badge|segmented|checkbox|tag-input|input|textarea|toggle-track|select-trigger)(-|_|$)/;
 const PRIMITIVE_OWNER = 'frontend/src/components/ui/';
 
 function analyzeClassString(text, line, rel, allow, found) {

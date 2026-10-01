@@ -4,6 +4,7 @@ import { VISUAL_THEMES, applyVisualTheme, resolveThemeId } from '../../core/visu
 import { refreshCustomCss } from '../../core/api/custom-css-snippets.js';
 import { useAppModeStore } from '../../core/state/appMode.js';
 import Button from '../ui/Button.jsx';
+import Badge from '../ui/Badge.jsx';
 import { log } from '../../core/utils/logger.js';
 
 export default function ThemeManager() {
@@ -56,7 +57,7 @@ export default function ThemeManager() {
               <div className="we-theme-meta">
                 <div className="we-theme-title-row">
                   <h3 className="we-theme-name">{theme.name}</h3>
-                  {active && <span className="we-theme-badge we-theme-badge-active">使用中</span>}
+                  {active && <Badge tone="accent">使用中</Badge>}
                 </div>
                 <p className="we-theme-desc">{theme.description || `${theme.id} · ${theme.version}`}</p>
               </div>

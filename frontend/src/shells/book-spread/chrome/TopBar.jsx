@@ -1,6 +1,7 @@
 /* book-spread shell top bar — three-level breadcrumb + shell chrome */
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useId, useRef } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
+import { Check } from 'lucide-react';
 import { useMotion } from '../../../core/hooks/useMotion.js';
 import { useClickOutside } from '../../../core/hooks/useClickOutside.js';
 import { useEscapeKey } from '../../../core/hooks/useEscapeKey.js';
@@ -28,6 +29,7 @@ function WorldSelector({ effectiveWorldId, isCurrentLevel }) {
   const [worldsLoading, setWorldsLoading] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
+  const menuId = useId();
 
   async function loadWorlds() {
     setWorldsLoading(true);
@@ -68,7 +70,7 @@ function WorldSelector({ effectiveWorldId, isCurrentLevel }) {
         onClick={() => setDropdownOpen((open) => !open)}
         aria-label={currentWorld ? `切换世界，当前：${currentWorld.name}` : '选择世界'}
         aria-expanded={dropdownOpen}
-        aria-haspopup="listbox"
+        aria-controls={dropdownOpen ? menuId : undefined}
         aria-current={isCurrentLevel ? 'page' : undefined}
       >
         <span className="we-topbar-world-name">{currentWorld?.name ?? '选择世界'}</span>
@@ -85,7 +87,8 @@ function WorldSelector({ effectiveWorldId, isCurrentLevel }) {
       <AnimatePresence>
         {dropdownOpen && (
           <motion.div
-            className="we-topbar-dropdown"
+            id={menuId}
+            className="we-menu we-topbar-dropdown we-on-shell"
             variants={m.variant('enter')}
             initial="hidden"
             animate="visible"
@@ -93,14 +96,15 @@ function WorldSelector({ effectiveWorldId, isCurrentLevel }) {
             transition={m.transition('enter')}
           >
             {worldsLoading ? (
-              <div className="we-topbar-dropdown-empty">加载中…</div>
+              <div className="we-menu__empty">加载中…</div>
             ) : worlds.length === 0 ? (
-              <div className="we-topbar-dropdown-empty">暂无世界记录</div>
+              <div className="we-menu__empty">暂无世界记录</div>
             ) : null}
             {!worldsLoading && worlds.map((world) => (
               <button
                 key={world.id}
-                className={`we-topbar-dropdown-item${world.id === effectiveWorldId ? ' we-topbar-dropdown-item--active' : ''}`}
+                className="we-menu__item"
+                aria-current={world.id === effectiveWorldId ? 'true' : undefined}
                 onClick={() => {
                   setDropdownOpen(false);
                   setCurrentWorldId(world.id);
@@ -109,12 +113,13 @@ function WorldSelector({ effectiveWorldId, isCurrentLevel }) {
                   navigate(`/worlds/${world.id}`);
                 }}
               >
-                {world.name}
+                <span className="we-menu__label">{world.name}</span>
+                {world.id === effectiveWorldId && <Check size={14} className="we-menu__check" aria-hidden="true" />}
               </button>
             ))}
-            {!worldsLoading && <div className="we-topbar-dropdown-divider" />}
+            {!worldsLoading && <div className="we-menu__divider" />}
             <button
-              className="we-topbar-dropdown-list-btn"
+              className="we-menu__item"
               onClick={() => { setDropdownOpen(false); navigate('/'); }}
             >
               前往世界列表

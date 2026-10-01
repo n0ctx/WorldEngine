@@ -1,4 +1,5 @@
 import ToggleSwitch from '../ui/ToggleSwitch';
+import SegmentedControl from '../ui/SegmentedControl';
 import Input from '../ui/Input';
 import FormGroup from '../ui/FormGroup';
 import { SETTINGS_MODE, DIARY_DATE_MODE } from '../../core/constants/settings';
@@ -42,7 +43,7 @@ function ToggleRow({ label, hint, checked, onChange, disabled = false }) {
           </p>
         )}
       </div>
-      <ToggleSwitch checked={checked} onChange={onChange} disabled={disabled} />
+      <ToggleSwitch checked={checked} onChange={onChange} disabled={disabled} label={label} />
     </div>
   );
 }
@@ -166,17 +167,7 @@ function MemorySettings({
       {diaryEnabled && (
         <div className="we-settings-date-mode">
           <p className="we-settings-date-label">日期模式</p>
-          <div className="we-settings-date-options">
-            {DIARY_DATE_OPTIONS.map(({ value, label }) => (
-              <button
-                key={value}
-                onClick={() => onDateMode(value)}
-                className={`we-settings-date-option${dateMode === value ? ' we-settings-date-option--active' : ''}`}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
+          <SegmentedControl options={DIARY_DATE_OPTIONS} value={dateMode} onChange={onDateMode} label="日期模式" />
           <p className="we-settings-date-hint">切换仅影响新建会话</p>
         </div>
       )}
@@ -261,17 +252,7 @@ function ResponseSettings({
 
           <div className="we-settings-date-mode">
             <p className="we-settings-date-label">滚动速度</p>
-            <div className="we-settings-date-options">
-              {DANMAKU_SPEED_OPTIONS.map(({ value, label }) => (
-                <button
-                  key={value}
-                  onClick={() => onChangeDanmakuSpeed(value)}
-                  className={`we-settings-date-option${danmakuSpeed === value ? ' we-settings-date-option--active' : ''}`}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
+            <SegmentedControl options={DANMAKU_SPEED_OPTIONS} value={danmakuSpeed} onChange={onChangeDanmakuSpeed} label="滚动速度" />
           </div>
         </>
       )}

@@ -4,6 +4,7 @@ import AvatarUpload from '../../components/ui/AvatarUpload';
 import Button from '../../components/ui/Button';
 import FormGroup from '../../components/ui/FormGroup';
 import Input from '../../components/ui/Input';
+import Textarea from '../../components/ui/Textarea';
 import SectionTabs from '../../components/ui/SectionTabs.jsx';
 import ToggleSwitch from '../../components/ui/ToggleSwitch';
 import {
@@ -87,8 +88,7 @@ function BasicSettingsSection({ isCreate, name, setName, description, setDescrip
         <Input value={name} onChange={e => setName(e.target.value)} placeholder="世界的名称" autoFocus={isCreate} />
       </FormGroup>
       <FormGroup label="简介" hint="纯展示用途，不注入提示词">
-        <textarea
-          className="we-textarea"
+        <Textarea
           rows={3}
           value={description}
           onChange={e => setDescription(e.target.value)}
@@ -125,6 +125,7 @@ function BasicSettingsSection({ isCreate, name, setName, description, setDescrip
             <ToggleSwitch
               checked={accentSource === 'manual'}
               onChange={handleAccentSourceToggle}
+              label="手动指定主色"
               disabled={accentSaving}
             />
             <span className="we-edit-accent-label">{accentSource === 'manual' ? '手动指定' : '自动（跟随封面）'}</span>

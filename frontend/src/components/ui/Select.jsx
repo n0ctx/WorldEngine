@@ -2,6 +2,7 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'framer-motion';
+import { Check } from 'lucide-react';
 import { useClickOutside } from '../../core/hooks/useClickOutside.js';
 import { useMotion } from '../../core/hooks/useMotion.js';
 
@@ -12,7 +13,7 @@ const MAX_HEIGHT = 264;
 const MIN_COMFORT_HEIGHT = 160;
 
 // 列表挂在 body 上、按触发框定位：不被外层滚动容器裁切，也不被后面各自成层的兄弟元素盖住。
-// 字号、字体和强调色取自触发框，列表与它所在的控件同一尺寸、同一世界配色
+// 强调色取自触发框，列表与它所在的控件同一世界配色
 function placeList(trigger) {
   const rect = trigger.getBoundingClientRect();
   const style = getComputedStyle(trigger);
@@ -27,8 +28,6 @@ function placeList(trigger) {
     maxHeight: Math.min(MAX_HEIGHT, up ? above : below),
     top: up ? undefined : rect.bottom + GAP,
     bottom: up ? window.innerHeight - rect.top + GAP : undefined,
-    fontSize: style.fontSize,
-    fontFamily: style.fontFamily,
     '--we-color-accent': style.getPropertyValue('--we-color-accent') || undefined,
   };
 }
@@ -99,7 +98,7 @@ function SelectList({ id, options, selectedIndex, placement, onChoose, onClose, 
       tabIndex={-1}
       aria-activedescendant={optionId(active)}
       onKeyDown={handleKeyDown}
-      className="we-select-dropdown we-accent-scope"
+      className="we-menu we-select-dropdown we-accent-scope"
       style={placement}
       variants={m.variant('enter')}
       initial="hidden"
@@ -117,19 +116,10 @@ function SelectList({ id, options, selectedIndex, placement, onChoose, onClose, 
           aria-selected={index === selectedIndex}
           onMouseMove={() => { if (index !== active) setActive(index); }}
           onMouseDown={() => onChoose(index)}
-          className={[
-            'we-select-option',
-            index === active ? 'is-active' : '',
-            index === selectedIndex ? 'we-select-option--selected' : '',
-            option.value === '' ? 'we-select-option--empty' : '',
-          ].filter(Boolean).join(' ')}
+          className={['we-menu__item', index === active ? 'is-active' : ''].filter(Boolean).join(' ')}
         >
-          <span className="we-select-option__label">{option.label}</span>
-          {index === selectedIndex && (
-            <svg className="we-select-option__check" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <path d="M3.5 8.5l3 3 6-7" />
-            </svg>
-          )}
+          <span className={`we-menu__label${option.value === '' ? ' we-menu__hint' : ''}`}>{option.label}</span>
+          {index === selectedIndex && <Check size={14} className="we-menu__check" aria-hidden="true" />}
         </li>
       ))}
     </motion.ul>
@@ -141,6 +131,7 @@ function SelectList({ id, options, selectedIndex, placement, onChoose, onClose, 
  * options: { value: string, label: string }[]
  * autoOpen：挂载时展开（行内编辑一进入就能选）
  * onEscape：列表展开时按 Esc 收起后调用（行内编辑据此取消）
+ * size：md 36 高；sm 28 高、说明文字字号（编辑器里、表单行内）
  * 触发框是按钮、展开后焦点移进列表，由列表处理方向键；收起时焦点回到按钮。
  */
 export default function Select({
@@ -148,6 +139,7 @@ export default function Select({
   onChange,
   options = [],
   disabled = false,
+  size = 'md',
   className = '',
   autoOpen = false,
   onEscape,
@@ -192,7 +184,7 @@ export default function Select({
   }
 
   return (
-    <div ref={containerRef} className={['we-select', className].filter(Boolean).join(' ')}>
+    <div ref={containerRef} className={['we-select', size === 'sm' ? 'we-select-sm' : '', className].filter(Boolean).join(' ')}>
       <button
         ref={triggerRef}
         type="button"

@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import Icon from '../ui/Icon.jsx';
+import Input from '../ui/Input.jsx';
 import StateMemoryEntityDetail, { PinIcon } from './StateMemoryEntityDetail.jsx';
 
 const ENTITY_TYPE_LABELS = {
@@ -86,8 +87,8 @@ export default function StateMemoryEntityTab({ sessionId, data, schema, reload, 
         <p className="we-sm-intro">{intro}</p>
         <label className="we-sm-search">
           <SearchIcon />
-          <input
-            className="we-sm-search-input"
+          <Input
+            size="sm"
             placeholder="搜索名字或别名"
             value={search}
             onChange={(e) => setSearch(e.target.value)}

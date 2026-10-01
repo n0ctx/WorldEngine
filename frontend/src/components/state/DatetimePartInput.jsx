@@ -1,3 +1,4 @@
+import Input from '../ui/Input';
 import Select from '../ui/Select';
 
 const PART_OPTIONS = [
@@ -61,17 +62,18 @@ export default function DatetimePartInput({ value, onChange, className = '' }) {
   return (
     <div className={`we-datetime-part-input ${className}`}>
       <Select
+        size="sm"
         value={part}
         onChange={handlePartChange}
         options={PART_OPTIONS}
       />
-      <input
+      <Input
+        size="sm"
         type="text"
         inputMode="numeric"
         value={num}
         onChange={handleNumChange}
         placeholder={constraint.placeholder}
-        className="we-entry-condition-input"
         style={{ width: '6em' }}
       />
     </div>

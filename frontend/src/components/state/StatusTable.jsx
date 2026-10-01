@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import Input from '../ui/Input.jsx';
 import SeamlessEditableSurface from '../../../../shared/SeamlessEditableSurface.jsx';
 import { isImeComposing } from '../../core/utils/ime.js';
 
@@ -97,7 +98,7 @@ function CellEditor({ initial, min, max, onCommit, onCancel }) {
         </span>
       )}
       renderEditor={() => (
-        <input
+        <Input
           ref={ref}
           type="number"
           value={draft}
@@ -110,7 +111,7 @@ function CellEditor({ initial, min, max, onCommit, onCancel }) {
             if (e.key === 'Enter') { e.preventDefault(); commit(draft); }
             if (e.key === 'Escape') { onCancel(); }
           }}
-          className="we-input we-status-inline-input we-status-table-input"
+          className="we-status-inline-input we-status-table-input"
         />
       )}
     />

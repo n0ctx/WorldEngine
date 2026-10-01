@@ -1123,55 +1123,18 @@
   position: relative;
 }
 
-/* Slash command dropdown */
+/* 斜杠命令：浮在输入框上方；表面与行取菜单，命令名用等宽字体对齐 */
 .we-chat-slash-dropdown {
   position: absolute;
   bottom: calc(100% + var(--we-space-xs));
   left: 0;
   right: 0;
-  background: var(--we-color-bg-canvas);
-  border: 1px solid var(--we-color-border-default);
-  border-top: 2px solid var(--we-color-accent);
-  border-radius: var(--we-radius-sm);
-  box-shadow: 0 -4px 16px var(--we-color-shade-2), 0 0 0 1px var(--we-color-shade-1);
-  overflow: hidden;
   z-index: var(--we-z-dropdown);
 }
-
-.we-chat-slash-item {
-  width: 100%;
-  text-align: left;
-  padding: var(--we-space-md) var(--we-space-lg);
-  display: flex;
-  align-items: baseline;
-  gap: var(--we-space-md);
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  transition: background var(--we-motion-state-duration) var(--we-motion-state-easing);
-}
-
-.we-chat-slash-item:hover,
-.we-chat-slash-item--active {
-  background: var(--we-color-bg-surface);
-}
-
 .we-chat-slash-item__cmd {
-  font-family: var(--we-font-mono);
-  font-size: var(--we-type-ui-size);
-  line-height: var(--we-type-ui-leading);
-  letter-spacing: var(--we-type-ui-tracking);
-  color: var(--we-color-accent);
   width: 112px;
   flex-shrink: 0;
-}
-
-.we-chat-slash-item__desc {
-  font-family: var(--we-font-prose);
-  font-size: var(--we-type-caption-size);
-  line-height: var(--we-type-caption-leading);
-  letter-spacing: var(--we-type-caption-tracking);
-  color: var(--we-color-text-tertiary);
+  font-family: var(--we-font-mono);
 }
 
 /* Impersonate thinking overlay */
@@ -2364,27 +2327,6 @@
   align-items: center;
   gap: var(--we-space-xs);
   flex-shrink: 0;
-}
-
-.we-css-snippet-row__toggle {
-  font-family: var(--we-font-prose);
-  font-size: var(--we-type-caption-size);
-  line-height: var(--we-type-caption-leading);
-  letter-spacing: var(--we-type-caption-tracking);
-  padding: var(--we-space-xxs) var(--we-space-sm);
-  border: 1px solid var(--we-color-border-default);
-  color: var(--we-color-text-tertiary);
-  background: transparent;
-  cursor: pointer;
-  transition: color var(--we-motion-state-duration) var(--we-motion-state-easing),
-              border-color var(--we-motion-state-duration) var(--we-motion-state-easing),
-              background var(--we-motion-state-duration) var(--we-motion-state-easing);
-}
-
-.we-css-snippet-row__toggle--on {
-  border-color: var(--we-color-accent);
-  color: var(--we-color-accent);
-  background: var(--we-color-accent-bg);
 }
 
 .we-css-snippet-editor__textarea {

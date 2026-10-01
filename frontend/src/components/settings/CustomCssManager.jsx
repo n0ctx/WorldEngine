@@ -8,6 +8,7 @@ import { useAppModeStore } from '../../core/state/appMode';
 import Button from '../ui/Button';
 import IconButton from '../ui/IconButton';
 import Input from '../ui/Input';
+import ToggleSwitch from '../ui/ToggleSwitch';
 import Textarea from '../ui/Textarea';
 import SortableList from '../ui/SortableList';
 import DeleteButton from '../motion/DeleteButton.jsx';
@@ -171,14 +172,7 @@ function SnippetRow({ snippet, onEdit, onToggle, onDelete }) {
       </div>
 
       <div className="we-css-snippet-row__actions">
-        <button
-          type="button"
-          onClick={onToggle}
-          title={snippet.enabled ? '点击禁用' : '点击启用'}
-          className={`we-css-snippet-row__toggle${snippet.enabled ? ' we-css-snippet-row__toggle--on' : ''}`}
-        >
-          {snippet.enabled ? '启用' : '禁用'}
-        </button>
+        <ToggleSwitch size="sm" checked={!!snippet.enabled} onChange={onToggle} label="启用片段" />
         <IconButton size="sm" label="编辑" onClick={onEdit}>
           <Icon>
             <path d="M12 20h9" />

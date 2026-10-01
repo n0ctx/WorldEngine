@@ -67,10 +67,10 @@ it('保存关键词触发设置和仍在输入框中的关键词', async () => {
   );
 
   fireEvent.click(screen.getByLabelText('assistant 消息'));
-  fireEvent.click(screen.getByRole('button', { name: 'AND' }));
-  const keywordInput = screen.getByRole('textbox', { name: '输入触发关键词' });
+  fireEvent.click(screen.getByRole('radio', { name: 'AND' }));
+  const keywordInput = screen.getByRole('textbox', { name: '触发关键词' });
   fireEvent.change(keywordInput, { target: { value: '新词' } });
-  fireEvent.keyDown(keywordInput, { key: 'Enter', code: 'Enter' });
+  fireEvent.blur(keywordInput);
   fireEvent.click(screen.getByRole('button', { name: '保存' }));
 
   await waitFor(() => expect(api.updateWorldEntry).toHaveBeenCalledWith('entry-2', expect.objectContaining({

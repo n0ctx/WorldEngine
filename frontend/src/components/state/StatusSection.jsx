@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import Badge from '../ui/Badge.jsx';
 import Icon from '../ui/Icon.jsx';
 import StatusTable from './StatusTable.jsx';
 import StatusValueChange from './StatusValueChange.jsx';
@@ -120,7 +121,7 @@ function StatusValueDisplay({ row, type, editKey, editable, onSetEditingKey, tem
         title={editable ? '点击编辑' : undefined}
       >
         {items.map((item, idx) => (
-          <span key={idx} className="we-status-tag">{applyTemplateVars(item, templateCtx)}</span>
+          <Badge key={idx}>{applyTemplateVars(item, templateCtx)}</Badge>
         ))}
       </div>
     );

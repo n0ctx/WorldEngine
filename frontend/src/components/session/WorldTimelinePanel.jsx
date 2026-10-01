@@ -18,11 +18,11 @@
  * 会通过 chatSessionListBridge / writingSessionListBridge 把结果广播过来，本组件按 currentMode
  * 订阅对应的 bridge，把新会话 / 新标题合并进时间线，不用整表重新拉取。
  */
+import { Button, IconButton, Input } from '../index.js';
 import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { PencilLine, Trash2 } from 'lucide-react';
-import Button from '../ui/Button.jsx';
-import IconButton from '../ui/IconButton.jsx';
+import StorylineModeBadge from './StorylineModeBadge.jsx';
 import { getWorldTimeline, renameSession } from '../../core/api/sessions.js';
 import { getCharactersByWorld } from '../../core/api/characters.js';
 import { chatSessionListBridge, writingSessionListBridge } from '../../core/utils/session-list-bridge.js';
@@ -38,14 +38,6 @@ const MotionSpan = motion.span;
 
 // 入场逐条浮现只排前几条：列表长时后面的条目不再额外等待
 const STAGGER_CAP = 8;
-
-function StorylineModeBadge({ mode }) {
-  return (
-    <span className={`we-storyline-mode we-storyline-mode--${mode}`}>
-      {mode === 'writing' ? '写作' : '对话'}
-    </span>
-  );
-}
 
 function TimelineItem({ item, title, index, isActive, editable, onClick, onRename, onDelete }) {
   const motionPrefs = useMotion();
@@ -114,9 +106,9 @@ function TimelineItem({ item, title, index, isActive, editable, onClick, onRenam
       <StorylineModeBadge mode={item.mode} />
       <div className="we-storyline-item-info">
         {editing ? (
-          <input
+          <Input
             ref={inputRef}
-            className="we-session-item__edit-input"
+            size="sm"
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             onKeyDown={handleEditKeyDown}

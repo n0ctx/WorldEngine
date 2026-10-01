@@ -414,7 +414,7 @@
 }
 
 :where(:root[data-motion="liquid"]) :is(
-  .we-section-tab, .we-select-option, .we-settings-nav-item, .we-chat-slash-item, .we-sm-chip
+  .we-section-tab, .we-menu__item, .we-settings-nav-item
 ) {
   transition: translate var(--ink-press-out) var(--ink-spring),
     color var(--we-motion-state-duration) var(--we-motion-state-easing),

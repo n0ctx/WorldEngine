@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import Dialog from '../ui/Dialog.jsx';
 import Button from '../ui/Button.jsx';
+import Input from '../ui/Input.jsx';
+import Textarea from '../ui/Textarea.jsx';
 import { analyzeEntityForCard, createCharacterFromEntity } from '../../core/api/state-memory.js';
 import { log } from '../../core/utils/logger.js';
 
@@ -100,8 +102,7 @@ export default function MakeCardModal({ worldId, sessionId, entity, onClose, onC
         <>
           <label className="we-make-card-modal-field">
             <span className="we-make-card-modal-label">名字</span>
-            <input
-              className="we-make-card-modal-input"
+            <Input
               value={draft.name}
               onChange={(e) => setDraft({ ...draft, name: e.target.value })}
               disabled={loading}
@@ -110,8 +111,7 @@ export default function MakeCardModal({ worldId, sessionId, entity, onClose, onC
 
           <label className="we-make-card-modal-field">
             <span className="we-make-card-modal-label">简介</span>
-            <textarea
-              className="we-make-card-modal-textarea"
+            <Textarea
               value={draft.description}
               rows={2}
               onChange={(e) => setDraft({ ...draft, description: e.target.value })}
@@ -121,8 +121,7 @@ export default function MakeCardModal({ worldId, sessionId, entity, onClose, onC
 
           <label className="we-make-card-modal-field">
             <span className="we-make-card-modal-label">人设（system_prompt）</span>
-            <textarea
-              className="we-make-card-modal-textarea"
+            <Textarea
               value={draft.system_prompt}
               rows={4}
               onChange={(e) => setDraft({ ...draft, system_prompt: e.target.value })}
@@ -132,8 +131,7 @@ export default function MakeCardModal({ worldId, sessionId, entity, onClose, onC
 
           <label className="we-make-card-modal-field">
             <span className="we-make-card-modal-label">开场白</span>
-            <textarea
-              className="we-make-card-modal-textarea"
+            <Textarea
               value={draft.first_message}
               rows={2}
               onChange={(e) => setDraft({ ...draft, first_message: e.target.value })}

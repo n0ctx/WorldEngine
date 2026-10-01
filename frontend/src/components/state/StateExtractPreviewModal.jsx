@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
+import Badge from '../ui/Badge';
 import Button from '../ui/Button';
+import Checkbox from '../ui/Checkbox';
 import Dialog from '../ui/Dialog';
 import { ISO_DATETIME_RE, formatBooleanDisplay, formatDatetimeChinese, parseLooseJson } from './state-value-format';
 import { toggleSetValue } from '../../core/utils/toggleSetValue.js';
@@ -168,24 +170,20 @@ export default function StateExtractPreviewModal({ onExtract, onConfirm, onClose
 
           <div className="we-extract-list">
             {rows.map((row) => (
-              <label
+              <Checkbox
                 key={row.field_key}
                 className={`we-extract-row${row.isOverride ? ' we-extract-row--override' : ''}`}
+                checked={selected.has(row.field_key)}
+                onChange={() => toggle(row.field_key)}
+                aria-label={`勾选写入 ${row.label}`}
               >
-                <input
-                  type="checkbox"
-                  className="we-extract-checkbox"
-                  checked={selected.has(row.field_key)}
-                  onChange={() => toggle(row.field_key)}
-                  aria-label={`勾选写入 ${row.label}`}
-                />
                 <div className="we-extract-body">
                   <div className="we-extract-row-head">
                     <span className="we-extract-label">{row.label}</span>
                     {row.isOverride ? (
-                      <span className="we-extract-badge we-extract-badge--override">将覆盖</span>
+                      <Badge tone="warning">将覆盖</Badge>
                     ) : (
-                      <span className="we-extract-badge we-extract-badge--new">新增</span>
+                      <Badge tone="success">新增</Badge>
                     )}
                   </div>
                   <div className="we-extract-values">
@@ -198,7 +196,7 @@ export default function StateExtractPreviewModal({ onExtract, onConfirm, onClose
                     </span>
                   </div>
                 </div>
-              </label>
+              </Checkbox>
             ))}
           </div>
         </>

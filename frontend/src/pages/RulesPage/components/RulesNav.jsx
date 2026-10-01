@@ -1,4 +1,5 @@
 import { useRef } from 'react';
+import Badge from '../../../components/ui/Badge.jsx';
 import BounceRail from '../../../components/motion/BounceRail.jsx';
 import { FIELD_SCOPE_KEYS, SCOPES, TRIGGER_TYPES } from '../constants.js';
 
@@ -26,7 +27,7 @@ export default function RulesNav({
           onClick={() => onSelectEntryGroup('all')}
         >
           <span>全部</span>
-          <span className="we-field-badge">{entries.length}</span>
+          <Badge>{entries.length}</Badge>
         </button>
         {TRIGGER_TYPES.map(({ key, label }) => (
           <button
@@ -36,7 +37,7 @@ export default function RulesNav({
             onClick={() => onSelectEntryGroup(key)}
           >
             <span>{label}</span>
-            <span className="we-field-badge">{triggerCounts[key]}</span>
+            <Badge>{triggerCounts[key]}</Badge>
           </button>
         ))}
       </div>
@@ -51,7 +52,7 @@ export default function RulesNav({
             onClick={() => onSelectFieldScope(k)}
           >
             <span>{SCOPES[k].label}状态</span>
-            <span className="we-field-badge">{fieldsByScope[k].length}</span>
+            <Badge>{fieldsByScope[k].length}</Badge>
           </button>
         ))}
       </div>

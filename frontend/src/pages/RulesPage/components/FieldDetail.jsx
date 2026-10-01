@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import Badge from '../../../components/ui/Badge.jsx';
 import Button from '../../../components/ui/Button.jsx';
 import StateFieldEditor from '../../../components/state/StateFieldEditor';
 import EntryEditor from '../../../components/state/EntryEditor';
@@ -18,7 +19,7 @@ export default function FieldDetail({ worldId, scope, scopeKey, field, onDefinit
       <div className="we-workshop-detail-head">
         <div>
           <h3 className="we-entry-editor-title we-workshop-detail-title">{field.label}</h3>
-          <span className="we-entry-section-badge">{TYPE_LABEL[field.type] ?? field.type}</span>
+          <Badge>{TYPE_LABEL[field.type] ?? field.type}</Badge>
           {field.description && <p className="we-workshop-detail-desc">{field.description}</p>}
         </div>
         <Button

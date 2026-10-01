@@ -85,6 +85,7 @@ export default function DefaultValueMatrix({ worldId, scope, field }) {
               <span className="we-workshop-bulk-label">批量填同值</span>
               <div className="we-workshop-bulk">
                 <StateValueField
+                  size="sm"
                   key={`bulk:${field.field_key}`}
                   field={bulkField}
                   onSave={handleBulkDraft}
@@ -109,6 +110,7 @@ export default function DefaultValueMatrix({ worldId, scope, field }) {
                 <div className="we-workshop-matrix-value">
                   {row ? (
                     <StateValueField
+                      size="sm"
                       field={row}
                       onSave={(fk, vj) => handleCellSave(inst.id, fk, vj)}
                     />

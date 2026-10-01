@@ -1,14 +1,6 @@
+import { Badge, Button, Card, Checkbox, Input, PanelCard, Range, SegmentedControl, Select, TagInput, Textarea, ToggleSwitch } from '../../../components/index.js';
 import { useState } from 'react';
-import Badge from '../../../components/ui/Badge.jsx';
-import Button from '../../../components/ui/Button.jsx';
-import Card from '../../../components/ui/Card.jsx';
 import EmptyState from '../../../components/ui/EmptyState.jsx';
-import Input from '../../../components/ui/Input.jsx';
-import PanelCard from '../../../components/ui/PanelCard.jsx';
-import Range from '../../../components/ui/Range.jsx';
-import Select from '../../../components/ui/Select.jsx';
-import Textarea from '../../../components/ui/Textarea.jsx';
-import ToggleSwitch from '../../../components/ui/ToggleSwitch.jsx';
 import MessageItem from '../../../components/chat/MessageItem.jsx';
 import VisualSection from '../VisualSection.jsx';
 import { SELECT_OPTIONS } from '../demos/fixtures.js';
@@ -25,24 +17,49 @@ const MESSAGES = [
   },
 ];
 
+const BADGE_TONES = [['neutral', '默认'], ['accent', '强调'], ['success', '新增'], ['warning', '覆盖'], ['danger', '错误'], ['info', '写作']];
+const DATE_OPTIONS = [{ value: 'real', label: '真实日期' }, { value: 'story', label: '故事内日期' }];
+const LOGIC_OPTIONS = [{ value: 'AND', label: 'AND' }, { value: 'OR', label: 'OR' }];
+
 export function ControlsDemo() {
   const [on, setOn] = useState(true);
   const [value, setValue] = useState(40);
   const [choice, setChoice] = useState('a');
+  const [date, setDate] = useState('real');
+  const [logic, setLogic] = useState('AND');
+  const [checked, setChecked] = useState(true);
+  const [tags, setTags] = useState(['雨夜', '拳场']);
   return (
     <VisualSection id="controls">
       <div className="we-design-lab__grid">
         <div className="we-design-lab__row">
-          <Badge>默认</Badge>
-          <Badge variant="accent">强调</Badge>
-          <Badge variant="error">错误</Badge>
+          {BADGE_TONES.map(([tone, label]) => <Badge key={tone} tone={tone}>{label}</Badge>)}
         </div>
-        <Input placeholder="单行输入" />
-        <Textarea placeholder="多行输入" rows={3} />
         <div className="we-design-lab__row">
+          <SegmentedControl label="日期模式" options={DATE_OPTIONS} value={date} onChange={setDate} />
+          <SegmentedControl size="sm" label="条件逻辑" options={LOGIC_OPTIONS} value={logic} onChange={setLogic} />
+        </div>
+        <div className="we-design-lab__row">
+          <Input placeholder="中号输入" />
           <Select value={choice} onChange={setChoice} options={SELECT_OPTIONS} />
-          <ToggleSwitch checked={on} onChange={setOn} />
-          <ToggleSwitch checked={false} onChange={noop} disabled />
+        </div>
+        <div className="we-design-lab__row">
+          <Input size="sm" placeholder="小号输入" />
+          <Select size="sm" value={choice} onChange={setChoice} options={SELECT_OPTIONS} />
+        </div>
+        <Textarea placeholder="多行输入" rows={3} />
+        <TagInput
+          label="关键词"
+          values={tags}
+          onAdd={(tag) => setTags([...tags, tag])}
+          onRemove={(tag) => setTags(tags.filter((t) => t !== tag))}
+        />
+        <div className="we-design-lab__row">
+          <Checkbox checked={checked} onChange={setChecked}>user 消息</Checkbox>
+          <Checkbox checked={false} onChange={noop} disabled>不可用</Checkbox>
+          <ToggleSwitch label="开关" checked={on} onChange={setOn} />
+          <ToggleSwitch label="小号开关" size="sm" checked={on} onChange={setOn} />
+          <ToggleSwitch label="不可用开关" checked={false} onChange={noop} disabled />
         </div>
         <Range value={value} min={0} max={100} onChange={(e) => setValue(Number(e.target.value))} />
       </div>

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import Input from '../ui/Input.jsx';
 import DatetimeSplitInput from './DatetimeSplitInput.jsx';
 import { formatDatetimeChinese } from './state-value-format.js';
 import { isImeComposing } from '../../core/utils/ime.js';
@@ -64,8 +65,7 @@ function WorldLocationField({ location, locationOptions, onCommit }) {
   return (
     <div className="we-status-field we-status-field--editing">
       <span className="we-status-key">当前地点</span>
-      <input
-        className="we-input"
+      <Input
         list="we-world-location-options"
         value={draft}
         autoFocus

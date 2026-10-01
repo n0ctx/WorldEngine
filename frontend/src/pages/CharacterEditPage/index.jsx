@@ -10,6 +10,7 @@ import {
 import MarkdownEditor from '../../components/ui/MarkdownEditor';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
+import Textarea from '../../components/ui/Textarea';
 import DoneConfirm from './components/DoneConfirm.jsx';
 import CardEditTabs from '../../components/state/CardEditTabs.jsx';
 import EditPageShell from '../layout/EditPageShell';
@@ -206,8 +207,7 @@ export default function CharacterEditPage() {
           <Input value={name} onChange={e => setName(e.target.value)} placeholder="角色的名字" autoFocus={isCreate} />
         </FormGroup>
         <FormGroup label="简介" hint="纯展示用途，不注入提示词">
-          <textarea
-            className="we-textarea"
+          <Textarea
             rows={3}
             value={description}
             onChange={e => setDescription(e.target.value)}

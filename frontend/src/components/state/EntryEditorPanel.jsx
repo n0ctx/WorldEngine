@@ -2,15 +2,27 @@ import { X } from 'lucide-react';
 import Button from '../ui/Button';
 import Dialog from '../ui/Dialog';
 import IconButton from '../ui/IconButton';
+import Input from '../ui/Input';
 import MarkdownEditor from '../ui/MarkdownEditor';
+import SegmentedControl from '../ui/SegmentedControl';
 import EntryEditorKeywordFields from './EntryEditorKeywordFields.jsx';
 import EntryEditorStateFields from './EntryEditorStateFields.jsx';
 import { clampActiveTurns, clampToken, emptyCondition, TRIGGER_SEGMENTS } from './entryEditorRules.js';
 
+const TRIGGER_OPTIONS = TRIGGER_SEGMENTS.map((seg) => ({
+  value: seg.key,
+  label: (
+    <>
+      <span className={`we-trigger-dot we-trigger-dot--${seg.key}`} aria-hidden="true" />
+      {seg.label}
+    </>
+  ),
+}));
+
 export default function EntryEditorPanel({ model, inline }) {
   const {
     isNew, form, setForm, saving, onClose,
-    keywordInput, setKeywordInput, keywordRef, addKeyword, removeKeyword,
+    addKeyword, removeKeyword,
     suggestion, handleAdoptSuggestion, handleDismissSuggestion,
     conditions, fieldTypeMap, rawFieldsByScope, updateCondition, setConditions, handleSave,
   } = model;
@@ -19,28 +31,22 @@ export default function EntryEditorPanel({ model, inline }) {
     <>
       {/* 标题 */}
       <label className="we-entry-editor-label">标题</label>
-      <input
+      <Input
+        size="sm"
         value={form.title}
         onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
-        className="we-entry-editor-field we-entry-editor-field-mb"
+        className="we-entry-editor-field-mb"
       />
 
       <label className="we-entry-editor-label">何时生效</label>
-      <div className="we-trigger-segmented we-entry-editor-field-mb" role="radiogroup" aria-label="触发机制">
-        {TRIGGER_SEGMENTS.map((seg) => (
-          <button
-            key={seg.key}
-            type="button"
-            role="radio"
-            aria-checked={form.trigger_type === seg.key}
-            className={`we-trigger-segmented-btn${form.trigger_type === seg.key ? ' is-active' : ''}`}
-            onClick={() => setForm((f) => ({ ...f, trigger_type: seg.key }))}
-          >
-            <span className={`we-trigger-dot we-trigger-dot--${seg.key}`} aria-hidden="true" />
-            {seg.label}
-          </button>
-        ))}
-      </div>
+      <SegmentedControl
+        size="sm"
+        label="触发机制"
+        className="we-entry-editor-field-mb"
+        options={TRIGGER_OPTIONS}
+        value={form.trigger_type}
+        onChange={(trigger_type) => setForm((f) => ({ ...f, trigger_type }))}
+      />
 
       {/* 顺序权重 / 生效轮数（同一行） */}
       <div className="we-entry-editor-inline-row">
@@ -51,7 +57,8 @@ export default function EntryEditorPanel({ model, inline }) {
               <span className="we-entry-editor-hint"> · 设为 0 进入 CACHED LAYER</span>
             )}
           </label>
-          <input
+          <Input
+            size="sm"
             type="number"
             min={form.trigger_type === 'always' ? 0 : 1}
             step={1}
@@ -59,7 +66,6 @@ export default function EntryEditorPanel({ model, inline }) {
             onChange={(e) => {
               setForm((f) => ({ ...f, token: clampToken(e.target.value, f.trigger_type) }));
             }}
-            className="we-entry-editor-field"
             style={{ width: '80px' }}
           />
         </div>
@@ -69,7 +75,8 @@ export default function EntryEditorPanel({ model, inline }) {
               生效轮数（默认 1）
               <span className="we-entry-editor-hint"> · 设为 0 永久生效</span>
             </label>
-            <input
+            <Input
+              size="sm"
               type="number"
               min={0}
               step={1}
@@ -77,7 +84,6 @@ export default function EntryEditorPanel({ model, inline }) {
               onChange={(e) => {
                 setForm((f) => ({ ...f, active_turns: clampActiveTurns(e.target.value) }));
               }}
-              className="we-entry-editor-field"
               style={{ width: '80px' }}
             />
           </div>
@@ -129,13 +135,10 @@ export default function EntryEditorPanel({ model, inline }) {
       {form.trigger_type === 'keyword' && (
         <EntryEditorKeywordFields
           keywords={form.keywords}
-          keywordInput={keywordInput}
-          setKeywordInput={setKeywordInput}
           keywordLogic={form.keyword_logic}
           setKeywordLogic={(keyword_logic) => setForm((current) => ({ ...current, keyword_logic }))}
           keywordScope={form.keyword_scope}
           setKeywordScope={(keyword_scope) => setForm((current) => ({ ...current, keyword_scope }))}
-          keywordRef={keywordRef}
           addKeyword={addKeyword}
           removeKeyword={removeKeyword}
         />

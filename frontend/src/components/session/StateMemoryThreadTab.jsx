@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import Badge from '../ui/Badge.jsx';
 import Button from '../ui/Button.jsx';
 import Icon from '../ui/Icon.jsx';
 import { updateStateThread } from '../../core/api/state-memory.js';
@@ -32,7 +33,7 @@ function ThreadRow({ sessionId, thread, entities, reload }) {
   return (
     <li className={`we-sm-thread-item${active ? '' : ' is-closed'}`}>
       <div className="we-sm-thread-head">
-        <span className="we-sm-chip">{thread.kind}</span>
+        <Badge>{thread.kind}</Badge>
         <span className="we-sm-thread-meta">
           {participants && <>{participants} · </>}第 {thread.opened_round} 轮起
         </span>

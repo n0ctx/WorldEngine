@@ -29,7 +29,7 @@ describe('ModelCombobox', () => {
   it('filters typed input and selects the first match with Enter', () => {
     const onChange = vi.fn();
     render(<ModelCombobox value="" options={options} onChange={onChange} />);
-    const input = screen.getByRole('textbox');
+    const input = screen.getByRole('combobox');
 
     fireEvent.change(input, { target: { value: 'claude' } });
     expect(screen.getByText('claude-sonnet')).toBeInTheDocument();
@@ -38,18 +38,34 @@ describe('ModelCombobox', () => {
     fireEvent.keyDown(input, { key: 'Enter' });
 
     expect(onChange).toHaveBeenCalledWith('claude-sonnet');
-    expect(screen.queryByRole('list')).not.toBeInTheDocument();
+    expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
   });
 
   it('does not submit while the input method is composing', () => {
     const onChange = vi.fn();
     render(<ModelCombobox value="" options={options} onChange={onChange} />);
-    const input = screen.getByRole('textbox');
+    const input = screen.getByRole('combobox');
 
     fireEvent.change(input, { target: { value: '拼音' } });
     fireEvent.keyDown(input, { key: 'Enter', isComposing: true });
 
     expect(onChange).not.toHaveBeenCalled();
     expect(screen.getByRole('button', { name: '收起列表' })).toBeInTheDocument();
+  });
+
+  it('moves through options with the arrow keys and picks the highlighted one', () => {
+    const onChange = vi.fn();
+    render(<ModelCombobox value="gpt-4o" options={options} onChange={onChange} />);
+    const input = screen.getByRole('combobox');
+
+    fireEvent.focus(input);
+    expect(screen.getByRole('option', { name: /gpt-4o/ })).toHaveAttribute('aria-selected', 'true');
+    fireEvent.keyDown(input, { key: 'ArrowDown' });
+    fireEvent.keyDown(input, { key: 'ArrowDown' });
+    const active = screen.getByRole('option', { name: /claude-sonnet/ });
+    expect(input).toHaveAttribute('aria-activedescendant', active.id);
+    fireEvent.keyDown(input, { key: 'Enter' });
+
+    expect(onChange).toHaveBeenCalledWith('claude-sonnet');
   });
 });

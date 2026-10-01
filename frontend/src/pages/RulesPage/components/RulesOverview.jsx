@@ -1,3 +1,4 @@
+import Badge from '../../../components/ui/Badge.jsx';
 import { FIELD_SCOPE_KEYS, SCOPES, TRIGGER_LABEL, TRIGGER_TYPES } from '../constants.js';
 
 // ── 右栏空态：不用一句灰字占满六成屏，改为整个世界规则的概览——
@@ -54,7 +55,7 @@ export default function RulesOverview({ entries, fieldsByScope, hint }) {
           <ol className="we-rules-overview-order">
             {orderPreview.map((e) => (
               <li key={e.id} className={e.enabled === 0 ? 'is-disabled' : undefined}>
-                <span className="we-entry-section-badge">{TRIGGER_LABEL[e.trigger_type]}</span>
+                <Badge>{TRIGGER_LABEL[e.trigger_type]}</Badge>
                 <span>{e.title || '（无标题）'}</span>
               </li>
             ))}

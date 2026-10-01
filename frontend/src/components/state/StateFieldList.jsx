@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import { PencilLine, Trash2 } from 'lucide-react';
 import { SortableList } from '../index';
+import Badge from '../ui/Badge.jsx';
 import Button from '../ui/Button.jsx';
 import ConfirmModal from '../ui/ConfirmModal.jsx';
 import IconButton from '../ui/IconButton.jsx';
@@ -145,8 +146,8 @@ function FieldRow({ field, onEdit, onDelete }) {
         <span className="we-type-ui text-[var(--we-color-text-primary)] truncate">{field.label}</span>
         <span className="we-type-caption text-[var(--we-color-text-faint)] [font-family:var(--we-font-mono)] truncate">{field.field_key}</span>
         <span className="ml-auto flex gap-1 flex-shrink-0">
-          <Badge label={TYPE_LABEL[field.type] ?? field.type} />
-          <Badge label={UPDATE_LABEL[field.update_mode] ?? field.update_mode} dim />
+          <Badge tone="accent">{TYPE_LABEL[field.type] ?? field.type}</Badge>
+          <Badge>{UPDATE_LABEL[field.update_mode] ?? field.update_mode}</Badge>
         </span>
       </div>
 
@@ -159,13 +160,5 @@ function FieldRow({ field, onEdit, onDelete }) {
         </IconButton>
       </div>
     </div>
-  );
-}
-
-function Badge({ label, dim }) {
-  return (
-    <span className={dim ? 'we-field-badge' : 'we-field-badge-accent'}>
-      {label}
-    </span>
   );
 }

@@ -2,8 +2,15 @@ import { X } from 'lucide-react';
 import DatetimePartInput from './DatetimePartInput';
 import Button from '../ui/Button';
 import IconButton from '../ui/IconButton';
+import Input from '../ui/Input';
 import Select from '../ui/Select';
+import SegmentedControl from '../ui/SegmentedControl';
 import { getColOptions, getFieldOptions, getOpsForField, SCOPE_OPTIONS } from './entryEditorRules.js';
+
+const LOGIC_OPTIONS = [
+  { value: 'AND', label: 'AND' },
+  { value: 'OR', label: 'OR' },
+];
 
 export default function EntryEditorStateFields({
   conditions,
@@ -21,18 +28,13 @@ export default function EntryEditorStateFields({
         <label className="we-entry-editor-label">
           状态条件（{conditionLogic === 'OR' ? '任一满足时注入' : '全部满足时注入'}）
         </label>
-        <div className="we-entry-condition-logic-toggle">
-          <button
-            type="button"
-            className={`we-entry-condition-logic-btn${conditionLogic === 'AND' ? ' active' : ''}`}
-            onClick={() => setConditionLogic('AND')}
-          >AND</button>
-          <button
-            type="button"
-            className={`we-entry-condition-logic-btn${conditionLogic === 'OR' ? ' active' : ''}`}
-            onClick={() => setConditionLogic('OR')}
-          >OR</button>
-        </div>
+        <SegmentedControl
+          size="sm"
+          label="状态条件匹配方式"
+          options={LOGIC_OPTIONS}
+          value={conditionLogic}
+          onChange={setConditionLogic}
+        />
       </div>
       {conditions.map((condition, index) => {
         const operators = getOpsForField(condition.target_field, fieldTypeMap);
@@ -42,11 +44,13 @@ export default function EntryEditorStateFields({
           <div key={index} className="we-entry-condition">
             <div className="we-entry-condition-field">
               <Select
+                size="sm"
                 value={condition.scope}
                 onChange={(value) => updateCondition(index, { scope: value })}
                 options={SCOPE_OPTIONS}
               />
               <Select
+                size="sm"
                 value={condition.field_label}
                 onChange={(value) => updateCondition(index, { field_label: value })}
                 options={getFieldOptions(rawFieldsByScope, condition.scope)}
@@ -54,6 +58,7 @@ export default function EntryEditorStateFields({
               />
               {columnOptions && (
                 <Select
+                  size="sm"
                   value={condition.col_key}
                   onChange={(value) => updateCondition(index, { col_key: value })}
                   options={columnOptions}
@@ -62,6 +67,7 @@ export default function EntryEditorStateFields({
             </div>
             <div className="we-entry-condition-op">
               <Select
+                size="sm"
                 value={condition.operator}
                 onChange={(value) => updateCondition(index, { operator: value })}
                 options={operators}
@@ -74,12 +80,13 @@ export default function EntryEditorStateFields({
                 className="we-entry-condition-value"
               />
             ) : (
-              <input
+              <Input
+                size="sm"
                 type="text"
                 value={condition.value}
                 onChange={(event) => updateCondition(index, { value: event.target.value })}
                 placeholder="值"
-                className="we-entry-condition-input we-entry-condition-value"
+                className="we-entry-condition-value"
                 aria-label={`状态条件 ${index + 1} 的值`}
               />
             )}

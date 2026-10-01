@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { AnimatePresence } from 'framer-motion';
+import Badge from '../ui/Badge.jsx';
+import Button from '../ui/Button.jsx';
 import ConfirmModal from '../ui/ConfirmModal.jsx';
 import Icon from '../ui/Icon.jsx';
 import { deleteStateEntity, updateStateEntity } from '../../core/api/state-memory.js';
@@ -55,33 +57,33 @@ export default function StateMemoryEntityDetail({ sessionId, entity, typeLabel, 
         <div className="we-sm-detail-heading">
           <h3>{entity.name}</h3>
           <div className="we-sm-detail-meta">
-            <span className="we-sm-chip">{typeLabel}</span>
-            {present && <span className="we-sm-chip we-sm-chip--accent">在场</span>}
-            {retired && <span className="we-sm-chip">已退场</span>}
+            <Badge>{typeLabel}</Badge>
+            {present && <Badge tone="accent">在场</Badge>}
+            {retired && <Badge>已退场</Badge>}
             {entity.aliases?.length > 0 && <span>又名 {entity.aliases.join('、')}</span>}
           </div>
         </div>
         <div className="we-sm-detail-actions">
-          <button
-            type="button"
-            className={`we-sm-pin-toggle${entity.pinned ? ' is-on' : ''}`}
-            aria-pressed={entity.pinned}
+          <Button
+            size="sm"
+            variant="secondary"
+            aria-pressed={!!entity.pinned}
             aria-label="置顶"
             title="置顶后每轮都会提供给 AI"
             onClick={togglePinned}
           >
             <PinIcon />
             {entity.pinned ? '已置顶' : '置顶'}
-          </button>
+          </Button>
           {!retired && (
-            <button
-              type="button"
-              className="we-sm-pin-toggle we-sm-delete-toggle"
+            <Button
+              size="sm"
+              variant="secondary"
               title="删除后标记为已退场，相关关系一并关闭"
               onClick={() => setConfirmDelete(true)}
             >
               删除实体
-            </button>
+            </Button>
           )}
         </div>
       </div>

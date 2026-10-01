@@ -1,5 +1,5 @@
 import React from 'react';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 
 import StatusSection from '../../../src/components/state/StatusSection.jsx';
@@ -248,11 +248,11 @@ describe('StatusSection', () => {
 
     fireEvent.click(screen.getByText('很长的药草名称'));
 
-    expect(container.querySelector('.we-seamless-edit__overlay .we-tag-input')).not.toBeNull();
+    expect(container.querySelector('.we-seamless-edit__overlay')).toContainElement(screen.getByRole('group', { name: '编辑列表项' }));
   });
 
   it('列表字段编辑态挂上专用 class，避免和通用 tag 样式混用', () => {
-    const { container } = render(
+    render(
       <StatusSection
         headerless
         rows={[{
@@ -268,9 +268,10 @@ describe('StatusSection', () => {
 
     fireEvent.click(screen.getByText('药草'));
 
-    expect(container.querySelector('.we-tag-input.we-status-inline-list')).not.toBeNull();
-    expect(container.querySelector('.we-status-inline-list .we-tag')).not.toBeNull();
-    expect(container.querySelector('.we-status-inline-list__input')).not.toBeNull();
+    const group = screen.getByRole('group', { name: '编辑列表项' });
+    expect(group).toHaveClass('we-status-inline-list');
+    expect(within(group).getByRole('button', { name: '删除 药草' })).toBeInTheDocument();
+    expect(within(group).getByRole('textbox')).toBeInTheDocument();
   });
 
   it('枚举字段点击编辑区外会取消编辑', () => {

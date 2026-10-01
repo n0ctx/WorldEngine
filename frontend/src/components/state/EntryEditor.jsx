@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import EntryEditorPanel from './EntryEditorPanel.jsx';
 import { log } from '../../core/utils/logger.js';
 import saveEntryEditor from './saveEntryEditor.js';
@@ -25,8 +25,6 @@ export default function EntryEditor({
     token: entry?.token ?? 1,
   });
   const [saving, setSaving] = useState(false);
-  const [keywordInput, setKeywordInput] = useState('');
-  const keywordRef = useRef(null);
   const editorData = useEntryEditorData({
     worldId, entry, isNew, prefillCondition, triggerType: form.trigger_type,
   });
@@ -37,11 +35,8 @@ export default function EntryEditor({
     form.content, form.trigger_type, editorData.properNouns, editorData.allStateFieldLabels,
   );
 
-  function addKeyword(raw) {
-    const v = String(raw ?? '').trim();
-    if (!v) return;
-    setForm((f) => (f.keywords.includes(v) ? f : { ...f, keywords: [...f.keywords, v] }));
-    setKeywordInput('');
+  function addKeyword(value) {
+    setForm((f) => ({ ...f, keywords: [...f.keywords, value] }));
   }
   function removeKeyword(v) {
     setForm((f) => ({ ...f, keywords: f.keywords.filter((k) => k !== v) }));
@@ -87,7 +82,7 @@ export default function EntryEditor({
     }
     setSaving(true);
     try {
-      await saveEntryEditor({ worldId, entry, isNew, form, keywordInput, conditions, onSave });
+      await saveEntryEditor({ worldId, entry, isNew, form, conditions, onSave });
     } catch (err) {
       log.error('entry.save_failed', err, { toast: `保存失败：${err.message}` });
     } finally {
@@ -97,7 +92,7 @@ export default function EntryEditor({
 
   const model = {
     isNew, form, setForm, saving, onClose,
-    keywordInput, setKeywordInput, keywordRef, addKeyword, removeKeyword,
+    addKeyword, removeKeyword,
     suggestion, handleAdoptSuggestion, handleDismissSuggestion,
     conditions, fieldTypeMap, rawFieldsByScope, updateCondition, setConditions, handleSave,
   };

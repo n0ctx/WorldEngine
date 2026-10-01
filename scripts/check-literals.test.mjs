@@ -98,7 +98,7 @@ const BAD_CSS = `.bad {
 const BAD_JSX = `export function Bad({ open }) {
   return (
     <div
-      className={\`we-btn we-btn-sm text-sm rounded-lg tracking-wide leading-tight font-mono font-bold opacity-50 opacity-[.3] bg-white/50 [font-size:var(--we-type-ui-size)] text-[length:var(--we-type-ui-size)] \${open ? 'text-[13px] bg-[#fff]' : 'hover:rounded-[6px]'}\`}
+      className={\`we-btn we-btn-sm we-input text-sm rounded-lg tracking-wide leading-tight font-mono font-bold opacity-50 opacity-[.3] bg-white/50 [font-size:var(--we-type-ui-size)] text-[length:var(--we-type-ui-size)] \${open ? 'text-[13px] bg-[#fff]' : 'hover:rounded-[6px]'}\`}
       style={{ fontSize: 13, zIndex: 10, borderRadius: 8, lineHeight: 1.4, letterSpacing: '0.1em', boxShadow: '0 0 4px rgba(0,0,0,0.2)', transition: 'opacity 0.3s ease', opacity: 0.5, color: '#ff0000', '--we-x': 'var(--we-core-ink-900)' }}
       animate={{ x: 1 }}
       transition={{ duration: 0.24, delay: 0, type: 'spring', stiffness: 320 }}
@@ -171,7 +171,7 @@ test('每条规则的字面量都被报出，并写明改成哪类 token', () =>
     ['tailwind', 'font-mono'], ['tailwind', 'bg-white/50'], ['tailwind', 'text-\\[13px\\]'], ['tailwind', 'bg-\\[#fff\\]'],
     ['tailwind', 'rounded-\\[6px\\]'], ['tailwind', 'font-bold'], ['tailwind', 'opacity-50'], ['tailwind', 'opacity-\\[\\.3\\]'],
     ['tailwind', '\\[font-size:var\\(--we-type-ui-size\\)\\]'], ['tailwind', 'text-\\[length:var\\(--we-type-ui-size\\)\\]'],
-    ['primitive-class', 'we-btn'], ['primitive-class', 'we-btn-sm'],
+    ['primitive-class', 'we-btn'], ['primitive-class', 'we-btn-sm'], ['primitive-class', 'we-input'],
     ['font-size', '13px'], ['z-index', '10'], ['radius', '8px'], ['line-height', '1\\.4'], ['letter-spacing', '0\\.1em'],
     ['shadow', 'rgba\\(0,0,0,0\\.2\\)'], ['motion', '0\\.3s'], ['motion', 'duration: 0\\.24'], ['motion', 'stiffness: 320'], ['color', '#ff0000'], ['layer', '--we-core-ink-900'], ['opacity', '0\\.5'],
   ]) {

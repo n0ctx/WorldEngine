@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import Input from '../ui/Input.jsx';
 
 const ISO_RE = /^(\d+)-(\d{2})-(\d{2})(?:T(\d{2}):(\d{2}))?$/;
 const MAX_YEAR_DIGITS = 9;
@@ -138,10 +139,10 @@ export default function DatetimeSplitInput({
               {def.key === 'h' ? 'T' : def.key === 'mi' ? ':' : '-'}
             </span>
           )}
-          <input
+          <Input
             ref={(el) => { refs.current[idx] = el; }}
             type="text" inputMode="numeric"
-            className={`we-input ${className}`}
+            className={className}
             style={{ width: widthPreset === 'compact' ? COMPACT_SEG_WIDTHS[def.key] : def.width }}
             value={parts[def.key]} placeholder={def.placeholder}
             disabled={disabled}

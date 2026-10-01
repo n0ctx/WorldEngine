@@ -1,3 +1,4 @@
+import Badge from '../../../components/ui/Badge.jsx';
 import DeleteButton from '../../../components/motion/DeleteButton.jsx';
 import Button from '../../../components/ui/Button.jsx';
 import { EntryOrderList, EntryPlainList } from './EntryLists.jsx';
@@ -78,7 +79,7 @@ export default function RulesListPane({
             <div className="we-entry-section-main">
               <div className="we-entry-section-title-line">
                 <span className="we-entry-section-name">档案默认值</span>
-                <span className="we-entry-section-badge">{PROFILE_BADGE[fieldScope.key]}</span>
+                <Badge>{PROFILE_BADGE[fieldScope.key]}</Badge>
               </div>
             </div>
           </div>
@@ -100,7 +101,7 @@ export default function RulesListPane({
               <div className="we-entry-section-main">
                 <div className="we-entry-section-title-line">
                   <span className="we-entry-section-name">{f.label}</span>
-                  <span className="we-entry-section-badge">{TYPE_LABEL[f.type] ?? f.type}</span>
+                  <Badge>{TYPE_LABEL[f.type] ?? f.type}</Badge>
                 </div>
               </div>
               <div className="we-entry-section-actions">

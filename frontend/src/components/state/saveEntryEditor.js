@@ -3,16 +3,12 @@ import {
 } from '../../core/api/prompt-entries';
 import { clampActiveTurns, clampToken } from './entryEditorRules.js';
 
-export default async function saveEntryEditor({ worldId, entry, isNew, form, keywordInput, conditions, onSave }) {
-  const draft = keywordInput.trim();
-  const keywords = draft && !form.keywords.includes(draft)
-    ? [...form.keywords, draft]
-    : form.keywords;
+export default async function saveEntryEditor({ worldId, entry, isNew, form, conditions, onSave }) {
   const data = {
     title: form.title.trim(),
     content: form.content,
     description: form.description,
-    keywords: form.trigger_type === 'keyword' ? keywords : null,
+    keywords: form.trigger_type === 'keyword' ? form.keywords : null,
     trigger_type: form.trigger_type,
     condition_logic: form.condition_logic,
     keyword_logic: form.keyword_logic,

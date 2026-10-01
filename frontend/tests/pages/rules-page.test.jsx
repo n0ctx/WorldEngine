@@ -214,7 +214,7 @@ describe('RulesPage', () => {
     render(<RulesPage />);
     await waitFor(() => expect(mocks.listWorldEntries).toHaveBeenCalled());
 
-    fireEvent.click(screen.getAllByLabelText('禁用条目')[0]);
+    fireEvent.click(screen.getAllByRole('switch', { name: '启用条目' })[0]);
 
     await waitFor(() => expect(mocks.logError).toHaveBeenCalledWith(
       'entry.toggle_failed',

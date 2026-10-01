@@ -1,5 +1,8 @@
 import { useState } from 'react';
 import Select from '../ui/Select';
+import Input from '../ui/Input';
+import SegmentedControl from '../ui/SegmentedControl';
+import ToggleSwitch from '../ui/ToggleSwitch';
 import Button from '../ui/Button';
 import Textarea from '../ui/Textarea';
 import Dialog from '../ui/Dialog';
@@ -17,6 +20,8 @@ const SCOPE_OPTIONS = REGEX_SCOPES.map((value) => ({
 }));
 
 const FLAGS_PRESETS = ['g', 'gi', 'gm', 'gim'];
+const FLAGS_CUSTOM = 'custom';
+const FLAGS_OPTIONS = [...FLAGS_PRESETS.map((f) => ({ value: f, label: f })), { value: FLAGS_CUSTOM, label: '自定义' }];
 
 function buildForm(rule, fallbackMode) {
   return {
@@ -86,8 +91,7 @@ export default function RegexRuleEditor({ rule, worlds, settingsMode, onSave, on
       {/* 名称 */}
       <div>
         <label className="we-dialog-label">规则名称</label>
-        <input
-          className="we-input"
+        <Input
           value={form.name}
           onChange={(e) => setField('name', e.target.value)}
           placeholder="便于识别的名称"
@@ -120,8 +124,8 @@ export default function RegexRuleEditor({ rule, worlds, settingsMode, onSave, on
       {/* 正则表达式 */}
       <div>
         <label className="we-dialog-label">正则表达式</label>
-        <input
-          className="we-input we-regex-field--mono"
+        <Input
+          className="we-regex-field--mono"
           value={form.pattern}
           onChange={(e) => setField('pattern', e.target.value)}
           placeholder="不含 / 分隔符和 flags，如：哈哈"
@@ -131,8 +135,8 @@ export default function RegexRuleEditor({ rule, worlds, settingsMode, onSave, on
       {/* 替换文本 */}
       <div>
         <label className="we-dialog-label">替换文本</label>
-        <input
-          className="we-input we-regex-field--mono"
+        <Input
+          className="we-regex-field--mono"
           value={form.replacement}
           onChange={(e) => setField('replacement', e.target.value)}
           placeholder="支持 $1 $2 等回引，留空表示删除匹配部分"
@@ -142,25 +146,22 @@ export default function RegexRuleEditor({ rule, worlds, settingsMode, onSave, on
       {/* Flags */}
       <div>
         <label className="we-dialog-label">Flags</label>
-        <div className="flex gap-2 flex-wrap">
-          {FLAGS_PRESETS.map((f) => (
-            <button
-              key={f}
-              onClick={() => { setField('flags', f); setFlagsCustom(false); }}
-              className={`we-flags-btn${!flagsCustom && form.flags === f ? ' we-flags-btn--active' : ''}`}
-            >
-              {f}
-            </button>
-          ))}
-          <button
-            onClick={() => setFlagsCustom(true)}
-            className={`we-flags-btn${flagsCustom ? ' we-flags-btn--active' : ''}`}
-          >
-            自定义
-          </button>
+        <div className="flex gap-2 flex-wrap items-center">
+          <SegmentedControl
+            size="sm"
+            label="Flags"
+            options={FLAGS_OPTIONS}
+            value={flagsCustom ? FLAGS_CUSTOM : form.flags}
+            onChange={(value) => {
+              if (value === FLAGS_CUSTOM) { setFlagsCustom(true); return; }
+              setField('flags', value);
+              setFlagsCustom(false);
+            }}
+          />
           {flagsCustom && (
-            <input
-              className="we-flags-custom-input"
+            <Input
+              size="sm"
+              style={{ width: '7em' }}
               value={form.flags}
               onChange={(e) => setField('flags', e.target.value)}
               placeholder="如 gims"
@@ -171,16 +172,7 @@ export default function RegexRuleEditor({ rule, worlds, settingsMode, onSave, on
 
       {/* 启用 */}
       <div className="flex items-center gap-2">
-        <button
-          type="button"
-          className={`we-toggle-track${form.enabled ? ' we-toggle-track--enabled' : ''}`}
-          onClick={() => setField('enabled', form.enabled ? 0 : 1)}
-          aria-checked={!!form.enabled}
-          role="switch"
-          aria-label="启用规则"
-        >
-          <span className={`we-toggle-thumb${form.enabled ? ' we-toggle-thumb--enabled' : ''}`} />
-        </button>
+        <ToggleSwitch checked={!!form.enabled} onChange={(on) => setField('enabled', on ? 1 : 0)} label="启用规则" />
         <span className="we-type-ui text-[var(--we-color-text-secondary)]">{form.enabled ? '已启用' : '已禁用'}</span>
       </div>
 

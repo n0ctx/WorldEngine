@@ -14,6 +14,7 @@ import { invalidateCache, loadRules } from '../../core/utils/regex-runner.js';
 import RegexRuleEditor from './RegexRuleEditor.jsx';
 import Button from '../ui/Button.jsx';
 import IconButton from '../ui/IconButton.jsx';
+import ToggleSwitch from '../ui/ToggleSwitch.jsx';
 import DeleteButton from '../motion/DeleteButton.jsx';
 import SortableList from '../ui/SortableList.jsx';
 import { SETTINGS_MODE } from '../../core/constants/settings';
@@ -188,13 +189,7 @@ function RuleRow({ rule, worldName, onEdit, onToggle, onDelete }) {
       </div>
 
       <div className="we-regex-rule-actions">
-        <button
-          onClick={onToggle}
-          title={rule.enabled ? '点击禁用' : '点击启用'}
-          className={`we-regex-rule-toggle${rule.enabled ? ' we-regex-rule-toggle--enabled' : ''}`}
-        >
-          {rule.enabled ? '启用' : '禁用'}
-        </button>
+        <ToggleSwitch size="sm" checked={!!rule.enabled} onChange={onToggle} label="启用规则" />
         <IconButton size="sm" label="编辑正则规则" title="编辑" onClick={onEdit}>
           <PencilLine size={16} />
         </IconButton>

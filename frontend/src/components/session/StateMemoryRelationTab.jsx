@@ -1,5 +1,7 @@
 import { useId, useState } from 'react';
+import Badge from '../ui/Badge.jsx';
 import Button from '../ui/Button.jsx';
+import Input from '../ui/Input.jsx';
 import IconButton from '../ui/IconButton.jsx';
 import Icon from '../ui/Icon.jsx';
 import Select from '../ui/Select.jsx';
@@ -62,12 +64,12 @@ function NewRelationForm({ entities, relations, schema, sessionId, reload, onDon
       <div className="we-sm-relation-form-row">
         <div className="we-sm-form-cell">
           <span className="we-sm-form-label">谁</span>
-          <Select value={subjectId} onChange={setSubjectId} options={[{ value: '', label: '选择' }, ...options]} />
+          <Select size="sm" value={subjectId} onChange={setSubjectId} options={[{ value: '', label: '选择' }, ...options]} />
         </div>
         <div className="we-sm-form-cell">
           <span className="we-sm-form-label">关系</span>
-          <input
-            className="we-sm-compact-input"
+          <Input
+            size="sm"
             placeholder="如：持有者、成员、师父"
             aria-label="关系"
             list={listId}
@@ -81,6 +83,7 @@ function NewRelationForm({ entities, relations, schema, sessionId, reload, onDon
         <div className="we-sm-form-cell">
           <span className="we-sm-form-label">对象</span>
           <Select
+            size="sm"
             value={objectChoice}
             onChange={setObjectChoice}
             options={[{ value: '', label: '选择' }, ...options, { value: FREE_TEXT_OBJECT, label: '其他（手动填写）' }]}
@@ -88,8 +91,8 @@ function NewRelationForm({ entities, relations, schema, sessionId, reload, onDon
         </div>
       </div>
       {freeText && (
-        <input
-          className="we-sm-compact-input"
+        <Input
+          size="sm"
           placeholder="填写对象，如：一把旧钥匙"
           aria-label="对象文字"
           value={objectValue}
@@ -165,7 +168,7 @@ export default function StateMemoryRelationTab({ sessionId, data, schema, reload
             <span className="we-sm-relation-text">
               <span className="we-sm-relation-name">{entityName(entities, relation.subject_id)}</span>
               <span className="we-sm-relation-arrow" aria-hidden="true">—</span>
-              <span className="we-sm-chip">{relation.predicate}</span>
+              <Badge>{relation.predicate}</Badge>
               <span className="we-sm-relation-arrow" aria-hidden="true">→</span>
               {relation.object_id ? (
                 <span className="we-sm-relation-name">{entityName(entities, relation.object_id)}</span>

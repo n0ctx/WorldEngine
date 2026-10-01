@@ -1,5 +1,5 @@
+import { Badge, Checkbox, Input, Select, TagInput, Textarea } from '../index.js';
 import { useState, useRef, useEffect } from 'react';
-import Select from '../ui/Select.jsx';
 import DatetimeSplitInput from './DatetimeSplitInput.jsx';
 import { applyTemplateVars } from '../../core/utils/template-vars.js';
 import { isImeComposing } from '../../core/utils/ime.js';
@@ -12,7 +12,7 @@ import {
   parseArray,
   parseRawValue,
 } from './state-value-format.js';
-import { STATE_LIST_MAX_ITEMS, useStateListInput } from './useStateListInput.js';
+import { STATE_LIST_MAX_ITEMS } from './stateListLimit.js';
 
 function stringifyTrackValue(value) {
   if (Array.isArray(value)) return JSON.stringify(value);
@@ -56,7 +56,7 @@ function StatusEditorReadValue({ row, templateCtx }) {
     return (
       <div className="we-status-tags">
         {items.map((item, idx) => (
-          <span key={idx} className="we-status-tag">{applyTemplateVars(item, templateCtx)}</span>
+          <Badge key={idx}>{applyTemplateVars(item, templateCtx)}</Badge>
         ))}
       </div>
     );
@@ -79,7 +79,7 @@ export default function InlineEditor({ row, onCommit, onCancel, templateCtx, sav
   let editor;
 
   if (type === 'boolean') {
-    editor = <BooleanInlineEditor {...editorProps} />;
+    editor = <BooleanInlineEditor row={row} {...editorProps} />;
   } else if (type === 'enum') {
     editor = <EnumInlineEditor row={row} {...editorProps} />;
   } else if (type === 'datetime') {
@@ -95,7 +95,7 @@ export default function InlineEditor({ row, onCommit, onCancel, templateCtx, sav
   return <InlineEditorChrome saving={saving} saveError={saveError}>{editor}</InlineEditorChrome>;
 }
 
-function BooleanInlineEditor({ draft, setDraft, commit, readDisplay }) {
+function BooleanInlineEditor({ row, draft, setDraft, commit, readDisplay }) {
   const inputRef = useRef(null);
 
   useEffect(() => { inputRef.current?.focus(); }, []);
@@ -109,14 +109,12 @@ function BooleanInlineEditor({ draft, setDraft, commit, readDisplay }) {
       renderRead={() => readDisplay}
       renderEditor={({ measureRef }) => (
         <div ref={measureRef} className="we-status-inline-surface__editor we-status-inline-surface__editor--checkbox">
-          <input
+          <Checkbox
             ref={inputRef}
-            type="checkbox"
+            label={row.label || row.field_key}
             checked={!!draft}
-            onChange={(event) => { setDraft(event.target.checked); commit(event.target.checked); }}
+            onChange={(checked) => { setDraft(checked); commit(checked); }}
             onBlur={() => commit(draft)}
-            className="w-4 h-4"
-            style={{ accentColor: 'var(--we-color-accent)' }}
           />
           <span className="we-status-inline-surface__size-proxy" aria-hidden="true" />
         </div>
@@ -214,13 +212,13 @@ function TextInlineEditor({ draft, setDraft, commit, onCancel, readDisplay }) {
       readClassName="we-status-inline-surface__read"
       renderRead={() => readDisplay}
       renderEditor={({ editorRef }) => (
-        <textarea
+        <Textarea
           ref={editorRef}
           value={String(draft ?? '')}
           onChange={(event) => setDraft(event.target.value)}
           onBlur={() => commit(draft)}
           onKeyDown={handleKey}
-          className="we-seamless-edit__textarea we-input we-status-inline-input we-status-inline-textarea"
+          className="we-seamless-edit__textarea we-status-inline-input we-status-inline-textarea"
           rows={1}
         />
       )}
@@ -245,14 +243,14 @@ function BasicInlineEditor({ type, draft, setDraft, commit, onCancel, readDispla
       readClassName="we-status-inline-surface__read"
       renderRead={() => readDisplay}
       renderEditor={() => (
-        <input
+        <Input
           ref={inputRef}
           type={type === 'number' ? 'number' : 'text'}
           value={String(draft ?? '')}
           onChange={(event) => setDraft(event.target.value)}
           onBlur={() => commit(draft)}
           onKeyDown={handleKey}
-          className="we-input we-status-inline-input"
+          className="we-status-inline-input"
           placeholder=""
         />
       )}
@@ -271,73 +269,38 @@ function ListInlineEditor({ initial, onCommit, onCancel, readDisplay }) {
 
   useClickOutside(boundaryRef, onCancel);
 
-  const { input, setInput, addItem, removeItem, atMax } = useStateListInput(items, (next) => {
+  function applyItems(next) {
     setItems(next);
     onCommit(next.length > 0 ? JSON.stringify(next) : null);
-  });
+  }
+
+  function handleKeyDown(event) {
+    if (event.key !== 'Escape') return;
+    event.preventDefault();
+    onCancel();
+  }
 
   return (
     <div ref={boundaryRef}>
       <SeamlessEditableSurface
         editing
-        trackValue={`${JSON.stringify(items)}|${input}`}
+        trackValue={JSON.stringify(items)}
         className="we-status-inline-surface"
         readClassName="we-status-inline-surface__read"
         renderRead={() => readDisplay}
         renderEditor={({ measureRef }) => (
-          <div
-            ref={measureRef}
-            className="we-tag-input we-status-inline-list"
-            onClick={() => inputRef.current?.focus()}
-            role="group"
-            aria-label={`${items.length > 0 ? '编辑' : '新增'}列表项`}
-            tabIndex={0}
-            onKeyDown={(e) => {
-              if (e.key === 'Escape') {
-                e.preventDefault();
-                onCancel();
-                return;
-              }
-              if (e.key === 'Enter' || e.key === ' ') {
-                e.currentTarget.querySelector('input')?.focus();
-              }
-            }}
-          >
-            {items.map((item) => (
-              <span key={item} className="we-tag">
-                {item}
-                <button
-                  type="button"
-                  aria-label={`删除 ${item}`}
-                  onClick={(e) => { e.stopPropagation(); removeItem(item); }}
-                >
-                  ×
-                </button>
-              </span>
-            ))}
-            <input
-              ref={inputRef}
-              className="we-tag-input-field we-status-inline-list__input"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              disabled={atMax}
-              onKeyDown={(e) => {
-                if (isImeComposing(e)) return;
-                if (e.key === 'Enter') {
-                  e.preventDefault();
-                  addItem(input);
-                  return;
-                }
-                if (e.key === 'Backspace' && input === '' && items.length > 0) {
-                  e.preventDefault();
-                  removeItem(items[items.length - 1]);
-                }
-                if (e.key === 'Escape') {
-                  e.preventDefault();
-                  onCancel();
-                }
-              }}
-              placeholder={atMax ? `已达上限 ${STATE_LIST_MAX_ITEMS} 条` : (items.length === 0 ? '输入条目后按回车' : '')}
+          <div ref={measureRef}>
+            <TagInput
+              className="we-status-inline-list"
+              label={`${items.length > 0 ? '编辑' : '新增'}列表项`}
+              placeholder="输入条目后按回车"
+              max={STATE_LIST_MAX_ITEMS}
+              values={items}
+              commitOnBlur={false}
+              inputRef={inputRef}
+              onKeyDown={handleKeyDown}
+              onAdd={(value) => applyItems([...items, value])}
+              onRemove={(value) => applyItems(items.filter((item) => item !== value))}
             />
           </div>
         )}

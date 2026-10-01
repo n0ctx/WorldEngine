@@ -144,8 +144,7 @@ export const SLOTS = [
   {
     id: 'press', category: 'press', title: '按钮按压', status: 'pack',
     hooks: [
-      'we-btn', 'we-btn-primary', 'we-btn-danger', 'we-btn-icon', 'we-section-tab', 'we-select-option', 'we-settings-nav-item', 'we-chat-slash-item',
-      'we-sm-chip',
+      'we-btn', 'we-btn-primary', 'we-btn-danger', 'we-btn-icon', 'we-section-tab', 'we-menu', 'we-settings-nav-item',
     ],
     api: ['gesture:press', 'transition:press'], usedIn: ['Button', 'TopBar', 'InputBox 工具栏'],
     note: '带字的按钮不缩放。墨流：悬停浮起，按下按进 2px、外沿一圈湿边，墨从触点在按钮里洇开，松手带过冲弹回；'

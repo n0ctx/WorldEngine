@@ -1,10 +1,7 @@
-import { useRef, useState } from 'react';
-import Select from '../ui/Select';
-import Button from '../ui/Button';
-import MarkdownEditor from '../ui/MarkdownEditor';
+import { Badge, Button, Checkbox, Input, MarkdownEditor, Select, TagInput } from '../index.js';
 import DatetimeSplitInput from './DatetimeSplitInput';
-import { handleTagInputKeyDown } from '../../core/utils/tag-input.js';
 import { useStateMemorySchema } from '../../core/hooks/useStateMemory.js';
+import { STATE_LIST_MAX_ITEMS } from './stateListLimit.js';
 import {
   ISO_DATETIME_RE,
   findReplacedProfileFieldLabel,
@@ -27,7 +24,6 @@ const UPDATE_MODE_OPTIONS = [
   { value: 'llm_auto', label: 'LLM 自动' },
 ];
 
-const inputCls = 'we-input';
 const labelCls = 'we-dialog-label';
 
 const requiredMark = <span className="we-state-field-required">*</span>;
@@ -38,13 +34,13 @@ export function StateFieldIdentityFields({ field, form, setForm, scope, reserved
     <div className="grid grid-cols-2 gap-3">
       <div>
         <label className={labelCls}>label {requiredMark}</label>
-        <input className={inputCls} value={form.label}
+        <Input value={form.label}
           onChange={(event) => updateStateFieldForm(setForm, 'label', event.target.value)}
           placeholder="显示名称" />
       </div>
       <div>
         <label className={labelCls}>field_key {requiredMark}</label>
-        <input className={inputCls} value={form.field_key}
+        <Input value={form.field_key}
           onChange={(event) => updateStateFieldForm(setForm, 'field_key', event.target.value.replace(/\s/g, '_'))}
           placeholder="唯一标识符" disabled={!!field} />
       </div>
@@ -105,18 +101,15 @@ export function StateFieldMetadataFields({ form, setForm, scope }) {
       {scope === 'character' && (
         <div>
           <label className={labelCls}>对 NPC 生效</label>
-          <label className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              checked={form.nearby_enabled !== 0}
-              onChange={(event) => updateStateFieldForm(setForm, 'nearby_enabled', event.target.checked ? 1 : 0)}
-              aria-label="对 NPC 生效"
-              className="accent-[var(--we-color-accent-deep)]"
-            />
+          <Checkbox
+            checked={form.nearby_enabled !== 0}
+            onChange={(checked) => updateStateFieldForm(setForm, 'nearby_enabled', checked ? 1 : 0)}
+            aria-label="对 NPC 生效"
+          >
             <span className="we-type-caption text-[var(--we-color-text-tertiary)]">
               对话与写作中由 AI 记录的角色都会带上这个字段；只有设为 AI 自动更新时才由 AI 填写。NPC 的身份、外貌、穿着、性格、年龄已由档案自动记录，不必为此建字段。
             </span>
-          </label>
+          </Checkbox>
           {replacedProfileFieldLabel && (
             <p className="we-state-field-hint">该字段将取代 NPC 档案中的『{replacedProfileFieldLabel}』</p>
           )}
@@ -138,16 +131,6 @@ export function StateFieldMetadataFields({ form, setForm, scope }) {
 }
 
 function EnumOptionsEditor({ form, setForm }) {
-  const [enumInput, setEnumInput] = useState('');
-  const enumRef = useRef(null);
-
-  function addEnum(raw) {
-    const value = raw.trim();
-    if (!value || form.enum_options.includes(value)) return;
-    updateStateFieldForm(setForm, 'enum_options', [...form.enum_options, value]);
-    setEnumInput('');
-  }
-
   function removeEnum(value) {
     const next = form.enum_options.filter((option) => option !== value);
     setForm((current) => ({
@@ -160,78 +143,29 @@ function EnumOptionsEditor({ form, setForm }) {
   return (
     <div>
       <label className={labelCls}>枚举选项（回车添加）</label>
-      <div
-        className="we-tag-input"
-        onClick={() => enumRef.current?.focus()}
-        role="group"
-        aria-label="枚举选项标签输入区"
-        tabIndex={0}
-        onKeyDown={(event) => {
-          if (event.key === 'Enter' || event.key === ' ') {
-            event.currentTarget.querySelector('input')?.focus();
-          }
-        }}
-      >
-        {form.enum_options.map((value) => (
-          <span key={value} className="we-tag">
-            {value}
-            <button type="button" onClick={(event) => { event.stopPropagation(); removeEnum(value); }}>×</button>
-          </span>
-        ))}
-        <input ref={enumRef} className="we-tag-input-field"
-          value={enumInput} onChange={(event) => setEnumInput(event.target.value)}
-          onKeyDown={(event) => handleTagInputKeyDown(event, enumInput, form.enum_options, addEnum, removeEnum)}
-          onBlur={() => { if (enumInput.trim()) addEnum(enumInput); }}
-          placeholder={form.enum_options.length === 0 ? '输入选项后按回车' : ''}
-        />
-      </div>
+      <TagInput
+        label="枚举选项"
+        placeholder="输入选项后按回车"
+        values={form.enum_options}
+        onAdd={(value) => updateStateFieldForm(setForm, 'enum_options', [...form.enum_options, value])}
+        onRemove={removeEnum}
+      />
     </div>
   );
 }
 
 function ListDefaultsEditor({ form, setForm }) {
-  const [input, setInput] = useState('');
-  const inputRef = useRef(null);
-
-  function addDefault(raw) {
-    const value = raw.trim();
-    if (!value || form.list_defaults.includes(value)) return;
-    updateStateFieldForm(setForm, 'list_defaults', [...form.list_defaults, value]);
-    setInput('');
-  }
-
-  function removeDefault(value) {
-    updateStateFieldForm(setForm, 'list_defaults', form.list_defaults.filter((item) => item !== value));
-  }
-
   return (
     <div>
       <label className={labelCls}>默认条目（回车添加）</label>
-      <div
-        className="we-tag-input"
-        onClick={() => inputRef.current?.focus()}
-        role="group"
-        aria-label="列表默认条目标签输入区"
-        tabIndex={0}
-        onKeyDown={(event) => {
-          if (event.key === 'Enter' || event.key === ' ') {
-            event.currentTarget.querySelector('input')?.focus();
-          }
-        }}
-      >
-        {form.list_defaults.map((value) => (
-          <span key={value} className="we-tag">
-            {value}
-            <button type="button" onClick={(event) => { event.stopPropagation(); removeDefault(value); }}>×</button>
-          </span>
-        ))}
-        <input ref={inputRef} className="we-tag-input-field"
-          value={input} onChange={(event) => setInput(event.target.value)}
-          onKeyDown={(event) => handleTagInputKeyDown(event, input, form.list_defaults, addDefault, removeDefault)}
-          onBlur={() => { if (input.trim()) addDefault(input); }}
-          placeholder={form.list_defaults.length === 0 ? '输入条目后按回车' : ''}
-        />
-      </div>
+      <TagInput
+        label="列表默认条目"
+        placeholder="输入条目后按回车"
+        max={STATE_LIST_MAX_ITEMS}
+        values={form.list_defaults}
+        onAdd={(value) => updateStateFieldForm(setForm, 'list_defaults', [...form.list_defaults, value])}
+        onRemove={(value) => updateStateFieldForm(setForm, 'list_defaults', form.list_defaults.filter((item) => item !== value))}
+      />
     </div>
   );
 }
@@ -271,7 +205,7 @@ function TableColumnsEditor({ form, setForm, lockedColumnKeys }) {
               <div className="we-state-table-col-header">
                 <span className="we-state-table-col-title">列 {index + 1}</span>
                 {keyLocked && (
-                  <span className="we-state-table-col-badge" title="已落库列的 key 不可修改；如需更名请先删除该列再新增">已落库</span>
+                  <Badge title="已落库列的 key 不可修改；如需更名请先删除该列再新增">已落库</Badge>
                 )}
                 <Button type="button" size="sm" variant="ghost" onClick={() => removeColumn(index)}
                   aria-label="删除列">删除</Button>
@@ -280,13 +214,13 @@ function TableColumnsEditor({ form, setForm, lockedColumnKeys }) {
                 <div className="we-state-table-col-row2">
                   <div className="we-state-table-col-field">
                     <span className="we-state-table-col-field-label">字段 key</span>
-                    <input className={inputCls} value={column.key}
+                    <Input value={column.key}
                       onChange={(event) => updateColumn(index, { key: event.target.value.replace(/\s/g, '_') })}
                       placeholder="如 strength" aria-label="列 key" disabled={keyLocked} />
                   </div>
                   <div className="we-state-table-col-field">
                     <span className="we-state-table-col-field-label">表头名称</span>
-                    <input className={inputCls} value={column.label}
+                    <Input value={column.label}
                       onChange={(event) => updateColumn(index, { label: event.target.value })}
                       placeholder="如 力量" aria-label="列表头" />
                   </div>
@@ -294,19 +228,19 @@ function TableColumnsEditor({ form, setForm, lockedColumnKeys }) {
                 <div className="we-state-table-col-row3">
                   <div className="we-state-table-col-field">
                     <span className="we-state-table-col-field-label">最小值</span>
-                    <input type="number" className={inputCls} value={column.min ?? ''}
+                    <Input type="number" value={column.min ?? ''}
                       onChange={(event) => updateColumn(index, { min: event.target.value })}
                       placeholder="—" aria-label="列下限" />
                   </div>
                   <div className="we-state-table-col-field">
                     <span className="we-state-table-col-field-label">最大值</span>
-                    <input type="number" className={inputCls} value={column.max ?? ''}
+                    <Input type="number" value={column.max ?? ''}
                       onChange={(event) => updateColumn(index, { max: event.target.value })}
                       placeholder="—" aria-label="列上限" />
                   </div>
                   <div className="we-state-table-col-field">
                     <span className="we-state-table-col-field-label">默认值</span>
-                    <input type="number" className={inputCls}
+                    <Input type="number"
                       value={form.table_defaults[column.key] ?? ''}
                       onChange={(event) => updateStateFieldForm(setForm, 'table_defaults', {
                         ...form.table_defaults,
@@ -331,17 +265,17 @@ function NumberSettings({ form, setForm }) {
     <div className="grid grid-cols-3 gap-3">
       <div>
         <label className={labelCls}>最小值</label>
-        <input type="number" className={inputCls} value={form.min_value}
+        <Input type="number" value={form.min_value}
           onChange={(event) => updateStateFieldForm(setForm, 'min_value', event.target.value)} placeholder="不限" />
       </div>
       <div>
         <label className={labelCls}>最大值</label>
-        <input type="number" className={inputCls} value={form.max_value}
+        <Input type="number" value={form.max_value}
           onChange={(event) => updateStateFieldForm(setForm, 'max_value', event.target.value)} placeholder="不限" />
       </div>
       <div>
         <label className={labelCls}>单位</label>
-        <input className={inputCls} value={form.unit}
+        <Input value={form.unit}
           onChange={(event) => updateStateFieldForm(setForm, 'unit', event.target.value)} maxLength={16}
           placeholder="如 元 / 万元 / %" />
       </div>
@@ -353,7 +287,7 @@ function DateTimePrefix({ form, setForm }) {
   return (
     <div>
       <label className={labelCls}>展示前缀（可选，前端渲染 X年X月X日X时X分 时拼接到最前）</label>
-      <input className={inputCls} value={form.prefix}
+      <Input value={form.prefix}
         onChange={(event) => updateStateFieldForm(setForm, 'prefix', event.target.value)}
         placeholder="如：第三纪元 / 公元" />
     </div>
@@ -379,7 +313,7 @@ function DefaultValueField({ form, setForm }) {
           ]}
         />
       ) : (
-        <input className={inputCls} value={form.default_value}
+        <Input value={form.default_value}
           onChange={(event) => updateStateFieldForm(setForm, 'default_value', event.target.value)}
           placeholder="留空表示无默认值" />
       )}

@@ -1,16 +1,9 @@
 import Icon from '../../../components/ui/Icon.jsx';
 import IconButton from '../../../components/ui/IconButton.jsx';
+import StorylineModeBadge from '../../../components/session/StorylineModeBadge.jsx';
 import { relativeTime } from '../../../core/utils/time.js';
 
 // ── StorylineItem / ContinueCard（内联组件）─────────────────────────────────
-
-function StorylineModeBadge({ mode }) {
-  return (
-    <span className={`we-storyline-mode we-storyline-mode--${mode}`}>
-      {mode === 'writing' ? '写作' : '对话'}
-    </span>
-  );
-}
 
 // 悬停或键盘聚焦卡片时浮现；按键与点击都不冒泡到卡片，避免同时触发「打开」
 function StorylineDeleteButton({ onDelete }) {

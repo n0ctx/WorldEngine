@@ -64,9 +64,9 @@ describe('StateFieldEditor', () => {
       />,
     );
 
-    const enumGroup = screen.getByRole('group', { name: '枚举选项标签输入区' });
+    const enumGroup = screen.getByRole('group', { name: '枚举选项' });
     const enumInput = within(enumGroup).getByRole('textbox');
-    fireEvent.click(enumGroup.querySelector('.we-tag button'));
+    fireEvent.click(within(enumGroup).getByRole('button', { name: '删除 todo' }));
     fireEvent.change(enumInput, { target: { value: 'blocked' } });
     fireEvent.keyDown(enumInput, { key: 'Enter' });
     fireEvent.click(screen.getByText('保存'));

@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import Checkbox from '../ui/Checkbox';
 import Input from '../ui/Input';
 import Select from '../ui/Select';
+import TagInput from '../ui/TagInput';
 import DatetimeSplitInput from './DatetimeSplitInput';
 import { parseLooseJson } from './state-value-format';
-import { isImeComposing } from '../../core/utils/ime.js';
-import { STATE_LIST_MAX_ITEMS, useStateListInput } from './useStateListInput.js';
+import { STATE_LIST_MAX_ITEMS } from './stateListLimit.js';
 
 const AUTOSAVE_DELAY_MS = 450;
 const ISO_DATETIME_RE = /^\d+-\d{2}-\d{2}T\d{2}:\d{2}$/;
@@ -25,7 +26,7 @@ function stringifyValue(value) {
  * @param {{ field_key, type, value_json, default_value_json, enum_options }} field
  * @param {(fieldKey: string, valueJson: string) => void} onSave
  */
-export default function StateValueField({ field, onSave }) {
+export default function StateValueField({ field, onSave, size = 'md' }) {
   const initialValueJson = getInitialValueJson(field);
   return (
     <StateValueFieldInner
@@ -33,18 +34,19 @@ export default function StateValueField({ field, onSave }) {
       field={field}
       initialValueJson={initialValueJson}
       onSave={onSave}
+      size={size}
     />
   );
 }
 
-function StateValueFieldInner({ field, initialValueJson, onSave }) {
+function StateValueFieldInner({ field, initialValueJson, onSave, size }) {
   const parsedInitialValue = useMemo(() => parseLooseJson(initialValueJson), [initialValueJson]);
   const [local, setLocal] = useState(parsedInitialValue);
   const saveValue = useStateFieldSaver(field.field_key, initialValueJson, onSave);
   useAutoSaveStateValue(field.type, local, saveValue);
   const Editor = STATE_FIELD_EDITORS[field.type] ?? TextStateFieldEditor;
 
-  return <Editor field={field} local={local} setLocal={setLocal} saveValue={saveValue} />;
+  return <Editor field={field} local={local} setLocal={setLocal} saveValue={saveValue} size={size} />;
 }
 
 function useStateFieldSaver(fieldKey, initialValueJson, onSave) {
@@ -70,26 +72,25 @@ function getAutoSaveValue(type, local) {
   return String(local ?? '');
 }
 
-function BooleanStateFieldEditor({ local, setLocal, saveValue }) {
+function BooleanStateFieldEditor({ field, local, setLocal, saveValue }) {
   return (
-    <input
-      type="checkbox"
+    <Checkbox
+      label={field.label || field.field_key}
       checked={!!local}
-      onChange={(e) => {
-        setLocal(e.target.checked);
-        saveValue(e.target.checked);
+      onChange={(checked) => {
+        setLocal(checked);
+        saveValue(checked);
       }}
-      className="w-4 h-4"
-      style={{ accentColor: 'var(--we-color-accent)' }}
     />
   );
 }
 
-function NumberStateFieldEditor({ field, local, setLocal, saveValue }) {
+function NumberStateFieldEditor({ field, local, setLocal, saveValue, size }) {
   const unit = field.unit ?? '';
   return (
     <div className="flex items-center gap-2">
       <Input
+        size={size}
         type="number"
         value={local ?? ''}
         onChange={(e) => setLocal(e.target.value)}
@@ -100,7 +101,7 @@ function NumberStateFieldEditor({ field, local, setLocal, saveValue }) {
   );
 }
 
-function EnumStateFieldEditor({ field, local, setLocal, saveValue }) {
+function EnumStateFieldEditor({ field, local, setLocal, saveValue, size }) {
   let options = [];
   try {
     options = JSON.parse(field.enum_options || '[]');
@@ -109,6 +110,7 @@ function EnumStateFieldEditor({ field, local, setLocal, saveValue }) {
   }
   return (
     <Select
+      size={size}
       value={local ?? ''}
       onChange={(v) => {
         const next = v || null;
@@ -136,56 +138,25 @@ function DatetimeStateFieldEditor({ local, setLocal, saveValue }) {
 }
 
 function ListStateFieldEditor({ local, setLocal, saveValue }) {
-  const listRef = useRef(null);
   const items = Array.isArray(local) ? local : [];
-  const {
-    input: listInput, setInput: setListInput, addItem: addListItem, removeItem: removeListItem, atMax,
-  } = useStateListInput(items, (updated) => {
+  const apply = (updated) => {
     setLocal(updated);
     saveValue(updated);
-  });
+  };
 
   return (
-    <div
-      className="we-tag-input"
-      onClick={() => listRef.current?.focus()}
-      role="group"
-      aria-label="列表项标签输入区"
-      tabIndex={0}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.currentTarget.querySelector('input')?.focus();
-        }
-      }}
-    >
-      {items.map((v) => (
-        <span key={v} className="we-tag">
-          {v}
-          <button type="button" aria-label={`删除 ${v}`} onClick={(e) => { e.stopPropagation(); removeListItem(v); }}>×</button>
-        </span>
-      ))}
-      <input
-        ref={listRef}
-        className="we-tag-input-field"
-        value={listInput}
-        onChange={(e) => setListInput(e.target.value)}
-        disabled={atMax}
-        onKeyDown={(e) => {
-          if (isImeComposing(e)) return;
-          if (e.key === 'Enter') {
-            e.preventDefault();
-            addListItem(listInput);
-          }
-          if (e.key === 'Backspace' && listInput === '' && items.length) removeListItem(items[items.length - 1]);
-        }}
-        onBlur={() => { if (listInput.trim()) addListItem(listInput); }}
-        placeholder={atMax ? `已达上限 ${STATE_LIST_MAX_ITEMS} 条，请先删除` : (items.length === 0 ? '输入条目后按回车' : '')}
-      />
-    </div>
+    <TagInput
+      label="列表项"
+      placeholder="输入条目后按回车"
+      max={STATE_LIST_MAX_ITEMS}
+      values={items}
+      onAdd={(value) => apply([...items, value])}
+      onRemove={(value) => apply(items.filter((item) => item !== value))}
+    />
   );
 }
 
-function TableStateFieldEditor({ field, local, setLocal, saveValue }) {
+function TableStateFieldEditor({ field, local, setLocal, saveValue, size }) {
   let columns = [];
   try {
     columns = JSON.parse(field.table_columns || '[]');
@@ -208,9 +179,10 @@ function TableStateFieldEditor({ field, local, setLocal, saveValue }) {
       <div className="we-status-table-row we-status-table-body" role="row">
         {columns.map((col) => (
           <span key={col.key} className="we-status-table-cell we-status-table-body-cell" role="cell">
-            <input
+            <Input
+              size={size}
               type="number"
-              className="we-input we-status-inline-input we-status-table-input"
+              className="we-status-inline-input we-status-table-input"
               value={obj[col.key] ?? ''}
               min={col.min ?? undefined}
               max={col.max ?? undefined}
@@ -232,9 +204,10 @@ function TableStateFieldEditor({ field, local, setLocal, saveValue }) {
   );
 }
 
-function TextStateFieldEditor({ local, setLocal, saveValue }) {
+function TextStateFieldEditor({ local, setLocal, saveValue, size }) {
   return (
     <Input
+      size={size}
       type="text"
       value={local ?? ''}
       onChange={(e) => setLocal(e.target.value)}

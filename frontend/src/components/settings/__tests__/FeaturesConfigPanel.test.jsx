@@ -78,7 +78,7 @@ describe('FeaturesConfigPanel', () => {
     expect(screen.queryByText('长期记忆')).not.toBeInTheDocument();
     expect(screen.getByText('对话日记')).toBeInTheDocument();
     expect(screen.queryByText('写作日记')).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: '真实日期' })).toHaveClass('we-settings-date-option--active');
+    expect(screen.getByRole('radio', { name: '真实日期' })).toBeChecked();
     expect(screen.queryByText('表格记忆')).not.toBeInTheDocument();
     expect(screen.queryByText('关系表')).not.toBeInTheDocument();
 
@@ -89,7 +89,7 @@ describe('FeaturesConfigPanel', () => {
     fireEvent.click(switches[3]);
     expect(props.onToggleAutoCollapseThinking).not.toHaveBeenCalled();
 
-    fireEvent.click(screen.getByRole('button', { name: '虚拟日期' }));
+    fireEvent.click(screen.getByRole('radio', { name: '虚拟日期' }));
     expect(props.onChangeChatDateMode).toHaveBeenCalledWith(DIARY_DATE_MODE.VIRTUAL);
 
     fireEvent.change(budgetInput, { target: { value: '9000' } });
@@ -113,7 +113,7 @@ describe('FeaturesConfigPanel', () => {
     expect(budgetInput).toHaveValue(14000);
     expect(budgetInput).toHaveAttribute('placeholder', '继承对话');
     expect(screen.getByText('写作日记')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: '虚拟日期' })).toHaveClass('we-settings-date-option--active');
+    expect(screen.getByRole('radio', { name: '虚拟日期' })).toBeChecked();
     expect(screen.getByRole('spinbutton', { name: '写作每章轮数' })).toHaveValue(20);
     expect(screen.getByRole('spinbutton', { name: '写作每页轮数' })).toHaveValue(null);
     expect(screen.queryByRole('spinbutton', { name: '关系表行数上限' })).not.toBeInTheDocument();
@@ -124,7 +124,7 @@ describe('FeaturesConfigPanel', () => {
     fireEvent.click(switches[6]);
     expect(props.onToggleWritingSuggestion).toHaveBeenCalledWith(false);
 
-    fireEvent.click(screen.getByRole('button', { name: '真实日期' }));
+    fireEvent.click(screen.getByRole('radio', { name: '真实日期' }));
     expect(props.onChangeWritingDateMode).toHaveBeenCalledWith(DIARY_DATE_MODE.REAL);
 
     fireEvent.change(budgetInput, { target: { value: '' } });
