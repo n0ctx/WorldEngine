@@ -1,7 +1,6 @@
 import { useState } from 'react';
-import { createPortal } from 'react-dom';
 import Button from '../ui/Button';
-import { useEscapeKey } from '../../core/hooks/useEscapeKey.js';
+import Dialog from '../ui/Dialog';
 import { useStateMemorySchema } from '../../core/hooks/useStateMemory.js';
 import {
   StateFieldIdentityFields,
@@ -24,7 +23,6 @@ import {
  *   onClose()
  */
 export default function StateFieldEditor({ field, scope, onSave, onClose, inline = false }) {
-  useEscapeKey(onClose, !inline);
   const [lockedColumnKeys] = useState(() => createLockedColumnKeys(field));
   const [form, setForm] = useState(() => createStateFieldForm(field));
   const [saving, setSaving] = useState(false);
@@ -37,45 +35,51 @@ export default function StateFieldEditor({ field, scope, onSave, onClose, inline
     await saveStateField(form, scope, reservedWorldFieldLabels, onSave, onClose, setError, setSaving);
   }
 
-  const panel = (
-    <div className={inline ? 'we-state-field-inline flex flex-col gap-4' : 'we-dialog-panel w-full max-w-2xl flex flex-col max-h-[90vh]'}>
-      {!inline && (
-        <div className="we-dialog-header">
-          <h2>{field ? '编辑字段' : '新建字段'}</h2>
-        </div>
-      )}
-
-      <div className="we-dialog-body flex flex-col gap-4">
-        <StateFieldIdentityFields
-          field={field}
-          form={form}
-          setForm={setForm}
-          scope={scope}
-          reservedWorldFieldLabels={reservedWorldFieldLabels}
-        />
-        <StateFieldTypeFields
-          form={form}
-          setForm={setForm}
-          lockedColumnKeys={lockedColumnKeys}
-        />
-        <StateFieldMetadataFields form={form} setForm={setForm} scope={scope} />
-        {error && <p className="we-state-field-error">{error}</p>}
-      </div>
-
-      <div className="we-dialog-footer">
-        <Button size="sm" variant="ghost" onClick={onClose}>取消</Button>
-        <Button size="sm" variant="primary" onClick={handleSave} disabled={saving || isReserved}>
-          {saving ? '保存中…' : '保存'}
-        </Button>
-      </div>
-    </div>
+  const fields = (
+    <>
+      <StateFieldIdentityFields
+        field={field}
+        form={form}
+        setForm={setForm}
+        scope={scope}
+        reservedWorldFieldLabels={reservedWorldFieldLabels}
+      />
+      <StateFieldTypeFields
+        form={form}
+        setForm={setForm}
+        lockedColumnKeys={lockedColumnKeys}
+      />
+      <StateFieldMetadataFields form={form} setForm={setForm} scope={scope} />
+      {error && <p className="we-state-field-error">{error}</p>}
+    </>
+  );
+  const actions = (
+    <>
+      <Button variant="ghost" onClick={onClose}>取消</Button>
+      <Button variant="primary" onClick={handleSave} disabled={saving || isReserved}>
+        {saving ? '保存中…' : '保存'}
+      </Button>
+    </>
   );
 
-  if (inline) return panel;
-  return createPortal(
-    <div className="fixed inset-0 z-[var(--we-z-modal)] flex items-center justify-center we-modal-backdrop px-4">
-      {panel}
-    </div>,
-    document.body,
+  if (inline) {
+    return (
+      <div className="we-state-field-inline flex flex-col gap-4">
+        <div className="we-state-field-inline__body flex flex-col gap-4">{fields}</div>
+        <div className="we-state-field-inline__footer">{actions}</div>
+      </div>
+    );
+  }
+  return (
+    <Dialog
+      size="lg"
+      title={field ? '编辑字段' : '新建字段'}
+      busy={saving}
+      onClose={onClose}
+      bodyClassName="flex flex-col gap-4"
+      footer={actions}
+    >
+      {fields}
+    </Dialog>
   );
 }

@@ -80,14 +80,14 @@ export const SLOTS = [
   {
     id: 'modal', category: 'overlay', title: '确认弹窗', status: 'pack',
     api: ['variant:overlayEnter', 'variant:overlayBackdrop', 'transition:overlay', 'transition:backdrop', 'gesture:press'],
-    usedIn: ['ConfirmModal', 'ModalShell'],
+    usedIn: ['ConfirmModal', 'Dialog'],
     note: '遮罩底色见「遮罩与大面板的 CSS 入场」。墨流的面板托起带回弹，不带光晕；'
       + '信号的面板平滑淡入上浮，不再画装饰。',
   },
   {
     id: 'dialog', category: 'overlay', title: '对话面板', status: 'pack',
     api: ['variant:overlayEnter', 'transition:overlay'],
-    usedIn: ['DialogShell', '设置页'],
+    usedIn: ['Dialog', '设置页'],
   },
   {
     id: 'toast', category: 'overlay', title: '提示条', status: 'pack',

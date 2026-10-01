@@ -1,7 +1,6 @@
 import { useRef, useState } from 'react';
 import EntryEditorPanel from './EntryEditorPanel.jsx';
 import { log } from '../../core/utils/logger.js';
-import { useEscapeKey } from '../../core/hooks/useEscapeKey.js';
 import saveEntryEditor from './saveEntryEditor.js';
 import useEntryEditorData from './useEntryEditorData.js';
 import useEntryTriggerSuggestion from './useEntryTriggerSuggestion.js';
@@ -11,7 +10,6 @@ export default function EntryEditor({
   worldId, entry, defaultTriggerType,
   prefillCondition, onClose, onSave, inline = false,
 }) {
-  useEscapeKey(onClose, !inline);
   const isNew = !entry?.id;
   const [form, setForm] = useState({
     title: entry?.title ?? '',

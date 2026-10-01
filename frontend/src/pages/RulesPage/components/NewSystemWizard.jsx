@@ -1,9 +1,9 @@
 import { useRef, useState } from 'react';
 import Button from '../../../components/ui/Button.jsx';
+import Dialog from '../../../components/ui/Dialog.jsx';
 import StateFieldEditor from '../../../components/state/StateFieldEditor';
 import EntryEditor from '../../../components/state/EntryEditor';
 import StepTrack from '../../../components/motion/StepTrack.jsx';
-import { useEscapeKey } from '../../../core/hooks/useEscapeKey.js';
 import DefaultValueMatrix from './DefaultValueMatrix.jsx';
 
 // ── 新建系统向导：定义字段 → 设默认值 → 配触发条目（可跳过）──
@@ -35,8 +35,13 @@ export default function NewSystemWizard({ worldId, scope, scopeKey, onClose, onF
 
   if (step === 2) {
     return (
-      <WizardShell title={`设置各${scope.label}默认值`} step={2}
+      <Dialog
+        size="lg"
+        title="新建系统"
+        description={`设置各${scope.label}默认值`}
         onClose={onClose}
+        bodyClassName="flex flex-col gap-4"
+        footerStart={<StepTrack steps={3} current={1} />}
         footer={(
           <>
             <Button variant="ghost" onClick={() => onFinish(createdField?.field_key)}>
@@ -47,7 +52,7 @@ export default function NewSystemWizard({ worldId, scope, scopeKey, onClose, onF
         )}
       >
         <DefaultValueMatrix worldId={worldId} scope={scope} field={createdField} />
-      </WizardShell>
+      </Dialog>
     );
   }
 
@@ -61,24 +66,5 @@ export default function NewSystemWizard({ worldId, scope, scopeKey, onClose, onF
       onClose={() => onFinish(createdField?.field_key)}
       onSave={() => onFinish(createdField?.field_key)}
     />
-  );
-}
-
-function WizardShell({ title, step, children, footer, onClose }) {
-  useEscapeKey(onClose);
-  return (
-    <div className="fixed inset-0 z-[var(--we-z-modal)] flex items-center justify-center we-modal-backdrop px-4">
-      <div className="we-dialog-panel w-full max-w-2xl flex flex-col max-h-[90vh]">
-        <div className="we-dialog-header flex items-center justify-between">
-          <h2 className="flex items-center gap-3">新建系统<StepTrack steps={3} current={step - 1} /></h2>
-          <Button size="sm" variant="ghost" onClick={onClose}>关闭</Button>
-        </div>
-        <div className="we-dialog-body flex flex-col gap-4">
-          <p className="we-workshop-section-title">{title}</p>
-          {children}
-        </div>
-        <div className="we-dialog-footer">{footer}</div>
-      </div>
-    </div>
   );
 }

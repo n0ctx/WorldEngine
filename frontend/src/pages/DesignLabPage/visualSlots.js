@@ -86,6 +86,11 @@ export const VISUAL_SLOTS = [
     note: '全站只有这一个按钮：五种色调 × 三档尺寸；图标按钮是它的方形版本，边长取控件高度。',
   },
   {
+    id: 'dialogs', category: 'component', title: '弹窗', status: 'ready',
+    tokens: [], usedIn: ['Dialog、ConfirmModal'],
+    note: '全站只有这一个弹窗：标准与确认两种版式、四档宽度；Esc、点空白、关闭键统一关闭，处理中都不关。',
+  },
+  {
     id: 'controls', category: 'component', title: '表单控件与徽标', status: 'ready',
     tokens: [], usedIn: ['Badge、Input、Textarea、Select、ToggleSwitch、Range'],
     note: '没有专属 token，全部由色彩、圆角、阴影几类 token 组合而成。',

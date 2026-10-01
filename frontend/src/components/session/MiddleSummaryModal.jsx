@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { AnimatePresence } from 'framer-motion';
-import { createPortal } from 'react-dom';
-import ModalShell from '../ui/ModalShell.jsx';
+import Dialog from '../ui/Dialog.jsx';
 import ConfirmModal from '../ui/ConfirmModal.jsx';
 import Textarea from '../ui/Textarea.jsx';
 import Button from '../ui/Button.jsx';
@@ -48,61 +47,55 @@ export default function MiddleSummaryModal({ sessionId, onClose }) {
   }
 
   return (
-    <ModalShell onClose={requestClose} maxWidth="max-w-2xl">
-      <div className="we-dialog-header">
-        <h2>剧情摘要</h2>
-      </div>
-
-      <div className="we-dialog-body">
-        <p className="we-settings-toggle-hint mb-2">
-          {coveredTo > 0 ? `已覆盖到第 ${coveredTo} 轮` : '尚未覆盖任何轮次'}
+    <Dialog
+      size="lg"
+      title="剧情摘要"
+      busy={saving}
+      onClose={requestClose}
+      footer={(
+        <>
+          <Button variant="ghost" onClick={requestClose} disabled={saving}>
+            取消
+          </Button>
+          <Button onClick={handleSave} disabled={saving || loading}>
+            {saving ? '保存中…' : '保存'}
+          </Button>
+        </>
+      )}
+    >
+      <p className="we-settings-toggle-hint mb-2">
+        {coveredTo > 0 ? `已覆盖到第 ${coveredTo} 轮` : '尚未覆盖任何轮次'}
+      </p>
+      {loading ? (
+        <p className="we-settings-toggle-hint">加载中…</p>
+      ) : (
+        <Textarea
+          value={content}
+          onChange={(e) => setContent(e.target.value)}
+          disabled={saving}
+          rows={16}
+          placeholder="（暂无剧情摘要）"
+        />
+      )}
+      {error && (
+        <p className="we-settings-toggle-hint mt-2 text-[var(--we-color-accent)]">
+          {error}
         </p>
-        {loading ? (
-          <p className="we-settings-toggle-hint">加载中…</p>
-        ) : (
-          <Textarea
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            disabled={saving}
-            rows={16}
-            placeholder="（暂无剧情摘要）"
+      )}
+
+      <AnimatePresence>
+        {confirmDiscard && (
+          <ConfirmModal
+            title="放弃未保存的修改？"
+            message="你对剧情摘要做了改动但尚未保存，关闭将丢弃这些改动。"
+            confirmText="放弃"
+            cancelText="继续编辑"
+            danger
+            onConfirm={async () => { setConfirmDiscard(false); onClose(); }}
+            onClose={() => setConfirmDiscard(false)}
           />
         )}
-        {error && (
-          <p className="we-settings-toggle-hint mt-2 text-[var(--we-color-accent)]">
-            {error}
-          </p>
-        )}
-      </div>
-
-      <div className="we-dialog-footer">
-        <Button variant="ghost" onClick={requestClose} disabled={saving}>
-          取消
-        </Button>
-        <Button onClick={handleSave} disabled={saving || loading}>
-          {saving ? '保存中…' : '保存'}
-        </Button>
-      </div>
-
-      {/* 放弃确认浮层：portal 到 body，脱离 ModalShell 的 transform 上下文 */}
-      {createPortal(
-        <AnimatePresence>
-          {confirmDiscard && (
-            <div className="we-tm-confirm-layer">
-              <ConfirmModal
-                title="放弃未保存的修改？"
-                message="你对剧情摘要做了改动但尚未保存，关闭将丢弃这些改动。"
-                confirmText="放弃"
-                cancelText="继续编辑"
-                danger
-                onConfirm={async () => { setConfirmDiscard(false); onClose(); }}
-                onClose={() => setConfirmDiscard(false)}
-              />
-            </div>
-          )}
-        </AnimatePresence>,
-        document.body,
-      )}
-    </ModalShell>
+      </AnimatePresence>
+    </Dialog>
   );
 }

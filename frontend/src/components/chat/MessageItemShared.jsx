@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import Icon from '../ui/Icon.jsx';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -8,6 +9,7 @@ import { markdownSanitizeSchema } from '../../core/utils/markdown-sanitize.js';
 import { stripNextPromptBlocks } from '../../core/utils/next-prompt.js';
 import { useDisplaySettingsStore } from '../../core/state/displaySettings.js';
 import { useEscapeKey } from '../../core/hooks/useEscapeKey.js';
+import { useFocusTrap } from '../../core/hooks/useFocusTrap.js';
 import { Copy, Trash2 } from 'lucide-react';
 import InterruptedMark from './InterruptedMark.jsx';
 import StreamingMarkdown, { StreamCaret } from './StreamingMarkdown.jsx';
@@ -145,7 +147,9 @@ export function MessageTime({ createdAt }) {
 export function AttachmentThumbnail({ src }) {
   const [enlarged, setEnlarged] = useState(false);
   const [failed, setFailed] = useState(false);
+  const overlayRef = useRef(null);
   useEscapeKey(() => setEnlarged(false), enlarged);
+  const onTab = useFocusTrap(overlayRef, enlarged);
   const url = `/api/uploads/${src}`;
   if (failed) {
     return (
@@ -163,13 +167,20 @@ export function AttachmentThumbnail({ src }) {
         onClick={() => setEnlarged(true)}
         onError={() => setFailed(true)}
       />
-      {enlarged && (
+      {enlarged && createPortal(
         <div
+          ref={overlayRef}
           className="we-attachment-overlay"
+          role="dialog"
+          aria-modal="true"
+          aria-label="查看大图"
+          tabIndex={-1}
+          onKeyDown={onTab}
           onClick={() => setEnlarged(false)}
         >
           <img src={url} alt="附件" className="we-attachment-overlay-img" onError={() => setFailed(true)} />
-        </div>
+        </div>,
+        document.body,
       )}
     </>
   );

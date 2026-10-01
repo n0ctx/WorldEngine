@@ -1,7 +1,8 @@
-import { useRef, useState } from 'react';
+import { useId, useRef, useState } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import ConfirmModal from '../../components/ui/ConfirmModal.jsx';
 import { useEscapeKey } from '../../core/hooks/useEscapeKey.js';
+import { useFocusTrap } from '../../core/hooks/useFocusTrap.js';
 
 /**
  * loadError 非空时只显示错误与重试/返回，不渲染表单：
@@ -20,6 +21,8 @@ export default function EditPageShell({
   children,
 }) {
   const mouseDownOnOverlay = useRef(false);
+  const panelRef = useRef(null);
+  const titleId = useId();
   const [confirmingClose, setConfirmingClose] = useState(false);
 
   function requestClose() {
@@ -28,6 +31,7 @@ export default function EditPageShell({
   }
 
   useEscapeKey(requestClose);
+  const onTab = useFocusTrap(panelRef, isOverlay && !loading && !loadError);
 
   const overlayHandlers = {
     onMouseDown: (e) => { mouseDownOnOverlay.current = e.target === e.currentTarget; },
@@ -67,13 +71,21 @@ export default function EditPageShell({
 
   const panel = (
     <div
+      ref={panelRef}
       className={`we-edit-panel${isOverlay ? ' we-edit-panel-overlay' : ''}`}
       onClick={isOverlay ? (e) => e.stopPropagation() : undefined}
+      {...(isOverlay ? {
+        role: 'dialog',
+        'aria-modal': 'true',
+        'aria-labelledby': title ? titleId : undefined,
+        tabIndex: -1,
+        onKeyDown: onTab,
+      } : {})}
     >
       <div className="we-edit-header">
         <button className="we-edit-back" onClick={requestClose}>← 返回</button>
         <div className="we-edit-header-row">
-          {title && <h1 className="we-edit-title">{title}</h1>}
+          {title && <h1 id={titleId} className="we-edit-title">{title}</h1>}
           {headerActions && <div className="we-edit-header-actions">{headerActions}</div>}
         </div>
       </div>

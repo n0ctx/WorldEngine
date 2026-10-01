@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import ModalShell from '../../../components/ui/ModalShell.jsx';
+import Dialog from '../../../components/ui/Dialog.jsx';
 import Button from '../../../components/ui/Button.jsx';
 import CharacterSeal from '../../../components/chat/CharacterSeal.jsx';
 import { getCharactersByWorld } from '../../../core/api/characters.js';
@@ -35,39 +35,31 @@ export default function AddEntityFromCardModal({ worldId, sessionId, entities, o
   }
 
   return (
-    <ModalShell onClose={onClose} maxWidth="max-w-sm">
-      <div className="we-cast-add-modal-body">
-        <p className="we-cast-add-modal-title">从角色卡添加</p>
-        {chars === null && (
-          <p className="we-cast-add-modal-empty">加载中…</p>
-        )}
-        {chars !== null && chars.length === 0 && (
-          <p className="we-cast-add-modal-empty">该世界暂无角色卡</p>
-        )}
-        {chars !== null && chars.map((c) => {
-          const taken = occupiedCardIds.has(c.id);
-          return (
-            <div key={c.id} className="we-cast-add-modal-row">
-              <CharacterSeal character={c} size={32} />
-              <span className="we-cast-add-modal-name">{c.name}</span>
-              <Button
-                type="button"
-                size="sm"
-                variant="secondary"
-                onClick={() => handleAdd(c.id)}
-                disabled={taken || adding === c.id}
-              >
-                {taken ? '已添加' : adding === c.id ? '…' : '添加'}
-              </Button>
-            </div>
-          );
-        })}
-      </div>
-      <div className="we-cast-add-modal-footer">
-        <Button type="button" variant="ghost" onClick={onClose}>
-          关闭
-        </Button>
-      </div>
-    </ModalShell>
+    <Dialog size="sm" title="从角色卡添加" onClose={onClose}>
+      {chars === null && (
+        <p className="we-cast-add-modal-empty">加载中…</p>
+      )}
+      {chars !== null && chars.length === 0 && (
+        <p className="we-cast-add-modal-empty">该世界暂无角色卡</p>
+      )}
+      {chars !== null && chars.map((c) => {
+        const taken = occupiedCardIds.has(c.id);
+        return (
+          <div key={c.id} className="we-cast-add-modal-row">
+            <CharacterSeal character={c} size={32} />
+            <span className="we-cast-add-modal-name">{c.name}</span>
+            <Button
+              type="button"
+              size="sm"
+              variant="secondary"
+              onClick={() => handleAdd(c.id)}
+              disabled={taken || adding === c.id}
+            >
+              {taken ? '已添加' : adding === c.id ? '…' : '添加'}
+            </Button>
+          </div>
+        );
+      })}
+    </Dialog>
   );
 }

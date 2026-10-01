@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { AnimatePresence } from 'framer-motion';
 import { PencilLine } from 'lucide-react';
 import {
   listRegexRules,
@@ -151,15 +152,17 @@ export default function RegexRulesManager({ settingsMode = SETTINGS_MODE.CHAT })
         </div>
       ))}
 
-      {editorOpen && (
-        <RegexRuleEditor
-          rule={editingRule}
-          worlds={worlds}
-          settingsMode={settingsMode}
-          onSave={handleSave}
-          onClose={() => setEditorOpen(false)}
-        />
-      )}
+      <AnimatePresence>
+        {editorOpen && (
+          <RegexRuleEditor
+            rule={editingRule}
+            worlds={worlds}
+            settingsMode={settingsMode}
+            onSave={handleSave}
+            onClose={() => setEditorOpen(false)}
+          />
+        )}
+      </AnimatePresence>
 
     </div>
   );

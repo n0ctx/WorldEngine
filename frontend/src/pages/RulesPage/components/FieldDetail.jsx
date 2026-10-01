@@ -14,7 +14,7 @@ export default function FieldDetail({ worldId, scope, scopeKey, field, onDefinit
   const [editingDef, setEditingDef] = useState(false); // 是否就地展开「编辑定义」
 
   return (
-    <div className="we-entry-editor-panel we-entry-editor-panel--inline we-workshop-detail-inner">
+    <div className="we-entry-editor-panel we-workshop-detail-inner">
       <div className="we-workshop-detail-head">
         <div>
           <h3 className="we-entry-editor-title we-workshop-detail-title">{field.label}</h3>

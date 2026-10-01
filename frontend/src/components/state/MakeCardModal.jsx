@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import ModalShell from '../ui/ModalShell.jsx';
+import Dialog from '../ui/Dialog.jsx';
 import Button from '../ui/Button.jsx';
 import { analyzeEntityForCard, createCharacterFromEntity } from '../../core/api/state-memory.js';
 import { log } from '../../core/utils/logger.js';
@@ -69,84 +69,79 @@ export default function MakeCardModal({ worldId, sessionId, entity, onClose, onC
   }
 
   return (
-    <ModalShell onClose={loading ? () => {} : onClose} maxWidth="max-w-md">
-      <div className="we-cast-add-modal-body we-make-card-modal-preview">
-        <p className="we-cast-add-modal-title">制成角色卡（可编辑）</p>
-
-        {!draft && loading && (
-          <p className="we-cast-add-modal-empty">分析中…</p>
-        )}
-        {!draft && !loading && error && (
-          <p className="we-field-error">{error}</p>
-        )}
-
-        {draft && (
-          <>
-            <label className="we-make-card-modal-field">
-              <span className="we-make-card-modal-label">名字</span>
-              <input
-                className="we-make-card-modal-input"
-                value={draft.name}
-                onChange={(e) => setDraft({ ...draft, name: e.target.value })}
-                disabled={loading}
-              />
-            </label>
-
-            <label className="we-make-card-modal-field">
-              <span className="we-make-card-modal-label">简介</span>
-              <textarea
-                className="we-make-card-modal-textarea"
-                value={draft.description}
-                rows={2}
-                onChange={(e) => setDraft({ ...draft, description: e.target.value })}
-                disabled={loading}
-              />
-            </label>
-
-            <label className="we-make-card-modal-field">
-              <span className="we-make-card-modal-label">人设（system_prompt）</span>
-              <textarea
-                className="we-make-card-modal-textarea"
-                value={draft.system_prompt}
-                rows={4}
-                onChange={(e) => setDraft({ ...draft, system_prompt: e.target.value })}
-                disabled={loading}
-              />
-            </label>
-
-            <label className="we-make-card-modal-field">
-              <span className="we-make-card-modal-label">开场白</span>
-              <textarea
-                className="we-make-card-modal-textarea"
-                value={draft.first_message}
-                rows={2}
-                onChange={(e) => setDraft({ ...draft, first_message: e.target.value })}
-                disabled={loading}
-              />
-            </label>
-          </>
-        )}
-      </div>
-      <div className="we-cast-add-modal-footer we-make-card-modal-footer">
-        <Button
-          type="button"
-          variant="ghost"
-          onClick={onClose}
-          disabled={loading && !draft}
-        >
-          关闭
-        </Button>
-        {draft && (
-          <Button
-            type="button"
-            variant="primary"
-            onClick={handleConfirm}
-            disabled={loading}
-          >
-            {loading ? '保存中…' : '保存为角色卡'}
+    <Dialog
+      size="md"
+      title="制成角色卡"
+      description="AI 起草的内容可以先改再保存。"
+      busy={loading}
+      bodyClassName="we-make-card-modal-fields"
+      onClose={onClose}
+      footer={(
+        <>
+          <Button type="button" variant="ghost" onClick={onClose} disabled={loading}>
+            关闭
           </Button>
-        )}
-      </div>
-    </ModalShell>
+          {draft && (
+            <Button type="button" variant="primary" onClick={handleConfirm} disabled={loading}>
+              {loading ? '保存中…' : '保存为角色卡'}
+            </Button>
+          )}
+        </>
+      )}
+    >
+      {!draft && loading && (
+        <p className="we-cast-add-modal-empty">分析中…</p>
+      )}
+      {!draft && !loading && error && (
+        <p className="we-field-error">{error}</p>
+      )}
+
+      {draft && (
+        <>
+          <label className="we-make-card-modal-field">
+            <span className="we-make-card-modal-label">名字</span>
+            <input
+              className="we-make-card-modal-input"
+              value={draft.name}
+              onChange={(e) => setDraft({ ...draft, name: e.target.value })}
+              disabled={loading}
+            />
+          </label>
+
+          <label className="we-make-card-modal-field">
+            <span className="we-make-card-modal-label">简介</span>
+            <textarea
+              className="we-make-card-modal-textarea"
+              value={draft.description}
+              rows={2}
+              onChange={(e) => setDraft({ ...draft, description: e.target.value })}
+              disabled={loading}
+            />
+          </label>
+
+          <label className="we-make-card-modal-field">
+            <span className="we-make-card-modal-label">人设（system_prompt）</span>
+            <textarea
+              className="we-make-card-modal-textarea"
+              value={draft.system_prompt}
+              rows={4}
+              onChange={(e) => setDraft({ ...draft, system_prompt: e.target.value })}
+              disabled={loading}
+            />
+          </label>
+
+          <label className="we-make-card-modal-field">
+            <span className="we-make-card-modal-label">开场白</span>
+            <textarea
+              className="we-make-card-modal-textarea"
+              value={draft.first_message}
+              rows={2}
+              onChange={(e) => setDraft({ ...draft, first_message: e.target.value })}
+              disabled={loading}
+            />
+          </label>
+        </>
+      )}
+    </Dialog>
   );
 }

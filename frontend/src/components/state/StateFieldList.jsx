@@ -1,13 +1,13 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
-import { createPortal } from 'react-dom';
+import { useState, useEffect, useCallback } from 'react';
+import { AnimatePresence } from 'framer-motion';
 import { PencilLine, Trash2 } from 'lucide-react';
 import { SortableList } from '../index';
 import Button from '../ui/Button.jsx';
+import ConfirmModal from '../ui/ConfirmModal.jsx';
 import IconButton from '../ui/IconButton.jsx';
 import DragHandle from '../ui/DragHandle.jsx';
 import StateFieldEditor from './StateFieldEditor';
 import { log } from '../../core/utils/logger.js';
-import { useEscapeKey } from '../../core/hooks/useEscapeKey.js';
 
 const TYPE_LABEL = { text: '文本', number: '数值', boolean: '布尔', enum: '枚举', list: '列表', datetime: '时间', table: '表格' };
 const UPDATE_LABEL = { manual: '手动', llm_auto: 'LLM自动', system_rule: '系统规则' };
@@ -109,21 +109,29 @@ export default function StateFieldList({
         </div>
       )}
 
-      {showEditor && (
-        <StateFieldEditor
-          field={editingField}
-          scope={scope}
-          onSave={handleSave}
-          onClose={() => setShowEditor(false)}
-        />
-      )}
+      <AnimatePresence>
+        {showEditor && (
+          <StateFieldEditor
+            field={editingField}
+            scope={scope}
+            onSave={handleSave}
+            onClose={() => setShowEditor(false)}
+          />
+        )}
+      </AnimatePresence>
 
-      {deletingId && (
-        <DeleteConfirm
-          onConfirm={() => handleDelete(deletingId)}
-          onClose={() => setDeletingId(null)}
-        />
-      )}
+      <AnimatePresence>
+        {deletingId && (
+          <ConfirmModal
+            title="确认删除字段"
+            message="此操作无法撤销。"
+            confirmText="确认删除"
+            danger
+            onConfirm={() => handleDelete(deletingId)}
+            onClose={() => setDeletingId(null)}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }
@@ -159,42 +167,5 @@ function Badge({ label, dim }) {
     <span className={dim ? 'we-field-badge' : 'we-field-badge-accent'}>
       {label}
     </span>
-  );
-}
-
-function DeleteConfirm({ onConfirm, onClose }) {
-  const [deleting, setDeleting] = useState(false);
-  const mouseDownOnBackdropRef = useRef(false);
-  useEscapeKey(() => { if (!deleting) onClose(); });
-  async function handle() {
-    setDeleting(true);
-    try {
-      await onConfirm();
-    } finally {
-      setDeleting(false);
-    }
-  }
-  return createPortal(
-    <div
-      className="fixed inset-0 z-[var(--we-z-modal)] flex items-center justify-center we-modal-backdrop"
-      onMouseDown={(e) => { mouseDownOnBackdropRef.current = e.target === e.currentTarget; }}
-      onClick={() => { if (mouseDownOnBackdropRef.current && !deleting) onClose(); }}
-    >
-      <div className="we-dialog-panel mx-4 w-full max-w-sm p-6">
-        <h2 className="mb-3 we-type-subheading italic text-[var(--we-color-text-primary)] [font-family:var(--we-font-display)]">
-          确认删除字段
-        </h2>
-        <p className="mb-5 we-type-ui text-[var(--we-color-accent)] [font-family:var(--we-font-prose)]">
-          此操作无法撤销。
-        </p>
-        <div className="flex justify-end gap-3">
-          <Button size="sm" variant="ghost" onClick={onClose}>取消</Button>
-          <Button size="sm" variant="danger" onClick={handle} disabled={deleting}>
-            {deleting ? '删除中…' : '确认删除'}
-          </Button>
-        </div>
-      </div>
-    </div>,
-    document.body
   );
 }

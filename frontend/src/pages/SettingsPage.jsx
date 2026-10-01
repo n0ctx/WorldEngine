@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useSettingsConfig } from '../core/hooks/useSettingsConfig';
 import { useEscapeKey } from '../core/hooks/useEscapeKey.js';
+import { useFocusTrap } from '../core/hooks/useFocusTrap.js';
 import LlmConfigPanel from '../components/settings/LlmConfigPanel';
 import PromptConfigPanel from '../components/settings/PromptConfigPanel';
 import ImportExportPanel from '../components/settings/ImportExportPanel';
@@ -44,6 +45,7 @@ export default function SettingsPage() {
   const navItemsRef = useRef(null);
   const mouseDownOutsidePanel = useRef(false);
   useEscapeKey(() => navigate(-1), isOverlay);
+  const onTab = useFocusTrap(panelRef, isOverlay);
 
   function handleBack() {
     if (isOverlay) { navigate(-1); return; }
@@ -77,12 +79,15 @@ export default function SettingsPage() {
     animate: 'visible',
     transition: m.transition('overlay'),
   };
+  const dialogProps = isOverlay
+    ? { role: 'dialog', 'aria-modal': 'true', 'aria-label': '设置', tabIndex: -1, onKeyDown: onTab }
+    : {};
 
   if (loading) {
     return isOverlay ? (
       <div className="we-settings-overlay" {...overlayHandlers}>
         <div className="we-settings-panel-wrap">
-          <motion.div ref={panelRef} className="we-settings-panel we-settings-panel-overlay" {...panelMotion}>
+          <motion.div ref={panelRef} className="we-settings-panel we-settings-panel-overlay" {...panelMotion} {...dialogProps}>
             <div className="we-settings-loading" role="status" aria-label="设置加载中">
               <div className="we-settings-loading-scrim" aria-hidden="true" />
             </div>
@@ -104,6 +109,7 @@ export default function SettingsPage() {
         ref={isOverlay ? panelRef : undefined}
         className={`we-settings-panel${isOverlay ? ' we-settings-panel-overlay' : ''}`}
         {...panelMotion}
+        {...dialogProps}
       >
         <nav className="we-settings-nav">
           <button className="we-edit-back" onClick={handleBack}>← 返回</button>

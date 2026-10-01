@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { AnimatePresence } from 'framer-motion';
-import { createPortal } from 'react-dom';
 import ConfirmModal from '../ui/ConfirmModal.jsx';
 import Icon from '../ui/Icon.jsx';
 import { deleteStateEntity, updateStateEntity } from '../../core/api/state-memory.js';
@@ -95,24 +94,19 @@ export default function StateMemoryEntityDetail({ sessionId, entity, typeLabel, 
         <p className="we-settings-toggle-hint mt-2 text-[var(--we-color-accent)]" role="alert">{error}</p>
       )}
 
-      {createPortal(
-        <AnimatePresence>
-          {confirmDelete && (
-            <div className="we-tm-confirm-layer">
-              <ConfirmModal
-                title="删除该实体？"
-                message={`删除后「${entity.name}」将标记为已退场，相关关系会一并关闭。`}
-                confirmText="删除"
-                cancelText="取消"
-                danger
-                onConfirm={handleDelete}
-                onClose={() => setConfirmDelete(false)}
-              />
-            </div>
-          )}
-        </AnimatePresence>,
-        document.body,
-      )}
+      <AnimatePresence>
+        {confirmDelete && (
+          <ConfirmModal
+            title="删除该实体？"
+            message={`删除后「${entity.name}」将标记为已退场，相关关系会一并关闭。`}
+            confirmText="删除"
+            cancelText="取消"
+            danger
+            onConfirm={handleDelete}
+            onClose={() => setConfirmDelete(false)}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }

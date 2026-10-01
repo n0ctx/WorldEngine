@@ -3534,9 +3534,11 @@
   padding: var(--we-space-md);
   background: var(--we-color-bg-sunken);
 }
-.we-state-field-inline .we-dialog-body { padding: 0; }
-.we-state-field-inline .we-dialog-footer {
-  padding: var(--we-space-md) 0 0;
+.we-state-field-inline__footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--we-space-sm);
+  padding-top: var(--we-space-md);
   margin-top: var(--we-space-md);
   border-top: 1px solid var(--we-color-border-default);
 }
@@ -4211,19 +4213,6 @@
   opacity: var(--we-opacity-disabled);
   cursor: not-allowed;
 }
-.we-cast-add-modal-body {
-  padding: 16px 20px 6px;
-}
-.we-cast-add-modal-title {
-  font-family: var(--we-font-display);
-  font-size: var(--we-type-subheading-size);
-  line-height: var(--we-type-subheading-leading);
-  letter-spacing: var(--we-type-subheading-tracking);
-  font-weight: var(--we-type-subheading-weight);
-  font-style: italic;
-  color: var(--we-color-text-primary);
-  margin: 0 0 var(--we-space-md);
-}
 .we-cast-add-modal-empty {
   font-size: var(--we-type-ui-size);
   line-height: var(--we-type-ui-leading);
@@ -4247,28 +4236,13 @@
   letter-spacing: var(--we-type-ui-tracking);
   color: var(--we-color-text-primary);
 }
-.we-cast-add-modal-footer {
-  padding: 10px 20px 16px;
-  display: flex;
-  justify-content: flex-end;
-}
 
 /* — MakeCardModal 预览 ─ */
 /* — MakeCardModal 预览步骤 — */
-.we-make-card-modal-preview {
+.we-make-card-modal-fields {
   display: flex;
   flex-direction: column;
   gap: var(--we-space-md);
-  max-height: 60vh;
-  overflow-y: auto;
-  scrollbar-width: thin;
-  scrollbar-color: var(--we-color-border-default) transparent;
-}
-.we-make-card-modal-preview::-webkit-scrollbar { width: 4px; }
-.we-make-card-modal-preview::-webkit-scrollbar-track { background: transparent; }
-.we-make-card-modal-preview::-webkit-scrollbar-thumb {
-  background: var(--we-color-border-default);
-  border-radius: var(--we-radius-full);
 }
 .we-make-card-modal-field {
   display: flex;
@@ -4309,10 +4283,6 @@
 .we-make-card-modal-textarea:disabled {
   opacity: var(--we-opacity-disabled);
   cursor: not-allowed;
-}
-.we-make-card-modal-footer {
-  justify-content: space-between;
-  gap: var(--we-space-md);
 }
 
 /* — NearbyPanel ─ */
@@ -5023,12 +4993,6 @@
 }
 .we-design-lab__css-enter {
   animation: var(--we-fx-enter);
-}
-.we-design-lab__dialog-body {
-  display: grid;
-  gap: var(--we-space-md);
-  padding: var(--we-space-lg);
-  color: var(--we-color-text-primary);
 }
 .we-design-lab__loop-skel {
   width: 160px;

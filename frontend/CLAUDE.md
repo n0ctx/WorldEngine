@@ -53,6 +53,7 @@
 - 改动会影响所有主题：核心样式（`ui.css` / `pages.css` / `chat.css`）和 token 的改动，要在夜航（暗）和古典羊皮纸（亮）两套主题下都看；用户验证时也要两套都交代。
 - 组件样式只消费 token，不写颜色、字号、圆角、阴影、层级等字面量（`literals` 守卫会拦）；能复用已有 token 就复用，确实没有再新增。
 - 按钮只用 `Button` / `IconButton`（色调 primary / secondary / ghost / danger / overlay × 尺寸 sm / md / lg，高度取 `--we-control-h-*`）；`components/ui/` 以外不手写 `we-btn*` 类（`literals` 守卫的 primitive-class 会拦），也不按所在容器改写按钮外观。
+- 弹窗只用 `Dialog`（标准 / alert 确认两种版式 × sm / md / lg / xl 宽度；确认用 `ConfirmModal`）：它自己挂到 body、圈住焦点、统一 Esc / 点空白 / 关闭键，忙时用 `busy` 挡住关闭；调用方用 `AnimatePresence` 包住条件渲染，嵌套弹窗直接再渲染一个，不手写遮罩或层叠包装。
 - 文字只选字体角色（`.we-type-<角色>` 类，或同一规则块写齐 `--we-type-<角色>-size / -leading / -tracking`），不单独挑字号、行高、字距。
 - 半透明与混色的浓度只取透明度阶梯 `--we-alpha-1..5`；阴影只用 `--we-elevation-1..3` 与 `--we-shadow-inset`，主题调浓淡用 `--we-shadow-strength`。
 - 弱化文字走文字阶梯（`--we-color-text-secondary / -tertiary / -faint`），不叠 `opacity`；`opacity` 只用于 0/1 显隐和 `--we-opacity-disabled`。直接放在深色书桌（壳层）上、不垫纸面的内容挂 `.we-on-shell`。

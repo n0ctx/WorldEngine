@@ -1,7 +1,6 @@
 import { useMemo } from 'react';
-import ModalShell from '../ui/ModalShell.jsx';
+import Dialog from '../ui/Dialog.jsx';
 import SectionTabs from '../ui/SectionTabs.jsx';
-import Button from '../ui/Button.jsx';
 import { useStateMemory, useStateMemorySchema } from '../../core/hooks/useStateMemory.js';
 import StateMemoryEntityTab from './StateMemoryEntityTab.jsx';
 import StateMemoryRelationTab from './StateMemoryRelationTab.jsx';
@@ -51,27 +50,20 @@ export default function StateMemoryModal({ sessionId, onClose }) {
   }, [sessionId, data, schema, reload]);
 
   return (
-    <ModalShell onClose={onClose} maxWidth="max-w-4xl">
-      <div className="we-dialog-header">
-        <h2>状态记忆</h2>
-        <p className="we-sm-subtitle">
-          AI 每轮从剧情里整理出的人物、关系和未了结的事，后续回复会参考这些内容。记错了可以直接在这里改。
-        </p>
-      </div>
-
-      <div className="we-dialog-body we-sm-body-wrap">
-        {loading && !data ? (
-          <p className="we-settings-toggle-hint">加载中…</p>
-        ) : error ? (
-          <p className="we-settings-toggle-hint mt-2 text-[var(--we-color-accent)]" role="alert">{error}</p>
-        ) : (
-          <SectionTabs sections={sections} defaultKey="characters" staticMotion />
-        )}
-      </div>
-
-      <div className="we-dialog-footer">
-        <Button variant="ghost" onClick={onClose}>关闭</Button>
-      </div>
-    </ModalShell>
+    <Dialog
+      size="xl"
+      title="状态记忆"
+      description="AI 每轮从剧情里整理出的人物、关系和未了结的事，后续回复会参考这些内容。记错了可以直接在这里改。"
+      bodyClassName="we-sm-body-wrap"
+      onClose={onClose}
+    >
+      {loading && !data ? (
+        <p className="we-settings-toggle-hint">加载中…</p>
+      ) : error ? (
+        <p className="we-settings-toggle-hint mt-2 text-[var(--we-color-accent)]" role="alert">{error}</p>
+      ) : (
+        <SectionTabs sections={sections} defaultKey="characters" staticMotion />
+      )}
+    </Dialog>
   );
 }

@@ -1,9 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
-import { createPortal } from 'react-dom';
 import Button from '../ui/Button';
+import Dialog from '../ui/Dialog';
 import { ISO_DATETIME_RE, formatBooleanDisplay, formatDatetimeChinese, parseLooseJson } from './state-value-format';
 import { toggleSetValue } from '../../core/utils/toggleSetValue.js';
-import { useEscapeKey } from '../../core/hooks/useEscapeKey.js';
 
 const EMPTY_DISPLAY = '（未设置）';
 
@@ -42,8 +41,6 @@ function formatDisplayValue(rawJson, type) {
 /**
  * StateExtractPreviewModal — AI 提取状态字段建议值的预览/勾选确认弹窗
  *
- * 复用 StateFieldEditor.jsx 的 we-dialog-* 弹窗结构与 createPortal 挂载方式，不自创样式。
- *
  * Props:
  *   onExtract() → Promise<Array<{ field_key, label, type, current_value_json, suggested_value_json }>>
  *     父组件负责调具体的 extractCharacterStateValues / extractPersonaStateValues
@@ -57,7 +54,6 @@ export default function StateExtractPreviewModal({ onExtract, onConfirm, onClose
   const [selected, setSelected] = useState(() => new Set());
   const [confirming, setConfirming] = useState(false);
   const [confirmError, setConfirmError] = useState('');
-  useEscapeKey(onClose, !confirming);
 
   useEffect(() => {
     let cancelled = false;
@@ -128,95 +124,87 @@ export default function StateExtractPreviewModal({ onExtract, onConfirm, onClose
   const isLoading = suggestions === null;
   const isEmpty = !isLoading && !fetchError && rows.length === 0;
 
-  return createPortal(
-    <div className="fixed inset-0 z-[var(--we-z-modal)] flex items-center justify-center we-modal-backdrop px-4">
-      <div
-        className="we-dialog-panel w-full max-w-2xl flex flex-col max-h-[90vh]"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="we-extract-preview-title"
-      >
-        <div className="we-dialog-header">
-          <h2 id="we-extract-preview-title">AI 提取状态字段建议</h2>
-        </div>
-
-        <div className="we-dialog-body flex flex-col gap-4">
-          {isLoading && (
-            <p className="we-state-field-hint">正在从人设正文分析可能的状态字段值，请稍候…</p>
-          )}
-
-          {!isLoading && fetchError && (
-            <p className="we-state-field-error">{fetchError}</p>
-          )}
-
-          {isEmpty && (
-            <p className="we-section-empty">AI 未能从当前人设正文中提取到任何状态字段建议，可先完善人设正文（简介/系统提示词）后重试</p>
-          )}
-
-          {!isLoading && rows.length > 0 && (
-            <>
-              <div className="we-extract-toolbar">
-                <div className="we-extract-toolbar-actions">
-                  <Button type="button" size="sm" variant="secondary" onClick={selectAll}>全选</Button>
-                  <Button type="button" size="sm" variant="secondary" onClick={selectNone}>全不选</Button>
-                </div>
-                <span className="we-extract-count">已选 {selectedCount} / {rows.length} 条</span>
-              </div>
-
-              <div className="we-extract-list">
-                {rows.map((row) => (
-                  <label
-                    key={row.field_key}
-                    className={`we-extract-row${row.isOverride ? ' we-extract-row--override' : ''}`}
-                  >
-                    <input
-                      type="checkbox"
-                      className="we-extract-checkbox"
-                      checked={selected.has(row.field_key)}
-                      onChange={() => toggle(row.field_key)}
-                      aria-label={`勾选写入 ${row.label}`}
-                    />
-                    <div className="we-extract-body">
-                      <div className="we-extract-row-head">
-                        <span className="we-extract-label">{row.label}</span>
-                        {row.isOverride ? (
-                          <span className="we-extract-badge we-extract-badge--override">将覆盖</span>
-                        ) : (
-                          <span className="we-extract-badge we-extract-badge--new">新增</span>
-                        )}
-                      </div>
-                      <div className="we-extract-values">
-                        <span className="we-extract-current">
-                          当前：{row.currentDisplay ?? EMPTY_DISPLAY}
-                        </span>
-                        <span className="we-extract-arrow">→</span>
-                        <span className="we-extract-suggested">
-                          建议：{row.suggestedDisplay ?? EMPTY_DISPLAY}
-                        </span>
-                      </div>
-                    </div>
-                  </label>
-                ))}
-              </div>
-            </>
-          )}
-
-          {confirmError && <p className="we-state-field-error">{confirmError}</p>}
-        </div>
-
-        <div className="we-dialog-footer">
-          <Button size="sm" variant="ghost" onClick={onClose} disabled={confirming}>取消</Button>
+  return (
+    <Dialog
+      size="lg"
+      title="AI 提取状态字段建议"
+      busy={confirming}
+      onClose={onClose}
+      bodyClassName="flex flex-col gap-4"
+      footer={(
+        <>
+          <Button variant="ghost" onClick={onClose} disabled={confirming}>取消</Button>
           <Button
-            size="sm"
             variant="primary"
             onClick={handleConfirm}
             disabled={selectedCount === 0 || confirming || isLoading}
           >
             {confirming ? '写入中…' : `写入 ${selectedCount} 条`}
           </Button>
-        </div>
-      </div>
-    </div>,
-    document.body,
+        </>
+      )}
+    >
+      {isLoading && (
+        <p className="we-state-field-hint">正在从人设正文分析可能的状态字段值，请稍候…</p>
+      )}
+
+      {!isLoading && fetchError && (
+        <p className="we-state-field-error">{fetchError}</p>
+      )}
+
+      {isEmpty && (
+        <p className="we-section-empty">AI 未能从当前人设正文中提取到任何状态字段建议，可先完善人设正文（简介/系统提示词）后重试</p>
+      )}
+
+      {!isLoading && rows.length > 0 && (
+        <>
+          <div className="we-extract-toolbar">
+            <div className="we-extract-toolbar-actions">
+              <Button type="button" size="sm" variant="secondary" onClick={selectAll}>全选</Button>
+              <Button type="button" size="sm" variant="secondary" onClick={selectNone}>全不选</Button>
+            </div>
+            <span className="we-extract-count">已选 {selectedCount} / {rows.length} 条</span>
+          </div>
+
+          <div className="we-extract-list">
+            {rows.map((row) => (
+              <label
+                key={row.field_key}
+                className={`we-extract-row${row.isOverride ? ' we-extract-row--override' : ''}`}
+              >
+                <input
+                  type="checkbox"
+                  className="we-extract-checkbox"
+                  checked={selected.has(row.field_key)}
+                  onChange={() => toggle(row.field_key)}
+                  aria-label={`勾选写入 ${row.label}`}
+                />
+                <div className="we-extract-body">
+                  <div className="we-extract-row-head">
+                    <span className="we-extract-label">{row.label}</span>
+                    {row.isOverride ? (
+                      <span className="we-extract-badge we-extract-badge--override">将覆盖</span>
+                    ) : (
+                      <span className="we-extract-badge we-extract-badge--new">新增</span>
+                    )}
+                  </div>
+                  <div className="we-extract-values">
+                    <span className="we-extract-current">
+                      当前：{row.currentDisplay ?? EMPTY_DISPLAY}
+                    </span>
+                    <span className="we-extract-arrow">→</span>
+                    <span className="we-extract-suggested">
+                      建议：{row.suggestedDisplay ?? EMPTY_DISPLAY}
+                    </span>
+                  </div>
+                </div>
+              </label>
+            ))}
+          </div>
+        </>
+      )}
+
+      {confirmError && <p className="we-state-field-error">{confirmError}</p>}
+    </Dialog>
   );
 }

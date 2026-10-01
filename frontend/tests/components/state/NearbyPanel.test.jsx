@@ -170,9 +170,8 @@ describe('NearbyPanel 的在场 + 置顶实体页签', () => {
     await waitFor(() => expect(tabLabels()).toEqual(['甲']));
 
     fireEvent.click(within(tabByKey('e1')).getByRole('button', { name: '删除' }));
-    await screen.findByText('删除该角色？');
-    const confirmLayer = document.querySelector('.we-tm-confirm-layer');
-    fireEvent.click(within(confirmLayer).getByRole('button', { name: '删除' }));
+    const confirm = await screen.findByRole('alertdialog', { name: '删除该角色？' });
+    fireEvent.click(within(confirm).getByRole('button', { name: '删除' }));
 
     await waitFor(() => expect(mocks.deleteStateEntity).toHaveBeenCalledWith('s1', 'e1'));
     await waitFor(() => expect(mocks.fetchStateMemory).toHaveBeenCalledTimes(2));

@@ -16,7 +16,7 @@ export default function Textarea({ className = '', onMouseDown, onPointerDown, o
         el.style.overflowY = 'hidden';
       });
       observer.observe(el);
-      // 必须挂捕获阶段：祖先 DialogShell 的 React onMouseUp 调了 stopPropagation，
+      // 必须挂捕获阶段：祖先 Dialog 的 React onMouseUp 调了 stopPropagation，
       // React 17+ 在 root 容器代理事件，会把 native 冒泡也截断，document 的 bubble 监听器永远收不到 mouseup，
       // overflow-y:hidden 就会卡死，resize 完成后 textarea 滚动条再也不出来。
       const unlock = () => {

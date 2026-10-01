@@ -1,25 +1,20 @@
 /* WorldEngine 原子 UI 组件样式 */
 
 /* ── 公共：纤细滚动条（所有可滚容器复用） ── */
-.we-dialog-body,
 .we-option-card--streaming .we-option-list,
-.we-select-dropdown,
-.we-entry-editor-panel {
+.we-select-dropdown {
   scrollbar-width: thin;
   scrollbar-color: var(--we-color-border-default) transparent;
 }
-.we-dialog-body::-webkit-scrollbar,
 .we-option-card--streaming .we-option-list::-webkit-scrollbar,
 .we-select-dropdown::-webkit-scrollbar,
-.we-entry-editor-panel::-webkit-scrollbar { width: 4px; }
-.we-dialog-body::-webkit-scrollbar-track,
+.we-dialog__body::-webkit-scrollbar { width: 4px; }
 .we-option-card--streaming .we-option-list::-webkit-scrollbar-track,
 .we-select-dropdown::-webkit-scrollbar-track,
-.we-entry-editor-panel::-webkit-scrollbar-track { background: transparent; }
-.we-dialog-body::-webkit-scrollbar-thumb,
+.we-dialog__body::-webkit-scrollbar-track { background: transparent; }
 .we-option-card--streaming .we-option-list::-webkit-scrollbar-thumb,
 .we-select-dropdown::-webkit-scrollbar-thumb,
-.we-entry-editor-panel::-webkit-scrollbar-thumb {
+.we-dialog__body::-webkit-scrollbar-thumb {
   background: var(--we-color-border-default);
   border-radius: var(--we-radius-full);
 }
@@ -419,23 +414,24 @@
   pointer-events: none;
 }
 
-/* ── Dialog Panel ── */
-/* 弹窗与确认框：半透明面板压在模糊的场景上，场景仍隐约可见，不跳出成一张后台表单 */
-.we-dialog-panel {
-  background: var(--we-glass-bg);
-  backdrop-filter: blur(var(--we-glass-blur));
-  border-radius: var(--we-radius-xl);
-  box-shadow: var(--we-material-shadow);
-}
-
-/* ── ModalShell ── */
-.we-modal-backdrop {
+/* ── Dialog 弹窗 ──
+ * 半透明玻璃面板压在模糊的场景上，场景仍隐约可见，不跳出成一张后台表单。
+ * 宽度四档：sm 确认与小选择 / md 表单 / lg 编辑器与向导 / xl 多栏浏览。
+ * 页头页脚不画分隔线：正文上下各淡出一段，滚动时内容在页头页脚下面渐隐。 */
+.we-dialog-backdrop {
   backdrop-filter: blur(var(--we-blur-scrim));
+  position: fixed;
+  inset: 0;
+  z-index: var(--we-z-modal);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--we-space-lg);
 }
 
 /* 遮罩的底色画在 ::before 上：入场（--we-fx-scrim，由动效包决定）只作用于底色，不带着上面的面板一起动；
-   模糊留在遮罩本身。三种遮罩都是 fixed，自成层叠上下文，底色垫在面板之下 */
-:is(.we-modal-backdrop, .we-dialog-overlay, .we-settings-overlay)::before {
+   模糊留在遮罩本身。两种遮罩都是 fixed，自成层叠上下文，底色垫在面板之下 */
+:is(.we-dialog-backdrop, .we-settings-overlay)::before {
   content: '';
   position: absolute;
   inset: 0;
@@ -451,43 +447,93 @@
   display: none;
 }
 
-.we-modal {
+.we-dialog {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-height: calc(100vh - var(--we-space-2xl) * 2);
+  overflow: hidden;
+  outline: none;
   background: var(--we-glass-bg);
   backdrop-filter: blur(var(--we-glass-blur));
   border-radius: var(--we-radius-xl);
   box-shadow: var(--we-material-shadow);
 }
+.we-dialog--sm { max-width: 384px; }
+.we-dialog--md { max-width: 512px; }
+.we-dialog--lg { max-width: 672px; }
+.we-dialog--xl { max-width: 896px; }
 
-.we-dialog-header {
-  padding: 18px var(--we-space-xl) 14px; /* 18px: design exact, 14px: design exact */
-  border-bottom: 1px solid var(--we-color-border-subtle);
-  flex-shrink: 0;
+.we-dialog__form {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
 }
 
-.we-dialog-header h2,
-.we-dialog-header h3 {
+.we-dialog__header {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--we-space-md);
+  flex-shrink: 0;
+  padding: var(--we-space-xl) var(--we-space-xl) var(--we-space-sm);
+}
+.we-dialog__heading {
+  display: grid;
+  gap: var(--we-space-xs);
+  flex: 1;
+  min-width: 0;
+}
+.we-dialog__title {
+  margin: 0;
   font-family: var(--we-font-display);
-  font-size: var(--we-type-subheading-size);
-  line-height: var(--we-type-subheading-leading);
+  font-size: var(--we-type-heading-size);
+  line-height: var(--we-type-heading-leading);
+  letter-spacing: var(--we-type-heading-tracking);
   font-weight: var(--we-weight-strong);
   color: var(--we-color-text-primary);
-  margin: 0;
-  letter-spacing: var(--we-type-subheading-tracking);
+}
+.we-dialog__description {
+  font-family: var(--we-font-prose);
+  font-size: var(--we-type-body-size);
+  line-height: var(--we-type-body-leading);
+  letter-spacing: var(--we-type-body-tracking);
+  color: var(--we-color-text-secondary);
+}
+/* 关闭键贴住右上角：按钮自带内边距，往外让一点，图标和标题首行对齐 */
+.we-dialog__close {
+  margin: calc(var(--we-space-xxs) * -1) calc(var(--we-space-sm) * -1) 0 0;
 }
 
-.we-dialog-body {
-  padding: 20px var(--we-space-xl); /* 20px: design exact */
-  overflow-y: auto;
+/* 正文：上下各淡出一段；没滚动时淡出区正好落在内边距里 */
+.we-dialog__body {
   flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--we-space-md) var(--we-space-xl);
+  scrollbar-width: thin;
+  scrollbar-color: var(--we-color-border-default) transparent;
+  mask-image: linear-gradient(to bottom, transparent, #000 var(--we-space-md), #000 calc(100% - var(--we-space-md)), transparent);
 }
 
-.we-dialog-footer {
-  padding: 14px var(--we-space-xl); /* 14px: design exact */
-  border-top: 1px solid var(--we-color-border-subtle);
+.we-dialog__footer {
   display: flex;
+  align-items: center;
   justify-content: flex-end;
-  gap: 10px; /* design exact */
+  gap: var(--we-space-sm);
   flex-shrink: 0;
+  padding: var(--we-space-sm) var(--we-space-xl) var(--we-space-xl);
+}
+.we-dialog__footer-start {
+  margin-right: auto;
+}
+
+/* 确认版式：没有正文区，说明就是全部内容，按钮紧跟其后 */
+.we-dialog--alert .we-dialog__header {
+  padding-bottom: var(--we-space-lg);
+}
+.we-dialog--alert .we-dialog__footer {
+  padding-top: 0;
 }
 
 .we-dialog-label {
@@ -1025,30 +1071,6 @@
   flex-shrink: 0;
 }
 
-/* ── ConfirmModal 确认弹窗 ── */
-.we-confirm-panel {
-  padding: var(--we-space-xl);
-}
-
-.we-confirm-title {
-  font-family: var(--we-font-display);
-  font-size: var(--we-type-heading-size);
-  line-height: var(--we-type-heading-leading);
-  letter-spacing: var(--we-type-heading-tracking);
-  font-weight: var(--we-weight-strong);
-  color: var(--we-color-text-primary);
-  margin-bottom: 10px; /* design exact */
-}
-
-.we-confirm-message {
-  font-family: var(--we-font-prose);
-  font-size: var(--we-type-body-size);
-  line-height: var(--we-type-body-leading);
-  letter-spacing: var(--we-type-body-tracking);
-  color: var(--we-color-text-secondary);
-  margin-bottom: 20px; /* design exact */
-}
-
 /* ── AvatarUpload 头像上传 ── */
 .we-avatar-upload {
   display: flex;
@@ -1358,36 +1380,13 @@
 }
 
 /* ── EntryEditor ── */
-.we-entry-editor-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: var(--we-z-modal);
-  display: flex;
-  align-items: flex-start;
-  justify-content: center;
-  padding-top: 10vh;
-  background: var(--we-color-scrim);
-}
-
+/* 条目编辑器就地内嵌：铺满详情列、随内容流动；弹窗模式由 Dialog 承载 */
 .we-entry-editor-panel {
-  background: var(--we-color-bg-canvas);
-  border: 1px solid var(--we-color-border-default);
-  border-radius: var(--we-radius-sm);
   width: 100%;
-  max-width: 960px;
-  padding: var(--we-space-xl);
-  max-height: calc(100vh - 96px);
-  overflow-y: auto;
-}
-
-/* 就地内嵌模式：不再是浮层卡片，铺满详情列、随内容流动 */
-.we-entry-editor-panel--inline {
-  max-width: none;
-  max-height: none;
-  overflow: visible;
   padding: var(--we-space-md);
-  background: var(--we-color-bg-sunken);
+  border: 1px solid var(--we-color-border-default);
   border-radius: var(--we-radius-lg);
+  background: var(--we-color-bg-sunken);
 }
 
 .we-entry-editor-title {
@@ -1959,18 +1958,6 @@
 .we-flags-btn:focus-visible {
   outline: 2px solid var(--we-color-border-focus);
   outline-offset: 1px;
-}
-
-/* ── Regex Editor Modal Overlay ── */
-.we-dialog-overlay {
-  position: fixed;
-  inset: 0;
-  backdrop-filter: blur(var(--we-blur-scrim));
-  z-index: var(--we-z-modal);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: var(--we-space-lg);
 }
 
 /* ── Flags custom input ── */
@@ -3487,22 +3474,7 @@
   overflow-wrap: anywhere;
 }
 
-/* 二级确认浮层：高于当前 Modal（--we-z-modal），脱离其 transform 上下文；
-   MiddleSummaryModal 与 StateMemoryModal 共用 */
-.we-tm-confirm-layer {
-  position: fixed;
-  inset: 0;
-  z-index: calc(var(--we-z-modal) + 1);
-}
-
 /* ── 状态记忆（StateMemoryModal）─── */
-.we-sm-subtitle {
-  margin: var(--we-space-xs) 0 0;
-  font-size: var(--we-type-body-size);
-  letter-spacing: var(--we-type-body-tracking);
-  line-height: var(--we-type-body-leading);
-  color: var(--we-color-text-tertiary);
-}
 /* 主体固定高度，页签内容各自滚动，切换页签时弹窗不跳高 */
 .we-sm-body-wrap {
   display: flex;

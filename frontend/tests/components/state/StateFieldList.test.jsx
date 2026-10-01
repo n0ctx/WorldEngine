@@ -34,6 +34,6 @@ describe('StateFieldList', () => {
     ));
     expect(screen.getByText('确认删除')).not.toBeDisabled();
     fireEvent.click(screen.getByText('取消'));
-    expect(screen.queryByText('确认删除字段')).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByRole('alertdialog', { name: '确认删除字段' })).not.toBeInTheDocument());
   });
 });

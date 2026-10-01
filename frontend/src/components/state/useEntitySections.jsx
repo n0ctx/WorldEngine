@@ -1,6 +1,5 @@
 import { useMemo, useState } from 'react';
 import { AnimatePresence } from 'framer-motion';
-import { createPortal } from 'react-dom';
 import Button from '../ui/Button.jsx';
 import ConfirmModal from '../ui/ConfirmModal.jsx';
 import MakeCardModal from './MakeCardModal.jsx';
@@ -157,24 +156,19 @@ export default function useEntitySections({
           />
         )}
       </AnimatePresence>
-      {createPortal(
-        <AnimatePresence>
-          {deleteTarget && (
-            <div className="we-tm-confirm-layer">
-              <ConfirmModal
-                title="删除该角色？"
-                message={`删除后「${deleteTarget.name}」将标记为已退场，相关关系会一并关闭。`}
-                confirmText="删除"
-                cancelText="取消"
-                danger
-                onConfirm={() => handleDelete(deleteTarget)}
-                onClose={() => setDeleteTarget(null)}
-              />
-            </div>
-          )}
-        </AnimatePresence>,
-        document.body,
-      )}
+      <AnimatePresence>
+        {deleteTarget && (
+          <ConfirmModal
+            title="删除该角色？"
+            message={`删除后「${deleteTarget.name}」将标记为已退场，相关关系会一并关闭。`}
+            confirmText="删除"
+            cancelText="取消"
+            danger
+            onConfirm={() => handleDelete(deleteTarget)}
+            onClose={() => setDeleteTarget(null)}
+          />
+        )}
+      </AnimatePresence>
     </>
   );
 

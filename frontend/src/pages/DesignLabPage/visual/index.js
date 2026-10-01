@@ -1,6 +1,7 @@
 import { AccentColorsDemo, BasePaletteDemo, ShellColorsDemo, SurfaceColorsDemo, WashColorsDemo } from './color.jsx';
 import { ButtonsDemo } from './buttons.jsx';
 import { EntryColsDemo } from './cols.jsx';
+import { DialogsDemo } from './dialogs.jsx';
 import { ChatDemo, CardsDemo, ControlsDemo, TopbarDemo } from './component.jsx';
 import { ChatControlsDemo } from './controls.jsx';
 import { LoadingDemo, PageCanvasDemo, WorldCardDemo } from './page.jsx';
@@ -22,6 +23,7 @@ export const VISUAL_DEMOS = {
   material: MaterialDemo,
   buttons: ButtonsDemo,
   controls: ControlsDemo,
+  dialogs: DialogsDemo,
   cards: CardsDemo,
   'entry-cols': EntryColsDemo,
   'topbar-skin': TopbarDemo,

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import Button from '../../../components/ui/Button.jsx';
 import ConfirmModal from '../../../components/ui/ConfirmModal.jsx';
-import DialogShell from '../../../components/ui/DialogShell.jsx';
+import Dialog from '../../../components/ui/Dialog.jsx';
 import { log } from '../../../core/utils/logger.js';
 import SlotSection from '../SlotSection.jsx';
 import { TOASTS } from './fixtures.js';
@@ -37,14 +37,23 @@ export function DialogDemo() {
       id="dialog"
       actions={<Button variant="secondary" size="sm" onClick={() => setOpen(true)}>打开对话面板</Button>}
     >
-      {open && (
-        <DialogShell onClose={() => setOpen(false)}>
-          <div className="we-design-lab__dialog-body">
-            <p>对话面板的内容。点空白处关闭。</p>
-            <Button variant="secondary" size="sm" onClick={() => setOpen(false)}>关闭</Button>
-          </div>
-        </DialogShell>
-      )}
+      <AnimatePresence>
+        {open && (
+          <Dialog
+            title="编辑正则规则"
+            description="点空白处、按 Esc 或右上角关闭。"
+            onClose={() => setOpen(false)}
+            footer={(
+              <>
+                <Button variant="ghost" onClick={() => setOpen(false)}>取消</Button>
+                <Button onClick={() => setOpen(false)}>保存</Button>
+              </>
+            )}
+          >
+            对话面板的内容。
+          </Dialog>
+        )}
+      </AnimatePresence>
     </SlotSection>
   );
 }

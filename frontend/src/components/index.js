@@ -22,7 +22,7 @@ export { default as Badge }           from './ui/Badge';
 export { default as Card }            from './ui/Card';
 export { default as ToggleSwitch }    from './ui/ToggleSwitch';
 export { default as MarkdownEditor }  from './ui/MarkdownEditor';
-export { default as ModalShell }      from './ui/ModalShell';
+export { default as Dialog }          from './ui/Dialog.jsx';
 export { default as ModelCombobox }   from './ui/ModelCombobox';
 export { default as Icon }            from './ui/Icon';
 export { default as ToastCard }       from './ui/ToastCard.jsx';

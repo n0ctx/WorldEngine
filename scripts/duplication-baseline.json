@@ -12,7 +12,7 @@
     "0751d7d73cb609e0": {
       "tokens": 40,
       "locations": [
-        "frontend/src/core/utils/extractAccentColor.js:174-178",
+        "frontend/src/core/utils/extractAccentColor.js:168-172",
         "frontend/src/shells/book-spread/atmosphere/lightDust.js:60-64"
       ]
     },
@@ -42,13 +42,6 @@
       "locations": [
         "backend/llm/providers/ollama/index.js:113-120",
         "backend/llm/providers/openai-compatible/index.js:185-192"
-      ]
-    },
-    "70829e14b49c934b": {
-      "tokens": 46,
-      "locations": [
-        "frontend/src/components/state/StateFieldList.jsx:168-176",
-        "frontend/src/components/ui/ConfirmModal.jsx:25-34"
       ]
     },
     "99dec6c4a3d783f6": {
@@ -83,16 +76,16 @@
     "dfc42a79ae6558f0": {
       "tokens": 43,
       "locations": [
-        "frontend/src/components/chat/MessageItem.jsx:29-32",
-        "frontend/src/components/writing/WritingMessageItem.jsx:135-138"
+        "frontend/src/components/chat/MessageItem.jsx:45-48",
+        "frontend/src/components/writing/WritingMessageItem.jsx:142-145"
       ]
     },
     "f4684b0c8b2784ee": {
       "tokens": 41,
       "locations": [
-        "frontend/src/components/settings/CustomCssManager.jsx:52-57",
-        "frontend/src/components/settings/ThemeManager.jsx:37-42",
-        "frontend/src/components/state/StateFieldList.jsx:41-46"
+        "frontend/src/components/settings/CustomCssManager.jsx:54-59",
+        "frontend/src/components/settings/ThemeManager.jsx:25-30",
+        "frontend/src/components/state/StateFieldList.jsx:44-49"
       ]
     }
   }

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { AnimatePresence } from 'framer-motion';
 import Button from '../ui/Button';
 import FormGroup from '../ui/FormGroup';
 import SectionTabs from '../ui/SectionTabs.jsx';
@@ -87,13 +88,15 @@ export default function CardEditTabs({ basicTab, stateInit }) {
   return (
     <>
       <SectionTabs sections={sections} defaultKey="basic" variant="gooey" />
-      {showExtract && (
-        <StateExtractPreviewModal
-          onExtract={stateInit.extract}
-          onConfirm={handleExtractConfirm}
-          onClose={() => setShowExtract(false)}
-        />
-      )}
+      <AnimatePresence>
+        {showExtract && (
+          <StateExtractPreviewModal
+            onExtract={stateInit.extract}
+            onConfirm={handleExtractConfirm}
+            onClose={() => setShowExtract(false)}
+          />
+        )}
+      </AnimatePresence>
     </>
   );
 }

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { AnimatePresence } from 'framer-motion';
 import {
   listSnippets, createSnippet, updateSnippet, deleteSnippet,
   reorderSnippets, refreshCustomCss,
@@ -10,7 +11,7 @@ import Input from '../ui/Input';
 import Textarea from '../ui/Textarea';
 import SortableList from '../ui/SortableList';
 import DeleteButton from '../motion/DeleteButton.jsx';
-import DialogShell from '../ui/DialogShell';
+import Dialog from '../ui/Dialog';
 import Icon from '../ui/Icon';
 import DragHandle from '../ui/DragHandle.jsx';
 import { SETTINGS_MODE } from '../../core/constants/settings';
@@ -141,13 +142,15 @@ export default function CustomCssManager({ settingsMode = SETTINGS_MODE.CHAT }) 
         />
       )}
 
-      {showEditor && (
-        <SnippetEditor
-          snippet={editingSnippet}
-          onSave={handleSave}
-          onClose={() => setShowEditor(false)}
-        />
-      )}
+      <AnimatePresence>
+        {showEditor && (
+          <SnippetEditor
+            snippet={editingSnippet}
+            onSave={handleSave}
+            onClose={() => setShowEditor(false)}
+          />
+        )}
+      </AnimatePresence>
 
     </div>
   );
@@ -207,44 +210,43 @@ function SnippetEditor({ snippet, onSave, onClose }) {
   }
 
   return (
-    <DialogShell onClose={onClose}>
-      <form onSubmit={handleSubmit} className="flex flex-col min-h-0 flex-1">
-        <div className="we-dialog-header flex items-center justify-between">
-          <h3>{snippet ? '编辑 CSS 片段' : '新建 CSS 片段'}</h3>
-        </div>
-
-        <div className="we-dialog-body flex flex-col gap-4">
-          <div>
-            <label className="we-dialog-label">片段名称</label>
-            <Input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="例：消息气泡样式"
-              autoFocus
-            />
-          </div>
-
-          <div>
-            <label className="we-dialog-label">CSS 内容</label>
-            <Textarea
-              rows={10}
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-              placeholder=".message-bubble { background: #fff; }"
-              spellCheck={false}
-              className="we-css-snippet-editor__textarea"
-            />
-          </div>
-        </div>
-
-        <div className="we-dialog-footer">
-          <Button variant="ghost" type="button" onClick={onClose}>取消</Button>
+    <Dialog
+      size="md"
+      title={snippet ? '编辑 CSS 片段' : '新建 CSS 片段'}
+      busy={saving}
+      bodyClassName="flex flex-col gap-4"
+      onClose={onClose}
+      onSubmit={handleSubmit}
+      footer={(
+        <>
+          <Button variant="ghost" type="button" onClick={onClose} disabled={saving}>取消</Button>
           <Button variant="primary" type="submit" disabled={saving || !name.trim()}>
             {saving ? '保存中…' : '保存'}
           </Button>
-        </div>
-      </form>
-    </DialogShell>
+        </>
+      )}
+    >
+      <div>
+        <label className="we-dialog-label">片段名称</label>
+        <Input
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="例：消息气泡样式"
+          autoFocus
+        />
+      </div>
+
+      <div>
+        <label className="we-dialog-label">CSS 内容</label>
+        <Textarea
+          rows={10}
+          value={content}
+          onChange={(e) => setContent(e.target.value)}
+          placeholder=".message-bubble { background: #fff; }"
+          spellCheck={false}
+          className="we-css-snippet-editor__textarea"
+        />
+      </div>
+    </Dialog>
   );
 }
-
