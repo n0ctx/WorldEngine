@@ -5049,7 +5049,7 @@
 .we-provider-safety-row__meta-item--wide dd {
   grid-column: 2 / 3;
 }
-.we-provider-safety-row__meta-item--wide .we-code-block {
+.we-provider-safety-row__meta-item--wide .we-code-viewer {
   max-height: 200px;
 }
 

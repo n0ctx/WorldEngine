@@ -112,7 +112,7 @@ export default function LlmConfigPanel({
               placeholder="http://127.0.0.1:7890"
             />
             <Button
-              variant="default"
+              variant="secondary"
               onClick={async () => {
                 await onProxyUrlSave(proxyInput.trim());
                 setProxySaved(true);

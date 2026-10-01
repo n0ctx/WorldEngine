@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react';
+import { AnimatePresence } from 'framer-motion';
 import ConfirmModal from '../../components/ui/ConfirmModal.jsx';
 import { useEscapeKey } from '../../core/hooks/useEscapeKey.js';
 
@@ -80,16 +81,20 @@ export default function EditPageShell({
     </div>
   );
 
-  const closeConfirm = confirmingClose && (
-    <ConfirmModal
-      title="放弃未保存的修改？"
-      message="关闭后本次修改将丢失。"
-      confirmText="放弃修改"
-      cancelText="继续编辑"
-      danger
-      onConfirm={async () => onClose()}
-      onClose={() => setConfirmingClose(false)}
-    />
+  const closeConfirm = (
+    <AnimatePresence>
+      {confirmingClose && (
+        <ConfirmModal
+          title="放弃未保存的修改？"
+          message="关闭后本次修改将丢失。"
+          confirmText="放弃修改"
+          cancelText="继续编辑"
+          danger
+          onConfirm={async () => onClose()}
+          onClose={() => setConfirmingClose(false)}
+        />
+      )}
+    </AnimatePresence>
   );
 
   if (isOverlay) {

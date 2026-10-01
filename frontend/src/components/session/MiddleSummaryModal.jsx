@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { AnimatePresence } from 'framer-motion';
 import { createPortal } from 'react-dom';
 import ModalShell from '../ui/ModalShell.jsx';
 import ConfirmModal from '../ui/ConfirmModal.jsx';
@@ -83,18 +84,22 @@ export default function MiddleSummaryModal({ sessionId, onClose }) {
       </div>
 
       {/* 放弃确认浮层：portal 到 body，脱离 ModalShell 的 transform 上下文 */}
-      {confirmDiscard && createPortal(
-        <div className="we-tm-confirm-layer">
-          <ConfirmModal
-            title="放弃未保存的修改？"
-            message="你对剧情摘要做了改动但尚未保存，关闭将丢弃这些改动。"
-            confirmText="放弃"
-            cancelText="继续编辑"
-            danger
-            onConfirm={async () => { setConfirmDiscard(false); onClose(); }}
-            onClose={() => setConfirmDiscard(false)}
-          />
-        </div>,
+      {createPortal(
+        <AnimatePresence>
+          {confirmDiscard && (
+            <div className="we-tm-confirm-layer">
+              <ConfirmModal
+                title="放弃未保存的修改？"
+                message="你对剧情摘要做了改动但尚未保存，关闭将丢弃这些改动。"
+                confirmText="放弃"
+                cancelText="继续编辑"
+                danger
+                onConfirm={async () => { setConfirmDiscard(false); onClose(); }}
+                onClose={() => setConfirmDiscard(false)}
+              />
+            </div>
+          )}
+        </AnimatePresence>,
         document.body,
       )}
     </ModalShell>

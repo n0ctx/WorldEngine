@@ -25,7 +25,7 @@ export default function LlmConnectionTest({ provider, testConnection }) {
     <FormGroup label="连接测试" variant="settings">
       <div className="we-settings-action-row we-settings-action-row--spaced">
         <Button
-          variant="default"
+          variant="secondary"
           onClick={handleTestConnection}
           disabled={testingConnection}
         >

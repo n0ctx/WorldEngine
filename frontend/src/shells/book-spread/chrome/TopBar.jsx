@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useMotion } from '../../../core/hooks/useMotion.js';
 import { useClickOutside } from '../../../core/hooks/useClickOutside.js';
+import { useEscapeKey } from '../../../core/hooks/useEscapeKey.js';
 import Icon from '../../../components/ui/Icon.jsx';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { getWorlds } from '../../../core/api/worlds.js';
@@ -51,6 +52,7 @@ function WorldSelector({ effectiveWorldId, isCurrentLevel }) {
   }, [dropdownOpen]);
 
   useClickOutside(dropdownRef, () => setDropdownOpen(false));
+  useEscapeKey(() => setDropdownOpen(false), dropdownOpen);
 
   useEffect(() => {
     const timeoutId = setTimeout(() => setDropdownOpen(false), 0);

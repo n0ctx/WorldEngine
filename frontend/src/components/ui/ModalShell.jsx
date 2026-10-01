@@ -40,7 +40,7 @@ export default function ModalShell({ children, onClose, maxWidth = 'max-w-xl' })
         transition={m.transition('overlay')}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="we-modal we-material flex flex-col max-h-[90vh] overflow-hidden">
+        <div className="we-modal we-material flex flex-col max-h-[90vh] overflow-hidden" role="dialog" aria-modal="true">
           {children}
         </div>
         <span className="we-panel-edge" aria-hidden="true" />

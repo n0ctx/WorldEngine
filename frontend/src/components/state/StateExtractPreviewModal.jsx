@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { ISO_DATETIME_RE, formatBooleanDisplay, formatDatetimeChinese, parseLooseJson } from './state-value-format';
 import { toggleSetValue } from '../../core/utils/toggleSetValue.js';
+import { useEscapeKey } from '../../core/hooks/useEscapeKey.js';
 
 const EMPTY_DISPLAY = '（未设置）';
 
@@ -55,6 +56,7 @@ export default function StateExtractPreviewModal({ onExtract, onConfirm, onClose
   const [selected, setSelected] = useState(() => new Set());
   const [confirming, setConfirming] = useState(false);
   const [confirmError, setConfirmError] = useState('');
+  useEscapeKey(onClose, !confirming);
 
   useEffect(() => {
     let cancelled = false;
@@ -127,9 +129,14 @@ export default function StateExtractPreviewModal({ onExtract, onConfirm, onClose
 
   return createPortal(
     <div className="fixed inset-0 z-[var(--we-z-modal)] flex items-center justify-center we-modal-backdrop px-4">
-      <div className="we-dialog-panel w-full max-w-2xl flex flex-col max-h-[90vh]">
+      <div
+        className="we-dialog-panel w-full max-w-2xl flex flex-col max-h-[90vh]"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="we-extract-preview-title"
+      >
         <div className="we-dialog-header">
-          <h2>AI 提取状态字段建议</h2>
+          <h2 id="we-extract-preview-title">AI 提取状态字段建议</h2>
         </div>
 
         <div className="we-dialog-body flex flex-col gap-4">

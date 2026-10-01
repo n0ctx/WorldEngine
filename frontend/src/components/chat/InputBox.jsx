@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useImperativeHandle, forwardRef } from 'react';
+import { AnimatePresence } from 'framer-motion';
 import { applyRules } from '../../core/utils/regex-runner.js';
 import ConfirmModal from '../ui/ConfirmModal.jsx';
 import { isImeComposing } from '../../core/utils/ime.js';
@@ -159,20 +160,22 @@ const InputBox = forwardRef(function InputBox({
         handleSend={handleSend}
       />
 
-      {pendingFill !== null && (
-        <ConfirmModal
-          title="覆盖输入框内容？"
-          message="输入框已有内容，是否用 AI 代写结果覆盖？"
-          confirmText="覆盖"
-          cancelText="保留原内容"
-          onConfirm={async () => {
-            setText(pendingFill);
-            setPendingFill(null);
-            setTimeout(() => textareaRef.current?.focus({ preventScroll: true }), 0);
-          }}
-          onClose={() => setPendingFill(null)}
-        />
-      )}
+      <AnimatePresence>
+        {pendingFill !== null && (
+          <ConfirmModal
+            title="覆盖输入框内容？"
+            message="输入框已有内容，是否用 AI 代写结果覆盖？"
+            confirmText="覆盖"
+            cancelText="保留原内容"
+            onConfirm={async () => {
+              setText(pendingFill);
+              setPendingFill(null);
+              setTimeout(() => textareaRef.current?.focus({ preventScroll: true }), 0);
+            }}
+            onClose={() => setPendingFill(null)}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 });

@@ -74,7 +74,7 @@ function MainLlmProviderSettings({
               onChange={(e) => setApiKey(e.target.value)}
               placeholder={config.has_key ? '••••••••（已配置，输入新密钥可覆盖）' : '输入后单独保存，不随其他配置提交'}
             />
-            <Button variant="default" onClick={handleSaveKey}>
+            <Button variant="secondary" onClick={handleSaveKey}>
               {apiKeySaved ? '已保存' : '保存密钥'}
             </Button>
           </div>

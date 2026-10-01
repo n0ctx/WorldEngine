@@ -4508,7 +4508,7 @@
 }
 
 /* 只读代码块（CodeBlock）：语法配色由组件按强调色推出，这里只管外框 */
-.we-code-block {
+.we-code-viewer {
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -4517,7 +4517,7 @@
   background: var(--we-color-bg-surface);
   text-align: left;
 }
-.we-code-block__header {
+.we-code-viewer__header {
   display: flex;
   flex-shrink: 0;
   align-items: center;
@@ -4527,7 +4527,7 @@
   border-bottom: 1px solid var(--we-color-border-subtle);
   background: var(--we-color-shade-1);
 }
-.we-code-block__name {
+.we-code-viewer__name {
   flex: 1;
   min-width: 0;
   overflow: hidden;
@@ -4539,7 +4539,7 @@
   letter-spacing: var(--we-type-caption-tracking);
   color: var(--we-color-text-secondary);
 }
-.we-code-block__copy {
+.we-code-viewer__copy {
   position: relative;
   display: grid;
   place-items: center;
@@ -4549,33 +4549,33 @@
   color: var(--we-color-text-tertiary);
   transition: background-color var(--we-motion-state-duration) var(--we-motion-state-easing), color var(--we-motion-state-duration) var(--we-motion-state-easing);
 }
-.we-code-block__copy:hover {
+.we-code-viewer__copy:hover {
   background: var(--we-color-pressed);
   color: var(--we-color-text-primary);
 }
-.we-code-block__copy.is-copied {
+.we-code-viewer__copy.is-copied {
   background: var(--we-color-accent-bg);
   color: var(--we-color-accent);
 }
-.we-code-block__copy-icon {
+.we-code-viewer__copy-icon {
   grid-area: 1 / 1;
   display: grid;
 }
-.we-code-block__viewport {
+.we-code-viewer__viewport {
   min-height: 0;
   flex: 1;
   overflow: auto;
   padding-block: var(--we-space-md);
   scrollbar-width: thin;
 }
-.we-code-block__viewport:focus-visible {
+.we-code-viewer__viewport:focus-visible {
   outline: 2px solid var(--we-color-border-focus);
   outline-offset: -2px;
 }
-.we-code-block__viewport ::selection {
+.we-code-viewer__viewport ::selection {
   background: color-mix(in srgb, var(--we-color-accent) var(--we-alpha-4), transparent);
 }
-.we-code-block__pre {
+.we-code-viewer__pre {
   width: max-content;
   min-width: 100%;
   margin: 0;
@@ -4585,12 +4585,12 @@
   line-height: var(--we-type-body-leading);
   tab-size: 4;
 }
-.we-code-block__line {
+.we-code-viewer__line {
   display: flex;
   min-width: 100%;
   padding-inline: 14px;
 }
-.we-code-block__gutter {
+.we-code-viewer__gutter {
   flex-shrink: 0;
   margin-right: var(--we-space-lg);
   text-align: right;

@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { AnimatePresence } from 'framer-motion';
 import { createPortal } from 'react-dom';
 import ConfirmModal from '../ui/ConfirmModal.jsx';
 import MakeCardModal from './MakeCardModal.jsx';
@@ -141,27 +142,33 @@ export default function useEntitySections({
 
   const modals = (
     <>
-      {makeCardEntity && (
-        <MakeCardModal
-          sessionId={sessionId}
-          worldId={worldId}
-          entity={makeCardEntity}
-          onClose={() => setMakeCardEntity(null)}
-          onCreated={() => { setMakeCardEntity(null); reload(); }}
-        />
-      )}
-      {deleteTarget && createPortal(
-        <div className="we-tm-confirm-layer">
-          <ConfirmModal
-            title="删除该角色？"
-            message={`删除后「${deleteTarget.name}」将标记为已退场，相关关系会一并关闭。`}
-            confirmText="删除"
-            cancelText="取消"
-            danger
-            onConfirm={() => handleDelete(deleteTarget)}
-            onClose={() => setDeleteTarget(null)}
+      <AnimatePresence>
+        {makeCardEntity && (
+          <MakeCardModal
+            sessionId={sessionId}
+            worldId={worldId}
+            entity={makeCardEntity}
+            onClose={() => setMakeCardEntity(null)}
+            onCreated={() => { setMakeCardEntity(null); reload(); }}
           />
-        </div>,
+        )}
+      </AnimatePresence>
+      {createPortal(
+        <AnimatePresence>
+          {deleteTarget && (
+            <div className="we-tm-confirm-layer">
+              <ConfirmModal
+                title="删除该角色？"
+                message={`删除后「${deleteTarget.name}」将标记为已退场，相关关系会一并关闭。`}
+                confirmText="删除"
+                cancelText="取消"
+                danger
+                onConfirm={() => handleDelete(deleteTarget)}
+                onClose={() => setDeleteTarget(null)}
+              />
+            </div>
+          )}
+        </AnimatePresence>,
         document.body,
       )}
     </>

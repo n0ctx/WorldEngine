@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 import { Plus, Upload } from 'lucide-react';
 import useStore from '../core/state/index';
 import ConfirmModal from '../components/ui/ConfirmModal';
@@ -125,25 +125,27 @@ export default function WorldsPage() {
         />
       )}
 
-      {deletingWorld && (
-        <ConfirmModal
-          title="确认删除"
-          message={(
-            <>
-              <p className="we-confirm-msg-line">
-                即将删除世界 <span className="we-confirm-msg-name">「{deletingWorld.name}」</span>。
-              </p>
-              <p className="we-confirm-msg-danger">
-                此操作将同时删除其下所有角色和会话，且无法恢复。
-              </p>
-            </>
-          )}
-          confirmText="确认删除"
-          danger
-          onConfirm={page.handleDelete}
-          onClose={() => page.setDeletingWorld(null)}
-        />
-      )}
+      <AnimatePresence>
+        {deletingWorld && (
+          <ConfirmModal
+            title="确认删除"
+            message={(
+              <>
+                <p className="we-confirm-msg-line">
+                  即将删除世界 <span className="we-confirm-msg-name">「{deletingWorld.name}」</span>。
+                </p>
+                <p className="we-confirm-msg-danger">
+                  此操作将同时删除其下所有角色和会话，且无法恢复。
+                </p>
+              </>
+            )}
+            confirmText="确认删除"
+            danger
+            onConfirm={page.handleDelete}
+            onClose={() => page.setDeletingWorld(null)}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }

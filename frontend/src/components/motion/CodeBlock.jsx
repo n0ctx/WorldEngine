@@ -95,11 +95,11 @@ function CopyButton({ code }) {
       onClick={copy}
       whileTap={reduced ? undefined : { scale: 0.9 }}
       transition={m.transition('press')}
-      className={`we-code-block__copy${copied ? ' is-copied' : ''}`}
+      className={`we-code-viewer__copy${copied ? ' is-copied' : ''}`}
     >
       <AnimatePresence initial={false}>
         {copied ? (
-          <motion.span key="check" className="we-code-block__copy-icon" {...swap} transition={reduced ? REDUCED_SWAP : m.transition('enter')}>
+          <motion.span key="check" className="we-code-viewer__copy-icon" {...swap} transition={reduced ? REDUCED_SWAP : m.transition('enter')}>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" width="14" height="14" aria-hidden>
               <motion.path
                 d="M4 12.5l5 5L20 6.5"
@@ -110,7 +110,7 @@ function CopyButton({ code }) {
             </svg>
           </motion.span>
         ) : (
-          <motion.span key="copy" className="we-code-block__copy-icon" {...swap} transition={reduced ? REDUCED_SWAP : m.transition('enter')}>
+          <motion.span key="copy" className="we-code-viewer__copy-icon" {...swap} transition={reduced ? REDUCED_SWAP : m.transition('enter')}>
             <Copy size={14} />
           </motion.span>
         )}
@@ -125,21 +125,21 @@ export default function CodeBlock({ code, language = 'json', filename }) {
   const trimmed = useMemo(() => code.replace(/^\n+/, '').trimEnd(), [code]);
 
   return (
-    <div ref={ref} className="we-code-block">
-      <div className="we-code-block__header">
-        <span className="we-code-block__name">{filename ?? language}</span>
+    <div ref={ref} className="we-code-viewer">
+      <div className="we-code-viewer__header">
+        <span className="we-code-viewer__name">{filename ?? language}</span>
         <CopyButton code={trimmed} />
       </div>
-      <div className="we-code-block__viewport" role="region" aria-label={filename ?? `${language} 代码`} tabIndex={0}>
+      <div className="we-code-viewer__viewport" role="region" aria-label={filename ?? `${language} 代码`} tabIndex={0}>
         {theme && (
           <Highlight code={trimmed} language={language} theme={theme}>
             {({ tokens, getLineProps, getTokenProps }) => {
               const gutterWidth = `${String(tokens.length).length}ch`;
               return (
-                <pre className="we-code-block__pre">
+                <pre className="we-code-viewer__pre">
                   {tokens.map((line, i) => (
-                    <div key={i} {...getLineProps({ line, className: 'we-code-block__line' })}>
-                      <span aria-hidden className="we-code-block__gutter" style={{ width: gutterWidth }}>{i + 1}</span>
+                    <div key={i} {...getLineProps({ line, className: 'we-code-viewer__line' })}>
+                      <span aria-hidden className="we-code-viewer__gutter" style={{ width: gutterWidth }}>{i + 1}</span>
                       <span>
                         {line.map((token, key) => <span key={key} {...getTokenProps({ token })} />)}
                       </span>

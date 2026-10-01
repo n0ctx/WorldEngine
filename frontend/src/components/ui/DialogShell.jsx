@@ -34,6 +34,8 @@ export default function DialogShell({ children, onClose, panelClassName = 'w-ful
         initial="hidden"
         animate="visible"
         transition={m.transition('overlay')}
+        role="dialog"
+        aria-modal="true"
       >
         <span className="we-panel-edge" aria-hidden="true" />
         {children}

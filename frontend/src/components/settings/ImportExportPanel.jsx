@@ -1,4 +1,5 @@
 import { useState, useRef } from 'react';
+import { AnimatePresence } from 'framer-motion';
 import { useAppModeStore } from '../../core/state/appMode';
 import { downloadGlobalSettings, importGlobalSettings, downloadMigration, importMigration, readJsonFile } from '../../core/api/import-export';
 import { refreshCustomCss } from '../../core/api/custom-css-snippets';
@@ -182,23 +183,25 @@ export default function ImportExportPanel({ settingsMode, onImportSuccess }) {
         )}
       </div>
 
-      {pendingImport && (
-        <ConfirmModal
-          title={pendingImport.kind === 'settings' ? `覆盖${modeLabel}全局设置？` : '导入迁移包？'}
-          message={pendingImport.kind === 'settings'
-            ? `将用「${pendingImport.file.name}」覆盖当前${modeLabel}模式的全局提示词、自定义 CSS 与正则规则，此操作无法撤销。`
-            : `将用「${pendingImport.file.name}」覆盖对话与写作两套全局设置，并新建其中的全部世界，此操作无法撤销。`}
-          confirmText="确认导入"
-          danger
-          onConfirm={async () => {
-            const { kind, file } = pendingImport;
-            setPendingImport(null);
-            if (kind === 'settings') await importSettingsFile(file);
-            else await importMigrationFile(file);
-          }}
-          onClose={() => setPendingImport(null)}
-        />
-      )}
+      <AnimatePresence>
+        {pendingImport && (
+          <ConfirmModal
+            title={pendingImport.kind === 'settings' ? `覆盖${modeLabel}全局设置？` : '导入迁移包？'}
+            message={pendingImport.kind === 'settings'
+              ? `将用「${pendingImport.file.name}」覆盖当前${modeLabel}模式的全局提示词、自定义 CSS 与正则规则，此操作无法撤销。`
+              : `将用「${pendingImport.file.name}」覆盖对话与写作两套全局设置，并新建其中的全部世界，此操作无法撤销。`}
+            confirmText="确认导入"
+            danger
+            onConfirm={async () => {
+              const { kind, file } = pendingImport;
+              setPendingImport(null);
+              if (kind === 'settings') await importSettingsFile(file);
+              else await importMigrationFile(file);
+            }}
+            onClose={() => setPendingImport(null)}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }
