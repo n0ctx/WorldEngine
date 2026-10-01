@@ -143,7 +143,7 @@
   padding: var(--we-space-md);
   border: 1px solid var(--we-color-border-subtle);
   border-radius: var(--we-radius-md);
-  background: linear-gradient(160deg, color-mix(in srgb, var(--we-color-accent) 55%, var(--we-color-bg-strong)), var(--we-color-bg-strong));
+  background: linear-gradient(160deg, color-mix(in srgb, var(--we-color-bg-strong) var(--we-alpha-4), var(--we-color-accent)), var(--we-color-bg-strong));
   color: var(--we-color-shell-text-primary);
   text-align: left;
   cursor: pointer;
@@ -203,7 +203,7 @@
   color: var(--we-color-shell-text-primary);
 }
 .we-design-lab__stage .we-speaker-stage__line {
-  color: color-mix(in srgb, var(--we-color-shell-text-primary) 90%, var(--we-color-bg-canvas));
+  color: color-mix(in srgb, var(--we-color-bg-canvas) var(--we-alpha-1), var(--we-color-shell-text-primary));
 }
 
 /* 剧情选项卡：演示借聊天中栏作用域，选项无 surface 底色（下拉面板与选中态自带底色，不动） */
