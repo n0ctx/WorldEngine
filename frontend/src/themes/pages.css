@@ -3596,7 +3596,7 @@
   background: linear-gradient(155deg, color-mix(in srgb, var(--we-material-sheen) var(--we-alpha-5), transparent), transparent 38%),
     var(--we-pane-side-bg);
   backdrop-filter: blur(var(--we-glass-blur)) saturate(1.6);
-  border-radius: var(--we-radius-sm);
+  border-radius: var(--we-radius-md);
   box-shadow: 0 0 0 1px var(--we-material-stroke),
     var(--we-elevation-2);
   transition: flex-basis var(--we-motion-page-duration) var(--we-motion-page-easing),
@@ -3708,7 +3708,7 @@
     z-index: 4;
     min-width: min(86vw, 340px);
     height: calc(100% - var(--we-space-sm) - var(--we-space-xs));
-    border-radius: var(--we-radius-sm);
+    border-radius: var(--we-radius-md);
   }
   /* 右抽屉定位在正文列（.we-page-right）里，底边没有外层缝隙，上下对称留白 */
   .we-side-drawer--right.we-side-drawer--open {
@@ -3735,9 +3735,9 @@
   }
 }
 
-/* 抽屉开关：在 52px 窄轨里居中，展开后仍留在原位 */
+/* 抽屉开关：中号图标按钮四周各让一格，悬停的圆底不碰抽屉边框；在 52px 窄轨里正好居中，展开后仍留在原位 */
 .we-side-drawer-toggle {
-  margin-inline: var(--we-space-xs);
+  margin: var(--we-space-sm);
 }
 
 /* 裁切层：自己不动，滑入的内容被它挡在抽屉边框之内 */
@@ -3747,7 +3747,7 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  border-radius: 0 0 var(--we-radius-sm) var(--we-radius-sm);
+  border-radius: 0 0 var(--we-radius-md) var(--we-radius-md);
 }
 
 .we-side-drawer-content {

@@ -91,7 +91,6 @@ export default function SideDrawer({ side, open, onToggle, label, footer = null,
         transition={m.transition('enter', { delay: ENTER_DELAY[side] })}
       >
         <IconButton
-          size="lg"
           label={toggleLabel}
           className="we-side-drawer-toggle"
           onClick={onToggle}
