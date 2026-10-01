@@ -41,7 +41,7 @@ export default function MotionPackPicker() {
             </div>
             {!isActive && (
               <div className="we-theme-actions">
-                <Button variant="ghost" size="sm" onClick={() => switchPack(pack.id)} disabled={busy}>
+                <Button variant="secondary" size="sm" onClick={() => switchPack(pack.id)} disabled={busy}>
                   切换
                 </Button>
               </div>

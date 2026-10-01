@@ -211,7 +211,7 @@ export default function PersonaEditPage() {
   const pageTitle = isNew ? '创建玩家' : '编辑玩家卡';
 
   const exportAction = !isNew ? (
-    <Button variant="ghost" size="sm" onClick={handleExport}>导出玩家卡</Button>
+    <Button variant="secondary" size="sm" onClick={handleExport}>导出玩家卡</Button>
   ) : null;
 
   const basicTab = {

@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion';
-import Icon from './Icon.jsx';
+import { X } from 'lucide-react';
+import IconButton from './IconButton.jsx';
 import ChangeText from '../motion/ChangeText.jsx';
 import { useMotion } from '../../core/hooks/useMotion.js';
 
@@ -10,13 +11,6 @@ const TYPE_META = {
   info: { tone: 'var(--we-color-status-info)', code: '提示' },
   success: { tone: 'var(--we-color-status-success)', code: '完成' },
 };
-
-const CLOSE_PATHS = (
-  <>
-    <line x1="18" y1="6" x2="6" y2="18" />
-    <line x1="6" y1="6" x2="18" y2="18" />
-  </>
-);
 
 // 提示条：信号入场，内容行抖一下，类型标签被一块实色刷出，标签与正文从乱码解码
 export default function ToastCard({ toast, onClose, onMouseEnter, onMouseLeave }) {
@@ -50,14 +44,9 @@ export default function ToastCard({ toast, onClose, onMouseEnter, onMouseLeave }
           ) : null}
           <div className="we-toast-card__message"><ChangeText text={toast.message} playKey={fxKey} decode /></div>
         </div>
-        <button
-          type="button"
-          aria-label="关闭通知"
-          onClick={onClose}
-          className="we-toast-card__close"
-        >
-          <Icon size={16}>{CLOSE_PATHS}</Icon>
-        </button>
+        <IconButton size="sm" label="关闭通知" onClick={onClose}>
+          <X size={16} />
+        </IconButton>
       </div>
     </motion.div>
   );

@@ -35,6 +35,7 @@
  *   tailwind       className 里的任意值 text-[12px] / rounded-[8px] / bg-[#fff] / tracking-[..] / leading-[..]，
  *                  以及内置刻度 text-sm、rounded-lg、tracking-wide、leading-tight、font-mono、font-bold、bg-white、opacity-50 等；
  *                  字号、行高、字距、字重一律用 .we-type-* 角色类，[font-size:..] / text-[length:..] 等写法即使引用 var() 也报
+ *   primitive-class components/ui/ 以外的 className 手写基础控件的类（we-btn*）：按钮改用 Button / IconButton
  *   padding / margin / gap 不在本守卫范围。
  *
  * 有意保留：JS 在上一行写 `// guard-allow(literals): 理由`；CSS 把同样的 `guard-allow(literals): 理由` 写进块注释，
@@ -82,6 +83,7 @@ const RULE_HINTS = {
   fallback: '去掉字面量回退，token 在 tokens.css 里声明即可',
   'mix-percent': 'color-mix 的百分比改用透明度阶梯 `var(--we-alpha-1..5)`（6/12/24/40/64%）；超过一半时把另一侧颜色写在前面取阶梯',
   tailwind: '文字用 .we-type-<角色> 类；其余改成引用 --we-* 的任意值，如 rounded-[var(--we-radius-md)]、bg-[var(--we-color-bg-surface)]',
+  'primitive-class': '按钮改用 Button / IconButton（components/ui/），不要手写 we-btn 类',
 };
 const RULES = Object.keys(RULE_HINTS);
 

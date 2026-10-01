@@ -81,21 +81,8 @@
   flex-shrink: 0;
 }
 
-/* 页头操作：无框文字按钮，悬停才浮出底色；创建用强调色文字，是这一页唯一的主动作 */
-.we-worlds-header-btn.we-btn {
-  gap: var(--we-space-xs);
-  border-color: transparent;
-  box-shadow: none;
-  color: var(--we-color-shell-text-secondary);
-}
-
-.we-worlds-header-btn.we-btn:hover:not(:disabled) {
-  border-color: transparent;
-  background: var(--we-color-hover);
-  color: var(--we-color-shell-text-primary);
-}
-
-/* 主色掺一半画布前景色：深色主题里是亮一点的主色，羊皮纸主题的深色书桌上暗红主色也能读 */
+/* 页头「创建世界」：幽灵按钮配强调色文字，是这一页唯一的主动作；
+   主色掺一半画布前景色：深色主题里是亮一点的主色，羊皮纸主题的深色书桌上暗红主色也能读 */
 .we-worlds-header-btn--create.we-btn,
 .we-worlds-header-btn--create.we-btn:hover:not(:disabled) {
   color: color-mix(in srgb, var(--we-color-accent) var(--we-alpha-5), var(--we-color-shell-text-primary));
@@ -250,7 +237,6 @@
   -webkit-mask-composite: xor;
   mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
 }
-
 
 .we-world-card[data-dragging] {
   cursor: grabbing;
@@ -459,44 +445,6 @@
   }
 }
 
-.we-world-card-action-btn {
-  width: 32px;
-  height: 32px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: var(--we-radius-full);
-  border: 1px solid transparent;
-  background: color-mix(in srgb, var(--we-color-cover-scrim) var(--we-alpha-4), transparent);
-  backdrop-filter: blur(var(--we-glass-blur));
-  color: var(--we-color-on-cover);
-  cursor: pointer;
-  transition: border-color var(--we-motion-state-duration) var(--we-motion-state-easing),
-              color var(--we-motion-state-duration) var(--we-motion-state-easing),
-              background var(--we-motion-state-duration) var(--we-motion-state-easing);
-}
-
-.we-world-card-action-btn:hover {
-  background: color-mix(in srgb, var(--we-color-cover-scrim) var(--we-alpha-5), transparent);
-  border-color: var(--we-color-border-default);
-}
-
-.we-world-card-action-btn.danger:hover {
-  border-color: var(--we-color-status-danger);
-  color: var(--we-color-status-danger);
-}
-
-.we-world-card-action-btn:focus-visible {
-  outline: none;
-  border-color: var(--we-color-border-focus);
-  box-shadow: var(--we-focus-ring);
-}
-
-.we-world-card-action-btn:disabled {
-  opacity: var(--we-opacity-disabled);
-  cursor: not-allowed;
-}
-
 .we-worlds-empty {
   max-width: 1200px;
   margin: 0 auto;
@@ -526,28 +474,6 @@
   line-height: var(--we-type-body-leading);
   text-align: center;
 }
-
-.we-worlds-empty-btn {
-  font-family: var(--we-font-prose);
-  font-size: var(--we-type-ui-size);
-  line-height: var(--we-type-ui-leading);
-  letter-spacing: var(--we-type-ui-tracking);
-  padding: var(--we-space-sm) var(--we-space-xl);
-  border: 1px solid var(--we-color-shell-border-strong);
-  border-radius: var(--we-radius-sm);
-  background: transparent;
-  color: var(--we-color-shell-text-primary);
-  cursor: pointer;
-  transition: border-color var(--we-motion-state-duration) var(--we-motion-state-easing),
-              background-color var(--we-motion-state-duration) var(--we-motion-state-easing);
-  margin-top: var(--we-space-sm);
-}
-
-.we-worlds-empty-btn:hover {
-  border-color: var(--we-color-shell-text-primary);
-  background: var(--we-color-hover);
-}
-
 
 /* ── CharactersPage 角色名册 ── */
 
@@ -788,40 +714,6 @@
   align-items: center;
 }
 
-.we-characters-col-btn {
-  font-family: var(--we-font-ui);
-  font-size: var(--we-type-caption-size);
-  line-height: var(--we-type-caption-leading);
-  letter-spacing: var(--we-type-caption-tracking);
-  text-transform: none;
-  padding: var(--we-space-xxs) var(--we-space-sm);
-  border-radius: var(--we-radius-sm);
-  border: 1px solid var(--we-color-shell-border-strong);
-  background: transparent;
-  color: var(--we-color-shell-text-secondary);
-  cursor: pointer;
-  transition: border-color var(--we-motion-state-duration) var(--we-motion-state-easing), color var(--we-motion-state-duration) var(--we-motion-state-easing);
-}
-
-.we-characters-col-btn:hover:not(:disabled) {
-  border-color: var(--we-color-shell-border-strong);
-  color: var(--we-color-text-primary);
-}
-
-.we-characters-col-btn:disabled {
-  opacity: var(--we-opacity-disabled);
-  cursor: not-allowed;
-}
-
-.we-characters-col-btn--primary {
-  border-color: var(--we-color-accent);
-  color: var(--we-color-accent);
-}
-
-.we-characters-col-btn--primary:hover {
-  background: var(--we-color-accent-bg);
-}
-
 /* ── PersonaCard ── */
 
 .we-persona-card {
@@ -925,24 +817,6 @@
 .we-persona-card__activate-btn:hover {
   color: var(--we-color-accent);
   background: var(--we-color-accent-bg);
-}
-
-.we-characters-create-btn {
-  font-family: var(--we-font-prose);
-  font-size: var(--we-type-ui-size);
-  line-height: var(--we-type-ui-leading);
-  letter-spacing: var(--we-type-ui-tracking);
-  color: var(--we-color-bg-canvas);
-  background: var(--we-color-accent);
-  border: none;
-  border-radius: var(--we-radius-sm);
-  padding: var(--we-space-sm) var(--we-space-lg);
-  cursor: pointer;
-  transition: background var(--we-motion-state-duration) var(--we-motion-state-easing);
-}
-
-.we-characters-create-btn:hover {
-  background: color-mix(in srgb, var(--we-color-text-primary) var(--we-alpha-2), var(--we-color-accent));
 }
 
 .we-characters-list {
@@ -1080,33 +954,6 @@
   gap: var(--we-space-xs);
   opacity: 0;
   transition: opacity var(--we-motion-state-duration) var(--we-motion-state-easing);
-}
-
-.we-character-card-action-btn {
-  width: 26px;
-  height: 26px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: var(--we-type-ui-size);
-  line-height: var(--we-type-ui-leading);
-  letter-spacing: var(--we-type-ui-tracking);
-  background: none;
-  border: none;
-  cursor: pointer;
-  border-radius: var(--we-radius-sm);
-  color: var(--we-color-text-tertiary);
-  transition: color var(--we-motion-state-duration) var(--we-motion-state-easing), background var(--we-motion-state-duration) var(--we-motion-state-easing);
-}
-
-.we-character-card-action-btn:hover {
-  color: var(--we-color-text-primary);
-  background: var(--we-color-border-default);
-}
-
-.we-character-card-action-btn.danger:hover {
-  color: var(--we-color-accent);
-  background: var(--we-color-accent-bg);
 }
 
 .we-characters-empty {
@@ -1306,11 +1153,12 @@
               background var(--we-motion-state-duration) var(--we-motion-state-easing);
 }
 
+/* 垂直居中用负边距而不是 transform：按钮的按压手势由 framer 写在 transform 上 */
 .we-storyline-item .we-storyline-delete {
   position: absolute;
   right: var(--we-space-md);
   top: 50%;
-  transform: translateY(-50%);
+  margin-top: calc(var(--we-control-h-sm) / -2);
 }
 
 .we-storyline-continue-head .we-storyline-delete {
@@ -1484,27 +1332,6 @@
 .we-persona-switch-name--empty {
   color: var(--we-color-text-tertiary);
   font-style: italic;
-}
-
-.we-persona-switch-btn {
-  flex-shrink: 0;
-  font-family: var(--we-font-ui);
-  font-size: var(--we-type-caption-size);
-  line-height: var(--we-type-caption-leading);
-  letter-spacing: var(--we-type-caption-tracking);
-  padding: var(--we-space-xxs) var(--we-space-sm);
-  border-radius: var(--we-radius-sm);
-  /* 本行落在 --we-card-bg（羊皮纸为浅色面），不能用暗画布列的 col-btn token，
-     否则浅米字压在米色卡面上发虚；用卡片面语义 token（夜航下与 col-btn 同值） */
-  border: 1px solid var(--we-color-border-strong);
-  background: transparent;
-  color: var(--we-color-text-secondary);
-  cursor: pointer;
-  transition: border-color var(--we-motion-state-duration) var(--we-motion-state-easing), color var(--we-motion-state-duration) var(--we-motion-state-easing);
-}
-
-.we-persona-switch-btn:hover {
-  color: var(--we-color-text-primary);
 }
 
 .we-persona-switch-panel {
@@ -3007,22 +2834,6 @@
   cursor: help;
 }
 
-.we-state-table-col-del {
-  font-size: var(--we-glyph-md);
-  padding: var(--we-space-xxs) var(--we-space-sm);
-  border-radius: var(--we-radius-sm);
-  color: var(--we-color-text-tertiary);
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  transition: color var(--we-motion-state-duration) var(--we-motion-state-easing), background var(--we-motion-state-duration) var(--we-motion-state-easing);
-}
-
-.we-state-table-col-del:hover {
-  color: var(--we-color-accent);
-  background: var(--we-color-accent-bg);
-}
-
 .we-state-table-col-body {
   padding: var(--we-space-md);
   display: flex;
@@ -3907,10 +3718,6 @@
   .we-side-drawer--right .we-side-drawer-content > * {
     min-width: min(86vw, 340px);
   }
-  .we-side-drawer-toggle {
-    width: 40px;
-    height: 40px;
-  }
 }
 
 /* 浮层模式下展开抽屉时垫一层遮罩：点一下收起，同时挡住另一侧的按钮，同一时间只开一侧 */
@@ -3928,49 +3735,9 @@
   }
 }
 
+/* 抽屉开关：在 52px 窄轨里居中，展开后仍留在原位 */
 .we-side-drawer-toggle {
-  position: relative;
-  isolation: isolate;
-  flex: 0 0 auto;
-  width: 52px;
-  height: 44px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: none;
-  border: none;
-  cursor: pointer;
-  color: var(--we-color-text-tertiary);
-  transition: color var(--we-motion-state-duration) var(--we-motion-state-easing);
-}
-
-.we-side-drawer-toggle:hover {
-  color: var(--we-color-accent);
-}
-
-/* 悬停时图标后浮出一枚圆形淡底，让窄轨上唯一的按钮有个落点 */
-.we-side-drawer-toggle::before {
-  content: '';
-  position: absolute;
-  z-index: var(--we-z-behind);
-  width: 32px;
-  height: 32px;
-  border-radius: var(--we-radius-full);
-  background: var(--we-color-shade-1);
-  opacity: 0;
-  transform: scale(0.8);
-  transition: opacity var(--we-motion-state-duration) var(--we-motion-state-easing), transform var(--we-motion-state-duration) var(--we-motion-state-easing);
-}
-
-.we-side-drawer-toggle:hover::before {
-  opacity: 1;
-  transform: scale(1);
-}
-
-.we-side-drawer-toggle:focus-visible {
-  outline: none;
-  box-shadow: var(--we-focus-ring);
-  border-radius: var(--we-radius-sm);
+  margin-inline: var(--we-space-xs);
 }
 
 /* 裁切层：自己不动，滑入的内容被它挡在抽屉边框之内 */
@@ -3988,12 +3755,6 @@
   min-height: 0;
   display: flex;
   flex-direction: column;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .we-side-drawer-toggle::before {
-    transform: none;
-  }
 }
 
 /* 记忆检索指示器收起窄轨时也要露出来，但 52px 塞不下文字标签，只留三个点 */
@@ -4172,23 +3933,6 @@
 .we-state-reset:focus-visible { color: var(--we-color-accent); }
 .we-state-reset:disabled { color: var(--we-color-text-tertiary); cursor: not-allowed; }
 
-/* 写作 nearby：动作按钮去硬框（制卡/保存/收起/移除/+），常显但无边框底色，hover/聚焦仅提亮 —
-   呼应聊天面板的安静风格，消除"生硬的 hover 框" */
-.we-cast-panel .we-section-tabs-globals .we-panel-card-action--chip,
-.we-cast-panel .we-section-tabs-actions .we-panel-card-action--chip {
-  border-color: transparent;
-  background: transparent;
-  padding-inline: var(--we-space-xxs);
-}
-.we-cast-panel .we-section-tabs-globals .we-panel-card-action--chip:hover,
-.we-cast-panel .we-section-tabs-actions .we-panel-card-action--chip:hover,
-.we-cast-panel .we-section-tabs-globals .we-panel-card-action--chip:focus-visible,
-.we-cast-panel .we-section-tabs-actions .we-panel-card-action--chip:focus-visible {
-  border-color: transparent;
-  background: transparent;
-  color: var(--we-color-accent);
-}
-
 /* — StatePanel 内分割线重置 + 状态变更 overlay ─ */
 /* ── StatePanel 内取消所有模块间分割线 ─── */
 .we-state-panel .we-state-section + .we-state-section,
@@ -4357,39 +4101,6 @@
 /* 玻璃面板上的强调按钮：主色淡底 + 细描边，悬停加深一档 */
 .we-session-list-create {
   width: 100%;
-  padding: 7px 0; /* design exact */
-  border: 1px solid var(--we-color-accent-border);
-  border-radius: var(--we-radius-full);
-  background: var(--we-color-accent-bg);
-  cursor: pointer;
-  font-size: var(--we-type-caption-size);
-  line-height: var(--we-type-caption-leading);
-  letter-spacing: var(--we-type-caption-tracking);
-  font-family: var(--we-font-prose);
-  color: var(--we-color-accent);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 5px; /* design exact */
-  box-shadow: none;
-  transition: background var(--we-motion-state-duration) var(--we-motion-state-easing), color var(--we-motion-state-duration) var(--we-motion-state-easing),
-    box-shadow var(--we-motion-state-duration) var(--we-motion-state-easing), transform var(--we-motion-state-duration) var(--we-motion-state-easing);
-}
-
-.we-session-list-create:hover {
-  background: color-mix(in srgb, var(--we-color-accent) var(--we-alpha-3), transparent);
-  color: var(--we-color-accent);
-  box-shadow: none;
-  transform: none;
-}
-
-.we-session-list-create:active {
-  background: color-mix(in srgb, var(--we-color-accent) var(--we-alpha-3), transparent);
-}
-
-.we-session-list-create:focus-visible {
-  outline: none;
-  box-shadow: var(--we-focus-ring);
 }
 
 .we-session-list-scroll {
@@ -4536,41 +4247,10 @@
   letter-spacing: var(--we-type-ui-tracking);
   color: var(--we-color-text-primary);
 }
-.we-cast-add-modal-action {
-  padding: 3px 10px;
-  border: 1.5px dashed var(--we-color-accent);
-  border-radius: var(--we-radius-xs);
-  background: none;
-  color: var(--we-color-accent);
-  font-family: var(--we-font-prose);
-  font-size: var(--we-type-caption-size);
-  line-height: var(--we-type-caption-leading);
-  letter-spacing: var(--we-type-caption-tracking);
-  cursor: pointer;
-  transition: background var(--we-motion-state-duration) var(--we-motion-state-easing);
-}
-.we-cast-add-modal-action:hover:not(:disabled),
-.we-cast-add-modal-action:focus-visible:not(:disabled) {
-  background: var(--we-color-accent-bg);
-}
-.we-cast-add-modal-action:disabled {
-  opacity: var(--we-opacity-disabled);
-  cursor: default;
-}
 .we-cast-add-modal-footer {
   padding: 10px 20px 16px;
   display: flex;
   justify-content: flex-end;
-}
-.we-cast-add-modal-close {
-  font-family: var(--we-font-prose);
-  font-size: var(--we-type-ui-size);
-  line-height: var(--we-type-ui-leading);
-  letter-spacing: var(--we-type-ui-tracking);
-  color: var(--we-color-text-tertiary);
-  background: none;
-  border: none;
-  cursor: pointer;
 }
 
 /* — MakeCardModal 预览 ─ */
@@ -4757,36 +4437,6 @@
 .we-provider-safety-banner__sep {
   margin: 0 6px;
   color: var(--we-color-text-faint);
-}
-.we-provider-safety-banner__btn,
-.we-provider-safety-banner__close {
-  border: 1px solid var(--we-color-border-default);
-  background: transparent;
-  color: var(--we-color-text-secondary);
-  border-radius: var(--we-radius-sm);
-  padding: 4px 10px;
-  font-size: var(--we-type-caption-size);
-  line-height: var(--we-type-caption-leading);
-  letter-spacing: var(--we-type-caption-tracking);
-  cursor: pointer;
-  transition: background-color var(--we-motion-state-duration) var(--we-motion-state-easing),
-              color var(--we-motion-state-duration) var(--we-motion-state-easing),
-              border-color var(--we-motion-state-duration) var(--we-motion-state-easing);
-  min-height: 28px;
-}
-.we-provider-safety-banner__btn:hover,
-.we-provider-safety-banner__btn:focus-visible,
-.we-provider-safety-banner__close:hover,
-.we-provider-safety-banner__close:focus-visible {
-  background: var(--we-color-bg-sunken);
-  color: var(--we-color-text-primary);
-  outline: 2px solid transparent;
-  outline-offset: 2px;
-}
-.we-provider-safety-banner__close {
-  font-size: var(--we-glyph-lg);
-  padding: 2px 10px;
-  min-width: 28px;
 }
 .we-provider-safety-banner__details {
   margin: 0;

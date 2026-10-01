@@ -81,8 +81,13 @@ export const VISUAL_SLOTS = [
 
   // ── 控件与卡片 ──
   {
-    id: 'controls', category: 'component', title: '按钮与表单控件', status: 'ready',
-    tokens: [], usedIn: ['Button、Badge、Input、Textarea、Select、ToggleSwitch、Range'],
+    id: 'buttons', category: 'component', title: '按钮', status: 'ready',
+    tokens: ['--we-control-*'], usedIn: ['Button、IconButton'],
+    note: '全站只有这一个按钮：五种色调 × 三档尺寸；图标按钮是它的方形版本，边长取控件高度。',
+  },
+  {
+    id: 'controls', category: 'component', title: '表单控件与徽标', status: 'ready',
+    tokens: [], usedIn: ['Badge、Input、Textarea、Select、ToggleSwitch、Range'],
     note: '没有专属 token，全部由色彩、圆角、阴影几类 token 组合而成。',
   },
   {

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import ModalShell from '../../../components/ui/ModalShell.jsx';
+import Button from '../../../components/ui/Button.jsx';
 import CharacterSeal from '../../../components/chat/CharacterSeal.jsx';
 import { getCharactersByWorld } from '../../../core/api/characters.js';
 import { createEntityFromCard } from '../../../core/api/state-memory.js';
@@ -49,26 +50,23 @@ export default function AddEntityFromCardModal({ worldId, sessionId, entities, o
             <div key={c.id} className="we-cast-add-modal-row">
               <CharacterSeal character={c} size={32} />
               <span className="we-cast-add-modal-name">{c.name}</span>
-              <button
+              <Button
                 type="button"
+                size="sm"
+                variant="secondary"
                 onClick={() => handleAdd(c.id)}
                 disabled={taken || adding === c.id}
-                className="we-cast-add-modal-action"
               >
                 {taken ? '已添加' : adding === c.id ? '…' : '添加'}
-              </button>
+              </Button>
             </div>
           );
         })}
       </div>
       <div className="we-cast-add-modal-footer">
-        <button
-          type="button"
-          onClick={onClose}
-          className="we-cast-add-modal-close"
-        >
+        <Button type="button" variant="ghost" onClick={onClose}>
           关闭
-        </button>
+        </Button>
       </div>
     </ModalShell>
   );

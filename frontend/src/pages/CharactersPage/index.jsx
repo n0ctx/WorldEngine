@@ -10,6 +10,7 @@ import { useOnboardingGuide } from './hooks/useOnboardingGuide.js';
 import { useCharacterActions } from './hooks/useCharacterActions.js';
 import { usePersonaActions } from './hooks/usePersonaActions.js';
 import { useStorylineActions } from './hooks/useStorylineActions.js';
+import Button from '../../components/ui/Button.jsx';
 import { NewWorldGuide } from './components/NewWorldGuide.jsx';
 import { DeleteConfirmModals } from './components/DeleteConfirmModals.jsx';
 import { StorylineColumn } from './components/StorylineColumn.jsx';
@@ -84,7 +85,7 @@ export default function CharactersPage() {
     return (
       <div className="we-characters-loading we-characters-error">
         <p className="we-characters-error-text">{loadError}</p>
-        <button className="we-characters-create-btn" onClick={loadData}>重试</button>
+        <Button onClick={loadData}>重试</Button>
       </div>
     );
   }

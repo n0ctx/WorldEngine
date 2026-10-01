@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import ModalShell from '../ui/ModalShell.jsx';
+import Button from '../ui/Button.jsx';
 import { analyzeEntityForCard, createCharacterFromEntity } from '../../core/api/state-memory.js';
 import { log } from '../../core/utils/logger.js';
 
@@ -127,23 +128,23 @@ export default function MakeCardModal({ worldId, sessionId, entity, onClose, onC
         )}
       </div>
       <div className="we-cast-add-modal-footer we-make-card-modal-footer">
-        <button
+        <Button
           type="button"
-          className="we-cast-add-modal-close"
+          variant="ghost"
           onClick={onClose}
           disabled={loading && !draft}
         >
           关闭
-        </button>
+        </Button>
         {draft && (
-          <button
+          <Button
             type="button"
-            className="we-cast-add-modal-action"
+            variant="primary"
             onClick={handleConfirm}
             disabled={loading}
           >
             {loading ? '保存中…' : '保存为角色卡'}
-          </button>
+          </Button>
         )}
       </div>
     </ModalShell>

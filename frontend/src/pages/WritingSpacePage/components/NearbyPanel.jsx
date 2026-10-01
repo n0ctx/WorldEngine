@@ -1,7 +1,10 @@
 import { useState } from 'react';
 import { AnimatePresence } from 'framer-motion';
+import { Plus } from 'lucide-react';
 
 import PanelCard from '../../../components/ui/PanelCard.jsx';
+import Button from '../../../components/ui/Button.jsx';
+import IconButton from '../../../components/ui/IconButton.jsx';
 import SessionStatePanel from '../../../components/state/SessionStatePanel.jsx';
 import useEntitySections from '../../../components/state/useEntitySections.jsx';
 import AddEntityFromCardModal from './AddEntityFromCardModal.jsx';
@@ -20,15 +23,6 @@ const CLASS_NAMES = {
   overlayText: 'we-cast-state-overlay-text',
 };
 
-function PlusIcon() {
-  return (
-    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <line x1="12" y1="5" x2="12" y2="19" />
-      <line x1="5" y1="12" x2="19" y2="12" />
-    </svg>
-  );
-}
-
 /** 没有在场或置顶角色时的占位 tab：加载中给骨架，加载失败给重试，否则给一句引导 */
 function EmptyNearbyTab({ loading, error, onRetry }) {
   return (
@@ -43,13 +37,9 @@ function EmptyNearbyTab({ loading, error, onRetry }) {
         ) : error ? (
           <div className="we-cast-error">
             <p className="we-field-error">{error}</p>
-            <button
-              type="button"
-              className="we-state-section-reset we-panel-card-action we-panel-card-action--chip"
-              onClick={onRetry}
-            >
+            <Button type="button" size="sm" variant="ghost" onClick={onRetry}>
               <RefreshIcon /><span>重试</span>
-            </button>
+            </Button>
           </div>
         ) : (
           <p className="we-cast-empty">AI 记录到的在场角色和你置顶的角色会显示在这里</p>
@@ -90,15 +80,9 @@ export default function NearbyPanel({
   });
 
   const addNearbyGlobalAction = (
-    <button
-      type="button"
-      className="we-state-section-reset we-panel-card-action we-panel-card-action--chip we-panel-card-action--icon"
-      onClick={() => setAddModalOpen(true)}
-      aria-label="从角色卡添加"
-      title="从角色卡添加"
-    >
-      <PlusIcon />
-    </button>
+    <IconButton size="sm" label="从角色卡添加" onClick={() => setAddModalOpen(true)}>
+      <Plus size={16} />
+    </IconButton>
   );
 
   const extraSections = () => (

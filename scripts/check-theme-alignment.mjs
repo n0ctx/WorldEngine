@@ -37,6 +37,7 @@ const THEMES_DIR = path.join(ROOT, 'frontend/src/visual');
 const SKIP_PREFIXES = [
   '--we-z-',           // z-index，不在主题范围
   '--we-space-',       // 间距，结构性，主题不改
+  '--we-control-',     // 控件高度与内边距，结构性，主题不改
   '--we-alpha-',       // 透明度阶梯，结构性，主题不改
   '--we-opacity-disabled', // 不可用控件的透明度，结构性，主题不改
   '--we-topbar-height',// 顶栏高度，结构尺寸，主题不改

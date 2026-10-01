@@ -1,5 +1,6 @@
 import { useRef, useEffect, useState } from 'react';
 import Icon from '../ui/Icon.jsx';
+import Button from '../ui/Button.jsx';
 import MotionOrb from '../motion/MotionOrb.jsx';
 import ChangeText from '../motion/ChangeText.jsx';
 import { useMotion } from '../../core/hooks/useMotion.js';
@@ -98,8 +99,8 @@ export default function ChapterDivider({ chapterIndex, title, onEdit, onRegenera
             className="we-chapter-edit-input"
           />
           <div className="we-chapter-edit-actions">
-            <button onClick={cancelEdit} className="we-chapter-edit-btn">取消</button>
-            <button onClick={confirmEdit} className="we-chapter-edit-btn we-chapter-edit-btn--primary">保存</button>
+            <Button size="sm" variant="ghost" onClick={cancelEdit}>取消</Button>
+            <Button size="sm" onClick={confirmEdit}>保存</Button>
           </div>
         </div>
       ) : (

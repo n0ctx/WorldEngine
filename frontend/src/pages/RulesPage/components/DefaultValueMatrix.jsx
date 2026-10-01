@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import Button from '../../../components/ui/Button.jsx';
 import StateValueField from '../../../components/state/StateValueField';
 import { log } from '../../../core/utils/logger.js';
 
@@ -88,14 +89,15 @@ export default function DefaultValueMatrix({ worldId, scope, field }) {
                   field={bulkField}
                   onSave={handleBulkDraft}
                 />
-                <button
+                <Button
                   type="button"
-                  className="we-btn we-btn-sm we-btn-secondary"
+                  size="sm"
+                  variant="secondary"
                   onClick={handleBulkApply}
                   disabled={bulkSaving}
                 >
                   {bulkSaving ? '应用中…' : '应用到全部'}
-                </button>
+                </Button>
               </div>
             </div>
           )}

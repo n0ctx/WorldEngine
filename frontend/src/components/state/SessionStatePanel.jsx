@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 
+import Button from '../ui/Button.jsx';
 import SectionTabs from '../ui/SectionTabs.jsx';
 import PanelCard from '../ui/PanelCard.jsx';
 import EntityStateBlock from './EntityStateBlock.jsx';
@@ -82,13 +83,9 @@ function StateLoadError({ message, onRetry }) {
   return (
     <div className="flex flex-col items-center gap-3 px-4 py-6 text-center">
       <p className="we-type-ui text-[var(--we-color-status-danger)]">{message}</p>
-      <button
-        type="button"
-        className="we-panel-card-action we-panel-card-action--chip"
-        onClick={onRetry}
-      >
+      <Button type="button" size="sm" variant="secondary" onClick={onRetry}>
         重试
-      </button>
+      </Button>
     </div>
   );
 }

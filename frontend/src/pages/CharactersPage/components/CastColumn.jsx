@@ -1,4 +1,5 @@
 import { SortableList } from '../../../components';
+import Button from '../../../components/ui/Button.jsx';
 import { CharacterCard } from './CharacterCard.jsx';
 
 // ── 中栏：角色 ──────────────────────────────────────────────────────────────
@@ -20,17 +21,18 @@ export function CastColumn({
   return (
     <div className="we-worldhub-cast">
       <div className="we-worldhub-section">
-        <div className="we-worldhub-section-header">
+        <div className="we-worldhub-section-header we-on-shell">
           <span className="we-worldhub-section-title">角色</span>
           <div className="we-characters-col-actions">
-            <button
+            <Button
+              size="sm"
+              variant="secondary"
               onClick={() => charImportRef.current?.click()}
               disabled={importingChar}
-              className="we-characters-col-btn"
               title="导入角色卡"
             >
               {importingChar ? '…' : '导入'}
-            </button>
+            </Button>
             <input
               ref={charImportRef}
               type="file"
@@ -38,13 +40,14 @@ export function CastColumn({
               className="hidden"
               onChange={onImportCharFile}
             />
-            <button
+            <Button
+              size="sm"
+              variant="secondary"
               onClick={() => navigate(`/worlds/${worldId}/characters/new`, { state: { backgroundLocation: location } })}
-              className="we-characters-col-btn we-characters-col-btn--primary"
               title="创建角色"
             >
               + 创建
-            </button>
+            </Button>
           </div>
         </div>
 

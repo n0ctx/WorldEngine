@@ -1,4 +1,7 @@
 import { useRef } from 'react';
+import { X } from 'lucide-react';
+import Button from '../ui/Button';
+import IconButton from '../ui/IconButton';
 import MarkdownEditor from '../ui/MarkdownEditor';
 import EntryEditorKeywordFields from './EntryEditorKeywordFields.jsx';
 import EntryEditorStateFields from './EntryEditorStateFields.jsx';
@@ -120,17 +123,12 @@ export default function EntryEditorPanel({ model, inline }) {
           <div className="we-trigger-suggestion we-entry-editor-field-mb" data-testid="trigger-suggestion">
             <span className="we-trigger-suggestion-text">{suggestion.reason}</span>
             <div className="we-trigger-suggestion-actions">
-              <button type="button" className="we-btn we-btn-sm we-btn-secondary" onClick={handleAdoptSuggestion}>
+              <Button type="button" size="sm" variant="secondary" onClick={handleAdoptSuggestion}>
                 采用
-              </button>
-              <button
-                type="button"
-                className="we-entry-condition-icon-btn"
-                aria-label="忽略此建议"
-                onClick={handleDismissSuggestion}
-              >
-                ×
-              </button>
+              </Button>
+              <IconButton size="sm" label="忽略此建议" onClick={handleDismissSuggestion}>
+                <X size={16} />
+              </IconButton>
             </div>
           </div>
         )}
@@ -180,14 +178,14 @@ export default function EntryEditorPanel({ model, inline }) {
 
         {/* 按钮 */}
         <div className="we-entry-editor-footer">
-          <button onClick={onClose} className="we-entry-editor-cancel">取消</button>
-          <button
+          <Button variant="ghost" onClick={onClose}>取消</Button>
+          <Button
+            variant="primary"
             onClick={handleSave}
             disabled={saving || !form.title.trim()}
-            className="we-entry-editor-save"
           >
             {saving ? '保存中…' : '保存'}
-          </button>
+          </Button>
         </div>
       </div>
   );

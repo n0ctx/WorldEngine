@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { PencilLine } from 'lucide-react';
 import {
   listRegexRules,
   createRegexRule,
@@ -11,6 +12,7 @@ import DragHandle from '../ui/DragHandle.jsx';
 import { invalidateCache, loadRules } from '../../core/utils/regex-runner.js';
 import RegexRuleEditor from './RegexRuleEditor.jsx';
 import Button from '../ui/Button.jsx';
+import IconButton from '../ui/IconButton.jsx';
 import DeleteButton from '../motion/DeleteButton.jsx';
 import SortableList from '../ui/SortableList.jsx';
 import { SETTINGS_MODE } from '../../core/constants/settings';
@@ -113,7 +115,7 @@ export default function RegexRulesManager({ settingsMode = SETTINGS_MODE.CHAT })
         <span className="we-regex-manager-note">
           按 scope 分组，同组内按顺序链式执行
         </span>
-        <Button variant="ghost" size="sm" onClick={openCreate}>+ 新建规则</Button>
+        <Button variant="secondary" size="sm" onClick={openCreate}>+ 新建规则</Button>
       </div>
 
       {SCOPE_ORDER.map((scope) => (
@@ -190,12 +192,9 @@ function RuleRow({ rule, worldName, onEdit, onToggle, onDelete }) {
         >
           {rule.enabled ? '启用' : '禁用'}
         </button>
-        <button
-          onClick={onEdit}
-          title="编辑"
-          aria-label="编辑正则规则"
-          className="we-regex-rule-icon-btn"
-        >✎</button>
+        <IconButton size="sm" label="编辑正则规则" title="编辑" onClick={onEdit}>
+          <PencilLine size={16} />
+        </IconButton>
         <DeleteButton label={`删除正则规则「${rule.name}」`} onConfirm={onDelete} />
       </div>
     </div>

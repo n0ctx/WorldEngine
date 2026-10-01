@@ -1,5 +1,6 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import ChangeText from '../motion/ChangeText.jsx';
+import IconButton from '../ui/IconButton.jsx';
 
 /**
  * 翻页条（受控组件）：只渲染按钮与页码，不维护自己的状态、不计算切片。
@@ -18,29 +19,15 @@ export default function Pager({ totalPages, currentPage, onChange }) {
 
   return (
     <div className="we-pager-bar we-pager-bar--inline">
-      <button
-        type="button"
-        className="we-pager-btn"
-        onClick={() => go(current - 1)}
-        disabled={current <= 0}
-        aria-label="上一页"
-        title="上一页"
-      >
-        <ChevronLeft size={20} />
-      </button>
+      <IconButton size="sm" variant="secondary" label="上一页" onClick={() => go(current - 1)} disabled={current <= 0}>
+        <ChevronLeft size={16} />
+      </IconButton>
       <span className="we-pager-label">
         <span className="we-pager-index">第 <ChangeText text={String(current + 1)} playKey={current} decode /> / <ChangeText text={String(totalPages)} playKey={totalPages} decode /> 页</span>
       </span>
-      <button
-        type="button"
-        className="we-pager-btn"
-        onClick={() => go(current + 1)}
-        disabled={current >= lastIdx}
-        aria-label="下一页"
-        title="下一页"
-      >
-        <ChevronRight size={20} />
-      </button>
+      <IconButton size="sm" variant="secondary" label="下一页" onClick={() => go(current + 1)} disabled={current >= lastIdx}>
+        <ChevronRight size={16} />
+      </IconButton>
     </div>
   );
 }

@@ -41,7 +41,7 @@ function StateInitialValuesPanel({ profileRows, stateFields, writeProfile, write
     <div className="we-edit-form-stack">
       <p className="we-edit-hint">这里填的值会在新会话里直接带入，留空的部分由 AI 按人设补全。</p>
       <div className="we-state-extract-trigger-row">
-        <Button variant="ghost" size="sm" onClick={onExtract}>AI 提取状态字段建议</Button>
+        <Button variant="secondary" size="sm" onClick={onExtract}>AI 提取状态字段建议</Button>
       </div>
       {groups.map(({ group, fields }) => (
         <FormGroup key={group} label={group}>

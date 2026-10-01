@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react';
+import Button from '../../../components/ui/Button.jsx';
 import StateFieldEditor from '../../../components/state/StateFieldEditor';
 import EntryEditor from '../../../components/state/EntryEditor';
 import StepTrack from '../../../components/motion/StepTrack.jsx';
@@ -38,10 +39,10 @@ export default function NewSystemWizard({ worldId, scope, scopeKey, onClose, onF
         onClose={onClose}
         footer={(
           <>
-            <button className="we-btn we-btn-secondary" onClick={() => onFinish(createdField?.field_key)}>
+            <Button variant="ghost" onClick={() => onFinish(createdField?.field_key)}>
               跳过，不配条目
-            </button>
-            <button className="we-btn we-btn-primary" onClick={() => setStep(3)}>下一步：配触发条目</button>
+            </Button>
+            <Button variant="primary" onClick={() => setStep(3)}>下一步：配触发条目</Button>
           </>
         )}
       >
@@ -70,7 +71,7 @@ function WizardShell({ title, step, children, footer, onClose }) {
       <div className="we-dialog-panel w-full max-w-2xl flex flex-col max-h-[90vh]">
         <div className="we-dialog-header flex items-center justify-between">
           <h2 className="flex items-center gap-3">新建系统<StepTrack steps={3} current={step - 1} /></h2>
-          <button className="we-btn we-btn-sm we-btn-ghost" onClick={onClose}>关闭</button>
+          <Button size="sm" variant="ghost" onClick={onClose}>关闭</Button>
         </div>
         <div className="we-dialog-body flex flex-col gap-4">
           <p className="we-workshop-section-title">{title}</p>

@@ -1,4 +1,6 @@
 import { useId, useState } from 'react';
+import Button from '../ui/Button.jsx';
+import IconButton from '../ui/IconButton.jsx';
 import Icon from '../ui/Icon.jsx';
 import Select from '../ui/Select.jsx';
 import { createStateRelation, deleteStateRelation } from '../../core/api/state-memory.js';
@@ -96,8 +98,8 @@ function NewRelationForm({ entities, relations, schema, sessionId, reload, onDon
       )}
       <div className="we-sm-relation-form-footer">
         <span className="we-sm-relation-preview">{preview ? `将记录：${preview}` : ''}</span>
-        <button type="button" className="we-btn we-btn-sm we-btn-ghost" onClick={onDone}>取消</button>
-        <button type="button" className="we-btn we-btn-sm we-btn-primary" onClick={handleCreate}>添加</button>
+        <Button type="button" size="sm" variant="ghost" onClick={onDone}>取消</Button>
+        <Button type="button" size="sm" variant="primary" onClick={handleCreate}>添加</Button>
       </div>
       {error && <p className="we-settings-toggle-hint text-[var(--we-color-accent)]" role="alert">{error}</p>}
     </div>
@@ -133,9 +135,9 @@ export default function StateMemoryRelationTab({ sessionId, data, schema, reload
       <div className="we-sm-tab-head">
         <p className="we-sm-intro">人物、物品、势力之间的固定关系，例如谁持有什么、谁属于哪个势力。AI 回复时会参考。</p>
         {!adding && (
-          <button type="button" className="we-btn we-btn-sm we-btn-secondary" onClick={() => setAdding(true)}>
+          <Button type="button" size="sm" variant="secondary" onClick={() => setAdding(true)}>
             ＋ 添加关系
-          </button>
+          </Button>
         )}
       </div>
 
@@ -171,15 +173,14 @@ export default function StateMemoryRelationTab({ sessionId, data, schema, reload
                 <span className="we-sm-relation-free">{relation.object_value}</span>
               )}
             </span>
-            <button
-              type="button"
-              className="we-sm-icon-btn"
-              aria-label="删除关系"
-              title="删除关系"
+            <IconButton
+              size="sm"
+              variant="danger"
+              label="删除关系"
               onClick={() => handleDelete(relation.relation_id)}
             >
               <DeleteIcon />
-            </button>
+            </IconButton>
           </li>
         ))}
       </ul>

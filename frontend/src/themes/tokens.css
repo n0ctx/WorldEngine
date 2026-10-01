@@ -15,7 +15,7 @@
  *   依赖世界主色的 token 放在下方「主色作用域」块里，不在 :root 主块里声明。
  *
  * C 层 · 结构 token（--we-space-* / --we-alpha-* / --we-radius-* / --we-blur-* / --we-z-* / --we-motion-* /
- *   --we-type-* / --we-leading-flush / --we-glyph-* / --we-weight-* / --we-opacity-disabled）
+ *   --we-type-* / --we-leading-flush / --we-glyph-* / --we-weight-* / --we-opacity-disabled / --we-control-*）
  *   间距、透明度阶梯、层级、动效角色、字体角色等骨架量，跟视觉风格无关。
  *   例外：--we-radius-* 允许主题覆盖。
  *
@@ -193,6 +193,14 @@
   --we-radius-lg:   20px;
   --we-radius-xl:   28px;
   --we-radius-full: 9999px;
+
+  /* === 控件尺寸：按钮高度三档，图标按钮边长取同一档；横向内边距取间距阶梯 === */
+  --we-control-h-sm:  28px;
+  --we-control-h-md:  36px;
+  --we-control-h-lg:  44px;
+  --we-control-px-sm: var(--we-space-md);
+  --we-control-px-md: var(--we-space-lg);
+  --we-control-px-lg: var(--we-space-xl);
 
   /* === 模糊半径 === */
   --we-blur-scrim: 6px;  /* 遮罩、半透明小块背后的轻模糊（玻璃面板用 --we-glass-blur） */

@@ -313,11 +313,16 @@ function analyzeStyleValue(prop, node, rel, allow, found) {
   }
 }
 
+// 基础控件的类只许它自己的组件写：别处手抄类名就是绕过组件另做一份
+const PRIMITIVE_CLASS_RE = /^we-btn(-|$)/;
+const PRIMITIVE_OWNER = 'frontend/src/components/ui/';
+
 function analyzeClassString(text, line, rel, allow, found) {
   for (const token of text.split(/\s+/).filter(Boolean)) {
     const utility = utilityOf(token);
     const hits = analyzeValue('class', utility).filter((h) => h.rule === 'layer' || h.rule === 'fallback');
     if (isTailwindLiteral(utility)) hits.push({ rule: 'tailwind', value: utility });
+    if (PRIMITIVE_CLASS_RE.test(token) && !rel.startsWith(PRIMITIVE_OWNER)) hits.push({ rule: 'primitive-class', value: token });
     for (const hit of hits) if (!allow.covers(rel, line)) found.push({ rel, ...hit });
   }
 }

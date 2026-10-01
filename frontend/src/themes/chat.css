@@ -1118,36 +1118,6 @@
     inset 0 0 20px -10px color-mix(in srgb, var(--we-atmosphere-color) var(--we-alpha-5), transparent);
 }
 
-.we-chat-input__attach-btn {
-  flex-shrink: 0;
-  padding: var(--we-space-sm);
-  color: var(--we-color-text-secondary);
-  background: none;
-  border: none;
-  cursor: pointer;
-  transition: background var(--we-motion-state-duration) var(--we-motion-state-easing), color var(--we-motion-state-duration) var(--we-motion-state-easing);
-  border-radius: var(--we-radius-full);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.we-chat-input__attach-btn:hover:not(:disabled) {
-  color: var(--we-color-text-primary);
-  background: var(--we-color-hover);
-}
-
-.we-chat-input__attach-btn:focus-visible {
-  outline: none;
-  color: var(--we-color-text-primary);
-  box-shadow: var(--we-focus-ring);
-}
-
-.we-chat-input__attach-btn:disabled {
-  opacity: var(--we-opacity-disabled);
-  cursor: not-allowed;
-}
-
 .we-chat-input__text-wrap {
   flex: 1;
   position: relative;
@@ -1233,7 +1203,7 @@
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  min-height: 28px; /* design exact: 与 we-chat-quick-btn 对齐 */
+  min-height: var(--we-control-h-sm); /* 与小号图标按钮同高 */
   margin-bottom: var(--we-space-xs);
 }
 
@@ -1251,41 +1221,9 @@
 .we-chat-quick-actions {
   display: flex;
   gap: var(--we-space-xs);
-  /* 对齐 textarea 右沿：偏移 = send btn 宽度 + 输入行 gap */
-  margin-right: calc(36px + var(--we-space-sm)); /* design exact: send 圆按钮直径 */
+  /* 对齐 textarea 右沿：偏移 = 发送键边长 + 输入行 gap */
+  margin-right: calc(var(--we-control-h-md) + var(--we-space-sm));
   z-index: var(--we-z-action);
-}
-
-.we-chat-quick-btn {
-  width: 28px; /* design exact: 与 textarea padding-right:76px 锚定 */
-  height: 28px; /* design exact */
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: transparent;
-  border: 1px solid transparent;
-  border-radius: var(--we-radius-full);
-  color: var(--we-color-text-tertiary);
-  cursor: pointer;
-  transition: color var(--we-motion-state-duration) var(--we-motion-state-easing),
-              background var(--we-motion-state-duration) var(--we-motion-state-easing);
-}
-
-/* 悬停只提亮图标并垫一层极淡的底，不再套主色描边框 */
-.we-chat-quick-btn:hover:not(:disabled) {
-  color: var(--we-color-text-primary);
-  background: var(--we-color-hover);
-}
-
-.we-chat-quick-btn:focus-visible {
-  outline: none;
-  color: var(--we-color-text-primary);
-  box-shadow: var(--we-focus-ring);
-}
-
-.we-chat-quick-btn:disabled {
-  opacity: var(--we-opacity-disabled);
-  cursor: not-allowed;
 }
 
 /* Main textarea */
@@ -1293,8 +1231,8 @@
   display: block; /* 行内文本域会在下方留出基线空隙，把胶囊撑高、文字偏上 */
   width: 100%;
   /* 可见的输入胶囊由外层 .we-chat-input__row 承担，文本域本身不画框 */
-  /* 单行总高 = 36px，与两侧 36px 的图片 / 发送按钮同高，文字与图标居中对齐；行高取正文角色，内边距跟着它算 */
-  padding: calc((36px - var(--we-type-prose-leading) * 1em) / 2) var(--we-space-sm); /* design exact: 36px 两侧按钮直径 */
+  /* 单行总高 = 中号控件高度，与两侧的图片 / 发送按钮同高，文字与图标居中对齐；行高取正文角色，内边距跟着它算 */
+  padding: calc((var(--we-control-h-md) - var(--we-type-prose-leading) * 1em) / 2) var(--we-space-sm);
   background: transparent;
   border: none;
   font-family: var(--we-font-prose);
@@ -1308,7 +1246,7 @@
   /* 上限 ≈ 10 行正文 + 上下 padding + 边框。
      缺这个上限时 adjustHeight() 会按 scrollHeight 无限撑高，
      把上方消息区挤成 0 高度；超出后改由 textarea 自身滚动。 */
-  max-height: calc(var(--we-type-prose-leading) * 1em * 9 + 36px);
+  max-height: calc(var(--we-type-prose-leading) * 1em * 9 + var(--we-control-h-md));
   overflow-y: auto;
 }
 
@@ -1319,42 +1257,6 @@
 
 .we-chat-textarea:disabled {
   opacity: var(--we-opacity-disabled);
-}
-
-/* Send / Stop button */
-.we-chat-send-btn {
-  flex-shrink: 0;
-  width: 36px; /* design exact: 圆形发送按钮直径 */
-  height: 36px; /* design exact */
-  padding: 0;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--we-color-accent);
-  color: var(--we-color-on-accent);
-  border: none;
-  border-radius: var(--we-radius-full);
-  cursor: pointer;
-  /* 陷落 / 回弹由 framer 弹簧驱动（InputBox），CSS 只过渡颜色 */
-  transition: filter var(--we-motion-state-duration) var(--we-motion-state-easing),
-              opacity var(--we-motion-state-duration) var(--we-motion-state-easing);
-}
-
-.we-chat-send-btn:hover:not(:disabled) {
-  filter: brightness(1.06);
-}
-
-.we-chat-send-btn:focus-visible {
-  outline: none;
-  box-shadow: var(--we-focus-ring);
-}
-
-.we-chat-send-btn:disabled {
-  background: var(--we-color-bg-strong);
-  color: var(--we-color-text-tertiary);
-  opacity: var(--we-opacity-disabled);
-  cursor: not-allowed;
-  box-shadow: none;
 }
 
 /* ── MessageItem ── */
@@ -1573,32 +1475,6 @@
   align-items: center;
   gap: var(--we-space-xxs);
   margin-left: auto;
-}
-
-.we-asst-drawer__icon-btn {
-  width: 32px; /* design exact */
-  height: 32px; /* design exact */
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
-  background: transparent;
-  border: none;
-  border-radius: var(--we-radius-full);
-  color: var(--we-color-text-tertiary);
-  cursor: pointer;
-  transition: color var(--we-motion-state-duration) var(--we-motion-state-easing), background var(--we-motion-state-duration) var(--we-motion-state-easing);
-}
-
-.we-asst-drawer__icon-btn:hover {
-  color: var(--we-color-text-primary);
-  background: var(--we-color-hover);
-}
-
-.we-asst-drawer__icon-btn:focus-visible {
-  outline: none;
-  color: var(--we-color-text-primary);
-  box-shadow: var(--we-focus-ring);
 }
 
 /* 失败提示：整圈描边 + 淡底，重试按钮跟在文字后 */
@@ -2289,24 +2165,6 @@
   gap: var(--we-space-sm);
 }
 
-.we-chapter-edit-btn {
-  font-family: var(--we-font-ui);
-  font-size: var(--we-type-caption-size);
-  line-height: var(--we-type-caption-leading);
-  letter-spacing: var(--we-type-caption-tracking);
-  color: var(--we-color-text-tertiary);
-  background: none;
-  border: 1px solid var(--we-color-border-default);
-  border-radius: var(--we-radius-sm);
-  padding: 2px var(--we-space-sm); /* 2px: design exact */
-  cursor: pointer;
-}
-
-.we-chapter-edit-btn--primary {
-  color: var(--we-color-accent);
-  border-color: var(--we-color-accent);
-}
-
 .we-chapter-actions {
   position: absolute;
   top: 8px;
@@ -2396,39 +2254,6 @@
 .we-pager-bar--inline .we-pager-label {
   overflow: visible;
   max-width: none;
-}
-
-.we-pager-btn {
-  width: 28px; /* design exact: 与 we-chat-quick-btn 对齐 */
-  height: 28px; /* design exact */
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
-  background: var(--we-color-bg-surface);
-  border: 1px solid var(--we-color-border-default);
-  box-shadow: var(--we-elevation-1);
-  color: var(--we-color-text-tertiary);
-  border-radius: var(--we-radius-full);
-  cursor: pointer;
-  transition: color var(--we-motion-state-duration) var(--we-motion-state-easing),
-              background var(--we-motion-state-duration) var(--we-motion-state-easing),
-              border-color var(--we-motion-state-duration) var(--we-motion-state-easing),
-              box-shadow var(--we-motion-state-duration) var(--we-motion-state-easing),
-              transform var(--we-motion-state-duration) var(--we-motion-state-easing);
-}
-
-.we-pager-btn:hover:not(:disabled) {
-  color: var(--we-color-accent);
-  background: var(--we-color-accent-bg);
-  box-shadow: 0 0 0 1px var(--we-color-accent-border), var(--we-elevation-1);
-  transform: none;
-}
-
-.we-pager-btn:disabled {
-  opacity: var(--we-opacity-disabled);
-  cursor: not-allowed;
-  box-shadow: none;
 }
 
 .we-pager-label {
@@ -2562,27 +2387,6 @@
   background: var(--we-color-accent-bg);
 }
 
-.we-css-snippet-row__action {
-  width: 24px;  /* design exact: icon-only 按钮触达区 */
-  height: 24px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: transparent;
-  border: none;
-  color: var(--we-color-text-tertiary);
-  cursor: pointer;
-  transition: color var(--we-motion-state-duration) var(--we-motion-state-easing);
-}
-
-.we-css-snippet-row__action:hover {
-  color: var(--we-color-text-primary);
-}
-
-.we-css-snippet-row__action--danger:hover {
-  color: var(--we-color-accent);
-}
-
 .we-css-snippet-editor__textarea {
   font-family: var(--we-font-mono);
 }
@@ -2645,7 +2449,6 @@
     transform: translateX(-50%); /* 复制两份内容，平移半程即无缝接上 */
   }
 }
-
 
 /* 触屏没有真正的 hover：消息与章节的操作按钮常驻显示，否则永远点不到 */
 @media (hover: none) {

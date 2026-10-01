@@ -10,6 +10,9 @@
  *   - 点击 toggle 详情；点击关闭按钮显式 dismiss
  */
 import { useEffect, useState, useMemo } from 'react';
+import { X } from 'lucide-react';
+import Button from './Button.jsx';
+import IconButton from './IconButton.jsx';
 import { subscribeProviderSafetySignals } from '../../core/api/provider-safety-events.js';
 import { providerSafetyMetaRows } from '../../core/utils/provider-safety.js';
 
@@ -86,22 +89,18 @@ export default function ProviderSafetyBanner() {
             {signal.signalName}
           </div>
         </div>
-        <button
+        <Button
           type="button"
-          className="we-provider-safety-banner__btn"
+          size="sm"
+          variant="secondary"
           aria-expanded={expanded}
           onClick={() => setExpanded((v) => !v)}
         >
           {expanded ? '收起' : '详情'}
-        </button>
-        <button
-          type="button"
-          className="we-provider-safety-banner__close"
-          aria-label="关闭安全信号提示"
-          onClick={() => setSignal(null)}
-        >
-          ×
-        </button>
+        </Button>
+        <IconButton size="sm" label="关闭安全信号提示" onClick={() => setSignal(null)}>
+          <X size={16} />
+        </IconButton>
       </div>
       {expanded && (
         <dl className="we-provider-safety-banner__details">

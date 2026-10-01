@@ -32,7 +32,7 @@ export default function EmptyState({
             </Button>
           )}
           {secondaryAction && (
-            <Button variant="ghost" onClick={secondaryAction.onClick}>
+            <Button variant="secondary" onClick={secondaryAction.onClick}>
               {secondaryAction.label}
             </Button>
           )}

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import Button from '../../../components/ui/Button.jsx';
 import StateFieldEditor from '../../../components/state/StateFieldEditor';
 import EntryEditor from '../../../components/state/EntryEditor';
 import { listWorldEntries, getEntryConditions } from '../../../core/api/prompt-entries';
@@ -20,12 +21,13 @@ export default function FieldDetail({ worldId, scope, scopeKey, field, onDefinit
           <span className="we-entry-section-badge">{TYPE_LABEL[field.type] ?? field.type}</span>
           {field.description && <p className="we-workshop-detail-desc">{field.description}</p>}
         </div>
-        <button
-          className="we-btn we-btn-sm we-btn-secondary"
+        <Button
+          size="sm"
+          variant="secondary"
           onClick={() => setEditingDef((v) => !v)}
         >
           {editingDef ? '收起定义' : '编辑定义'}
-        </button>
+        </Button>
       </div>
 
       {editingDef && (
@@ -115,7 +117,7 @@ function RelatedEntries({ worldId, scope, field, reloadKey, onNew, onEdit }) {
     <div className="we-workshop-section">
       <div className="we-workshop-section-head">
         <span className="we-entry-editor-label">相关触发条目</span>
-        <button className="we-btn we-btn-sm we-btn-secondary" onClick={onNew}>+ 新建条目</button>
+        <Button size="sm" variant="secondary" onClick={onNew}>+ 新建条目</Button>
       </div>
       {loading ? (
         <p className="we-workshop-empty">加载中…</p>

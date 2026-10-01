@@ -1,7 +1,9 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
+import { PencilLine, Trash2 } from 'lucide-react';
 import { SortableList } from '../index';
 import Button from '../ui/Button.jsx';
+import IconButton from '../ui/IconButton.jsx';
 import DragHandle from '../ui/DragHandle.jsx';
 import StateFieldEditor from './StateFieldEditor';
 import { log } from '../../core/utils/logger.js';
@@ -141,12 +143,12 @@ function FieldRow({ field, onEdit, onDelete }) {
       </div>
 
       <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
-        <button onClick={onEdit}
-          className="w-6 h-6 flex items-center justify-center rounded-[var(--we-radius-xs)] text-[var(--we-color-text-secondary)] hover:text-[var(--we-color-text-primary)] hover:bg-[var(--we-color-bg-sunken)] transition-colors we-type-caption"
-          title="编辑">✎</button>
-        <button onClick={onDelete}
-          className="w-6 h-6 flex items-center justify-center rounded-[var(--we-radius-xs)] text-[var(--we-color-text-secondary)] hover:text-[var(--we-color-status-danger)] hover:bg-[var(--we-color-bg-sunken)] transition-colors we-type-caption"
-          title="删除">✕</button>
+        <IconButton size="sm" label="编辑" onClick={onEdit}>
+          <PencilLine size={16} />
+        </IconButton>
+        <IconButton size="sm" variant="danger" label="删除" onClick={onDelete}>
+          <Trash2 size={16} />
+        </IconButton>
       </div>
     </div>
   );
@@ -186,10 +188,10 @@ function DeleteConfirm({ onConfirm, onClose }) {
           此操作无法撤销。
         </p>
         <div className="flex justify-end gap-3">
-          <button onClick={onClose} className="we-btn we-btn-sm we-btn-secondary">取消</button>
-          <button onClick={handle} disabled={deleting} className="we-btn we-btn-sm we-btn-danger">
+          <Button size="sm" variant="ghost" onClick={onClose}>取消</Button>
+          <Button size="sm" variant="danger" onClick={handle} disabled={deleting}>
             {deleting ? '删除中…' : '确认删除'}
-          </button>
+          </Button>
         </div>
       </div>
     </div>,

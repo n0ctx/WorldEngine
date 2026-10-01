@@ -4,6 +4,7 @@ import { motion, useMotionTemplate, useMotionValue } from 'framer-motion';
 import { Download, Ellipsis, PencilLine, Trash2 } from 'lucide-react';
 import SortableGrid from '../../components/ui/SortableGrid';
 import AvatarCircle from '../../components/ui/AvatarCircle.jsx';
+import IconButton from '../../components/ui/IconButton.jsx';
 import WorldSceneArt from '../../components/ui/WorldSceneArt.jsx';
 import { getAvatarUrl } from '../../core/utils/avatar';
 import { relativeTime } from '../../core/utils/time';
@@ -164,42 +165,44 @@ function WorldCard({
         >
           {actionsOpen ? (
             <>
-              <button
-                className="we-world-card-action-btn"
+              <IconButton
+                variant="overlay"
+                size="sm"
+                label="导出世界卡"
                 onClick={(event) => onExportWorld(world, event)}
                 disabled={exportingWorldId === world.id}
-                title="导出世界卡"
-                aria-label="导出世界卡"
               >
                 <Download size={16} />
-              </button>
-              <button
-                className="we-world-card-action-btn"
+              </IconButton>
+              <IconButton
+                variant="overlay"
+                size="sm"
+                label="编辑世界"
                 onClick={() => navigate(`/worlds/${world.id}/edit`, { state: { backgroundLocation: location } })}
-                title="编辑"
-                aria-label="编辑世界"
               >
                 <PencilLine size={16} />
-              </button>
-              <button
-                className="we-world-card-action-btn danger"
+              </IconButton>
+              <IconButton
+                variant="overlay"
+                size="sm"
+                label="删除世界"
+                className="is-danger"
                 onClick={() => onSetDeletingWorld(world)}
-                title="删除"
-                aria-label="删除世界"
               >
                 <Trash2 size={16} />
-              </button>
+              </IconButton>
             </>
           ) : null}
-          <button
-            className="we-world-card-action-btn we-world-card-action-toggle"
-            onClick={() => onSetActionsOpenId(actionsOpen ? null : world.id)}
-            aria-label={actionsOpen ? '收起世界操作' : '世界操作'}
-            aria-expanded={actionsOpen}
+          <IconButton
+            variant="overlay"
+            size="sm"
+            label={actionsOpen ? '收起世界操作' : '世界操作'}
             title="更多操作"
+            onClick={() => onSetActionsOpenId(actionsOpen ? null : world.id)}
+            aria-expanded={actionsOpen}
           >
             <Ellipsis size={16} />
-          </button>
+          </IconButton>
         </div>
       </motion.div>
     </div>

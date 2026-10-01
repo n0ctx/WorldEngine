@@ -28,6 +28,7 @@ import { getCharacter } from '../../frontend/src/core/api/characters.js';
 import { getConfig } from '../../frontend/src/core/api/config.js';
 import { log } from '../../frontend/src/core/utils/logger.js';
 import { useEscapeKey } from '../../frontend/src/core/hooks/useEscapeKey.js';
+import IconButton from '../../frontend/src/components/ui/IconButton.jsx';
 
 const RECOVERABLE_TERMINAL_ERROR = 'interrupted by restart';
 
@@ -483,25 +484,13 @@ export default function AssistantPanel() {
             <AssistantStatusIndicator status={status} isStreaming={isStreaming} />
             <div className="we-asst-drawer__actions">
               {(messages.length > 0 || taskId) && (
-                <button
-                  type="button"
-                  onClick={handleReset}
-                  className="we-asst-drawer__icon-btn"
-                  title="清空对话"
-                  aria-label="清空对话"
-                >
+                <IconButton label="清空对话" onClick={handleReset}>
                   <Eraser size={16} />
-                </button>
+                </IconButton>
               )}
-              <button
-                type="button"
-                onClick={close}
-                className="we-asst-drawer__icon-btn"
-                title="关闭 (Esc)"
-                aria-label="关闭"
-              >
-                <X size={18} />
-              </button>
+              <IconButton label="关闭" title="关闭 (Esc)" onClick={close}>
+                <X size={20} />
+              </IconButton>
             </div>
           </header>
 

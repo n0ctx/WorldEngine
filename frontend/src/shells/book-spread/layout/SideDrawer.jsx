@@ -11,6 +11,7 @@
 import { useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import Icon from '../../../components/ui/Icon.jsx';
+import IconButton from '../../../components/ui/IconButton.jsx';
 import { STAGGER } from '../../../core/utils/motion.js';
 import { useMotion } from '../../../core/hooks/useMotion.js';
 
@@ -89,13 +90,12 @@ export default function SideDrawer({ side, open, onToggle, label, footer = null,
         animate="visible"
         transition={m.transition('enter', { delay: ENTER_DELAY[side] })}
       >
-        <button
-          type="button"
+        <IconButton
+          size="lg"
+          label={toggleLabel}
           className="we-side-drawer-toggle"
           onClick={onToggle}
-          aria-label={toggleLabel}
           aria-expanded={open}
-          title={toggleLabel}
         >
           {open ? (
             <Icon
@@ -107,7 +107,7 @@ export default function SideDrawer({ side, open, onToggle, label, footer = null,
               <polyline points="2,3.5 5,6.5 8,3.5" />
             </Icon>
           ) : COLLAPSED_GLYPH[side]}
-        </button>
+        </IconButton>
         {/* 展开时宽度先让出来（CSS 过渡 base 时长），走过大半后内容从外侧边缘带着轻微模糊浮进来；
             收起时先退回外侧、卸载后再收宽度。减少动效时只剩瞬间的透明度切换。
             裁切由外层 .we-side-drawer-clip 负责（它不动）：内容自己在位移，裁切框若挂在它身上会一起滑出抽屉边框。

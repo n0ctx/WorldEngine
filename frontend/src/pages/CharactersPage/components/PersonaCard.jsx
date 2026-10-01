@@ -1,6 +1,7 @@
 import CharacterSeal from '../../../components/chat/CharacterSeal.jsx';
 import DragHandle from '../../../components/ui/DragHandle.jsx';
 import Icon from '../../../components/ui/Icon.jsx';
+import IconButton from '../../../components/ui/IconButton.jsx';
 import { useDragAwareClick } from './useDragAwareClick.js';
 
 // ── PersonaCard（内联组件）─────────────────────────────────────────────────
@@ -49,29 +50,30 @@ export function PersonaCard({ persona, dragHandleProps, onActivate, onEdit, onDe
             </Icon>
           </button>
         )}
-        <button
-          onClick={onEdit}
-          className="we-character-card-action-btn"
+        <IconButton
+          size="sm"
+          label="编辑玩家卡"
           title="编辑"
-          aria-label="编辑玩家卡"
+          onClick={onEdit}
         >
           <Icon size={16}>
             <path d="M12 20h9" />
             <path d="M16.5 3.5a2.12 2.12 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
           </Icon>
-        </button>
-        <button
-          onClick={onDelete}
-          className="we-character-card-action-btn danger"
+        </IconButton>
+        <IconButton
+          size="sm"
+          variant="danger"
+          label="删除玩家卡"
           title="删除"
-          aria-label="删除玩家卡"
+          onClick={onDelete}
           disabled={persona._isLast}
         >
           <Icon size={16}>
             <line x1="18" y1="6" x2="6" y2="18" />
             <line x1="6" y1="6" x2="18" y2="18" />
           </Icon>
-        </button>
+        </IconButton>
       </div>
     </div>
   );

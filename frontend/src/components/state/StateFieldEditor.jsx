@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
+import Button from '../ui/Button';
 import { useEscapeKey } from '../../core/hooks/useEscapeKey.js';
 import { useStateMemorySchema } from '../../core/hooks/useStateMemory.js';
 import {
@@ -62,10 +63,10 @@ export default function StateFieldEditor({ field, scope, onSave, onClose, inline
       </div>
 
       <div className="we-dialog-footer">
-        <button onClick={onClose} className="we-btn we-btn-sm we-btn-secondary">取消</button>
-        <button onClick={handleSave} disabled={saving || isReserved} className="we-btn we-btn-sm we-btn-primary">
+        <Button size="sm" variant="ghost" onClick={onClose}>取消</Button>
+        <Button size="sm" variant="primary" onClick={handleSave} disabled={saving || isReserved}>
           {saving ? '保存中…' : '保存'}
-        </button>
+        </Button>
       </div>
     </div>
   );

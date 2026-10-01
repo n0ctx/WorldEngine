@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import { createPortal } from 'react-dom';
+import Button from '../ui/Button.jsx';
 import ConfirmModal from '../ui/ConfirmModal.jsx';
 import MakeCardModal from './MakeCardModal.jsx';
 import EntityStateBlock from './EntityStateBlock.jsx';
@@ -93,30 +94,33 @@ export default function useEntitySections({
   function toolbarFor(entity) {
     return (
       <>
-        <button
+        <Button
           type="button"
-          className="we-state-section-reset we-panel-card-action we-panel-card-action--chip"
+          size="sm"
+          variant="ghost"
           onClick={() => togglePinned(entity)}
           title={entity.pinned ? '取消置顶' : '置顶'}
         >
           {pinIcon}<span>{entity.pinned ? '取消置顶' : '置顶'}</span>
-        </button>
-        <button
+        </Button>
+        <Button
           type="button"
-          className="we-state-section-reset we-panel-card-action we-panel-card-action--chip"
+          size="sm"
+          variant="ghost"
           onClick={() => setMakeCardEntity(entity)}
           title="制成角色卡"
         >
           {cardIcon}<span>制成角色卡</span>
-        </button>
-        <button
+        </Button>
+        <Button
           type="button"
-          className="we-state-section-reset we-panel-card-action we-panel-card-action--chip"
+          size="sm"
+          variant="ghost"
           onClick={() => setDeleteTarget(entity)}
           title="删除"
         >
           {trashIcon}<span>删除</span>
-        </button>
+        </Button>
       </>
     );
   }

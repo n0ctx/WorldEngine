@@ -60,7 +60,7 @@ export default function ModelSelector({ value, onChange, loadModels }) {
     return (
       <div>
         <p className="we-model-selector-error">{errMsg}</p>
-        <Button variant="ghost" size="sm" onClick={load}>重试</Button>
+        <Button variant="secondary" size="sm" onClick={load}>重试</Button>
       </div>
     );
   }

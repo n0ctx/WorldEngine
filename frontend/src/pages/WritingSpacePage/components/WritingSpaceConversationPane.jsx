@@ -6,6 +6,7 @@ import ProviderSafetyBanner from '../../../components/ui/ProviderSafetyBanner.js
 import MiddleSummaryModal from '../../../components/session/MiddleSummaryModal.jsx';
 import StateMemoryModal from '../../../components/session/StateMemoryModal.jsx';
 import Icon from '../../../components/ui/Icon.jsx';
+import Button from '../../../components/ui/Button.jsx';
 
 export default function WritingSpaceConversationPane({ worldId, navigate, config, pageState, lifecycle, stream }) {
   const { chapterTurnSize, pageTurnSize } = config;
@@ -60,13 +61,9 @@ export default function WritingSpaceConversationPane({ worldId, navigate, config
         ) : initError ? (
           <div className="flex-1 flex flex-col items-center justify-center gap-3 px-6 text-center">
             <p className="we-type-ui text-[var(--we-color-status-danger)]">{initError}</p>
-            <button
-              type="button"
-              className="we-panel-card-action we-panel-card-action--chip"
-              onClick={retryInitialization}
-            >
+            <Button type="button" size="sm" variant="secondary" onClick={retryInitialization}>
               重试
-            </button>
+            </Button>
           </div>
         ) : (
           <MessageList

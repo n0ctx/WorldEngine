@@ -20,7 +20,9 @@
  */
 import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import Icon from '../ui/Icon.jsx';
+import { PencilLine, Trash2 } from 'lucide-react';
+import Button from '../ui/Button.jsx';
+import IconButton from '../ui/IconButton.jsx';
 import { getWorldTimeline, renameSession } from '../../core/api/sessions.js';
 import { getCharactersByWorld } from '../../core/api/characters.js';
 import { chatSessionListBridge, writingSessionListBridge } from '../../core/utils/session-list-bridge.js';
@@ -148,30 +150,17 @@ function TimelineItem({ item, title, index, isActive, editable, onClick, onRenam
             </div>
           ) : (
             <div className="we-session-item__btn-group">
-              <button
-                onClick={startEdit}
-                className="we-session-item__icon-btn"
-                title="编辑标题"
-                aria-label="编辑会话标题"
-              >
-                <Icon size={16}>
-                  <path d="M12 20h9" />
-                  <path d="M16.5 3.5a2.12 2.12 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
-                </Icon>
-              </button>
-              <button
+              <IconButton size="sm" label="编辑会话标题" title="编辑标题" onClick={startEdit}>
+                <PencilLine size={16} />
+              </IconButton>
+              <IconButton
+                size="sm"
+                variant="danger"
+                label="删除会话"
                 onClick={(e) => { e.stopPropagation(); setConfirmDelete(true); }}
-                className="we-session-item__icon-btn"
-                title="删除会话"
-                aria-label="删除会话"
               >
-                <Icon size={16}>
-                  <polyline points="3 6 5 6 21 6" />
-                  <path d="M19 6l-1 14H6L5 6" />
-                  <path d="M10 11v6M14 11v6" />
-                  <path d="M9 6V4h6v2" />
-                </Icon>
-              </button>
+                <Trash2 size={16} />
+              </IconButton>
             </div>
           )}
         </div>
@@ -289,13 +278,9 @@ export default function WorldTimelinePanel({
         {loadError ? (
           <div className="flex flex-col items-center gap-3 px-4 py-6 text-center">
             <p className="we-type-ui text-[var(--we-color-status-danger)]">{loadError}</p>
-            <button
-              type="button"
-              className="we-panel-card-action we-panel-card-action--chip"
-              onClick={() => setRetryToken((t) => t + 1)}
-            >
+            <Button type="button" size="sm" variant="secondary" onClick={() => setRetryToken((t) => t + 1)}>
               重试
-            </button>
+            </Button>
           </div>
         ) : !loading && timeline.length === 0 ? (
           <p className="we-session-list-empty">暂无故事线</p>

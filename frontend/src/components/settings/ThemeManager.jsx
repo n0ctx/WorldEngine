@@ -63,7 +63,7 @@ export default function ThemeManager() {
             </div>
             {!active && (
               <div className="we-theme-actions">
-                <Button variant="ghost" size="sm" onClick={() => switchTheme(theme.id)} disabled={busyId === theme.id}>
+                <Button variant="secondary" size="sm" onClick={() => switchTheme(theme.id)} disabled={busyId === theme.id}>
                   切换
                 </Button>
               </div>

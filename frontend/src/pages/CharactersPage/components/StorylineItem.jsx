@@ -1,4 +1,5 @@
 import Icon from '../../../components/ui/Icon.jsx';
+import IconButton from '../../../components/ui/IconButton.jsx';
 import { relativeTime } from '../../../core/utils/time.js';
 
 // ── StorylineItem / ContinueCard（内联组件）─────────────────────────────────
@@ -14,13 +15,14 @@ function StorylineModeBadge({ mode }) {
 // 悬停或键盘聚焦卡片时浮现；按键与点击都不冒泡到卡片，避免同时触发「打开」
 function StorylineDeleteButton({ onDelete }) {
   return (
-    <button
-      type="button"
-      className="we-character-card-action-btn danger we-storyline-delete"
+    <IconButton
+      size="sm"
+      variant="danger"
+      label="删除故事线"
+      title="删除"
+      className="we-storyline-delete"
       onClick={(e) => { e.stopPropagation(); onDelete(); }}
       onKeyDown={(e) => e.stopPropagation()}
-      title="删除"
-      aria-label="删除故事线"
     >
       <Icon size={16}>
         <polyline points="3 6 5 6 21 6" />
@@ -28,7 +30,7 @@ function StorylineDeleteButton({ onDelete }) {
         <path d="M10 11v6M14 11v6" />
         <path d="M9 6V4h6v2" />
       </Icon>
-    </button>
+    </IconButton>
   );
 }
 

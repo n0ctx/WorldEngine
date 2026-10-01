@@ -127,7 +127,7 @@ export default function ImportExportPanel({ settingsMode, onImportSuccess }) {
           <Button onClick={handleExport} disabled={exporting}>
             {exporting ? '导出中…' : `导出${modeLabel}设置`}
           </Button>
-          <Button variant="ghost" onClick={() => fileInputRef.current?.click()} disabled={importing}>
+          <Button variant="secondary" onClick={() => fileInputRef.current?.click()} disabled={importing}>
             {importing ? '导入中…' : '导入设置文件'}
           </Button>
           <input
@@ -160,7 +160,7 @@ export default function ImportExportPanel({ settingsMode, onImportSuccess }) {
           <Button onClick={handleMigrationExport} disabled={migrationExporting}>
             {migrationExporting ? '导出中…' : '导出全量迁移包'}
           </Button>
-          <Button variant="ghost" onClick={() => migrationInputRef.current?.click()} disabled={migrationImporting}>
+          <Button variant="secondary" onClick={() => migrationInputRef.current?.click()} disabled={migrationImporting}>
             {migrationImporting ? '导入中…' : '导入迁移包'}
           </Button>
           <input

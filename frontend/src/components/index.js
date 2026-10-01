@@ -13,6 +13,7 @@
 
 // — UI 原子 —
 export { default as Button }          from './ui/Button';
+export { default as IconButton }      from './ui/IconButton.jsx';
 export { default as Input }           from './ui/Input';
 export { default as Range }           from './ui/Range';
 export { default as Textarea }        from './ui/Textarea';

@@ -1,5 +1,5 @@
-import { motion } from 'framer-motion';
 import { ArrowDownToLine, BookMarked, Database, FastForward, UserRoundPen } from 'lucide-react';
+import IconButton from '../ui/IconButton.jsx';
 
 // 点击工具条按钮时不让输入框失焦；动作本身走 onClick，键盘 Enter/Space 同样可触发
 function keepInputFocus(e) {
@@ -8,8 +8,6 @@ function keepInputFocus(e) {
 
 export default function InputBoxToolbar({
   pagerSlot,
-  m,
-  press,
   generating,
   onScrollToBottom,
   onContinue,
@@ -21,66 +19,36 @@ export default function InputBoxToolbar({
     <div className="we-chat-input__toolbar">
       <div className="we-chat-input__toolbar-pager">{pagerSlot}</div>
       <div className="we-chat-quick-actions">
-        <motion.button
-          type="button"
-          onMouseDown={keepInputFocus}
-          onClick={() => onScrollToBottom?.()}
-          className="we-chat-quick-btn"
-          title="跳转到底部"
-          aria-label="跳转到底部"
-          {...press}
-        >
-          <ArrowDownToLine size={20} />
-        </motion.button>
-        <motion.button
-          type="button"
+        <IconButton size="sm" label="跳转到底部" onMouseDown={keepInputFocus} onClick={() => onScrollToBottom?.()}>
+          <ArrowDownToLine size={16} />
+        </IconButton>
+        <IconButton
+          size="sm"
+          label="续写上一条 AI 回复"
           onMouseDown={keepInputFocus}
           onClick={() => onContinue?.()}
           disabled={generating}
-          className="we-chat-quick-btn"
-          title="续写上一条 AI 回复"
-          aria-label="续写上一条 AI 回复"
-          {...m.gesture('press', { disabled: generating })}
         >
-          <FastForward size={20} fill="currentColor" fillOpacity={0.22} />
-        </motion.button>
-        <motion.button
-          type="button"
+          <FastForward size={16} fill="currentColor" fillOpacity={0.22} />
+        </IconButton>
+        <IconButton
+          size="sm"
+          label="AI 替你写一条消息"
           onMouseDown={keepInputFocus}
           onClick={() => onImpersonate?.()}
           disabled={generating}
-          className="we-chat-quick-btn"
-          title="AI 替你写一条消息"
-          aria-label="AI 替你写一条消息"
-          {...m.gesture('press', { disabled: generating })}
         >
-          <UserRoundPen size={20} />
-        </motion.button>
+          <UserRoundPen size={16} />
+        </IconButton>
         {onMiddleSummary && (
-          <motion.button
-            type="button"
-            onMouseDown={keepInputFocus}
-            onClick={() => onMiddleSummary()}
-            className="we-chat-quick-btn"
-            title="剧情摘要"
-            aria-label="剧情摘要"
-            {...press}
-          >
-            <BookMarked size={20} />
-          </motion.button>
+          <IconButton size="sm" label="剧情摘要" onMouseDown={keepInputFocus} onClick={() => onMiddleSummary()}>
+            <BookMarked size={16} />
+          </IconButton>
         )}
         {onStateMemory && (
-          <motion.button
-            type="button"
-            onMouseDown={keepInputFocus}
-            onClick={() => onStateMemory()}
-            className="we-chat-quick-btn"
-            title="状态记忆"
-            aria-label="状态记忆"
-            {...press}
-          >
-            <Database size={20} />
-          </motion.button>
+          <IconButton size="sm" label="状态记忆" onMouseDown={keepInputFocus} onClick={() => onStateMemory()}>
+            <Database size={16} />
+          </IconButton>
         )}
       </div>
     </div>

@@ -1,5 +1,6 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { SortableList } from '../../../components';
+import Button from '../../../components/ui/Button.jsx';
 import CharacterSeal from '../../../components/chat/CharacterSeal.jsx';
 import { PersonaCard } from './PersonaCard.jsx';
 
@@ -42,38 +43,41 @@ export function PersonaSwitchPanel({
               </span>
             )}
             {activePersona && (
-              <button
+              <Button
                 type="button"
-                className="we-persona-switch-btn"
+                size="sm"
+                variant="secondary"
                 onClick={() => navigate(
                   `/worlds/${worldId}/personas/${activePersona.id}/edit`,
                   { state: { backgroundLocation: location } }
                 )}
               >
                 编辑
-              </button>
+              </Button>
             )}
-            <button
+            <Button
               type="button"
-              className="we-persona-switch-btn"
+              size="sm"
+              variant="secondary"
               onClick={() => setPersonaExpanded(true)}
             >
               切换
-            </button>
+            </Button>
           </div>
         </motion.div>
       ) : (
         <motion.div key="persona-panel" {...personaSwitchMotion}>
           <div className="we-persona-switch-panel">
-            <div className="we-characters-col-actions we-persona-switch-actions">
-              <button
+            <div className="we-characters-col-actions we-persona-switch-actions we-on-shell">
+              <Button
+                size="sm"
+                variant="secondary"
                 onClick={() => personaImportRef.current?.click()}
                 disabled={importingPersona}
-                className="we-characters-col-btn"
                 title="导入玩家卡"
               >
                 {importingPersona ? '…' : '导入'}
-              </button>
+              </Button>
               <input
                 ref={personaImportRef}
                 type="file"
@@ -81,24 +85,26 @@ export function PersonaSwitchPanel({
                 className="hidden"
                 onChange={onImportPersonaFile}
               />
-              <button
+              <Button
+                size="sm"
+                variant="secondary"
                 onClick={() => navigate(
                   `/worlds/${worldId}/personas/new`,
                   { state: { backgroundLocation: location } }
                 )}
-                className="we-characters-col-btn we-characters-col-btn--primary"
                 title="创建玩家"
               >
                 + 创建
-              </button>
-              <button
+              </Button>
+              <Button
                 type="button"
+                size="sm"
+                variant="secondary"
                 onClick={() => setPersonaExpanded(false)}
-                className="we-characters-col-btn"
                 title="收起"
               >
                 收起
-              </button>
+              </Button>
             </div>
 
             <div className="we-characters-col-list we-persona-switch-list">

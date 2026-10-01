@@ -3,6 +3,7 @@ import { useId, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useMotion } from '../../core/hooks/useMotion.js';
 import { useEscapeKey } from '../../core/hooks/useEscapeKey.js';
+import Button from './Button.jsx';
 
 /**
  * 通用确认弹窗。
@@ -24,7 +25,6 @@ export default function ConfirmModal({
   const messageId = useId();
   const mouseDownOnBackdrop = useRef(false);
   const m = useMotion();
-  const press = m.gesture('press', { disabled: confirming });
   useEscapeKey(() => { if (!confirming) onClose(); });
 
   async function handleConfirm() {
@@ -64,23 +64,12 @@ export default function ConfirmModal({
         <h2 id={titleId} className="we-confirm-title">{title}</h2>
         <div id={messageId} className="we-confirm-message">{message}</div>
         <div className="flex justify-end gap-3">
-          <motion.button
-            onClick={onClose}
-            autoFocus
-            disabled={confirming}
-            className="we-confirm-cancel"
-            {...press}
-          >
+          <Button variant="ghost" onClick={onClose} autoFocus disabled={confirming}>
             {cancelText}
-          </motion.button>
-          <motion.button
-            onClick={handleConfirm}
-            disabled={confirming}
-            className={['we-confirm-ok', danger ? 'danger' : ''].filter(Boolean).join(' ')}
-            {...press}
-          >
+          </Button>
+          <Button variant={danger ? 'danger' : 'primary'} onClick={handleConfirm} disabled={confirming}>
             {confirming ? '处理中…' : confirmText}
-          </motion.button>
+          </Button>
         </div>
       </motion.div>
     </motion.div>

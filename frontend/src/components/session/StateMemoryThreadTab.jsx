@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import Button from '../ui/Button.jsx';
 import Icon from '../ui/Icon.jsx';
 import { updateStateThread } from '../../core/api/state-memory.js';
 import { isImeComposing } from '../../core/utils/ime.js';
@@ -38,16 +39,16 @@ function ThreadRow({ sessionId, thread, entities, reload }) {
         <span className="we-sm-thread-actions">
           {active || thread.status === 'dormant' ? (
             <>
-              <button type="button" className="we-sm-text-btn" title="这件事已经了结" onClick={() => commit({ status: 'resolved' })}>已解决</button>
-              <button type="button" className="we-sm-text-btn" title="这件事没能完成" onClick={() => commit({ status: 'failed' })}>已失败</button>
+              <Button type="button" size="sm" variant="ghost" title="这件事已经了结" onClick={() => commit({ status: 'resolved' })}>已解决</Button>
+              <Button type="button" size="sm" variant="ghost" title="这件事没能完成" onClick={() => commit({ status: 'failed' })}>已失败</Button>
               {thread.status === 'dormant' && (
-                <button type="button" className="we-sm-text-btn" title="这件事重新计入进行中" onClick={() => commit({ status: 'active' })}>重新打开</button>
+                <Button type="button" size="sm" variant="ghost" title="这件事重新计入进行中" onClick={() => commit({ status: 'active' })}>重新打开</Button>
               )}
             </>
           ) : (
             <>
               <span className="we-sm-thread-status">{STATUS_LABELS[thread.status] ?? thread.status}</span>
-              <button type="button" className="we-sm-text-btn" onClick={() => commit({ status: 'active' })}>重新打开</button>
+              <Button type="button" size="sm" variant="ghost" onClick={() => commit({ status: 'active' })}>重新打开</Button>
             </>
           )}
         </span>

@@ -1,3 +1,4 @@
+import Button from '../../../components/ui/Button.jsx';
 import Icon from '../../../components/ui/Icon.jsx';
 
 export default function RulesHeader({ onBack, onOpenWizard }) {
@@ -12,9 +13,9 @@ export default function RulesHeader({ onBack, onOpenWizard }) {
       <header className="we-workshop-header we-on-shell">
         <h1 className="we-workshop-title">这个世界的规则</h1>
         <p className="we-workshop-subtitle">设定条目、状态字段、注入顺序都在这一处管理</p>
-        <button className="we-btn we-btn-primary we-btn-sm" onClick={onOpenWizard}>
+        <Button size="sm" variant="primary" onClick={onOpenWizard}>
           + 新建系统（向导）
-        </button>
+        </Button>
       </header>
     </>
   );

@@ -429,9 +429,7 @@
     transition-timing-function: var(--ink-press-in-ease);
   }
 }
-:where(:root[data-motion="liquid"]) :is(
-  .we-chat-quick-btn, .we-character-card-action-btn, .we-world-card-action-btn, .we-toggle-track
-) {
+:where(:root[data-motion="liquid"]) .we-toggle-track {
   transition: scale var(--ink-press-out) var(--ink-spring),
     color var(--we-motion-state-duration) var(--we-motion-state-easing),
     background-color var(--we-motion-state-duration) var(--we-motion-state-easing),

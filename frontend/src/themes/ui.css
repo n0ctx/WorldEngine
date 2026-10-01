@@ -99,15 +99,26 @@
   border-radius: 50%;
 }
 
-/* ── Button ── */
+/* ── Button ──
+ * 全站只有这一个按钮：色调（primary / secondary / ghost / danger / overlay）× 尺寸（sm / md / lg）。
+ * 高度取控件三档；图标按钮（IconButton，.we-btn-icon）是同一个按钮的方形版本，边长等于高度。
+ * 主要按钮每块区域只放一个；危险只用于确认删除这类撤销不了的操作。 */
 .we-btn {
   position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--we-space-sm);
+  height: var(--we-control-h-md);
+  padding: 0 var(--we-control-px-md);
   font-family: var(--we-font-prose);
   font-size: var(--we-type-ui-size);
+  line-height: var(--we-type-ui-leading);
   letter-spacing: var(--we-type-ui-tracking);
-  padding: var(--we-space-sm) var(--we-space-lg);
+  white-space: nowrap;
+  text-decoration: none;
   border-radius: var(--we-radius-full);
-  border: 1px solid var(--we-color-border-default);
+  border: 1px solid transparent;
   background: transparent;
   color: var(--we-color-text-secondary);
   cursor: pointer;
@@ -116,15 +127,6 @@
     border-color var(--we-motion-state-duration) var(--we-motion-state-easing),
     color var(--we-motion-state-duration) var(--we-motion-state-easing),
     box-shadow var(--we-motion-state-duration) var(--we-motion-state-easing);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  line-height: var(--we-type-ui-leading);
-  text-decoration: none;
-}
-.we-btn:hover:not(:disabled) {
-  border-color: var(--we-color-text-tertiary);
-  background: var(--we-color-hover);
 }
 /* 键盘焦点环：鼠标点击不触发（:focus-visible），仅键盘 Tab 时显形 */
 .we-btn:focus-visible {
@@ -137,64 +139,98 @@
   cursor: not-allowed;
 }
 
-/* size modifiers */
+/* 尺寸：小号用于卡片、列表行、面板头，字号随之降到说明文字 */
 .we-btn-sm {
-  padding: 5px 10px;
+  gap: var(--we-space-xs);
+  height: var(--we-control-h-sm);
+  padding: 0 var(--we-control-px-sm);
+  font-size: var(--we-type-caption-size);
+  line-height: var(--we-type-caption-leading);
+  letter-spacing: var(--we-type-caption-tracking);
 }
 .we-btn-lg {
-  padding: 10px 20px;
+  height: var(--we-control-h-lg);
+  padding: 0 var(--we-control-px-lg);
 }
 
-.we-settings-panel .we-btn {
-  padding: 7px 14px; /* design exact */
-}
-
-.we-settings-panel .we-btn-sm {
-  padding: 5px 10px;
-}
-
-/* variant: primary —— 扁平实色：没有厚度边、高光和投影；悬停时颜色向正文色靠一点 */
+/* 主要：实底强调色；悬停时颜色向正文色靠一点 */
 .we-btn-primary {
-  background: var(--we-color-accent);
-  color: var(--we-color-bg-canvas);
   border-color: var(--we-color-accent);
+  background: var(--we-color-accent);
+  color: var(--we-color-on-accent);
   font-weight: var(--we-weight-strong);
 }
 .we-btn-primary:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--we-color-text-primary) var(--we-alpha-2), var(--we-color-accent));
   border-color: color-mix(in srgb, var(--we-color-text-primary) var(--we-alpha-2), var(--we-color-accent));
+  background: color-mix(in srgb, var(--we-color-text-primary) var(--we-alpha-2), var(--we-color-accent));
 }
 
-/* variant: secondary */
+/* 次要：抬升底 + 描边，最常用 */
 .we-btn-secondary {
-  background: var(--we-color-bg-elevated);
-  color: var(--we-color-text-secondary);
   border-color: var(--we-color-border-default);
+  background: var(--we-color-bg-elevated);
 }
 .we-btn-secondary:hover:not(:disabled) {
   border-color: var(--we-color-text-tertiary);
   background: var(--we-color-hover);
-}
-
-/* variant: ghost */
-.we-btn-ghost {
-  border: 1px solid var(--we-color-border-strong);
-  color: var(--we-color-text-secondary);
-  background: transparent;
-}
-.we-btn-ghost:hover:not(:disabled) {
-  background: var(--we-color-pressed);
   color: var(--we-color-text-primary);
 }
 
-/* variant: danger */
+/* 幽灵：没有边框和底色，悬停才铺一层 */
+.we-btn-ghost:hover:not(:disabled) {
+  background: var(--we-color-hover);
+  color: var(--we-color-text-primary);
+}
+
+/* 危险：实底危险色 */
 .we-btn-danger {
-  color: var(--we-color-accent);
-  border-color: var(--we-color-accent-deep);
-  background: transparent;
+  border-color: var(--we-color-status-danger);
+  background: var(--we-color-status-danger);
+  color: var(--we-color-on-accent);
+  font-weight: var(--we-weight-strong);
 }
 .we-btn-danger:hover:not(:disabled) {
-  background: var(--we-color-accent-bg);
+  border-color: color-mix(in srgb, var(--we-color-text-primary) var(--we-alpha-2), var(--we-color-status-danger));
+  background: color-mix(in srgb, var(--we-color-text-primary) var(--we-alpha-2), var(--we-color-status-danger));
+}
+
+/* 压图：浮在封面图上的磨砂底，字色取封面字色 */
+.we-btn-overlay {
+  background: color-mix(in srgb, var(--we-color-cover-scrim) var(--we-alpha-4), transparent);
+  backdrop-filter: blur(var(--we-glass-blur));
+  color: var(--we-color-on-cover);
+}
+.we-btn-overlay:hover:not(:disabled) {
+  border-color: var(--we-color-border-default);
+  background: color-mix(in srgb, var(--we-color-cover-scrim) var(--we-alpha-5), transparent);
+}
+
+/* 图标按钮：方形，边长取控件高度 */
+.we-btn-icon {
+  flex-shrink: 0;
+  width: var(--we-control-h-md);
+  padding: 0;
+}
+.we-btn-icon.we-btn-sm { width: var(--we-control-h-sm); }
+.we-btn-icon.we-btn-lg { width: var(--we-control-h-lg); }
+.we-btn-icon.we-btn-ghost {
+  color: var(--we-color-text-tertiary);
+}
+/* 图标按钮的危险色调平时同幽灵，悬停才露危险色：避免一排安静的行里常亮红色 */
+.we-btn-icon.we-btn-danger {
+  border-color: transparent;
+  background: transparent;
+  color: var(--we-color-text-tertiary);
+  font-weight: inherit;
+}
+.we-btn-icon.we-btn-danger:hover:not(:disabled) {
+  border-color: transparent;
+  background: color-mix(in srgb, var(--we-color-status-danger) var(--we-alpha-1), transparent);
+  color: var(--we-color-status-danger);
+}
+.we-btn-icon.we-btn-overlay.is-danger:hover:not(:disabled) {
+  border-color: var(--we-color-status-danger);
+  color: var(--we-color-status-danger);
 }
 
 /* ── Input / Textarea ── */
@@ -1013,58 +1049,6 @@
   margin-bottom: 20px; /* design exact */
 }
 
-.we-confirm-cancel {
-  font-family: var(--we-font-prose);
-  font-size: var(--we-type-ui-size);
-  line-height: var(--we-type-ui-leading);
-  letter-spacing: var(--we-type-ui-tracking);
-  color: var(--we-color-text-tertiary);
-  background: none;
-  border: none;
-  border-radius: var(--we-radius-full);
-  padding: 8px var(--we-space-lg); /* 8px: design exact */
-  cursor: pointer;
-  transition: color var(--we-motion-state-duration) var(--we-motion-state-easing), background var(--we-motion-state-duration) var(--we-motion-state-easing);
-}
-.we-confirm-cancel:hover:not(:disabled) {
-  color: var(--we-color-text-primary);
-  background: var(--we-color-hover);
-}
-.we-confirm-cancel:focus-visible,
-.we-confirm-ok:focus-visible {
-  outline: 2px solid var(--we-color-border-focus);
-  outline-offset: 2px;
-}
-.we-confirm-cancel:disabled {
-  opacity: var(--we-opacity-disabled);
-  cursor: not-allowed;
-}
-
-.we-confirm-ok {
-  font-family: var(--we-font-prose);
-  font-size: var(--we-type-ui-size);
-  line-height: var(--we-type-ui-leading);
-  letter-spacing: var(--we-type-ui-tracking);
-  font-weight: var(--we-weight-strong);
-  background: var(--we-color-accent);
-  color: var(--we-color-bg-canvas);
-  border: none;
-  border-radius: var(--we-radius-full);
-  padding: 8px var(--we-space-lg); /* 8px: design exact */
-  cursor: pointer;
-  transition: filter var(--we-motion-state-duration) var(--we-motion-state-easing);
-}
-.we-confirm-ok.danger {
-  background: var(--we-color-status-danger);
-}
-.we-confirm-ok:disabled {
-  opacity: var(--we-opacity-disabled);
-  cursor: not-allowed;
-}
-.we-confirm-ok:hover:not(:disabled) {
-  filter: brightness(1.06);
-}
-
 /* ── AvatarUpload 头像上传 ── */
 .we-avatar-upload {
   display: flex;
@@ -1328,20 +1312,6 @@
   gap: var(--we-space-xs);
 }
 
-.we-session-item__icon-btn {
-  padding: var(--we-space-xs);
-  background: none;
-  border: none;
-  cursor: pointer;
-  color: var(--we-color-text-tertiary);
-  border-radius: var(--we-radius-sm);
-  transition: color var(--we-motion-state-duration) var(--we-motion-state-easing);
-}
-
-.we-session-item__icon-btn:hover {
-  color: var(--we-color-accent);
-}
-
 .we-session-item__delete-confirm {
   font-size: var(--we-type-caption-size);
   line-height: var(--we-type-caption-leading);
@@ -1570,35 +1540,6 @@
   gap: var(--we-space-md);
 }
 
-.we-entry-editor-cancel {
-  font-size: var(--we-type-ui-size);
-  line-height: var(--we-type-ui-leading);
-  letter-spacing: var(--we-type-ui-tracking);
-  color: var(--we-color-text-tertiary);
-  background: none;
-  border: none;
-  cursor: pointer;
-  font-family: var(--we-font-prose);
-}
-
-.we-entry-editor-save {
-  font-family: var(--we-font-prose);
-  font-size: var(--we-type-ui-size);
-  line-height: var(--we-type-ui-leading);
-  letter-spacing: var(--we-type-ui-tracking);
-  background: var(--we-color-accent);
-  color: var(--we-color-on-accent);
-  border: none;
-  border-radius: var(--we-radius-sm);
-  padding: var(--we-space-xs) var(--we-space-lg);
-  cursor: pointer;
-}
-
-.we-entry-editor-save:disabled {
-  opacity: var(--we-opacity-disabled);
-  cursor: not-allowed;
-}
-
 /* ── 状态条件行（EntryEditor state 类型） ── */
 .we-entry-condition-input {
   padding: 6px 10px;
@@ -1669,30 +1610,6 @@
   letter-spacing: var(--we-type-ui-tracking);
   line-height: var(--we-type-ui-leading);
   box-shadow: var(--we-shadow-inset);
-}
-
-.we-entry-condition-icon-btn {
-  background: none;
-  border: none;
-  cursor: pointer;
-  font-size: var(--we-glyph-lg);
-  padding: 0 var(--we-space-xs);
-  flex-shrink: 0;
-}
-
-.we-entry-condition-icon-btn--danger {
-  color: var(--we-color-accent);
-}
-
-.we-entry-condition-add-btn {
-  font-size: var(--we-type-caption-size);
-  line-height: var(--we-type-caption-leading);
-  letter-spacing: var(--we-type-caption-tracking);
-  color: var(--we-color-accent);
-  background: none;
-  border: none;
-  cursor: pointer;
-  font-family: var(--we-font-prose);
 }
 
 .we-entry-condition-logic-row {
@@ -1786,22 +1703,7 @@
   outline-offset: 1px;
 }
 
-
 /* ── RegexRuleEditor ── */
-.we-regex-dialog-close {
-  font-family: var(--we-font-prose);
-  font-size: var(--we-glyph-lg);
-  color: var(--we-color-text-faint);
-  background: none;
-  border: none;
-  cursor: pointer;
-  line-height: var(--we-leading-flush);
-  transition: color var(--we-motion-state-duration) var(--we-motion-state-easing);
-}
-
-.we-regex-dialog-close:hover {
-  color: var(--we-color-text-tertiary);
-}
 
 .we-regex-test-box {
   border: 1px solid var(--we-color-border-default);
@@ -2029,28 +1931,6 @@
   background: var(--we-color-accent-bg);
 }
 
-.we-regex-rule-icon-btn {
-  width: 24px;
-  height: 24px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: transparent;
-  border: none;
-  color: var(--we-color-text-tertiary);
-  cursor: pointer;
-  font-size: var(--we-glyph-sm);
-  transition: color var(--we-motion-state-duration) var(--we-motion-state-easing);
-}
-
-.we-regex-rule-icon-btn:hover {
-  color: var(--we-color-text-primary);
-}
-
-.we-regex-rule-icon-btn--danger:hover {
-  color: var(--we-color-accent);
-}
-
 /* ── Regex Flags buttons ── */
 .we-flags-btn {
   padding: var(--we-space-xs) var(--we-space-md);
@@ -2172,7 +2052,6 @@
   min-height: 80px;
   overflow-anchor: none;
 }
-
 
 /* 工具栏 */
 .we-md-toolbar {
@@ -3360,7 +3239,6 @@
   height: 10px;
 }
 
-
 /* — PanelCard + SectionTabs + Fields 网格 ─ */
 /* =========================================================
    右侧栏：PanelCard（参考 Image #3 布局）
@@ -3422,37 +3300,6 @@
   flex-shrink: 0;
 }
 /* H1: 通过提高特异性消除 !important —— 用 .we-panel-card-actions 父级 + 自身 chip class */
-.we-panel-card-actions .we-panel-card-action,
-.we-section-tabs-globals .we-panel-card-action,
-.we-section-tabs-actions .we-panel-card-action {
-  color: var(--we-color-text-tertiary);
-  padding: var(--we-space-xxs) var(--we-space-sm);
-  border-radius: var(--we-radius-xs);
-  border: 1px solid transparent;
-  background: transparent;
-  transition: color var(--we-motion-state-duration) var(--we-motion-state-easing),
-    border-color var(--we-motion-state-duration) var(--we-motion-state-easing),
-    background-color var(--we-motion-state-duration) var(--we-motion-state-easing);
-}
-.we-panel-card-actions .we-panel-card-action:hover,
-.we-section-tabs-globals .we-panel-card-action:hover,
-.we-section-tabs-actions .we-panel-card-action:hover {
-  color: var(--we-color-accent);
-  border-color: color-mix(in srgb, var(--we-color-accent) var(--we-alpha-4), transparent);
-  background: color-mix(in srgb, var(--we-color-accent) var(--we-alpha-1), transparent);
-}
-.we-panel-card-actions .we-panel-card-action:focus-visible,
-.we-section-tabs-globals .we-panel-card-action:focus-visible,
-.we-section-tabs-actions .we-panel-card-action:focus-visible {
-  outline: 2px solid var(--we-color-border-focus);
-  outline-offset: 1px;
-}
-.we-panel-card-actions .we-panel-card-action:disabled,
-.we-section-tabs-globals .we-panel-card-action:disabled,
-.we-section-tabs-actions .we-panel-card-action:disabled {
-  opacity: var(--we-opacity-disabled);
-  cursor: not-allowed;
-}
 .we-panel-card-collapse {
   display: grid;
   grid-template-rows: 0fr;
@@ -3496,54 +3343,6 @@
 .we-timeline--in-card {
   padding: 10px 0 var(--we-space-xs); /* 10px: design exact */
   border-top: none;
-}
-
-/* 动作按钮 chip 修饰 — 通过 .we-panel-card-actions 父级提升特异性，消除 !important */
-.we-panel-card-actions .we-panel-card-action--chip,
-.we-section-tabs-globals .we-panel-card-action--chip,
-.we-section-tabs-actions .we-panel-card-action--chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px; /* design exact */
-  border: 1px solid color-mix(in srgb, var(--we-color-border-default) var(--we-alpha-5), transparent);
-  background: color-mix(in srgb, var(--we-color-bg-canvas) var(--we-alpha-5), transparent);
-  padding: 2px 7px; /* 2px: design exact, 7px: design exact */
-  border-radius: var(--we-radius-xs);
-  font-family: var(--we-font-display);
-  font-size: var(--we-type-caption-size);
-  line-height: var(--we-type-caption-leading);
-  letter-spacing: var(--we-type-caption-tracking);
-}
-.we-panel-card-actions .we-panel-card-action--chip:hover,
-.we-section-tabs-globals .we-panel-card-action--chip:hover,
-.we-section-tabs-actions .we-panel-card-action--chip:hover {
-  background: color-mix(in srgb, var(--we-color-accent) var(--we-alpha-1), transparent);
-}
-.we-panel-card-action--chip svg {
-  flex-shrink: 0;
-}
-.we-panel-card-actions .we-panel-card-action--icon,
-.we-section-tabs-globals .we-panel-card-action--icon,
-.we-section-tabs-actions .we-panel-card-action--icon {
-  padding: var(--we-space-xxs) 5px; /* 5px: design exact */
-  border-color: transparent;
-  background: transparent;
-}
-.we-panel-card-actions .we-panel-card-action--icon:hover,
-.we-section-tabs-globals .we-panel-card-action--icon:hover,
-.we-section-tabs-actions .we-panel-card-action--icon:hover {
-  background: transparent;
-  border-color: transparent;
-}
-
-/* 重置 chip：取消默认的 hover-only 显隐（始终可见的常驻 chip） */
-.we-state-section .we-state-section-reset.we-panel-card-action--chip,
-.we-state-section-reset.we-panel-card-action--chip {
-  color: var(--we-color-text-tertiary);
-}
-.we-state-section-reset.we-panel-card-action--chip:hover,
-.we-state-section-reset.we-panel-card-action--chip:focus-visible {
-  color: var(--we-color-accent);
 }
 
 /* SectionTabs：tab 名行 + 操作行 */
@@ -3688,20 +3487,6 @@
   overflow-wrap: anywhere;
 }
 
-.we-toast-card__close {
-  flex-shrink: 0;
-  margin-top: -2px; /* design exact: 视觉对齐 */
-  background: none;
-  border: 0;
-  padding: 0;
-  cursor: pointer;
-  color: var(--we-color-text-tertiary);
-  transition: color var(--we-motion-state-duration) var(--we-motion-state-easing);
-}
-.we-toast-card__close:hover {
-  color: var(--we-color-text-primary);
-}
-
 /* 二级确认浮层：高于当前 Modal（--we-z-modal），脱离其 transform 上下文；
    MiddleSummaryModal 与 StateMemoryModal 共用 */
 .we-tm-confirm-layer {
@@ -3810,37 +3595,6 @@
   line-height: var(--we-type-body-leading);
   letter-spacing: var(--we-type-body-tracking);
   color: var(--we-color-text-tertiary);
-}
-.we-sm-text-btn,
-.we-sm-icon-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--we-space-xxs);
-  padding: var(--we-space-xxs) var(--we-space-sm);
-  border-radius: var(--we-radius-xs);
-  font-size: var(--we-type-ui-size);
-  line-height: var(--we-type-ui-leading);
-  letter-spacing: var(--we-type-ui-tracking);
-  color: var(--we-color-text-secondary);
-  cursor: pointer;
-  transition: background var(--we-motion-state-duration) var(--we-motion-state-easing), color var(--we-motion-state-duration) var(--we-motion-state-easing), opacity var(--we-motion-state-duration) var(--we-motion-state-easing);
-}
-.we-sm-text-btn:hover {
-  background: var(--we-color-pressed);
-  color: var(--we-color-text-primary);
-}
-.we-sm-icon-btn {
-  padding: var(--we-space-xs);
-  color: var(--we-color-text-tertiary);
-}
-.we-sm-icon-btn:hover {
-  background: var(--we-color-accent-bg);
-  color: var(--we-color-accent);
-}
-.we-sm-text-btn:focus-visible,
-.we-sm-icon-btn:focus-visible {
-  outline: none;
-  box-shadow: var(--we-focus-ring);
 }
 /* 紧凑输入：比全局 we-input 小一号，用在弹窗内的搜索、表单与就地编辑 */
 .we-sm-compact-input,
@@ -4167,16 +3921,6 @@
   font-style: italic;
   color: var(--we-color-text-secondary);
 }
-.we-sm-relation-item .we-sm-icon-btn {
-  color: var(--we-color-text-faint);
-}
-.we-sm-relation-item:hover .we-sm-icon-btn,
-.we-sm-relation-item .we-sm-icon-btn:focus-visible {
-  color: var(--we-color-text-tertiary);
-}
-.we-sm-relation-item .we-sm-icon-btn:hover {
-  color: var(--we-color-accent);
-}
 
 /* 未了事项 */
 .we-sm-thread-tab > .we-sm-intro {
@@ -4309,7 +4053,6 @@
 .we-sm-derived {
   margin-top: var(--we-space-xs);
 }
-
 
 /* ── 动效组件（components/motion/，移植自 Rare UI）───────────────── */
 

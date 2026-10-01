@@ -1,3 +1,4 @@
+import Button from '../../../components/ui/Button.jsx';
 import { storylineTitle } from '../../../core/hooks/storyline.js';
 import { StorylineItem, ContinueCard } from './StorylineItem.jsx';
 
@@ -9,16 +10,17 @@ export function StorylineColumn({ loading, timeline, charactersById, onCreateSto
 
   return (
     <div className="we-worldhub-main">
-      <div className="we-worldhub-section-header">
+      <div className="we-worldhub-section-header we-on-shell">
         <span className="we-worldhub-section-title">故事线</span>
-        <button
+        <Button
           type="button"
+          size="sm"
+          variant="secondary"
           onClick={onCreateStoryline}
-          className="we-characters-col-btn we-characters-col-btn--primary"
           title="新建写作故事线"
         >
           + 新建
-        </button>
+        </Button>
       </div>
 
       {loading ? null : timeline.length === 0 ? (

@@ -4,6 +4,7 @@ import { createPortal } from 'react-dom';
 import ModalShell from '../ui/ModalShell.jsx';
 import ConfirmModal from '../ui/ConfirmModal.jsx';
 import Textarea from '../ui/Textarea.jsx';
+import Button from '../ui/Button.jsx';
 import { getMiddleSummary, updateMiddleSummary } from '../../core/api/middle-summary.js';
 
 export default function MiddleSummaryModal({ sessionId, onClose }) {
@@ -75,12 +76,12 @@ export default function MiddleSummaryModal({ sessionId, onClose }) {
       </div>
 
       <div className="we-dialog-footer">
-        <button onClick={requestClose} disabled={saving} className="we-confirm-cancel">
+        <Button variant="ghost" onClick={requestClose} disabled={saving}>
           取消
-        </button>
-        <button onClick={handleSave} disabled={saving || loading} className="we-confirm-ok">
+        </Button>
+        <Button onClick={handleSave} disabled={saving || loading}>
           {saving ? '保存中…' : '保存'}
-        </button>
+        </Button>
       </div>
 
       {/* 放弃确认浮层：portal 到 body，脱离 ModalShell 的 transform 上下文 */}

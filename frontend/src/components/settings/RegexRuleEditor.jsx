@@ -1,5 +1,8 @@
 import { useState } from 'react';
+import { X } from 'lucide-react';
 import Select from '../ui/Select';
+import Button from '../ui/Button';
+import IconButton from '../ui/IconButton';
 import Textarea from '../ui/Textarea';
 import DialogShell from '../ui/DialogShell';
 import { log } from '../../core/utils/logger.js';
@@ -70,13 +73,9 @@ export default function RegexRuleEditor({ rule, worlds, settingsMode, onSave, on
     <DialogShell onClose={onClose}>
         <div className="we-dialog-header flex items-center justify-between">
           <h3>{rule ? '编辑规则' : '新建规则'}</h3>
-          <button
-            onClick={onClose}
-            className="we-regex-dialog-close"
-            aria-label="关闭对话框"
-          >
-            ×
-          </button>
+          <IconButton size="sm" label="关闭对话框" onClick={onClose}>
+            <X size={16} />
+          </IconButton>
         </div>
 
         <div className="we-dialog-body flex flex-col gap-4">
@@ -192,9 +191,9 @@ export default function RegexRuleEditor({ rule, worlds, settingsMode, onSave, on
             value={testInput}
             onChange={(e) => setTestInput(e.target.value)}
           />
-          <button onClick={handleTest} className="we-btn we-btn-sm we-regex-test-btn">
+          <Button size="sm" variant="secondary" onClick={handleTest} className="we-regex-test-btn">
             测试
-          </button>
+          </Button>
           {testError && (
             <p className="we-regex-test-error">{testError}</p>
           )}
@@ -207,10 +206,10 @@ export default function RegexRuleEditor({ rule, worlds, settingsMode, onSave, on
 
         </div>
         <div className="we-dialog-footer">
-          <button onClick={onClose} className="we-btn we-btn-sm we-btn-secondary">取消</button>
-          <button onClick={handleSave} disabled={saving} className="we-btn we-btn-sm we-btn-primary">
+          <Button size="sm" variant="ghost" onClick={onClose}>取消</Button>
+          <Button size="sm" variant="primary" onClick={handleSave} disabled={saving}>
             {saving ? '保存中…' : '保存'}
-          </button>
+          </Button>
         </div>
     </DialogShell>
   );

@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import ModalShell from '../ui/ModalShell.jsx';
 import SectionTabs from '../ui/SectionTabs.jsx';
+import Button from '../ui/Button.jsx';
 import { useStateMemory, useStateMemorySchema } from '../../core/hooks/useStateMemory.js';
 import StateMemoryEntityTab from './StateMemoryEntityTab.jsx';
 import StateMemoryRelationTab from './StateMemoryRelationTab.jsx';
@@ -69,7 +70,7 @@ export default function StateMemoryModal({ sessionId, onClose }) {
       </div>
 
       <div className="we-dialog-footer">
-        <button onClick={onClose} className="we-confirm-cancel">关闭</button>
+        <Button variant="ghost" onClick={onClose}>关闭</Button>
       </div>
     </ModalShell>
   );

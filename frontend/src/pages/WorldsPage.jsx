@@ -44,10 +44,9 @@ export default function WorldsPage() {
           {worlds.length > 0 ? <p className="we-worlds-eyebrow"><ChangeText text={String(worlds.length)} playKey={worlds.length} decode /> 个世界</p> : null}
           <h1 className="we-worlds-title">世界</h1>
         </div>
-        <div className="we-worlds-header-actions">
+        <div className="we-worlds-header-actions we-on-shell">
           <Button
             variant="ghost"
-            className="we-worlds-header-btn"
             onClick={() => worldImportRef.current?.click()}
             disabled={importingWorld}
           >
@@ -63,7 +62,7 @@ export default function WorldsPage() {
           />
           <Button
             variant="ghost"
-            className="we-worlds-header-btn we-worlds-header-btn--create"
+            className="we-worlds-header-btn--create"
             onClick={() => navigate('/worlds/new', { state: { backgroundLocation: location } })}
           >
             <Plus size={16} />

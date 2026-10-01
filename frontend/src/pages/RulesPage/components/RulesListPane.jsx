@@ -1,4 +1,5 @@
 import DeleteButton from '../../../components/motion/DeleteButton.jsx';
+import Button from '../../../components/ui/Button.jsx';
 import { EntryOrderList, EntryPlainList } from './EntryLists.jsx';
 import { TRIGGER_LABEL, TYPE_LABEL } from '../constants.js';
 
@@ -19,19 +20,21 @@ export default function RulesListPane({
             {entryFilter === 'all' ? '全部条目' : `「${TRIGGER_LABEL[entryFilter]}」条目`}
           </span>
           <div className="we-workshop-list-actions">
-            <button
-              className={`we-btn we-btn-sm${orderMode ? ' we-btn-primary' : ' we-btn-secondary'}`}
+            <Button
+              size="sm"
+              variant={orderMode ? 'primary' : 'secondary'}
               onClick={() => { setOrderMode((v) => !v); setSelectedEntryId(null); setCreatingEntry(false); }}
             >
               {orderMode ? '完成排序' : '调整顺序'}
-            </button>
+            </Button>
             {!orderMode && (
-              <button
-                className="we-btn we-btn-sm we-btn-secondary"
+              <Button
+                size="sm"
+                variant="secondary"
                 onClick={() => { setCreatingEntry(true); setSelectedEntryId(null); }}
               >
                 + 新建
-              </button>
+              </Button>
             )}
           </div>
         </div>
@@ -60,7 +63,7 @@ export default function RulesListPane({
     <section className="we-workshop-list">
       <div className="we-workshop-list-head we-on-shell">
         <span>{fieldScope.label}字段</span>
-        <button className="we-btn we-btn-sm we-btn-secondary" onClick={() => setCreatingField(true)}>+ 添加</button>
+        <Button size="sm" variant="secondary" onClick={() => setCreatingField(true)}>+ 添加</Button>
       </div>
       {PROFILE_BADGE[fieldScope.key] && (
         <div className="we-entry-section-list">

@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react';
 import Select from '../ui/Select';
+import Button from '../ui/Button';
 import MarkdownEditor from '../ui/MarkdownEditor';
 import DatetimeSplitInput from './DatetimeSplitInput';
 import { handleTagInputKeyDown } from '../../core/utils/tag-input.js';
@@ -272,8 +273,8 @@ function TableColumnsEditor({ form, setForm, lockedColumnKeys }) {
                 {keyLocked && (
                   <span className="we-state-table-col-badge" title="已落库列的 key 不可修改；如需更名请先删除该列再新增">已落库</span>
                 )}
-                <button type="button" onClick={() => removeColumn(index)}
-                  className="we-state-table-col-del" aria-label="删除列">删除</button>
+                <Button type="button" size="sm" variant="ghost" onClick={() => removeColumn(index)}
+                  aria-label="删除列">删除</Button>
               </div>
               <div className="we-state-table-col-body">
                 <div className="we-state-table-col-row2">
@@ -319,8 +320,8 @@ function TableColumnsEditor({ form, setForm, lockedColumnKeys }) {
           );
         })}
       </div>
-      <button type="button" onClick={addColumn}
-        className="we-btn we-btn-sm we-btn-secondary self-start">+ 添加列</button>
+      <Button type="button" size="sm" variant="secondary" onClick={addColumn}
+        className="self-start">+ 添加列</Button>
     </div>
   );
 }

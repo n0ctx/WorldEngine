@@ -75,7 +75,7 @@ export default function AuxLlmBlock({ providers, config, onProviderChange, onBas
             {providerHint.links.map((link) => (
               <Button
                 key={link.url}
-                variant="ghost"
+                variant="secondary"
                 size="sm"
                 type="button"
                 onClick={() => window.open(link.url, '_blank', 'noopener,noreferrer')}

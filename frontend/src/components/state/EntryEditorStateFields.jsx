@@ -1,4 +1,7 @@
+import { X } from 'lucide-react';
 import DatetimePartInput from './DatetimePartInput';
+import Button from '../ui/Button';
+import IconButton from '../ui/IconButton';
 import Select from '../ui/Select';
 import { getColOptions, getFieldOptions, getOpsForField, SCOPE_OPTIONS } from './entryEditorRules.js';
 
@@ -80,18 +83,20 @@ export default function EntryEditorStateFields({
                 aria-label={`状态条件 ${index + 1} 的值`}
               />
             )}
-            <button
-              type="button"
+            <IconButton
+              size="sm"
+              variant="danger"
               onClick={() => removeCondition(index)}
-              className="we-entry-condition-icon-btn we-entry-condition-icon-btn--danger"
-              aria-label={`删除状态条件 ${index + 1}`}
-            >×</button>
+              label={`删除状态条件 ${index + 1}`}
+            >
+              <X size={16} />
+            </IconButton>
           </div>
         );
       })}
-      <button type="button" onClick={addCondition} className="we-entry-condition-add-btn">
+      <Button type="button" size="sm" variant="secondary" onClick={addCondition}>
         + 添加条件
-      </button>
+      </Button>
     </>
   );
 }

@@ -1,7 +1,9 @@
 import { motion } from 'framer-motion';
+import { ArrowUp, PencilLine, Trash2 } from 'lucide-react';
 import DeleteButton from '../../../components/motion/DeleteButton.jsx';
 import { useTouchFx } from '../../../components/motion/useTouchFx.jsx';
 import Button from '../../../components/ui/Button.jsx';
+import IconButton from '../../../components/ui/IconButton.jsx';
 import Card from '../../../components/ui/Card.jsx';
 import { useMotion } from '../../../core/hooks/useMotion.js';
 import SlotSection from '../SlotSection.jsx';
@@ -16,6 +18,8 @@ export function PressDemo() {
         <Button variant="secondary">存为草稿</Button>
         <Button variant="ghost">幽灵按钮</Button>
         <Button variant="danger">危险操作</Button>
+        <IconButton size="sm" label="编辑"><PencilLine size={16} /></IconButton>
+        <IconButton size="sm" variant="danger" label="删除"><Trash2 size={16} /></IconButton>
       </div>
     </SlotSection>
   );
@@ -39,16 +43,14 @@ export function PortalDemo() {
   );
 }
 
-// 真实的发送键在输入框里，这里借它的类名、手势与按下反馈
+// 发送键与输入框里的同一份：主要色调的中号图标按钮，按压换成「下沉」手势
 export function SinkDemo() {
   const m = useMotion();
-  const touch = useTouchFx();
   return (
     <SlotSection id="sink">
-      <motion.button type="button" className="we-chat-send-btn" aria-label="发送" {...m.gesture('sink')} {...touch.handlers}>
-        ↑
-        {touch.fx}
-      </motion.button>
+      <IconButton variant="primary" label="发送" className="we-chat-send-btn" {...m.gesture('sink')}>
+        <ArrowUp size={20} strokeWidth={2} />
+      </IconButton>
     </SlotSection>
   );
 }

@@ -29,7 +29,6 @@ const InputBox = forwardRef(function InputBox({
   pagerSlot = null,
 }, ref) {
   const m = useMotion();
-  const press = m.gesture('press');
   const [text, setText] = useState('');
   const textareaRef = useRef(null);
   const [pendingFill, setPendingFill] = useState(null);
@@ -130,8 +129,6 @@ const InputBox = forwardRef(function InputBox({
       {/* 顶部工具条：翻页（居中）+ 快捷动作（右侧） */}
       <InputBoxToolbar
         pagerSlot={pagerSlot}
-        m={m}
-        press={press}
         generating={generating}
         onScrollToBottom={onScrollToBottom}
         onContinue={onContinue}

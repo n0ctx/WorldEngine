@@ -33,15 +33,6 @@ export function ControlsDemo() {
     <VisualSection id="controls">
       <div className="we-design-lab__grid">
         <div className="we-design-lab__row">
-          <Button>主要按钮</Button>
-          <Button variant="secondary">次要按钮</Button>
-          <Button variant="ghost">幽灵按钮</Button>
-          <Button variant="danger">危险操作</Button>
-          <Button disabled>不可用</Button>
-          <Button size="sm">小按钮</Button>
-          <Button size="lg">大按钮</Button>
-        </div>
-        <div className="we-design-lab__row">
           <Badge>默认</Badge>
           <Badge variant="accent">强调</Badge>
           <Badge variant="error">错误</Badge>

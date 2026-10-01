@@ -243,7 +243,7 @@ export default function CharacterEditPage() {
   };
 
   const exportAction = !isCreate && characterId ? (
-    <Button variant="ghost" size="sm" onClick={handleExport} disabled={exporting}>
+    <Button variant="secondary" size="sm" onClick={handleExport} disabled={exporting}>
       {exporting ? '导出中…' : '导出角色卡'}
     </Button>
   ) : null;

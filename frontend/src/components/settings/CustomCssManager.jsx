@@ -5,6 +5,7 @@ import {
 } from '../../core/api/custom-css-snippets';
 import { useAppModeStore } from '../../core/state/appMode';
 import Button from '../ui/Button';
+import IconButton from '../ui/IconButton';
 import Input from '../ui/Input';
 import Textarea from '../ui/Textarea';
 import SortableList from '../ui/SortableList';
@@ -111,7 +112,7 @@ export default function CustomCssManager({ settingsMode = SETTINGS_MODE.CHAT }) 
       <div className="we-css-snippet-list__header">
         <span className="we-css-snippet-list__title">自定义 CSS 片段</span>
         <Button
-          variant="ghost"
+          variant="secondary"
           size="sm"
           onClick={() => { setEditingSnippet(null); setShowEditor(true); }}
         >
@@ -175,17 +176,12 @@ function SnippetRow({ snippet, onEdit, onToggle, onDelete }) {
         >
           {snippet.enabled ? '启用' : '禁用'}
         </button>
-        <button
-          type="button"
-          onClick={onEdit}
-          aria-label="编辑"
-          className="we-css-snippet-row__action"
-        >
-          <Icon aria-label="编辑">
+        <IconButton size="sm" label="编辑" onClick={onEdit}>
+          <Icon>
             <path d="M12 20h9" />
             <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
           </Icon>
-        </button>
+        </IconButton>
         <DeleteButton label={`删除片段「${snippet.name}」`} onConfirm={onDelete} />
       </div>
     </div>

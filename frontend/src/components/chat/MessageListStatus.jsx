@@ -1,3 +1,5 @@
+import Button from '../ui/Button.jsx';
+
 // MessageList 的加载中 / 未选会话 / 加载失败态
 export default function MessageListStatus({ loading, sessionId, loadError, onRetry }) {
   if (loading) {
@@ -19,13 +21,9 @@ export default function MessageListStatus({ loading, sessionId, loadError, onRet
   return (
     <div className="flex-1 flex flex-col items-center justify-center gap-3 px-6 text-center">
       <p className="we-type-ui text-[var(--we-color-status-danger)]">{loadError}</p>
-      <button
-        type="button"
-        className="we-panel-card-action we-panel-card-action--chip"
-        onClick={onRetry}
-      >
+      <Button type="button" size="sm" variant="secondary" onClick={onRetry}>
         重试
-      </button>
+      </Button>
     </div>
   );
 }

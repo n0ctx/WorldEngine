@@ -131,11 +131,11 @@ describe('WorldsPage', () => {
     vi.useRealTimers();
 
     // 导出 / 编辑 / 删除收在"⋯"操作位里，点开前不出现；点操作位不会进入世界
-    expect(screen.queryByTitle('删除')).toBeNull();
+    expect(screen.queryByRole('button', { name: '删除世界' })).toBeNull();
     mocks.useNavigate.mockClear();
     fireEvent.click(screen.getByRole('button', { name: '世界操作' }));
     expect(mocks.useNavigate).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByTitle('删除'));
+    fireEvent.click(screen.getByRole('button', { name: '删除世界' }));
     fireEvent.click((await screen.findAllByText('确认删除'))[1]);
 
     await waitFor(() => expect(mocks.deleteWorld).toHaveBeenCalledWith('world-1'));
@@ -154,7 +154,7 @@ describe('WorldsPage', () => {
 
     render(<WorldsPage />);
     fireEvent.click(await screen.findByRole('button', { name: '世界操作' }));
-    fireEvent.click(screen.getByTitle('删除'));
+    fireEvent.click(screen.getByRole('button', { name: '删除世界' }));
     fireEvent.click((await screen.findAllByText('确认删除'))[1]);
 
     await waitFor(() => expect(toasts).toContain('世界正在使用中'));

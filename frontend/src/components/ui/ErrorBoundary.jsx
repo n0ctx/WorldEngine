@@ -1,5 +1,6 @@
 import { Component } from 'react';
 import { log } from '../../core/utils/logger.js';
+import Button from './Button.jsx';
 
 /**
  * React Error Boundary —— 捕获子组件渲染错误，防止整个应用白屏
@@ -38,12 +39,9 @@ export default class ErrorBoundary extends Component {
               {this.state.error.toString()}
             </pre>
           )}
-          <button
-            onClick={this.handleReload}
-            className="we-btn we-btn-primary"
-          >
+          <Button variant="primary" onClick={this.handleReload}>
             刷新并尝试恢复草稿
-          </button>
+          </Button>
         </div>
       );
     }

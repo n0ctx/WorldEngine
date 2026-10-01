@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
+import Button from '../ui/Button';
 import { ISO_DATETIME_RE, formatBooleanDisplay, formatDatetimeChinese, parseLooseJson } from './state-value-format';
 import { toggleSetValue } from '../../core/utils/toggleSetValue.js';
 import { useEscapeKey } from '../../core/hooks/useEscapeKey.js';
@@ -156,8 +157,8 @@ export default function StateExtractPreviewModal({ onExtract, onConfirm, onClose
             <>
               <div className="we-extract-toolbar">
                 <div className="we-extract-toolbar-actions">
-                  <button type="button" className="we-btn we-btn-sm we-btn-secondary" onClick={selectAll}>全选</button>
-                  <button type="button" className="we-btn we-btn-sm we-btn-secondary" onClick={selectNone}>全不选</button>
+                  <Button type="button" size="sm" variant="secondary" onClick={selectAll}>全选</Button>
+                  <Button type="button" size="sm" variant="secondary" onClick={selectNone}>全不选</Button>
                 </div>
                 <span className="we-extract-count">已选 {selectedCount} / {rows.length} 条</span>
               </div>
@@ -204,14 +205,15 @@ export default function StateExtractPreviewModal({ onExtract, onConfirm, onClose
         </div>
 
         <div className="we-dialog-footer">
-          <button onClick={onClose} className="we-btn we-btn-sm we-btn-secondary" disabled={confirming}>取消</button>
-          <button
+          <Button size="sm" variant="ghost" onClick={onClose} disabled={confirming}>取消</Button>
+          <Button
+            size="sm"
+            variant="primary"
             onClick={handleConfirm}
             disabled={selectedCount === 0 || confirming || isLoading}
-            className="we-btn we-btn-sm we-btn-primary"
           >
             {confirming ? '写入中…' : `写入 ${selectedCount} 条`}
-          </button>
+          </Button>
         </div>
       </div>
     </div>,

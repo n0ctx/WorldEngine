@@ -572,13 +572,13 @@
 @keyframes we-signal-snap-b {
   from, to { box-shadow: 0 0 0 1px color-mix(in srgb, var(--sig-phos) 45%, transparent), 0 0 0 4px color-mix(in srgb, var(--we-color-accent) 24%, transparent); }
 }
-/* 提亮：主按钮本身是强调色，往白里提；其余按钮往强调色里提 */
+/* 提亮：实底按钮（主要、危险）往白里提；其余按钮往强调色里提 */
 :where(:root[data-motion="signal"]) .we-btn::before {
   inset: 0;
   border-radius: inherit;
   background: color-mix(in srgb, var(--we-color-accent) 16%, transparent);
 }
-:where(:root[data-motion="signal"]) .we-btn-primary::before {
+:where(:root[data-motion="signal"]) :is(.we-btn-primary, .we-btn-danger:not(.we-btn-icon))::before {
   background: color-mix(in srgb, var(--we-color-white) 22%, transparent);
 }
 :where(:root[data-motion="signal"]) .we-btn:active:not(:disabled)::before {
@@ -591,15 +591,12 @@
 }
 
 /* 发送键：按下下沉（framer）；落底那一下补一帧磷光。轻点也能撞到窗口 */
-:where(:root[data-motion="signal"]) .we-chat-send-btn {
-  position: relative;
-}
 :where(:root[data-motion="signal"]) .we-chat-send-btn > .we-touch-fx {
   display: block;
   overflow: visible;
 }
-/* 两帧磷光，落在按下落底的第三帧 */
-:where(:root[data-motion="signal"]) .we-chat-send-btn:active {
+/* 两帧磷光，落在按下落底的第三帧；发送键也是 Button，选择器要压过上面按钮通用的锁定帧 */
+:where(:root[data-motion="signal"]) .we-btn.we-chat-send-btn:active:not(:disabled) {
   animation: we-signal-snap-a calc(var(--sig-frame) * 2) var(--sig-cut) calc(var(--sig-frame) * 3);
 }
 
