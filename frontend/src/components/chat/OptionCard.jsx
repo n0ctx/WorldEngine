@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { StreamCaret } from './StreamingMarkdown.jsx';
+import { StreamCaret } from '../message/StreamingMarkdown.jsx';
 import { useMotion } from '../../core/hooks/useMotion.js';
 
 const MotionDiv = motion.div;

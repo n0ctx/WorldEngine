@@ -1,13 +1,7 @@
-import { PencilLine } from 'lucide-react';
 import { motion } from 'framer-motion';
 import SeamlessEditableSurface from '../../../../shared/SeamlessEditableSurface.jsx';
-import {
-  AttachmentThumbnail,
-  CopyButton,
-  DeleteButton,
-  MarkdownContent,
-  MessageTime,
-} from './MessageItemShared.jsx';
+import { CopyButton, DeleteButton, EditButton, EditConfirmActions } from '../message/MessageActions.jsx';
+import { AttachmentThumbnail, MarkdownContent, MessageTime } from './MessageItemShared.jsx';
 
 const MotionDiv = motion.div;
 
@@ -65,18 +59,12 @@ export default function UserMessageRow({
           </div>
           <div className="we-message-actions">
             {editing ? (
-              <div className="we-message-edit-actions">
-                <button onClick={cancelEdit}>取消</button>
-                <button className="primary" onClick={confirmEdit}>确认</button>
-              </div>
+              <EditConfirmActions onCancel={cancelEdit} onConfirm={confirmEdit} confirmLabel="确认" />
             ) : (
               <>
                 <MessageTime createdAt={message.created_at} />
                 <CopyButton getText={() => message.content} />
-                <button onClick={startEdit} aria-label="编辑消息">
-                  <PencilLine size={16} />
-                  编辑
-                </button>
+                <EditButton onClick={startEdit} />
                 {onDelete && <DeleteButton onDelete={() => onDelete(message.id)} />}
               </>
             )}

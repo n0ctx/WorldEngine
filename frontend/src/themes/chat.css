@@ -753,8 +753,7 @@
 }
 
 /* think block 内部更紧凑，无外间距 */
-.we-think-block-body .we-interrupted-mark,
-.we-writing-think-body .we-interrupted-mark {
+.we-think-block-body .we-interrupted-mark {
   margin: var(--we-space-sm) 0 0;
 }
 
@@ -921,58 +920,6 @@
 .we-writing-annotation:focus-within .we-token-usage,
 .we-writing-prose:focus-within .we-token-usage {
   opacity: 1;
-}
-
-.we-writing-think {
-  margin: 0 0 var(--we-space-sm);
-  border-radius: var(--we-radius-sm);
-  background: color-mix(in srgb, var(--we-color-text-primary) var(--we-alpha-1), transparent);
-  overflow: hidden;
-}
-
-.we-writing-think-toggle {
-  display: flex;
-  align-items: center;
-  gap: var(--we-space-xs);
-  width: 100%;
-  background: transparent;
-  border: none;
-  padding: var(--we-space-xs) 10px; /* 10px: design exact */
-  cursor: pointer;
-  font-family: var(--we-font-prose);
-  font-size: var(--we-type-caption-size);
-  line-height: var(--we-type-caption-leading);
-  letter-spacing: var(--we-type-caption-tracking);
-  color: var(--we-color-text-tertiary);
-  font-style: italic;
-  text-align: left;
-}
-
-.we-writing-think-icon {
-  flex-shrink: 0;
-  transition: transform var(--we-motion-state-duration) var(--we-motion-state-easing);
-}
-
-.we-writing-think-icon--expanded {
-  transform: rotate(90deg);
-}
-
-.we-writing-think-open {
-  margin-left: var(--we-space-xs);
-  color: var(--we-color-text-faint);
-}
-
-.we-writing-think-body {
-  padding: var(--we-space-sm) var(--we-space-md);
-  font-family: var(--we-font-prose);
-  font-size: var(--we-type-caption-size);
-  letter-spacing: var(--we-type-caption-tracking);
-  color: var(--we-color-text-tertiary);
-  line-height: var(--we-type-caption-leading);
-}
-
-.we-message-actions button.we-message-action-danger {
-  color: var(--we-color-status-danger);
 }
 
 /* ── Think Block Content (Markdown in reasoning) ─────── */

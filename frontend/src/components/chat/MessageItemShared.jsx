@@ -1,37 +1,24 @@
 import { useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import Icon from '../ui/Icon.jsx';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
 import rehypeSanitize from 'rehype-sanitize';
 import { markdownSanitizeSchema } from '../../core/utils/markdown-sanitize.js';
-import { stripNextPromptBlocks } from '../../core/utils/next-prompt.js';
 import { useDisplaySettingsStore } from '../../core/state/displaySettings.js';
 import { useEscapeKey } from '../../core/hooks/useEscapeKey.js';
 import { useFocusTrap } from '../../core/hooks/useFocusTrap.js';
-import { Copy, Trash2 } from 'lucide-react';
-import InterruptedMark from './InterruptedMark.jsx';
-import StreamingMarkdown, { StreamCaret } from './StreamingMarkdown.jsx';
-import { useCopyFeedback, useDeleteConfirmation } from '../message/useMessageHooks.js';
+import { useCopyFeedback } from '../message/useMessageHooks.js';
+import ThinkBlock from '../message/ThinkBlock.jsx';
 import MessageBlockList from '../message/MessageBlockList.jsx';
-
-const THINK_REMARK_PLUGINS = [remarkGfm];
-const THINK_REHYPE_PLUGINS = [[rehypeSanitize, markdownSanitizeSchema]];
 
 const REMARK_PLUGINS = [remarkGfm];
 const REHYPE_PLUGINS = [rehypeRaw, [rehypeSanitize, markdownSanitizeSchema]];
 
 function CodeBlock({ children, className }) {
-  const [copied, setCopied] = useState(false);
   const code = String(children).replace(/\n$/, '');
   const lang = className?.replace('language-', '') || '';
-
-  function copy() {
-    navigator.clipboard.writeText(code);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
-  }
+  const { copied, copy } = useCopyFeedback(() => code);
 
   return (
     <div className="we-code-block">
@@ -70,45 +57,9 @@ export function MarkdownContent({ children }) {
   );
 }
 
-function ThinkBlock({ content, open = false, streaming = false, caret = false, interrupted = false }) {
+function ChatThinkBlock(props) {
   const autoCollapse = useDisplaySettingsStore((s) => s.autoCollapseThinking);
-  const [userToggled, setUserToggled] = useState(false);
-  const [userExpanded, setUserExpanded] = useState(!autoCollapse);
-  const expanded = userToggled ? userExpanded : (open || !autoCollapse);
-  const cleanContent = stripNextPromptBlocks(content);
-
-  return (
-    <div className="we-think-block">
-      <button
-        onClick={() => { setUserExpanded(!expanded); setUserToggled(true); }}
-        aria-label={expanded ? '折叠思考过程' : '展开思考过程'}
-        aria-expanded={expanded}
-        className="we-think-block-toggle"
-      >
-        <Icon
-          size={16}
-          className={`we-think-block-chevron${expanded ? ' we-think-block-chevron--expanded' : ''}`}
-        >
-          <polyline points="9 18 15 12 9 6" />
-        </Icon>
-        思考过程
-        {open
-          ? <span className="we-think-block-dots">…</span>
-          : <span className="we-think-block-status">已完成</span>}
-        {caret && !expanded && <StreamCaret />}
-      </button>
-      <div className={`we-think-block-body-wrap${expanded ? ' we-think-block-body-wrap--open' : ''}`}>
-        <div className="we-think-block-body-inner">
-          <div className="we-think-block-body">
-            <StreamingMarkdown streaming={streaming} caret={caret} remarkPlugins={THINK_REMARK_PLUGINS} rehypePlugins={THINK_REHYPE_PLUGINS}>
-              {cleanContent}
-            </StreamingMarkdown>
-            {interrupted && <InterruptedMark />}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
+  return <ThinkBlock {...props} autoCollapse={autoCollapse} />;
 }
 
 export function AssistantMessageContent({
@@ -127,7 +78,7 @@ export function AssistantMessageContent({
       isStreaming={isStreaming}
       showCaret={showCaret}
       trailingCaret={trailingCaret}
-      ThinkBlock={ThinkBlock}
+      ThinkBlock={ChatThinkBlock}
       remarkPlugins={REMARK_PLUGINS}
       rehypePlugins={REHYPE_PLUGINS}
       components={MD_COMPONENTS}
@@ -183,30 +134,5 @@ export function AttachmentThumbnail({ src }) {
         document.body,
       )}
     </>
-  );
-}
-
-export function CopyButton({ getText }) {
-  const { copied, copy } = useCopyFeedback(getText);
-  return (
-    <button onClick={copy} aria-label={copied ? '已复制到剪贴板' : '复制消息内容'}>
-      <Copy size={16} />
-      {copied ? '已复制' : '复制'}
-    </button>
-  );
-}
-
-export function DeleteButton({ onDelete }) {
-  const { confirming, handleClick } = useDeleteConfirmation(onDelete);
-
-  return (
-    <button
-      onClick={handleClick}
-      aria-label={confirming ? '确认删除消息' : '删除消息'}
-      className={confirming ? 'we-delete-btn--confirming' : undefined}
-    >
-      <Trash2 size={16} />
-      {confirming ? '确认？' : '删除'}
-    </button>
   );
 }

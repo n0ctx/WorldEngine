@@ -4,7 +4,7 @@ import { applyRules } from '../../core/utils/regex-runner.js';
 import { useDisplaySettingsStore } from '../../core/state/displaySettings.js';
 import { useMessageEditing } from '../../core/hooks/useMessageEditing.js';
 import { useMessageBlocks } from '../message/useMessageHooks.js';
-import StreamingMarkdown, { StreamCaret } from './StreamingMarkdown.jsx';
+import StreamingMarkdown, { StreamCaret } from '../message/StreamingMarkdown.jsx';
 import UserMessageRow from './UserMessageRow.jsx';
 import AssistantMessageRow from './AssistantMessageRow.jsx';
 import { useMotion } from '../../core/hooks/useMotion.js';

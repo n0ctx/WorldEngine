@@ -1,42 +1,12 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { PencilLine, RotateCcw } from 'lucide-react';
-import { formatTokens, calcCost, formatCost } from '../../core/utils/token-usage.js';
 import SeamlessEditableSurface from '../../../../shared/SeamlessEditableSurface.jsx';
-import ActivatedEntriesRow from './ActivatedEntriesRow.jsx';
-import {
-  AssistantMessageContent,
-  AttachmentThumbnail,
-  CopyButton,
-  DeleteButton,
-  MessageTime,
-} from './MessageItemShared.jsx';
+import ActivatedEntriesRow from '../message/ActivatedEntriesRow.jsx';
+import TokenUsageRow from '../message/TokenUsageRow.jsx';
+import { CopyButton, DeleteButton, EditButton, EditConfirmActions, RegenerateButton } from '../message/MessageActions.jsx';
+import { AssistantMessageContent, AttachmentThumbnail, MessageTime } from './MessageItemShared.jsx';
 
 const MotionDiv = motion.div;
-
-function TokenUsageRow({ message, currentModelPricing, showEntries }) {
-  const cost = formatCost(calcCost(message.token_usage, currentModelPricing));
-
-  return (
-    <div className="we-token-usage">
-      <span title="输入 tokens">↑{formatTokens(message.token_usage.prompt_tokens)}</span>
-      <span title="输出 tokens">↓{formatTokens(message.token_usage.completion_tokens)}</span>
-      {message.token_usage.cache_read_tokens != null && message.token_usage.cache_read_tokens > 0 && (
-        <span title="缓存命中 tokens">命中 {formatTokens(message.token_usage.cache_read_tokens)}</span>
-      )}
-      {message.token_usage.cache_creation_tokens != null && message.token_usage.cache_creation_tokens > 0 && (
-        <span title="缓存写入 tokens">写入 {formatTokens(message.token_usage.cache_creation_tokens)}</span>
-      )}
-      <span className="we-token-usage-unit">tokens</span>
-      {cost && (
-        <span className="we-token-usage-cost" title="本条消息估算费用（美元）">
-          {cost}
-        </span>
-      )}
-      {showEntries && <ActivatedEntriesRow entries={message.activated_entries} />}
-    </div>
-  );
-}
 
 function AssistantMessageActions({
   message,
@@ -55,24 +25,13 @@ function AssistantMessageActions({
   return (
     <div className="we-message-actions">
       {editingAI ? (
-        <div className="we-message-edit-actions">
-          <button onClick={cancelEditAI}>取消</button>
-          <button className="primary" onClick={confirmEditAI}>保存</button>
-        </div>
+        <EditConfirmActions onCancel={cancelEditAI} onConfirm={confirmEditAI} confirmLabel="保存" />
       ) : (
         <div className="we-message-actions-buttons">
           <MessageTime createdAt={message.created_at} />
           <CopyButton getText={() => displayContent} />
-          <button onClick={() => onRegenerate(message.id)} aria-label="重新生成 AI 回复">
-            <RotateCcw size={16} />
-            重新生成
-          </button>
-          {startEditAI && (
-            <button onClick={startEditAI} aria-label="编辑 AI 回复">
-              <PencilLine size={16} />
-              编辑
-            </button>
-          )}
+          <RegenerateButton onClick={() => onRegenerate(message.id)} />
+          {startEditAI && <EditButton onClick={startEditAI} label="编辑 AI 回复" />}
           {onDelete && <DeleteButton onDelete={() => onDelete(message.id)} />}
         </div>
       )}

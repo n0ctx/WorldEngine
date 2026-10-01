@@ -1,5 +1,5 @@
-import StreamingMarkdown, { StreamCaret } from '../chat/StreamingMarkdown.jsx';
-import InterruptedMark from '../chat/InterruptedMark.jsx';
+import StreamingMarkdown, { StreamCaret } from './StreamingMarkdown.jsx';
+import InterruptedMark from './InterruptedMark.jsx';
 
 export default function MessageBlockList({
   blocks,

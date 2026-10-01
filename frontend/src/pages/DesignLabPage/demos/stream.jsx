@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { StateBusyOverlay } from '../../../components/state/panel-parts.jsx';
-import StreamingMarkdown from '../../../components/chat/StreamingMarkdown.jsx';
+import StreamingMarkdown from '../../../components/message/StreamingMarkdown.jsx';
 import MotionOrb from '../../../components/motion/MotionOrb.jsx';
 import Button from '../../../components/ui/Button.jsx';
 import Skeleton from '../../../components/ui/Skeleton.jsx';
