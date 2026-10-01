@@ -1,31 +1,25 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { getCharacter, updateCharacter, uploadAvatar, createCharacter } from '../../core/api/characters';
-import { getAvatarColor, getAvatarUrl } from '../../core/utils/avatar';
 import { downloadCharacterCard } from '../../core/api/import-export';
 import {
   getCharacterStateValues, updateCharacterStateValue, extractCharacterStateValues,
   getCharacterProfileDefaults, updateCharacterProfileDefault,
 } from '../../core/api/character-state-values';
-import MarkdownEditor from '../../components/ui/MarkdownEditor';
 import Button from '../../components/ui/Button';
-import Input from '../../components/ui/Input';
-import Textarea from '../../components/ui/Textarea';
-import DoneConfirm from './components/DoneConfirm.jsx';
+import CardBasicForm from '../../components/card-edit/CardBasicForm.jsx';
 import CardEditTabs from '../../components/card-edit/CardEditTabs.jsx';
+import { useCardEditForm } from '../../components/card-edit/useCardEditForm.js';
 import EditPageShell from '../layout/EditPageShell';
-import FormGroup from '../../components/ui/FormGroup';
-import AvatarUpload from '../../components/ui/AvatarUpload';
+import DoneConfirm from './components/DoneConfirm.jsx';
 import { log } from '../../core/utils/logger.js';
-import { useCreateDraftIdentity } from '../../core/hooks/useCreateDraftIdentity.js';
 
-function readCreateDraft() {
-  try {
-    return JSON.parse(sessionStorage.getItem('character_create_draft') || '{}');
-  } catch {
-    return {};
-  }
-}
+const UPDATED_EVENT = 'we:character-updated';
+const PROMPTS = [
+  { key: 'systemPrompt', label: '人设', placeholder: '角色的性格、背景、说话风格……', minHeight: 144 },
+  { key: 'postPrompt', label: '后置提示词', placeholder: '每次对话附加的角色级指令，例如特定的回复格式……', minHeight: 72 },
+  { key: 'firstMessage', label: '开场白', placeholder: '角色在对话开始时主动说的第一句话，留空则由用户先开口', minHeight: 96 },
+];
 
 export default function CharacterEditPage() {
   const { characterId, worldId } = useParams();
@@ -33,37 +27,15 @@ export default function CharacterEditPage() {
   const location = useLocation();
   const isOverlay = !!location.state?.backgroundLocation;
   const isCreate = !characterId && !!worldId;
-  const fileInputRef = useRef(null);
 
-  const [character, setCharacter] = useState(null);
-  const [loading, setLoading] = useState(!isCreate);
-  const [loadError, setLoadError] = useState('');
+  const form = useCardEditForm({
+    isCreate, draftKey: 'character_create_draft', promptKeys: PROMPTS.map((p) => p.key), updatedEvent: UPDATED_EVENT,
+  });
+  const { applyLoaded, failLoad, reloadKey } = form;
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
   const [exporting, setExporting] = useState(false);
   const [doneKey, setDoneKey] = useState(0);
-  const [saveError, setSaveError] = useState('');
-  const [avatarUploading, setAvatarUploading] = useState(false);
-
-  const { draft, name, setName, description, setDescription } = useCreateDraftIdentity(isCreate, readCreateDraft);
-  const [systemPrompt, setSystemPrompt] = useState(draft.systemPrompt ?? '');
-  const [postPrompt, setPostPrompt] = useState(draft.postPrompt ?? '');
-  const [firstMessage, setFirstMessage] = useState(draft.firstMessage ?? '');
-  const [avatarPath, setAvatarPath] = useState(null);
-  const [stateFields, setStateFields] = useState([]);
-  const [profileRows, setProfileRows] = useState([]);
-  const [reloadKey, setReloadKey] = useState(0);
-  // 最近一次从服务端加载的表单值，用于判断关闭时是否有未保存修改
-  const [saved, setSaved] = useState(null);
-  const dirty = !!saved && (
-    name !== saved.name || description !== saved.description || systemPrompt !== saved.systemPrompt
-    || postPrompt !== saved.postPrompt || firstMessage !== saved.firstMessage
-  );
-
-  // 创建模式：自动保存草稿
-  useEffect(() => {
-    if (!isCreate) return;
-    sessionStorage.setItem('character_create_draft', JSON.stringify({ name, description, systemPrompt, postPrompt, firstMessage }));
-  }, [name, description, systemPrompt, postPrompt, firstMessage, isCreate]);
 
   useEffect(() => {
     if (isCreate) return;
@@ -71,69 +43,31 @@ export default function CharacterEditPage() {
       getCharacter(characterId),
       getCharacterStateValues(characterId),
       getCharacterProfileDefaults(characterId),
-    ]).then(([c, fields, profile]) => {
-      const loaded = {
-        name: c.name,
-        description: c.description ?? '',
-        systemPrompt: c.system_prompt ?? '',
-        postPrompt: c.post_prompt ?? '',
-        firstMessage: c.first_message ?? '',
-      };
-      setCharacter(c);
-      setSaved(loaded);
-      setName(loaded.name);
-      setDescription(loaded.description);
-      setSystemPrompt(loaded.systemPrompt);
-      setPostPrompt(loaded.postPrompt);
-      setFirstMessage(loaded.firstMessage);
-      setAvatarPath(c.avatar_path);
-      setStateFields(fields);
-      setProfileRows(profile);
-      setLoading(false);
+    ]).then(([c, stateFields, profileRows]) => {
+      applyLoaded(
+        {
+          name: c.name,
+          description: c.description ?? '',
+          systemPrompt: c.system_prompt ?? '',
+          postPrompt: c.post_prompt ?? '',
+          firstMessage: c.first_message ?? '',
+        },
+        { avatarPath: c.avatar_path, stateFields, profileRows },
+      );
     }).catch((err) => {
       log.error('character_edit.load_failed', err);
-      setLoadError(err.message || '角色加载失败');
+      failLoad(err.message || '角色加载失败');
     });
-  }, [characterId, reloadKey, isCreate, setName, setDescription]);
+  }, [characterId, reloadKey, isCreate, applyLoaded, failLoad]);
 
-  function retryLoad() {
-    setLoadError('');
-    setLoading(true);
-    setReloadKey((k) => k + 1);
-  }
-
-  useEffect(() => {
-    const h = () => setReloadKey((k) => k + 1);
-    window.addEventListener('we:character-updated', h);
-    return () => window.removeEventListener('we:character-updated', h);
-  }, []);
-
-  async function handleAvatarClick() {
-    fileInputRef.current?.click();
-  }
-
-  async function handleFileChange(e) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setAvatarUploading(true);
-    try {
-      const result = await uploadAvatar(characterId, file);
-      setAvatarPath(result.avatar_path);
-      window.dispatchEvent(new Event('we:character-updated'));
-    } catch (err) {
-      log.error('character.avatar.upload_failed', err, { toast: `头像上传失败：${err.message}` });
-    } finally {
-      setAvatarUploading(false);
-      e.target.value = '';
-    }
-  }
+  const handleAvatarFile = form.uploadAvatar((file) => uploadAvatar(characterId, file), 'character.avatar.upload_failed');
 
   async function handleExport() {
     setExporting(true);
     try {
-      const safeName = (name || character?.name || 'character').replace(/[^\w\u4e00-\u9fa5]/g, '_');
+      const safeName = (form.name || 'character').replace(/[^\w一-龥]/g, '_');
       await downloadCharacterCard(characterId, `${safeName}.wechar.json`);
-      setDoneKey(k => k + 1);
+      setDoneKey((k) => k + 1);
     } catch (err) {
       log.error('character.export_failed', err, { toast: `导出失败：${err.message}` });
     } finally {
@@ -142,36 +76,31 @@ export default function CharacterEditPage() {
   }
 
   async function handleSave() {
-    if (!name.trim()) { setSaveError('名称为必填项'); return; }
+    if (!form.name.trim()) { setSaveError('名称为必填项'); return; }
+    const body = {
+      name: form.name.trim(),
+      description: form.description.trim(),
+      system_prompt: form.prompts.systemPrompt,
+      post_prompt: form.prompts.postPrompt,
+      first_message: form.prompts.firstMessage,
+    };
     setSaving(true);
     setSaveError('');
     try {
       if (isCreate) {
-        const newChar = await createCharacter(worldId, {
-          name: name.trim(),
-          description: description.trim(),
-          system_prompt: systemPrompt,
-          post_prompt: postPrompt,
-          first_message: firstMessage,
-        });
-        window.dispatchEvent(new Event('we:character-updated'));
-        sessionStorage.removeItem('character_create_draft');
+        const newChar = await createCharacter(worldId, body);
+        window.dispatchEvent(new Event(UPDATED_EVENT));
+        form.clearDraft();
         if (isOverlay) {
           navigate(-1);
           return;
         }
-        setLoading(true);
+        form.setLoading(true);
         setSaving(false);
         navigate(`/characters/${newChar.id}/edit`, { replace: true });
       } else {
-        await updateCharacter(characterId, {
-          name: name.trim(),
-          description: description.trim(),
-          system_prompt: systemPrompt,
-          post_prompt: postPrompt,
-          first_message: firstMessage,
-        });
-        window.dispatchEvent(new Event('we:character-updated'));
+        await updateCharacter(characterId, body);
+        window.dispatchEvent(new Event(UPDATED_EVENT));
         navigate(-1);
       }
     } catch (e) {
@@ -180,66 +109,34 @@ export default function CharacterEditPage() {
     }
   }
 
-  function handleClose() {
-    navigate(-1);
-  }
-
-  const avatarUrl = getAvatarUrl(avatarPath);
-  const avatarColor = getAvatarColor(character?.id);
-
   const basicTab = {
     key: 'basic',
     label: '角色设定',
     content: (
-      <div className="we-edit-form-stack">
-        {!isCreate && (
-          <AvatarUpload
-            name={name}
-            avatarUrl={avatarUrl}
-            avatarColor={avatarColor}
-            avatarUploading={avatarUploading}
-            onAvatarClick={handleAvatarClick}
-            fileInputRef={fileInputRef}
-            onFileChange={handleFileChange}
-          />
-        )}
-        <FormGroup label="名称" required>
-          <Input value={name} onChange={e => setName(e.target.value)} placeholder="角色的名字" autoFocus={isCreate} />
-        </FormGroup>
-        <FormGroup label="简介" hint="纯展示用途，不注入提示词">
-          <Textarea
-            rows={3}
-            value={description}
-            onChange={e => setDescription(e.target.value)}
-            placeholder="一句话介绍这个角色…"
-          />
-        </FormGroup>
-        <FormGroup label="人设">
-          <MarkdownEditor value={systemPrompt} onChange={setSystemPrompt} placeholder="角色的性格、背景、说话风格……" minHeight={144} />
-        </FormGroup>
-        <FormGroup label="后置提示词">
-          <MarkdownEditor value={postPrompt} onChange={setPostPrompt} placeholder="每次对话附加的角色级指令，例如特定的回复格式……" minHeight={72} />
-        </FormGroup>
-        <FormGroup label="开场白">
-          <MarkdownEditor value={firstMessage} onChange={setFirstMessage} placeholder="角色在对话开始时主动说的第一句话，留空则由用户先开口" minHeight={96} />
-        </FormGroup>
-        {saveError && <p className="we-edit-error">{saveError}</p>}
-        <div className="we-edit-save-row">
-          <Button variant="primary" onClick={handleSave} disabled={saving}>
-            {saving ? (isCreate ? '创建中…' : '保存中…') : (isCreate ? '创建角色' : '保存')}
-          </Button>
-        </div>
-      </div>
+      <CardBasicForm
+        form={form}
+        avatarSeed={characterId}
+        showAvatar={!isCreate}
+        onAvatarFile={handleAvatarFile}
+        nameField={{ label: '名称', placeholder: '角色的名字', required: true, autoFocus: isCreate }}
+        descriptionPlaceholder="一句话介绍这个角色…"
+        prompts={PROMPTS}
+        saveError={saveError}
+        saving={saving}
+        saveLabel={isCreate ? '创建角色' : '保存'}
+        savingLabel={isCreate ? '创建中…' : '保存中…'}
+        onSave={handleSave}
+      />
     ),
   };
 
   const stateInit = isCreate ? null : {
-    profileRows,
-    stateFields,
+    profileRows: form.profileRows,
+    stateFields: form.stateFields,
     writeProfile: (fieldKey, valueJson) => updateCharacterProfileDefault(characterId, fieldKey, valueJson),
     writeState: (fieldKey, valueJson) => updateCharacterStateValue(characterId, fieldKey, valueJson),
     extract: () => extractCharacterStateValues(characterId),
-    onChanged: () => setReloadKey((k) => k + 1),
+    onChanged: form.reload,
   };
 
   const exportAction = !isCreate && characterId ? (
@@ -251,13 +148,13 @@ export default function CharacterEditPage() {
   return (
     <>
       <EditPageShell
-        loading={loading}
-        loadError={loadError}
-        onRetry={retryLoad}
-        dirty={dirty}
+        loading={form.loading}
+        loadError={form.loadError}
+        onRetry={form.retryLoad}
+        dirty={form.dirty}
         isOverlay={isOverlay}
-        onClose={handleClose}
-        title={isCreate ? '新建角色' : (name ? `编辑角色 · ${name}` : '')}
+        onClose={() => navigate(-1)}
+        title={isCreate ? '新建角色' : (form.name ? `编辑角色 · ${form.name}` : '')}
         headerActions={exportAction}
       >
         <CardEditTabs basicTab={basicTab} stateInit={stateInit} />

@@ -36,8 +36,6 @@
     "frontend/src/components/message/StreamingMarkdown.jsx#StreamingMarkdown": 43,
     "frontend/src/core/api/stream-parser.js#dispatchSSEEvent": 33,
     "frontend/src/core/api/stream-parser.js#parseSSEStream": 41,
-    "frontend/src/pages/CharacterEditPage/index.jsx#CharacterEditPage": 37,
-    "frontend/src/pages/PersonaEditPage/index.jsx#PersonaEditPage": 32,
     "scripts/check-complexity.mjs#collectScores": 46,
     "scripts/check-complexity.mjs#fileScores": 41,
     "scripts/check-complexity.mjs#main": 73,

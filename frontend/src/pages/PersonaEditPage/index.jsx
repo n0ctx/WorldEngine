@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import {
   getPersona,
@@ -18,89 +18,42 @@ import {
   updatePersonaProfileDefault,
 } from '../../core/api/persona-state-values';
 import { downloadPersonaCard } from '../../core/api/import-export';
-import { getAvatarColor, getAvatarUrl } from '../../core/utils/avatar';
-import MarkdownEditor from '../../components/ui/MarkdownEditor';
 import Button from '../../components/ui/Button';
-import Input from '../../components/ui/Input';
-import Textarea from '../../components/ui/Textarea';
+import CardBasicForm from '../../components/card-edit/CardBasicForm.jsx';
 import CardEditTabs from '../../components/card-edit/CardEditTabs.jsx';
+import { useCardEditForm } from '../../components/card-edit/useCardEditForm.js';
 import EditPageShell from '../layout/EditPageShell';
-import FormGroup from '../../components/ui/FormGroup';
-import AvatarUpload from '../../components/ui/AvatarUpload';
 import { log } from '../../core/utils/logger.js';
-import { useCreateDraftIdentity } from '../../core/hooks/useCreateDraftIdentity.js';
 
-function readCreateDraft() {
-  try {
-    return JSON.parse(sessionStorage.getItem('persona_create_draft') || '{}');
-  } catch {
-    return {};
-  }
-}
+const UPDATED_EVENT = 'we:persona-updated';
+const PROMPTS = [{ key: 'systemPrompt', label: '人设', placeholder: '你的身份、背景等', minHeight: 120 }];
 
 export default function PersonaEditPage() {
   const { worldId, personaId: personaIdParam } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
   const isOverlay = !!location.state?.backgroundLocation;
-  const fileInputRef = useRef(null);
   // 路由 /personas/new 中 'new' 是字面路径段而非参数，personaIdParam 为 undefined
   const isNew = location.pathname.endsWith('/personas/new');
 
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState('');
+  const form = useCardEditForm({ isCreate: isNew, draftKey: 'persona_create_draft', promptKeys: ['systemPrompt'], updatedEvent: UPDATED_EVENT });
+  const { applyLoaded, failLoad, reloadKey } = form;
   const [saving, setSaving] = useState(false);
-  const [avatarUploading, setAvatarUploading] = useState(false);
-
-  // resolvedPersonaId: 加载完成后的实际 persona id（new 模式下为 null 直到创建成功）
+  // 加载完成后的实际 persona id（新建模式下为 null，直到创建成功）
   const [resolvedPersonaId, setResolvedPersonaId] = useState(null);
-  const { draft, name, setName, description, setDescription } = useCreateDraftIdentity(isNew, readCreateDraft);
-  const [systemPrompt, setSystemPrompt] = useState(draft.systemPrompt ?? '');
-  const [reloadKey, setReloadKey] = useState(0);
-  const [avatarPath, setAvatarPath] = useState(null);
-  const [stateFields, setStateFields] = useState([]);
-  const [profileRows, setProfileRows] = useState([]);
-  // 最近一次从服务端加载的表单值，用于判断关闭时是否有未保存修改
-  const [saved, setSaved] = useState(null);
-  const dirty = !!saved && (
-    name !== saved.name || description !== saved.description || systemPrompt !== saved.systemPrompt
-  );
-
-  // 创建模式：自动保存草稿
-  useEffect(() => {
-    if (!isNew) return;
-    sessionStorage.setItem('persona_create_draft', JSON.stringify({ name, description, systemPrompt }));
-  }, [name, description, systemPrompt, isNew]);
 
   useEffect(() => {
-    let cancelled = false;
-    if (isNew) {
-      (async () => {
-        await Promise.resolve();
-        if (!cancelled) setLoading(false);
-      })();
-      return () => {
-        cancelled = true;
-      };
-    }
-
-    const applyPersona = (p) => {
-      const loaded = {
-        name: p.name ?? '',
-        description: p.description ?? '',
-        systemPrompt: p.system_prompt ?? '',
-      };
+    if (isNew) return;
+    const apply = ([p, stateFields, profileRows]) => {
       setResolvedPersonaId(p.id);
-      setSaved(loaded);
-      setName(loaded.name);
-      setDescription(loaded.description);
-      setSystemPrompt(loaded.systemPrompt);
-      setAvatarPath(p.avatar_path ?? null);
+      applyLoaded(
+        { name: p.name ?? '', description: p.description ?? '', systemPrompt: p.system_prompt ?? '' },
+        { avatarPath: p.avatar_path, stateFields, profileRows },
+      );
     };
-
     const handleLoadError = (err) => {
       log.error('persona_edit.load_failed', err);
-      setLoadError(err.message || '人设加载失败');
+      failLoad(err.message || '人设加载失败');
     };
 
     if (personaIdParam) {
@@ -109,87 +62,41 @@ export default function PersonaEditPage() {
         getPersonaById(personaIdParam),
         getPersonaStateValuesByPersonaId(worldId, personaIdParam),
         getPersonaProfileDefaults(personaIdParam),
-      ]).then(([p, fields, profile]) => {
-        if (p) applyPersona(p);
-        setStateFields(fields);
-        setProfileRows(profile);
-        setLoading(false);
-      }).catch(handleLoadError);
+      ]).then(apply).catch(handleLoadError);
     } else {
       // 兼容旧路由 /worlds/:worldId/persona（加载 active persona）
       getPersona(worldId)
         .then((p) => Promise.all([p, getPersonaStateValues(worldId), getPersonaProfileDefaults(p.id)]))
-        .then(([p, fields, profile]) => {
-          applyPersona(p);
-          setStateFields(fields);
-          setProfileRows(profile);
-          setLoading(false);
-        }).catch(handleLoadError);
+        .then(apply)
+        .catch(handleLoadError);
     }
-    return () => {
-      cancelled = true;
-    };
-  }, [worldId, personaIdParam, isNew, reloadKey, setName, setDescription]);
+  }, [worldId, personaIdParam, isNew, reloadKey, applyLoaded, failLoad]);
 
-  function retryLoad() {
-    setLoadError('');
-    setLoading(true);
-    setReloadKey((k) => k + 1);
-  }
-
-  useEffect(() => {
-    const h = () => setReloadKey((k) => k + 1);
-    window.addEventListener('we:persona-updated', h);
-    return () => window.removeEventListener('we:persona-updated', h);
-  }, []);
-
-  async function handleFileChange(e) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setAvatarUploading(true);
-    try {
-      let result;
-      if (resolvedPersonaId) {
-        result = await uploadPersonaAvatarById(resolvedPersonaId, file);
-      } else {
-        result = await uploadPersonaAvatar(worldId, file);
-      }
-      setAvatarPath(result.avatar_path);
-      window.dispatchEvent(new Event('we:persona-updated'));
-    } catch (err) {
-      log.error('persona.avatar.upload_failed', err, { toast: `头像上传失败：${err.message}` });
-    } finally {
-      setAvatarUploading(false);
-      e.target.value = '';
-    }
-  }
+  const handleAvatarFile = form.uploadAvatar(
+    (file) => (resolvedPersonaId ? uploadPersonaAvatarById(resolvedPersonaId, file) : uploadPersonaAvatar(worldId, file)),
+    'persona.avatar.upload_failed',
+  );
 
   async function handleSave() {
+    const body = { name: form.name, description: form.description, system_prompt: form.prompts.systemPrompt };
     setSaving(true);
     try {
       if (isNew) {
-        // 新建：创建 persona 后跳转到编辑页
-        const persona = await createPersona(worldId, { name, description, system_prompt: systemPrompt });
-        sessionStorage.removeItem('persona_create_draft');
-        window.dispatchEvent(new Event('we:persona-updated'));
+        const persona = await createPersona(worldId, body);
+        form.clearDraft();
+        window.dispatchEvent(new Event(UPDATED_EVENT));
         if (isOverlay) {
           navigate(-1);
           return;
         }
-        setLoading(true);
+        form.setLoading(true);
         setSaving(false);
         // 替换路由为编辑页（不在历史里留下 /new）
-        navigate(`/worlds/${worldId}/personas/${persona.id}/edit`, {
-          replace: true,
-        });
-      } else if (resolvedPersonaId) {
-        await updatePersonaById(resolvedPersonaId, { name, description, system_prompt: systemPrompt });
-        window.dispatchEvent(new Event('we:persona-updated'));
-        navigate(-1);
+        navigate(`/worlds/${worldId}/personas/${persona.id}/edit`, { replace: true });
       } else {
-        // 旧路由兼容
-        await updatePersona(worldId, { name, description, system_prompt: systemPrompt });
-        window.dispatchEvent(new Event('we:persona-updated'));
+        if (resolvedPersonaId) await updatePersonaById(resolvedPersonaId, body);
+        else await updatePersona(worldId, body);
+        window.dispatchEvent(new Event(UPDATED_EVENT));
         navigate(-1);
       }
     } catch (err) {
@@ -201,68 +108,55 @@ export default function PersonaEditPage() {
   async function handleExport() {
     if (!resolvedPersonaId) return;
     try {
-      await downloadPersonaCard(resolvedPersonaId, `${name || '玩家'}.wepersona.json`);
+      await downloadPersonaCard(resolvedPersonaId, `${form.name || '玩家'}.wepersona.json`);
     } catch (err) {
       log.error('persona.export_failed', err, { toast: `导出失败：${err.message}` });
     }
   }
 
-  const avatarUrl = getAvatarUrl(avatarPath);
-  const avatarColor = getAvatarColor(resolvedPersonaId || personaIdParam || worldId);
-  const pageTitle = isNew ? '创建玩家' : '编辑玩家卡';
-
-  const exportAction = !isNew ? (
-    <Button variant="secondary" size="sm" onClick={handleExport}>导出玩家卡</Button>
-  ) : null;
-
   const basicTab = {
     key: 'basic',
     label: '玩家设定',
     content: (
-      <div className="we-edit-form-stack">
-        <AvatarUpload
-          name={name}
-          avatarUrl={avatarUrl}
-          avatarColor={avatarColor}
-          avatarUploading={avatarUploading}
-          fileInputRef={fileInputRef}
-          onAvatarClick={() => fileInputRef.current?.click()}
-          onFileChange={handleFileChange}
-        />
-        <FormGroup label="玩家名">
-          <Input value={name} onChange={e => setName(e.target.value)} placeholder="你在这个世界里的名字" />
-        </FormGroup>
-        <FormGroup label="简介" hint="纯展示用途，不注入提示词">
-          <Textarea
-            rows={3}
-            value={description}
-            onChange={e => setDescription(e.target.value)}
-            placeholder="一句话介绍这个玩家…"
-          />
-        </FormGroup>
-        <FormGroup label="人设">
-          <MarkdownEditor value={systemPrompt} onChange={setSystemPrompt} placeholder="你的身份、背景等" minHeight={120} />
-        </FormGroup>
-        <div className="we-edit-save-row">
-          <Button variant="primary" onClick={handleSave} disabled={saving}>
-            {saving ? '保存中…' : isNew ? '创建' : '保存'}
-          </Button>
-        </div>
-      </div>
+      <CardBasicForm
+        form={form}
+        avatarSeed={resolvedPersonaId || personaIdParam || worldId}
+        onAvatarFile={handleAvatarFile}
+        nameField={{ label: '玩家名', placeholder: '你在这个世界里的名字' }}
+        descriptionPlaceholder="一句话介绍这个玩家…"
+        prompts={PROMPTS}
+        saving={saving}
+        saveLabel={isNew ? '创建' : '保存'}
+        savingLabel="保存中…"
+        onSave={handleSave}
+      />
     ),
   };
 
   const stateInit = isNew ? null : {
-    profileRows,
-    stateFields,
+    profileRows: form.profileRows,
+    stateFields: form.stateFields,
     writeProfile: (fieldKey, valueJson) => updatePersonaProfileDefault(resolvedPersonaId, fieldKey, valueJson),
     writeState: (fieldKey, valueJson) => updatePersonaStateValueByPersonaId(worldId, resolvedPersonaId, fieldKey, valueJson),
     extract: () => extractPersonaStateValues(resolvedPersonaId),
-    onChanged: () => setReloadKey((k) => k + 1),
+    onChanged: form.reload,
   };
 
+  const exportAction = isNew ? null : (
+    <Button variant="secondary" size="sm" onClick={handleExport}>导出玩家卡</Button>
+  );
+
   return (
-    <EditPageShell loading={loading} loadError={loadError} onRetry={retryLoad} dirty={dirty} isOverlay={isOverlay} onClose={() => navigate(-1)} title={pageTitle} headerActions={exportAction}>
+    <EditPageShell
+      loading={form.loading}
+      loadError={form.loadError}
+      onRetry={form.retryLoad}
+      dirty={form.dirty}
+      isOverlay={isOverlay}
+      onClose={() => navigate(-1)}
+      title={isNew ? '创建玩家' : '编辑玩家卡'}
+      headerActions={exportAction}
+    >
       <CardEditTabs basicTab={basicTab} stateInit={stateInit} />
     </EditPageShell>
   );
