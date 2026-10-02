@@ -1120,11 +1120,6 @@
   transform: rotate(90deg);
 }
 
-.we-think-block-dots {
-  margin-left: var(--we-space-xs);
-  color: var(--we-color-text-faint);
-}
-
 .we-think-block-status {
   margin-left: var(--we-space-xs);
   font-style: normal;

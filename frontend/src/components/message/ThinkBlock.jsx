@@ -29,10 +29,8 @@ export default function ThinkBlock({ content, autoCollapse, open = false, stream
           size={16}
           className={`we-think-block-chevron${expanded ? ' we-think-block-chevron--expanded' : ''}`}
         />
-        思考过程
-        {open
-          ? <span className="we-think-block-dots">…</span>
-          : <span className="we-think-block-status">已完成</span>}
+        {open ? '思考中' : '思考过程'}
+        {!open && <span className="we-think-block-status">已完成</span>}
         {caret && !expanded && <StreamCaret />}
       </button>
       <div className={`we-think-block-body-wrap${expanded ? ' we-think-block-body-wrap--open' : ''}`}>
