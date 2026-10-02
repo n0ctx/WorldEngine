@@ -9,6 +9,8 @@ const CARET_TAG = 'we-caret';
 const NO_CHUNKS = [];
 // 间隔短到这个程度就不再给每个字挂光标，否则几个字的光标会叠在一起
 const CHAR_CARET_MIN_MS = 6;
+// 同时等着轮到的字最多这么多；平时逐字返回的流不会碰到
+const PENDING_MAX = 80;
 
 // 当前动效包的排字节奏（毫秒）
 function streamTiming(pack) {
@@ -54,9 +56,40 @@ function schedule(track, now, timing) {
     const start = Math.max(now, typedUntil);
     const step = Math.min(timing.stagger, Math.max(0, now + timing.lag - start) / Math.max(1, chunk.length));
     typedUntil = start + chunk.length * step;
-    chunks.push({ ...chunk, wait: start - now, step, end: typedUntil, scheduled: true });
+    chunks.push({ ...chunk, at: now, wait: start - now, step, end: typedUntil, scheduled: true });
   }
-  return { ...track, chunks, typedUntil, typing: true, caretBack: false };
+  return { ...track, chunks: limitPending(chunks, now), typedUntil, typing: true, caretBack: false };
+}
+
+// 段内已经在出现的字数：第 i 个字在 at + wait + i * step 出现，正好此刻出现的还没开始播
+function startedCount(chunk, now) {
+  const first = chunk.at + chunk.wait;
+  if (now <= first) return 0;
+  return chunk.step > 0 ? Math.min(chunk.length, Math.ceil((now - first) / chunk.step)) : chunk.length;
+}
+
+// 一次到达很多字（供应商整段整段返回）时，上百个字同时挂着动画会卡住页面：
+// 还没轮到的字超过上限，就让最早的一批直接显示，只给最后 PENDING_MAX 个字逐字出现；
+// 被放行的字都排在已显形的字之后，顺序不乱，剩下的字出现时刻不变
+function limitPending(chunks, now) {
+  let excess = chunks.reduce((sum, chunk) => sum + chunk.length - startedCount(chunk, now), 0) - PENDING_MAX;
+  if (excess <= 0) return chunks;
+  const limited = [];
+  for (const chunk of chunks) {
+    const started = startedCount(chunk, now);
+    const cut = Math.min(chunk.length - started, Math.max(0, excess));
+    if (cut === 0) {
+      limited.push(chunk);
+      continue;
+    }
+    excess -= cut;
+    if (started > 0) limited.push({ ...chunk, length: started });
+    const skip = started + cut;
+    if (skip < chunk.length) {
+      limited.push({ ...chunk, offset: chunk.offset + skip, length: chunk.length - skip, wait: chunk.wait + skip * chunk.step });
+    }
+  }
+  return limited;
 }
 
 // 文本节点按到达段切开，段内每个字包一层并带上它的出现时刻；
@@ -77,8 +110,9 @@ function splitText(node, chunks, withCaret) {
   for (const ch of value.slice(firstLocal)) {
     const pos = base + local;
     while (k + 1 < chunks.length && chunks[k + 1].offset <= pos) k++;
-    const { offset, wait, step } = chunks[k];
-    if (isBlank(ch)) {
+    const { offset, length, wait, step } = chunks[k];
+    // 不在任何一段里的字（被放行直接显示的）按普通文字处理
+    if (isBlank(ch) || pos >= offset + length) {
       plain += ch;
     } else {
       if (plain) { pieces.push({ type: 'text', value: plain }); plain = ''; }

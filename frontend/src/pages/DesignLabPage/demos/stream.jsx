@@ -7,26 +7,32 @@ import Skeleton from '../../../components/ui/Skeleton.jsx';
 import SlotSection from '../SlotSection.jsx';
 import { PROSE } from './fixtures.js';
 
-// 假的流式到达：每 60–120ms 到 2–6 个字，模拟模型逐段吐字
+// 两种假的流式到达：逐字（每 60–120ms 到 2–6 个字）、大块（每秒到一整段，模拟整段整段返回的供应商）
+const ARRIVALS = {
+  steady: { text: PROSE, size: () => 2 + Math.floor(Math.random() * 5), gap: () => 60 + Math.random() * 60 },
+  bulk: { text: PROSE.repeat(6), size: () => 160, gap: () => 1000 },
+};
+
 export function StreamDemo() {
   const [text, setText] = useState('');
   const [streaming, setStreaming] = useState(false);
-  const [run, setRun] = useState(0);
+  const [run, setRun] = useState({ id: 0, mode: 'steady' });
 
-  function start() {
+  function start(mode) {
     setText('');
     setStreaming(true);
-    setRun((n) => n + 1);
+    setRun((prev) => ({ id: prev.id + 1, mode }));
   }
 
   useEffect(() => {
-    if (!run) return undefined;
+    if (!run.id) return undefined;
+    const arrival = ARRIVALS[run.mode];
     let pos = 0;
     let timer;
     const tick = () => {
-      pos = Math.min(PROSE.length, pos + 2 + Math.floor(Math.random() * 5));
-      setText(PROSE.slice(0, pos));
-      if (pos < PROSE.length) timer = setTimeout(tick, 60 + Math.random() * 60);
+      pos = Math.min(arrival.text.length, pos + arrival.size());
+      setText(arrival.text.slice(0, pos));
+      if (pos < arrival.text.length) timer = setTimeout(tick, arrival.gap());
       else setStreaming(false);
     };
     timer = setTimeout(tick, 400);
@@ -36,7 +42,12 @@ export function StreamDemo() {
   return (
     <SlotSection
       id="stream"
-      actions={<Button variant="secondary" size="sm" onClick={start}>{run ? '重播' : '开始'}</Button>}
+      actions={(
+        <>
+          <Button variant="secondary" size="sm" onClick={() => start('steady')}>{run.id ? '重播' : '开始'}</Button>
+          <Button variant="secondary" size="sm" onClick={() => start('bulk')}>大块到达</Button>
+        </>
+      )}
     >
       <div className="we-design-lab__prose">
         <StreamingMarkdown streaming={streaming} caret>{text}</StreamingMarkdown>

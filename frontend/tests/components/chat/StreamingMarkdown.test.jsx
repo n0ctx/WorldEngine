@@ -121,6 +121,30 @@ describe('流式书写', () => {
     expect(container.querySelector('.we-message-content p').textContent).toContain('风从北方吹来，');
   });
 
+  it('一次到很多字时，只有末尾一批逐字出现，前面的字直接显示，全文不缺不乱', () => {
+    const long = Array.from({ length: 300 }, (_, i) => String.fromCharCode(0x4e00 + i)).join('');
+    const { container } = render(streamItem(long));
+    const wrapped = chars(container).map((el) => el.textContent);
+    expect(wrapped.length).toBeGreaterThan(0);
+    expect(wrapped.length).toBeLessThan(150);
+    expect(wrapped.join('')).toBe(long.slice(-wrapped.length));
+    expect(container.querySelector('.we-message-content p').textContent).toContain(long);
+    const d = delays(container);
+    for (let i = 1; i < d.length; i++) expect(d[i]).toBeGreaterThanOrEqual(d[i - 1]);
+  });
+
+  it('大段后面又接着到达：被放行的字排在已显形的字之后，后到的字照常排在末尾', () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'performance'] });
+    const first = '春'.repeat(300);
+    const { container, rerender } = render(streamItem(first));
+    act(() => { vi.advanceTimersByTime(300); });
+    const next = `${first}夏${'秋'.repeat(200)}`;
+    rerender(streamItem(next));
+    expect(container.querySelector('.we-message-content p').textContent).toBe(next);
+    expect(chars(container).length).toBeLessThan(150);
+    expect(chars(container).at(-1).textContent).toBe('秋');
+  });
+
   it('生成持续很久，逐字包裹的数量不随正文变长而累积', () => {
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'performance'] });
     const { container, rerender } = render(streamItem(''));
