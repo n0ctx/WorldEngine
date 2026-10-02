@@ -2,7 +2,7 @@ import { getBaseUrl } from '../_shared/base-urls.js';
 import { apiError, readHttpErrorText, parseSSE } from '../_shared/fetch-utils.js';
 import { resolveThinkingBudget } from '../_shared/thinking-budget.js';
 import { convertToGeminiContents } from '../_shared/converters.js';
-import { recordTokenUsage } from '../_shared/cache-usage.js';
+import { cacheUsageLogFields, recordTokenUsage } from '../_shared/cache-usage.js';
 import { getOrCreateCache } from './cache.js';
 import { logRawRequest } from '../../raw-logger.js';
 import { createLogger, formatMeta } from '../../../utils/logger.js';
@@ -17,13 +17,15 @@ import {
 const cacheLog = createLogger('gemini-cache', 'cyan');
 const log = createLogger('llm', 'magenta');
 
-function logGeminiUsage(model, meta) {
+function logGeminiUsage(config, meta) {
   if (!meta) return;
   log.info('provider.usage', formatMeta({
     provider: 'gemini',
-    model,
+    model: config.model,
+    callType: config.callType,
     prompt_tokens: meta.promptTokenCount,
     completion_tokens: meta.candidatesTokenCount,
+    ...cacheUsageLogFields(meta, config.provider),
   }));
 }
 
@@ -197,7 +199,7 @@ export async function* streamGemini(messages, config) {
     } catch (err) { log.error('provider.parse_error', formatMeta({ provider: 'gemini', msg: err.message })); }
   }
   if (inThinking) yield '</think>\n';
-  logGeminiUsage(config.model, lastUsage);
+  logGeminiUsage(config, lastUsage);
 }
 
 export async function completeGemini(messages, config) {
@@ -219,7 +221,7 @@ export async function completeGemini(messages, config) {
   const completeSig = extractGeminiSignal(data, buildContextFromConfig(config, { phase: 'complete_response', stream: false }));
   if (completeSig) await emitProviderSignal(config, completeSig);
   if (data.usageMetadata) {
-    logGeminiUsage(config.model, data.usageMetadata);
+    logGeminiUsage(config, data.usageMetadata);
     if (config.usageRef) recordTokenUsage(config.usageRef, data.usageMetadata, config.provider);
   }
   return joinTextParts(data);
@@ -236,7 +238,7 @@ async function completeGeminiFromNative(nativeContents, systemInstruction, confi
   if (!resp.ok) await throwGeminiHttpError(resp, config);
 
   const data = await resp.json();
-  if (data.usageMetadata) logGeminiUsage(config.model, data.usageMetadata);
+  if (data.usageMetadata) logGeminiUsage(config, data.usageMetadata);
   return joinTextParts(data);
 }
 
@@ -270,7 +272,7 @@ const geminiToolLoopProvider = {
     const data = await resp.json();
     const toolSig = extractGeminiSignal(data, buildContextFromConfig(config, { phase: 'tool_loop_turn', stream: false }));
     if (toolSig) await emitProviderSignal(config, toolSig);
-    if (data.usageMetadata) logGeminiUsage(config.model, data.usageMetadata);
+    if (data.usageMetadata) logGeminiUsage(config, data.usageMetadata);
     const parts = data.candidates?.[0]?.content?.parts || [];
     const functionCalls = parts.filter((p) => p.functionCall);
     const textContent = parts.filter((p) => p.text && !p.thought).map((p) => p.text).join('');

@@ -38,6 +38,16 @@ export function getPromptCacheStrategy(provider) {
   return 'local-or-unknown';
 }
 
+/** provider.usage 日志用的缓存字段：各家字段名差异沿用 recordTokenUsage 的归一。 */
+export function cacheUsageLogFields(usage, provider) {
+  const snapshot = {};
+  recordTokenUsage(snapshot, usage, provider);
+  return {
+    cache_read_tokens: snapshot.cache_read_tokens,
+    cache_creation_tokens: snapshot.cache_creation_tokens,
+  };
+}
+
 export function recordTokenUsage(usageRef, usage, provider) {
   if (!usageRef || !usage || typeof usage !== 'object') return;
 

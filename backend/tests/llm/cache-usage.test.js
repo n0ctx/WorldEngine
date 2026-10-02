@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { getPromptCacheStrategy, recordTokenUsage } from '../../llm/providers/_shared/cache-usage.js';
+import { cacheUsageLogFields, getPromptCacheStrategy, recordTokenUsage } from '../../llm/providers/_shared/cache-usage.js';
 import { OPENAI_COMPATIBLE } from '../../llm/providers/_shared/base-urls.js';
 
 test('getPromptCacheStrategy 覆盖全部云端预设 provider', () => {
@@ -98,4 +98,19 @@ test('recordTokenUsage 标准化 Gemini usageMetadata', () => {
     completion_tokens: 400,
     cache_read_tokens: 1800,
   });
+});
+
+test('cacheUsageLogFields 取出各家缓存命中与写入量，无缓存字段时为 undefined', () => {
+  assert.deepEqual(
+    cacheUsageLogFields({ prompt_tokens: 1500, prompt_cache_hit_tokens: 700, prompt_cache_miss_tokens: 800 }, 'deepseek'),
+    { cache_read_tokens: 700, cache_creation_tokens: undefined },
+  );
+  assert.deepEqual(
+    cacheUsageLogFields({ input_tokens: 50, cache_read_input_tokens: 6000, cache_creation_input_tokens: 900 }, 'anthropic'),
+    { cache_read_tokens: 6000, cache_creation_tokens: 900 },
+  );
+  assert.deepEqual(
+    cacheUsageLogFields({ prompt_tokens: 300, completion_tokens: 20 }, 'ollama'),
+    { cache_read_tokens: undefined, cache_creation_tokens: undefined },
+  );
 });

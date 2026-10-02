@@ -2,18 +2,11 @@
   "version": 1,
   "minTokens": 40,
   "duplicates": {
-    "05aa305f982abe5a": {
-      "tokens": 75,
-      "locations": [
-        "backend/llm/providers/anthropic/index.js:234-239",
-        "backend/llm/providers/gemini/index.js:219-224"
-      ]
-    },
     "0751d7d73cb609e0": {
       "tokens": 40,
       "locations": [
         "frontend/src/core/utils/extractAccentColor.js:168-172",
-        "frontend/src/shells/book-spread/atmosphere/lightDust.js:60-64"
+        "frontend/src/shells/book-spread/atmosphere/lightDust.js:61-65"
       ]
     },
     "0eed7e14aa44426f": {
@@ -41,22 +34,29 @@
       "tokens": 54,
       "locations": [
         "backend/llm/providers/ollama/index.js:113-120",
-        "backend/llm/providers/openai-compatible/index.js:185-192"
+        "backend/llm/providers/openai-compatible/index.js:196-203"
       ]
     },
     "99dec6c4a3d783f6": {
       "tokens": 41,
       "locations": [
-        "backend/routes/session-state-values.js:48-51",
-        "backend/routes/sessions.js:133-138"
+        "backend/routes/session-state-values.js:50-53",
+        "backend/routes/sessions.js:137-142"
       ]
     },
     "b5a826c4ce5233e5": {
       "tokens": 45,
       "locations": [
-        "backend/llm/providers/anthropic/index.js:288-290",
-        "backend/llm/providers/gemini/index.js:270-272",
-        "backend/llm/providers/openai-compatible/index.js:285-287"
+        "backend/llm/providers/anthropic/index.js:295-297",
+        "backend/llm/providers/gemini/index.js:272-274",
+        "backend/llm/providers/openai-compatible/index.js:298-300"
+      ]
+    },
+    "d29375798752ac40": {
+      "tokens": 73,
+      "locations": [
+        "backend/llm/providers/anthropic/index.js:241-246",
+        "backend/llm/providers/gemini/index.js:221-226"
       ]
     },
     "d904930004aa6cec": {
@@ -77,15 +77,15 @@
       "tokens": 43,
       "locations": [
         "frontend/src/components/chat/MessageItem.jsx:45-48",
-        "frontend/src/components/writing/WritingMessageItem.jsx:142-145"
+        "frontend/src/components/writing/WritingMessageItem.jsx:67-70"
       ]
     },
     "f4684b0c8b2784ee": {
       "tokens": 41,
       "locations": [
-        "frontend/src/components/settings/CustomCssManager.jsx:54-59",
-        "frontend/src/components/settings/ThemeManager.jsx:25-30",
-        "frontend/src/components/state/StateFieldList.jsx:44-49"
+        "frontend/src/components/rules/StateFieldList.jsx:41-46",
+        "frontend/src/components/settings/CustomCssManager.jsx:50-55",
+        "frontend/src/components/settings/ThemeManager.jsx:28-33"
       ]
     }
   }

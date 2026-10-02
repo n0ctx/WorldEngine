@@ -2,7 +2,7 @@ import { getBaseUrl } from '../_shared/base-urls.js';
 import { apiError, readHttpErrorText, parseSSE } from '../_shared/fetch-utils.js';
 import { resolveThinkingBudget } from '../_shared/thinking-budget.js';
 import { convertToAnthropicMessages } from '../_shared/converters.js';
-import { recordTokenUsage } from '../_shared/cache-usage.js';
+import { cacheUsageLogFields, recordTokenUsage } from '../_shared/cache-usage.js';
 import { ANTHROPIC_API_VERSION, ANTHROPIC_PROMPT_CACHING_BETA } from './constants.js';
 import { logRawRequest } from '../../raw-logger.js';
 import { createLogger, formatMeta } from '../../../utils/logger.js';
@@ -16,13 +16,15 @@ import {
 
 const log = createLogger('llm', 'magenta');
 
-function logUsage(model, usage) {
+function logUsage(config, usage) {
   if (!usage) return;
   log.info('provider.usage', formatMeta({
     provider: 'anthropic',
-    model,
+    model: config.model,
+    callType: config.callType,
     prompt_tokens: usage.input_tokens,
     completion_tokens: usage.output_tokens,
+    ...cacheUsageLogFields(usage, config.provider),
   }));
 }
 
@@ -222,7 +224,7 @@ export async function* streamAnthropic(messages, config) {
 
   // 安全兜底:确保 thinking block 已关闭
   if (inThinkingBlock) yield '</think>';
-  logUsage(config.model, lastUsage);
+  logUsage(config, lastUsage);
 }
 
 export async function completeAnthropic(messages, config) {
@@ -239,7 +241,7 @@ export async function completeAnthropic(messages, config) {
   const completeSig = extractAnthropicSignal(data, buildContextFromConfig(config, { phase: 'complete_response', stream: false }));
   if (completeSig) await emitProviderSignal(config, completeSig);
   if (data.usage) {
-    logUsage(config.model, data.usage);
+    logUsage(config, data.usage);
     if (config.usageRef) recordTokenUsage(config.usageRef, data.usage, config.provider);
   }
   return (data.content || []).map((block) => {
@@ -294,7 +296,7 @@ const anthropicToolLoopProvider = {
     const toolSig = extractAnthropicSignal(data, buildContextFromConfig(config, { phase: 'tool_loop_turn', stream: false }));
     if (toolSig) await emitProviderSignal(config, toolSig);
     if (data.usage) {
-      logUsage(config.model, data.usage);
+      logUsage(config, data.usage);
       if (config.usageRef) accumulateUsageRef(config.usageRef, data.usage);
     }
     const content = data.content || [];

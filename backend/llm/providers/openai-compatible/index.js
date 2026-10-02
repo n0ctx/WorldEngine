@@ -1,7 +1,7 @@
 import { getBaseUrl } from '../_shared/base-urls.js';
 import { apiError, readHttpErrorText, parseSSE, extractProviderError } from '../_shared/fetch-utils.js';
 import { applyThinkingToOpenAICompatibleBody } from './thinking.js';
-import { recordTokenUsage } from '../_shared/cache-usage.js';
+import { cacheUsageLogFields, recordTokenUsage } from '../_shared/cache-usage.js';
 import { logRawRequest } from '../../raw-logger.js';
 import { createLogger, formatMeta } from '../../../utils/logger.js';
 import { runToolLoop } from '../../tool-loop-control.js';
@@ -15,13 +15,15 @@ import {
 
 const log = createLogger('llm', 'magenta');
 
-function logOpenAIUsage(provider, model, usage) {
+function logOpenAIUsage(config, usage) {
   if (!usage) return;
   log.info('provider.usage', formatMeta({
-    provider: provider || 'openai',
-    model,
+    provider: config.provider || 'openai',
+    model: config.model,
+    callType: config.callType,
     prompt_tokens: usage.prompt_tokens,
     completion_tokens: usage.completion_tokens,
+    ...cacheUsageLogFields(usage, config.provider),
   }));
 }
 
@@ -209,7 +211,7 @@ export async function* streamOpenAICompatible(messages, config) {
     }
   }
   if (inThinking) yield '</think>\n';
-  logOpenAIUsage(config.provider, config.model, lastUsage);
+  logOpenAIUsage(config, lastUsage);
 }
 
 export async function completeOpenAICompatible(messages, config) {
@@ -244,7 +246,7 @@ export async function completeOpenAICompatible(messages, config) {
   if (completeSignal) await emitProviderSignal(config, completeSignal);
   assertOpenAICompatibleData(data, config);
   if (data.usage) {
-    logOpenAIUsage(config.provider, config.model, data.usage);
+    logOpenAIUsage(config, data.usage);
     if (config.usageRef) recordTokenUsage(config.usageRef, data.usage, config.provider);
   }
   const msg = data.choices?.[0]?.message;
@@ -297,7 +299,7 @@ const openaiCompatibleToolLoopProvider = {
     const toolSignal = extractOpenAICompatibleSignal(data, buildContextFromConfig(config, { phase: 'tool_loop_turn', stream: false }));
     if (toolSignal) await emitProviderSignal(config, toolSignal);
     assertOpenAICompatibleData(data, config);
-    if (data.usage) logOpenAIUsage(config.provider, config.model, data.usage);
+    if (data.usage) logOpenAIUsage(config, data.usage);
 
     const message = data.choices?.[0]?.message;
     if (!message) return { kind: 'text', text: '' };
