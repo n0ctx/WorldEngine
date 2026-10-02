@@ -20,6 +20,7 @@ import RenderPageLayout from './layout/pageLayoutRenderer.jsx';
 import { useWorldAccentVars } from '../../core/features/worldAccent/useWorldAccentVars.js';
 import useStore from '../../core/state/index.js';
 import AtmosphereLayer from './atmosphere/AtmosphereLayer.jsx';
+import { useAtmosphereNames } from './atmosphere/useAtmosphereNames.js';
 import { useMotion } from '../../core/hooks/useMotion.js';
 import { endPortal, getPortal, subscribePortal } from '../../core/motion/portal.js';
 
@@ -38,6 +39,7 @@ export default function AppShell({ children, locationKey }) {
   const rootVars = atmosphereColor
     ? { ...worldAccentVars, '--we-atmosphere-color': atmosphereColor }
     : worldAccentVars;
+  const atmosphereNames = useAtmosphereNames();
 
   // 进入世界的页面转场：遮罩挂在壳上才能跨过路由切换；播完 total 秒收定
   const { pack } = useMotion();
@@ -57,6 +59,7 @@ export default function AppShell({ children, locationKey }) {
         <AtmosphereLayer
           quiet={QUIET_SCENE.test(locationKey)}
           colorKey={atmosphereColor ?? ''}
+          names={atmosphereNames}
         />
         <a href="#we-main-content" className="we-skip-link">跳到主内容</a>
         <TopBar />

@@ -54,11 +54,11 @@ describe('AtmosphereLayer', () => {
     expect(raf).toHaveBeenCalledTimes(1);
   });
 
-  it.each([['代码雨', 'rain'], ['印台', 'press']])('主题选%s时第一帧换成对应场景（开始监听指针），卸载时撤掉监听', (_name, kind) => {
+  it('主题选代码雨时第一帧换成代码雨场景（开始跟随指针），卸载时撤掉监听', () => {
     const computed = window.getComputedStyle;
     vi.spyOn(window, 'getComputedStyle').mockImplementation((element) => {
       const style = computed(element);
-      return { getPropertyValue: (name) => (name === '--we-atmosphere-kind' ? kind : style.getPropertyValue(name)) };
+      return { getPropertyValue: (name) => (name === '--we-atmosphere-kind' ? 'rain' : style.getPropertyValue(name)) };
     });
     const add = vi.spyOn(window, 'addEventListener');
     const remove = vi.spyOn(window, 'removeEventListener');

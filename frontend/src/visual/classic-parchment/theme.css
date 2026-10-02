@@ -26,7 +26,7 @@
   --we-font-display-style: italic;
 
   /* § 3 质感 */
-  /* 背景氛围「印台」：深色书桌上不时落下铅字和印章，压出烫金凹印与朱印；纸面（正文区、浮层）铺回实底，不透光 */
+  /* 背景氛围「素压」：书桌左右边缘不时压下一个不上墨的大字，偶尔一方淡朱印；纸面（正文区、浮层）铺回实底，不透光 */
   --we-atmosphere-kind: press;
   --we-atmosphere-color: #d9b56a;
   --we-atmosphere-shade: rgba(20, 12, 6, 0.35);
@@ -36,8 +36,7 @@
   --we-atmosphere-grain: 0.03;
   --we-material-sheen: rgba(255, 248, 230, 0.10);
   --we-material-grain: 0.025;
-  /* 书桌比纸面深一档：会话页面板间的缝隙露出这层桌面；浮层铺实底 */
-  --we-stage-surface: var(--we-color-bg-surface);
+  /* 浮层铺实底 */
   --we-glass-opacity: 100%;
   --we-glass-blur: 16px;
   --we-pane-center-bg: color-mix(in srgb, var(--we-color-bg-canvas) 80%, transparent);

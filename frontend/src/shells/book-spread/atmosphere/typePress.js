@@ -1,61 +1,50 @@
 /**
- * 印台：背景氛围的一种（--we-atmosphere-kind: press），配羊皮纸。深色书桌是一张印台，铅字和印章不时从空中落下，压出一记「印」：
- * - 下落：离桌越高块越大、投影越远越虚；重力加速，越近影子越实；
- * - 接触：顿两帧，再压过头一下，块随即抬走，露出烫金凹印（印章是朱砂平印）；块底的尘从四边挤出去，摩擦急停；
- * - 凹印约 480ms 平复成浅印，停留几秒后淡出；偶尔一整行连续落下，像排字；
- * - 点击在指针处盖一方朱印。
- * 颜色：烫金取 --we-atmosphere-color（随世界封面），暗部取 --we-atmosphere-shade，朱砂取 --we-color-accent。
+ * 素压：背景氛围的一种（--we-atmosphere-kind: press），配羊皮纸。每隔几秒，画面左右边缘落下一个大字，不上墨、只压出凹痕：
+ * - 下落：只看到一团影子由虚变实、向落点收拢（重力加速）；
+ * - 接触：凹印整块出现，顿两帧再压过头、回弹；下沿的光边被灯擦成金色后退成微光，四边挤出一小撮尘；
+ * - 凹痕在十来秒里慢慢变平、淡出；约四次里有一次是一方淡朱印。
+ * 压的字从当前世界相关的名字里挑（世界名、角色名、玩家名，书架层是全部世界名），取不到名字时用默认字。
+ * 字比画面高的三到五成大、一部分出画，读起来是纹理而不是字；中间的阅读区不落，同屏最多三个印。
+ * 颜色：光边取 --we-atmosphere-color，暗边与影子取 --we-atmosphere-shade，朱印取 --we-color-accent。
  * 步进与绘制不依赖 React；AtmosphereLayer 负责循环、暂停与读取主题 token，经 createPressScene 驱动。
  */
 import { approachColor, createMoteSpriteCache, releaseMoteSprite } from './lightDust.js';
 
-const HAN = [...'印世界书卷章文字纸墨序史典志梦境天地风山河星月火夜光龙剑城门王灵归'];
-const LATIN = [...'ABCDEFGHIKLMNOPRSTVWXYZ&§¶'];
-const LARGE = [...'印书卷梦境龙剑灵&§¶'];
-const WORDS = ['世界引擎', 'WORLD', '卷一', '序章', 'FIN', 'ANNO', '第一回', '星图', 'LIBER', '归档'];
-const SEALS = ['世界之印', '万卷', '藏书', '印', '如意', '神游'];
+const DEFAULT_GLYPHS = [...'印书卷梦境龙剑灵世界史典志天地山河星月夜光城门王&¶§'];
+const DEFAULT_SEALS = ['世界之印', '万卷', '藏书', '如意', '神游'];
+const NO_NAMES = [];
+const LATIN_WORD = /\p{Script=Latin}+/gu;
+const HAN_NAME = /^\p{Script=Han}+$/u;
 
-// 一记印的节拍（秒）：接触后顿两帧、压过头、抬走；凹印平复、白热退去、停留后淡出
+// 一记印的节拍（秒）：落下、顿两帧、压过头、回弹平复；光边从金色退成微光；停留后淡出
+const FALL = [0.8, 1];
 const HOLD = 0.04;
-const PRESS = 0.06;
-const LIFT = 0.08;
+const PRESS = 0.08;
 const SETTLE = 0.48;
-const FLASH = 0.42;
-const FADE = 1.8;
-const LIFE = [4, 9];
-const LINE_STAGGER = 0.09;
-const CLICK_FALL = 0.3;
-// 块离桌最高时放大的比例、压过头时缩回的比例
-const ALTITUDE_SCALE = 0.6;
-const OVERSHOOT = 0.035;
-// 凹印深度：刚抬起时压得最深，平复后留一层浅印
-const DEPTH_PEAK = 1.35;
-const DEPTH_REST = 0.5;
-// 三档块：size 为字号（全屏时），fall 为下落秒数，dust 为接触时挤出的尘数
-const TIERS = {
-  small: { size: [22, 32], fall: [0.38, 0.48], alpha: 0.8, dust: 6 },
-  medium: { size: [44, 68], fall: [0.5, 0.62], alpha: 0.85, dust: 12 },
-  large: { size: [120, 170], fall: [0.72, 0.86], alpha: 0.5, dust: 28 },
-};
-const SPAWN_INTERVAL = [0.6, 1.4];
-const DUST_FRICTION = 7;
-const MOTE_FRICTION = 3;
-const MAX_DUST = 220;
-const INTRO = 0.8;
+const RIM = 1.4;
+const LIFE = [9, 13];
+const FADE = 3;
+const INTERVAL = [5, 9];
+const FIRST = 1.2;
+const MAX_MARKS = 3;
+const SEAL_SHARE = 0.25;
+// 字号占画面高度的比例；落点中心只在左右两侧的窄带里，字的外侧出画
+const GLYPH_SIZE = [0.32, 0.5];
+const SEAL_SIZE = [0.14, 0.2];
+const EDGE_BAND = [0.02, 0.1];
+const ROW_BAND = [0.2, 0.8];
+// 凹痕深度：压过头时最深，回弹后停在常态，随后慢慢变平
+const DEPTH_PEAK = 1.3;
+const DEPTH_REST = 1;
+const DUST = 10;
+const DUST_FRICTION = 6;
 const WARM_WHITE = { r: 255, g: 248, b: 228 };
-
 const between = (rand, [min, max]) => min + rand() * (max - min);
 const pick = (rand, list) => list[Math.floor(rand() * list.length)];
 const easeOut = (x) => 1 - (1 - x) ** 3;
+const clamp = (v, min, max) => Math.min(max, Math.max(min, v));
 const mix = (a, b, t) => ({ r: a.r + (b.r - a.r) * t, g: a.g + (b.g - a.g) * t, b: a.b + (b.b - a.b) * t });
 const rgba = (c, a) => `rgba(${Math.round(c.r)}, ${Math.round(c.g)}, ${Math.round(c.b)}, ${a})`;
-const clamp = (v, min, max) => Math.min(max, Math.max(min, v));
-
-/** 一块的各个时刻（秒，从生成起算） */
-function timesOf(piece) {
-  const reveal = piece.fall + HOLD + PRESS;
-  return { contact: piece.fall, reveal, end: reveal + piece.life + FADE };
-}
 
 /** 纸纹缺口：边缘多、印面少，随机挖掉几处，像纸面没吃上印泥 */
 function erodeSeal(g, w, h, size, border, rand) {
@@ -120,392 +109,235 @@ function createSealSprite(text, size, color, font, rand, doc = document) {
   return { canvas, w, h };
 }
 
-function overlaps(pieces, x, y, w, h, gap) {
-  return pieces.some((p) => Math.abs(p.x - x) < (p.w + w) / 2 + gap && Math.abs(p.y - y) < (p.h + h) / 2 + gap);
+const endOf = (mark) => mark.fall + mark.life + FADE;
+
+/** 接触后的凹痕深度：顿住 → 压过头 → 回弹到常态 → 随停留慢慢变平 */
+function depthAt(mark, since) {
+  if (since < HOLD) return DEPTH_REST;
+  if (since < HOLD + PRESS) return DEPTH_REST + (DEPTH_PEAK - DEPTH_REST) * easeOut((since - HOLD) / PRESS);
+  const settle = since - HOLD - PRESS;
+  if (settle < SETTLE) return DEPTH_PEAK + (DEPTH_REST - DEPTH_PEAK) * easeOut(settle / SETTLE);
+  return DEPTH_REST * (1 - 0.5 * clamp(since / mark.life, 0, 1));
 }
 
-/** 在空处找一个落点（中心坐标）；挤不下就放弃这一记 */
-function findSpot(state, w, h) {
-  const { pieces, width, height, rand } = state;
-  const gap = Math.min(w, h) * 0.4;
-  for (let i = 0; i < 12; i++) {
-    const x = w >= width ? width / 2 : w / 2 + rand() * (width - w);
-    const y = h >= height ? height / 2 : h / 2 + rand() * (height - h);
-    if (!overlaps(pieces, x, y, w, h, gap)) return { x, y };
+/** 在一侧边缘的窄带里找落点；和已有的印叠在一起就换个高度再试，挤不下就这一记不落 */
+function findSpot(state, side, w, h) {
+  const { width, height, rand, marks } = state;
+  for (let i = 0; i < 8; i++) {
+    const band = between(rand, EDGE_BAND) * width;
+    const x = side < 0 ? band : width - band;
+    const y = between(rand, ROW_BAND) * height;
+    if (!marks.some((m) => Math.abs(m.x - x) < (m.w + w) / 2 && Math.abs(m.y - y) < (m.h + h) / 2)) return { x, y };
   }
   return null;
 }
 
-const sizeOf = (state, tier) => between(state.rand, TIERS[tier].size) * state.unit;
+/**
+ * 从名字里挑能压的字：汉字等非拉丁文字逐字取，拉丁文字取每个词的首字母（大写），标点、数字、表情不取；
+ * 一、二、四个字的纯汉字名直接刻成印，三个字的照私印的习惯补一个「印」。都挑不出来时用默认字。
+ */
+export function poolsFrom(names) {
+  const glyphs = new Set();
+  const seals = new Set();
+  for (const name of names) {
+    for (const ch of name) if (/\p{L}/u.test(ch) && !/\p{Script=Latin}/u.test(ch)) glyphs.add(ch);
+    for (const word of name.match(LATIN_WORD) ?? []) glyphs.add(word[0].toUpperCase());
+    const chars = [...name];
+    if (!HAN_NAME.test(name)) continue;
+    if ([1, 2, 4].includes(chars.length)) seals.add(name);
+    else if (chars.length === 3) seals.add(`${name}印`);
+  }
+  return {
+    glyphs: glyphs.size ? [...glyphs] : DEFAULT_GLYPHS,
+    seals: seals.size ? [...seals] : DEFAULT_SEALS,
+  };
+}
 
-function makeType(state, ctx, glyph, tier, size) {
-  const { rand } = state;
-  const font = `600 ${size}px ${state.fonts.type}`;
+/** 挑一个画面上还没有的字；名字里的字都已经在画面上时允许重复 */
+function pickGlyph(state) {
+  const shown = new Set(state.marks.map((m) => m.glyph));
+  const fresh = state.pools.glyphs.filter((g) => !shown.has(g));
+  return pick(state.rand, fresh.length ? fresh : state.pools.glyphs);
+}
+
+function makeMark(state, ctx) {
+  const { rand, height } = state;
+  const seal = rand() < SEAL_SHARE && !state.marks.some((m) => m.kind === 'seal');
+  const base = { fall: between(rand, FALL), life: between(rand, LIFE), t: 0 };
+  if (seal) {
+    const size = clamp(between(rand, SEAL_SIZE) * height, 70, 180);
+    const sprite = createSealSprite(pick(rand, state.pools.seals), size, state.colors.seal, state.fonts.seal, rand);
+    return { ...base, kind: 'seal', sprite: sprite.canvas, size, w: sprite.w, h: sprite.h, rot: (rand() - 0.5) * 0.24 };
+  }
+  const size = clamp(between(rand, GLYPH_SIZE) * height, 140, 520);
+  const glyph = pickGlyph(state);
+  const font = `700 ${size}px ${state.fonts.type}`;
   ctx.font = font;
-  const w = Math.max(ctx.measureText(glyph).width, size * 0.5) + size * 0.18;
-  return {
-    kind: 'type', glyph, font, size, w, h: size * 1.16, tier,
-    fall: between(rand, TIERS[tier].fall), alpha: TIERS[tier].alpha, dust: TIERS[tier].dust,
-    rot0: (rand() - 0.5) * 0.2, rot: 0, life: between(rand, LIFE), t: 0,
-  };
-}
-
-function makeSeal(state, size, fall) {
-  const { rand } = state;
-  const seal = createSealSprite(pick(rand, SEALS), size, state.colors.seal, state.fonts.seal, rand);
-  return {
-    kind: 'seal', sprite: seal.canvas, size, w: seal.w, h: seal.h, tier: 'medium',
-    fall, alpha: 0.9, dust: TIERS.medium.dust,
-    rot0: (rand() - 0.5) * 0.4, rot: (rand() - 0.5) * 0.12, life: between(rand, LIFE), t: 0,
-  };
-}
-
-function addAt(state, piece, spot) {
-  piece.x = spot.x;
-  piece.y = spot.y;
-  state.pieces.push(piece);
-}
-
-/** 一整行连续落下：块挨着块，从左到右错开 */
-function spawnLine(state, ctx) {
-  const tier = state.rand() < 0.7 ? 'small' : 'medium';
-  const size = sizeOf(state, tier);
-  const sorts = [...pick(state.rand, WORDS)].map((glyph) => makeType(state, ctx, glyph, tier, size));
-  const total = sorts.reduce((sum, s) => sum + s.w, 0);
-  const spot = total < state.width * 0.9 && findSpot(state, total, sorts[0].h);
-  if (!spot) return;
-  let x = spot.x - total / 2;
-  sorts.forEach((sort, i) => {
-    sort.rot0 = 0;
-    sort.fall = sorts[0].fall;
-    sort.t = -i * LINE_STAGGER;
-    addAt(state, sort, { x: x + sort.w / 2, y: spot.y });
-    x += sort.w;
-  });
-}
-
-function randomType(state, ctx, tier) {
-  const glyph = pick(state.rand, tier === 'large' ? LARGE : state.rand() < 0.6 ? HAN : LATIN);
-  return makeType(state, ctx, glyph, tier, sizeOf(state, tier));
+  const w = Math.max(ctx.measureText(glyph).width, size * 0.5);
+  return { ...base, kind: 'glyph', glyph, font, size, w, h: size, rot: (rand() - 0.5) * 0.08 };
 }
 
 function spawn(state, ctx) {
-  if (state.pieces.length >= state.cap) return;
-  const roll = state.rand();
-  if (roll < 0.18) {
-    spawnLine(state, ctx);
-    return;
+  if (state.marks.length >= MAX_MARKS) return null;
+  const mark = makeMark(state, ctx);
+  state.side = -state.side;
+  const spot = findSpot(state, state.side, mark.w, mark.h);
+  if (!spot) {
+    if (mark.kind === 'seal') releaseMoteSprite(mark.sprite);
+    return null;
   }
-  let piece;
-  if (roll < 0.3) piece = makeSeal(state, sizeOf(state, 'medium'), between(state.rand, TIERS.medium.fall));
-  else if (roll < 0.36 && !state.pieces.some((p) => p.tier === 'large')) piece = randomType(state, ctx, 'large');
-  else piece = randomType(state, ctx, state.rand() < 0.62 ? 'small' : 'medium');
-  const spot = findSpot(state, piece.w, piece.h);
-  if (spot) addAt(state, piece, spot);
-  else if (piece.kind === 'seal') releaseMoteSprite(piece.sprite);
+  Object.assign(mark, spot);
+  state.marks.push(mark);
+  return mark;
 }
 
-/** 首帧铺一半的印，已经落定、平复，像桌上本来就有 */
-function seed(state, ctx) {
-  for (let i = 0; i < Math.round(state.cap * 0.45); i++) {
-    const piece = randomType(state, ctx, state.rand() < 0.65 ? 'small' : 'medium');
-    const spot = findSpot(state, piece.w, piece.h);
-    if (!spot) continue;
-    piece.t = timesOf(piece).reveal + SETTLE + state.rand() * piece.life * 0.8;
-    addAt(state, piece, spot);
-  }
-}
-
-function createMotes(width, height, rand) {
-  const count = Math.round(clamp((width * height) / 40000, 10, 36));
-  return Array.from({ length: count }, () => ({
-    x: rand() * width,
-    y: rand() * height,
-    vx: 0,
-    vy: 0,
-    r: 0.8 + rand() * rand() * 2.6,
-    drift: 3 + rand() * 6,
-    phase: rand() * Math.PI * 2,
-    twinkle: 0.4 + rand() * 0.9,
-  }));
-}
-
-/** 接触瞬间：尘从块底四边挤出去 */
-function squeezeDust(state, piece, strength) {
+/** 接触瞬间：尘从印的四边挤出去，摩擦急停 */
+function squeezeDust(state, mark) {
   const { rand, dust } = state;
-  for (let i = 0; i < piece.dust; i++) {
+  const strength = Math.sqrt(mark.size / 60);
+  for (let i = 0; i < DUST; i++) {
     const side = Math.floor(rand() * 4);
     const along = rand() - 0.5;
     const nx = [0, 0, -1, 1][side];
     const ny = [-1, 1, 0, 0][side];
-    const speed = (40 + rand() * 120) * strength;
-    const slide = (rand() - 0.5) * speed * 0.6;
+    const speed = (30 + rand() * 70) * strength;
     dust.push({
-      x: piece.x + (nx ? (nx * piece.w) / 2 : along * piece.w),
-      y: piece.y + (ny ? (ny * piece.h) / 2 : along * piece.h),
-      vx: nx * speed + ny * slide,
-      vy: ny * speed + nx * slide,
-      r: 0.6 + rand() * 1.4 * Math.sqrt(strength),
+      x: mark.x + (nx ? (nx * mark.w) / 2 : along * mark.w),
+      y: mark.y + (ny ? (ny * mark.h) / 2 : along * mark.h),
+      vx: nx * speed,
+      vy: ny * speed,
+      r: 0.8 + rand() * 1.2,
       age: 0,
-      life: 0.9 + rand() * 1.4,
+      life: 1 + rand() * 1.2,
     });
   }
-  if (dust.length > MAX_DUST) dust.splice(0, dust.length - MAX_DUST);
 }
 
-/** 接触瞬间：附近的浮尘被冲开 */
-function pushMotes(state, piece, strength) {
-  const reach = piece.size * 3;
-  for (const m of state.motes) {
-    const dx = m.x - piece.x;
-    const dy = m.y - piece.y;
-    const d = Math.hypot(dx, dy) || 1;
-    if (d > reach) continue;
-    const push = (1 - d / reach) * 160 * strength;
-    m.vx += (dx / d) * push;
-    m.vy += (dy / d) * push;
+/** 按秒推进：印落到桌面的那一帧挤出尘，淡出完的印收走；尘摩擦急停后淡掉。原地修改以免每帧分配。 */
+export function stepPress(state, dt) {
+  for (const mark of state.marks) {
+    const before = mark.t;
+    mark.t += dt;
+    if (before < mark.fall && mark.t >= mark.fall) squeezeDust(state, mark);
   }
-}
-
-function stepPieces(state, dt) {
-  for (const piece of state.pieces) {
-    const before = piece.t;
-    piece.t += dt;
-    if (before < piece.fall && piece.t >= piece.fall) {
-      squeezeDust(state, piece, piece.size / 40);
-      pushMotes(state, piece, piece.size / 40);
-    }
-  }
-  state.pieces = state.pieces.filter((piece) => {
-    if (piece.t < timesOf(piece).end) return true;
-    if (piece.kind === 'seal') releaseMoteSprite(piece.sprite);
+  state.marks = state.marks.filter((mark) => {
+    if (mark.t < endOf(mark)) return true;
+    if (mark.kind === 'seal') releaseMoteSprite(mark.sprite);
     return false;
   });
-}
-
-/** 挤出的尘摩擦急停后慢慢淡掉；浮尘被冲开后回到原来的慢漂 */
-function stepDust(state, dt) {
-  const { dust, motes, width, height } = state;
-  const dustDecay = Math.exp(-DUST_FRICTION * dt);
-  for (let i = dust.length - 1; i >= 0; i--) {
-    const d = dust[i];
+  const decay = Math.exp(-DUST_FRICTION * dt);
+  for (let i = state.dust.length - 1; i >= 0; i--) {
+    const d = state.dust[i];
     d.age += dt;
-    d.vx *= dustDecay;
-    d.vy *= dustDecay;
+    d.vx *= decay;
+    d.vy *= decay;
     d.x += d.vx * dt;
     d.y += d.vy * dt;
-    if (d.age > d.life) dust.splice(i, 1);
-  }
-  const moteDecay = Math.exp(-MOTE_FRICTION * dt);
-  for (const m of motes) {
-    m.phase += dt * 0.4;
-    m.vx *= moteDecay;
-    m.vy *= moteDecay;
-    m.x = (m.x + (m.vx + Math.cos(m.phase) * m.drift) * dt + width) % width;
-    m.y = (m.y + (m.vy + Math.sin(m.phase * 0.7) * m.drift) * dt + height) % height;
+    if (d.age > d.life) state.dust.splice(i, 1);
   }
 }
 
-function paletteOf({ foil, shade, seal }) {
-  return {
-    foil,
-    shade,
-    light: mix(foil, WARM_WHITE, 0.45),
-    deep: mix(foil, shade, 0.45),
-    metal: [mix(foil, shade, 0.55), mix(foil, shade, 0.82)],
-    stone: [mix(mix(seal, shade, 0.6), foil, 0.15), mix(seal, shade, 0.6)],
-  };
-}
-
-/** 块此刻离桌的高度（0 贴桌，1 最高）、缩放和不透明度：重力下落 → 顿 → 压过头 → 抬走 */
-function blockPose(piece) {
-  const { contact, reveal } = timesOf(piece);
-  const t = piece.t;
-  if (t < contact) {
-    const p = t / contact;
-    const altitude = 1 - p * p;
-    return { altitude, scale: 1 + ALTITUDE_SCALE * altitude, alpha: clamp(p / 0.2, 0, 1) };
-  }
-  if (t < contact + HOLD) return { altitude: 0, scale: 1, alpha: 1 };
-  if (t < reveal) return { altitude: 0, scale: 1 - OVERSHOOT * Math.sin((Math.PI * (t - contact - HOLD)) / PRESS), alpha: 1 };
-  const q = (t - reveal) / LIFT;
-  const altitude = 0.25 * easeOut(q);
-  return { altitude, scale: 1 + ALTITUDE_SCALE * altitude, alpha: 1 - q };
-}
-
-/** 块面：铅字刻着字，印章沾着印泥；投影的偏移与模糊不随变换缩放，按像素比换算 */
-function drawBlock(ctx, piece, pal, px) {
-  if (piece.t < 0 || piece.t >= timesOf(piece).reveal + LIFT) return;
-  const { altitude, scale, alpha } = blockPose(piece);
-  const { w, h, size } = piece;
-  const seal = piece.kind === 'seal';
+/** 下落中的印只画影子：离桌越高越大、越虚、越淡。用离屏的块投影，只留下影子本身 */
+function drawShadow(ctx, mark, shade, px) {
+  const p = clamp(mark.t / mark.fall, 0, 1);
+  const altitude = 1 - p * p;
+  const scale = 1 + 0.3 * altitude;
+  const w = mark.w * scale;
+  const h = mark.h * scale;
+  const away = 10000;
   ctx.save();
-  ctx.translate(piece.x, piece.y);
-  ctx.rotate(piece.rot + (piece.rot0 - piece.rot) * altitude);
-  ctx.scale(scale, scale);
-  ctx.globalAlpha = alpha;
-  ctx.shadowColor = rgba(pal.shade, 0.35 + 0.45 * (1 - altitude));
-  ctx.shadowBlur = (2 + size * 0.6 * altitude) * px;
-  ctx.shadowOffsetX = (1 + size * 0.55 * altitude) * px;
-  ctx.shadowOffsetY = (1.5 + size * 0.8 * altitude) * px;
-  const [top, bottom] = seal ? pal.stone : pal.metal;
-  const body = ctx.createLinearGradient(-w / 2, -h / 2, w / 2, h / 2);
-  body.addColorStop(0, rgba(top, 1));
-  body.addColorStop(1, rgba(bottom, 1));
-  ctx.fillStyle = body;
+  ctx.shadowColor = rgba(shade, (0.15 + 0.4 * p) * clamp(p / 0.3, 0, 1));
+  ctx.shadowBlur = (4 + mark.size * 0.5 * altitude) * px;
+  ctx.shadowOffsetX = (away + mark.size * 0.25 * altitude) * px;
+  ctx.shadowOffsetY = mark.size * 0.35 * altitude * px;
+  ctx.fillStyle = rgba(shade, 1);
   ctx.beginPath();
-  ctx.roundRect(-w / 2, -h / 2, w, h, size * 0.06);
+  ctx.roundRect(mark.x - w / 2 - away, mark.y - h / 2, w, h, mark.size * 0.06);
   ctx.fill();
-  ctx.shadowColor = 'transparent';
-  ctx.lineWidth = Math.max(1, size * 0.03);
-  ctx.strokeStyle = rgba(pal.light, 0.55);
-  ctx.beginPath();
-  ctx.moveTo(-w / 2, h / 2);
-  ctx.lineTo(-w / 2, -h / 2);
-  ctx.lineTo(w / 2, -h / 2);
-  ctx.stroke();
-  if (seal) {
-    ctx.globalAlpha = alpha * 0.55;
-    ctx.drawImage(piece.sprite, -w / 2, -h / 2, w, h);
-  } else {
-    ctx.font = piece.font;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillStyle = rgba(pal.shade, 0.7);
-    ctx.fillText(piece.glyph, 0, size * 0.03);
-    ctx.fillStyle = rgba(pal.light, 0.75);
-    ctx.fillText(piece.glyph, 0, 0);
-  }
   ctx.restore();
 }
 
-function drawSealMark(ctx, piece, alpha, flash) {
-  const { w, h, sprite } = piece;
-  ctx.drawImage(sprite, -w / 2, -h / 2, w, h);
-  if (!flash) return;
-  ctx.globalCompositeOperation = 'lighter';
-  ctx.globalAlpha = alpha * flash * 0.7;
-  ctx.drawImage(sprite, -w / 2, -h / 2, w, h);
-}
-
-/** 烫金凹印：上沿压出暗边、下沿接住一线光，金面带一道斜向金属光；flash 时整体偏白热 */
-function drawTypeMark(ctx, piece, pal, m, fade, flash) {
-  const depth = (m < SETTLE ? DEPTH_PEAK + (DEPTH_REST - DEPTH_PEAK) * easeOut(m / SETTLE) : DEPTH_REST) * fade;
-  const d = Math.max(0.6, piece.size * 0.028) * depth;
-  const { w, h, glyph } = piece;
-  ctx.font = piece.font;
+/** 素压的字：上沿暗边、下沿光边，字心挖空露出桌面再压一层薄暗，像压进去的 */
+function drawGlyph(ctx, mark, colors, since, alpha) {
+  const d = mark.size * 0.012 * depthAt(mark, since);
+  const rim = since < RIM ? 0.15 + 0.75 * (1 - since / RIM) ** 2 : 0.15;
+  const light = mix(colors.foil, WARM_WHITE, 0.35);
+  ctx.font = mark.font;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillStyle = rgba(pal.shade, 0.9);
-  ctx.fillText(glyph, -d * 0.6, -d);
-  ctx.fillStyle = rgba(pal.light, 0.35);
-  ctx.fillText(glyph, d * 0.4, d);
-  const foil = ctx.createLinearGradient(-w / 2, -h / 2, w / 2, h / 2);
-  foil.addColorStop(0, rgba(mix(pal.deep, WARM_WHITE, flash), 1));
-  foil.addColorStop(0.45, rgba(mix(pal.light, WARM_WHITE, flash), 1));
-  foil.addColorStop(0.6, rgba(mix(pal.foil, WARM_WHITE, flash), 1));
-  foil.addColorStop(1, rgba(mix(pal.deep, WARM_WHITE, flash), 1));
-  ctx.fillStyle = foil;
-  ctx.fillText(glyph, 0, 0);
+  ctx.globalAlpha = alpha;
+  ctx.fillStyle = rgba(colors.shade, 0.85);
+  ctx.fillText(mark.glyph, -d * 0.6, -d);
+  ctx.fillStyle = rgba(light, rim);
+  ctx.fillText(mark.glyph, d * 0.4, d);
+  ctx.globalAlpha = 1;
+  ctx.globalCompositeOperation = 'destination-out';
+  ctx.fillText(mark.glyph, 0, 0);
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.globalAlpha = alpha;
+  ctx.fillStyle = rgba(colors.shade, 0.18);
+  ctx.fillText(mark.glyph, 0, 0);
 }
 
-/** 块抬走后留下的印：白热一闪、凹印从深压平复成浅印，最后淡出 */
-function drawMark(ctx, piece, pal, intro) {
-  const { reveal, end } = timesOf(piece);
-  const m = piece.t - reveal;
-  if (m < 0) return;
-  const fade = clamp((end - piece.t) / FADE, 0, 1);
-  const alpha = piece.alpha * fade * fade * intro;
-  const flash = m < FLASH ? (1 - m / FLASH) ** 2 : 0;
+function drawMark(ctx, mark, colors) {
+  const since = mark.t - mark.fall;
+  const alpha = clamp((endOf(mark) - mark.t) / FADE, 0, 1) ** 2;
   ctx.save();
-  ctx.translate(piece.x, piece.y);
-  ctx.rotate(piece.rot);
-  ctx.globalAlpha = alpha;
-  if (piece.kind === 'seal') drawSealMark(ctx, piece, alpha, flash);
-  else drawTypeMark(ctx, piece, pal, m, fade, flash);
+  ctx.translate(mark.x, mark.y);
+  ctx.rotate(mark.rot);
+  if (mark.kind === 'seal') {
+    ctx.globalAlpha = alpha * 0.55;
+    ctx.drawImage(mark.sprite, -mark.w / 2, -mark.h / 2, mark.w, mark.h);
+    if (since < RIM) {
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.globalAlpha = alpha * 0.5 * (1 - since / RIM) ** 2;
+      ctx.drawImage(mark.sprite, -mark.w / 2, -mark.h / 2, mark.w, mark.h);
+    }
+  } else {
+    drawGlyph(ctx, mark, colors, since, alpha);
+  }
   ctx.restore();
 }
 
-function drawDust(ctx, { motes, dust }, sprite, intro) {
+/** 画一帧：先画桌上的印（字心挖空会擦掉下面的东西，所以最先画），再画尘和下落中的影子 */
+export function drawPress(ctx, state, sprite) {
+  const px = ctx.getTransform().a;
+  ctx.clearRect(0, 0, state.width, state.height);
+  for (const mark of state.marks) if (mark.t >= mark.fall) drawMark(ctx, mark, state.colors);
   ctx.save();
   ctx.globalCompositeOperation = 'lighter';
-  for (const m of motes) {
-    ctx.globalAlpha = intro * (0.18 + 0.14 * Math.sin(m.phase * m.twinkle * 3));
-    const s = m.r * 6;
-    ctx.drawImage(sprite, m.x - s / 2, m.y - s / 2, s, s);
-  }
-  for (const d of dust) {
-    ctx.globalAlpha = 0.85 * (1 - d.age / d.life) ** 1.5;
+  for (const d of state.dust) {
+    ctx.globalAlpha = 0.6 * (1 - d.age / d.life) ** 1.5;
     const s = d.r * 6;
     ctx.drawImage(sprite, d.x - s / 2, d.y - s / 2, s, s);
   }
   ctx.restore();
-}
-
-/** 按秒推进块与尘：块落到桌面的那一帧挤出尘、冲开浮尘，淡出完的块收走。原地修改以免每帧分配。 */
-export function stepPress(state, dt) {
-  stepPieces(state, dt);
-  stepDust(state, dt);
-}
-
-/** 推进一帧：落新块、处理点击、步进块与尘 */
-function advance(state, ctx, dt) {
-  state.time += dt;
-  if (!state.seeded) {
-    seed(state, ctx);
-    state.seeded = true;
-  }
-  state.spawnIn -= dt;
-  if (state.spawnIn <= 0) {
-    spawn(state, ctx);
-    state.spawnIn = between(state.rand, SPAWN_INTERVAL);
-  }
-  while (state.clicks.length) addAt(state, makeSeal(state, sizeOf(state, 'medium'), CLICK_FALL), state.clicks.shift());
-  stepPress(state, dt);
-}
-
-/** 画一帧：先画桌上的印，再画尘，最上面是还在空中或刚压下的块。整体强度由 CSS 的 opacity 按场景控制。 */
-export function drawPress(ctx, state, sprite) {
-  const pal = paletteOf(state.colors);
-  const px = ctx.getTransform().a;
-  const intro = Math.min(1, state.time / INTRO);
-  ctx.clearRect(0, 0, state.width, state.height);
-  for (const piece of state.pieces) drawMark(ctx, piece, pal, intro);
-  drawDust(ctx, state, sprite, intro);
-  for (const piece of state.pieces) drawBlock(ctx, piece, pal, px);
+  for (const mark of state.marks) if (mark.t < mark.fall) drawShadow(ctx, mark, state.colors.shade, px);
 }
 
 /**
- * 印台场景：AtmosphereLayer 每帧调 frame，每秒调 read 重读颜色和字体；dispose 时撤指针监听、释放贴图。
- * read(readColor, readValue)：readColor 把 token 换成 {r,g,b}，readValue 取 token 原文。
+ * 素压场景：AtmosphereLayer 每帧调 frame，每秒调 read 重读颜色、字体和名字；dispose 时释放贴图。
+ * read(readColor, readValue, names)：readColor 把 token 换成 {r,g,b}，readValue 取 token 原文，names 是挑字用的名字。
  */
-export function createPressScene(canvas, rand = Math.random) {
+export function createPressScene(_canvas, rand = Math.random) {
   const state = {
-    rand, width: 0, height: 0, unit: 1, cap: 6, time: 0, spawnIn: 0.4, seeded: false,
-    colors: null, fonts: { type: 'serif', seal: 'serif' }, pieces: [], motes: [], dust: [], clicks: [],
+    rand, width: 0, height: 0, side: rand() < 0.5 ? -1 : 1, spawnIn: FIRST, seeded: false,
+    colors: null, fonts: { type: 'serif', seal: 'serif' }, marks: [], dust: [],
+    names: NO_NAMES, pools: poolsFrom(NO_NAMES),
   };
   let target = null;
   const sprites = createMoteSpriteCache();
 
-  const onDown = (event) => {
-    const rect = canvas.getBoundingClientRect();
-    const x = event.clientX - rect.left;
-    const y = event.clientY - rect.top;
-    if (x >= 0 && y >= 0 && x <= rect.width && y <= rect.height) state.clicks.push({ x, y });
-  };
-  window.addEventListener('pointerdown', onDown, { passive: true });
-
   return {
     resize(width, height) {
-      Object.assign(state, {
-        width,
-        height,
-        unit: clamp(Math.min(width, height) / 900, 0.45, 1.15),
-        cap: Math.round(clamp((width * height) / 60000, 6, 20)),
-        motes: createMotes(width, height, rand),
-      });
+      state.width = width;
+      state.height = height;
     },
-    read(readColor, readValue) {
+    read(readColor, readValue, names = NO_NAMES) {
+      if (names !== state.names) {
+        state.names = names;
+        state.pools = poolsFrom(names);
+      }
       const foil = readColor('--we-atmosphere-color');
       const shade = readColor('--we-atmosphere-shade');
       const seal = readColor('--we-color-accent');
@@ -518,14 +350,23 @@ export function createPressScene(canvas, rand = Math.random) {
       state.colors = prev
         ? { foil: approachColor(prev.foil, target.foil, dt), shade: approachColor(prev.shade, target.shade, dt), seal: target.seal }
         : target;
-      advance(state, ctx, dt);
+      if (!state.seeded) {
+        const first = spawn(state, ctx);
+        if (first) first.t = first.fall + SETTLE + RIM + rand() * first.life * 0.4;
+        state.seeded = true;
+      }
+      state.spawnIn -= dt;
+      if (state.spawnIn <= 0) {
+        spawn(state, ctx);
+        state.spawnIn = between(rand, INTERVAL);
+      }
+      stepPress(state, dt);
       drawPress(ctx, state, sprites.get(state.colors.foil));
     },
     dispose() {
-      window.removeEventListener('pointerdown', onDown);
       sprites.release();
-      for (const piece of state.pieces) if (piece.kind === 'seal') releaseMoteSprite(piece.sprite);
-      state.pieces = [];
+      for (const mark of state.marks) if (mark.kind === 'seal') releaseMoteSprite(mark.sprite);
+      state.marks = [];
     },
   };
 }

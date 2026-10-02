@@ -81,7 +81,7 @@ export function releaseMoteSprite(sprite) {
   sprite.height = 0;
 }
 
-/** 按颜色缓存柔光点贴图：缓动中的颜色跨过整数才重画，旧贴图立即释放。光尘和印台共用。 */
+/** 按颜色缓存柔光点贴图：缓动中的颜色跨过整数才重画，旧贴图立即释放。光尘和素压共用。 */
 export function createMoteSpriteCache(doc = document) {
   let sprite = null;
   let key = '';
