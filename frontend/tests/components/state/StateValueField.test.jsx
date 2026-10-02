@@ -1,5 +1,5 @@
 import React from 'react';
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import StateValueField from '../../../src/components/state/StateValueField.jsx';
 
@@ -38,6 +38,26 @@ describe('StateValueField', () => {
     await waitFor(() => {
       expect(onSave).toHaveBeenCalledWith('identity_char', JSON.stringify('医生'));
     });
+  });
+
+  it('未编辑的空文本字段不会自动保存，失焦也不会', () => {
+    vi.useFakeTimers();
+    try {
+      const onSave = vi.fn();
+      render(
+        <StateValueField
+          field={{ field_key: 'identity_char', type: 'text', value_json: null }}
+          onSave={onSave}
+        />,
+      );
+
+      fireEvent.blur(screen.getByRole('textbox'));
+      act(() => { vi.advanceTimersByTime(1000); });
+
+      expect(onSave).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('布尔字段切换后立即保存布尔值', () => {

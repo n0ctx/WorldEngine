@@ -69,7 +69,11 @@ function useAutoSaveStateValue(type, local, saveValue) {
 
 function getAutoSaveValue(type, local) {
   if (type === 'number') return local === '' || local == null ? null : Number(local);
-  return String(local ?? '');
+  return toTextValue(local);
+}
+
+function toTextValue(local) {
+  return local == null ? null : String(local);
 }
 
 function BooleanStateFieldEditor({ field, local, setLocal, saveValue }) {
@@ -211,7 +215,7 @@ function TextStateFieldEditor({ local, setLocal, saveValue, size }) {
       type="text"
       value={local ?? ''}
       onChange={(e) => setLocal(e.target.value)}
-      onBlur={() => saveValue(String(local ?? ''))}
+      onBlur={() => saveValue(toTextValue(local))}
     />
   );
 }
