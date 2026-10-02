@@ -42,10 +42,13 @@ function isBlank(text) {
 }
 
 // 给还没排期的到达段排进打字队列：接在上一段打完之后逐字出现；
-// 到达快过打字时压缩间隔，保证打字进度最多落后真实到达 timing.lag
+// 到达快过打字时压缩间隔，保证打字进度最多落后真实到达 timing.lag；
+// 供应商整段整段返回时，两次到达隔得比 lag 还久，落后上限放宽到这个间隔（最多 lag 的两倍），
+// 打字铺满整个间隔，不再「一下打完、再空等下一段」
 // 顺带丢掉早已显形完的段：它们的字还原成普通文字，逐字包裹只留在还在出现的字上，
 // 否则流得越久包裹越多，每个新到的字都要把整篇重渲染一遍
 function schedule(track, now, timing) {
+  const lag = Math.max(timing.lag, Math.min(now - track.lastAt, timing.lag * 2));
   let typedUntil = track.typedUntil;
   const chunks = [];
   for (const chunk of track.chunks) {
@@ -54,11 +57,11 @@ function schedule(track, now, timing) {
       continue;
     }
     const start = Math.max(now, typedUntil);
-    const step = Math.min(timing.stagger, Math.max(0, now + timing.lag - start) / Math.max(1, chunk.length));
+    const step = Math.min(timing.stagger, Math.max(0, now + lag - start) / Math.max(1, chunk.length));
     typedUntil = start + chunk.length * step;
     chunks.push({ ...chunk, at: now, wait: start - now, step, end: typedUntil, scheduled: true });
   }
-  return { ...track, chunks: limitPending(chunks, now), typedUntil, typing: true, caretBack: false };
+  return { ...track, chunks: limitPending(chunks, now), typedUntil, lastAt: now, typing: true, caretBack: false };
 }
 
 // 段内已经在出现的字数：第 i 个字在 at + wait + i * step 出现，正好此刻出现的还没开始播
@@ -205,6 +208,8 @@ function initialTrack(text, streaming, caret) {
     caret,
     chunks: streaming && text ? [pendingChunk(0, text.length)] : [],
     typedUntil: 0,
+    // 还没有上一次到达：now - Infinity 是负无穷，落后上限取默认 lag
+    lastAt: Infinity,
     typing: false,
     caretBack: false,
     fading: false,

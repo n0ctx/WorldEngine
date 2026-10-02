@@ -145,6 +145,25 @@ describe('流式书写', () => {
     expect(chars(container).at(-1).textContent).toBe('秋');
   });
 
+  it('整段整段返回、两段隔得比 lag 久时，打字铺满整个间隔，不再打完就空等', () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'performance'] });
+    const gap = Math.round(STREAM.lag * 1000 * 1.5);
+    const { container, rerender } = render(streamItem('春'.repeat(60)));
+    act(() => { vi.advanceTimersByTime(gap); });
+    rerender(streamItem('春'.repeat(60) + '夏'.repeat(60)));
+    const last = delays(container).at(-1);
+    expect(last).toBeGreaterThan(STREAM.lag * 1000);
+    expect(last).toBeLessThanOrEqual(gap);
+  });
+
+  it('到达间隔很短的逐字流，落后上限仍是 lag', () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'performance'] });
+    const { container, rerender } = render(streamItem('春'.repeat(60)));
+    act(() => { vi.advanceTimersByTime(30); });
+    rerender(streamItem('春'.repeat(60) + '夏'.repeat(60)));
+    expect(delays(container).at(-1)).toBeLessThanOrEqual(STREAM.lag * 1000);
+  });
+
   it('生成持续很久，逐字包裹的数量不随正文变长而累积', () => {
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'performance'] });
     const { container, rerender } = render(streamItem(''));
