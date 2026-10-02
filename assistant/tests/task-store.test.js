@@ -149,10 +149,13 @@ test('deleteTask 移除 task 与订阅者集合', () => {
   assert.equal(taskStore.__testables.sseClients.has(t.id), false);
 });
 
-test('buildTaskSnapshot 与 getLatestRecoverableTask 返回可恢复快照', () => {
+test('buildTaskSnapshot 与 getLatestRecoverableTask 返回可恢复快照', (t) => {
+  // 两次更新落在同一毫秒时 updatedAt 相同、谁算最新不确定；模拟时钟让后一次确实更晚
+  t.mock.timers.enable({ apis: ['Date'], now: Date.now() });
   const oldTask = freshTask();
   taskStore.setStatus(oldTask.id, 'running');
 
+  t.mock.timers.tick(1);
   const latestTask = freshTask();
   taskStore.setStatus(latestTask.id, 'failed', { error: taskStore.__testables.RESTART_INTERRUPTED_ERROR });
   taskStore.appendMessage(latestTask.id, { role: 'user', content: 'hi' });

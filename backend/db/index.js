@@ -13,6 +13,10 @@ const db = new Database(DB_PATH);
 
 // 每次连接后立即开启外键约束
 db.pragma('foreign_keys = ON');
+// WAL：写入先追加到日志、提交时不再逐次刷盘，同步写库不再长时间卡住事件循环。
+// NORMAL 下进程崩溃不丢数据，只有断电/系统崩溃可能丢最后几次提交。
+db.pragma('journal_mode = WAL');
+db.pragma('synchronous = NORMAL');
 
 const dbLog = createLogger('db', 'blue');
 const SLOW_QUERY_MS = 200;
