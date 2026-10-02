@@ -1,6 +1,7 @@
 import {
   createWorldEntry, getWorldEntryById, getAllWorldEntries, updateWorldEntry, deleteWorldEntry, reorderWorldEntries,
 } from '../db/queries/prompt-entries.js';
+import { replaceEntryConditions } from '../db/queries/entry-conditions.js';
 import { createLogger, formatMeta } from '../utils/logger.js';
 
 const log = createLogger('svc', 'green');
@@ -37,4 +38,10 @@ export function deleteWorldPromptEntry(id) {
 
 export function reorderWorldPromptEntries(worldId, orderedIds) {
   reorderWorldEntries(worldId, orderedIds);
+}
+
+/** 整体替换条目的状态触发条件 */
+export function replaceWorldPromptEntryConditions(entryId, conditions) {
+  replaceEntryConditions(entryId, conditions);
+  log.info(`prompt_entry.conditions_replace  ${formatMeta({ entryId, count: conditions.length })}`);
 }

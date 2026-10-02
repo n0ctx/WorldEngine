@@ -1,12 +1,12 @@
 // 世界卡基础信息，以及读取世界时附带的目录（条目 / 字段 / 角色 / 玩家卡）。
 
-import { getAllWorlds, setWorldProfileDefaults } from '../../../backend/db/queries/worlds.js';
+import { getAllWorlds } from '../../../backend/db/queries/worlds.js';
 import { getWorldById } from '../../../backend/services/worlds.js';
+import { updateWorldProfileDefaults } from '../../../backend/services/world-profile-defaults.js';
 import { getAllWorldEntries } from '../../../backend/db/queries/prompt-entries.js';
 
 import { normalizeProposal } from '../normalize-proposal.js';
 import { applyProposal } from '../apply-proposal.js';
-import { parseWorldDate } from '../../../backend/utils/world-date.js';
 import { compact, fail, pickKnown, requireObjectKeys, requireText } from './common.js';
 import { listFieldRows, fieldRef } from './fields.js';
 import { listCharacters, listPersonaRefs } from './cards.js';
@@ -55,24 +55,13 @@ function worldProfileView(profileDefaultsJson) {
 function saveWorldProfile(worldId, profile) {
   if (!profile) return;
   if (typeof profile !== 'object' || Array.isArray(profile)) fail('profile 必须是 { 时间, 地点 } 对象');
-  const current = loadWorld(worldId).profile_defaults_json;
-  let next = {};
-  try { next = JSON.parse(current || '{}'); } catch { next = {}; }
+  const patch = {};
   for (const [name, raw] of Object.entries(profile)) {
     const key = WORLD_PROFILE_LABELS[name] ?? (name === 'time' || name === 'location' ? name : null);
     if (!key) fail(`世界档案只有时间、地点，不支持 "${name}"`);
-    if (raw == null || raw === '') {
-      delete next[key];
-      continue;
-    }
-    if (typeof raw !== 'string' || !raw.trim()) fail(`${key === 'time' ? '时间' : '地点'}须为文本`);
-    if (key === 'time' && !parseWorldDate(raw.trim())) fail('时间格式无效，用 YYYY-MM-DD 或 YYYY-MM-DDTHH:mm');
-    next[key] = raw.trim();
+    patch[key] = raw;
   }
-  const saved = {};
-  if (next.time) saved.time = next.time;
-  if (next.location) saved.location = next.location;
-  setWorldProfileDefaults(worldId, JSON.stringify(saved));
+  updateWorldProfileDefaults(worldId, patch);
 }
 
 export async function createWorld(session, data) {

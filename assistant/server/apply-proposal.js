@@ -4,12 +4,13 @@
 
 import { createWorld, updateWorld, deleteWorld } from '../../backend/services/worlds.js';
 import { createCharacter, updateCharacter, deleteCharacter } from '../../backend/services/characters.js';
-import { updatePersona, updatePersonaByIdService } from '../../backend/services/personas.js';
+import { activatePersona, createPersona, updatePersona, updatePersonaByIdService } from '../../backend/services/personas.js';
 import { updateConfig } from '../../backend/services/config.js';
 import {
   createWorldPromptEntry,
   updateWorldPromptEntry,
   deleteWorldPromptEntry,
+  replaceWorldPromptEntryConditions,
 } from '../../backend/services/prompt-entries.js';
 import {
   createWorldStateField,
@@ -32,16 +33,13 @@ import {
   createCustomCssSnippet,
   updateCustomCssSnippet,
   deleteCustomCssSnippet,
-} from '../../backend/db/queries/custom-css-snippets.js';
+} from '../../backend/services/custom-css-snippets.js';
 import {
   createRegexRule,
   updateRegexRule,
   deleteRegexRule,
-} from '../../backend/db/queries/regex-rules.js';
-import {
-  replaceEntryConditions,
-} from '../../backend/db/queries/entry-conditions.js';
-import { createPersona as createPersonaDb, setActivePersona, getPersonaById } from '../../backend/db/queries/personas.js';
+} from '../../backend/services/regex-rules.js';
+import { getPersonaById } from '../../backend/db/queries/personas.js';
 import {
   updateCharacterDefaultStateValueValidated,
   updatePersonaDefaultStateValueByPersonaIdValidated,
@@ -141,14 +139,14 @@ function applyWorldEntryOp(op, worldId) {
   if (op.op === 'create') {
     const entry = createWorldPromptEntry(worldId, op);
     if (Array.isArray(op.conditions) && op.conditions.length > 0 && entry?.trigger_type === 'state') {
-      replaceEntryConditions(entry.id, op.conditions);
+      replaceWorldPromptEntryConditions(entry.id, op.conditions);
     }
     return entry.id;
   }
   if (op.op === 'update' && op.id) {
     const updatedEntry = updateWorldPromptEntry(op.id, pickAllowed(op, ['title', 'description', 'content', 'keywords', 'keyword_scope', 'keyword_logic', 'active_turns', 'condition_logic', 'trigger_type', 'token']));
     if (Array.isArray(op.conditions) && updatedEntry?.trigger_type === 'state') {
-      replaceEntryConditions(op.id, op.conditions);
+      replaceWorldPromptEntryConditions(op.id, op.conditions);
     }
   } else if (op.op === 'delete' && op.id) {
     deleteWorldPromptEntry(op.id);
@@ -201,12 +199,12 @@ function createPersonaProposal(proposal, { entityId, changes }) {
   if (!worldId) throw new Error('persona-card create 需要 worldId（entityId 或 changes.world_id）');
   preValidateStateValueOps(proposal.stateValueOps, { worldId });
   const safeChanges = pickAllowed(changes, ['name', 'description', 'system_prompt']);
-  const persona = createPersonaDb(worldId, {
+  const persona = createPersona(worldId, {
     name: safeChanges.name || '新玩家',
     description: safeChanges.description || '',
     system_prompt: safeChanges.system_prompt || '',
   });
-  setActivePersona(worldId, persona.id);
+  activatePersona(worldId, persona.id);
   applyStateValueOps(proposal.stateValueOps, { personaId: persona.id, worldId });
   return persona;
 }

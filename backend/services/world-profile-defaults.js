@@ -55,16 +55,12 @@ function normalizeWorldProfileValue(fieldKey, raw) {
   if (typeof raw !== 'string') throw new Error(fieldKey === 'time' ? '时间格式无效' : '地点须为文本');
   const trimmed = raw.trim();
   if (!trimmed || isPlaceholderValue(trimmed)) return null;
-  if (fieldKey === 'time' && !parseWorldDate(trimmed)) throw new Error('时间格式无效');
+  if (fieldKey === 'time' && !parseWorldDate(trimmed)) throw new Error('时间格式无效，用 YYYY-MM-DD 或 YYYY-MM-DDTHH:mm');
   return trimmed;
 }
 
 /** 写一个字段。null、空文本表示清除。 */
 export function updateWorldProfileDefault(worldId, fieldKey, valueJson) {
-  const field = WORLD_PROFILE_DEFAULT_FIELDS.find((item) => item.key === fieldKey);
-  if (!field) throw new Error(`档案字段不可编辑: ${fieldKey}`);
-  const world = requireWorld(worldId);
-  const defaults = parseProfileDefaults(world.profile_defaults_json);
   let raw = null;
   if (valueJson != null) {
     try {
@@ -73,8 +69,22 @@ export function updateWorldProfileDefault(worldId, fieldKey, valueJson) {
       throw new Error('value_json 格式无效');
     }
   }
-  const value = normalizeWorldProfileValue(fieldKey, raw);
-  if (value == null) delete defaults[fieldKey];
-  else defaults[fieldKey] = value;
+  updateWorldProfileDefaults(worldId, { [fieldKey]: raw });
+}
+
+/** 一次写多个字段 { time?, location? }。null、空文本表示清除；全部校验通过才落库。 */
+export function updateWorldProfileDefaults(worldId, patch) {
+  for (const fieldKey of Object.keys(patch)) {
+    if (!WORLD_PROFILE_DEFAULT_FIELDS.some((item) => item.key === fieldKey)) {
+      throw new Error(`档案字段不可编辑: ${fieldKey}`);
+    }
+  }
+  const world = requireWorld(worldId);
+  const defaults = parseProfileDefaults(world.profile_defaults_json);
+  for (const [fieldKey, raw] of Object.entries(patch)) {
+    const value = normalizeWorldProfileValue(fieldKey, raw);
+    if (value == null) delete defaults[fieldKey];
+    else defaults[fieldKey] = value;
+  }
   setWorldProfileDefaults(worldId, JSON.stringify(defaults));
 }

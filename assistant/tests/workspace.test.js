@@ -232,3 +232,17 @@ test('character / persona：profile 写入档案初始值，未知字段和错�
   assert.equal('核心性格' in persona.profile, false);
   await assert.rejects(() => ws.update(personaRef, { profile: { 核心性格: ['温和'] } }), /没有档案字段 "核心性格"/);
 });
+
+test('world：profile 经业务层写入，占位值不落库，时间格式无效时报错并给出格式', async () => {
+  const ws = createWorkspace({});
+  await ws.create('world', { name: 'world-profile', profile: { 时间: '1024-03-05', 地点: '未知' } });
+  assert.deepEqual(JSON.parse(ws.read('world')).profile, { 时间: '1024-03-05' });
+
+  const worldRef = JSON.parse(ws.read('world')).ref;
+  await ws.update(worldRef, { profile: { 地点: '雾港' } });
+  assert.deepEqual(JSON.parse(ws.read('world')).profile, { 时间: '1024-03-05', 地点: '雾港' });
+
+  await assert.rejects(() => ws.update(worldRef, { profile: { 时间: '下周' } }), /时间格式无效，用 YYYY-MM-DD/);
+  await assert.rejects(() => ws.update(worldRef, { profile: { 天气: '晴' } }), /世界档案只有时间、地点/);
+  assert.deepEqual(JSON.parse(ws.read('world')).profile, { 时间: '1024-03-05', 地点: '雾港' });
+});
