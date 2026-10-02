@@ -35,6 +35,7 @@ test('角色卡档案初始值：列出可编辑字段（不含年龄），写�
   assert.equal(byKey.gender, null);
 
   assert.equal((await patch(`${base}/birth_date`, { value_json: JSON.stringify('不是日期') })).status, 400);
+  assert.equal((await patch(`${base}/birth_date`, { value_json: JSON.stringify('') })).status, 200);
   assert.equal((await patch(`${base}/age_recorded`, { value_json: JSON.stringify({ age: 3 }) })).status, 400);
   assert.equal((await patch(`${base}/gender`, {})).status, 400);
   assert.equal((await ctx.request('/api/characters/no-such/profile-defaults')).status, 404);

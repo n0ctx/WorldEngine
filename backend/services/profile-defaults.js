@@ -53,7 +53,8 @@ export function updateProfileDefault(kind, id, fieldKey, valueJson) {
 
   const defaults = parseProfileDefaults(row.profile_defaults_json);
   const raw = parseValueJson(valueJson);
-  const value = raw == null ? null : normalizeManualProfileValue(field, raw);
+  const clearing = raw == null || (typeof raw === 'string' && raw.trim() === '');
+  const value = clearing ? null : normalizeManualProfileValue(field, raw);
   if (value == null || value === '' || (Array.isArray(value) && value.length === 0)) delete defaults[fieldKey];
   else defaults[fieldKey] = value;
   owner.save(id, JSON.stringify(defaults));
