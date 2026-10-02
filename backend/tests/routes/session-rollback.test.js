@@ -103,6 +103,36 @@ test('DELETE /api/sessions/:sessionId/messages/:messageId 保留完整轮次，�
   assert.deepEqual(sessionWorldValues(session.id), { mood: '"平静"' });
 });
 
+test('DELETE /api/sessions/:sessionId/messages/:messageId 回滚中途出错时消息、轮次记录、日记与状态都保持原样', async () => {
+  const world = insertWorld(ctx.sandbox.db, { name: 'delete-atomic-世界' });
+  const character = insertCharacter(ctx.sandbox.db, world.id, { name: 'delete-atomic-角色' });
+  const session = insertSession(ctx.sandbox.db, { character_id: character.id, world_id: world.id });
+  insertSessionWorldStateValue(ctx.sandbox.db, session.id, world.id, { field_key: 'mood', runtime_value_json: '"暴怒"' });
+  insertMessage(ctx.sandbox.db, session.id, { role: 'user', content: 'u1', created_at: 1 });
+  insertMessage(ctx.sandbox.db, session.id, { role: 'assistant', content: 'a1', created_at: 2 });
+  const secondUser = insertMessage(ctx.sandbox.db, session.id, { role: 'user', content: 'u2', created_at: 3 });
+  insertMessage(ctx.sandbox.db, session.id, { role: 'assistant', content: 'a2', created_at: 4 });
+  // 保留下来的第 1 轮快照损坏，还原状态这一步会抛错
+  insertTurnRecord(ctx.sandbox.db, session.id, { round_index: 1, state_snapshot: '{损坏' });
+  insertTurnRecord(ctx.sandbox.db, session.id, { round_index: 2, state_snapshot: worldSnapshot({ mood: '"暴怒"' }) });
+  insertDailyEntry(ctx.sandbox.db, session.id, { date_str: '1000-01-02', triggered_by_round_index: 2 });
+  const diaryDir = path.join(ctx.sandbox.root, 'daily', session.id);
+  fs.mkdirSync(diaryDir, { recursive: true });
+  fs.writeFileSync(path.join(diaryDir, '1000-01-02.md'), 'd2', 'utf-8');
+
+  const res = await ctx.request(`/api/sessions/${session.id}/messages/${secondUser.id}`, { method: 'DELETE' });
+
+  assert.equal(res.status, 500);
+  const messages = ctx.sandbox.db.prepare('SELECT content FROM messages WHERE session_id = ? ORDER BY created_at').all(session.id);
+  assert.deepEqual(messages.map((m) => m.content), ['u1', 'a1', 'u2', 'a2']);
+  const rounds = ctx.sandbox.db.prepare('SELECT round_index FROM turn_records WHERE session_id = ? ORDER BY round_index').all(session.id);
+  assert.deepEqual(rounds.map((r) => r.round_index), [1, 2]);
+  const diaries = ctx.sandbox.db.prepare('SELECT date_str FROM daily_entries WHERE session_id = ?').all(session.id);
+  assert.deepEqual(diaries.map((d) => d.date_str), ['1000-01-02']);
+  assert.equal(fs.existsSync(path.join(diaryDir, '1000-01-02.md')), true);
+  assert.deepEqual(sessionWorldValues(session.id), { mood: '"暴怒"' });
+});
+
 test('rollbackSession redoLatestRound=true：末尾是 AI 回复也把最后一轮算作待重做（回到 N-1 轮）', async () => {
   const { rollbackSession } = await freshImport('backend/app/shared/rollback/rollback-session.js');
   const { getModeForSession } = await freshImport('backend/app/modes/index.js');
@@ -136,12 +166,12 @@ test('rollbackSession redoLatestRound=true：末尾是 AI 回复也把最后一�
   const { stateRolledBack } = await rollbackSession(
     getModeForSession(session.id),
     session.id,
-    async () => {},
+    {},
     { redoLatestRound: true },
   );
 
   assert.equal(stateRolledBack, true);
-  // 消息本身没有被截断（截断由 truncateMessages 回调负责，这里传的是空实现），
+  // 消息本身没有被截断（这里没有传截断函数），
   // 但最后一轮的 turn record 被删掉、状态回到第一轮
   const messages = ctx.sandbox.db.prepare('SELECT id, role FROM messages WHERE session_id = ? ORDER BY created_at').all(session.id);
   assert.deepEqual(messages.map((m) => m.role), ['user', 'assistant', 'user', 'assistant']);
@@ -173,7 +203,7 @@ test('rollbackSession redoLatestRound=true：被删轮次不再是召回候选�
   await rollbackSession(
     getModeForSession(session.id),
     session.id,
-    async () => {},
+    {},
     { redoLatestRound: true },
   );
 

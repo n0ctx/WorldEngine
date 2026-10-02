@@ -89,7 +89,7 @@ test('rollbackSession 回滚后：实体改名、关系排他谓词换手、事�
   const { stateRolledBack } = await rollbackSession(
     getModeForSession(session.id),
     session.id,
-    async () => {},
+    {},
     { redoLatestRound: true },
   );
   assert.equal(stateRolledBack, true);
@@ -127,7 +127,7 @@ test('删除消息后只由被删轮次产生的实体和关系消失，更早�
     stateRollback: { captureFullSnapshot },
     rollbackSessionModule: { rollbackSession },
     modes: { getModeForSession },
-    sessionsService: { deleteMessage, deleteMessagesAfter },
+    sessionsService: { cleanupMessagesFrom, deleteMessage, deleteMessagesAfter },
   } = await loadDeps();
 
   const world = insertWorld(sandbox.db, { name: '删除消息-世界' });
@@ -166,9 +166,12 @@ test('删除消息后只由被删轮次产生的实体和关系消失，更早�
   });
 
   // 删除第 2 轮的用户消息：删除该消息及之后全部内容（等同 DELETE /messages/:id 路由行为）
-  await rollbackSession(getModeForSession(session.id), session.id, async () => {
-    await deleteMessagesAfter(user2.id);
-    await deleteMessage(user2.id);
+  await rollbackSession(getModeForSession(session.id), session.id, {
+    cleanup: () => cleanupMessagesFrom(user2.id, { inclusive: true }),
+    truncate: () => {
+      deleteMessagesAfter(user2.id);
+      deleteMessage(user2.id);
+    },
   });
 
   const entities = listCurrentEntities(session.id);
@@ -210,7 +213,7 @@ test('首轮前手动编辑（第 0 轮）在重新生成第 1 轮后保留，�
   const { stateRolledBack } = await rollbackSession(
     getModeForSession(session.id),
     session.id,
-    async () => {},
+    {},
     { redoLatestRound: true },
   );
   assert.equal(stateRolledBack, true);

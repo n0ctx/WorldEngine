@@ -85,7 +85,7 @@ test('updateMessageAndDeleteAfter 会更新当前消息并删除之后消息', a
   insertMessage(sandbox.db, session.id, { role: 'assistant', content: '旧回复', created_at: 2 });
   insertMessage(sandbox.db, session.id, { role: 'user', content: '会被删除', created_at: 3 });
 
-  await updateMessageAndDeleteAfter(first.id, '新问题');
+  updateMessageAndDeleteAfter(first.id, '新问题');
 
   const rows = sandbox.db.prepare(`
     SELECT role, content FROM messages WHERE session_id = ? ORDER BY created_at ASC
@@ -103,7 +103,7 @@ test('deleteMessagesAfter 与 deleteAllMessagesBySessionId 会删除命中的后
   insertMessage(sandbox.db, session.id, { role: 'assistant', content: '二', created_at: 11 });
   insertMessage(sandbox.db, session.id, { role: 'user', content: '三', created_at: 12 });
 
-  await deleteMessagesAfter(first.id);
+  deleteMessagesAfter(first.id);
   let rows = sandbox.db.prepare(`
     SELECT role, content FROM messages WHERE session_id = ? ORDER BY created_at ASC
   `).all(session.id);

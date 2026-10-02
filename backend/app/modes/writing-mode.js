@@ -2,6 +2,7 @@ import { getChapterTitle, upsertChapterTitle } from '../../db/queries/chapter-ti
 import { generateChapterTitle } from '../../memory/chapter-title-generator.js';
 import { getConfig, getEffectiveChapterTurnSize, getWritingLlmConfig } from '../../services/config.js';
 import {
+  cleanupMessagesFrom,
   createMessage,
   deleteMessagesAfter,
   getMessagesBySessionId,
@@ -31,6 +32,7 @@ export const writingMode = {
     touch: touchWritingSession,
     createMessage,
     getMessages: getMessagesBySessionId,
+    cleanupMessagesFrom,
     deleteMessagesAfter,
   },
 

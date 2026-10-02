@@ -10,11 +10,10 @@ export async function runTurnRegenerate({
   attachSse,
   activeStreams,
 }) {
-  const { stateRolledBack } = await rollbackSession(
-    mode,
-    sessionId,
-    () => mode.session.deleteMessagesAfter(afterMessageId),
-  );
+  const { stateRolledBack } = await rollbackSession(mode, sessionId, {
+    cleanup: () => mode.session.cleanupMessagesFrom(afterMessageId),
+    truncate: () => mode.session.deleteMessagesAfter(afterMessageId),
+  });
   return runTurnStream({
     mode,
     sessionId,

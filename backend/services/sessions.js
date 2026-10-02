@@ -123,29 +123,36 @@ export function getMessagesBySessionId(sessionId, limit, offset) {
 }
 
 /**
+ * 截断消息前清理将被删除消息的附件等外部资源：messageId 之后的消息，inclusive 时连同它本身。
+ * 下面三个截断函数只删数据库行，由会话回滚放进同一事务执行，调用前须先清理。
+ */
+export async function cleanupMessagesFrom(messageId, { inclusive = false } = {}) {
+  const ids = getMessageIdsAfter(messageId);
+  if (inclusive) ids.unshift(messageId);
+  for (const mid of ids) {
+    await runOnDelete('message', mid);
+  }
+}
+
+/**
  * 编辑消息：更新 content 并删除之后的所有消息
  */
-export async function updateMessageAndDeleteAfter(id, content) {
+export function updateMessageAndDeleteAfter(id, content) {
   const updated = dbUpdateMessageContent(id, content);
-  await deleteMessagesAfter(id);
+  deleteMessagesAfter(id);
   log.info(`message.edit_and_truncate  ${formatMeta({ messageId: id, sessionId: updated?.session_id })}`);
   return updated;
 }
 
-export async function deleteMessage(id) {
-  await runOnDelete('message', id);
+export function deleteMessage(id) {
   const result = dbDeleteMessage(id);
   log.info(`message.delete  ${formatMeta({ messageId: id })}`);
   return result;
 }
 
-export async function deleteMessagesAfter(messageId) {
-  const ids = getMessageIdsAfter(messageId);
-  for (const mid of ids) {
-    await runOnDelete('message', mid);
-  }
+export function deleteMessagesAfter(messageId) {
   const result = dbDeleteMessagesAfter(messageId);
-  log.info(`message.delete_after  ${formatMeta({ messageId, count: ids.length })}`);
+  log.info(`message.delete_after  ${formatMeta({ messageId, count: result.changes })}`);
   return result;
 }
 

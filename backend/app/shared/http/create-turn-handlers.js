@@ -166,7 +166,7 @@ function createEditAssistantHandler({ mode, resolveSession, badRequest, log, log
     }
 
     const { worldId, characterIds, session } = mode.resolveScope(sessionId);
-    await rollbackSession(mode, sessionId, () => {}, { redoLatestRound: true });
+    await rollbackSession(mode, sessionId, {}, { redoLatestRound: true });
     runPostGenTasks(
       sessionId,
       buildTurnPostgenTasks({

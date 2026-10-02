@@ -11,6 +11,7 @@ import {
   getMessagesBySessionId,
   createMessage,
   getMessageById,
+  cleanupMessagesFrom,
   updateMessageAndDeleteAfter,
   deleteMessage,
   deleteMessagesAfter,
@@ -121,8 +122,11 @@ router.put('/messages/:id', async (req, res) => {
   }
 
   let updated;
-  await rollbackSession(getModeForSession(msg.session_id), msg.session_id, async () => {
-    updated = await updateMessageAndDeleteAfter(req.params.id, content);
+  await rollbackSession(getModeForSession(msg.session_id), msg.session_id, {
+    cleanup: () => cleanupMessagesFrom(req.params.id),
+    truncate: () => {
+      updated = updateMessageAndDeleteAfter(req.params.id, content);
+    },
   });
 
   res.json(updated);
@@ -141,11 +145,14 @@ router.delete('/sessions/:sessionId/messages/:messageId', async (req, res) => {
     return res.status(404).json({ error: '消息不存在' });
   }
 
-  await rollbackSession(getModeForSession(sessionId), sessionId, async () => {
-    await deleteMessagesAfter(messageId);
-    await deleteMessage(messageId);
-    await runHook('message:deleted', { id: messageId, sessionId });
+  await rollbackSession(getModeForSession(sessionId), sessionId, {
+    cleanup: () => cleanupMessagesFrom(messageId, { inclusive: true }),
+    truncate: () => {
+      deleteMessagesAfter(messageId);
+      deleteMessage(messageId);
+    },
   });
+  await runHook('message:deleted', { id: messageId, sessionId });
 
   res.json({ success: true });
 });

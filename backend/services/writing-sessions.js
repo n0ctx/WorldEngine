@@ -73,5 +73,6 @@ export {
   touchSession as touchWritingSession,
   createMessage,
   getMessagesBySessionId,
+  cleanupMessagesFrom,
   deleteMessagesAfter,
 } from './sessions.js';

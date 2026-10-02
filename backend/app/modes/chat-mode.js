@@ -2,6 +2,7 @@ import { getConfig } from '../../services/config.js';
 import { getCharacterById } from '../../services/characters.js';
 import { getWorldById } from '../../services/worlds.js';
 import {
+  cleanupMessagesFrom,
   createMessage,
   deleteMessagesAfter,
   getMessagesBySessionId,
@@ -33,6 +34,7 @@ export const chatMode = {
     touch: touchSession,
     createMessage,
     getMessages: getMessagesBySessionId,
+    cleanupMessagesFrom,
     deleteMessagesAfter,
   },
 

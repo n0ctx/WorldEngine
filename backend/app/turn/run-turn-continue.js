@@ -140,7 +140,7 @@ export async function runTurnContinue({ mode, sessionId, emitSse: rawEmitSse, at
         const messages = mode.session.getMessages(sessionId, ALL_MESSAGES_LIMIT, 0);
         if (messages.some((message) => message.role === 'user')) {
           // 续写没有新增消息，重做最后一轮只需回退状态/表格/轮次记录，不用截断消息
-          await rollbackSession(mode, sessionId, () => {}, { redoLatestRound: true });
+          await rollbackSession(mode, sessionId, {}, { redoLatestRound: true });
           const { hasSseWaits } = await runPostGenFlow({
             sessionId,
             worldId,
