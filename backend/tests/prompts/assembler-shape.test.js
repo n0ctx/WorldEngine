@@ -286,12 +286,15 @@ test('buildPrompt / buildWritingPrompt 的结构锚点顺序保持稳定', async
       messages: extractMessageShape(chatResult.messages, {
         0: [
           'ANCHOR_[1]_CHAT_GLOBAL', 'ANCHOR_[3.5]_CACHED_TITLE', 'ANCHOR_[3.5]_CACHED_BODY', 'ANCHOR_[2]_PERSONA', 'ANCHOR_[3]_CHAR_ALPHA',
-          'ANCHOR_[4]_WORLD_STATE', 'ANCHOR_[5]_PERSONA_STATE', 'ANCHOR_[6]_CHAR_STATE', 'ANCHOR_[6.5]_STORY_STATE_CHAT', 'ANCHOR_[7]_ENTRY_TITLE', 'ANCHOR_[7]_ENTRY_BODY',
-          'ANCHOR_[8.5]_STORY_CHAT', '<expanded_dialogues>', 'ANCHOR_[10]_RECALL_CHAT_USER', 'ANCHOR_[10]_RECALL_CHAT_ASST', 'ANCHOR_[11]_DIARY_CHAT',
+          'ANCHOR_[8.5]_STORY_CHAT',
         ],
         1: ['旧轮用户消息'],
         2: ['旧轮助手消息'],
-        3: ['ANCHOR_QUERY 当前聊天消息', 'ANCHOR_[11]_CHAT_POST', 'ANCHOR_[11]_CHAR_POST', 'next_prompt'],
+        3: [
+          'ANCHOR_[4]_WORLD_STATE', 'ANCHOR_[5]_PERSONA_STATE', 'ANCHOR_[6]_CHAR_STATE', 'ANCHOR_[6.5]_STORY_STATE_CHAT', 'ANCHOR_[7]_ENTRY_TITLE', 'ANCHOR_[7]_ENTRY_BODY',
+          '<expanded_dialogues>', 'ANCHOR_[10]_RECALL_CHAT_USER', 'ANCHOR_[10]_RECALL_CHAT_ASST', 'ANCHOR_[11]_DIARY_CHAT',
+          'ANCHOR_QUERY 当前聊天消息', 'ANCHOR_[11]_CHAT_POST', 'ANCHOR_[11]_CHAR_POST', 'next_prompt',
+        ],
       }),
     },
     writing: {
@@ -300,15 +303,18 @@ test('buildPrompt / buildWritingPrompt 的结构锚点顺序保持稳定', async
       model: writingResult.model,
       recallHitCount: writingResult.recallHitCount,
       messages: extractMessageShape(writingResult.messages, {
+        // 写作模式不注入 [3] 角色 system_prompt / [6] 角色状态段
         0: [
           'ANCHOR_[1]_WRITING_GLOBAL', 'ANCHOR_[3.5]_CACHED_TITLE', 'ANCHOR_[3.5]_CACHED_BODY', 'ANCHOR_[2]_PERSONA',
-          // 写作模式不再注入 [3] 角色 system_prompt / [6] 角色状态段
-          'ANCHOR_[4]_WORLD_STATE', 'ANCHOR_[5]_PERSONA_STATE', 'ANCHOR_[6.5]_STORY_STATE_WRITING',
-          'ANCHOR_[7]_ENTRY_TITLE', 'ANCHOR_[7]_ENTRY_BODY', 'ANCHOR_[8.5]_STORY_WRITING', '<expanded_dialogues>', 'ANCHOR_[10]_RECALL_WRITING_USER', 'ANCHOR_[10]_RECALL_WRITING_ASST', 'ANCHOR_[11]_DIARY_WRITING',
+          'ANCHOR_[8.5]_STORY_WRITING',
         ],
         1: ['旧写作用户消息'],
         2: ['旧写作助手消息'],
-        3: ['ANCHOR_QUERY 当前写作消息', 'ANCHOR_[11]_WRITING_POST', 'next_prompt'],
+        3: [
+          'ANCHOR_[4]_WORLD_STATE', 'ANCHOR_[5]_PERSONA_STATE', 'ANCHOR_[6.5]_STORY_STATE_WRITING',
+          'ANCHOR_[7]_ENTRY_TITLE', 'ANCHOR_[7]_ENTRY_BODY', '<expanded_dialogues>', 'ANCHOR_[10]_RECALL_WRITING_USER', 'ANCHOR_[10]_RECALL_WRITING_ASST', 'ANCHOR_[11]_DIARY_WRITING',
+          'ANCHOR_QUERY 当前写作消息', 'ANCHOR_[11]_WRITING_POST', 'next_prompt',
+        ],
       }),
     },
   };
@@ -365,4 +371,66 @@ test('buildPrompt messages[0]（CACHED LAYER）在同一会话内跨轮次保持
     cached0_first.content,
     'CACHED LAYER（messages[0].content）在跨轮次之间必须保持逐字节一致，否则 provider prefix cache 无法命中',
   );
+});
+
+test('buildPrompt「system + 历史」前缀跨轮逐字一致，每轮变化的上下文只出现在末尾 user', async () => {
+  sandbox.writeConfig(createTestConfig({
+    global_system_prompt: 'PREFIX_GLOBAL {{world}}',
+  }));
+
+  const world = insertWorld(sandbox.db, { name: '前缀世界' });
+  const character = insertCharacter(sandbox.db, world.id, { name: '前缀角色', system_prompt: 'PREFIX_CHAR {{char}}' });
+  insertWorldEntry(sandbox.db, world.id, {
+    title: 'TURN_ENTRY_TITLE',
+    content: 'TURN_ENTRY_BODY',
+    keywords: ['第三轮'],
+    keyword_scope: 'user',
+  });
+
+  const session = insertSession(sandbox.db, { character_id: character.id });
+  insertMessage(sandbox.db, session.id, { role: 'user', content: '第一轮用户消息', created_at: 1 });
+  insertMessage(sandbox.db, session.id, { role: 'assistant', content: '第一轮 AI 回复', created_at: 2 });
+  insertMessage(sandbox.db, session.id, { role: 'user', content: '第二轮用户消息', created_at: 3 });
+
+  const { buildPrompt } = await freshImport('backend/prompts/assembler.js');
+  const result1 = await buildPrompt(session.id, { onRecallEvent() {} });
+
+  insertMessage(sandbox.db, session.id, { role: 'assistant', content: '第二轮 AI 回复', created_at: 4 });
+  insertMessage(sandbox.db, session.id, { role: 'user', content: '第三轮用户消息', created_at: 5 });
+  const result2 = await buildPrompt(session.id, { onRecallEvent() {} });
+
+  // 上一轮除末尾 user 外的全部消息，原样是下一轮的前缀
+  const sharedPrefix = result1.messages.slice(0, -1);
+  assert.deepEqual(result2.messages.slice(0, sharedPrefix.length), sharedPrefix);
+  assert.equal(result2.messages[0].content, result2.cacheableSystem);
+  assert.equal(result2.messages[3].content, '第二轮用户消息');
+
+  // 本轮才触发的条目只在末尾 user，排在用户消息之前
+  for (const message of result2.messages.slice(0, -1)) {
+    assert.doesNotMatch(message.content, /TURN_ENTRY_BODY/);
+  }
+  assert.match(result2.messages.at(-1).content, /^<world_entries>[\s\S]*TURN_ENTRY_BODY[\s\S]*第三轮用户消息/);
+});
+
+test('buildPrompt 续写模式把本轮上下文加在被续写那轮的 user 上，末尾仍是待续写的 assistant', async () => {
+  sandbox.writeConfig(createTestConfig({ global_system_prompt: 'CONT_GLOBAL' }));
+
+  const world = insertWorld(sandbox.db, { name: '续写世界' });
+  const character = insertCharacter(sandbox.db, world.id, { name: '续写角色' });
+  insertWorldEntry(sandbox.db, world.id, {
+    title: 'CONT_ENTRY_TITLE',
+    content: 'CONT_ENTRY_BODY',
+    trigger_type: 'always',
+  });
+
+  const session = insertSession(sandbox.db, { character_id: character.id });
+  insertMessage(sandbox.db, session.id, { role: 'user', content: '续写前的提问', created_at: 1 });
+  insertMessage(sandbox.db, session.id, { role: 'assistant', content: '写到一半的回答', created_at: 2 });
+
+  const { buildPrompt } = await freshImport('backend/prompts/assembler.js');
+  const result = await buildPrompt(session.id, { continuation: true, onRecallEvent() {} });
+
+  assert.deepEqual(result.messages.map((m) => m.role), ['system', 'user', 'assistant']);
+  assert.match(result.messages[1].content, /^<world_entries>[\s\S]*CONT_ENTRY_BODY[\s\S]*续写前的提问$/);
+  assert.equal(result.messages[2].content, '写到一半的回答');
 });

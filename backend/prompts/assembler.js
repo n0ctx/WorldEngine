@@ -1,33 +1,34 @@
 /**
- * 提示词组装器 — 此文件一旦完成即锁定，顺序不得修改
+ * 提示词组装器 — 顺序按 prompt cache 前缀复用设计，不得随意调整
  *
- *   [SYSTEM MERGED: 单条 system message，前缀稳定 + 后缀动态]
+ *   [SYSTEM: 单条 system message]
  *   [1]  全局 System Prompt          ┐
  *   [2]  常驻 cached 条目（trigger_type=always 且 token=0）│ 稳定前缀
- *   [3]  玩家 System Prompt           │ （cached 部分）
+ *   [3]  玩家 System Prompt           │ （cacheableSystem）
  *   [4]  角色 System Prompt           ┘
+ *   [8.5] 剧情摘要（中期摘要非空时；只在短期窗口滑动时变化）
+ *
+ *   [12] 历史消息（role:user/assistant 交替，短期窗口）
+ *
+ *   [本轮 user message：每轮变化的上下文 + 用户消息 + 后置提示词]
  *   [5]  世界状态                    ┐
  *   [6]  玩家状态                     │
- *   [7]  角色状态                     │
- *   [7.5] 状态记忆（<story_state>）   │ 动态后缀
- *   [8]  世界 State 条目              │ （每轮变化）
- *   [8.5] 剧情摘要（中期摘要非空时）  │
+ *   [7]  角色状态                     │ 本轮上下文
+ *   [7.5] 状态记忆（<story_state>）   │ （每轮变化）
+ *   [8]  世界 State 条目              │
  *   [10] 长期召回原文                 │
  *   [11] 日记注入                    ┘
+ *   [13+14] 当前用户消息 + 后置提示词
  *
- *   [历史消息：role:user/assistant 交替]
- *   [12] 历史消息（稳定使用原始 messages 窗口）
+ * 每轮变化的内容全部放在历史之后，「system + 历史」整段可跨轮复用 prompt cache；
+ * 续写模式没有本轮新输入，本轮上下文加在被续写那轮的 user 消息开头。
  *
- *   [BOTTOM: 历史之后]
- *   [13+14] 后置提示词 + 当前用户消息（合并为一条 user message；后置提示词追加在用户消息之后）
- *
- *
- * 段渲染实现见 prompts/segments.js；本文件只负责「按锁定顺序调度」。
- * segments.js 内任何函数的输出字节变化都等价于修改本锁定顺序，需同步确认
+ * 段渲染实现见 prompts/segments.js；本文件只负责「按上述顺序调度」。
+ * segments.js 内任何函数的输出字节变化都等价于修改本顺序，需同步确认
  * tests/prompts/__snapshots__/assembler-golden.snap。
  *
  * 对外暴露：
- *   buildPrompt(sessionId, options?) → Promise<{ messages, temperature, maxTokens, recallHitCount }>
+ *   buildPrompt(sessionId, options?) → Promise<{ messages, temperature, maxTokens, recallHitCount, turnContext, ... }>
  *   options.onRecallEvent?: (name, payload) => void  — SSE 回调
  */
 
@@ -193,35 +194,30 @@ function pushCachedEntriesAndUserInfo(worldId, personaName, personaPrompt, tv, c
 }
 
 /** [5] 世界状态 + [6] 玩家状态 */
-function pushSharedStateSections(worldId, sessionId, tv, dynamicSystemParts) {
+function pushSharedStateSections(worldId, sessionId, tv, turnContextParts) {
   const worldStateSection = renderWorldStateSection(worldId, sessionId, tv);
-  if (worldStateSection) dynamicSystemParts.push(worldStateSection);
+  if (worldStateSection) turnContextParts.push(worldStateSection);
   const personaStateSection = renderUserStateSection(worldId, sessionId, tv);
-  if (personaStateSection) dynamicSystemParts.push(personaStateSection);
+  if (personaStateSection) turnContextParts.push(personaStateSection);
 }
 
 /** [8] 匹配动态条目并注入触发的条目，返回按注入顺序排好的触发条目 */
-async function pushTriggeredEntries(sessionId, worldId, allWorldEntries, tv, dynamicSystemParts) {
+async function pushTriggeredEntries(sessionId, worldId, allWorldEntries, tv, turnContextParts) {
   const worldEntries = selectDynamicWorldEntries(allWorldEntries);
   const triggeredIds = await matchEntries(sessionId, worldEntries, worldId);
   log.debug(`│  [8] entries  world=${worldEntries.length}  triggered=${triggeredIds.size}/${worldEntries.length}`);
   const triggeredEntries = sortTriggeredEntries(worldEntries, triggeredIds);
   const entriesSection = renderTriggeredEntriesSection(triggeredEntries, tv);
-  if (entriesSection) dynamicSystemParts.push(entriesSection);
+  if (entriesSection) turnContextParts.push(entriesSection);
   return triggeredEntries;
 }
 
-/** [8] 触发条目 → [8.5] 剧情摘要（中期摘要），chat / writing 共用这一段 */
-async function pushEntriesAndMemorySections(sessionId, worldId, allWorldEntries, storySummary, tv, dynamicSystemParts) {
-  const triggeredEntries = await pushTriggeredEntries(sessionId, worldId, allWorldEntries, tv, dynamicSystemParts);
-
+/** [8.5] 剧情摘要：只在短期窗口滑动时变化，放 system 尾部，与历史一起留在可复用前缀里 */
+function buildSummarySystemParts(storySummary, tv) {
   const storySummarySection = renderStorySummarySection(storySummary, tv);
-  if (storySummarySection) {
-    dynamicSystemParts.push(storySummarySection);
-    log.debug(`│  [8.5] story summary injected  chars=${storySummary.length}`);
-  }
-
-  return triggeredEntries;
+  if (!storySummarySection) return [];
+  log.debug(`│  [8.5] story summary injected  chars=${storySummary.length}`);
+  return [storySummarySection];
 }
 
 /**
@@ -229,11 +225,11 @@ async function pushEntriesAndMemorySections(sessionId, worldId, allWorldEntries,
  * recall 为 recallTurns() 的结果（chat、writing 均直接 await 得到）。
  * 返回本轮实际注入原文的轮数（SSE `hit` 字段，也是外部返回的 recallHitCount）。
  */
-function renderLongTermRecallSection(recall, tv, dynamicSystemParts, onRecallEvent) {
+function renderLongTermRecallSection(recall, tv, turnContextParts, onRecallEvent) {
   const { recordIds, candidateCount, skippedBeforeRound } = recall;
   const expanded = renderExpandedSection(recordIds, tv);
   if (expanded.text) {
-    dynamicSystemParts.push(expanded.text);
+    turnContextParts.push(expanded.text);
     log.debug(`│  [10] recall  hits=${expanded.hitIds.length}/${candidateCount}`);
   }
   onRecallEvent?.('memory_recall_done', { hit: expanded.hitIds.length, candidates: candidateCount, skippedBeforeRound });
@@ -260,6 +256,24 @@ function pushCurrentUserTurn(messages, uncompressedMessages, postParts, worldId,
   }
 }
 
+/**
+ * [5-11] 本轮上下文加在最后一条 user 消息开头：普通生成时是本轮用户消息，续写时是被续写那轮的 user。
+ * 没有任何 user 消息时紧跟 system 单独成条。
+ */
+function prependTurnContext(messages, turnContext) {
+  if (!turnContext) return;
+  const target = messages.findLast((msg) => msg.role === 'user');
+  if (!target) {
+    messages.splice(messages[0]?.role === 'system' ? 1 : 0, 0, { role: 'user', content: turnContext });
+    return;
+  }
+  if (Array.isArray(target.content)) {
+    target.content.unshift({ type: 'text', text: turnContext });
+  } else {
+    target.content = [turnContext, target.content].filter(Boolean).join('\n\n');
+  }
+}
+
 async function buildChatSystemPrompt(sessionId, character, world, config, options) {
   const { diaryInjection, onRecallEvent, continuation, coveredTo, storySummary, uncompressedMessages } = options;
   const persona = getOrCreatePersona(world.id);
@@ -268,7 +282,7 @@ async function buildChatSystemPrompt(sessionId, character, world, config, option
   const ctx = { user: personaName, char: character.name, world: world.name };
   const tv = (text) => applyTemplateVars(text, ctx);
   const cachedSystemParts = [];
-  const dynamicSystemParts = [];
+  const turnContextParts = [];
   // ─── CACHED LAYER (1, 2, 3, 4) ───
   // [1] 全局 System Prompt
   if (config.global_system_prompt) {
@@ -285,13 +299,13 @@ async function buildChatSystemPrompt(sessionId, character, world, config, option
     cachedSystemParts.push(tv(`<char_info>\n${character.system_prompt}\n</char_info>`));
   }
 
-  // ─── DYNAMIC LAYER (5-11) ───
+  // ─── TURN CONTEXT (5-11，放进本轮 user 消息) ───
   // [5] 世界状态 / [6] 玩家状态
-  pushSharedStateSections(world.id, sessionId, tv, dynamicSystemParts);
+  pushSharedStateSections(world.id, sessionId, tv, turnContextParts);
 
   // [7] 角色状态
   const characterStateText = renderCharacterState(character.id, sessionId);
-  if (characterStateText) dynamicSystemParts.push(`<char_state>\n${tv(characterStateText)}\n</char_state>`);
+  if (characterStateText) turnContextParts.push(`<char_state>\n${tv(characterStateText)}\n</char_state>`);
 
   // [7.5] 状态记忆（相关实体的既定设定与现状）
   const { userMessage, lastAssistant } = resolveRecentTurnContext(uncompressedMessages);
@@ -301,26 +315,25 @@ async function buildChatSystemPrompt(sessionId, character, world, config, option
     lastAssistant,
     budget: config.state_injection_token_budget,
   }, tv);
-  if (storyStateSection) dynamicSystemParts.push(storyStateSection);
+  if (storyStateSection) turnContextParts.push(storyStateSection);
 
   // [8] 世界 State 条目（常驻 / 关键词 / AI 召回；token=0 的常驻条目已进 cached layer）
-  // [8.5] 剧情摘要
-  const triggeredEntries = await pushEntriesAndMemorySections(
-    sessionId, world.id, allWorldEntries, storySummary, tv, dynamicSystemParts,
-  );
+  const triggeredEntries = await pushTriggeredEntries(sessionId, world.id, allWorldEntries, tv, turnContextParts);
 
   // [10] 长期召回（AI 从历史轮次目录里挑选需要回看原文的轮次）
   const recall = await recallTurns({ sessionId, coveredTo, mode: 'chat' });
-  const recallHitCount = renderLongTermRecallSection(recall, tv, dynamicSystemParts, onRecallEvent);
+  const recallHitCount = renderLongTermRecallSection(recall, tv, turnContextParts, onRecallEvent);
 
   // [11] 日记注入（一次性，仅本轮生效）
   const diarySection = renderDiarySection(diaryInjection);
   if (diarySection) {
-    dynamicSystemParts.push(diarySection);
+    turnContextParts.push(diarySection);
     log.debug('│  [11] diary injection applied');
   }
 
-  const { cachedContent, systemContent } = composeSystemContent(cachedSystemParts, dynamicSystemParts);
+  // [8.5] 剧情摘要进 system 尾部
+  const { cachedContent, systemContent } = composeSystemContent(cachedSystemParts, buildSummarySystemParts(storySummary, tv));
+  const turnContext = turnContextParts.join('\n\n');
   // 本轮激活的非常驻条目（trigger_type !== 'always'），供 SSE 透传给前端展示
   const activatedEntries = selectActivatedEntries(triggeredEntries);
   const suggestionText = config.suggestion_enabled ? tv(SUGGESTION_PROMPT) : null;
@@ -329,22 +342,22 @@ async function buildChatSystemPrompt(sessionId, character, world, config, option
     postParts.push(tv('（你正在扮演{{char}}，请严格保持角色名字和设定。）'));
   }
   if (!continuation && config.suggestion_enabled) postParts.push(tv(SUGGESTION_PROMPT));
-  return { cachedContent, systemContent, recallHitCount, activatedEntries, suggestionText, postParts };
+  return { cachedContent, systemContent, turnContext, recallHitCount, activatedEntries, suggestionText, postParts };
 }
 
 /**
  * 构建发送给 LLM 的完整 messages 数组
  *
- * 新的 prompt 组装顺序（为支持 Prompt Cache 分层）：
- *   Cached system [1, 2, 3, 4]：全局 + 常驻 cached 条目 + 玩家 + 角色
- *   Dynamic system [5-11]：世界状态 + 玩家状态 + 角色状态 + 状态记忆（story_state）+ State 条目 + 剧情摘要 + 长期召回原文 + 日记
+ * 组装顺序（为跨轮复用 Prompt Cache）：
+ *   System：[1-4] 全局 + 常驻 cached 条目 + 玩家 + 角色（cacheableSystem）→ [8.5] 剧情摘要
  *   History [12]：历史 user/assistant 交替
- *   Bottom: [13] 后置提示词（system）→ [14] 当前用户消息（尾部 user）
+ *   本轮 user：[5-11] 世界状态 + 玩家状态 + 角色状态 + 状态记忆（story_state）+ State 条目 + 长期召回原文 + 日记
+ *              → [13+14] 当前用户消息 + 后置提示词
  *
  * @param {string} sessionId
  * @param {object} [options]
  * @param {Function} [options.onRecallEvent]  (name: string, payload: object) => void
- * @returns {Promise<{ messages: Array, temperature: number, maxTokens: number, recallHitCount: number }>}
+ * @returns {Promise<{ messages: Array, temperature: number, maxTokens: number, recallHitCount: number, turnContext: string }>}
  */
 export async function buildPrompt(sessionId, options = {}) {
   const { continuation = false } = options;
@@ -367,14 +380,16 @@ export async function buildPrompt(sessionId, options = {}) {
   const storySummary = latestRecord?.middle_summary ?? '';
   const uncompressedMessages = getMessagesBySessionId(sessionId, null, 0);
 
-  const { cachedContent, systemContent, recallHitCount, activatedEntries, suggestionText, postParts } = await buildChatSystemPrompt(
+  const {
+    cachedContent, systemContent, turnContext, recallHitCount, activatedEntries, suggestionText, postParts,
+  } = await buildChatSystemPrompt(
     sessionId, character, world, config, { ...options, coveredTo, storySummary, uncompressedMessages },
   );
 
   // ─── CONSTRUCT MESSAGES ───
   const messages = [];
 
-  // [1-11] 合并为单条 system message：cached 前缀 + dynamic 后缀
+  // [1-4] + [8.5] 合并为单条 system message
   if (systemContent) messages.push({ role: 'system', content: systemContent });
 
   // [12] 历史消息：短期窗口边界由中期覆盖范围决定。
@@ -394,6 +409,8 @@ export async function buildPrompt(sessionId, options = {}) {
   if (!continuation) {
     pushCurrentUserTurn(messages, uncompressedMessages, postParts, world.id, 'chat');
   }
+  // [5-11] 本轮上下文
+  prependTurnContext(messages, turnContext);
 
   const temperature = world.temperature ?? config.llm.temperature;
   const baseMaxTokens = world.max_tokens ?? config.llm.max_tokens;
@@ -401,7 +418,7 @@ export async function buildPrompt(sessionId, options = {}) {
 
 
   log.info(`└─ buildPrompt DONE  session=${sid}  msgs=${messages.length}  cached=${fmtK(cachedContent.length)}  +${Date.now() - t0}ms  temp=${temperature}  max=${maxTokens}`);
-  return { messages, temperature, maxTokens, recallHitCount, cacheableSystem: cachedContent, suggestionText, activatedEntries };
+  return { messages, temperature, maxTokens, recallHitCount, cacheableSystem: cachedContent, turnContext, suggestionText, activatedEntries };
 }
 
 async function buildWritingCoreSystemParts(sessionId, world, writing, persona, options) {
@@ -410,7 +427,7 @@ async function buildWritingCoreSystemParts(sessionId, world, writing, persona, o
   const personaPrompt = persona?.system_prompt || '';
   const tv = writingTemplateVars(world, persona);
   const cachedSystemParts = [];
-  const dynamicSystemParts = [];
+  const turnContextParts = [];
   // ─── CACHED LAYER (1, 2, 3) ───
   // [1] 全局 System Prompt（使用写作专属配置；impersonate 时跳过）
   if (writing.global_system_prompt && !skipWritingInstructions) {
@@ -422,9 +439,9 @@ async function buildWritingCoreSystemParts(sessionId, world, writing, persona, o
   // [3] 玩家 System Prompt（写作模式下仅作背景参考，不是 AI 身份设定）
   const allWorldEntries = pushCachedEntriesAndUserInfo(world.id, personaName, personaPrompt, tv, cachedSystemParts);
 
-  // ─── DYNAMIC LAYER (5-11；写作模式下 [4] 角色 system prompt 不注入) ───
+  // ─── TURN CONTEXT (5-11，放进本轮 user 消息；写作模式下 [4] 角色 system prompt 不注入) ───
   // [5] 世界状态 / [6] 玩家状态
-  pushSharedStateSections(world.id, sessionId, tv, dynamicSystemParts);
+  pushSharedStateSections(world.id, sessionId, tv, turnContextParts);
 
   // [7] 状态记忆
   const { userMessage, lastAssistant } = resolveRecentTurnContext(uncompressedMessages);
@@ -435,50 +452,49 @@ async function buildWritingCoreSystemParts(sessionId, world, writing, persona, o
     budget: stateInjectionBudget,
   }, tv);
   if (storyStateSection) {
-    dynamicSystemParts.push(storyStateSection);
-    dynamicSystemParts.push(tv('叙述中若涉及以上人物，必须沿用其既定名字，不要另起新名。'));
+    turnContextParts.push(storyStateSection);
+    turnContextParts.push(tv('叙述中若涉及以上人物，必须沿用其既定名字，不要另起新名。'));
   }
 
   // [8] 世界 State 条目（常驻 / 关键词 / AI 召回；token=0 的常驻条目已进 cached layer）
-  // [8.5] 剧情摘要
-  const triggeredEntries = await pushEntriesAndMemorySections(
-    sessionId, world.id, allWorldEntries, storySummary, tv, dynamicSystemParts,
-  );
+  const triggeredEntries = await pushTriggeredEntries(sessionId, world.id, allWorldEntries, tv, turnContextParts);
 
+  // [8.5] 剧情摘要进 system 尾部
+  const summarySystemParts = buildSummarySystemParts(storySummary, tv);
   const activatedEntries = selectActivatedEntries(triggeredEntries);
   const suggestionText = writing.suggestion_enabled ? tv(SUGGESTION_PROMPT) : null;
-  return { cachedSystemParts, dynamicSystemParts, activatedEntries, suggestionText };
+  return { cachedSystemParts, summarySystemParts, turnContextParts, activatedEntries, suggestionText };
 }
 
 async function buildWritingMemorySections(sessionId, world, persona, options) {
   const { diaryInjection, onRecallEvent, coveredTo } = options;
   const tv = writingTemplateVars(world, persona);
-  const dynamicSections = [];
+  const memorySections = [];
   // [10] 长期召回
   const recall = await recallTurns({ sessionId, coveredTo, mode: 'writing' });
-  const recallHitCount = renderLongTermRecallSection(recall, tv, dynamicSections, onRecallEvent);
+  const recallHitCount = renderLongTermRecallSection(recall, tv, memorySections, onRecallEvent);
 
   // [11] 日记注入（一次性，仅本轮生效）
   const diarySection = renderDiarySection(diaryInjection);
   if (diarySection) {
-    dynamicSections.push(diarySection);
+    memorySections.push(diarySection);
     log.debug('│  [11] diary injection applied (writing)');
   }
-  return { dynamicSections, recallHitCount };
+  return { memorySections, recallHitCount };
 }
 
 async function buildWritingSystemPrompt(sessionId, world, writing, persona, options) {
   const core = await buildWritingCoreSystemParts(sessionId, world, writing, persona, options);
-  const { dynamicSections, recallHitCount } = await buildWritingMemorySections(sessionId, world, persona, {
+  const { memorySections, recallHitCount } = await buildWritingMemorySections(sessionId, world, persona, {
     diaryInjection: options.diaryInjection,
     onRecallEvent: options.onRecallEvent,
     coveredTo: options.coveredTo,
   });
-  const dynamicSystemParts = core.dynamicSystemParts.concat(dynamicSections);
-  const { cachedContent, systemContent } = composeSystemContent(core.cachedSystemParts, dynamicSystemParts);
+  const { cachedContent, systemContent } = composeSystemContent(core.cachedSystemParts, core.summarySystemParts);
   return {
     cachedContent,
     systemContent,
+    turnContext: core.turnContextParts.concat(memorySections).join('\n\n'),
     recallHitCount,
     activatedEntries: core.activatedEntries,
     suggestionText: core.suggestionText,
@@ -490,11 +506,10 @@ async function buildWritingSystemPrompt(sessionId, world, writing, persona, opti
  * 角色出场由叙事文本自行驱动，[7] 角色状态段由状态记忆（story_state）替代，
  * 相关实体的既定设定与现状由状态记忆模块按规则选取并渲染。
  *
- * Cached layer: [1] 全局、[2] 常驻 cached 条目、[3] 玩家
- * Dynamic layer: [5] 世界状态 / [6] 玩家状态 / [7] 状态记忆（story_state）
- *                / [8] 世界条目 / [8.5] 剧情摘要
- *                / [10] 长期召回原文 / [11] 日记
- * Bottom: [12] 历史消息，[13+14] 后置提示词 + 当前消息（合并为一条 user message）
+ * System: [1] 全局、[2] 常驻 cached 条目、[3] 玩家（cacheableSystem）→ [8.5] 剧情摘要
+ * History: [12] 历史消息
+ * 本轮 user: [5] 世界状态 / [6] 玩家状态 / [7] 状态记忆（story_state）/ [8] 世界条目
+ *            / [10] 长期召回原文 / [11] 日记 → [13+14] 当前消息 + 后置提示词
  *
  * @param {string} sessionId
  * @param {object} [options]
@@ -525,7 +540,7 @@ export async function buildWritingPrompt(sessionId, options = {}) {
 
   log.info(`┌─ buildWritingPrompt  session=${sid}  world="${world.name}"`);
 
-  const { cachedContent, systemContent, recallHitCount, activatedEntries, suggestionText } = await buildWritingSystemPrompt(
+  const { cachedContent, systemContent, turnContext, recallHitCount, activatedEntries, suggestionText } = await buildWritingSystemPrompt(
     sessionId, world, writing, persona,
     { ...options, coveredTo, storySummary, uncompressedMessages, stateInjectionBudget: config.state_injection_token_budget },
   );
@@ -533,7 +548,7 @@ export async function buildWritingPrompt(sessionId, options = {}) {
   // ─── CONSTRUCT MESSAGES ───
   const messages = [];
 
-  // [1-11] 合并为单条 system message：cached 前缀 + dynamic 后缀
+  // [1-3] + [8.5] 合并为单条 system message
   if (systemContent) messages.push({ role: 'system', content: systemContent });
 
   // [12] 历史消息：短期窗口边界由中期覆盖范围决定；turn records 仅用于摘要/时间线。
@@ -565,6 +580,8 @@ export async function buildWritingPrompt(sessionId, options = {}) {
 
     pushCurrentUserTurn(messages, uncompressedMessages, postParts, world.id, 'writing');
   }
+  // [5-11] 本轮上下文
+  prependTurnContext(messages, turnContext);
 
   const temperature = world.temperature ?? writing.temperature ?? config.llm.temperature;
   const baseMaxTokens = world.max_tokens ?? writing.max_tokens ?? config.llm.max_tokens;
@@ -572,5 +589,5 @@ export async function buildWritingPrompt(sessionId, options = {}) {
   const model = writing.model || null;
 
   log.info(`└─ buildWritingPrompt DONE  session=${sid}  msgs=${messages.length}  cached=${fmtK(cachedContent.length)}  +${Date.now() - t0}ms  temp=${temperature}  max=${maxTokens}`);
-  return { messages, temperature, maxTokens, model, recallHitCount, cacheableSystem: cachedContent, suggestionText, activatedEntries };
+  return { messages, temperature, maxTokens, model, recallHitCount, cacheableSystem: cachedContent, turnContext, suggestionText, activatedEntries };
 }

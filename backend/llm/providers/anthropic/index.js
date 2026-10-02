@@ -35,10 +35,9 @@ function resolveKimiCodingEffort(provider, thinkingLevel) {
 }
 
 // 将 system 字符串转为带 cache_control 的数组格式,启用 Anthropic Prompt Caching。
-// 若 config.cacheableSystem 提供了稳定前缀(assembler [1-3.5]),则把 system 拆成
-// stable prefix + dynamic suffix 两段,cache_control 只标在 prefix 上 —— 避免 dynamic
-// 段(时间/状态/附近角色等每轮变化)破坏 cache hash,等价于 openai-compatible 路径
-// 已做的 normalizeOpenAICompatibleMessages 优化。
+// 若 config.cacheableSystem 提供了稳定前缀(assembler [1-4]),则把 system 拆成
+// stable prefix + 后缀(剧情摘要,随短期窗口滑动变化)两段,cache_control 只标在 prefix 上 ——
+// 后缀变化时稳定前缀仍可命中,等价于 openai-compatible 路径已做的 normalizeOpenAICompatibleMessages 优化。
 function withCacheControl(system, config) {
   if (!system) return undefined;
   const cacheable = config?.cacheableSystem;
@@ -77,20 +76,25 @@ function accumulateUsageRef(usageRef, usage) {
   add('cache_read_tokens', usage.cache_read_input_tokens);
 }
 
-// 在最近一条消息的末尾内容块上打 ephemeral cache 断点。
-// 配合 system 上已有的断点，让"system + 已稳定历史"前缀跨工具循环轮次命中 prompt cache；
-// 每轮都标记新尾部，断点间隔约 1-2 块，天然落在 Anthropic 20-block 回看窗口内。
+// 在 messages[index] 的末尾内容块上打 ephemeral cache 断点，配合 system 上已有的断点，
+// 让"system + 已稳定历史"前缀跨轮命中 prompt cache。每轮都标记新位置，相邻两轮的断点间隔约 1-2 块，
+// 天然落在 Anthropic 20-block 回看窗口内。
 // content 既可能是 string 也可能是 block 数组（如 tool_result），两种都处理。
-function markLastMessageCacheable(messages) {
-  if (!Array.isArray(messages) || messages.length === 0) return;
-  const last = messages[messages.length - 1];
-  if (!last || typeof last !== 'object') return;
-  if (typeof last.content === 'string') {
-    last.content = [{ type: 'text', text: last.content, cache_control: { type: 'ephemeral' } }];
-  } else if (Array.isArray(last.content) && last.content.length > 0) {
-    const block = last.content[last.content.length - 1];
+function markMessageCacheable(messages, index) {
+  const msg = messages?.[index];
+  if (!msg || typeof msg !== 'object') return;
+  if (typeof msg.content === 'string') {
+    msg.content = [{ type: 'text', text: msg.content, cache_control: { type: 'ephemeral' } }];
+  } else if (Array.isArray(msg.content) && msg.content.length > 0) {
+    const block = msg.content[msg.content.length - 1];
     if (block && typeof block === 'object') block.cache_control = { type: 'ephemeral' };
   }
+}
+
+// 主对话 / 写作：最后一条 user 携带每轮变化的上下文，断点打在它前一条（历史末尾）
+function markHistoryCacheable(messages) {
+  const lastUserIndex = messages.findLastIndex((msg) => msg.role === 'user');
+  if (lastUserIndex > 0) markMessageCacheable(messages, lastUserIndex - 1);
 }
 
 async function processAnthropicMetadataEvent(event, data, config, lastUsage) {
@@ -135,6 +139,7 @@ function messagesUrl(config) {
 /** stream / complete 共用的请求体与请求头（含 thinking / Kimi reasoning_effort 与 beta 头） */
 function buildMessagesRequest(messages, config, { stream }) {
   const { system, messages: converted } = convertToAnthropicMessages(messages);
+  markHistoryCacheable(converted);
   const kimiEffort = resolveKimiCodingEffort(config.provider, config.thinking_level);
   const budgetTokens = config.provider === 'kimi-coding' ? null : resolveThinkingBudget(config.thinking_level);
   const body = {
@@ -266,7 +271,7 @@ const anthropicToolLoopProvider = {
 
     const { system, messages: anthropicMsgs } = convertToAnthropicMessages(state.messages);
     // 累积工具循环历史每轮都重发，给最近一条消息打 ephemeral 断点，让前缀跨轮命中 prompt cache。
-    markLastMessageCacheable(anthropicMsgs);
+    markMessageCacheable(anthropicMsgs, anthropicMsgs.length - 1);
     const body = {
       model: config.model,
       messages: anthropicMsgs,

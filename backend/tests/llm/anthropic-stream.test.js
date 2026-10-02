@@ -155,3 +155,29 @@ test('streamAnthropic emits a safety signal for HTTP error bodies', async () => 
     globalThis.fetch = originalFetch;
   }
 });
+
+test('streamAnthropic 在最后一条 user 的前一条（历史末尾）打 cache 断点', async () => {
+  const originalFetch = globalThis.fetch;
+  let request;
+  globalThis.fetch = async (url, init) => {
+    request = JSON.parse(init.body);
+    return responseFromEvents([]);
+  };
+
+  try {
+    for await (const _chunk of streamAnthropic([
+      { role: 'system', content: 'stable' },
+      { role: 'user', content: 'old question' },
+      { role: 'assistant', content: 'old answer' },
+      { role: 'user', content: 'turn context\n\nnew question' },
+    ], { ...baseConfig(), cacheableSystem: 'stable' })) { /* drain */ }
+
+    assert.deepEqual(request.messages, [
+      { role: 'user', content: 'old question' },
+      { role: 'assistant', content: [{ type: 'text', text: 'old answer', cache_control: { type: 'ephemeral' } }] },
+      { role: 'user', content: 'turn context\n\nnew question' },
+    ]);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});

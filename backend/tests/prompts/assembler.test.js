@@ -87,7 +87,7 @@ test('sliceHistoryAfterRound coveredTo 缺失（旧会话过渡）时按 token �
   );
 });
 
-test('buildPrompt 组装系统段、历史消息、独立 system 后置提示词和当前用户消息', async () => {
+test('buildPrompt 组装系统段、历史消息，本轮上下文 + 当前用户消息 + 后置提示词合为末尾 user', async () => {
   sandbox.writeConfig({
     ...sandbox.readConfig(),
     global_system_prompt: '全局系统：{{world}}',
@@ -136,13 +136,14 @@ test('buildPrompt 组装系统段、历史消息、独立 system 后置提示词
   assert.match(result.messages[0].content, /全局系统：群星海/);
   assert.match(result.messages[0].content, /玩家身份：旅者/);
   assert.match(result.messages[0].content, /角色设定：阿塔/);
-  assert.match(result.messages[0].content, /世界知识：群星海/);
+  assert.doesNotMatch(result.messages[0].content, /世界知识/);
+  assert.equal(result.messages[0].content, result.cacheableSystem);
   assert.equal(result.messages[1].content, '第一轮提问');
   assert.equal(result.messages[2].content, '第一轮回答');
   assert.equal(result.messages.at(-1).role, 'user');
-  assert.match(result.messages.at(-1).content, /第二轮提问/);
-  assert.match(result.messages.at(-1).content, /全局后置：阿塔/);
-  assert.match(result.messages.at(-1).content, /角色后置/);
+  // 本轮上下文在前，用户消息居中，后置提示词在后
+  assert.match(result.messages.at(-1).content, /^<world_entries>[\s\S]*世界知识：群星海[\s\S]*第二轮提问[\s\S]*全局后置：阿塔[\s\S]*角色后置/);
+  assert.match(result.turnContext, /世界知识：群星海/);
 });
 
 test('buildPrompt 在开启状态栏、召回展开、日记注入与 suggestion 时注入完整矩阵', async () => {
@@ -179,10 +180,11 @@ test('buildPrompt 在开启状态栏、召回展开、日记注入与 suggestion
 
   assert.equal(result.messages.length, 4);
   assert.equal(result.recallHitCount, 0);
-  assert.match(result.messages[0].content, /天气/);
-  assert.match(result.messages[0].content, /体力/);
-  assert.match(result.messages[0].content, /心情/);
-  assert.match(result.messages[0].content, /<diary>\n昨天的日记摘要/);
+  assert.doesNotMatch(result.messages[0].content, /天气|体力|心情|<diary>/);
+  assert.match(result.messages.at(-1).content, /天气/);
+  assert.match(result.messages.at(-1).content, /体力/);
+  assert.match(result.messages.at(-1).content, /心情/);
+  assert.match(result.messages.at(-1).content, /<diary>\n昨天的日记摘要[\s\S]*第二轮提问/);
   assert.equal(result.messages[1].content, '旧问题');
   assert.equal(result.messages[2].content, '旧回答');
   assert.equal(result.messages.at(-1).role, 'user');
@@ -211,7 +213,7 @@ test('buildPrompt 在关闭 suggestion 时不会把 next prompt 指令拼到当�
   assert.doesNotMatch(result.messages.at(-1).content, /next_prompt/i);
 });
 
-test('buildPrompt always 条目注入 dynamic 块', async () => {
+test('buildPrompt always 条目注入本轮上下文', async () => {
   sandbox.writeConfig({
     ...sandbox.readConfig(),
     global_system_prompt: '',
@@ -232,10 +234,11 @@ test('buildPrompt always 条目注入 dynamic 块', async () => {
   const { buildPrompt } = await freshImport('backend/prompts/assembler.js');
   const result = await buildPrompt(session.id);
 
-  assert.match(result.messages[0].content, /系统内容/);
+  assert.equal(result.messages.length, 1);
+  assert.match(result.messages[0].content, /^<world_entries>[\s\S]*系统内容[\s\S]*用户消息/);
 });
 
-test('buildPrompt 角色 system_prompt 注入 cached system，always 条目注入 dynamic', async () => {
+test('buildPrompt 角色 system_prompt 注入 cached system，always 条目注入本轮上下文', async () => {
   sandbox.writeConfig({
     ...sandbox.readConfig(),
     global_system_prompt: '',
@@ -258,8 +261,8 @@ test('buildPrompt 角色 system_prompt 注入 cached system，always 条目注�
 
   assert.equal(result.messages.length, 2);
   assert.match(result.messages[0].content, /角色系统提示/);
-  assert.match(result.messages[0].content, /后置内容/);
-  assert.match(result.messages.at(-1).content, /用户消息/);
+  assert.doesNotMatch(result.messages[0].content, /后置内容/);
+  assert.match(result.messages.at(-1).content, /后置内容[\s\S]*用户消息/);
   assert.match(result.messages.at(-1).content, /你正在扮演测试角色/);
 });
 
@@ -303,16 +306,17 @@ test('buildWritingPrompt 写作模式不注入 [4] 角色 system_prompt 与 [7] 
   assert.equal(result.maxTokens, 577);
   assert.equal(result.model, 'writer-model');
   assert.equal(result.messages.length, 2);
-  // 写作 system 段：保留 [1][2][3][5][6][8]，不再含角色 system_prompt 与 char_state
+  // 写作 system 段只含 [1][2][3]，触发条目进本轮上下文；不含角色 system_prompt 与 char_state
   // 写作模式无主角色概念，{{char}} 保留字面量交给 LLM 上下文判断（不再硬塞"叙述者"）
   assert.match(result.messages[0].content, /写作系统：群像世界 \/ \{\{char\}\}/);
-  assert.match(result.messages[0].content, /世界知识：群像世界/);
-  assert.doesNotMatch(result.messages[0].content, /<char_info>/);
-  assert.doesNotMatch(result.messages[0].content, /<char_state/);
-  assert.doesNotMatch(result.messages[0].content, /角色一：阿尔法/);
+  assert.doesNotMatch(result.messages[0].content, /世界知识/);
+  for (const message of result.messages) {
+    assert.doesNotMatch(message.content, /<char_info>/);
+    assert.doesNotMatch(message.content, /<char_state/);
+    assert.doesNotMatch(message.content, /角色一：阿尔法/);
+  }
   assert.equal(result.messages.at(-1).role, 'user');
-  assert.match(result.messages.at(-1).content, /写作后置：\{\{char\}\}/);
-  assert.match(result.messages.at(-1).content, /当前场景/);
+  assert.match(result.messages.at(-1).content, /世界知识：群像世界[\s\S]*当前场景[\s\S]*写作后置：\{\{char\}\}/);
   assert.match(result.messages.at(-1).content, /next_prompt/i);
 });
 
@@ -360,15 +364,19 @@ test('buildPrompt coveredTo 有值时：历史只保留其后完整轮次，剧�
   const result = await buildPrompt(session.id, { onRecallEvent() {} });
   resetMockEnv();
 
-  // [8.5] 剧情摘要
+  // [8.5] 剧情摘要留在 system
+  assert.equal(result.messages[0].role, 'system');
   assert.match(result.messages[0].content, /<story_summary>[\s\S]*这是更早剧情的中期摘要正文[\s\S]*<\/story_summary>/);
-  // [10] 长期召回原文命中第一轮原文
-  assert.match(result.messages[0].content, /<expanded_dialogues>[\s\S]*第一轮旧提问[\s\S]*第一轮旧回答[\s\S]*<\/expanded_dialogues>/);
+  // [10] 长期召回原文命中第一轮原文，进本轮 user
+  assert.doesNotMatch(result.messages[0].content, /<expanded_dialogues>/);
+  assert.match(result.messages.at(-1).content, /<expanded_dialogues>[\s\S]*第一轮旧提问[\s\S]*第一轮旧回答[\s\S]*<\/expanded_dialogues>[\s\S]*第三轮当前提问/);
   assert.equal(result.recallHitCount, 1);
   // 只发给 aux 召回模型的「历史轮次目录」索引行不应出现在主 prompt 里
-  assert.doesNotMatch(result.messages[0].content, /旧轮摘要正文/);
-  assert.doesNotMatch(result.messages[0].content, /旧场景/);
-  assert.doesNotMatch(result.messages[0].content, /历史轮次目录/);
+  for (const message of result.messages) {
+    assert.doesNotMatch(message.content, /旧轮摘要正文/);
+    assert.doesNotMatch(message.content, /旧场景/);
+    assert.doesNotMatch(message.content, /历史轮次目录/);
+  }
   // [12] 历史只含 round_index > coveredTo(1) 的完整轮次，不含第一轮
   assert.equal(result.messages[1].content, '第二轮新提问');
   assert.equal(result.messages[2].content, '第二轮新回答');

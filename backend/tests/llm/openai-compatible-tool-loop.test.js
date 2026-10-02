@@ -215,3 +215,23 @@ test('Authorization header: completeWithTools 使用 buildOpenAICompatibleHeader
   const expected = buildOpenAICompatibleHeaders(cfg);
   assert.deepEqual(calls[0].headers, expected, 'complete path headers must equal buildOpenAICompatibleHeaders');
 });
+
+test('prompt_cache_key: 仅 openai 官方在有 conversationId 时附加', async () => {
+  const { calls, restore } = mockFetchSequence([
+    { json: chatResp({ content: 'a' }) },
+    { json: chatResp({ content: 'b' }) },
+    { json: chatResp({ content: 'c' }) },
+  ]);
+  try {
+    await completeOpenAICompatibleWithTools([{ role: 'user', content: 'q' }], sampleToolDefs, {}, { ...baseConfig(), conversationId: 'sess-1' });
+    await completeOpenAICompatibleWithTools([{ role: 'user', content: 'q' }], sampleToolDefs, {}, baseConfig());
+    await completeOpenAICompatibleWithTools([{ role: 'user', content: 'q' }], sampleToolDefs, {}, {
+      ...baseConfig(), provider: 'deepseek', conversationId: 'sess-1',
+    });
+    assert.equal(calls[0].body.prompt_cache_key, 'sess-1');
+    assert.equal('prompt_cache_key' in calls[1].body, false);
+    assert.equal('prompt_cache_key' in calls[2].body, false);
+  } finally {
+    restore();
+  }
+});

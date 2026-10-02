@@ -99,13 +99,13 @@ export function renderDiarySection(diaryInjection) {
   return `<diary>\n${diaryInjection}\n</diary>`;
 }
 
-/** [1-11] 合并为单条 system message：cached 前缀 + dynamic 后缀 */
-export function composeSystemContent(cachedSystemParts, dynamicSystemParts) {
+/** 合并为单条 system message：[1-4] cached 前缀 + [8.5] 剧情摘要 */
+export function composeSystemContent(cachedSystemParts, summarySystemParts) {
   const cachedContent = cachedSystemParts.filter(Boolean).join('\n\n');
-  const dynamicContent = dynamicSystemParts.filter(Boolean).join('\n\n');
+  const summaryContent = summarySystemParts.filter(Boolean).join('\n\n');
   return {
     cachedContent,
-    systemContent: [cachedContent, dynamicContent].filter(Boolean).join('\n\n'),
+    systemContent: [cachedContent, summaryContent].filter(Boolean).join('\n\n'),
   };
 }
 

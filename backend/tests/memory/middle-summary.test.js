@@ -37,19 +37,36 @@ test('planEviction：窗口总 token 不超预算时无滑出', async () => {
   assert.ok(result.windowTokens > 0);
 });
 
-test('planEviction：超预算只滑出最老的完整轮次', async () => {
+test('planEviction：超过 70% 但未超预算时不滑出', async () => {
   const { planEviction } = await freshImport('backend/memory/middle-summary.js');
-  // 每轮 100 个中文字符 ≈ 78 token；滑出最老 1 轮后剩余 79 token，落在预算 90 以内即停
-  const big = '测'.repeat(100);
+  // 每轮 50 个中文字符 ≈ 39 token；窗口 ≈ 79 token，超过 100 × 70% 但未超预算 100
+  const mid = '测'.repeat(50);
   const rounds = [
-    round(1, [msg('user', big)]),
-    round(2, [msg('user', big)]),
+    round(1, [msg('user', mid)]),
+    round(2, [msg('user', mid)]),
     round(3, [msg('user', '短')]),
   ];
-  const result = planEviction(rounds, 0, 90, 3);
+  const result = planEviction(rounds, 0, 100, 3);
 
-  assert.equal(result.evictedTo, 1);
+  assert.equal(result.evictedTo, 0);
+  assert.equal(result.windowRounds, 3);
+});
+
+test('planEviction：超预算时一次滑到预算的 70% 以内', async () => {
+  const { planEviction } = await freshImport('backend/memory/middle-summary.js');
+  // 窗口 ≈ 118 token 超预算 100；滑出 1 轮后 ≈ 79 仍高于 70，需再滑出 1 轮
+  const mid = '测'.repeat(50);
+  const rounds = [
+    round(1, [msg('user', mid)]),
+    round(2, [msg('user', mid)]),
+    round(3, [msg('user', mid)]),
+    round(4, [msg('user', '短')]),
+  ];
+  const result = planEviction(rounds, 0, 100, 4);
+
+  assert.equal(result.evictedTo, 2);
   assert.equal(result.windowRounds, 2);
+  assert.ok(result.windowTokens <= 70);
 });
 
 test('planEviction：一次滑出多轮', async () => {

@@ -34,13 +34,13 @@ function assertOpenAICompatibleData(data, config) {
  * OpenAI-compatible 路径默认行为：把首条 system 拆成稳定 cached prefix + 动态 system suffix。
  *
  * 背景：assembler 为兼容 Grok（双 user 结构会让 cache pipeline bypass，commit 02b50a2），
- * 把稳定前缀 [1-3.5] 与动态后缀 [4-10] 合并进首条单条 system message。但合并后的 system
- * 每轮内容都变，prefix cache 边界会在 tokenizer 拼接处发生 1-2 token 的漂移，并被部分
+ * 把稳定前缀 [1-4] 与剧情摘要 [8.5] 合并进首条单条 system message。摘要随短期窗口滑动变化，
+ * 变化时 prefix cache 边界会在 tokenizer 拼接处发生 1-2 token 的漂移，并被部分
  * provider（OpenRouter / DeepSeek 等）整体视为"系统块变更"而绕过缓存。
  *
  * 解决方案：仅当 messages[0] 以 cacheableSystem 为前缀时，将首条 system 拆成两条：
- *   1) 稳定 cached prefix（[1-3.5]）
- *   2) 动态 system suffix（[4-10]）
+ *   1) 稳定 cached prefix（[1-4]）
+ *   2) 变化的 system suffix（[8.5]）
  * 拆分后两段都是 role=system，与 commit 02b50a2 修复的"双 user"结构不同，Grok 不回归。
  *
  * 兜底：cacheableSystem 为空 / 首条非 system / 不以 cacheableSystem 开头 / 无动态后缀
@@ -106,6 +106,14 @@ function applyGlmCompatibilityOptions(body, config) {
   if (body.top_p == null) body.top_p = 0.95;
 }
 
+// OpenAI 官方：同一会话带同一 prompt_cache_key，请求落到同一缓存机器，提高前缀命中。
+// 其他兼容供应商不一定认这个字段，不附加。
+function applyOpenAIPromptCacheKey(body, config) {
+  if (config.provider === 'openai' && config.conversationId) {
+    body.prompt_cache_key = String(config.conversationId);
+  }
+}
+
 function postOpenAICompatible(url, body, config) {
   return fetch(url, {
     method: 'POST',
@@ -142,6 +150,7 @@ export async function* streamOpenAICompatible(messages, config) {
     body.stream_options = { include_usage: true };
   }
   applyGlmCompatibilityOptions(body, config);
+  applyOpenAIPromptCacheKey(body, config);
 
   const thinkingState = applyThinkingToOpenAICompatibleBody(body, config);
   // 思考开启时不传 temperature（OpenAI o-series / DeepSeek thinking 模式不兼容 temperature）
@@ -216,6 +225,7 @@ export async function completeOpenAICompatible(messages, config) {
     stream: false,
   };
   applyGlmCompatibilityOptions(body, config);
+  applyOpenAIPromptCacheKey(body, config);
   const thinkingState = applyThinkingToOpenAICompatibleBody(body, config);
   if (thinkingState !== 'enabled') body.temperature = config.temperature;
 
@@ -268,6 +278,7 @@ const openaiCompatibleToolLoopProvider = {
       stream: false,
     };
     applyGlmCompatibilityOptions(body, config);
+    applyOpenAIPromptCacheKey(body, config);
     const thinkingState = applyThinkingToOpenAICompatibleBody(body, config);
     if (thinkingState !== 'enabled') body.temperature = config.temperature;
 

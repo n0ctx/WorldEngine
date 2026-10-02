@@ -80,16 +80,17 @@ export function createTurnHandlers({ mode, resolveSession, emitSse, logNs, guard
       const personaName = getOrCreatePersona(worldId)?.name || '用户';
 
       try {
-        const { messages, overrides } = await buildTurnContext(
+        const { messages, overrides, turnContext } = await buildTurnContext(
           mode.id,
           sessionId,
           mode.impersonate.promptOptions(),
         );
 
-        // 剥掉尾部连续的 user 消息，只留到最后一条非 user 消息为止
+        // 剥掉尾部连续的 user 消息，只留到最后一条非 user 消息为止；本轮上下文随尾部 user 一起被剥掉，补回指令前
         const lastNonUserIndex = messages.findLastIndex((message) => message.role !== 'user');
         const prompt = messages.slice(0, lastNonUserIndex + 1);
-        prompt.push({ role: 'user', content: renderBackendPrompt('chat-impersonate.md', { PERSONA_NAME: personaName }) });
+        const instruction = renderBackendPrompt('chat-impersonate.md', { PERSONA_NAME: personaName });
+        prompt.push({ role: 'user', content: [turnContext, instruction].filter(Boolean).join('\n\n') });
 
         log.info(
           `POST /impersonate  ${formatMeta({

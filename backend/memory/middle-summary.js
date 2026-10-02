@@ -27,6 +27,7 @@ import {
   MIDDLE_SUMMARY_MAX_TOKENS,
   MIDDLE_COMPRESS_INPUT_MAX_TOKENS,
   MIDDLE_RAW_ROUNDS_MAX,
+  SHORT_TERM_EVICT_TARGET_RATIO,
 } from '../utils/constants.js';
 
 /** 提示词里的目标字数，比 token 硬上限更紧，留给模型习惯性写超的余量 */
@@ -36,8 +37,8 @@ const MIDDLE_SUMMARY_SHRINK_ATTEMPTS = 2;
 
 /**
  * 计算短期窗口滑出计划。
- * 窗口 = rounds 中 roundIndex ∈ (coveredTo, latestRound] 的轮次；从最老开始，
- * 只要窗口总 token 仍 > budget 且候选轮不是 latestRound，就把它滑出；latestRound 永不滑出。
+ * 窗口 = rounds 中 roundIndex ∈ (coveredTo, latestRound] 的轮次。窗口总 token 不超 budget 时不滑出；
+ * 超出时从最老开始滑出，直到总 token ≤ budget × SHORT_TERM_EVICT_TARGET_RATIO；latestRound 永不滑出。
  *
  * @param {Array<{roundIndex:number, messages:Array}>} rounds  splitRounds 的结果
  * @param {number} coveredTo    已覆盖到的轮号（0 表示尚未覆盖）
@@ -51,10 +52,11 @@ export function planEviction(rounds, coveredTo, budget, latestRound) {
   const window = rounds.filter((r) => r.roundIndex > coveredTo && r.roundIndex <= latestRound);
   const tokens = window.map((r) => roundTokens(r));
   let total = tokens.reduce((sum, t) => sum + t, 0);
+  const target = total > budget ? budget * SHORT_TERM_EVICT_TARGET_RATIO : budget;
 
   let evictedTo = coveredTo;
   let idx = 0;
-  while (idx < window.length && total > budget && window[idx].roundIndex !== latestRound) {
+  while (idx < window.length && total > target && window[idx].roundIndex !== latestRound) {
     total -= tokens[idx];
     evictedTo = window[idx].roundIndex;
     idx++;

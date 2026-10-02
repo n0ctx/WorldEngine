@@ -47,6 +47,8 @@ export const MIDDLE_SUMMARY_MAX_TOKENS = 1200;
 export const MIDDLE_COMPRESS_INPUT_MAX_TOKENS = 12000;
 /** 中期摘要覆盖的原文轮数上限 */
 export const MIDDLE_RAW_ROUNDS_MAX = 20;
+/** 短期窗口超预算时一次滑到预算的这个比例以内，之后几轮窗口开头不动，历史前缀可跨轮复用 prompt cache */
+export const SHORT_TERM_EVICT_TARGET_RATIO = 0.7;
 /** 长期记忆索引条目单条最大 token 数 */
 export const LONG_TERM_INDEX_MAX_TOKENS = 100;
 /** 每次回填长期记忆索引的 turn record 条数上限 */
