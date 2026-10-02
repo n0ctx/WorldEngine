@@ -602,6 +602,9 @@
   min-height: 0;
   gap: var(--we-space-2xl);
   overflow: hidden;
+  /* 顶部多留一段裁剪余量：栏头按钮悬停上浮、描边与投影不被容器上沿截断；负外边距抵消，版面不动 */
+  padding-top: var(--we-space-md);
+  margin-top: calc(-1 * var(--we-space-md));
 }
 
 .we-worldhub-main {
@@ -619,6 +622,8 @@
   gap: var(--we-space-xl);
   min-height: 0;
   overflow-y: auto;
+  padding-top: var(--we-space-md);
+  margin-top: calc(-1 * var(--we-space-md));
   padding-inline: var(--we-shadow-bleed-inline);
   padding-bottom: var(--we-shadow-bleed-block);
   scrollbar-width: thin;
@@ -1627,6 +1632,8 @@
     flex-direction: column;
     flex: none;
     overflow: visible;
+    padding-top: 0;
+    margin-top: 0;
   }
 
   .we-worldhub-main,
@@ -1637,6 +1644,8 @@
     max-width: none;
     overflow: visible;
     padding-inline: 0;
+    padding-top: 0;
+    margin-top: 0;
   }
 
   .we-storyline-body {
