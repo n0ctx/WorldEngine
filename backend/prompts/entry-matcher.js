@@ -192,17 +192,7 @@ function evaluateCondition(condition, stateMap) {
     }
     // 兼容旧格式：全量 ISO datetime 字符串对比
     const cmp = compareDatetime(current, value);
-    if (cmp != null) {
-      switch (operator) {
-        case '>':  return cmp > 0;
-        case '<':  return cmp < 0;
-        case '=':  return cmp === 0;
-        case '>=': return cmp >= 0;
-        case '<=': return cmp <= 0;
-        case '!=': return cmp !== 0;
-      }
-    }
-    return false;
+    return cmp != null && applyNumericOp(cmp, 0, operator);
   }
   if (TEXT_OPS.has(operator)) {
     switch (operator) {

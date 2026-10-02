@@ -163,19 +163,16 @@ async function resolveSuggestionOptions({
   let visibleContent = stripThinkBlocksFromText(content) ?? '';
   let boundary = classifyNextPromptBoundary(visibleContent);
 
-  if (suggestionEnabled && !aborted && visibleContent && boundary === 'closed') {
+  if (!suggestionEnabled || aborted || !visibleContent) return extractNextPromptOptions(content);
+
+  if (boundary === 'closed') {
     const peek = extractNextPromptOptions(content);
-    if (peek.options.length >= 3) return peek;
-    if (peek.options.length === 0) return peek;
+    if (peek.options.length >= 3 || peek.options.length === 0) return peek;
     // 闭合但只有 1-2 条：删掉闭标签复用 continuation 路径补齐到三条。
     // 已知此后 boundary 必为 truncated，无需重新 strip / classify。
     content = content.replace(/<\/next_prompt>\s*$/, '');
     visibleContent = visibleContent.replace(/<\/next_prompt>\s*$/, '');
     boundary = 'truncated';
-  }
-
-  if (!suggestionEnabled || aborted || !visibleContent || boundary === 'closed') {
-    return extractNextPromptOptions(content);
   }
 
   const mode = boundary === 'truncated' ? 'continuation' : 'fallback';

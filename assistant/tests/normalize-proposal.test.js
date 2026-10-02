@@ -345,6 +345,26 @@ test('normalizeProposal 会把 world-card state 条件归一到当前运行时�
   ]);
 });
 
+test('normalizeProposal 按字段类型归一 state 条件的英文运算符别名', () => {
+  const normalize = (conditions) => __testables.normalizeProposal({
+    entityId: 'world-123',
+    entryOps: [{ op: 'create', title: '别名', trigger_type: 'state', content: '...', conditions }],
+    stateFieldOps: [
+      { op: 'create', target: 'world', field_key: 'danger', label: '危险度', type: 'number' },
+      { op: 'create', target: 'world', field_key: 'weather', label: '天气', type: 'text' },
+    ],
+  }, { type: 'world-card', operation: 'update' }).entryOps[0].conditions;
+
+  assert.deepEqual(normalize([
+    { target_field: '危险度', operator: 'gte', value: '3' },
+    { target_field: '危险度', operator: 'ne', value: '0' },
+    { target_field: '天气', operator: 'contains', value: '雨' },
+    { target_field: '天气', operator: 'not_contains', value: '雪' },
+  ]).map((condition) => condition.operator), ['>=', '!=', '包含', '不包含']);
+  assert.throws(() => normalize([{ target_field: '天气', operator: 'lte', value: '1' }]), /非数值字段不能使用 lte/);
+  assert.throws(() => normalize([{ target_field: '天气', operator: 'ne', value: '晴' }]), /文本字段不支持 ne/);
+});
+
 test('normalizeProposal 遇到歧义 state 条件字段时会拒绝自动归一', () => {
   // S506 后 persona/character 的 field_key 会自动加后缀，不会再产生 field_key 歧义；
   // 但跨 scope 仍可能出现同 label 歧义（用户输入裸 label 而非 "世界.xxx" 形式）。

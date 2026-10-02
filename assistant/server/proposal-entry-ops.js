@@ -33,6 +33,9 @@ const CONDITION_OPERATOR_ALIASES = {
   '等于': '等于',
   '不包含': '不包含',
 };
+// 英文别名 → 运行时运算符；数值专用的别名用在非数值字段上直接报错
+const NUMERIC_ONLY_OPERATOR_ALIASES = { gt: '>', lt: '<', gte: '>=', lte: '<=', ne: '!=' };
+const TEXT_OPERATOR_ALIASES = { contains: '包含', not_contains: '不包含' };
 
 function buildWorldConditionContext(worldId, stateFieldOps = []) {
   const scopedFields = [];
@@ -154,33 +157,15 @@ function normalizeConditionOperator(rawOperator, field, idx, condIdx) {
   }
   if (VALID_RUNTIME_ENTRY_CONDITION_OPERATORS.has(operator)) return operator;
 
-  const fieldType = field?.type || null;
-  const isNumeric = fieldType === 'number';
-  switch (operator) {
-    case 'gt':
-      if (!isNumeric) throw new Error(`提案格式错误：entryOps[${idx}].conditions[${condIdx}] 非数值字段不能使用 gt`);
-      return '>';
-    case 'lt':
-      if (!isNumeric) throw new Error(`提案格式错误：entryOps[${idx}].conditions[${condIdx}] 非数值字段不能使用 lt`);
-      return '<';
-    case 'gte':
-      if (!isNumeric) throw new Error(`提案格式错误：entryOps[${idx}].conditions[${condIdx}] 非数值字段不能使用 gte`);
-      return '>=';
-    case 'lte':
-      if (!isNumeric) throw new Error(`提案格式错误：entryOps[${idx}].conditions[${condIdx}] 非数值字段不能使用 lte`);
-      return '<=';
-    case 'eq':
-      return isNumeric ? '=' : '等于';
-    case 'ne':
-      if (!isNumeric) throw new Error(`提案格式错误：entryOps[${idx}].conditions[${condIdx}] 文本字段不支持 ne，请改用 等于/包含/不包含`);
-      return '!=';
-    case 'contains':
-      return '包含';
-    case 'not_contains':
-      return '不包含';
-    default:
-      throw new Error(`提案格式错误：entryOps[${idx}].conditions[${condIdx}].operator 非法`);
+  const isNumeric = field?.type === 'number';
+  if (operator === 'eq') return isNumeric ? '=' : '等于';
+  if (TEXT_OPERATOR_ALIASES[operator]) return TEXT_OPERATOR_ALIASES[operator];
+  if (!isNumeric) {
+    throw new Error(operator === 'ne'
+      ? `提案格式错误：entryOps[${idx}].conditions[${condIdx}] 文本字段不支持 ne，请改用 等于/包含/不包含`
+      : `提案格式错误：entryOps[${idx}].conditions[${condIdx}] 非数值字段不能使用 ${operator}`);
   }
+  return NUMERIC_ONLY_OPERATOR_ALIASES[operator];
 }
 
 function normalizeEntryOps(rawOps, { includeMode = false, allowTriggerType = false, conditionContext = null, warnings = null } = {}) {

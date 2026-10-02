@@ -297,6 +297,26 @@ describe('matchEntries — state 类型条件评估', () => {
     assert.ok(matched.has(entry.id), '世界档案时间年份 1005 > 1000，应命中');
   });
 
+  test('世界.时间 条件支持完整 datetime 比较', async () => {
+    const world = insertWorld(sandbox.db, { name: '状态条目世界-完整时间' });
+    const character = insertCharacter(sandbox.db, world.id, { name: '测试角色-完整时间' });
+    const session = insertSession(sandbox.db, { character_id: character.id, world_id: world.id, mode: 'chat' });
+
+    const { upsertWorldProfile } = await freshImport('backend/db/queries/state-memory.js');
+    upsertWorldProfile(session.id, 'time', '1005-03-15T08:00', null, 1);
+
+    const after = insertWorldEntry(sandbox.db, world.id, { title: '已过', trigger_type: 'state', content: '...' });
+    insertEntryCondition(sandbox.db, after.id, { target_field: '世界.时间', operator: '>=', value: '1005-03-15T08:00' });
+    const before = insertWorldEntry(sandbox.db, world.id, { title: '未到', trigger_type: 'state', content: '...' });
+    insertEntryCondition(sandbox.db, before.id, { target_field: '世界.时间', operator: '<', value: '1005-03-15T07:59' });
+
+    resetMockEnv();
+    const { matchEntries } = await freshImport('backend/prompts/entry-matcher.js');
+    const matched = await matchEntries(session.id, [{ ...after }, { ...before }], world.id);
+    assert.ok(matched.has(after.id), '时间等于阈值，>= 应命中');
+    assert.ok(!matched.has(before.id), '时间晚于阈值，< 不应命中');
+  });
+
   test('世界.地点 等值条件按世界档案触发', async () => {
     const world = insertWorld(sandbox.db, { name: '状态条目世界-地点' });
     const character = insertCharacter(sandbox.db, world.id, { name: '测试角色-地点' });
