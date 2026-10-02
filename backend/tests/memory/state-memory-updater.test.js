@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
 
 import { createTestSandbox, freshImport, resetMockEnv } from '../helpers/test-env.js';
+import { STATE_TEXT_COMPRESS_TARGET } from '../../utils/constants.js';
 import {
   insertCharacter,
   insertCharacterStateField,
@@ -217,7 +218,7 @@ test('世界里 nearby_enabled=1 的「职业」角色字段会让档案清单�
   assert.ok(system.includes('career（职业'), 'NPC 适用字段清单应包含 career');
 });
 
-test('状态更新说明里写明 text 字段不超过 20 字', async () => {
+test('状态更新说明里写明 text 字段的字数上限', async () => {
   resetMockEnv();
   const world = insertWorld(sandbox.db, { name: '字数世界' });
   insertWorldStateField(sandbox.db, world.id, { field_key: 'mission', label: '任务', type: 'text', update_mode: 'llm_auto' });
@@ -233,7 +234,7 @@ test('状态更新说明里写明 text 字段不超过 20 字', async () => {
   const sections = buildEntityStateSections(targets, { world: w, worldId: world.id, sessionId: session.id, session });
   const system = __testables.buildCacheableSystemPrompt(world.id, targets, sections);
 
-  assert.match(system, /text 类型字段的值不超过 20 字/);
+  assert.ok(system.includes(`text 类型字段的值不超过 ${STATE_TEXT_COMPRESS_TARGET} 字`));
 });
 
 test('system 前缀带上本世界启用的常驻条目作为世界观，不带需触发的和已停用的条目', async () => {

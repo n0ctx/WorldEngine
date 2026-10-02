@@ -104,9 +104,9 @@ export const LLM_STATE_COMPRESS_MAX_TOKENS = 512;
 // 状态字段长度限制
 // ============================
 /** text 字段值触发压缩的字数阈值 */
-export const STATE_TEXT_MAX_LENGTH = 30;
+export const STATE_TEXT_MAX_LENGTH = 60;
 /** text 字段压缩目标字数，也是提示词里告诉模型的字数上限 */
-export const STATE_TEXT_COMPRESS_TARGET = 20;
+export const STATE_TEXT_COMPRESS_TARGET = 40;
 /** list 字段触发裁剪的条目数阈值 */
 export const STATE_LIST_MAX_ITEMS = 10;
 /** list 字段裁剪目标条目数 */
