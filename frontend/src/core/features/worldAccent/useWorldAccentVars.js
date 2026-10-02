@@ -36,8 +36,7 @@ function shouldApplyWorldAccent() {
   return relativeLuminance(rgb) < DARK_CANVAS_LUMINANCE_THRESHOLD;
 }
 
-/** 当前所在的世界：世界层、规则空间、会话页、写作页取该世界 id，书架层返回 null。 */
-export function useScopedWorldId() {
+function useScopedWorldId() {
   const location = useLocation();
   const pathname = resolveTopbarPathname(location);
   const { worldId } = extractIds(pathname);

@@ -2,7 +2,7 @@
  * 背景氛围层：垫在全部内容后面的一层静态光晕 + 一张动态画布。
  * - 画布画什么由主题的 --we-atmosphere-kind 选：dust 光尘（lightDust.js）/ rain 代码雨（codeRain.js）/ press 素压（typePress.js），换主题时随下一次重读切换；
  * - 颜色取 --we-atmosphere-color：进入世界后随封面主色变，书架页悬停入口时由外壳临时覆盖成该世界主色；
- * - names 是当前世界相关的名字（useAtmosphereNames），素压从里面挑要压的字，随下一次重读交给场景；
+ * - names 是全部世界的世界名、角色名、玩家名（useAtmosphereNames），素压从里面挑要压的行，随下一次重读交给场景；
  * - 强度由 CSS 按场景取 --we-atmosphere-opacity / --we-atmosphere-opacity-quiet 作用在 canvas 上；
  * - 页面隐藏时停掉循环；系统要求减少动效时不渲染 canvas，只留静态光晕。
  */
