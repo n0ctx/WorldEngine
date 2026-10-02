@@ -46,6 +46,50 @@ test('前后端互相导入、绕过 features/assistant 接入助手客户端、
   assert.match(result.stderr, /db-connection-outside-queries:backend\/memory\/m\.js -> backend\/db\/index\.js/);
 });
 
+test('后端下层依赖上层（流程层、接口层）、数据层依赖业务层，都作为硬规则失败', () => {
+  const root = fixture();
+  write(root, 'backend/routes/r.js', 'export const helper = 1;\n');
+  write(root, 'backend/app/a.js', "import { helper } from '../routes/r.js';\nexport const a = helper;\n");
+  write(root, 'backend/services/u.js', "import { a } from '../app/a.js';\nexport const u = a;\n");
+  write(root, 'backend/db/queries/up.js', "import { u } from '../../services/u.js';\nexport const up = u;\n");
+  const result = run(root);
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /upward-to-routes:backend\/app\/a\.js -> backend\/routes\/r\.js/);
+  assert.match(result.stderr, /upward-to-app:backend\/services\/u\.js -> backend\/app\/a\.js/);
+  assert.match(result.stderr, /db-to-upper:backend\/db\/queries\/up\.js -> backend\/services\/u\.js/);
+});
+
+test('接口层和写卡助手直接导入查询层写函数失败；读函数（含拼接 SQL 后直接 .all）、业务层写入和助手任务表不报', () => {
+  const root = fixture();
+  write(root, 'backend/db/queries/w.js', [
+    "import db from '../index.js';",
+    "export const read = (id) => db.prepare('SELECT * FROM t WHERE id = ?').get(id);",
+    "export const save = (id) => db.prepare('UPDATE t SET x = 1 WHERE id = ?').run(id);",
+    "export function list(where) { let sql = 'SELECT * FROM t'; sql += where; return db.prepare(sql).all(); }",
+    '',
+  ].join('\n'));
+  write(root, 'backend/db/queries/assistant-tasks.js',
+    "import db from '../index.js';\nexport const saveTask = () => db.prepare('INSERT INTO assistant_tasks DEFAULT VALUES').run();\n");
+  write(root, 'backend/services/w.js', "import { save } from '../db/queries/w.js';\nexport const saveViaService = save;\n");
+  write(root, 'backend/routes/ok.js', [
+    "import { list, read } from '../db/queries/w.js';",
+    "import { saveViaService } from '../services/w.js';",
+    'export const ok = [list, read, saveViaService];',
+    '',
+  ].join('\n'));
+  write(root, 'backend/routes/bad.js', "import { read, save } from '../db/queries/w.js';\nexport const bad = [read, save];\n");
+  write(root, 'assistant/server/bad.js', "import * as w from '../../backend/db/queries/w.js';\nexport const bad = w;\n");
+  write(root, 'assistant/server/task-store.js',
+    "import { saveTask } from '../../backend/db/queries/assistant-tasks.js';\nexport const store = saveTask;\n");
+  const result = run(root);
+  assert.equal(result.status, 1);
+  const findings = result.stderr.split('\n').filter((line) => line.includes('db-write-outside-services:'));
+  assert.deepEqual(findings.map((line) => line.trim()), [
+    'db-write-outside-services:assistant/server/bad.js -> backend/db/queries/w.js#save',
+    'db-write-outside-services:backend/routes/bad.js -> backend/db/queries/w.js#save',
+  ]);
+});
+
 test('插入无关代码并新增文件不改变已有 finding key', () => {
   const root = fixture();
   write(root, 'backend/memory/m.js', "import db from '../db/index.js';\nexport const m = () => db;\n");
