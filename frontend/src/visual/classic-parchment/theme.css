@@ -26,11 +26,12 @@
   --we-font-display-style: italic;
 
   /* § 3 质感 */
-  /* 背景氛围「光尘」：只在深色书桌上飘一层淡金尘；纸面（正文区、浮层）铺回实底，不透光 */
+  /* 背景氛围「印台」：深色书桌上不时落下铅字和印章，压出烫金凹印与朱印；纸面（正文区、浮层）铺回实底，不透光 */
+  --we-atmosphere-kind: press;
   --we-atmosphere-color: #d9b56a;
   --we-atmosphere-shade: rgba(20, 12, 6, 0.35);
-  --we-atmosphere-opacity: 0.55;
-  --we-atmosphere-opacity-quiet: 0.45;
+  --we-atmosphere-opacity: 0.9;
+  --we-atmosphere-opacity-quiet: 0.6;
   --we-atmosphere-glow-strength: 10%;
   --we-atmosphere-grain: 0.03;
   --we-material-sheen: rgba(255, 248, 230, 0.10);

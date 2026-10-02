@@ -1,6 +1,6 @@
 /**
  * 背景氛围层：垫在全部内容后面的一层静态光晕 + 一张动态画布。
- * - 画布画什么由主题的 --we-atmosphere-kind 选：dust 光尘（lightDust.js）/ rain 代码雨（codeRain.js），换主题时随下一次重读切换；
+ * - 画布画什么由主题的 --we-atmosphere-kind 选：dust 光尘（lightDust.js）/ rain 代码雨（codeRain.js）/ press 印台（typePress.js），换主题时随下一次重读切换；
  * - 颜色取 --we-atmosphere-color：进入世界后随封面主色变，书架页悬停入口时由外壳临时覆盖成该世界主色；
  * - 强度由 CSS 按场景取 --we-atmosphere-opacity / --we-atmosphere-opacity-quiet 作用在 canvas 上；
  * - 页面隐藏时停掉循环；系统要求减少动效时不渲染 canvas，只留静态光晕。
@@ -10,11 +10,12 @@ import { useMotion } from '../../../core/hooks/useMotion.js';
 import { hexToRgb } from '../../../core/utils/color.js';
 import { createRainScene } from './codeRain.js';
 import { createDustScene } from './lightDust.js';
+import { createPressScene } from './typePress.js';
 
 const MAX_DPR = 2;
 // 主题切换不发事件给这里，按固定间隔重读一次 token；已知的换色（colorKey）立即重读
 const TOKEN_REFRESH_SECONDS = 1;
-const SCENES = { dust: createDustScene, rain: createRainScene };
+const SCENES = { dust: createDustScene, rain: createRainScene, press: createPressScene };
 
 /** 借 canvas 把任意 CSS 颜色规范成 #rrggbb 或 rgba(...)，再转成 {r,g,b} */
 function toRgb(ctx, value) {
@@ -70,7 +71,7 @@ function Canvas({ colorKey }) {
         scene = SCENES[kind](canvas);
         scene.resize(width, height);
       }
-      scene.read((token) => toRgb(ctx, style.getPropertyValue(token)));
+      scene.read((token) => toRgb(ctx, style.getPropertyValue(token)), (token) => style.getPropertyValue(token).trim());
     }
 
     function tick(now) {
@@ -92,7 +93,7 @@ function Canvas({ colorKey }) {
       frame = requestAnimationFrame(tick);
     }
 
-    // 停下时连场景一起丢掉：光尘的贴图在 Edge 里只掉引用不会释放，代码雨的指针监听也要撤
+    // 停下时连场景一起丢掉：光尘和印台的贴图在 Edge 里只掉引用不会释放，代码雨和印台的指针监听也要撤
     function stop() {
       cancelAnimationFrame(frame);
       frame = 0;

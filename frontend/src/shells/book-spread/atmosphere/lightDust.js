@@ -56,7 +56,7 @@ function shaftDistance(x, y, width, height, halfWidth) {
 }
 
 /** 预渲染一颗柔光点，绘制时按半径缩放，避免每颗尘每帧新建径向渐变 */
-export function createMoteSprite(color, doc = document) {
+function createMoteSprite(color, doc = document) {
   const size = 64;
   const sprite = doc.createElement('canvas');
   sprite.width = size;
@@ -79,6 +79,28 @@ export function releaseMoteSprite(sprite) {
   ctx?.clearRect(0, 0, sprite.width, sprite.height);
   sprite.width = 0;
   sprite.height = 0;
+}
+
+/** 按颜色缓存柔光点贴图：缓动中的颜色跨过整数才重画，旧贴图立即释放。光尘和印台共用。 */
+export function createMoteSpriteCache(doc = document) {
+  let sprite = null;
+  let key = '';
+  return {
+    get(color) {
+      const next = `${Math.round(color.r)},${Math.round(color.g)},${Math.round(color.b)}`;
+      if (next !== key) {
+        releaseMoteSprite(sprite);
+        sprite = createMoteSprite(color, doc);
+        key = next;
+      }
+      return sprite;
+    },
+    release() {
+      releaseMoteSprite(sprite);
+      sprite = null;
+      key = '';
+    },
+  };
 }
 
 /**
@@ -149,8 +171,7 @@ export function createDustScene() {
   let time = 0;
   let target = null;
   let color = null;
-  let sprite = null;
-  let spriteKey = '';
+  const sprites = createMoteSpriteCache();
 
   return {
     resize(nextWidth, nextHeight) {
@@ -165,19 +186,11 @@ export function createDustScene() {
       time += dt;
       if (target) color = color ? approachColor(color, target, dt) : target;
       if (!color) return;
-      const key = `${Math.round(color.r)},${Math.round(color.g)},${Math.round(color.b)}`;
-      if (key !== spriteKey) {
-        releaseMoteSprite(sprite);
-        sprite = createMoteSprite(color);
-        spriteKey = key;
-      }
       stepMotes(motes, dt, width, height);
-      drawFrame(ctx, { motes, sprite, width, height, color, time });
+      drawFrame(ctx, { motes, sprite: sprites.get(color), width, height, color, time });
     },
     dispose() {
-      releaseMoteSprite(sprite);
-      sprite = null;
-      spriteKey = '';
+      sprites.release();
     },
   };
 }
