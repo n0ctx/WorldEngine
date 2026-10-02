@@ -26,6 +26,7 @@ import { splitRounds } from '../utils/session-rounds.js';
 import { ALL_MESSAGES_LIMIT } from '../utils/constants.js';
 import { createLogger, formatMeta } from '../utils/logger.js';
 import { extractJsonObject } from '../utils/llm-json.js';
+import { toPromptMessage } from '../utils/turn-dialogue.js';
 
 const log = createLogger('svc', 'green');
 
@@ -65,7 +66,7 @@ function resolveEntityRound(sessionId) {
 }
 
 function pickRecentMessages(sessionId, rounds) {
-  const all = getMessagesBySessionId(sessionId, ALL_MESSAGES_LIMIT, 0);
+  const all = getMessagesBySessionId(sessionId, ALL_MESSAGES_LIMIT, 0).map(toPromptMessage);
   // 一轮约等于 user + assistant 两条；取最后 rounds*2 条即可
   const tail = all.slice(-rounds * 2);
   return tail;

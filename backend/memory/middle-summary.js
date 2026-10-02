@@ -20,6 +20,7 @@ import { resolveAuxScope } from '../utils/aux-scope.js';
 import { renderBackendPrompt } from '../prompts/prompt-loader.js';
 import { countTokens } from '../utils/token-counter.js';
 import { splitRounds, roundTokens } from '../utils/session-rounds.js';
+import { toPromptMessage } from '../utils/turn-dialogue.js';
 import {
   ALL_MESSAGES_LIMIT,
   LLM_TASK_TEMPERATURE,
@@ -206,7 +207,7 @@ export async function computeMiddleSummary(sessionId, roundIndex) {
   const baseCoveredTo = baseline?.middle_covered_to ?? 0;
   const baseText = baseline?.middle_covered_to == null ? '' : (baseline.middle_summary ?? '');
 
-  const messages = getMessagesBySessionId(sessionId, ALL_MESSAGES_LIMIT, 0);
+  const messages = getMessagesBySessionId(sessionId, ALL_MESSAGES_LIMIT, 0).map(toPromptMessage);
   const rounds = splitRounds(messages);
   const plan = planEviction(rounds, baseCoveredTo, budget, roundIndex);
 

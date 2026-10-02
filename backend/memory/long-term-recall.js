@@ -22,6 +22,7 @@ import { createLogger, formatMeta } from '../utils/logger.js';
 import { renderBackendPrompt } from '../prompts/prompt-loader.js';
 import { resolveAuxScope } from '../utils/aux-scope.js';
 import { parseFencedJson } from '../utils/llm-json.js';
+import { stripThinkBlocksFromText, toPromptMessage } from '../utils/turn-dialogue.js';
 
 const log = createLogger('long-term-recall');
 
@@ -77,7 +78,7 @@ function selectWithinBudget(candidatesAsc, budget) {
 
 /** 默认取「上一条 AI 回复 + 当前用户消息」拼接文本；调用方可用 recentMessages 覆盖。 */
 function buildRecentMessagesText(sessionId) {
-  const lastTurn = getLastTurnMessages(sessionId);
+  const lastTurn = getLastTurnMessages(sessionId).map(toPromptMessage);
   const lastUser = lastTurn.find((m) => m.role === 'user');
   const lastAsst = lastTurn.find((m) => m.role === 'assistant');
   return [
@@ -217,7 +218,7 @@ export function renderRecalledTurns(recordIds, budget = MEMORY_EXPAND_MAX_TOKENS
     const titleStr = record.session_title || '未命名会话';
 
     const userContent = record.user_content ?? '';
-    const asstContent = record.asst_content ?? '';
+    const asstContent = stripThinkBlocksFromText(record.asst_content ?? '').trimStart();
     const originalText = [
       userContent ? `{{user}}：${userContent}` : '',
       asstContent ? `{{char}}：${asstContent}` : '',

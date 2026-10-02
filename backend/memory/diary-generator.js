@@ -32,6 +32,7 @@ import { renderBackendPrompt } from '../prompts/prompt-loader.js';
 import { createLogger, formatMeta } from '../utils/logger.js';
 import { resolveAuxScope } from '../utils/aux-scope.js';
 import { DATA_ROOT } from '../utils/data-dir.js';
+import { toPromptMessage } from '../utils/turn-dialogue.js';
 
 const log = createLogger('diary');
 
@@ -109,7 +110,7 @@ function getWorldTimeJsonAtRound(sessionId, round) {
  */
 function getMessageContent(messageId) {
   if (!messageId) return null;
-  return getMessageById(messageId)?.content ?? null;
+  return toPromptMessage(getMessageById(messageId))?.content ?? null;
 }
 
 /**

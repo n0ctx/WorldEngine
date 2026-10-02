@@ -19,6 +19,7 @@ import { getConfig } from '../services/config.js';
 import { stripThinkTags } from './title-generation.js';
 import { createLogger, formatMeta } from '../utils/logger.js';
 import { LLM_BACKGROUND_TASK_TIMEOUT_MS } from '../utils/constants.js';
+import { toPromptMessage } from '../utils/turn-dialogue.js';
 
 const log = createLogger('danmaku');
 
@@ -124,7 +125,7 @@ export async function generateDanmaku(sessionId, { mode = 'chat' } = {}) {
     const config = getConfig();
     const count = Math.max(1, Math.min(20, Number((mode === 'writing' ? config.writing?.danmaku : config.danmaku)?.count) || 5));
     // 聊天与写作的消息同存 messages 表，getLastTurnMessages 对两者皆取「最后一条 user + assistant」
-    const turnText = buildLastTurnText(getLastTurnMessages(sessionId));
+    const turnText = buildLastTurnText(getLastTurnMessages(sessionId).map(toPromptMessage));
     if (!turnText || !turnText.trim()) return [];
     const personaText = buildPersonaText(sessionId);
 

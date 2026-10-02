@@ -141,6 +141,19 @@ export function stripThinkBlocksFromText(text) {
   return scanThinkBlocks(text).stripped;
 }
 
+const STRAY_THINK_CLOSE_RE = /<\s*\/\s*think(?:ing)?\s*>/gi;
+const INTERRUPTED_REPLY_TEXT = '（回复中断）';
+
+/**
+ * 给模型看的消息：AI 消息去掉思考块和多余的闭标签（库里保留原文供界面展示），其余原样返回。
+ * 思考途中被中断、没有正文的回复写成占位文字，避免空消息被服务商拒绝。
+ */
+export function toPromptMessage(msg) {
+  if (msg?.role !== 'assistant' || typeof msg.content !== 'string') return msg;
+  const visible = stripThinkBlocksFromText(msg.content).replace(STRAY_THINK_CLOSE_RE, '').trim();
+  return { ...msg, content: visible || (msg.content.trim() ? INTERRUPTED_REPLY_TEXT : msg.content) };
+}
+
 // 在原始文本中找到对应 stripped 文本中 idxInStripped 位置的 <next_prompt> 的原始偏移量。
 // 用一次 scan 的 spans 反推,避免老实现对 prefix 再次 strip 与 full 的模式不一致导致 -1。
 export function findRawNextPromptIdx(raw, idxInStripped) {

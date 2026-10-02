@@ -8,6 +8,7 @@ import {
   stripThinkBlocksFromText,
   stripTrailingStateBlocks,
   stripUserContext,
+  toPromptMessage,
   unwrapSoloThinkBlock,
 } from '../../utils/turn-dialogue.js';
 
@@ -145,4 +146,17 @@ test('extractNextPromptOptions：mode-divergence 回归——full 走 boolean �
   const r = extractNextPromptOptions(raw);
   assert.deepEqual(r.options, ['opt']);
   assert.equal(r.content, '<think>A<think>B</think>C</think>D');
+});
+
+test('toPromptMessage：AI 消息去掉思考块、多余闭标签与首尾空白，其余消息与字段原样保留', () => {
+  const asst = { id: 'm1', role: 'assistant', content: '<think>先想想</think>\n\n正文' };
+  assert.deepEqual(toPromptMessage(asst), { id: 'm1', role: 'assistant', content: '正文' });
+  assert.equal(asst.content, '<think>先想想</think>\n\n正文');
+  assert.equal(toPromptMessage({ role: 'assistant', content: '<think>想法</think>\n\n正文\n</think>' }).content, '正文');
+  assert.equal(toPromptMessage({ role: 'assistant', content: '<think>想法\n</think></think>正文' }).content, '正文');
+  assert.equal(toPromptMessage({ role: 'assistant', content: '<think>中断时没想完' }).content, '（回复中断）');
+  assert.equal(toPromptMessage({ role: 'assistant', content: '' }).content, '');
+  const user = { role: 'user', content: '<think>玩家原话</think>' };
+  assert.equal(toPromptMessage(user), user);
+  assert.equal(toPromptMessage(null), null);
 });

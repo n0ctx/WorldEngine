@@ -22,6 +22,7 @@ import { getAllWorldEntries } from '../db/queries/prompt-entries.js';
 import { applyTemplateVars } from '../utils/template-vars.js';
 import { resolveAuxScope } from '../utils/aux-scope.js';
 import { validateValue } from '../utils/state-field-validate.js';
+import { toPromptMessage } from '../utils/turn-dialogue.js';
 import { extractJsonPatch } from './state-update-json.js';
 import { compressOverLimitFields } from './state-update-compress.js';
 import {
@@ -283,7 +284,7 @@ export async function updateAllStates(worldId, characterIds, sessionId) {
   captureBaselineIfAbsent(sessionId, worldId, characterIds);
 
   // 状态记忆常开：只要会话有消息就调用。
-  const messages = getMessagesBySessionId(sessionId, ALL_MESSAGES_LIMIT, 0);
+  const messages = getMessagesBySessionId(sessionId, ALL_MESSAGES_LIMIT, 0).map(toPromptMessage);
   if (messages.length === 0) return;
   const { round, turnText } = resolveCurrentRound(messages);
 

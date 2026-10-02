@@ -37,7 +37,7 @@ import { splitRounds } from '../utils/session-rounds.js';
 import { computeMiddleSummary, resolveNames } from './middle-summary.js';
 import { resolveAuxScope } from '../utils/aux-scope.js';
 import { countTokens } from '../utils/token-counter.js';
-import { stripThinkBlocksFromText } from '../utils/turn-dialogue.js';
+import { stripThinkBlocksFromText, toPromptMessage } from '../utils/turn-dialogue.js';
 
 /**
  * 从 LLM 原始输出中解析 JSON 结构 {scene, cast[], summary}。
@@ -107,7 +107,7 @@ export async function createTurnRecord(sessionId) {
   const session = getSessionById(sessionId);
   if (!session) { log.warn(`session not found  session=${sid}`); return; }
 
-  const allMsgs = getMessagesBySessionId(sessionId, ALL_MESSAGES_LIMIT, 0);
+  const allMsgs = getMessagesBySessionId(sessionId, ALL_MESSAGES_LIMIT, 0).map(toPromptMessage);
   const rounds = splitRounds(allMsgs);
   if (rounds.length === 0) {
     log.info(`SKIP  ${formatMeta({ session: sid, reason: 'no-rounds' })}`);
@@ -253,7 +253,7 @@ export async function generateTurnIndex(sessionId) {
   if (!session) { log.warn(`session not found  session=${sid}`); return; }
 
   const { userName, characterName } = resolveNames(session);
-  const rounds = splitRounds(getMessagesBySessionId(sessionId, ALL_MESSAGES_LIMIT, 0));
+  const rounds = splitRounds(getMessagesBySessionId(sessionId, ALL_MESSAGES_LIMIT, 0).map(toPromptMessage));
 
   const { records, backfillCount } = collectRecordsToIndex(sessionId);
   const { indexed, failed } = await indexRecords(sessionId, sid, records, rounds, userName, characterName);

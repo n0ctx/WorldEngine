@@ -123,7 +123,7 @@ test('buildPrompt 组装系统段、历史消息，本轮上下文 + 当前用�
   });
   const session = insertSession(sandbox.db, { character_id: character.id });
   insertMessage(sandbox.db, session.id, { role: 'user', content: '第一轮提问', created_at: 1 });
-  insertMessage(sandbox.db, session.id, { role: 'assistant', content: '第一轮回答', created_at: 2 });
+  insertMessage(sandbox.db, session.id, { role: 'assistant', content: '<think>上一轮的思考</think>\n\n第一轮回答', created_at: 2 });
   insertMessage(sandbox.db, session.id, { role: 'user', content: '第二轮提问', created_at: 3 });
 
   const { buildPrompt } = await freshImport('backend/prompts/assembler.js');

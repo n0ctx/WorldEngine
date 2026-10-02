@@ -54,6 +54,7 @@ import { applyTemplateVars } from '../utils/template-vars.js';
 import { createLogger } from '../utils/logger.js';
 import { loadBackendPrompt } from './prompt-loader.js';
 import { splitRounds, roundTokens } from '../utils/session-rounds.js';
+import { toPromptMessage } from '../utils/turn-dialogue.js';
 import {
   composeSystemContent,
   renderCachedEntriesSection,
@@ -96,6 +97,16 @@ function readAttachmentAsDataUrl(relativePath) {
   const ext = path.extname(absPath).slice(1).toLowerCase();
   const mime = MIME_MAP[ext] || 'application/octet-stream';
   return `data:${mime};base64,${buf.toString('base64')}`;
+}
+
+/** 两种模式共用的历史起点：最新一轮记录给出的中期摘要及其覆盖到的轮次，加上给模型看的全部消息。 */
+function loadHistoryBase(sessionId) {
+  const latestRecord = getLatestTurnRecord(sessionId);
+  return {
+    coveredTo: latestRecord?.middle_covered_to ?? null,
+    storySummary: latestRecord?.middle_summary ?? '',
+    uncompressedMessages: getMessagesBySessionId(sessionId, null, 0).map(toPromptMessage),
+  };
 }
 
 /**
@@ -375,10 +386,7 @@ export async function buildPrompt(sessionId, options = {}) {
   log.info(`┌─ buildPrompt  session=${sid}  char="${character.name}"  world="${world.name}"`);
 
   const config = getConfig();
-  const latestRecord = getLatestTurnRecord(sessionId);
-  const coveredTo = latestRecord?.middle_covered_to ?? null;
-  const storySummary = latestRecord?.middle_summary ?? '';
-  const uncompressedMessages = getMessagesBySessionId(sessionId, null, 0);
+  const { coveredTo, storySummary, uncompressedMessages } = loadHistoryBase(sessionId);
 
   const {
     cachedContent, systemContent, turnContext, recallHitCount, activatedEntries, suggestionText, postParts,
@@ -533,10 +541,7 @@ export async function buildWritingPrompt(sessionId, options = {}) {
   const personaName = persona?.name || '';
   const tv = writingTemplateVars(world, persona);
 
-  const latestRecord = getLatestTurnRecord(sessionId);
-  const coveredTo = latestRecord?.middle_covered_to ?? null;
-  const storySummary = latestRecord?.middle_summary ?? '';
-  const uncompressedMessages = getMessagesBySessionId(sessionId, null, 0);
+  const { coveredTo, storySummary, uncompressedMessages } = loadHistoryBase(sessionId);
 
   log.info(`┌─ buildWritingPrompt  session=${sid}  world="${world.name}"`);
 

@@ -31,6 +31,7 @@ import { createLogger } from '../utils/logger.js';
 import { renderBackendPrompt, loadBackendPrompt } from './prompt-loader.js';
 import { resolveAuxScope } from '../utils/aux-scope.js';
 import { parseFencedJson } from '../utils/llm-json.js';
+import { toPromptMessage } from '../utils/turn-dialogue.js';
 
 const log = createLogger('entry', 'magenta');
 
@@ -408,7 +409,7 @@ function matchStateEntries(sessionId, worldId, entries) {
 export async function matchEntries(sessionId, entries, worldId = null) {
   if (!entries || entries.length === 0) return new Set();
 
-  const allMessages = getMessagesBySessionId(sessionId, ALL_MESSAGES_LIMIT, 0);
+  const allMessages = getMessagesBySessionId(sessionId, ALL_MESSAGES_LIMIT, 0).map(toPromptMessage);
   const context = getMatchContext(allMessages);
   const groups = groupEntriesByTriggerType(entries);
   const triggered = new Set(groups.always.map((entry) => entry.id));

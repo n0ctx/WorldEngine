@@ -12,6 +12,7 @@ import { buildTurnContext } from './build-turn-context.js';
 import { makeStreamErrorHandler, resolveContinuationBase } from './turn-helpers.js';
 import { ALL_MESSAGES_LIMIT } from '../../utils/constants.js';
 import { formatMeta } from '../../utils/logger.js';
+import { toPromptMessage } from '../../utils/turn-dialogue.js';
 import {
   closeSessionStreamSse,
   completeSessionStreamTask,
@@ -51,7 +52,7 @@ export async function runTurnContinue({ mode, sessionId, emitSse: rawEmitSse, at
         continuation: true,
       });
       const usePrefill = supportsPrefill(mode.llm.prefillProvider());
-      const continuationMessages = buildContinuationMessages(messages, originalContent, {
+      const continuationMessages = buildContinuationMessages(messages, toPromptMessage(lastAssistant).content, {
         suggestionText,
         usePrefill,
       });
