@@ -15,7 +15,7 @@ const spring = (stiffness, damping, mass = 1) => ({ type: 'spring', stiffness, d
 // 纸滑动、展开到位：起步快、急停
 const SLIDE = { duration: 0.34, ease: FRICTION };
 const EXIT = { duration: 0.22, ease: GRAVITY };
-// 折开：竖起的纸片拍下来（越落越快）→ 顿两帧 → 弹起 6° → 落平（与 letterpress.css 的 we-press-fold 同一动作）
+// 折开：向后折起的纸片翻下来（越落越快）→ 顿两帧 → 过平 3° → 落平（与 letterpress.css 的 we-press-fold 同一动作）
 const FOLD_TIMES = [0, 0.48, 0.57, 0.78, 1];
 const FOLD_EASE = [GRAVITY, 'linear', FRICTION, GRAVITY];
 const ENTER = {
@@ -32,8 +32,9 @@ const LAND = {
   opacity: { duration: 0.12 },
 };
 
-// 折痕在上沿；透视只给折开用
-const HINGE = { originY: 0, transformPerspective: 600 };
+// 折痕在上沿。纸片只从背向屏幕的一侧转进来、回弹只过平几度：朝屏幕转时，高的消息与正文段下沿会冲到视点前，被放大甚至翻过视点
+const HINGE = { originY: 0, transformPerspective: 1200 };
+const FOLD_FROM = -70;
 const LAND_FROM = -14;
 
 export default {
@@ -54,9 +55,9 @@ export default {
   variants: {
     // 小块入场：以上沿为折痕，从竖起的纸片拍下来、弹一下落平；离开时对折收起，越收越快
     enter: {
-      hidden:  { opacity: 0, rotateX: 80, ...HINGE },
-      visible: { opacity: 1, rotateX: [80, 0, 0, 6, 0], ...HINGE },
-      exit:    { opacity: 0, rotateX: 80, ...HINGE, transition: EXIT },
+      hidden:  { opacity: 0, rotateX: FOLD_FROM, ...HINGE },
+      visible: { opacity: 1, rotateX: [FOLD_FROM, 0, 0, 3, 0], ...HINGE },
+      exit:    { opacity: 0, rotateX: FOLD_FROM, ...HINGE, transition: EXIT },
     },
     // 大面板入场：一张纸落到桌上。不缩放、不模糊、不横向动
     overlayEnter: {
@@ -64,10 +65,10 @@ export default {
       visible: { opacity: 1, y: [LAND_FROM, 1, 1, 0] },
       exit:    { opacity: 0, y: -8, transition: EXIT },
     },
-    // 页签内容：顺着切换方向翻过来，以另一侧为轴转进来；custom 传方向（1 向右、-1 向左）
+    // 页签内容：顺着切换方向翻过来；custom 传方向（1 向右、-1 向左）。内容区很宽，角度小、透视远，近侧边缘才不会被放大
     tabEnter: {
-      hidden:  (dir = 1) => ({ opacity: 0, x: dir * 24, rotateY: dir * -25, transformPerspective: 800 }),
-      visible: { opacity: 1, x: 0, rotateY: 0, transformPerspective: 800 },
+      hidden:  (dir = 1) => ({ opacity: 0, x: dir * 24, rotateY: dir * -12, transformPerspective: 1600 }),
+      visible: { opacity: 1, x: 0, rotateY: 0, transformPerspective: 1600 },
     },
     overlayBackdrop: {
       hidden:  { opacity: 0 },

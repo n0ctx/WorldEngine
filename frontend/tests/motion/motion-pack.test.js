@@ -54,6 +54,15 @@ describe('动效包', () => {
     }
   });
 
+  it('入场翻转不朝屏幕外翻：高的消息与正文段下沿冲到视点前会被放大成满屏乱闪', () => {
+    for (const pack of Object.values(MOTION_PACKS)) {
+      const { hidden, visible, exit } = pack.variants.enter;
+      for (const state of [hidden, visible, exit]) {
+        for (const angle of [state.rotateX ?? 0].flat()) expect(angle, pack.id).toBeLessThanOrEqual(5);
+      }
+    }
+  });
+
   it('手势只含目标值不含 transition；按钮与入口卡片带字，按下是下沉而不是缩放', () => {
     const SCALE_KEYS = ['scale', 'scaleX', 'scaleY'];
     for (const pack of Object.values(MOTION_PACKS)) {
