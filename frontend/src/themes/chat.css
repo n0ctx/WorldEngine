@@ -7,7 +7,7 @@
   to   { opacity: 1; }
 }
 
-/* 逐字光标的“亮一拍”：两个动效包共用 */
+/* 逐字光标的“亮一拍”：各动效包共用 */
 @keyframes we-stream-char-caret {
   from, to { opacity: 1; }
 }

@@ -65,14 +65,15 @@ export const SLOTS = [
     hooks: ['we-option-list', 'we-option-btn'],
     api: ['css:enter'], usedIn: ['OptionCard'],
     note: '选项逐项错开入场；点选后，墨流是墨从点下的位置洇满选中项、其余项由近及远沉下变淡，'
-      + '信号是选中项文字双曝光撕裂一次（更重、中段反向），其余项按序变暗、卡面加竖向斜纹。',
+      + '信号是选中项文字双曝光撕裂一次（更重、中段反向），其余项按序变暗、卡面加竖向斜纹；'
+      + '活字是选中项被压下 2px、压出凹印，其余项由近及远被一道折痕暗影扫过、退到三级文字色。',
   },
   {
     id: 'legacy-css-enter', category: 'appear', title: '遮罩与大面板的 CSS 入场', status: 'pack',
     api: ['css:scrim', 'css:panel'],
     usedIn: ['设置与编辑页遮罩', '对话面板遮罩', '弹窗遮罩', '写卡助手遮罩', '编辑面板', '会话中栏'],
-    note: '遮罩只让底色入场（--we-fx-scrim），不带着上面的面板一起动：墨流从中央洇开，信号硬切闪两下亮起。'
-      + '大面板走 --we-fx-panel：墨流托起回弹，信号平滑淡入上浮；都不缩放、不模糊。'
+    note: '遮罩只让底色入场（--we-fx-scrim），不带着上面的面板一起动：墨流从中央洇开，信号硬切闪两下亮起，活字平稳压暗。'
+      + '大面板走 --we-fx-panel：墨流托起回弹，信号平滑淡入上浮，活字像一张纸落到桌上（顿一下、压过头 1px）；都不缩放、不模糊。'
       + '这里用编辑页的遮罩与面板演示。',
   },
 
@@ -123,7 +124,8 @@ export const SLOTS = [
     api: [], usedIn: ['WorldsPage → CharactersPage', 'AppShell（跨路由遮罩 .we-portal-veil）'],
     note: '没有独立的动效接口：时序（navigate / total）在动效包的 portal 字段，编排在动效包 CSS 里按 data-portal 接管。'
       + '墨流「洇门」：旧页沉入水中，枢纽页从柔焦里浮上来，栏标题从湿墨色干成正文色；'
-      + '信号「锁定跃迁」：旧页横向撕裂一次、暗半拍后硬切熄灭，新旧页之间的一拍黑里落两列硬切下坠的代码雨，新页闪两下亮起（雨画在 .we-portal-veil 上）。'
+      + '信号「锁定跃迁」：旧页横向撕裂一次、暗半拍后硬切熄灭，新旧页之间的一拍黑里落两列硬切下坠的代码雨，新页闪两下亮起（雨画在 .we-portal-veil 上）；'
+      + '活字「翻书」：书封压实，旧页沿左侧书脊朝人翻起、越翻越暗，侧立时切页，枢纽页留着翻页的影子，三栏依次落纸、栏标题压一下凹印。'
       + '转场期间旧页禁止二次点击，卡片的触点涟漪与指针光晕由整页退出接管，不重复播放。',
   },
   {
@@ -148,19 +150,21 @@ export const SLOTS = [
     ],
     api: ['gesture:press', 'transition:press'], usedIn: ['Button', 'TopBar', 'InputBox 工具栏'],
     note: '带字的按钮不缩放。墨流：悬停浮起，按下按进 2px、外沿一圈湿边，墨从触点在按钮里洇开，松手带过冲弹回；'
-      + '信号：按下硬切下沉 1px、底色提亮一格，压住到锁定那一拍磷光帧硬切外扩两步即灭（轻点撞不到）。触点涟漪由 useTouchFx 放，只有 Button 带；文字色调的按钮不浮起、不按压、不画外框。',
+      + '信号：按下硬切下沉 1px、底色提亮一格，压住到锁定那一拍磷光帧硬切外扩两步即灭（轻点撞不到）；'
+      + '活字：悬停纸边翘起 1px、垫一层浅影，按下压进 2px、压出凹印，松手带过冲弹回、凹印慢慢平复。触点涟漪由 useTouchFx 放，只有 Button 带；文字色调的按钮不浮起、不按压、不画外框。',
   },
   {
     id: 'portal', category: 'press', title: '入口卡片', status: 'pack',
     hooks: ['we-world-card', 'we-world-card-shell', 'we-world-card-name'],
     api: ['gesture:portal'], usedIn: ['WorldsGrid'],
-    note: '浮起与按下走手势，不缩放；入口卡不画整框——悬停时名字双曝光一次，按下进入时整面冲洗一帧强调色即灭，再进锁定跃迁。演示借世界卡的类名。',
+    note: '浮起与按下走手势，不缩放。信号的入口卡不画整框——悬停时名字双曝光一次，按下进入时整面冲洗一帧强调色即灭，再进锁定跃迁；'
+      + '活字把入口卡当一本书，悬停时封面沿左侧书脊掀开 8°，按下合上压实，再进翻书。演示借世界卡的类名。',
   },
   {
     id: 'sink', category: 'press', title: '发送键', status: 'pack',
     hooks: ['we-chat-send-btn'],
     api: ['gesture:sink'], usedIn: ['InputBoxComposer'],
-    note: '信号按下时落底那一下补一帧磷光（轻点也能撞到）；墨流只有压扁回弹。演示借发送键的类名。',
+    note: '信号按下时落底那一下补一帧磷光（轻点也能撞到）；墨流只有压扁回弹；活字是盖章，压扁时键身压出深凹印。演示借发送键的类名。',
   },
   {
     id: 'delete-button', category: 'press', title: '删除确认按钮', status: 'pack',
@@ -168,7 +172,8 @@ export const SLOTS = [
     api: ['transition:press'], usedIn: ['DeleteButton'],
     note: '翻盖和滑出确认条的时长、曲线写死在组件里，不随动效包变化；圆钮的按压走动效包，删除与取消的反馈由动效包样式按 data-status 接管：'
       + '信号是确认删除时整颗按钮压成亮线熄灭、黑一拍后闪回露出对勾；'
-      + '墨流是确认删除时按钮被拽着沉没、再浮回露出湿墨对勾，取消时从垃圾桶那一格洇开一圈淡墨。',
+      + '墨流是确认删除时按钮被拽着沉没、再浮回露出湿墨对勾，取消时从垃圾桶那一格洇开一圈淡墨；'
+      + '活字是确认删除时按钮被盖上一记朱砂、压到 3px 深，随即对折收起再展开露出对勾，取消只空压一下。',
   },
   {
     id: 'card-hover', category: 'press', title: '卡片悬停与按下', status: 'pack',
@@ -177,7 +182,8 @@ export const SLOTS = [
     note: '动效包样式按类名接管，触点位置与涟漪由 useTouchFx 放。'
       + '只接管可点的浮起卡（variant="raised" interactive）；描边行与凹陷框不浮起。'
       + '墨流：湿墨光晕追着指针走。普通卡片不缩放，悬停浮起，按下按进纸里再回位；角色卡悬停不浮起，按下缓缓微缩，松手用同一段缓动回到原尺寸；'
-      + '信号：悬停后磷光帧两步硬切外扩即灭，按下贴紧复位。',
+      + '信号：悬停后磷光帧两步硬切外扩即灭，按下贴紧复位；'
+      + '活字：悬停纸边翘起 2px，按下压进纸里、凹印画在触点层上，松手弹回、凹印慢慢平复。',
   },
 
   // ── 输入控件 ──
@@ -191,7 +197,8 @@ export const SLOTS = [
     api: [], usedIn: ['Input', 'Textarea', '各处 .we-input / .we-textarea'],
     note: '动效包样式按类名接管，画在输入框自身上（不加外层包装）；状态表格里的行内编辑不画。'
       + '墨流：湿墨描边从按下的位置漫开、框内晕开淡墨，再干成常态聚焦色，键盘聚焦从左侧开始；'
-      + '信号：描边硬切亮起、框内压上一拍强调色，外圈锁定框三拍收紧并在聚焦期间一直套着。',
+      + '信号：描边硬切亮起、框内压上一拍强调色，外圈锁定框三拍收紧并在聚焦期间一直套着；'
+      + '活字：描边整圈同时压出来、框内一道深凹印，随后平复成常态聚焦色，不从触点扩散。',
   },
   {
     id: 'switch-range', category: 'input', title: '开关与滑块', status: 'pack',
@@ -199,7 +206,8 @@ export const SLOTS = [
     api: [], usedIn: ['ToggleSwitch', 'Range'],
     note: '动效包样式按类名接管；开关拨过之后才播圆钮动画。'
       + '墨流：圆钮拉长甩过去、轨道被墨染满，按住滑块时圆钮胀大带光晕；'
-      + '信号：轨道分四格点亮、圆钮硬切到位；按住滑块时圆钮胀大。不再画准星。',
+      + '信号：轨道分四格点亮、圆钮硬切到位；按住滑块时圆钮胀大。不再画准星；'
+      + '活字：圆钮像铅块推过去、急停后压一下，轨道颜色在落位那一刻一次盖满；按住滑块时圆钮往下沉、压出凹印，不放大。',
   },
 
   // ── 列表与排序 ──
@@ -208,6 +216,7 @@ export const SLOTS = [
     hooks: ['we-sortable-item', 'we-sortable-overlay'],
     api: ['flow'], usedIn: ['SortableList', 'SortableGrid'],
     note: '其余条目让位走 flow；拿起、放下的样子写在动效包 CSS 里，按条目的 data-sort 切换。'
+      + '活字：拿起时条目提起、投影变深，原来的位置留下一道压痕；放下时压实、压过头 1px。'
       + '网格（SortableGrid）只有拿在手里的跟手副本随动效包变化，放下仍是固定的回落动画。',
   },
   {
@@ -226,10 +235,11 @@ export const SLOTS = [
   },
   {
     id: 'busy', category: 'stream', title: '状态整理遮罩与思考指示', status: 'pack',
-    hooks: ['we-ink-bead', 'we-state-change-overlay', 'we-cast-state-overlay'],
+    hooks: ['we-ink-bead', 'we-type-orb', 'we-state-change-overlay', 'we-cast-state-overlay'],
     api: ['fx', 'transition:backdrop'], usedIn: ['StateBusyOverlay', 'MotionOrb'],
-    note: '思考指示 MotionOrb 只按动效包 id 选小球，不读 fx() 与过渡；遮罩与「整理中」字样由 StateBusyOverlay 驱动。'
-      + '遮罩底色写在动效包 CSS 里；信号只留底色，不画括号。',
+    note: '思考指示 MotionOrb 按动效包的 traits.orb 选小球，不读 fx() 与过渡；遮罩与「整理中」字样由 StateBusyOverlay 驱动。'
+      + '遮罩底色写在动效包 CSS 里；信号只留底色，不画括号；活字是一层平的纸色。'
+      + '活字的小球是「检字」：一颗方铅字每拍弹起、换一个字、落下压实，小尺寸只留铅块。',
   },
   {
     id: 'loops', category: 'stream', title: '循环动画', status: 'pack',
@@ -261,7 +271,7 @@ export const SLOTS = [
     api: ['role'], usedIn: ['全站约 250 处普通 CSS 过渡', 'useMotion().role()'],
     note: '悬停、色变、显隐、折叠、抽屉这类过渡按用途选动效角色（--we-motion-<角色>-duration / -easing）；'
       + '默认值在 core/utils/motion.js，动效包可以在 rhythm 里改写，CSS 同值写在自己的 :root 里。'
-      + '墨流：状态变化慢一拍（300ms），墨慢慢洇开；信号：沿用默认。点「播放节奏尺」对比各角色的快慢与曲线。',
+      + '墨流：状态变化慢一拍（300ms），墨慢慢洇开；信号：沿用默认；活字：状态变化快半拍（150ms），纸是脆的。点「播放节奏尺」对比各角色的快慢与曲线。',
   },
 ];
 

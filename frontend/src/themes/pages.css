@@ -20,7 +20,7 @@
 
 /* ── 进入世界的页面转场（动效位 world-portal）：结构与抑制规则与动效包无关，编排在 themes/motion/<包>.css ── */
 
-/* 跨路由的转场遮罩：信号锁定跃迁的代码雨画在它身上（墨流不画遮罩） */
+/* 跨路由的转场遮罩：信号锁定跃迁的代码雨画在它身上（墨流、活字不画遮罩） */
 .we-portal-veil {
   position: fixed;
   inset: 0;
@@ -36,7 +36,7 @@
   display: none;
 }
 
-/* 三栏的错峰序号，两个动效包的入场编排共用 */
+/* 三栏的错峰序号，各动效包的入场编排共用 */
 .we-characters-canvas .we-worldhub-layout > :nth-child(2) { --col: 1; }
 .we-characters-canvas .we-worldhub-layout > :nth-child(3) { --col: 2; }
 

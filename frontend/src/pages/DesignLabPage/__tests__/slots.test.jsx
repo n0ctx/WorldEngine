@@ -55,7 +55,7 @@ describe('动效位清单', () => {
     expect(new Set(CLAIMED_HOOKS).size).toBe(CLAIMED_HOOKS.length);
   });
 
-  it('两个动效包对外接口一致', () => {
+  it('各动效包对外接口一致', () => {
     const [first, ...rest] = PACK_APIS;
     for (const other of rest) expect([...other].sort()).toEqual([...first].sort());
     const [firstCss, ...restCss] = CSS_APIS;

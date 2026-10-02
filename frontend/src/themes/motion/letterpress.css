@@ -1,0 +1,634 @@
+/* 动效包「活字」的样式（JS 侧见 core/motion/packs/letterpress.js）。
+ * 只在 <html data-motion="letterpress"> 时生效；:where() 包住作用域，选择器权重与写在内核里一样。
+ * 签名动作「印」：重物落下（越落越快）→ 接触时顿两帧、压过头 → 弹回 → 接触面的凹印平复成平面印刷。
+ * 凹印是上沿压暗、下沿翻亮的一对阴影，只取主题的阴影色与纸面高光；纸只在动的时候有厚度，静止时一切平印。 */
+
+:root[data-motion="letterpress"] {
+  /* guard-allow(literals): 活字的曲线：越落越快、起步快急停、松手带过冲回弹、顿帧时停住不动、排字分格、检字换格 */
+  --press-gravity: cubic-bezier(0.55, 0, 0.9, 0.4);
+  --press-friction: cubic-bezier(0.15, 0.85, 0.2, 1);
+  --press-spring: cubic-bezier(0.3, 2.2, 0.5, 1);
+  --press-hold: linear;
+  --press-steps: steps(8, jump-end);
+  --press-reel: steps(4, jump-end);
+  /* guard-allow(literals): 活字的时间阶梯，本包所有材质时长与延迟都从这里取。
+     一记「印」= 下落 200 + 顿帧 40 + 弹回 160 + 凹印收尾 200，共 600（--press-beat），关键帧按这个比例切 */
+  --press-hit: 80ms;
+  --press-fall: 200ms;
+  --press-rebound: 160ms;
+  --press-slide: 340ms;
+  --press-land: 400ms;
+  --press-fold: 420ms;
+  --press-relax: 480ms;
+  --press-beat: 600ms;
+  --press-orb: 700ms;
+  /* guard-allow(literals): 全站节奏改写，与 packs/letterpress.js 的 rhythm 同值，由 check:motion 核对。纸是脆的，状态变化快半拍 */
+  --we-motion-state-duration: 150ms;
+
+  /* 凹印：上沿压暗、下沿翻亮；平复后是同样层数的透明阴影，才能插值 */
+  --press-deboss: inset 0 2px 4px var(--we-color-shade-3), inset 0 -1px 0 var(--we-material-sheen);
+  --press-flat: inset 0 0 0 transparent, inset 0 0 0 transparent;
+  --press-ink-deboss: 0 -1px 1px var(--we-color-shade-3), 0 1px 0 var(--we-material-sheen);
+  --press-ink-flat: 0 0 0 transparent, 0 0 0 transparent;
+  --press-out-flat: 0 0 0 transparent, 0 0 0 transparent;
+
+  --we-fx-enter: we-press-fold var(--press-fold) both;
+  --we-fx-skeleton: we-press-skel calc(var(--we-motion-loop-duration) * 1.5) var(--press-friction) infinite;
+  --we-fx-nudge: we-press-nudge var(--we-motion-loop-duration) var(--press-gravity) infinite;
+  --we-fx-spin: we-press-tick var(--we-motion-loop-duration) var(--press-friction) infinite;
+  --we-fx-typing: we-press-dot var(--we-motion-loop-duration) var(--press-friction) infinite;
+  /* 遮罩平稳压暗；大面板像一张纸落到桌上（与 packs/letterpress.js 的 overlayEnter 同一动作），不缩放、不模糊 */
+  --we-fx-scrim: we-press-dim var(--press-slide) var(--press-friction) backwards;
+  --we-fx-panel: we-press-land var(--press-land) backwards;
+}
+@media (prefers-reduced-motion: reduce) {
+  :root[data-motion="letterpress"] {
+    --press-hit: 0ms;
+    --press-fall: 0ms;
+    --press-rebound: 0ms;
+    --press-slide: 0ms;
+    --press-land: 0ms;
+    --press-fold: 0ms;
+    --press-relax: 0ms;
+    --press-beat: 0ms;
+    --press-orb: 0ms;
+    --we-motion-state-duration: 0ms;
+  }
+  :where(:root[data-motion="letterpress"]) .we-card--raised.is-interactive:hover {
+    translate: none;
+  }
+}
+
+/* ── 印：本包的签名动作 ───────────────────────────────────────── */
+/* 一记印的时间切分（占 --press-beat 的比例）：0–33.3% 下落 → 33.3–40% 顿帧 → 40–66.7% 弹回 → 其余凹印收尾。
+   --press-from 是起落高度，--press-over 是压过头的深度，由用的地方设 */
+@keyframes we-press-hit {
+  0%    { opacity: 0; translate: 0 var(--press-from); animation-timing-function: var(--press-gravity); }
+  6%    { opacity: 1; }
+  33.3% { translate: 0 var(--press-over); animation-timing-function: var(--press-hold); }
+  40%   { translate: 0 var(--press-over); animation-timing-function: var(--press-friction); }
+  66.7% { translate: 0 0; }
+  100%  { opacity: 1; translate: 0 0; }
+}
+/* 已经在场的东西被压一下：没有下落，直接压过头再弹回 */
+@keyframes we-press-thump {
+  0%    { translate: 0 0; animation-timing-function: var(--press-gravity); }
+  33.3% { translate: 0 var(--press-over); animation-timing-function: var(--press-hold); }
+  40%   { translate: 0 var(--press-over); animation-timing-function: var(--press-friction); }
+  66.7%, 100% { translate: 0 0; }
+}
+/* 凹印落在接触那一帧，随后平复：字上用 text-shadow，面上用 box-shadow */
+@keyframes we-press-ink {
+  0%, 33.3% { text-shadow: var(--press-ink-flat); }
+  33.4%     { text-shadow: var(--press-ink-deboss); animation-timing-function: var(--press-friction); }
+  100%      { text-shadow: var(--press-ink-flat); }
+}
+@keyframes we-press-dent {
+  0%, 33.3% { box-shadow: var(--press-flat); }
+  33.4%     { box-shadow: var(--press-deboss); animation-timing-function: var(--press-friction); }
+  100%      { box-shadow: var(--press-flat); }
+}
+
+/* ── 纸：折开、落纸 ───────────────────────────────────────── */
+/* 折开：以上沿为折痕，竖起的纸片拍下来 → 顿两帧 → 弹起 6° → 落平（对应 packs/letterpress.js variants.enter） */
+@keyframes we-press-fold {
+  0%   { opacity: 0; transform-origin: 50% 0; transform: perspective(600px) rotateX(80deg); animation-timing-function: var(--press-gravity); }
+  24%  { opacity: 1; }
+  48%  { transform: perspective(600px) rotateX(0deg); animation-timing-function: var(--press-hold); }
+  57%  { transform: perspective(600px) rotateX(0deg); animation-timing-function: var(--press-friction); }
+  78%  { transform: perspective(600px) rotateX(6deg); animation-timing-function: var(--press-gravity); }
+  100% { opacity: 1; transform-origin: 50% 0; transform: none; }
+}
+/* 落纸：从上方落下，顿一下、压过头 1px、弹回（对应 packs/letterpress.js variants.overlayEnter） */
+@keyframes we-press-land {
+  0%   { opacity: 0; translate: 0 -14px; animation-timing-function: var(--press-gravity); }
+  12%  { opacity: 1; }
+  50%  { translate: 0 1px; animation-timing-function: var(--press-hold); }
+  60%  { translate: 0 1px; animation-timing-function: var(--press-friction); }
+  100% { opacity: 1; translate: 0 0; }
+}
+@keyframes we-press-dim {
+  from { opacity: 0; }
+}
+
+/* ── 流式输出：排字 ───────────────────────────────────────── */
+/* 每个字：一颗铅字从上方加速落到基线，顿一下、压过头再弹回，凹印随后平复。
+   字保持行内元素（用相对定位的 top 位移，不用 transform），断行与最终排版完全一致。
+   时刻由 StreamingMarkdown 写进 --we-stream-char-delay，排在后面的字在轮到之前保持不可见 */
+:where(:root[data-motion="letterpress"]) .we-stream-char {
+  position: relative;
+}
+:where(:root[data-motion="letterpress"]) .we-stream-char > .we-fx-glyph__face {
+  position: relative;
+  animation: we-press-typeset var(--we-stream-char-duration) var(--we-stream-char-delay) both;
+}
+@keyframes we-press-typeset {
+  0%   { opacity: 0; top: -0.35em; text-shadow: var(--press-ink-flat); animation-timing-function: var(--press-gravity); }
+  12%  { opacity: 1; }
+  40%  { top: 0.06em; text-shadow: var(--press-ink-deboss); animation-timing-function: var(--press-hold); }
+  50%  { top: 0.06em; animation-timing-function: var(--press-friction); }
+  70%  { top: 0; }
+  100% { opacity: 1; top: 0; text-shadow: var(--press-ink-flat); }
+}
+
+/* 排字前沿的朱砂铅块：只在这个字轮到的一拍挂在它后面，连起来就是一块跟着字往前推的铅块 */
+:where(:root[data-motion="letterpress"]) .we-stream-char--caret::after {
+  content: '';
+  position: absolute;
+  left: 100%;
+  bottom: 0.12em;
+  width: 0.42em;
+  height: 0.82em;
+  margin-left: 0.08em;
+  border-radius: var(--we-radius-xs);
+  background: var(--we-color-accent);
+  opacity: 0;
+  pointer-events: none;
+  /* guard-allow(literals): 光标只挂这一个字的一拍，匀速走完，不带缓动 */
+  animation: we-stream-char-caret var(--we-stream-char-step) linear var(--we-stream-char-delay);
+}
+
+/* 常驻铅块：不闪烁，一下一下往下按；净宽为 0，出现、消失都不推动正文换行 */
+:where(:root[data-motion="letterpress"]) :is(.we-stream-caret, .we-chat-empty-state__cursor, .we-asst-stream-cursor) {
+  display: inline-block;
+  width: 0.42em;
+  height: 0.82em;
+  vertical-align: -0.1em;
+  border-radius: var(--we-radius-xs);
+  background: var(--we-color-accent);
+  pointer-events: none;
+}
+:where(:root[data-motion="letterpress"]) .we-stream-caret {
+  margin: 0 calc(-0.42em - var(--we-space-xxs)) 0 var(--we-space-xxs);
+  animation: we-press-quad var(--we-stream-caret-duration) infinite;
+}
+:where(:root[data-motion="letterpress"]) :is(.we-chat-empty-state__cursor, .we-asst-stream-cursor) {
+  margin-left: var(--we-space-xxs);
+  animation: we-press-quad var(--we-motion-loop-duration) infinite;
+}
+@keyframes we-press-quad {
+  0%   { translate: 0 -3px; animation-timing-function: var(--press-gravity); }
+  20%  { translate: 0 1px; animation-timing-function: var(--press-hold); }
+  24%  { translate: 0 1px; animation-timing-function: var(--press-friction); }
+  40%  { translate: 0 0; }
+  100% { translate: 0 -3px; }
+}
+/* 生成结束：铅块被抽走 */
+:where(:root[data-motion="letterpress"]) .we-stream-caret--fading {
+  animation: we-press-pull var(--we-stream-caret-out-duration) var(--press-gravity) forwards;
+}
+@keyframes we-press-pull {
+  to { opacity: 0; translate: 0.8em 0; }
+}
+
+/* ── 世界改写：重落 ───────────────────────────────────────── */
+/* 数值换新：新值从高处重落，顿帧后压过头、凹印平复 */
+:where(:root[data-motion="letterpress"]) .we-fx-burst {
+  --press-from: -0.8em;
+  --press-over: 0.12em;
+  display: inline-block;
+  max-width: 100%;
+  animation: we-press-hit var(--we-fx-burst) both, we-press-ink var(--we-fx-burst) both;
+}
+/* 整段文字（ChangeText decode）：整段压印一次 */
+:where(:root[data-motion="letterpress"]) .we-fx-glyph--block {
+  --press-from: -0.4em;
+  --press-over: 0.08em;
+  display: inline-block;
+  max-width: 100%;
+  animation: we-press-hit var(--we-fx-decode) both, we-press-ink var(--we-fx-decode) both;
+}
+/* 变化标签：一枚小印，和新值落在同一帧，压出凹印后留下 */
+:where(:root[data-motion="letterpress"]) .we-change-tag {
+  border-radius: var(--we-radius-xs);
+}
+:where(:root[data-motion="letterpress"]) .we-change-tag--play {
+  --press-from: -10px;
+  --press-over: 2px;
+  animation: we-press-hit var(--we-fx-burst) both, we-press-dent var(--we-fx-burst) both;
+}
+
+/* 提示条：整张纸落下已经够醒目，落定那一帧内容行压一下凹印；里面的文字和标签不再单独动 */
+:where(:root[data-motion="letterpress"]) .we-toast-card :is(.we-change-tag--play, .we-fx-glyph--block) {
+  animation: none;
+}
+:where(:root[data-motion="letterpress"]) .we-toast-card--fx .we-toast-card__row {
+  animation: we-press-ink var(--press-beat);
+}
+
+/* ── 章节开场：题签压印 ───────────────────────────────────────── */
+/* 整块标题从高处落下，顿帧后压过头 3px；分隔线和中间的花饰在落地那一帧整条出现，一击成形。
+   章节号与标题的文字不再单独压印 */
+:where(:root[data-motion="letterpress"]) .we-chapter-header--visible {
+  --press-from: -24px;
+  --press-over: 3px;
+  animation: we-press-hit var(--press-beat) both, we-press-ink var(--press-beat) both;
+}
+:where(:root[data-motion="letterpress"]) .we-chapter-header .we-fx-glyph--block {
+  animation: none;
+}
+:where(:root[data-motion="letterpress"]) .we-chapter-fleuron-line {
+  transition-duration: 0s;
+  transition-delay: var(--press-fall);
+}
+:where(:root[data-motion="letterpress"]) .we-chapter-fleuron-mark {
+  width: 6px;
+  height: 6px;
+  rotate: 45deg;
+  background: var(--we-color-accent);
+  opacity: 0;
+  transition: opacity 0s var(--press-fall);
+}
+:where(:root[data-motion="letterpress"]) .we-chapter-header--visible .we-chapter-fleuron-mark {
+  opacity: 1;
+}
+
+/* ── 完成确认：朱印 ───────────────────────────────────────── */
+/* 一方朱砂印带着影子落下（影子越近越实，用影子表示高度，不缩放文字），顿帧、压过头 3px、弹回，
+   印面边缘有纸纹缺口；停留后淡去，像被纸吃进去。印面画在 ::before 上：缺口遮罩会裁掉外投影，所以与影子分两层 */
+:where(:root[data-motion="letterpress"]) .we-done-confirm {
+  isolation: isolate;
+  border-radius: var(--we-radius-xs);
+  color: var(--we-color-on-accent);
+  background: none;
+}
+:where(:root[data-motion="letterpress"]) .we-done-confirm::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: var(--we-z-behind);
+  border-radius: inherit;
+  background: var(--we-color-accent);
+  outline: 2px solid var(--we-color-on-accent);
+  outline-offset: -5px;
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='2' seed='7'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -14 0 0 0 9'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='2' seed='7'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -14 0 0 0 9'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+:where(:root[data-motion="letterpress"]) .we-done-confirm--play {
+  --press-from: -28px;
+  --press-over: 3px;
+  animation:
+    we-press-hit var(--we-fx-burst) both,
+    we-press-height var(--we-fx-burst) both,
+    we-press-off var(--we-fx-off) var(--press-gravity) calc(var(--we-fx-stamp) - var(--we-fx-off)) forwards;
+}
+:where(:root[data-motion="letterpress"]) .we-done-confirm--play::before {
+  animation: we-press-dent var(--we-fx-burst) both;
+}
+:where(:root[data-motion="letterpress"]) .we-done-confirm .we-fx-glyph--block {
+  animation: none;
+}
+/* 离地的影子：高处散而淡，接触时收没 */
+@keyframes we-press-height {
+  0%          { box-shadow: 0 30px 28px -10px var(--we-color-shade-3); animation-timing-function: var(--press-gravity); }
+  33.3%, 100% { box-shadow: 0 0 0 0 transparent; }
+}
+@keyframes we-press-off {
+  to { opacity: 0; }
+}
+
+/* ── 状态整理遮罩：一层平的纸色，不翻涌、不模糊 ─── */
+:where(:root[data-motion="letterpress"]) :is(.we-state-change-overlay, .we-cast-state-overlay) {
+  background: color-mix(in srgb, var(--we-color-bg-canvas) var(--we-alpha-4), transparent);
+}
+
+/* ── 进入世界「翻书」：世界选择页 → 世界枢纽的页面转场 ───
+   JS 侧时序（navigate / total）见 packs/letterpress.js 的 portal；结构规则见 pages.css。
+   点下的书封先压实（framer 的 portal 手势），旧页沿左侧书脊朝人翻起、越翻越暗，翻到侧立时正好切页；
+   枢纽页上先留着翻页投下的影子，三栏随后依次落纸，栏标题落地时压一下凹印。 */
+:where(:root[data-motion="letterpress"]) .we-worlds-canvas[data-portal='leave'] {
+  transform-origin: left center;
+  animation: we-press-leaf var(--press-slide) var(--press-gravity) var(--press-hit) both;
+}
+@keyframes we-press-leaf {
+  from { transform: perspective(2400px) rotateY(0deg); filter: brightness(1); }
+  to   { transform: perspective(2400px) rotateY(-90deg); filter: brightness(0.55); }
+}
+:where(:root[data-motion="letterpress"]) .we-characters-canvas[data-portal='enter'] {
+  animation: we-press-cast var(--press-relax) var(--press-friction) both;
+}
+@keyframes we-press-cast {
+  from { box-shadow: inset 160px 0 120px -80px var(--we-color-shade-4); }
+  to   { box-shadow: inset 0 0 0 0 transparent; }
+}
+:where(:root[data-motion="letterpress"]) .we-characters-canvas[data-portal='enter'] .we-worldhub-layout > * {
+  /* 三栏依次落纸（--col 见 pages.css），与 packs/letterpress.js 的 portal 同步 */
+  --press-from: -16px;
+  --press-over: 1px;
+  animation: we-press-hit var(--press-beat) calc(var(--press-hit) * (1 + var(--col, 0))) both;
+}
+:where(:root[data-motion="letterpress"]) .we-characters-canvas[data-portal='enter'] .we-worldhub-section-header .we-section-title__text {
+  animation: we-press-ink var(--press-beat) calc(var(--press-hit) * (1 + var(--col, 0))) both;
+}
+
+/* ── 剧情选项：选中的一项被印下，其余项被一道折痕暗影扫过后退淡 ─── */
+:where(:root[data-motion="letterpress"]) .we-option-list > .we-option-btn--selected {
+  --press-over: 2px;
+  animation: we-press-thump var(--press-beat), we-press-dent var(--press-beat);
+}
+/* 由近及远（--d）依次扫过；不抹灰，退到三级文字色 */
+:where(:root[data-motion="letterpress"]) .we-option-list > .we-option-btn--dismissed {
+  color: var(--we-color-text-tertiary);
+  transition: color var(--press-relax) var(--press-friction) calc(var(--d) * var(--we-motion-state-duration) / 2);
+  animation: we-press-crease var(--press-relax) var(--press-friction) calc(var(--d) * var(--we-motion-state-duration) / 2) both;
+}
+@keyframes we-press-crease {
+  0%   { box-shadow: inset 0 0 0 0 transparent; }
+  40%  { box-shadow: inset 0 2.5em 1.5em -1.5em var(--we-color-shade-3); }
+  100% { box-shadow: inset 0 0 0 0 transparent; }
+}
+
+/* ── 按压、卡片、输入控件：压 ───────────────────────────────────────── */
+/* 带字的东西一律不缩放。framer 负责按钮、顶栏、发送、入口卡片的翘起与压下；
+   这里是悬停时纸边下的浅影、按下时的凹印，以及松手后凹印慢慢平复 */
+:where(:root[data-motion="letterpress"]) :is(.we-section-tab, .we-menu__item, .we-list-item) {
+  transition: translate var(--press-rebound) var(--press-spring),
+    color var(--we-motion-state-duration) var(--we-motion-state-easing),
+    background-color var(--we-motion-state-duration) var(--we-motion-state-easing),
+    border-color var(--we-motion-state-duration) var(--we-motion-state-easing),
+    box-shadow var(--we-motion-state-duration) var(--we-motion-state-easing),
+    opacity var(--we-motion-state-duration) var(--we-motion-state-easing);
+
+  &:active {
+    translate: 0 1px;
+    transition-duration: var(--press-hit);
+    transition-timing-function: var(--press-gravity);
+  }
+}
+
+/* 按钮（Button）：外投影两层 + 凹印两层，四层同数才能在悬停、按下、松手之间插值 */
+:where(:root[data-motion="letterpress"]) .we-btn:where(:not(.we-btn-text)) {
+  box-shadow: var(--press-out-flat), var(--press-flat);
+  transition: background var(--we-motion-state-duration) var(--we-motion-state-easing),
+    border-color var(--we-motion-state-duration) var(--we-motion-state-easing),
+    color var(--we-motion-state-duration) var(--we-motion-state-easing),
+    box-shadow var(--press-relax) var(--press-friction);
+}
+:where(:root[data-motion="letterpress"]) .we-btn:where(:not(.we-btn-text):hover:not(:disabled)) {
+  box-shadow: var(--we-elevation-1), var(--press-flat);
+}
+:where(:root[data-motion="letterpress"]) .we-btn:where(:not(.we-btn-text):active:not(:disabled)) {
+  box-shadow: var(--press-out-flat), var(--press-deboss);
+  transition-duration: var(--we-motion-state-duration), var(--we-motion-state-duration), var(--we-motion-state-duration), var(--press-hit);
+}
+
+/* 发送键：盖章。按下压扁（framer），落底那一下键身压出凹印 */
+:where(:root[data-motion="letterpress"]) .we-btn.we-chat-send-btn:where(:active:not(:disabled)) {
+  box-shadow: var(--press-out-flat), inset 0 3px 5px var(--we-color-shade-4), inset 0 -1px 0 var(--we-material-sheen);
+}
+
+/* 卡片（Card、角色卡）：悬停纸边翘起（内核已给抬起一档的投影），按下压进纸里，凹印画在触点层上，松手慢慢平复 */
+:where(:root[data-motion="letterpress"]) :is(.we-card--raised.is-interactive, .we-character-card) {
+  position: relative;
+  transition: translate var(--press-rebound) var(--press-spring),
+    border-color var(--we-motion-state-duration) var(--we-motion-state-easing),
+    box-shadow var(--we-motion-state-duration) var(--we-motion-state-easing);
+}
+:where(:root[data-motion="letterpress"]) .we-card--raised.is-interactive:hover {
+  translate: 0 -2px;
+}
+:where(:root[data-motion="letterpress"]) :is(.we-card--raised.is-interactive, .we-character-card):active {
+  translate: 0 1px;
+  transition-duration: var(--press-hit);
+  transition-timing-function: var(--press-gravity);
+}
+:where(:root[data-motion="letterpress"]) :is(.we-card--raised.is-interactive, .we-character-card) > .we-touch-fx {
+  display: block;
+  box-shadow: var(--press-flat);
+  transition: box-shadow var(--press-relax) var(--press-friction);
+}
+:where(:root[data-motion="letterpress"]) :is(.we-card--raised.is-interactive, .we-character-card):active > .we-touch-fx {
+  box-shadow: var(--press-deboss);
+  transition-duration: var(--press-hit);
+}
+:where(:root[data-motion="letterpress"]) :is(.we-card--raised.is-interactive, .we-character-card) .we-touch-fx__ripple {
+  display: none;
+}
+
+/* 入口卡（世界卡）是一本书：书脊在左边，悬停时封面掀开一点（framer），按下合上压实，再进翻书 */
+:where(:root[data-motion="letterpress"]) .we-world-card-shell {
+  perspective: 900px;
+}
+:where(:root[data-motion="letterpress"]) .we-world-card {
+  transform-origin: left center;
+}
+
+/* 输入框聚焦：压线——描边整圈同时压出来，框内一道深凹印，随后平复成常态的聚焦色与聚焦环。
+   不从触点扩散；行内编辑面（状态表格）不画 */
+:where(:root[data-motion="letterpress"]) :is(.we-input, .we-textarea):not(.we-status-inline-surface *) {
+  caret-color: var(--we-color-accent);
+}
+:where(:root[data-motion="letterpress"]) :is(.we-input, .we-textarea):focus:not(.we-status-inline-surface *) {
+  animation: we-press-field var(--press-relax) var(--press-friction) both;
+}
+@keyframes we-press-field {
+  from { border-color: var(--we-color-accent); box-shadow: inset 0 3px 5px var(--we-color-shade-3), var(--we-focus-ring); }
+  to   { border-color: var(--we-color-border-focus); box-shadow: var(--we-shadow-inset), var(--we-focus-ring); }
+}
+
+/* 开关：圆钮像一块铅推过去，摩擦急停、落位时压一下；轨道颜色在圆钮落位那一刻一次盖满。
+   data-touched 由 ToggleSwitch 在用户拨过之后打上，页面刚加载时不播；开、关各用一个关键帧名，换向时才会重播 */
+:where(:root[data-motion="letterpress"]) .we-toggle-track {
+  transition: background 0s var(--press-fall);
+}
+:where(:root[data-motion="letterpress"]) .we-toggle-thumb {
+  transition: transform var(--press-slide) var(--press-friction);
+}
+:where(:root[data-motion="letterpress"]) [data-touched] > .we-toggle-thumb--enabled {
+  animation: we-press-knob-on var(--press-beat);
+}
+:where(:root[data-motion="letterpress"]) [data-touched] > .we-toggle-thumb:not(.we-toggle-thumb--enabled) {
+  animation: we-press-knob-off var(--press-beat);
+}
+@keyframes we-press-knob-on {
+  0%, 33.3% { translate: 0 0; animation-timing-function: var(--press-gravity); }
+  40%       { translate: 0 1px; animation-timing-function: var(--press-hold); }
+  46%       { translate: 0 1px; animation-timing-function: var(--press-friction); }
+  70%, 100% { translate: 0 0; }
+}
+@keyframes we-press-knob-off {
+  0%, 33.3% { translate: 0 0; animation-timing-function: var(--press-gravity); }
+  40%       { translate: 0 1px; animation-timing-function: var(--press-hold); }
+  46%       { translate: 0 1px; animation-timing-function: var(--press-friction); }
+  70%, 100% { translate: 0 0; }
+}
+
+/* 滑块：按住时圆钮往纸里沉、压出凹印，不放大；松手带一点过冲浮回 */
+:where(:root[data-motion="letterpress"]) .we-range::-webkit-slider-thumb {
+  transition: transform var(--press-rebound) var(--press-spring), box-shadow var(--press-relax) var(--press-friction);
+}
+:where(:root[data-motion="letterpress"]) .we-range:active::-webkit-slider-thumb {
+  transform: translateY(1px);
+  box-shadow: var(--we-shadow-range-thumb-active), inset 0 2px 3px var(--we-color-shade-3);
+  transition-duration: var(--press-hit);
+}
+:where(:root[data-motion="letterpress"]) .we-range::-moz-range-thumb {
+  transition: transform var(--press-rebound) var(--press-spring), box-shadow var(--press-relax) var(--press-friction);
+}
+:where(:root[data-motion="letterpress"]) .we-range:active::-moz-range-thumb {
+  transform: translateY(1px);
+  box-shadow: var(--we-shadow-range-thumb-active), inset 0 2px 3px var(--we-color-shade-3);
+  transition-duration: var(--press-hit);
+}
+
+/* 删除确认按钮：确认删除时整颗按钮被盖上一记朱砂、压到 3px 深，随即对折收起，再展开时露出对勾；
+   取消只空压一下，不上朱砂 */
+:where(:root[data-motion="letterpress"]) .we-delete-btn[data-status="deleted"] {
+  animation: we-press-delete calc(var(--press-beat) * 1.5) both;
+}
+@keyframes we-press-delete {
+  0%   { translate: 0 -6px; animation-timing-function: var(--press-gravity); }
+  22%  { translate: 0 3px; background: var(--we-color-accent); animation-timing-function: var(--press-hold); }
+  27%  { translate: 0 3px; transform: perspective(200px) rotateX(0deg); animation-timing-function: var(--press-friction); }
+  45%  { translate: 0 0; animation-timing-function: var(--press-gravity); }
+  65%  { transform: perspective(200px) rotateX(90deg); animation-timing-function: var(--press-friction); }
+  100% { translate: 0 0; transform: perspective(200px) rotateX(0deg); }
+}
+:where(:root[data-motion="letterpress"]) .we-delete-btn[data-status="kept"] .we-delete-btn__trigger {
+  --press-over: 2px;
+  animation: we-press-thump var(--press-beat), we-press-dent var(--press-beat);
+}
+
+/* ── 拖拽排序：拿起时纸被提起，原来的位置留下一道压痕；放下时压实 ─── */
+/* 列表条目（SortableList）的状态在 data-sort 上；网格（SortableGrid）只有跟手副本 .we-sortable-overlay。手里的副本不倾斜 */
+:where(:root[data-motion="letterpress"]) .we-sortable-item {
+  transition: translate var(--press-slide) var(--press-friction);
+}
+:where(:root[data-motion="letterpress"]) .we-sortable-item[data-sort="drag"] {
+  translate: 0 -4px;
+  transition-duration: var(--we-motion-state-duration);
+}
+:where(:root[data-motion="letterpress"]) :is(.we-sortable-item[data-sort="drag"], .we-sortable-overlay) > :first-child {
+  box-shadow: var(--we-elevation-3);
+}
+:where(:root[data-motion="letterpress"]) .we-sortable-overlay > :first-child {
+  translate: 0 -4px;
+}
+:where(:root[data-motion="letterpress"]) .we-sortable-item__slot {
+  display: block;
+  border-radius: var(--we-radius-md);
+  background: var(--we-color-shade-1);
+  box-shadow: var(--press-deboss);
+  opacity: 0;
+  transition: opacity var(--we-motion-state-duration) var(--we-motion-state-easing);
+}
+:where(:root[data-motion="letterpress"]) .we-sortable-item[data-sort="drag"] .we-sortable-item__slot {
+  opacity: 1;
+}
+:where(:root[data-motion="letterpress"]) .we-sortable-item[data-sort="drop"] > :first-child {
+  --press-over: 1px;
+  animation: we-press-thump var(--press-beat), we-press-dent var(--press-beat);
+}
+
+/* ── 徽标与空状态入场 ─── */
+/* 徽标像一枚小章落下、压一下，同一排一枚接一枚；
+   空状态标题逐格排进行里，排满后整行一起压实；说明与按钮随后折开（本包的 --we-fx-enter） */
+:where(:root[data-motion="letterpress"]) .we-badge {
+  --badge-delay: 0s;
+  --press-from: -12px;
+  --press-over: 2px;
+  animation:
+    we-press-hit var(--press-beat) var(--badge-delay) both,
+    we-press-dent var(--press-beat) var(--badge-delay);
+}
+:where(:root[data-motion="letterpress"]) .we-badge:nth-child(2) { --badge-delay: var(--press-hit); }
+:where(:root[data-motion="letterpress"]) .we-badge:nth-child(n + 3) { --badge-delay: calc(var(--press-hit) * 2); }
+:where(:root[data-motion="letterpress"]) .we-empty-state:not(.we-empty-state--sm) > .we-empty-state__title {
+  --press-over: 2px;
+  animation:
+    we-press-compose var(--press-relax) var(--press-steps) both,
+    we-press-thump var(--press-beat) var(--press-relax),
+    we-press-ink var(--press-beat) var(--press-relax);
+}
+@keyframes we-press-compose {
+  from { clip-path: inset(0 100% 0 0); }
+  to   { clip-path: inset(0); }
+}
+:where(:root[data-motion="letterpress"]) .we-empty-state:not(.we-empty-state--sm) > :is(.we-empty-state__hint, .we-empty-state__actions) {
+  animation: var(--we-fx-enter);
+  animation-delay: calc(var(--press-relax) + var(--press-fall));
+}
+:where(:root[data-motion="letterpress"]) .we-empty-state__actions { animation-delay: calc(var(--press-relax) + var(--press-fall) + var(--press-hit)); }
+
+/* ── 循环：骨架、打字三点、转圈、箭头 ─── */
+/* 骨架：空行从上到下依次被压一下，凹印亮起又平复，像印刷机在运转 */
+:where(:root[data-motion="letterpress"]) .we-skel:nth-child(2) { animation-delay: calc(var(--we-motion-loop-duration) * 0.15); }
+:where(:root[data-motion="letterpress"]) .we-skel:nth-child(3) { animation-delay: calc(var(--we-motion-loop-duration) * 0.3); }
+:where(:root[data-motion="letterpress"]) .we-skel:nth-child(n + 4) { animation-delay: calc(var(--we-motion-loop-duration) * 0.45); }
+@keyframes we-press-skel {
+  0%, 100% { box-shadow: var(--press-flat); }
+  8%       { box-shadow: var(--press-deboss); }
+  40%      { box-shadow: var(--press-flat); }
+}
+
+/* 打字三点 → 三颗方铅字：依次落下压住，再依次被提走（错拍沿用内核的 nth-child） */
+:where(:root[data-motion="letterpress"]) .typing-dot {
+  border-radius: var(--we-radius-xs);
+}
+@keyframes we-press-dot {
+  0%       { opacity: 0; translate: 0 -5px; animation-timing-function: var(--press-gravity); }
+  12%      { opacity: 1; translate: 0 1px; animation-timing-function: var(--press-hold); }
+  16%      { translate: 0 1px; animation-timing-function: var(--press-friction); }
+  26%      { translate: 0 0; }
+  70%      { opacity: 1; translate: 0 0; animation-timing-function: var(--press-gravity); }
+  85%, 100% { opacity: 0; translate: 0 -5px; }
+}
+
+/* 工具运行转圈：每 90° 一顿，每一段先快后急停 */
+@keyframes we-press-tick {
+  0%   { transform: rotate(0deg); }
+  25%  { transform: rotate(90deg); }
+  50%  { transform: rotate(180deg); }
+  75%  { transform: rotate(270deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* 新消息箭头：加速往下落、急停，再慢慢升回 */
+@keyframes we-press-nudge {
+  0%   { translate: 0 0; }
+  30%  { translate: 0 4px; animation-timing-function: var(--press-hold); }
+  36%  { translate: 0 4px; animation-timing-function: var(--press-friction); }
+  100% { translate: 0 0; }
+}
+
+/* 思考指示（MotionOrb 的 TypeOrb）：一颗方铅字，每拍弹起、换成下一个字、落下压实。
+   字号按铅块的高度取（容器查询单位），小尺寸不放字，只留铅块一下一下往下按 */
+.we-type-orb {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  vertical-align: middle;
+}
+.we-type-orb__slug {
+  display: block;
+  width: 62%;
+  height: 62%;
+  overflow: hidden;
+  container-type: size;
+  border-radius: var(--we-radius-xs);
+  background: var(--we-color-accent);
+  color: var(--we-color-on-accent);
+  animation: we-type-orb-press var(--press-orb) infinite;
+}
+.we-type-orb__reel {
+  display: grid;
+  grid-auto-rows: 100cqh;
+  place-items: center;
+  font-family: var(--we-font-display);
+  font-size: 72cqh;
+  font-weight: var(--we-weight-strong);
+  line-height: normal;
+  animation: we-type-orb-reel calc(var(--press-orb) * 4) var(--press-reel) infinite;
+}
+@keyframes we-type-orb-press {
+  0%   { translate: 0 -18%; animation-timing-function: var(--press-gravity); }
+  33%  { translate: 0 4%; animation-timing-function: var(--press-hold); }
+  40%  { translate: 0 4%; animation-timing-function: var(--press-friction); }
+  66%  { translate: 0 0; animation-timing-function: var(--press-gravity); }
+  100% { translate: 0 -18%; }
+}
+@keyframes we-type-orb-reel {
+  from { translate: 0 0; }
+  to   { translate: 0 -400cqh; }
+}

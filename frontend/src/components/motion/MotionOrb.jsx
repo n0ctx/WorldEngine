@@ -17,7 +17,25 @@ function InkOrb({ size = 24, className = '' }) {
   );
 }
 
-const ORBS = { matrix: MatrixOrb, ink: InkOrb };
+// 检字：一颗方铅字每拍弹起、换一个字、落下压实（样式见 themes/motion/letterpress.css）；小尺寸放不下字，只留铅块
+const TYPE_GLYPHS = ['世', '界', '书', '章'];
+const TYPE_GLYPH_MIN_SIZE = 24;
+
+function TypeOrb({ size = 24, className = '' }) {
+  return (
+    <span aria-hidden="true" className={`we-type-orb${className ? ` ${className}` : ''}`} style={{ width: size, height: size }}>
+      <span className="we-type-orb__slug">
+        {size >= TYPE_GLYPH_MIN_SIZE && (
+          <span className="we-type-orb__reel">
+            {TYPE_GLYPHS.map((glyph) => <span key={glyph}>{glyph}</span>)}
+          </span>
+        )}
+      </span>
+    </span>
+  );
+}
+
+const ORBS = { matrix: MatrixOrb, ink: InkOrb, type: TypeOrb };
 
 export default function MotionOrb(props) {
   const Orb = ORBS[useMotion().pack.traits.orb];

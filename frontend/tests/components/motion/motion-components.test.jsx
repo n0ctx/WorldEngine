@@ -15,6 +15,8 @@ import BounceRail from '../../../src/components/motion/BounceRail.jsx';
 import TaskList from '../../../src/components/motion/TaskList.jsx';
 import StepTrack from '../../../src/components/motion/StepTrack.jsx';
 import CodeBlock from '../../../src/components/motion/CodeBlock.jsx';
+import MotionOrb from '../../../src/components/motion/MotionOrb.jsx';
+import { DEFAULT_MOTION_PACK_ID, setMotionPack } from '../../../src/core/motion/motionPack.js';
 
 class ResizeObserverMock {
   observe() {}
@@ -191,5 +193,23 @@ describe('CodeBlock', () => {
     expect(writeText).toHaveBeenCalledWith('{\n  "a": 1\n}');
     expect(screen.getByRole('button', { name: '已复制' })).toBeInTheDocument();
     expect(screen.getByRole('region', { name: 'json 代码' })).toHaveTextContent('"a": 1');
+  });
+});
+
+describe('MotionOrb 活字「检字」', () => {
+  it('大尺寸的铅字上排着轮换的字，小尺寸只留铅块；整颗对读屏隐藏', () => {
+    setMotionPack('letterpress');
+    try {
+      const { container, rerender } = render(<MotionOrb size={56} />);
+      const orb = container.querySelector('.we-type-orb');
+      expect(orb).toHaveAttribute('aria-hidden', 'true');
+      expect(orb.querySelector('.we-type-orb__reel')).toHaveTextContent('世界书章');
+
+      rerender(<MotionOrb size={16} />);
+      expect(container.querySelector('.we-type-orb__slug')).toBeInTheDocument();
+      expect(container.querySelector('.we-type-orb__reel')).toBeNull();
+    } finally {
+      setMotionPack(DEFAULT_MOTION_PACK_ID);
+    }
   });
 });
