@@ -1,5 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import Database from 'better-sqlite3';
 
 import { initSchema } from '../db/schema.js';
@@ -265,6 +268,93 @@ test('initSchema 为缺少 middle_summary / middle_covered_to 的旧 turn_record
     assert.deepEqual(row, { summary: '旧摘要', middle_summary: null, middle_covered_to: null });
     assert.deepEqual(db.pragma('foreign_key_check'), []);
     assert.equal(db.inTransaction, false);
+  } finally {
+    db.close();
+  }
+});
+
+function withTempDir(fn) {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'we-schema-'));
+  try {
+    fn(dir);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+}
+
+const backupFiles = (dir) => fs.readdirSync(dir).filter((name) => name.endsWith('.bak'));
+
+test('initSchema 在新建的空库上记录结构版本，且不生成备份', () => {
+  withTempDir((dir) => {
+    const db = new Database(path.join(dir, 'fresh.db'));
+    try {
+      // guard-allow(tests): initSchema 是被测对象，每个用例要从各自不同的库状态起步
+      initSchema(db);
+      assert.equal(db.pragma('user_version', { simple: true }), 1);
+      assert.deepEqual(backupFiles(dir), []);
+    } finally {
+      db.close();
+    }
+  });
+});
+
+test('initSchema 升级已有数据的旧库前留下一份升级前的备份，升级完成后不再重复执行', () => {
+  withTempDir((dir) => {
+    const db = new Database(path.join(dir, 'legacy.db'));
+    db.exec(`
+      CREATE TABLE worlds (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        post_prompt TEXT,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL
+      );
+      INSERT INTO worlds VALUES ('world-1', 'World', 'legacy post', 1, 1);
+    `);
+    try {
+      // guard-allow(tests): 连续执行两次，验证升级完成后再次启动不再备份
+      initSchema(db);
+      initSchema(db);
+
+      assert.equal(db.pragma('user_version', { simple: true }), 1);
+      const worldColumns = db.pragma('table_info(worlds)').map((column) => column.name);
+      assert.ok(!worldColumns.includes('post_prompt'));
+
+      const backups = backupFiles(dir);
+      assert.equal(backups.length, 1);
+      assert.match(backups[0], /^legacy\.db\.v0-\d+\.bak$/);
+      const backup = new Database(path.join(dir, backups[0]), { readonly: true });
+      try {
+        assert.equal(backup.pragma('user_version', { simple: true }), 0);
+        assert.deepEqual(
+          backup.prepare('SELECT name, post_prompt FROM worlds').all(),
+          [{ name: 'World', post_prompt: 'legacy post' }],
+        );
+      } finally {
+        backup.close();
+      }
+    } finally {
+      db.close();
+    }
+  });
+});
+
+test('initSchema 遇到改表失败时直接报错，不记录为已升级', () => {
+  const db = new Database(':memory:');
+  db.exec(`
+    CREATE TABLE worlds (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      post_prompt TEXT,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL
+    );
+    CREATE VIEW world_post_prompts AS SELECT id, post_prompt FROM worlds;
+  `);
+  try {
+    // guard-allow(tests): initSchema 是被测对象，每个用例要从各自不同的库状态起步
+    assert.throws(() => initSchema(db), /post_prompt/);
+    assert.equal(db.pragma('user_version', { simple: true }), 0);
   } finally {
     db.close();
   }

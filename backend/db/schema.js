@@ -476,8 +476,52 @@ CREATE INDEX IF NOT EXISTS idx_state_threads_session_valid ON state_threads(sess
 CREATE INDEX IF NOT EXISTS idx_state_world_profile_session_valid ON state_world_profile(session_id, valid_to_round);
 `;
 
+/**
+ * 结构升级步骤。库的 user_version 记录已执行到第几步，每步只执行一次；
+ * 新的结构变更（含给 TABLES 里已有表补列）追加为新步骤，已上线的步骤不改。
+ */
+const MIGRATIONS = [
+  migrateLegacySchema,
+];
+
 export function initSchema(db) {
+  const version = db.pragma('user_version', { simple: true });
+  if (version < MIGRATIONS.length && !db.memory && hasTables(db)) backupBeforeMigration(db, version);
   db.exec(TABLES);
+  for (let step = version; step < MIGRATIONS.length; step++) {
+    MIGRATIONS[step](db);
+    db.pragma(`user_version = ${step + 1}`);
+  }
+  db.exec(INDEXES);
+}
+
+function hasTables(db) {
+  return !!db.prepare(`SELECT 1 FROM sqlite_master WHERE type = 'table' LIMIT 1`).get();
+}
+
+/** 升级已有数据的库前，在库文件旁留一份完整副本，升级出错时可手动换回 */
+function backupBeforeMigration(db, version) {
+  db.prepare('VACUUM INTO ?').run(`${db.name}.v${version}-${Date.now()}.bak`);
+}
+
+function columnNames(db, table) {
+  return new Set(db.pragma(`table_info(${table})`).map((column) => column.name));
+}
+
+/** 列已存在时跳过；其余错误照常抛出 */
+function addColumn(db, table, column, definition) {
+  if (columnNames(db, table).has(column)) return;
+  db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+}
+
+/** 列不存在时跳过；其余错误照常抛出 */
+function dropColumn(db, table, column) {
+  if (!columnNames(db, table).has(column)) return;
+  db.exec(`ALTER TABLE ${table} DROP COLUMN ${column}`);
+}
+
+/** 引入版本号之前的历史迁移，每项都可重复执行；旧库首次带版本号启动时整体执行一次 */
+function migrateLegacySchema(db) {
   migrateInitialLegacyColumns(db);
   migrateSessionsAndStateValues(db);
   migrateDropCompressionAndSummarySchema(db);
@@ -499,28 +543,28 @@ export function initSchema(db) {
 
 function migrateInitialLegacyColumns(db) {
   // T30: 为现有数据库添加 personas.avatar_path 列（新建库由 CREATE TABLE 覆盖）
-  try { db.exec(`ALTER TABLE personas ADD COLUMN avatar_path TEXT`); } catch {}
+  addColumn(db, 'personas', 'avatar_path', 'TEXT');
   // T31: 为现有数据库添加 post_prompt 列（新建库由 CREATE TABLE 覆盖）
-  try { db.exec(`ALTER TABLE worlds ADD COLUMN post_prompt TEXT NOT NULL DEFAULT ''`); } catch {}
-  try { db.exec(`ALTER TABLE characters ADD COLUMN post_prompt TEXT NOT NULL DEFAULT ''`); } catch {}
+  addColumn(db, 'worlds', 'post_prompt', "TEXT NOT NULL DEFAULT ''");
+  addColumn(db, 'characters', 'post_prompt', "TEXT NOT NULL DEFAULT ''");
   // T35: 为现有数据库添加 worlds.description 列
-  try { db.exec(`ALTER TABLE worlds ADD COLUMN description TEXT NOT NULL DEFAULT ''`); } catch {}
+  addColumn(db, 'worlds', 'description', "TEXT NOT NULL DEFAULT ''");
   // 写卡助手改为单代理后不再有计划文档 / 审批 / 子代理状态，移除对应列
   for (const column of [
     'plan_doc_content', 'plan_doc_data_json', 'current_step_id', 'last_tool_failure_json',
     'last_subagent_result_json', 'approval_checkpoint_json', 'loop_iteration',
   ]) {
-    try { db.exec(`ALTER TABLE assistant_tasks DROP COLUMN ${column}`); } catch {}
+    dropColumn(db, 'assistant_tasks', column);
   }
   // T-chat-writing-resume: 为现有数据库补 session 级流快照字段
-  try { db.exec(`ALTER TABLE session_stream_tasks ADD COLUMN streaming_text TEXT NOT NULL DEFAULT ''`); } catch {}
-  try { db.exec(`ALTER TABLE session_stream_tasks ADD COLUMN continuing_message_id TEXT`); } catch {}
-  try { db.exec(`ALTER TABLE session_stream_tasks ADD COLUMN continuing_text TEXT NOT NULL DEFAULT ''`); } catch {}
-  try { db.exec(`ALTER TABLE session_stream_tasks ADD COLUMN options_json TEXT NOT NULL DEFAULT '[]'`); } catch {}
-  try { db.exec(`ALTER TABLE session_stream_tasks ADD COLUMN activated_entries_json TEXT NOT NULL DEFAULT '[]'`); } catch {}
+  addColumn(db, 'session_stream_tasks', 'streaming_text', "TEXT NOT NULL DEFAULT ''");
+  addColumn(db, 'session_stream_tasks', 'continuing_message_id', 'TEXT');
+  addColumn(db, 'session_stream_tasks', 'continuing_text', "TEXT NOT NULL DEFAULT ''");
+  addColumn(db, 'session_stream_tasks', 'options_json', "TEXT NOT NULL DEFAULT '[]'");
+  addColumn(db, 'session_stream_tasks', 'activated_entries_json', "TEXT NOT NULL DEFAULT '[]'");
   // T-desc: 为现有数据库添加 characters.description / personas.description 列
-  try { db.exec(`ALTER TABLE characters ADD COLUMN description TEXT NOT NULL DEFAULT ''`); } catch {}
-  try { db.exec(`ALTER TABLE personas ADD COLUMN description TEXT NOT NULL DEFAULT ''`); } catch {}
+  addColumn(db, 'characters', 'description', "TEXT NOT NULL DEFAULT ''");
+  addColumn(db, 'personas', 'description', "TEXT NOT NULL DEFAULT ''");
 }
 
 /**
@@ -531,7 +575,7 @@ function migrateInitialLegacyColumns(db) {
 function migrateDropCompressionAndSummarySchema(db) {
   db.exec(`DROP INDEX IF EXISTS idx_messages_session_compressed`);
   for (const [table, column] of [['messages', 'is_compressed'], ['sessions', 'compressed_context']]) {
-    try { db.exec(`ALTER TABLE ${table} DROP COLUMN ${column}`); } catch {}
+    dropColumn(db, table, column);
   }
   db.exec(`DROP TABLE IF EXISTS session_summaries`);
 }
@@ -566,34 +610,35 @@ function migrateSessionsAndStateValues(db) {
     db.pragma('foreign_keys = ON');
   }
   // T34: 为现有 sessions 表补充 world_id / mode 列（已经过 table-recreation 的库跳过）
-  try { db.exec(`ALTER TABLE sessions ADD COLUMN world_id TEXT REFERENCES worlds(id) ON DELETE CASCADE`); } catch {}
-  try { db.exec(`ALTER TABLE sessions ADD COLUMN mode TEXT NOT NULL DEFAULT 'chat'`); } catch {}
+  addColumn(db, 'sessions', 'world_id', 'TEXT REFERENCES worlds(id) ON DELETE CASCADE');
+  addColumn(db, 'sessions', 'mode', "TEXT NOT NULL DEFAULT 'chat'");
   // T59: 状态值拆分为默认值 + 运行时值；旧 value_json 迁移到 default_value_json
-  try { db.exec(`ALTER TABLE world_state_values ADD COLUMN default_value_json TEXT`); } catch {}
-  try { db.exec(`ALTER TABLE world_state_values ADD COLUMN runtime_value_json TEXT`); } catch {}
-  try { db.exec(`ALTER TABLE character_state_values ADD COLUMN default_value_json TEXT`); } catch {}
-  try { db.exec(`ALTER TABLE character_state_values ADD COLUMN runtime_value_json TEXT`); } catch {}
-  try { db.exec(`ALTER TABLE persona_state_values ADD COLUMN default_value_json TEXT`); } catch {}
-  try { db.exec(`ALTER TABLE persona_state_values ADD COLUMN runtime_value_json TEXT`); } catch {}
+  for (const table of ['world_state_values', 'character_state_values', 'persona_state_values']) {
+    addColumn(db, table, 'default_value_json', 'TEXT');
+    addColumn(db, table, 'runtime_value_json', 'TEXT');
+  }
   migrateLegacyStateValueColumns(db);
 }
 
 function migrateSessionAndLegacyTableIndexes(db) {
   // T34: 补充索引
-  try { db.exec(`CREATE INDEX IF NOT EXISTS idx_sessions_world_id ON sessions(world_id, mode, created_at)`); } catch {}
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_sessions_world_id ON sessions(world_id, mode, created_at)`);
   // Task 11 (nearby): 整表删除 writing_session_characters，由 nearby 全面替代
-  try { db.exec(`DROP TABLE IF EXISTS writing_session_characters`); } catch {}
+  db.exec(`DROP TABLE IF EXISTS writing_session_characters`);
   // per-turn 摘要系统：新增 turn_records 表索引
-  try { db.exec(`CREATE INDEX IF NOT EXISTS idx_turn_records_session ON turn_records(session_id, round_index)`); } catch {}
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_turn_records_session ON turn_records(session_id, round_index)`);
 }
 
 function migrateScopedSettingsAndPromptDescriptions(db) {
   // 双模式全局设置：为两张表添加 mode 列（'chat' | 'writing'）
-  try { db.exec(`ALTER TABLE custom_css_snippets ADD COLUMN mode TEXT NOT NULL DEFAULT 'chat'`); } catch {}
-  try { db.exec(`ALTER TABLE regex_rules ADD COLUMN mode TEXT NOT NULL DEFAULT 'chat'`); } catch {}
+  addColumn(db, 'custom_css_snippets', 'mode', "TEXT NOT NULL DEFAULT 'chat'");
+  addColumn(db, 'regex_rules', 'mode', "TEXT NOT NULL DEFAULT 'chat'");
   // Prompt 条目：summary → description（触发条件描述），新增 keyword_scope
-  try { db.exec(`ALTER TABLE world_prompt_entries RENAME COLUMN summary TO description`); } catch {}
-  try { db.exec(`ALTER TABLE world_prompt_entries ADD COLUMN keyword_scope TEXT NOT NULL DEFAULT 'user,assistant'`); } catch {}
+  const entryColumns = columnNames(db, 'world_prompt_entries');
+  if (entryColumns.has('summary') && !entryColumns.has('description')) {
+    db.exec(`ALTER TABLE world_prompt_entries RENAME COLUMN summary TO description`);
+  }
+  addColumn(db, 'world_prompt_entries', 'keyword_scope', "TEXT NOT NULL DEFAULT 'user,assistant'");
 }
 
 function migrateTurnRecordsAndDiary(db) {
@@ -602,7 +647,6 @@ function migrateTurnRecordsAndDiary(db) {
   //   state_snapshot — 该轮结束时的三层状态，用于 regenerate/删除/编辑后的状态回滚
   //   scene / cast_json — 摘要锚点：场景与在场角色，只用于召回时定位
   //   middle_summary / middle_covered_to — 该轮结束时的滚动中期摘要及其覆盖到的轮次，NULL 表示旧数据未生成
-  const turnRecordCols = new Set(db.pragma('table_info(turn_records)').map((col) => col.name));
   for (const [name, type] of [
     ['user_message_id', 'TEXT'],
     ['asst_message_id', 'TEXT'],
@@ -612,25 +656,25 @@ function migrateTurnRecordsAndDiary(db) {
     ['middle_summary', 'TEXT'],
     ['middle_covered_to', 'INTEGER'],
   ]) {
-    if (!turnRecordCols.has(name)) db.exec(`ALTER TABLE turn_records ADD COLUMN ${name} ${type}`);
+    addColumn(db, 'turn_records', name, type);
   }
   // user_context / asst_context 为已移除的复制内容字段；long_term_memory_snapshot 随
   // 剧情摘要接口取代长期记忆文件而不再需要
   for (const column of ['user_context', 'asst_context', 'long_term_memory_snapshot']) {
-    try { db.exec(`ALTER TABLE turn_records DROP COLUMN ${column}`); } catch {}
+    dropColumn(db, 'turn_records', column);
   }
   // 日记系统：sessions 记录创建时的日记模式，daily_entries 存日记元数据
-  try { db.exec(`ALTER TABLE sessions ADD COLUMN diary_date_mode TEXT`); } catch {}
-  try { db.exec(`CREATE INDEX IF NOT EXISTS idx_daily_entries_session ON daily_entries(session_id, date_str)`); } catch {}
+  addColumn(db, 'sessions', 'diary_date_mode', 'TEXT');
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_daily_entries_session ON daily_entries(session_id, date_str)`);
   // 章节标题系统：写作章节标题持久化
-  try { db.exec(`CREATE INDEX IF NOT EXISTS idx_chapter_titles_session ON chapter_titles(session_id, chapter_index)`); } catch {}
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_chapter_titles_session ON chapter_titles(session_id, chapter_index)`);
 }
 
 function migratePromptSchema(db) {
   migrateLegacyAutoFilledNullStateValues(db);
   // State 引擎 Phase 1：为 world_prompt_entries 新增 position / trigger_type 字段
-  try { db.exec("ALTER TABLE world_prompt_entries ADD COLUMN position TEXT NOT NULL DEFAULT 'post'"); } catch (_) {}
-  try { db.exec("ALTER TABLE world_prompt_entries ADD COLUMN trigger_type TEXT NOT NULL DEFAULT 'always'"); } catch (_) {}
+  addColumn(db, 'world_prompt_entries', 'position', "TEXT NOT NULL DEFAULT 'post'");
+  addColumn(db, 'world_prompt_entries', 'trigger_type', "TEXT NOT NULL DEFAULT 'always'");
   migrateTriggerTypeInitial(db);
   migrateDropWorldsLegacyPromptColumns(db);
   // personas 多对一：移除 world_id UNIQUE 约束
@@ -638,35 +682,33 @@ function migratePromptSchema(db) {
   // 废除触发器三表，新增 entry_conditions 表
   migrateDropTriggerTables(db);
   // worlds 新增 active_persona_id 列
-  try { db.exec(`ALTER TABLE worlds ADD COLUMN active_persona_id TEXT`); } catch {}
+  addColumn(db, 'worlds', 'active_persona_id', 'TEXT');
   // token 字段：条目注入顺序权重（正整数，越大越靠后，默认 1）
-  try { db.exec("ALTER TABLE world_prompt_entries ADD COLUMN token INTEGER NOT NULL DEFAULT 1"); } catch (_) {}
+  addColumn(db, 'world_prompt_entries', 'token', 'INTEGER NOT NULL DEFAULT 1');
   // 删除废弃表：global_prompt_entries / character_prompt_entries
   migrateDropLegacyEntryTables(db);
 }
 
 function migrateMessageMetadata(db) {
   // token 消耗统计：messages 表新增 token_usage 字段（JSON 字符串）
-  try { db.exec(`ALTER TABLE messages ADD COLUMN token_usage TEXT`); } catch {}
+  addColumn(db, 'messages', 'token_usage', 'TEXT');
   // next_prompt 选项持久化：messages 表新增 next_options 字段（JSON 数组字符串）
-  try { db.exec(`ALTER TABLE messages ADD COLUMN next_options TEXT`); } catch {}
+  addColumn(db, 'messages', 'next_options', 'TEXT');
   // 本轮激活的非常驻条目持久化：messages 表新增 activated_entries 字段（JSON 数组字符串）
-  try { db.exec(`ALTER TABLE messages ADD COLUMN activated_entries TEXT`); } catch {}
+  addColumn(db, 'messages', 'activated_entries', 'TEXT');
   // 弹幕持久化：messages 表新增 danmaku 字段（JSON 字符串数组）；随消息删除/会话级联清理
-  try { db.exec(`ALTER TABLE messages ADD COLUMN danmaku TEXT`); } catch {}
+  addColumn(db, 'messages', 'danmaku', 'TEXT');
 }
 
 function migrateSortOrders(db) {
   // worlds 封面图
-  try { db.exec(`ALTER TABLE worlds ADD COLUMN cover_path TEXT`); } catch {}
+  addColumn(db, 'worlds', 'cover_path', 'TEXT');
   // worlds 拖拽排序
-  try { db.exec(`ALTER TABLE worlds ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0`); } catch {}
+  addColumn(db, 'worlds', 'sort_order', 'INTEGER NOT NULL DEFAULT 0');
   migrateWorldsBackfillSortOrder(db);
-  // personas 排序字段（CREATE TABLE 已含；旧库通过 ALTER 补列后再创建索引）
-  try { db.exec(`ALTER TABLE personas ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0`); } catch {}
-  try { db.exec(`CREATE INDEX IF NOT EXISTS idx_personas_world_id ON personas(world_id, sort_order)`); } catch {}
-  // personas 拖拽排序
-  try { db.exec(`ALTER TABLE personas ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0`); } catch {}
+  // personas 拖拽排序字段（CREATE TABLE 已含；旧库通过 ALTER 补列后再创建索引）
+  addColumn(db, 'personas', 'sort_order', 'INTEGER NOT NULL DEFAULT 0');
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_personas_world_id ON personas(world_id, sort_order)`);
   migratePersonasBackfillSortOrder(db);
 }
 
@@ -675,71 +717,67 @@ function migrateStateFieldSchema(db) {
   migrateDropStateFieldTriggerColumns(db);
   // diary_time 切换到 datetime 类型 + ISO 格式
   migrateDiaryTimeToIso(db);
-  // state_fields 加 prefix 列（datetime 显示前缀）
   for (const t of ['world_state_fields', 'character_state_fields', 'persona_state_fields']) {
-    try { db.exec(`ALTER TABLE ${t} ADD COLUMN prefix TEXT NOT NULL DEFAULT ''`); } catch {}
-  }
-  // state_fields 加 table_columns 列（type='table' 时存储列定义 JSON：[{key,label,min?,max?}]）
-  for (const t of ['world_state_fields', 'character_state_fields', 'persona_state_fields']) {
-    try { db.exec(`ALTER TABLE ${t} ADD COLUMN table_columns TEXT`); } catch {}
-  }
-  // state_fields 加 unit 列（type='number' 时显示/提示单位，如 元/万元/%）
-  for (const t of ['world_state_fields', 'character_state_fields', 'persona_state_fields']) {
-    try { db.exec(`ALTER TABLE ${t} ADD COLUMN unit TEXT NOT NULL DEFAULT ''`); } catch {}
+    // state_fields 加 prefix 列（datetime 显示前缀）
+    addColumn(db, t, 'prefix', "TEXT NOT NULL DEFAULT ''");
+    // state_fields 加 table_columns 列（type='table' 时存储列定义 JSON：[{key,label,min?,max?}]）
+    addColumn(db, t, 'table_columns', 'TEXT');
+    // state_fields 加 unit 列（type='number' 时显示/提示单位，如 元/万元/%）
+    addColumn(db, t, 'unit', "TEXT NOT NULL DEFAULT ''");
   }
   // persona_state_values 按 persona 拆分：UNIQUE 键从 (world_id, field_key) 改为 (persona_id, field_key)
   migratePersonaStateValuesPerPersona(db);
-  try { db.exec(`CREATE INDEX IF NOT EXISTS idx_persona_state_values_persona_id ON persona_state_values(persona_id, field_key)`); } catch {}
-  try { db.exec(`CREATE INDEX IF NOT EXISTS idx_persona_state_values_world_id ON persona_state_values(world_id, field_key)`); } catch {}
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_persona_state_values_persona_id ON persona_state_values(persona_id, field_key)`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_persona_state_values_world_id ON persona_state_values(world_id, field_key)`);
 }
 
 function migratePromptActivationSchema(db) {
   // enabled 开关：条目可单独禁用，禁用时不注入提示词
-  try { db.exec(`ALTER TABLE world_prompt_entries ADD COLUMN enabled INTEGER NOT NULL DEFAULT 1`); } catch {}
+  addColumn(db, 'world_prompt_entries', 'enabled', 'INTEGER NOT NULL DEFAULT 1');
   // condition_logic：状态条件逻辑模式（'AND' | 'OR'），默认全部满足（AND）
-  try { db.exec(`ALTER TABLE world_prompt_entries ADD COLUMN condition_logic TEXT NOT NULL DEFAULT 'AND'`); } catch {}
+  addColumn(db, 'world_prompt_entries', 'condition_logic', "TEXT NOT NULL DEFAULT 'AND'");
   // keyword_logic：关键词命中逻辑（'AND' | 'OR'），仅 trigger_type='keyword' 生效；默认 OR 保持向后兼容
-  try { db.exec(`ALTER TABLE world_prompt_entries ADD COLUMN keyword_logic TEXT NOT NULL DEFAULT 'OR'`); } catch {}
+  addColumn(db, 'world_prompt_entries', 'keyword_logic', "TEXT NOT NULL DEFAULT 'OR'");
   // active_turns：关键词命中后持续生效的轮数（0=永久；1=本轮；N=触发后续 N 轮），默认 1
-  try { db.exec(`ALTER TABLE world_prompt_entries ADD COLUMN active_turns INTEGER NOT NULL DEFAULT 1`); } catch {}
+  addColumn(db, 'world_prompt_entries', 'active_turns', 'INTEGER NOT NULL DEFAULT 1');
   // sessions.keyword_active_state：跨轮持久化关键词激活状态（JSON：{ entry_id: { round, ttl } }）
-  try { db.exec(`ALTER TABLE sessions ADD COLUMN keyword_active_state TEXT NOT NULL DEFAULT '{}'`); } catch {}
+  addColumn(db, 'sessions', 'keyword_active_state', "TEXT NOT NULL DEFAULT '{}'");
 }
 
 function migrateNearbyEnabledColumn(db) {
   // 附近角色：character_state_fields 新增 nearby_enabled 列；旧行由 SQLite 默认值自动填 1
-  try { db.exec(`ALTER TABLE character_state_fields ADD COLUMN nearby_enabled INTEGER NOT NULL DEFAULT 1`); } catch {}
+  addColumn(db, 'character_state_fields', 'nearby_enabled', 'INTEGER NOT NULL DEFAULT 1');
 }
 
 function migrateProfileDefaultsColumns(db) {
   // 角色卡 / 人设的档案初始值（身份、外貌、人格），以及世界卡的开场时间、开场地点，{字段key: 值}
   for (const table of ['characters', 'personas', 'worlds']) {
-    try { db.exec(`ALTER TABLE ${table} ADD COLUMN profile_defaults_json TEXT NOT NULL DEFAULT '{}'`); } catch {}
+    addColumn(db, table, 'profile_defaults_json', "TEXT NOT NULL DEFAULT '{}'");
   }
 }
 
 function migrateWritingSessionPersonaSchema(db) {
   // 写作会话与玩家卡绑定：sessions.persona_id（仅 writing 使用，chat 维持 NULL）
-  try { db.exec(`ALTER TABLE sessions ADD COLUMN persona_id TEXT REFERENCES personas(id) ON DELETE CASCADE`); } catch {}
-  try { db.exec(`CREATE INDEX IF NOT EXISTS idx_sessions_world_persona ON sessions(world_id, persona_id, mode, updated_at)`); } catch {}
+  addColumn(db, 'sessions', 'persona_id', 'TEXT REFERENCES personas(id) ON DELETE CASCADE');
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_sessions_world_persona ON sessions(world_id, persona_id, mode, updated_at)`);
   // 首轮前状态基线快照：重生成第一轮（回滚到零残留 turn record）时的回滚锚点，
   // 区分"用户首轮前手动预设"与"被丢弃轮次的污染"。老会话为 NULL → 回滚退回保留现状（向下兼容）。
-  try { db.exec(`ALTER TABLE sessions ADD COLUMN state_baseline_json TEXT`); } catch {}
+  addColumn(db, 'sessions', 'state_baseline_json', 'TEXT');
   migrateBackfillWritingSessionPersonaId(db);
 }
 
 function migrateWorldAppearanceSchema(db) {
   // 设定条目分组：触发机制从左栏分类维度降级为条目属性，条目改按用户自定义分组导航。
   // 可空，默认 NULL（未分组）；不按 trigger_type 回填，避免"换个名字继续当分类"。
-  try { db.exec(`ALTER TABLE world_prompt_entries ADD COLUMN group_name TEXT`); } catch {}
+  addColumn(db, 'world_prompt_entries', 'group_name', 'TEXT');
   // 世界主色（"封面即光源"）：从封面图取色后压低饱和度存入，NULL 表示未取色/无封面时走主题默认色。
-  try { db.exec(`ALTER TABLE worlds ADD COLUMN accent_color TEXT`); } catch {}
+  addColumn(db, 'worlds', 'accent_color', 'TEXT');
   // 主色来源：'auto'（默认，随封面自动重算）| 'manual'（用户手工指定，封面变化不再覆盖）。
   // 旧库回填为 NULL，读取时按 'auto' 处理。
-  try { db.exec(`ALTER TABLE worlds ADD COLUMN accent_source TEXT`); } catch {}
+  addColumn(db, 'worlds', 'accent_source', 'TEXT');
   // 新建世界引导：用户主动关闭引导时置 1，与「三步是否完成」（客观判断，不落库）彻底分开。
   // 关闭后即使三步仍未做完也不再弹出；完成三步则无论是否被关闭过都会消失（判断逻辑见前端）。
-  try { db.exec(`ALTER TABLE worlds ADD COLUMN onboarding_dismissed INTEGER NOT NULL DEFAULT 0`); } catch {}
+  addColumn(db, 'worlds', 'onboarding_dismissed', 'INTEGER NOT NULL DEFAULT 0');
 }
 
 /**
@@ -911,14 +949,8 @@ function looksIsoJson(raw) {
 function migrateDropStateFieldTriggerColumns(db) {
   const tables = ['world_state_fields', 'character_state_fields', 'persona_state_fields'];
   for (const table of tables) {
-    const cols = db.pragma(`table_info(${table})`).map((col) => col.name);
-    if (cols.includes('trigger_mode')) {
-      try { db.exec(`ALTER TABLE ${table} DROP COLUMN trigger_mode`); } catch {}
-    }
-    const updatedCols = db.pragma(`table_info(${table})`).map((col) => col.name);
-    if (updatedCols.includes('trigger_keywords')) {
-      try { db.exec(`ALTER TABLE ${table} DROP COLUMN trigger_keywords`); } catch {}
-    }
+    dropColumn(db, table, 'trigger_mode');
+    dropColumn(db, table, 'trigger_keywords');
   }
 }
 
@@ -1044,13 +1076,8 @@ function migrateTriggerTypeInitial(db) {
 }
 
 function migrateDropWorldsLegacyPromptColumns(db) {
-  const cols = db.pragma('table_info(worlds)').map((col) => col.name);
-  if (cols.includes('system_prompt')) {
-    try { db.exec('ALTER TABLE worlds DROP COLUMN system_prompt'); } catch {}
-  }
-  if (cols.includes('post_prompt')) {
-    try { db.exec('ALTER TABLE worlds DROP COLUMN post_prompt'); } catch {}
-  }
+  dropColumn(db, 'worlds', 'system_prompt');
+  dropColumn(db, 'worlds', 'post_prompt');
 }
 
 function migratePersonasMultiPerWorld(db) {
