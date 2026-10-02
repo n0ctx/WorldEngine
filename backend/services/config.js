@@ -167,11 +167,15 @@ function deepMerge(target, source) {
   return result;
 }
 
+// 解析、迁移后的配置，按文件修改时间失效：本进程写入时直接更新，文件被外部改动后下次读取重新解析
+let cached = null;
+
 function writeConfigFile(config) {
   fs.mkdirSync(path.dirname(CONFIG_PATH), { recursive: true });
   const tmpPath = `${CONFIG_PATH}.${process.pid}.${Date.now()}.tmp`;
   fs.writeFileSync(tmpPath, JSON.stringify(config, null, 2), 'utf-8');
   fs.renameSync(tmpPath, CONFIG_PATH);
+  cached = { mtimeMs: fs.statSync(CONFIG_PATH).mtimeMs, config: structuredClone(config) };
 }
 
 function ensurePlainObject(value, fallback = {}) {
@@ -480,22 +484,23 @@ function normalizeConfigSections(config) {
 }
 
 /**
- * 读取当前配置，不存在则初始化默认配置并写入文件
+ * 读取当前配置，不存在则初始化默认配置并写入文件；每次返回独立副本，调用方可随意修改
  */
 export function getConfig() {
-  if (!fs.existsSync(CONFIG_PATH)) {
+  const stat = fs.statSync(CONFIG_PATH, { throwIfNoEntry: false });
+  if (!stat) {
     writeConfigFile(DEFAULT_CONFIG);
-    return structuredClone(DEFAULT_CONFIG);
+  } else if (cached?.mtimeMs !== stat.mtimeMs) {
+    const config = JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf-8'));
+    // 三步都要执行，任一步改动过就回写
+    const dirty = [migrateConfig(config), normalizeLogging(config), normalizeConfigSections(config)].includes(true);
+    if (dirty) {
+      writeConfigFile(config);
+    } else {
+      cached = { mtimeMs: stat.mtimeMs, config };
+    }
   }
-  const raw = fs.readFileSync(CONFIG_PATH, 'utf-8');
-  const config = JSON.parse(raw);
-  const migrationDirty = migrateConfig(config);
-  const loggingDirty = normalizeLogging(config);
-  const sectionsDirty = normalizeConfigSections(config);
-  if (migrationDirty || loggingDirty || sectionsDirty) {
-    writeConfigFile(config);
-  }
-  return config;
+  return structuredClone(cached.config);
 }
 
 /**

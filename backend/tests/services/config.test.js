@@ -1,4 +1,4 @@
-import test, { after } from 'node:test';
+import test, { after, mock } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
@@ -221,4 +221,24 @@ test('openai_compatible 的 provider key：仍被使用时保留，无 scope 使
   });
   const removed = getConfig();
   assert.equal('openai_compatible' in removed.provider_keys, false);
+});
+
+test('配置文件未变时直接复用已解析的配置，文件被外部改动后重新读取', () => {
+  fs.rmSync(sandbox.configPath, { force: true });
+  updateConfig({ ui: { theme: 'phosphor' } });
+  const externallyEdited = { ...sandbox.readConfig(), ui: { theme: 'nocturne' } };
+
+  const readFileSync = mock.method(fs, 'readFileSync');
+  try {
+    getConfig();
+    getConfig();
+    assert.equal(getConfig().ui.theme, 'phosphor');
+    assert.equal(readFileSync.mock.callCount(), 0);
+
+    sandbox.writeConfig(externallyEdited);
+    assert.equal(getConfig().ui.theme, 'nocturne');
+    assert.equal(readFileSync.mock.calls.filter((call) => call.arguments[0] === sandbox.configPath).length, 1);
+  } finally {
+    readFileSync.mock.restore();
+  }
 });
