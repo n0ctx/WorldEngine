@@ -20,7 +20,7 @@ import { validateValue } from '../utils/state-field-validate.js';
 import { listProfileDefaultRows } from './profile-defaults.js';
 import { isPlaceholderValue } from '../memory/state-memory-schema.js';
 import { renderBackendPrompt } from '../prompts/prompt-loader.js';
-import { LLM_TASK_TEMPERATURE, LLM_STATE_UPDATE_MAX_TOKENS, STATE_TEXT_MAX_LENGTH, STATE_LIST_MAX_ITEMS } from '../utils/constants.js';
+import { LLM_TASK_TEMPERATURE, LLM_STATE_UPDATE_MAX_TOKENS, STATE_TEXT_COMPRESS_TARGET, STATE_LIST_MAX_ITEMS } from '../utils/constants.js';
 import { createLogger, formatMeta, previewText } from '../utils/logger.js';
 import { extractJsonObject } from '../utils/llm-json.js';
 
@@ -121,7 +121,7 @@ async function callExtractLLM({ name, personaText, fields, callType }) {
     NAME: name || '（未命名）',
     PERSONA_TEXT: personaText,
     SCHEMA: buildFieldsSchemaText(fields),
-    TEXT_MAX_LENGTH: STATE_TEXT_MAX_LENGTH,
+    TEXT_MAX_LENGTH: STATE_TEXT_COMPRESS_TARGET,
     LIST_MAX_ITEMS: STATE_LIST_MAX_ITEMS,
   });
 

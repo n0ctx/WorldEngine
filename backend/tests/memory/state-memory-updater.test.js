@@ -217,6 +217,25 @@ test('世界里 nearby_enabled=1 的「职业」角色字段会让档案清单�
   assert.ok(system.includes('career（职业'), 'NPC 适用字段清单应包含 career');
 });
 
+test('状态更新说明里写明 text 字段不超过 20 字', async () => {
+  resetMockEnv();
+  const world = insertWorld(sandbox.db, { name: '字数世界' });
+  insertWorldStateField(sandbox.db, world.id, { field_key: 'mission', label: '任务', type: 'text', update_mode: 'llm_auto' });
+
+  const { loadStateUpdateTargets, buildEntityStateSections } = await freshImport('backend/memory/state-update-context.js');
+  const { __testables } = await freshImport('backend/memory/combined-state-updater.js');
+  const { getWorldById } = await freshImport('backend/db/queries/worlds.js');
+  const character = insertCharacter(sandbox.db, world.id, { name: '丁' });
+  const session = insertSession(sandbox.db, { character_id: character.id, world_id: world.id });
+
+  const w = getWorldById(world.id);
+  const targets = loadStateUpdateTargets(world.id, [character.id], w);
+  const sections = buildEntityStateSections(targets, { world: w, worldId: world.id, sessionId: session.id, session });
+  const system = __testables.buildCacheableSystemPrompt(world.id, targets, sections);
+
+  assert.match(system, /text 类型字段的值不超过 20 字/);
+});
+
 test('system 前缀带上本世界启用的常驻条目作为世界观，不带需触发的和已停用的条目', async () => {
   resetMockEnv();
   const world = insertWorld(sandbox.db, { name: '雾都' });

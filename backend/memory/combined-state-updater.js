@@ -13,7 +13,7 @@ import { upsertSessionWorldStateValues } from '../db/queries/session-world-state
 import { upsertSessionCharacterStateValues } from '../db/queries/session-character-state-values.js';
 import { upsertSessionPersonaStateValues } from '../db/queries/session-persona-state-values.js';
 
-import { ALL_MESSAGES_LIMIT, LLM_TASK_TEMPERATURE, LLM_STATE_UPDATE_MAX_TOKENS, STATE_UPDATE_JSON_RETRY_MAX, LLM_BACKGROUND_TASK_TIMEOUT_MS } from '../utils/constants.js';
+import { ALL_MESSAGES_LIMIT, LLM_TASK_TEMPERATURE, LLM_STATE_UPDATE_MAX_TOKENS, STATE_UPDATE_JSON_RETRY_MAX, LLM_BACKGROUND_TASK_TIMEOUT_MS, STATE_TEXT_COMPRESS_TARGET } from '../utils/constants.js';
 import { getSessionById } from '../db/queries/sessions.js';
 import { createLogger, formatMeta, previewText, shouldLogRaw } from '../utils/logger.js';
 import { renderBackendPrompt } from '../prompts/prompt-loader.js';
@@ -159,6 +159,7 @@ function buildCacheableSystemPrompt(worldId, targets, { schemaSections, response
     SCHEMA: schemaSections.join('\n\n'),
     RESPONSE_KEYS: responseKeys.join('、'),
     EXAMPLE_KEYS: exampleKeys,
+    TEXT_MAX_LENGTH: STATE_TEXT_COMPRESS_TARGET,
     STATE_MEMORY_PROFILE_FIELDS: buildStateMemoryProfileFieldsSchema(worldId) || '（无）',
     STATE_MEMORY_NPC_FIELDS: buildNpcApplicableFieldsSchema(worldId) || '（无）',
   });

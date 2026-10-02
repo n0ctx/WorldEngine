@@ -2,14 +2,13 @@
  * state-memory-apply.js — 状态记忆操作写入器
  *
  * 把 all-state 调用输出的 `memory` 操作列表、`entity_fields` 补丁应用到状态记忆多版本表。
- * 纯函数部分（引用解析、证据核验、占位值/字段归属拦截、文本截断）单独导出便于测试；
+ * 纯函数部分（引用解析、占位值/字段归属拦截、文本截断）单独导出便于测试；
  * `applyStateMemoryOps` 把一批操作的执行包在一个事务里，单条操作失败不影响其他操作。
  *
  * 对外接口：
  *   resolveEntityRef(ref, index) → entityId | null
  *   resolveSeqRef(ref, prefix, list, idField) → id | null
  *   buildEntityIndex(entities) → index
- *   verifyEvidence(evidence, turnText) → boolean
  *   isFieldOwnedByUserField(key, applicableUserFields) → boolean
  *   truncateText(text) / truncateListItems(items)
  *   applyStateMemoryOps({ sessionId, worldId, round, ops, turnText, realDate, mainCharacterEntityId })
@@ -42,7 +41,7 @@ import { parseWorldDate, compareWorldDate } from '../utils/world-date.js';
 import { validateValue } from '../utils/state-field-validate.js';
 import {
   STATE_TEXT_FIELD_MAX, STATE_LIST_ITEM_MAX, STATE_LIST_MAX_ITEMS,
-  STATE_EVIDENCE_MIN, STATE_EVIDENCE_MAX, THREAD_DORMANT_AFTER_ROUNDS,
+  THREAD_DORMANT_AFTER_ROUNDS,
 } from '../utils/constants.js';
 import { threadMatchesTurn } from './state-thread-relevance.js';
 import { createLogger, formatMeta } from '../utils/logger.js';
@@ -50,7 +49,7 @@ import { createLogger, formatMeta } from '../utils/logger.js';
 const log = createLogger('all-state');
 
 const THREAD_OUTCOMES = ['resolved', 'failed'];
-/** 原文没有依据、由 AI 结合世界观创作补全的档案字段，证据列记这个标记 */
+/** 模型没给依据的首次填写，证据列记这个标记 */
 const PROFILE_FILL_EVIDENCE = 'AI 补全';
 const PLACE_NAME_MAX_LENGTH = 20;
 const SENTENCE_PUNCTUATION_RE = /[。！？.!?]/;
@@ -110,13 +109,9 @@ export function resolveSeqRef(ref, prefix, list, idField) {
 // 纯函数：证据核验、占位值、字段归属、截断
 // ============================
 
-/** 证据去掉空白后长度需在 STATE_EVIDENCE_MIN~MAX 之间，且是本轮「用户消息+AI回复」拼接文本（同样去空白）的子串。 */
-export function verifyEvidence(evidence, turnText) {
-  if (typeof evidence !== 'string') return false;
-  const trimmed = evidence.replace(/\s+/g, '');
-  if (trimmed.length < STATE_EVIDENCE_MIN || trimmed.length > STATE_EVIDENCE_MAX) return false;
-  const normalizedTurn = (turnText ?? '').replace(/\s+/g, '');
-  return normalizedTurn.includes(trimmed);
+/** 模型附带的依据说明：非空字符串才记录，不核对原文，模型可按剧情合理推断或创作。 */
+export function normalizeEvidence(evidence) {
+  return typeof evidence === 'string' && evidence.trim() ? evidence.trim() : null;
 }
 
 /** 动态状态键是否与该实体适用的用户字段 field_key 或 label 相同（字段归属拦截）。 */
@@ -178,7 +173,6 @@ function buildApplyContext({ sessionId, worldId, round, turnText, realDate, main
     worldProfile: getCurrentWorldProfile(sessionId),
     highBarUsed: new Set(),
     profileValues, profileFieldCache, allCharacterFields, nearbyCharacterFields,
-    verifyEvidence: (evidence) => verifyEvidence(evidence, turnText),
   };
 }
 
@@ -339,27 +333,24 @@ function hasProfileValue(ctx, entityId, fieldKey) {
   return Array.isArray(value) ? value.length > 0 : !isPlaceholderValue(value);
 }
 
-/** acceptEvidence：证据是否放行，默认逐字核验原文；首次填写的创作补全由调用方先判过空字段再放行。 */
-function writeProfileFieldGeneric(entity, fieldKey, opType, payload, evidence, ctx, acceptEvidence = ctx.verifyEvidence) {
+function writeProfileFieldGeneric(entity, fieldKey, opType, payload, evidence, ctx) {
   const gate = gateProfileWrite(entity, fieldKey, ctx);
   if (!gate.ok) return gate;
   const { fieldDef } = gate;
 
   if (fieldDef.mutability === 'dynamic') return writeListLikeField(entity, fieldDef, opType, payload, null, ctx);
-  if (!acceptEvidence(evidence)) return { ok: false, reason: '证据核验失败' };
   if (fieldDef.appendOnly) return writeAppendOnlyField(entity, fieldDef, opType, payload, evidence, ctx);
   if (fieldDef.highBar) return writeHighBarField(entity, fieldDef, opType, payload, evidence, ctx);
   return writeStandardField(entity, fieldDef, opType, payload, evidence, ctx);
 }
 
 /**
- * 首次填写（create_entity 初始档案、fill_profile）：原文有据时照常记证据；原文没有依据时允许创作补全，
- * 但只能写空字段，证据记为 PROFILE_FILL_EVIDENCE。改动已有值一律要逐字原文证据。
+ * 首次填写（create_entity 初始档案、fill_profile）：只能写空字段，改动已有值走 update_profile；
+ * 模型没给依据时证据记为 PROFILE_FILL_EVIDENCE。
  */
 function writeInitialProfileField(entity, fieldKey, value, evidence, ctx) {
-  if (ctx.verifyEvidence(evidence)) return writeProfileFieldGeneric(entity, fieldKey, 'create', value, evidence, ctx);
-  if (hasProfileValue(ctx, entity.entity_id, fieldKey)) return { ok: false, reason: '已有值的档案字段改动须附证据' };
-  return writeProfileFieldGeneric(entity, fieldKey, 'create', value, PROFILE_FILL_EVIDENCE, ctx, () => true);
+  if (hasProfileValue(ctx, entity.entity_id, fieldKey)) return { ok: false, reason: '已有值的档案字段须用 update_profile 改动' };
+  return writeProfileFieldGeneric(entity, fieldKey, 'create', value, normalizeEvidence(evidence) ?? PROFILE_FILL_EVIDENCE, ctx);
 }
 
 /** 按 { 字段key: 值 或 { value, evidence } } 逐项首次填写档案，单项失败只记日志；返回写入成功的项数。 */
@@ -422,14 +413,13 @@ function makeProfileFieldHandler(opType, payloadKey) {
   return withResolvedEntity((op, ctx, entity) => {
     const fieldKey = typeof op.field === 'string' ? op.field.trim() : '';
     if (!fieldKey) return { ok: false, reason: '缺少 field' };
-    return writeProfileFieldGeneric(entity, fieldKey, opType, op[payloadKey], op.evidence, ctx);
+    return writeProfileFieldGeneric(entity, fieldKey, opType, op[payloadKey], normalizeEvidence(op.evidence), ctx);
   });
 }
 
 const handleRename = withResolvedEntity((op, ctx, entity) => {
   const newName = typeof op.name === 'string' ? op.name.trim() : '';
   if (!newName) return { ok: false, reason: '缺少新名字' };
-  if (!ctx.verifyEvidence(op.evidence)) return { ok: false, reason: '证据核验失败' };
   const conflict = ctx.index.byNameOrAlias.get(newName);
   if (conflict && conflict.entity_id !== entity.entity_id) return { ok: false, reason: '名字与其他实体重名' };
   ctx.index.byNameOrAlias.delete(entity.name);
@@ -666,14 +656,18 @@ export function applyStateMemoryOps({ sessionId, worldId, round, ops, turnText, 
     dormantUntouchedThreads(ctx);
     let applied = 0;
     const rejected = [];
+    const reject = (op, reason) => {
+      rejected.push({ op, reason });
+      log.warn(`STATE MEMORY OP REJECTED  ${formatMeta({ session: sessionId.slice(0, 8), op: op?.op, reason })}`);
+    };
     for (const op of ops) {
       if (!op || typeof op !== 'object' || typeof op.op !== 'string') {
-        rejected.push({ op, reason: '操作格式无效' });
+        reject(op, '操作格式无效');
         continue;
       }
       const handler = OP_HANDLERS[op.op];
       if (!handler) {
-        rejected.push({ op, reason: `未知操作: ${op.op}` });
+        reject(op, `未知操作: ${op.op}`);
         continue;
       }
       try {
@@ -681,8 +675,7 @@ export function applyStateMemoryOps({ sessionId, worldId, round, ops, turnText, 
         if (result?.ok) {
           applied += 1;
         } else {
-          rejected.push({ op, reason: result?.reason ?? '未知原因' });
-          log.warn(`STATE MEMORY OP REJECTED  ${formatMeta({ session: sessionId.slice(0, 8), op: op.op, reason: result?.reason })}`);
+          reject(op, result?.reason ?? '未知原因');
         }
       } catch (err) {
         rejected.push({ op, reason: err.message });
@@ -728,6 +721,9 @@ export function applyEntityFields({ sessionId, worldId, entityFields, mainCharac
   }
 
   if (rows.length > 0) upsertEntityStateValues(sessionId, rows);
+  for (const item of rejected) {
+    log.warn(`STATE MEMORY ENTITY FIELD REJECTED  ${formatMeta({ session: sessionId.slice(0, 8), ref: item.ref, field: item.fieldKey, reason: item.reason })}`);
+  }
   return { applied: rows.length, rejected };
 }
 

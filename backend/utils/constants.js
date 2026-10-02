@@ -104,8 +104,8 @@ export const LLM_STATE_COMPRESS_MAX_TOKENS = 512;
 // 状态字段长度限制
 // ============================
 /** text 字段值触发压缩的字数阈值 */
-export const STATE_TEXT_MAX_LENGTH = 50;
-/** text 字段压缩目标字数 */
+export const STATE_TEXT_MAX_LENGTH = 30;
+/** text 字段压缩目标字数，也是提示词里告诉模型的字数上限 */
 export const STATE_TEXT_COMPRESS_TARGET = 20;
 /** list 字段触发裁剪的条目数阈值 */
 export const STATE_LIST_MAX_ITEMS = 10;
@@ -123,10 +123,6 @@ export const STATE_DIRECTORY_BUDGET = 3000;
 export const STATE_TEXT_FIELD_MAX = 60;
 /** 档案 list 字段单项最大字数 */
 export const STATE_LIST_ITEM_MAX = 30;
-/** 档案证据原文最短字符数 */
-export const STATE_EVIDENCE_MIN = 4;
-/** 档案证据原文最长字符数 */
-export const STATE_EVIDENCE_MAX = 80;
 /** 每轮状态更新最多要求补全空缺的旧实体数（人物、事物各算一份） */
 export const STATE_PROFILE_FILL_PER_ROUND = 3;
 /** 按名字/别名匹配实体时的最短字数 */

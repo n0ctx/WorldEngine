@@ -14,7 +14,7 @@ sandbox.setEnv();
 after(() => sandbox.cleanup());
 
 const {
-  resolveEntityRef, resolveSeqRef, buildEntityIndex, verifyEvidence,
+  resolveEntityRef, resolveSeqRef, buildEntityIndex, normalizeEvidence,
   isFieldOwnedByUserField, truncateText, truncateListItems,
   applyStateMemoryOps, applyEntityFields, ensureBaseEntities,
 } = await freshImport('backend/memory/state-memory-apply.js');
@@ -63,13 +63,11 @@ test('resolveSeqRef 按前缀和 seq 从列表中解析 r<seq>/t<seq>/f<seq>', (
   assert.equal(resolveSeqRef('t12', 'r', relations, 'relation_id'), null);
 });
 
-test('verifyEvidence 要求去空白后是本轮原文子串，且长度在 4~80 之间', () => {
-  const turnText = '用户：沈彦左眉有一道旧伤疤。AI：他点了点头。';
-  assert.equal(verifyEvidence('沈彦左眉有一道旧伤疤', turnText), true);
-  assert.equal(verifyEvidence('沈彦 左眉 有一道旧伤疤', turnText), true);
-  assert.equal(verifyEvidence('编造的证据文本', turnText), false);
-  assert.equal(verifyEvidence('沈彦', turnText), false);
-  assert.equal(verifyEvidence(123, turnText), false);
+test('normalizeEvidence 只保留非空字符串依据', () => {
+  assert.equal(normalizeEvidence('  按剧情推断他已离开港口 '), '按剧情推断他已离开港口');
+  assert.equal(normalizeEvidence('   '), null);
+  assert.equal(normalizeEvidence(123), null);
+  assert.equal(normalizeEvidence(undefined), null);
 });
 
 test('isFieldOwnedByUserField 按 field_key 或 label 完全匹配', () => {
@@ -132,7 +130,7 @@ test('create_entity 初始档案：原文有据的记证据，无据的创作补
   assert.equal(profile.species, undefined);
 });
 
-test('fill_profile 只补空字段：已有值不被无证据覆盖，关联角色卡的实体同样可补', () => {
+test('fill_profile 只补空字段：已有值不被覆盖，关联角色卡的实体同样可补', () => {
   const { world, session, character } = setupSession();
   makeEntity(session.id, { name: '林知夏', seq: 1 });
   makeEntity(session.id, { name: '卡片角色', seq: 2, cardId: character.id });
@@ -176,16 +174,25 @@ test('fill_profile 可以覆盖「未知」这类占位值', () => {
   assert.equal(JSON.parse(getEntityDetails(session.id, [place])[place].profile.category.value_json), '内河渡口');
 });
 
-test('证据不是本轮原文子串时，档案写入被拒', () => {
+test('改动档案不核对原文：依据不在本轮文本里或缺省时照常写入', () => {
   const { world, session } = setupSession();
-  makeEntity(session.id, { name: '沈彦', seq: 1 });
+  const entityId = makeEntity(session.id, { name: '沈彦', seq: 1 });
   const result = applyStateMemoryOps({
     sessionId: session.id, worldId: world.id, round: 1,
-    ops: [{ op: 'update_profile', entity: 'e1', field: 'gender', value: '男', evidence: '编造的证据' }],
+    ops: [
+      { op: 'update_profile', entity: 'e1', field: 'occupation', value: '码头工人', evidence: '按剧情推断' },
+      { op: 'list_add', entity: 'e1', field: 'core_traits', items: ['沉默'] },
+      { op: 'rename', entity: 'e1', name: '沈二' },
+    ],
     turnText: '沈彦点了点头。', realDate: false, mainCharacterEntityId: null,
   });
-  assert.equal(result.applied, 0);
-  assert.match(result.rejected[0].reason, /证据核验失败/);
+  assert.equal(result.applied, 3);
+  const { profile } = getEntityDetails(session.id, [entityId])[entityId];
+  assert.equal(JSON.parse(profile.occupation.value_json), '码头工人');
+  assert.equal(profile.occupation.evidence, '按剧情推断');
+  assert.deepEqual(JSON.parse(profile.core_traits.value_json), ['沉默']);
+  assert.equal(profile.core_traits.evidence, null);
+  assert.equal(listCurrentEntities(session.id).find((e) => e.entity_id === entityId).name, '沈二');
 });
 
 test('immutable 字段有值时 update_profile 被拒，correct_profile 生效', () => {
