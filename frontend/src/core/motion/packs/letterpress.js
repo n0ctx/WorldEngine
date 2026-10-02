@@ -1,5 +1,6 @@
 /* 动效包「活字」：整套动效是印刷作坊里的两种材质——纸与铅字。
- *   纸：轻、挺、有折痕。小块内容沿上沿折痕折开、对折收起；大面板像一张纸落到桌上；滑动靠摩擦急停，不回弹。
+ *   纸：轻、挺。出现时像一张纸从上方落到位，大面板像一张纸落到桌上；滑动靠摩擦急停，不回弹。
+ *   带字的块只平移不翻转：翻转会把文字压扁再拉开，等于缩放文字，进页时整屏正文会一起抽一下。
  *   铅字：重。往下落越落越快，接触时顿两帧，压过头再弹回。
  *   印（签名动作）：重物压到纸上的一下——顿帧、压过头、接触面留下凹印，再平复成平面印刷。
  * 纸只在动的时候有厚度：阴影、凹印、翘起只在动作过程里出现，静止时一切平印。
@@ -15,32 +16,16 @@ const spring = (stiffness, damping, mass = 1) => ({ type: 'spring', stiffness, d
 // 纸滑动、展开到位：起步快、急停
 const SLIDE = { duration: 0.34, ease: FRICTION };
 const EXIT = { duration: 0.22, ease: GRAVITY };
-// 折开：向后折起的纸片翻下来（越落越快）→ 顿两帧 → 过平 3° → 落平（与 letterpress.css 的 we-press-fold 同一动作）
-const FOLD_TIMES = [0, 0.48, 0.57, 0.78, 1];
-const FOLD_EASE = [GRAVITY, 'linear', FRICTION, GRAVITY];
-const ENTER = {
-  default: SLIDE,
-  rotateX: { duration: 0.42, times: FOLD_TIMES, ease: FOLD_EASE },
-  opacity: { duration: 0.1 },
-};
-// 落纸：从上方落下，顿一下、压过头 1px、弹回（与 letterpress.css 的 we-press-land 同一动作）
-const LAND_TIMES = [0, 0.5, 0.6, 1];
-const LAND_EASE = [GRAVITY, 'linear', FRICTION];
-const LAND = {
-  default: SLIDE,
-  y: { duration: 0.4, times: LAND_TIMES, ease: LAND_EASE },
-  opacity: { duration: 0.12 },
-};
-
-// 折痕在上沿。纸片只从背向屏幕的一侧转进来、回弹只过平几度：朝屏幕转时，高的消息与正文段下沿会冲到视点前，被放大甚至翻过视点
-const HINGE = { originY: 0, transformPerspective: 1200 };
-const FOLD_FROM = -70;
+// 落纸：从上方落到位，摩擦急停，不压过头、不回弹（与 letterpress.css 的 we-press-drop / we-press-land 同一动作）
+const ENTER = { default: SLIDE, opacity: { duration: 0.1 } };
+const LAND = { default: { duration: 0.4, ease: FRICTION }, opacity: { duration: 0.12 } };
+const DROP_FROM = -10;
 const LAND_FROM = -14;
 
 export default {
   id: 'letterpress',
   name: '活字',
-  description: '纸与铅字：出现时沿折痕折开，落下时顿一下、压过头再弹回，按下留一道凹印；流式输出一字一颗铅字。',
+  description: '纸与铅字：出现时像一张纸落到位，铅字落下时顿一下、压过头再弹回，按下留一道凹印；流式输出一字一颗铅字。',
   // 依赖包身份的组件行为：写在包里，组件只读这些字段，不按包 id 判断
   traits: {
     neck: false,
@@ -53,22 +38,22 @@ export default {
     state: { duration: 0.15 },
   },
   variants: {
-    // 小块入场：以上沿为折痕，从竖起的纸片拍下来、弹一下落平；离开时对折收起，越收越快
+    // 小块入场：像一张纸从上方落到位，急停；离开时被提走，越提越快
     enter: {
-      hidden:  { opacity: 0, rotateX: FOLD_FROM, ...HINGE },
-      visible: { opacity: 1, rotateX: [FOLD_FROM, 0, 0, 3, 0], ...HINGE },
-      exit:    { opacity: 0, rotateX: FOLD_FROM, ...HINGE, transition: EXIT },
+      hidden:  { opacity: 0, y: DROP_FROM },
+      visible: { opacity: 1, y: 0 },
+      exit:    { opacity: 0, y: DROP_FROM / 2, transition: EXIT },
     },
     // 大面板入场：一张纸落到桌上。不缩放、不模糊、不横向动
     overlayEnter: {
       hidden:  { opacity: 0, y: LAND_FROM },
-      visible: { opacity: 1, y: [LAND_FROM, 1, 1, 0] },
+      visible: { opacity: 1, y: 0 },
       exit:    { opacity: 0, y: -8, transition: EXIT },
     },
-    // 页签内容：顺着切换方向翻过来；custom 传方向（1 向右、-1 向左）。内容区很宽，角度小、透视远，近侧边缘才不会被放大
+    // 页签内容：顺着切换方向推进来，摩擦急停；custom 传方向（1 向右、-1 向左）
     tabEnter: {
-      hidden:  (dir = 1) => ({ opacity: 0, x: dir * 24, rotateY: dir * -12, transformPerspective: 1600 }),
-      visible: { opacity: 1, x: 0, rotateY: 0, transformPerspective: 1600 },
+      hidden:  (dir = 1) => ({ opacity: 0, x: dir * 24 }),
+      visible: { opacity: 1, x: 0 },
     },
     overlayBackdrop: {
       hidden:  { opacity: 0 },

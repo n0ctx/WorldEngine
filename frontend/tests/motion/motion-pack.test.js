@@ -54,11 +54,14 @@ describe('动效包', () => {
     }
   });
 
-  it('入场翻转不朝屏幕外翻：高的消息与正文段下沿冲到视点前会被放大成满屏乱闪', () => {
+  it('带字的入场（小块、大面板、页签）不翻转：翻转会把正文压扁再拉开，进页时整屏抽一下', () => {
+    const ROTATE_KEYS = ['rotate', 'rotateX', 'rotateY'];
     for (const pack of Object.values(MOTION_PACKS)) {
-      const { hidden, visible, exit } = pack.variants.enter;
-      for (const state of [hidden, visible, exit]) {
-        for (const angle of [state.rotateX ?? 0].flat()) expect(angle, pack.id).toBeLessThanOrEqual(5);
+      for (const key of ['enter', 'overlayEnter', 'tabEnter']) {
+        for (const state of Object.values(pack.variants[key])) {
+          const target = typeof state === 'function' ? state(1) : state;
+          expect(Object.keys(target).filter((k) => ROTATE_KEYS.includes(k)), `${pack.id} ${key}`).toEqual([]);
+        }
       }
     }
   });

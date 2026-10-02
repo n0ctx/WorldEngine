@@ -18,7 +18,6 @@
   --press-rebound: 160ms;
   --press-slide: 340ms;
   --press-land: 400ms;
-  --press-fold: 420ms;
   --press-relax: 480ms;
   --press-beat: 600ms;
   --press-orb: 700ms;
@@ -32,14 +31,14 @@
   --press-ink-flat: 0 0 0 transparent, 0 0 0 transparent;
   --press-out-flat: 0 0 0 transparent, 0 0 0 transparent;
 
-  --we-fx-enter: we-press-fold var(--press-fold) both;
+  --we-fx-enter: we-press-drop var(--press-slide) var(--press-friction) both;
   --we-fx-skeleton: we-press-skel calc(var(--we-motion-loop-duration) * 1.5) var(--press-friction) infinite;
   --we-fx-nudge: we-press-nudge var(--we-motion-loop-duration) var(--press-gravity) infinite;
   --we-fx-spin: we-press-tick var(--we-motion-loop-duration) var(--press-friction) infinite;
   --we-fx-typing: we-press-dot var(--we-motion-loop-duration) var(--press-friction) infinite;
-  /* 遮罩平稳压暗；大面板像一张纸落到桌上（与 packs/letterpress.js 的 overlayEnter 同一动作），不缩放、不模糊 */
+  /* 遮罩平稳压暗；大面板像一张纸落到桌上（与 packs/letterpress.js 的 overlayEnter 同一动作），不缩放、不模糊、不回弹 */
   --we-fx-scrim: we-press-dim var(--press-slide) var(--press-friction) backwards;
-  --we-fx-panel: we-press-land var(--press-land) backwards;
+  --we-fx-panel: we-press-land var(--press-land) var(--press-friction) backwards;
 }
 @media (prefers-reduced-motion: reduce) {
   :root[data-motion="letterpress"] {
@@ -48,8 +47,7 @@
     --press-rebound: 0ms;
     --press-slide: 0ms;
     --press-land: 0ms;
-    --press-fold: 0ms;
-    --press-relax: 0ms;
+      --press-relax: 0ms;
     --press-beat: 0ms;
     --press-orb: 0ms;
     --we-motion-state-duration: 0ms;
@@ -89,24 +87,15 @@
   100%      { box-shadow: var(--press-flat); }
 }
 
-/* ── 纸：折开、落纸 ───────────────────────────────────────── */
-/* 折开：以上沿为折痕，向后折起的纸片翻下来 → 顿两帧 → 过平 3° → 落平（对应 packs/letterpress.js variants.enter）。
-   只从背向屏幕的一侧转进来：朝屏幕转时，高的消息与正文段下沿会冲到视点前，被放大甚至翻过视点 */
-@keyframes we-press-fold {
-  0%   { opacity: 0; transform-origin: 50% 0; transform: perspective(1200px) rotateX(-70deg); animation-timing-function: var(--press-gravity); }
-  24%  { opacity: 1; }
-  48%  { transform: perspective(1200px) rotateX(0deg); animation-timing-function: var(--press-hold); }
-  57%  { transform: perspective(1200px) rotateX(0deg); animation-timing-function: var(--press-friction); }
-  78%  { transform: perspective(1200px) rotateX(3deg); animation-timing-function: var(--press-gravity); }
-  100% { opacity: 1; transform-origin: 50% 0; transform: none; }
+/* ── 纸：落纸 ───────────────────────────────────────── */
+/* 带字的块只平移、不翻转、不回弹：从上方落到位，摩擦急停（对应 packs/letterpress.js 的 enter / overlayEnter） */
+@keyframes we-press-drop {
+  from { opacity: 0; translate: 0 -10px; }
+  30%  { opacity: 1; }
 }
-/* 落纸：从上方落下，顿一下、压过头 1px、弹回（对应 packs/letterpress.js variants.overlayEnter） */
 @keyframes we-press-land {
-  0%   { opacity: 0; translate: 0 -14px; animation-timing-function: var(--press-gravity); }
-  12%  { opacity: 1; }
-  50%  { translate: 0 1px; animation-timing-function: var(--press-hold); }
-  60%  { translate: 0 1px; animation-timing-function: var(--press-friction); }
-  100% { opacity: 1; translate: 0 0; }
+  from { opacity: 0; translate: 0 -14px; }
+  30%  { opacity: 1; }
 }
 @keyframes we-press-dim {
   from { opacity: 0; }
@@ -524,7 +513,7 @@
 
 /* ── 徽标与空状态入场 ─── */
 /* 徽标像一枚小章落下、压一下，同一排一枚接一枚；
-   空状态标题逐格排进行里，排满后整行一起压实；说明与按钮随后折开（本包的 --we-fx-enter） */
+   空状态标题逐格排进行里，排满后整行一起压实；说明与按钮随后落到位（本包的 --we-fx-enter） */
 :where(:root[data-motion="letterpress"]) .we-badge {
   --badge-delay: 0s;
   --press-from: -12px;
