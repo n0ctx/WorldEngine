@@ -33,7 +33,7 @@
     "backend/services/model-catalog.js#fetchModels": 41,
     "backend/services/state-values.js#validateStateValue": 42,
     "backend/utils/state-field-validate.js#validateValue": 46,
-    "frontend/src/components/message/StreamingMarkdown.jsx#StreamingMarkdown": 43,
+    "frontend/src/components/message/StreamingMarkdown.jsx#StreamingMarkdown": 42,
     "frontend/src/core/api/stream-parser.js#dispatchSSEEvent": 33,
     "frontend/src/core/api/stream-parser.js#parseSSEStream": 41,
     "scripts/check-complexity.mjs#collectScores": 46,

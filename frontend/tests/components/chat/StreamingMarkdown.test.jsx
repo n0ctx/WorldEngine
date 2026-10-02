@@ -38,6 +38,9 @@ function streamItem(text, { isStreaming = true, showCaret = true } = {}) {
 }
 
 const chars = (container) => [...container.querySelectorAll('.we-stream-char')];
+// 正文里所有被逐字包裹的字（不含光标与字面层）
+const wrappedChars = (container) => [...container.querySelectorAll('.we-message-content p span')]
+  .filter((el) => !el.matches('.we-stream-caret, .we-fx-glyph__face'));
 const delays = (container) => chars(container).map((el) => parseInt(el.style.getPropertyValue('--we-stream-char-delay'), 10));
 
 beforeEach(() => {
@@ -105,20 +108,29 @@ describe('流式书写', () => {
     expect(chars(container).map((el) => el.textContent)).toEqual(['很', '深', '。']);
   });
 
-  it('生成持续进行时，早已显形的字去掉动画但保持同一个元素，结构变化时不会重打', () => {
+  it('生成持续进行时，早已显形的字还原成普通文字，逐字包裹只留在刚到的字上', () => {
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'performance'] });
     const { container, rerender } = render(streamItem('风从北方'));
-    const first = chars(container)[0];
     // 持续有新字到达（间隔短于单个字的动画时长），打字一直没有完全追上
     for (const next of ['风从北方吹', '风从北方吹来', '风从北方吹来，']) {
       act(() => { vi.advanceTimersByTime(Math.round(STREAM.char * 1000 * 0.8)); });
       rerender(streamItem(next));
     }
-    // 只有刚到的字还在动画里
     expect(chars(container).map((el) => el.textContent).join('')).toBe('来，');
-    const firstNow = container.querySelector('.we-message-content p span');
-    expect(firstNow).toBe(first);
-    expect(firstNow.className).toBe('');
+    expect(wrappedChars(container)).toHaveLength(2);
+    expect(container.querySelector('.we-message-content p').textContent).toContain('风从北方吹来，');
+  });
+
+  it('生成持续很久，逐字包裹的数量不随正文变长而累积', () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'performance'] });
+    const { container, rerender } = render(streamItem(''));
+    let text = '';
+    for (let i = 0; i < 300; i++) {
+      text += '风从北';
+      rerender(streamItem(text));
+      act(() => { vi.advanceTimersByTime(40); });
+    }
+    expect(wrappedChars(container).length).toBeLessThan(text.length / 2);
   });
 
   it('生成结束时光标先暗下去，随后移除，正文不再逐字包裹', () => {

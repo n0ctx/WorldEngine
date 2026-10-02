@@ -41,18 +41,21 @@ function isBlank(text) {
 
 // 给还没排期的到达段排进打字队列：接在上一段打完之后逐字出现；
 // 到达快过打字时压缩间隔，保证打字进度最多落后真实到达 timing.lag
-// 顺带把早已显形完的段标成 done：它们只去掉动画、保留同一个元素，段落结构变化引起重新挂载时不会重打一遍
+// 顺带丢掉早已显形完的段：它们的字还原成普通文字，逐字包裹只留在还在出现的字上，
+// 否则流得越久包裹越多，每个新到的字都要把整篇重渲染一遍
 function schedule(track, now, timing) {
   let typedUntil = track.typedUntil;
-  const chunks = track.chunks.map((chunk) => {
+  const chunks = [];
+  for (const chunk of track.chunks) {
     if (chunk.scheduled) {
-      return !chunk.done && chunk.end + timing.char < now ? { ...chunk, done: true } : chunk;
+      if (chunk.end + timing.char >= now) chunks.push(chunk);
+      continue;
     }
     const start = Math.max(now, typedUntil);
     const step = Math.min(timing.stagger, Math.max(0, now + timing.lag - start) / Math.max(1, chunk.length));
     typedUntil = start + chunk.length * step;
-    return { ...chunk, wait: start - now, step, end: typedUntil, scheduled: true, done: false };
-  });
+    chunks.push({ ...chunk, wait: start - now, step, end: typedUntil, scheduled: true });
+  }
   return { ...track, chunks, typedUntil, typing: true, caretBack: false };
 }
 
@@ -74,7 +77,7 @@ function splitText(node, chunks, withCaret) {
   for (const ch of value.slice(firstLocal)) {
     const pos = base + local;
     while (k + 1 < chunks.length && chunks[k + 1].offset <= pos) k++;
-    const { offset, wait, step, done } = chunks[k];
+    const { offset, wait, step } = chunks[k];
     if (isBlank(ch)) {
       plain += ch;
     } else {
@@ -82,7 +85,7 @@ function splitText(node, chunks, withCaret) {
       pieces.push({
         type: 'element',
         tagName: CHAR_TAG,
-        properties: done ? { dataDone: 'true' } : {
+        properties: {
           // 一律向下取整：相邻两个字的光标亮起区间不会重叠
           dataDelay: Math.floor(wait + (pos - offset) * step),
           dataStep: withCaret && step >= CHAR_CARET_MIN_MS ? Math.floor(step) : undefined,
@@ -241,7 +244,7 @@ export default function StreamingMarkdown({
   // 组件引用必须跨渲染稳定，否则每到一段文字整篇正文都会重新挂载
   const mdComponents = useMemo(() => ({
     ...components,
-    [CHAR_TAG]: ({ children, 'data-delay': delay, 'data-step': step, 'data-done': done }) => (done ? <span>{children}</span> : (
+    [CHAR_TAG]: ({ children, 'data-delay': delay, 'data-step': step }) => (
       <span
         className={`we-stream-char we-fx-glyph${step ? ' we-stream-char--caret' : ''}`}
         style={{ ...vars, '--we-stream-char-delay': `${delay}ms`, '--we-stream-char-step': step ? `${step}ms` : undefined }}
@@ -249,7 +252,7 @@ export default function StreamingMarkdown({
       >
         <span className="we-fx-glyph__face" data-ch={children}>{children}</span>
       </span>
-    )),
+    ),
     [CARET_TAG]: (props) => <CaretMark vars={vars} fading={props['data-fading'] === 'true'} />,
   }), [components, vars]);
 
