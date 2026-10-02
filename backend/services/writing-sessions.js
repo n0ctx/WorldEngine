@@ -3,6 +3,7 @@ import {
   getWritingSessionsByWorldId as dbGetWritingSessionsByWorldId,
   getWritingSessionById as dbGetWritingSessionById,
 } from '../db/queries/writing-sessions.js';
+import { upsertChapterTitle } from '../db/queries/chapter-titles.js';
 import { deleteSession as dbDeleteSession } from '../db/queries/sessions.js';
 import { getMessageIdsBySessionId } from '../db/queries/messages.js';
 import { runOnDelete } from '../utils/cleanup-hooks.js';
@@ -65,6 +66,12 @@ export async function deleteWritingSession(id) {
   const result = dbDeleteSession(id);
   log.info(`writing_session.delete  ${formatMeta({ sessionId: id, messages: ids.length })}`);
   return result;
+}
+
+/** 用户手动改章节标题：去掉首尾空白、最多 20 字，标记为非自动生成 */
+export function renameChapterTitle(sessionId, chapterIndex, title) {
+  upsertChapterTitle(sessionId, chapterIndex, title.trim().slice(0, 20), false);
+  log.info(`chapter_title.rename  ${formatMeta({ sessionId, chapterIndex })}`);
 }
 
 // 消息读写与 touch 在两种模式下完全同构（底层都是同一张 sessions / messages 表），

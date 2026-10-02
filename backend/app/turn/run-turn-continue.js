@@ -7,7 +7,7 @@ import { runStreamLifecycle } from '../shared/stream/create-stream-runner.js';
 import { finalizeStreamOutput } from '../shared/stream/finalize-stream-output.js';
 import { processStreamOutput, makeSuggestionFallbackCallbacks } from '../../services/chat.js';
 import { updateMessageContent, updateMessageNextOptions } from '../../db/queries/messages.js';
-import { buildContinuationMessages, supportsPrefill } from '../../routes/stream-helpers.js';
+import { buildContinuationMessages, supportsPrefill } from './continuation-messages.js';
 import { buildTurnContext } from './build-turn-context.js';
 import { makeStreamErrorHandler, resolveContinuationBase } from './turn-helpers.js';
 import { ALL_MESSAGES_LIMIT } from '../../utils/constants.js';

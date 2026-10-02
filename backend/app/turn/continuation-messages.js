@@ -1,4 +1,4 @@
-import { loadBackendPrompt } from '../prompts/prompt-loader.js';
+import { loadBackendPrompt } from '../../prompts/prompt-loader.js';
 
 const PREFILL_PROVIDERS = new Set(['anthropic', 'kimi-coding', 'minimax-coding']);
 

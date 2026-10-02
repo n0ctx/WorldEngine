@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { buildContinuationMessages } from '../../routes/stream-helpers.js';
+import { buildContinuationMessages } from '../../../app/turn/continuation-messages.js';
 
 const CONTINUE_INSTRUCTION = '请直接继续上一条 AI 回复，从上次停下的位置自然接续，不要重复已写内容，不要解释。';
 

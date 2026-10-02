@@ -13,7 +13,7 @@ import * as llm from '../llm/index.js';
 import { getSessionById } from '../db/queries/sessions.js';
 import { getCharacterById } from '../db/queries/characters.js';
 import { getMessagesBySessionId } from '../db/queries/messages.js';
-import { getAllTurnRecordsBySessionId } from '../db/queries/turn-records.js';
+import { getAllTurnRecordsBySessionId, updateLatestMiddleSummary } from '../db/queries/turn-records.js';
 import { getOrCreatePersona } from '../services/personas.js';
 import { getConfig } from '../services/config.js';
 import { resolveAuxScope } from '../utils/aux-scope.js';
@@ -267,6 +267,11 @@ export async function computeMiddleSummary(sessionId, roundIndex) {
   } catch (err) {
     return failedResult(err.message);
   }
+}
+
+/** 用户手改最新一轮的剧情摘要正文；会话还没有轮次记录时返回 false */
+export function editLatestMiddleSummary(sessionId, content) {
+  return updateLatestMiddleSummary(sessionId, content);
 }
 
 export const __testables = {

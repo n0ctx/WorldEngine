@@ -1,9 +1,10 @@
 import { Router } from 'express';
 import {
   createWorldPromptEntry, getWorldPromptEntryById, listWorldPromptEntries, updateWorldPromptEntry, deleteWorldPromptEntry, reorderWorldPromptEntries,
+  replaceWorldPromptEntryConditions,
 } from '../services/prompt-entries.js';
 import { assertExists } from '../utils/route-helpers.js';
-import { listConditionsByEntry, replaceEntryConditions } from '../db/queries/entry-conditions.js';
+import { listConditionsByEntry } from '../db/queries/entry-conditions.js';
 import { KeywordScopeEmptyError } from '../db/queries/prompt-entries.js';
 import { createLogger, formatMeta } from '../utils/logger.js';
 
@@ -110,7 +111,7 @@ router.put('/world-entries/:id/conditions', (req, res) => {
     log.warn(`prompt-entries.bad_request ${formatMeta({ method: req.method, path: req.path, reason: 'conditions must be an array' })}`);
     return res.status(400).json({ error: 'conditions must be an array' });
   }
-  replaceEntryConditions(req.params.id, conditions);
+  replaceWorldPromptEntryConditions(req.params.id, conditions);
   res.json(listConditionsByEntry(req.params.id));
 });
 

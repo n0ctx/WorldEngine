@@ -92,7 +92,7 @@
   调用方：`backend/routes/chat.js`、`backend/routes/writing.js`
 - `templates/continue-user-instruction.md`
   续写（continue）操作时附加给模型的指令片段，提示模型按既有语气延续而非重起一段。
-  调用方：`backend/routes/stream-helpers.js`
+  调用方：`backend/app/turn/continuation-messages.js`
 - `templates/shared-suggestion.md`
   选项生成功能的后置 prompt，要求模型在正文末尾输出 `<next_prompt>` 选项块。
   调用方：`backend/prompts/assembler.js`

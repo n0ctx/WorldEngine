@@ -9,8 +9,7 @@
  * model 恒存在，chat 恒为 null —— llm/index.js 的 `options.model || llm.model`
  * 把 null 视作未传，与不带该字段等价。
  *
- * 入参收 modeId 字符串而非模式描述符对象：这里只需要模式名，收字符串可以让
- * services/chat.js 的兼容层不反向依赖 app/modes，避免层序倒置。
+ * 入参收 modeId 字符串而非模式描述符对象：这里只需要模式名。
  */
 import { buildPrompt, buildWritingPrompt } from '../../prompts/assembler.js';
 import { getConfig } from '../../services/config.js';

@@ -8,6 +8,7 @@ import {
   getWritingSessionById,
   deleteWritingSession,
   getMessagesBySessionId,
+  renameChapterTitle,
 } from '../services/writing-sessions.js';
 import { getCharactersByWorldId } from '../services/characters.js';
 import { getWorldById } from '../services/worlds.js';
@@ -15,10 +16,7 @@ import { waitForQueueIdle } from '../utils/async-queue.js';
 import { ALL_MESSAGES_LIMIT } from '../utils/constants.js';
 import { generateChapterTitle } from '../memory/chapter-title-generator.js';
 import { groupChapterMessages } from '../utils/chapter-detector.js';
-import {
-  getChapterTitlesBySessionId,
-  upsertChapterTitle,
-} from '../db/queries/chapter-titles.js';
+import { getChapterTitlesBySessionId } from '../db/queries/chapter-titles.js';
 import { assertExists } from '../utils/route-helpers.js';
 import { writingMode } from '../app/modes/writing-mode.js';
 import { createSseEmitter } from '../app/shared/http/create-sse-emitter.js';
@@ -116,7 +114,7 @@ router.put('/:worldId/writing-sessions/:sessionId/chapter-titles/:chapterIndex',
     return res.status(400).json({ error: 'title is required' });
   }
  if (!getSessionInWorld(req, res)) return;
- upsertChapterTitle(sessionId, Number(chapterIndex), title.trim().slice(0, 20), 0);
+  renameChapterTitle(sessionId, Number(chapterIndex), title);
   res.json({ success: true });
 });
 

@@ -4,7 +4,6 @@ import path from 'node:path';
 import * as llm from '../llm/index.js';
 import { updateMessageAttachments, updateMessageNextOptions } from '../db/queries/messages.js';
 import { MAX_ATTACHMENTS_PER_MESSAGE, MAX_ATTACHMENT_SIZE_MB } from '../utils/constants.js';
-import { buildTurnContext } from '../app/turn/build-turn-context.js';
 import { renderPersonaState } from '../memory/recall.js';
 import { getPersonaById } from '../db/queries/personas.js';
 import { createLogger, previewText } from '../utils/logger.js';
@@ -70,18 +69,6 @@ export function saveAttachments(messageId, attachments) {
   }
 
   return paths;
-}
-
-/**
- * 构建上下文 messages 数组，调用 assembler.js 组装完整提示词
- *
- * @param {string} sessionId
- * @param {object} [options]  透传给 buildPrompt，支持 onRecallEvent 回调（T28）
- * @returns {Promise<{ messages: Array, overrides: { temperature: number, maxTokens: number }, recallHitCount: number }>}
- */
-export async function buildContext(sessionId, options = {}) {
-  // 兼容层：新代码直接用 app/turn/build-turn-context.js
-  return buildTurnContext('chat', sessionId, options);
 }
 
 function trimAfterLastNextPromptClose(text) {

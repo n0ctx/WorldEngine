@@ -8,7 +8,8 @@
 
 import express from 'express';
 import { getSessionById } from '../db/queries/sessions.js';
-import { getLatestTurnRecord, updateLatestMiddleSummary } from '../db/queries/turn-records.js';
+import { getLatestTurnRecord } from '../db/queries/turn-records.js';
+import { editLatestMiddleSummary } from '../memory/middle-summary.js';
 import { assertExists } from '../utils/route-helpers.js';
 
 const router = express.Router();
@@ -27,7 +28,7 @@ router.put('/:sessionId/middle-summary', (req, res) => {
   const { sessionId } = req.params;
   if (!assertExists(res, getSessionById(sessionId), '会话不存在')) return;
   const content = typeof req.body?.content === 'string' ? req.body.content : '';
-  if (!updateLatestMiddleSummary(sessionId, content)) {
+  if (!editLatestMiddleSummary(sessionId, content)) {
     return res.status(409).json({ error: '会话尚无剧情记录' });
   }
   res.json({ content });

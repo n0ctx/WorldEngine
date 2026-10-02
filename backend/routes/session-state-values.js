@@ -26,13 +26,15 @@ import {
   getSingleCharacterSessionStateValues,
   getCharacterStateValuesAfterReset,
 } from '../db/queries/session-state-values.js';
-import { clearSessionWorldStateValues, upsertSessionWorldStateValue } from '../db/queries/session-world-state-values.js';
-import { clearSessionPersonaStateValues, upsertSessionPersonaStateValue } from '../db/queries/session-persona-state-values.js';
 import {
   clearSessionCharacterStateValues,
+  clearSessionPersonaStateValues,
+  clearSessionWorldStateValues,
   clearSingleCharacterSessionStateValues,
   upsertSessionCharacterStateValue,
-} from '../db/queries/session-character-state-values.js';
+  upsertSessionPersonaStateValue,
+  upsertSessionWorldStateValue,
+} from '../services/session-state-values.js';
 import { createLogger, formatMeta } from '../utils/logger.js';
 
 const router = Router();

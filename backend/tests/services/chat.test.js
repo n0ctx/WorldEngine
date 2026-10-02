@@ -19,14 +19,14 @@ sandbox.setEnv();
 
 after(() => sandbox.cleanup());
 
-test('buildContext 会返回 messages、override 参数与 recallHitCount', async () => {
+test('对话模式 buildTurnContext 会返回 messages、override 参数与 recallHitCount', async () => {
   const world = insertWorld(sandbox.db, { name: '聊天世界', temperature: 0.4, max_tokens: 222 });
   const character = insertCharacter(sandbox.db, world.id, { name: '伊奈' });
   const session = insertSession(sandbox.db, { character_id: character.id });
   insertMessage(sandbox.db, session.id, { role: 'user', content: '你好', created_at: 1 });
 
-  const { buildContext } = await freshImport('backend/services/chat.js');
-  const result = await buildContext(session.id);
+  const { buildTurnContext } = await freshImport('backend/app/turn/build-turn-context.js');
+  const result = await buildTurnContext('chat', session.id);
 
   assert.equal(result.overrides.temperature, 0.4);
   assert.equal(result.overrides.maxTokens, 222);
