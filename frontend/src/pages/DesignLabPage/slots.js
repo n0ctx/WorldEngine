@@ -71,10 +71,10 @@ export const SLOTS = [
   {
     id: 'legacy-css-enter', category: 'appear', title: '遮罩与大面板的 CSS 入场', status: 'pack',
     api: ['css:scrim', 'css:panel'],
-    usedIn: ['设置与编辑页遮罩', '对话面板遮罩', '弹窗遮罩', '写卡助手遮罩', '编辑面板', '会话中栏'],
+    usedIn: ['设置页遮罩', '对话面板遮罩', '弹窗遮罩', '写卡助手遮罩', '会话中栏'],
     note: '遮罩只让底色入场（--we-fx-scrim），不带着上面的面板一起动：墨流从中央洇开，信号硬切闪两下亮起，活字平稳压暗。'
       + '大面板走 --we-fx-panel：墨流托起回弹，信号平滑淡入上浮，活字像一张纸落到桌上、摩擦急停；都不缩放、不模糊。'
-      + '这里用编辑页的遮罩与面板演示。',
+      + '这里用设置页的遮罩与会话中栏演示。',
   },
 
   // ── 浮层与弹窗 ──
@@ -95,6 +95,13 @@ export const SLOTS = [
     hooks: ['we-toast-card'],
     api: ['variant:overlayEnter', 'transition:overlay', 'fx'],
     usedIn: ['ToastCard'],
+  },
+  {
+    id: 'save-capsule', category: 'overlay', title: '编辑弹层保存栏', status: 'pack',
+    api: ['variant:overlayEnter', 'transition:overlay', 'fx'], usedIn: ['SaveCapsule', 'EditPageShell（世界 / 角色 / 玩家编辑）'],
+    note: '编辑弹层里需要手动保存的字段共用一个浮起胶囊，没有改动时收起，一有改动就从正文底部浮起；'
+      + '出现和收起沿用弹窗与提示条的入场（墨流托起回弹、信号淡入上浮、活字落纸急停），'
+      + '存好后「已保存」标签走状态变化标签的签名动作（墨流拽出墨签、信号实色刷出、活字压下小印），停一拍再收起。',
   },
   {
     id: 'side-drawer', category: 'overlay', title: '侧抽屉', status: 'pack',

@@ -50,7 +50,7 @@ export default function AuxLlmBlock({ providers, config, onProviderChange, onBas
       </FormGroup>
 
       {config.provider && !isLocal && (
-        <FormGroup label="API Key" variant="settings">
+        <FormGroup label="API Key" hint="密钥单独保存：其他设置改完即自动保存，密钥要输完整后点「保存密钥」才提交。" variant="settings">
           <div className="we-settings-inline-field-row">
             <Input
               type="password"

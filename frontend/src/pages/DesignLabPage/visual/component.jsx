@@ -2,7 +2,6 @@ import {
   Badge, Button, Card, Checkbox, Divider, EmptyState, Input, ListItem, Range, SectionTitle, SegmentedControl, Select, Skeleton, TagInput, Textarea, ToggleSwitch,
 } from '../../../components/index.js';
 import { useState } from 'react';
-import { Check } from 'lucide-react';
 import MessageItem from '../../../components/chat/MessageItem.jsx';
 import VisualSection from '../VisualSection.jsx';
 import { SELECT_OPTIONS } from '../demos/fixtures.js';
@@ -113,24 +112,15 @@ export function TopbarDemo() {
       <div className="we-design-lab__topbar-box we-design-lab__desk">
         <div className="we-topbar">
           <div className="we-topbar-left">
-            <span className="we-topbar-item we-topbar-crumb-current we-topbar-brand" aria-current="page">WorldEngine</span>
+            <button type="button" className="we-topbar-item we-topbar-crumb">世界</button>
             <span className="we-topbar-sep" aria-hidden="true">/</span>
-            <div className="we-topbar-world-wrap">
-              <button type="button" className="we-topbar-item we-topbar-item--active">
-                <span className="we-topbar-world-name">无限轮回</span>
-              </button>
-              <div className="we-menu we-topbar-dropdown we-on-shell">
-                <button type="button" className="we-menu__item" aria-current="true">
-                  <span className="we-menu__label">无限轮回</span>
-                  <Check size={14} className="we-menu__check" aria-hidden="true" />
-                </button>
-                <button type="button" className="we-menu__item"><span className="we-menu__label">凡人修仙</span></button>
-                <div className="we-menu__divider" />
-                <button type="button" className="we-menu__item">前往世界列表</button>
-              </div>
-            </div>
+            <button type="button" className="we-topbar-item we-topbar-crumb">
+              <span className="we-topbar-crumb-label">无限轮回</span>
+            </button>
             <span className="we-topbar-sep" aria-hidden="true">/</span>
-            <span className="we-topbar-item we-topbar-crumb-current" aria-current="page">聊天</span>
+            <span className="we-topbar-item we-topbar-crumb we-topbar-crumb-current" aria-current="page">
+              <span className="we-topbar-crumb-label">写作</span>
+            </span>
           </div>
           <div className="we-topbar-center" />
           <div className="we-topbar-actions">

@@ -173,13 +173,10 @@ describe('WritingSpacePage', () => {
     vi.useRealTimers();
   });
 
-  it('会话栏收起时，写作列顶部仍可点「返回世界」', async () => {
+  it('页面级返回只走顶栏面包屑，写作列不再自带「返回世界」', () => {
     renderWritingSpacePage();
 
-    expect(screen.getByRole('button', { name: '展开故事线列表' })).toHaveAttribute('aria-expanded', 'false');
-    fireEvent.click(screen.getByRole('button', { name: '返回世界' }));
-
-    expect(mocks.navigate).toHaveBeenCalledWith('/worlds/world-1');
+    expect(screen.queryByRole('button', { name: '返回世界' })).toBeNull();
   });
 
   it('首次进入会创建写作会话并切到 writing 模式，发送时调用 generate', async () => {

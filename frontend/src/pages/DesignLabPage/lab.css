@@ -64,6 +64,22 @@
   background: var(--we-color-shell-bg);
 }
 
+.we-design-lab__capsule-frame {
+  height: 320px;
+  overflow-y: auto;
+  margin-top: var(--we-space-md);
+  padding: var(--we-space-lg) var(--we-space-xl) var(--we-space-md);
+  border-radius: var(--we-radius-xl);
+  background: var(--we-glass-bg);
+  box-shadow: var(--we-material-shadow);
+}
+
+.we-design-lab__fx-pane {
+  flex: 1;
+  margin-top: var(--we-space-lg);
+  padding: var(--we-space-lg);
+}
+
 .we-design-lab__canvas-strip {
   min-height: 96px;
   margin-top: var(--we-space-lg);

@@ -1,6 +1,5 @@
 import React from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
@@ -11,7 +10,7 @@ const mocks = vi.hoisted(() => ({
   setCurrentWorldId: vi.fn(),
   setCurrentCharacterId: vi.fn(),
   setCurrentSessionId: vi.fn(),
-  getWorlds: vi.fn(),
+  getWorld: vi.fn(),
   getCharacter: vi.fn(),
   toggleAssistant: vi.fn(),
 }));
@@ -40,7 +39,7 @@ vi.mock('framer-motion', async () => {
 });
 
 vi.mock('../../src/core/api/worlds', () => ({
-  getWorlds: (...args) => mocks.getWorlds(...args),
+  getWorld: (...args) => mocks.getWorld(...args),
 }));
 vi.mock('../../src/core/api/characters', () => ({
   getCharacter: (...args) => mocks.getCharacter(...args),
@@ -66,7 +65,7 @@ import TopBar from '../../src/shells/book-spread/chrome/TopBar.jsx';
 describe('TopBar', () => {
   beforeEach(() => {
     mocks.navigate.mockReset();
-    mocks.getWorlds.mockReset().mockResolvedValue([{ id: 'world-1', name: '群星海' }, { id: 'world-2', name: '雾中岛' }]);
+    mocks.getWorld.mockReset().mockImplementation(async (id) => ({ id, name: id === 'world-1' ? '群星海' : '雾中岛' }));
     mocks.getCharacter.mockReset();
     mocks.toggleAssistant.mockReset();
     mocks.setCurrentWorldId.mockReset();
@@ -96,30 +95,29 @@ describe('TopBar', () => {
     });
   });
 
-  it('用键盘展开世界选择器并切换世界', async () => {
-    const user = userEvent.setup();
+  it('世界页之下的页面，点面包屑里的世界名直接回到该世界，不再弹出切换世界的下拉', async () => {
     mocks.location = { pathname: '/worlds/world-1/rules', search: '', hash: '', state: null };
     mocks.currentWorldId = 'world-1';
-    const setCurrentWorldId = vi.fn();
-    mocks.setCurrentWorldId = setCurrentWorldId;
 
     render(<TopBar />);
 
-    const selector = await screen.findByRole('button', { name: '切换世界，当前：群星海' });
-    expect(screen.getByText('规则')).toBeInTheDocument();
-    await user.click(selector);
-    expect(selector).toHaveAttribute('aria-expanded', 'true');
+    const crumb = await screen.findByRole('button', { name: '返回世界：群星海' });
+    expect(crumb).not.toHaveAttribute('aria-expanded');
+    expect(screen.getByText('规则').closest('[aria-current="page"]')).not.toBeNull();
+    fireEvent.click(crumb);
 
-    await user.tab();
-    await user.tab();
-    const nextWorld = screen.getByRole('button', { name: '雾中岛' });
-    expect(nextWorld).toHaveFocus();
-    await user.keyboard('{Enter}');
+    expect(mocks.navigate).toHaveBeenCalledWith('/worlds/world-1');
+    expect(screen.queryByText('雾中岛')).toBeNull();
+  });
 
-    expect(setCurrentWorldId).toHaveBeenCalledWith('world-2');
-    expect(mocks.setCurrentCharacterId).toHaveBeenCalledWith(null);
-    expect(mocks.setCurrentSessionId).toHaveBeenCalledWith(null);
-    expect(mocks.navigate).toHaveBeenCalledWith('/worlds/world-2');
+  it('在世界页本身，世界名是当前位置，不可点', async () => {
+    mocks.location = { pathname: '/worlds/world-1', search: '', hash: '', state: null };
+    mocks.currentWorldId = 'world-1';
+
+    render(<TopBar />);
+
+    expect((await screen.findByText('群星海')).closest('[aria-current="page"]')).not.toBeNull();
+    expect(screen.queryByRole('button', { name: /返回世界：/ })).toBeNull();
   });
 
   it('在对话路由显示故事标题，并在标题为空时回退到页面名称', async () => {

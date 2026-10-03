@@ -176,18 +176,6 @@
   gap: var(--we-space-sm);
 }
 
-/* 书架页品牌文字：沿用 crumb-current 高对比样式 */
-.we-topbar-brand {
-  white-space: nowrap;
-}
-
-.we-topbar-world-wrap {
-  position: relative;
-  /* inline-flex + 居中：避免 block 包裹层的行盒基线把内部按钮下压 1px，与兄弟项错位 */
-  display: inline-flex;
-  align-items: center;
-}
-
 .we-topbar-item {
   display: inline-flex;
   align-items: center;
@@ -238,28 +226,28 @@
   }
 }
 
-/* 面包屑当前层：非按钮，不可点，用主色系文字与其余可点层级区分 */
+/* 面包屑（书架品牌 / 世界 / 某世界 / 当前页）与分隔符：同一字体、同一字号；
+   可点的层级用三级文字色，当前层不可点，用主色加粗区分；名字过长时截断 */
+.we-topbar-crumb,
+.we-topbar-sep {
+  font-family: var(--we-font-ui);
+  font-size: var(--we-type-ui-size);
+  line-height: var(--we-type-ui-leading);
+  letter-spacing: var(--we-type-ui-tracking);
+}
 .we-topbar-crumb-current {
   color: var(--we-color-shell-accent);
   font-weight: var(--we-weight-strong);
   cursor: default;
+}
+.we-topbar-crumb-current:hover {
+  color: var(--we-color-shell-accent);
+  background: none;
+}
+.we-topbar-crumb-label {
   max-width: 240px;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-
-.we-topbar-caret {
-  display: inline-flex;
-  align-items: center;
-  margin-left: var(--we-space-xs);
-  color: var(--we-color-shell-text-faint);
-}
-.we-topbar-item:hover .we-topbar-caret {
-  color: var(--we-color-shell-text-tertiary);
-}
-.we-topbar-caret svg {
-  width: 11px;  /* design exact: 顶栏 caret 视觉尺寸，小于 Icon 最小档 16 */
-  height: 11px;
 }
 
 .we-page-body {
@@ -292,21 +280,8 @@
   color: var(--we-color-text-tertiary);
 }
 
-/* 世界下拉：跟在顶栏按钮下面，挂 we-on-shell 换书桌配色；表面与行取菜单 */
-.we-topbar-dropdown {
-  position: absolute;
-  top: 40px;
-  left: 0;
-  min-width: 180px;
-  z-index: var(--we-z-fixed);
-  transform-origin: top;
-}
-
 .we-topbar-sep {
   color: var(--we-color-shell-text-faint);
-  font-size: var(--we-type-caption-size);
-  line-height: var(--we-type-caption-leading);
-  letter-spacing: var(--we-type-caption-tracking);
   user-select: none;
 }
 
@@ -332,33 +307,10 @@
   }
 }
 
-/* 当前世界名：用展示字体，在一排小字导航里是唯一有分量的一项 */
-.we-topbar-world-name {
-  font-family: var(--we-font-display);
-  font-size: var(--we-type-ui-size);
-  line-height: var(--we-type-ui-leading);
-  font-weight: var(--we-weight-strong);
-  letter-spacing: var(--we-type-ui-tracking);
-}
-
-.we-topbar-brand {
-  font-family: var(--we-font-display);
-  font-size: var(--we-type-ui-size);
-  line-height: var(--we-type-ui-leading);
-  letter-spacing: var(--we-type-ui-tracking);
-}
-
-/* 窄屏：按钮只留图标（aria-label 仍在），世界名回到正文字号，给面包屑让出宽度 */
+/* 窄屏：按钮只留图标（aria-label 仍在），给面包屑让出宽度 */
 @media (max-width: 767px) {
   .we-topbar-item-label {
     display: none;
-  }
-
-  .we-topbar-world-name,
-  .we-topbar-brand {
-    font-size: var(--we-type-subheading-size);
-    line-height: var(--we-type-subheading-leading);
-    letter-spacing: var(--we-type-subheading-tracking);
   }
 }
 

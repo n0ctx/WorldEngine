@@ -128,7 +128,9 @@ describe('PersonaEditPage', () => {
       description: '',
       system_prompt: '异界来客',
     }));
-    expect(mocks.useNavigate).toHaveBeenCalledWith(-1);
+    expect(mocks.useNavigate).not.toHaveBeenCalled();
+    await waitFor(() => expect(screen.queryByText('有未保存的修改')).toBeNull());
+    expect(screen.getAllByText('已保存').length).toBeGreaterThan(0);
   });
 
   it('保存失败时会提示错误', async () => {
@@ -136,7 +138,7 @@ describe('PersonaEditPage', () => {
 
     render(<PersonaEditPage />);
 
-    await screen.findByDisplayValue('旅者');
+    fireEvent.change(await screen.findByDisplayValue('旅者'), { target: { value: '行者' } });
     fireEvent.click(screen.getByText('保存'));
 
     await waitFor(() => expect(mocks.logError).toHaveBeenCalledWith(

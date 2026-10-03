@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ChevronLeft } from 'lucide-react';
+import { X } from 'lucide-react';
 import { useSettingsConfig } from '../../core/hooks/useSettingsConfig';
 import { useEscapeKey } from '../../core/hooks/useEscapeKey.js';
 import { useFocusTrap } from '../../core/hooks/useFocusTrap.js';
@@ -19,7 +19,7 @@ import MotionPackPicker from '../../components/settings/MotionPackPicker.jsx';
 import { NAV_SECTIONS, NAV_KEY, SETTINGS_MODE } from '../../core/constants/settings';
 import { useMotion } from '../../core/hooks/useMotion.js';
 import BounceRail from '../../components/motion/BounceRail.jsx';
-import { Button, ListItem, SectionTitle } from '../../components/index.js';
+import { IconButton, ListItem, SectionTitle } from '../../components/index.js';
 
 const SETTINGS_MODE_STORAGE_KEY = 'we:settings:mode';
 
@@ -49,7 +49,7 @@ export default function SettingsPage() {
   useEscapeKey(() => navigate(-1), isOverlay);
   const onTab = useFocusTrap(panelRef, isOverlay);
 
-  function handleBack() {
+  function handleClose() {
     if (isOverlay) { navigate(-1); return; }
     const from = location.state?.from;
     if (from?.pathname) {
@@ -113,11 +113,10 @@ export default function SettingsPage() {
         {...panelMotion}
         {...dialogProps}
       >
+        <IconButton size="sm" label="关闭" className="we-settings-close" onClick={handleClose}>
+          <X size={16} />
+        </IconButton>
         <nav className="we-settings-nav">
-          <Button variant="text" size="sm" className="we-edit-back" onClick={handleBack}>
-            <ChevronLeft size={16} />
-            返回
-          </Button>
           <div className="we-settings-nav-header">
             <p className="we-settings-nav-title">设置</p>
           </div>
@@ -215,6 +214,7 @@ export default function SettingsPage() {
             {activeSection === NAV_KEY.CSS && (
               <div className="we-settings-section">
                 <SectionTitle level="section" rule="under" as="h2">自定义 CSS</SectionTitle>
+                <p className="we-edit-hint we-edit-hint-settings">开关和排序即时生效；片段内容在编辑弹窗里点「保存」后生效。</p>
                 <CustomCssManager settingsMode={settingsMode} />
               </div>
             )}
@@ -229,6 +229,7 @@ export default function SettingsPage() {
             {activeSection === NAV_KEY.REGEX && (
               <div className="we-settings-section">
                 <SectionTitle level="section" rule="under" as="h2">正则规则</SectionTitle>
+                <p className="we-edit-hint we-edit-hint-settings">开关和排序即时生效；规则内容在编辑弹窗里点「保存」后生效。</p>
                 <RegexRulesManager settingsMode={settingsMode} />
               </div>
             )}

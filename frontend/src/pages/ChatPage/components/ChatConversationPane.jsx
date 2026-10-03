@@ -1,5 +1,3 @@
-import { ChevronLeft } from 'lucide-react';
-import Button from '../../../components/ui/Button.jsx';
 import MessageList from '../../../components/chat/MessageList.jsx';
 import SpeakerStage from '../../../components/chat/SpeakerStage.jsx';
 import InputBox from '../../../components/chat/InputBox.jsx';
@@ -16,20 +14,12 @@ export default function ChatConversationPane({
   pageState,
   stream,
   motionPrefs,
-  onBack,
 }) {
   const { chapterTurnSize, pageTurnSize } = config;
   const { pageInfo, setPageInfo, inputBoxRef, messageListRef } = pageState;
 
   return (
     <div className="we-main we-chat-center-pane flex-1 min-w-0 flex flex-col overflow-hidden">
-      <div className="we-chat-pane-nav">
-        <Button variant="text" size="sm" onClick={onBack}>
-          <ChevronLeft size={16} />
-          返回世界
-        </Button>
-      </div>
-
       <SpeakerStage character={character} />
 
       {/* 消息列表 */}

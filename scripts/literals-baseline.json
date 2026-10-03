@@ -2,7 +2,6 @@
   "version": 1,
   "literals": {
     "frontend/src/themes/chat.css::z-index::1": 1,
-    "frontend/src/themes/chat.css::z-index::2": 1,
     "frontend/src/themes/motion/liquid.css::mix-percent::14%": 1,
     "frontend/src/themes/motion/liquid.css::mix-percent::15%": 1,
     "frontend/src/themes/motion/liquid.css::mix-percent::18%": 1,

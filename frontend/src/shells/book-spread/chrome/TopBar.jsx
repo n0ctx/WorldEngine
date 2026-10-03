@@ -1,12 +1,10 @@
 /* book-spread shell top bar — three-level breadcrumb + shell chrome */
-import { useState, useEffect, useId, useRef } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
-import { Check, ChevronDown, Settings, Sparkles } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
+import { Settings, Sparkles } from 'lucide-react';
 import { useMotion } from '../../../core/hooks/useMotion.js';
-import { useClickOutside } from '../../../core/hooks/useClickOutside.js';
-import { useEscapeKey } from '../../../core/hooks/useEscapeKey.js';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { getWorlds } from '../../../core/api/worlds.js';
+import { getWorld } from '../../../core/api/worlds.js';
 import { getCharacter } from '../../../core/api/characters.js';
 import useStore from '../../../core/state/index.js';
 import useCurrentStoryStore from '../../../core/state/currentStory.js';
@@ -17,116 +15,38 @@ import { useDisplaySettingsStore } from '../../../core/state/displaySettings';
 import { useAppModeStore } from '../../../core/state/appMode';
 import { extractIds, resolveTopbarPathname } from '../../../core/utils/worldScope.js';
 
-function WorldSelector({ effectiveWorldId, isCurrentLevel }) {
+// 面包屑的世界层：世界页本身是当前位置（不可点），其下的页面点它回到这个世界
+function WorldCrumb({ worldId, isCurrentLevel }) {
   const navigate = useNavigate();
-  const location = useLocation();
   const m = useMotion();
-  const setCurrentWorldId = useStore((s) => s.setCurrentWorldId);
-  const setCurrentCharacterId = useStore((s) => s.setCurrentCharacterId);
-  const setCurrentSessionId = useStore((s) => s.setCurrentSessionId);
-  const [worlds, setWorlds] = useState([]);
-  const [worldsLoading, setWorldsLoading] = useState(false);
-  const [dropdownOpen, setDropdownOpen] = useState(false);
-  const dropdownRef = useRef(null);
-  const menuId = useId();
+  const [worldName, setWorldName] = useState('');
 
-  async function loadWorlds() {
-    setWorldsLoading(true);
-    try {
-      setWorlds(await getWorlds());
-    } catch {
-      setWorlds([]);
-    } finally {
-      setWorldsLoading(false);
-    }
+  useEffect(() => {
+    let cancelled = false;
+    const load = () => getWorld(worldId)
+      .then((world) => { if (!cancelled) setWorldName(world?.name ?? ''); })
+      .catch(() => { if (!cancelled) setWorldName(''); });
+    load();
+    window.addEventListener('we:world-updated', load);
+    return () => {
+      cancelled = true;
+      window.removeEventListener('we:world-updated', load);
+    };
+  }, [worldId]);
+
+  const label = <span className="we-topbar-crumb-label">{worldName || '世界'}</span>;
+  if (isCurrentLevel) {
+    return <span className="we-topbar-item we-topbar-crumb we-topbar-crumb-current" aria-current="page">{label}</span>;
   }
-
-  useEffect(() => {
-    const timeoutId = setTimeout(loadWorlds, 0);
-    return () => clearTimeout(timeoutId);
-  }, []);
-
-  useEffect(() => {
-    if (!dropdownOpen) return undefined;
-    const timeoutId = setTimeout(loadWorlds, 0);
-    return () => clearTimeout(timeoutId);
-  }, [dropdownOpen]);
-
-  useClickOutside(dropdownRef, () => setDropdownOpen(false));
-  useEscapeKey(() => setDropdownOpen(false), dropdownOpen);
-
-  useEffect(() => {
-    const timeoutId = setTimeout(() => setDropdownOpen(false), 0);
-    return () => clearTimeout(timeoutId);
-  }, [location.pathname]);
-
-  const currentWorld = worlds.find((world) => world.id === effectiveWorldId);
-
   return (
-    <div ref={dropdownRef} className="we-topbar-world-wrap">
-      <button
-        className={`we-topbar-item${isCurrentLevel ? ' we-topbar-item--active' : ''}`}
-        onClick={() => setDropdownOpen((open) => !open)}
-        aria-label={currentWorld ? `切换世界，当前：${currentWorld.name}` : '选择世界'}
-        aria-expanded={dropdownOpen}
-        aria-controls={dropdownOpen ? menuId : undefined}
-        aria-current={isCurrentLevel ? 'page' : undefined}
-      >
-        <span className="we-topbar-world-name">{currentWorld?.name ?? '选择世界'}</span>
-        <motion.span
-          className="we-topbar-caret"
-          animate={{ rotate: dropdownOpen ? 180 : 0 }}
-          transition={m.transition('press')}
-          aria-hidden="true"
-        >
-          <ChevronDown size={16} />
-        </motion.span>
-      </button>
-
-      <AnimatePresence>
-        {dropdownOpen && (
-          <motion.div
-            id={menuId}
-            className="we-menu we-topbar-dropdown we-on-shell"
-            variants={m.variant('enter')}
-            initial="hidden"
-            animate="visible"
-            exit="exit"
-            transition={m.transition('enter')}
-          >
-            {worldsLoading ? (
-              <div className="we-menu__empty">加载中…</div>
-            ) : worlds.length === 0 ? (
-              <div className="we-menu__empty">暂无世界记录</div>
-            ) : null}
-            {!worldsLoading && worlds.map((world) => (
-              <button
-                key={world.id}
-                className="we-menu__item"
-                aria-current={world.id === effectiveWorldId ? 'true' : undefined}
-                onClick={() => {
-                  setDropdownOpen(false);
-                  setCurrentWorldId(world.id);
-                  setCurrentCharacterId(null);
-                  setCurrentSessionId(null);
-                  navigate(`/worlds/${world.id}`);
-                }}
-              >
-                <span className="we-menu__label">{world.name}</span>
-                {world.id === effectiveWorldId && <Check size={14} className="we-menu__check" aria-hidden="true" />}
-              </button>
-            ))}
-            {!worldsLoading && <div className="we-menu__divider" />}
-            <button
-              className="we-menu__item"
-              onClick={() => { setDropdownOpen(false); navigate('/'); }}
-            >
-              前往世界列表
-            </button>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
+    <motion.button
+      className="we-topbar-item we-topbar-crumb"
+      onClick={() => navigate(`/worlds/${worldId}`)}
+      aria-label={worldName ? `返回世界：${worldName}` : '返回世界'}
+      {...m.gesture('press')}
+    >
+      {label}
+    </motion.button>
   );
 }
 
@@ -202,11 +122,11 @@ export default function TopBar() {
       {/* 左侧：品牌 + 面包屑导航 */}
       <div className="we-topbar-left">
         {isWorldsList ? (
-          <span className="we-topbar-item we-topbar-crumb-current we-topbar-brand" aria-current="page">WorldEngine</span>
+          <span className="we-topbar-item we-topbar-crumb we-topbar-crumb-current we-topbar-brand" aria-current="page">WorldEngine</span>
         ) : (
           <>
             <motion.button
-              className="we-topbar-item"
+              className="we-topbar-item we-topbar-crumb"
               onClick={() => navigate('/')}
               aria-label="返回世界列表"
               {...m.gesture('press')}
@@ -219,17 +139,16 @@ export default function TopBar() {
         {!isWorldsList && effectiveWorldId && (
           <>
             <span className="we-topbar-sep" aria-hidden="true">/</span>
-            <WorldSelector
-              effectiveWorldId={effectiveWorldId}
-              isCurrentLevel={worldIsCurrentLevel}
-            />
+            <WorldCrumb worldId={effectiveWorldId} isCurrentLevel={worldIsCurrentLevel} />
           </>
         )}
 
         {leafLabel && (
           <>
             <span className="we-topbar-sep" aria-hidden="true">/</span>
-            <span className="we-topbar-item we-topbar-crumb-current" aria-current="page">{leafLabel}</span>
+            <span className="we-topbar-item we-topbar-crumb we-topbar-crumb-current" aria-current="page">
+              <span className="we-topbar-crumb-label">{leafLabel}</span>
+            </span>
           </>
         )}
       </div>

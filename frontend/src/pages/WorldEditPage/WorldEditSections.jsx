@@ -1,7 +1,6 @@
 import StateFieldList from '../../components/rules/StateFieldList';
 import WorldProfileDefaultsFields from '../../components/rules/WorldProfileDefaultsFields.jsx';
 import AvatarUpload from '../../components/ui/AvatarUpload';
-import Button from '../../components/ui/Button';
 import Divider from '../../components/ui/Divider.jsx';
 import FormGroup from '../../components/ui/FormGroup';
 import Input from '../../components/ui/Input';
@@ -34,9 +33,6 @@ export default function WorldEditSections({ isCreate, worldId, navigate, diaryCh
           setName={page.setName}
           description={page.description}
           setDescription={page.setDescription}
-          saveError={page.saveError}
-          saving={page.saving}
-          handleSave={page.handleSave}
         />
       ),
     },
@@ -49,9 +45,6 @@ export default function WorldEditSections({ isCreate, worldId, navigate, diaryCh
           setTemperature={page.setTemperature}
           maxTokens={page.maxTokens}
           setMaxTokens={page.setMaxTokens}
-          saveError={page.saveError}
-          saving={page.saving}
-          handleSave={page.handleSave}
         />
       ),
     },
@@ -68,7 +61,7 @@ export default function WorldEditSections({ isCreate, worldId, navigate, diaryCh
   return <SectionTabs sections={sections} defaultKey="basic" variant="gooey" />;
 }
 
-function BasicSettingsSection({ isCreate, name, setName, description, setDescription, saveError, saving, handleSave, appearance }) {
+function BasicSettingsSection({ isCreate, name, setName, description, setDescription, appearance }) {
   const {
     coverAvatarUrl,
     worldAvatarColor,
@@ -96,14 +89,8 @@ function BasicSettingsSection({ isCreate, name, setName, description, setDescrip
           placeholder="一句话介绍这个世界…"
         />
       </FormGroup>
-      {saveError && <p className="we-edit-error">{saveError}</p>}
-      <div className="we-edit-save-row">
-        <Button variant="primary" onClick={handleSave} disabled={saving}>
-          {saving ? (isCreate ? '创建中…' : '保存中…') : (isCreate ? '创建世界' : '保存')}
-        </Button>
-      </div>
       {!isCreate && (
-        <FormGroup label="封面图" hint="铺满世界卡片背景，建议比例 16:10 或横向图片">
+        <FormGroup label="封面图" hint="上传后立即生效。铺满世界卡片背景，建议比例 16:10 或横向图片">
           <AvatarUpload
             name={name}
             avatarUrl={coverAvatarUrl}
@@ -120,7 +107,7 @@ function BasicSettingsSection({ isCreate, name, setName, description, setDescrip
       {!isCreate && (
         <FormGroup
           label="主色"
-          hint={accentSource === 'manual' ? '已手工指定，封面变化不再自动覆盖' : '自动跟随封面：从封面图取主导色，替代主题默认的界面主色'}
+          hint={`修改后立即生效。${accentSource === 'manual' ? '已手工指定，封面变化不再自动覆盖' : '自动跟随封面：从封面图取主导色，替代主题默认的界面主色'}`}
         >
           <div className="we-edit-accent-row">
             <ToggleSwitch
@@ -154,7 +141,7 @@ function BasicSettingsSection({ isCreate, name, setName, description, setDescrip
   );
 }
 
-function LlmSettingsSection({ temperature, setTemperature, maxTokens, setMaxTokens, saveError, saving, handleSave }) {
+function LlmSettingsSection({ temperature, setTemperature, maxTokens, setMaxTokens }) {
   return (
     <div className="we-edit-form-stack">
       <FormGroup label="Temperature" hint="覆盖全局 temperature，留空则使用全局配置（世界级 > 全局）">
@@ -178,12 +165,6 @@ function LlmSettingsSection({ temperature, setTemperature, maxTokens, setMaxToke
           placeholder="留空则使用全局配置"
         />
       </FormGroup>
-      {saveError && <p className="we-edit-error">{saveError}</p>}
-      <div className="we-edit-save-row">
-        <Button variant="primary" onClick={handleSave} disabled={saving}>
-          {saving ? '保存中…' : '保存'}
-        </Button>
-      </div>
     </div>
   );
 }
@@ -191,6 +172,7 @@ function LlmSettingsSection({ temperature, setTemperature, maxTokens, setMaxToke
 function StateTemplatesSection({ worldId, navigate, diaryChatDateMode }) {
   return (
     <div>
+      <p className="we-edit-hint">这一页的修改即时生效，不用点保存。</p>
       <p className="we-config-workshop-hint">
         想以字段为中心、一站式设置各角色/玩家默认值与设定条目？
         <button

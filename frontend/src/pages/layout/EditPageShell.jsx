@@ -1,140 +1,65 @@
-import { useId, useRef, useState } from 'react';
+import { useState } from 'react';
 import { AnimatePresence } from 'framer-motion';
-import { ChevronLeft } from 'lucide-react';
 import Button from '../../components/ui/Button.jsx';
 import ConfirmModal from '../../components/ui/ConfirmModal.jsx';
+import Dialog from '../../components/ui/Dialog.jsx';
 import Skeleton from '../../components/ui/Skeleton.jsx';
-import { useEscapeKey } from '../../core/hooks/useEscapeKey.js';
-import { useFocusTrap } from '../../core/hooks/useFocusTrap.js';
+import SaveCapsule from './SaveCapsule.jsx';
 
 /**
- * loadError 非空时只显示错误与重试/返回，不渲染表单：
- * 加载失败时表单是空值，误点保存会把空值写回。
- * dirty 为 true 时，返回按钮与点击遮罩先确认再关闭。
+ * 世界 / 角色 / 玩家编辑页：从页面打开和直接访问地址都是一个 xl 宽的 Dialog，关闭后回到上一页。
+ * loadError 非空时只显示错误与重试，不渲染表单：加载失败时表单是空值，误点保存会把空值写回。
+ * dirty 为 true 时，关闭键、Esc 与点空白处先确认再关闭。
+ * save 是保存栏的参数（见 SaveCapsule）：弹层里需要手动保存的字段共用正文底部这一个按钮。
  */
 export default function EditPageShell({
   loading = false,
   loadError = '',
   onRetry,
   dirty = false,
-  isOverlay = false,
   onClose,
   title,
   headerActions,
+  save,
   children,
 }) {
-  const mouseDownOnOverlay = useRef(false);
-  const panelRef = useRef(null);
-  const titleId = useId();
   const [confirmingClose, setConfirmingClose] = useState(false);
+  const ready = !loading && !loadError;
 
   function requestClose() {
     if (dirty) setConfirmingClose(true);
     else onClose();
   }
 
-  useEscapeKey(requestClose);
-  const onTab = useFocusTrap(panelRef, isOverlay && !loading && !loadError);
-
-  const overlayHandlers = {
-    onMouseDown: (e) => { mouseDownOnOverlay.current = e.target === e.currentTarget; },
-    onClick: () => { if (mouseDownOnOverlay.current) requestClose(); },
-  };
-
-  if (loading || loadError) {
-    const placeholder = loadError ? (
-      <div className="flex flex-col items-center gap-3">
-        <p className="we-edit-empty-text">{loadError}</p>
-        <div className="flex gap-3">
-          <Button variant="text" size="sm" onClick={onClose}>
-            <ChevronLeft size={16} />
-            返回
-          </Button>
-          <Button variant="secondary" size="sm" onClick={onRetry}>重试</Button>
-        </div>
-      </div>
-    ) : (
-      <Skeleton className="w-64" />
-    );
-    if (isOverlay) {
-      return (
-        <div className="we-settings-overlay" {...overlayHandlers}>
-          <div
-            className="we-edit-panel we-edit-panel-overlay flex items-center justify-center"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {placeholder}
-          </div>
-        </div>
-      );
-    }
-    return (
-      <div className="we-edit-canvas flex items-center justify-center">
-        {placeholder}
-      </div>
-    );
-  }
-
-  const panel = (
-    <div
-      ref={panelRef}
-      className={`we-edit-panel${isOverlay ? ' we-edit-panel-overlay' : ''}`}
-      onClick={isOverlay ? (e) => e.stopPropagation() : undefined}
-      {...(isOverlay ? {
-        role: 'dialog',
-        'aria-modal': 'true',
-        'aria-labelledby': title ? titleId : undefined,
-        tabIndex: -1,
-        onKeyDown: onTab,
-      } : {})}
-    >
-      <div className="we-edit-header">
-        <Button variant="text" size="sm" className="we-edit-back" onClick={requestClose}>
-          <ChevronLeft size={16} />
-          返回
-        </Button>
-        <div className="we-edit-header-row">
-          {title && <h1 id={titleId} className="we-edit-title">{title}</h1>}
-          {headerActions && <div className="we-edit-header-actions">{headerActions}</div>}
-        </div>
-      </div>
-      {children}
-    </div>
-  );
-
-  const closeConfirm = (
-    <AnimatePresence>
-      {confirmingClose && (
-        <ConfirmModal
-          title="放弃未保存的修改？"
-          message="关闭后本次修改将丢失。"
-          confirmText="放弃修改"
-          cancelText="继续编辑"
-          danger
-          onConfirm={async () => onClose()}
-          onClose={() => setConfirmingClose(false)}
-        />
-      )}
-    </AnimatePresence>
-  );
-
-  if (isOverlay) {
-    return (
-      <>
-        <div className="we-settings-overlay" {...overlayHandlers}>
-          {panel}
-        </div>
-        {closeConfirm}
-      </>
-    );
-  }
+  let body = <>{children}<SaveCapsule dirty={dirty} {...save} /></>;
+  if (loadError) body = <p className="we-edit-empty-text">{loadError}</p>;
+  else if (loading) body = <Skeleton className="w-64" />;
 
   return (
     <>
-      <div className="we-edit-canvas">
-        {panel}
-      </div>
-      {closeConfirm}
+      <Dialog
+        size="xl"
+        title={title}
+        headerActions={ready ? headerActions : undefined}
+        bodyClassName="we-edit-body"
+        footer={loadError ? <Button variant="secondary" onClick={onRetry}>重试</Button> : undefined}
+        onClose={requestClose}
+      >
+        {body}
+      </Dialog>
+      <AnimatePresence>
+        {confirmingClose && (
+          <ConfirmModal
+            title="放弃未保存的修改？"
+            message="关闭后本次修改将丢失。"
+            confirmText="放弃修改"
+            cancelText="继续编辑"
+            danger
+            onConfirm={async () => onClose()}
+            onClose={() => setConfirmingClose(false)}
+          />
+        )}
+      </AnimatePresence>
     </>
   );
 }

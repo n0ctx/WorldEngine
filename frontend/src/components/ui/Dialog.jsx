@@ -12,6 +12,7 @@ const MotionDiv = motion.div;
 /**
  * 全站唯一的弹窗：挂到 body，遮罩 + 玻璃面板，入场与退场走动效包（退场需要调用方用 AnimatePresence 包住条件渲染）。
  * - 版式：标准（页头标题、说明、右上角关闭键；正文可滚动；页脚按钮靠右）；alert 为确认版式，没有关闭键和正文区。
+ * - headerActions 放在页头关闭键左边，用于针对整个弹窗对象的操作（如导出）。
  * - 宽度 size：sm 确认与小选择 / md 表单 / lg 编辑器与向导 / xl 多栏浏览。
  * - Esc、点空白处、关闭键都调用 onClose；busy 时三者都不生效。焦点圈在弹窗里，关闭后还给打开它的元素。
  * - 传 onSubmit 时页头到页脚包进一个表单，页脚里 type="submit" 的按钮提交。
@@ -24,6 +25,7 @@ export default function Dialog({
   alert = false,
   title,
   description,
+  headerActions,
   footer,
   footerStart,
   busy = false,
@@ -49,6 +51,7 @@ export default function Dialog({
           <h2 id={titleId} className="we-dialog__title">{title}</h2>
           {description && <div id={descriptionId} className="we-dialog__description">{description}</div>}
         </div>
+        {headerActions && <div className="we-dialog__header-actions">{headerActions}</div>}
         {!alert && (
           <IconButton size="sm" label="关闭" className="we-dialog__close" onClick={close} disabled={busy}>
             <X size={16} />

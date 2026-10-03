@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useCreateDraftIdentity } from '../../core/hooks/useCreateDraftIdentity.js';
+import { keepEdited, useFormBaseline } from '../../core/hooks/useFormBaseline.js';
 import { log } from '../../core/utils/logger.js';
 
 function readDraft(key) {
@@ -21,9 +22,14 @@ export function useCardEditForm({ isCreate, draftKey, promptKeys, updatedEvent }
   const setPrompt = useCallback((key, value) => setPrompts((p) => ({ ...p, [key]: value })), []);
   const values = { name, description, ...prompts };
 
-  // 最近一次从服务端加载的表单值，用于判断关闭时是否有未保存修改
-  const [saved, setSaved] = useState(null);
-  const dirty = !!saved && Object.keys(saved).some((k) => values[k] !== saved[k]);
+  const { dirty, baselineRef, setBaseline } = useFormBaseline(values);
+  // 保存成功：sent 是提交时的表单值，stored 是写进服务端的值（名称、简介去掉了首尾空白）；
+  // 提交后又改过的字段保留输入，没改过的换成 stored
+  const markSaved = (sent, stored) => {
+    setName(keepEdited(sent, 'name', stored));
+    setDescription(keepEdited(sent, 'description', stored));
+    setBaseline(stored);
+  };
 
   const draftJson = JSON.stringify(values);
   useEffect(() => {
@@ -49,16 +55,18 @@ export function useCardEditForm({ isCreate, draftKey, promptKeys, updatedEvent }
   const [stateFields, setStateFields] = useState([]);
   const [profileRows, setProfileRows] = useState([]);
 
+  // 重新取数（卡片更新事件、上传头像后）不冲掉未保存的输入：只替换基准之后没改过的字段
   const applyLoaded = useCallback((loaded, { avatarPath: path, stateFields: fields, profileRows: rows }) => {
-    setSaved(loaded);
-    setName(loaded.name);
-    setDescription(loaded.description);
-    setPrompts((p) => ({ ...p, ...Object.fromEntries(Object.keys(p).map((k) => [k, loaded[k]])) }));
+    const base = baselineRef.current;
+    setName(keepEdited(base, 'name', loaded));
+    setDescription(keepEdited(base, 'description', loaded));
+    setPrompts((p) => Object.fromEntries(Object.keys(p).map((k) => [k, keepEdited(base, k, loaded)(p[k])])));
+    setBaseline(loaded);
     setAvatarPath(path ?? null);
     setStateFields(fields);
     setProfileRows(rows);
     setLoading(false);
-  }, [setName, setDescription, setSaved, setPrompts, setAvatarPath, setStateFields, setProfileRows, setLoading]);
+  }, [baselineRef, setName, setDescription, setBaseline, setPrompts, setAvatarPath, setStateFields, setProfileRows, setLoading]);
   const failLoad = useCallback((message) => setLoadError(message), []);
 
   const fileInputRef = useRef(null);
@@ -81,7 +89,7 @@ export function useCardEditForm({ isCreate, draftKey, promptKeys, updatedEvent }
   };
 
   return {
-    name, setName, description, setDescription, prompts, setPrompt, values, dirty, clearDraft,
+    name, setName, description, setDescription, prompts, setPrompt, values, dirty, markSaved, clearDraft,
     loading, setLoading, loadError, retryLoad, reloadKey, reload, applyLoaded, failLoad,
     avatarPath, avatarUploading, fileInputRef, uploadAvatar,
     stateFields, profileRows,

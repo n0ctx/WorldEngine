@@ -25,9 +25,16 @@ export default function WorldEditPage() {
       loadError={page.loadError}
       onRetry={page.retryLoad}
       dirty={page.dirty}
-      isOverlay={isOverlay}
       onClose={page.handleClose}
-      title={isCreate ? '新建世界' : (page.name ? `编辑世界 · ${page.name}` : '')}
+      save={{
+        creating: isCreate,
+        saving: page.saving,
+        error: page.saveError,
+        savedKey: page.savedKey,
+        saveLabel: isCreate ? '创建世界' : '保存',
+        onSave: page.handleSave,
+      }}
+      title={isCreate ? '新建世界' : (page.name ? `编辑世界 · ${page.name}` : '编辑世界')}
     >
       <WorldEditSections
         isCreate={isCreate}

@@ -121,7 +121,7 @@ describe('CharacterEditPage', () => {
     fireEvent.click(screen.getByText('save-gender'));
     await waitFor(() => expect(mocks.updateCharacterProfileDefault).toHaveBeenCalledWith('char-1', 'gender', '"hp-10"'));
 
-    fireEvent.click(screen.getAllByText('保存')[0]);
+    fireEvent.click(screen.getByText('保存'));
 
     await waitFor(() => expect(mocks.updateCharacter).toHaveBeenCalledWith('char-1', {
       name: '阿塔-新',
@@ -130,7 +130,21 @@ describe('CharacterEditPage', () => {
       post_prompt: '保留神秘感',
       first_message: '你好',
     }));
-    expect(mocks.useNavigate).toHaveBeenCalledWith(-1);
+    expect(mocks.useNavigate).not.toHaveBeenCalled();
+    await waitFor(() => expect(screen.queryByText('有未保存的修改')).toBeNull());
+    expect(screen.getAllByText('已保存').length).toBeGreaterThan(0);
+  });
+
+  it('卡片更新后重新取数（如上传头像后）不冲掉未保存的输入', async () => {
+    render(<CharacterEditPage />);
+    fireEvent.change(await screen.findByDisplayValue('阿塔'), { target: { value: '阿塔-草稿' } });
+    const loads = mocks.getCharacter.mock.calls.length;
+
+    window.dispatchEvent(new Event('we:character-updated'));
+
+    await waitFor(() => expect(mocks.getCharacter.mock.calls.length).toBeGreaterThan(loads));
+    await waitFor(() => expect(screen.getByText('有未保存的修改')).toBeInTheDocument());
+    expect(screen.getByDisplayValue('阿塔-草稿')).toBeInTheDocument();
   });
 
   it('上传头像失败时会显示错误提示', async () => {

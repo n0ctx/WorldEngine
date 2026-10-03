@@ -40,7 +40,7 @@ function StateInitialValuesPanel({ profileRows, stateFields, writeProfile, write
 
   return (
     <div className="we-edit-form-stack">
-      <p className="we-edit-hint">这里填的值会在新故事线里直接带入，留空的部分由 AI 按人设补全。</p>
+      <p className="we-edit-hint">修改自动保存。这里填的值会在新故事线里直接带入，留空的部分由 AI 按人设补全。</p>
       <div className="we-state-extract-trigger-row">
         <Button variant="secondary" size="sm" onClick={onExtract}>AI 提取状态字段建议</Button>
       </div>

@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import useStore from '../../core/state/index.js';
 import useCurrentStoryStore from '../../core/state/currentStory.js';
 import { loadRules } from '../../core/utils/regex-runner.js';
@@ -14,7 +14,6 @@ import ChatConversationPane from './components/ChatConversationPane.jsx';
 export default function ChatPage() {
   const motionPrefs = useMotion();
   const { characterId } = useParams();
-  const navigate = useNavigate();
 
   const { chapterTurnSize, pageTurnSize } = usePageConfig();
   const { currentSessionId, setCurrentSessionId, setCurrentCharacterId } = useStore();
@@ -73,7 +72,6 @@ export default function ChatPage() {
           pageState={{ pageInfo, setPageInfo, inputBoxRef, messageListRef }}
           stream={stream}
           motionPrefs={motionPrefs}
-          onBack={() => navigate(`/worlds/${character?.world_id}`)}
         />
       )}
     />

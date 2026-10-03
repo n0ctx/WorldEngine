@@ -1,6 +1,6 @@
 import { BadgeEmptyDemo, SortableDemo } from './list.jsx';
 import { CodeBlockDemo, CssEnterDemo, EnterListDemo, ErrorBubbleDemo, MessageDemo, OptionCardDemo, SpeakerDemo } from './appear.jsx';
-import { DialogDemo, ModalDemo, ToastDemo } from './overlay.jsx';
+import { DialogDemo, ModalDemo, SaveCapsuleDemo, ToastDemo } from './overlay.jsx';
 import { BounceRailDemo, FolderDemo, StepTrackDemo, TabsDemo, TaskListDemo } from './move.jsx';
 import { CardHoverDemo, DeleteButtonDemo, PortalDemo, PressDemo, SinkDemo } from './press.jsx';
 import { SideDrawerDemo, TopBarDemo } from './shell.jsx';
@@ -24,6 +24,7 @@ export const DEMOS = {
   modal: ModalDemo,
   dialog: DialogDemo,
   toast: ToastDemo,
+  'save-capsule': SaveCapsuleDemo,
   'side-drawer': SideDrawerDemo,
   tabs: TabsDemo,
   'step-track': StepTrackDemo,

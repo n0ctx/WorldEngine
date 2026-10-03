@@ -82,8 +82,8 @@ vi.mock('../../src/components/ui/MarkdownEditor', () => ({
   ),
 }));
 vi.mock('../../src/components/ui/Button', () => ({
-  default: ({ children, onClick, disabled, variant, size }) => (
-    <button data-variant={variant} data-size={size} onClick={onClick} disabled={disabled}>{children}</button>
+  default: ({ children, onClick, disabled, variant, size, 'aria-label': ariaLabel }) => (
+    <button data-variant={variant} data-size={size} onClick={onClick} disabled={disabled} aria-label={ariaLabel}>{children}</button>
   ),
 }));
 vi.mock('../../src/components/ui/Input', () => ({
@@ -156,30 +156,31 @@ describe('WorldEditPage', () => {
     expect(await screen.findByDisplayValue('群星海')).toBeInTheDocument();
   });
 
-  it('有未保存修改时返回需确认，未修改时直接返回', async () => {
+  it('有未保存修改时关闭需确认，未修改时直接关闭', async () => {
     render(<WorldEditPage />);
     const nameInput = await screen.findByDisplayValue('群星海');
 
-    fireEvent.click(screen.getByRole('button', { name: '返回' }));
+    fireEvent.click(screen.getByRole('button', { name: '关闭' }));
     expect(mocks.useNavigate).toHaveBeenCalledWith(-1);
     mocks.useNavigate.mockClear();
 
     fireEvent.change(nameInput, { target: { value: '群星海-修订' } });
-    fireEvent.click(screen.getByRole('button', { name: '返回' }));
+    fireEvent.click(screen.getByRole('button', { name: '关闭' }));
     expect(mocks.useNavigate).not.toHaveBeenCalled();
 
     fireEvent.click(await screen.findByText('放弃修改'));
     await waitFor(() => expect(mocks.useNavigate).toHaveBeenCalledWith(-1));
   });
 
-  it('会加载世界并保存配置', async () => {
+  it('会加载世界并保存配置，保存后留在原处并提示已保存', async () => {
     render(<WorldEditPage />);
 
     expect(await screen.findByDisplayValue('群星海')).toBeInTheDocument();
     expect(screen.getByText('world-fields')).toBeInTheDocument();
     fireEvent.change(screen.getByDisplayValue('群星海'), { target: { value: '群星海-修订' } });
 
-    fireEvent.click(screen.getAllByText('保存')[0]);
+    expect(screen.getByText('有未保存的修改')).toBeInTheDocument();
+    fireEvent.click(screen.getByText('保存'));
 
     await waitFor(() => expect(mocks.updateWorld).toHaveBeenCalledWith('world-1', {
       name: '群星海-修订',
@@ -187,7 +188,36 @@ describe('WorldEditPage', () => {
       temperature: 0.7,
       max_tokens: 1024,
     }));
-    expect(mocks.useNavigate).toHaveBeenCalledWith(-1);
+    expect(mocks.useNavigate).not.toHaveBeenCalled();
+    await waitFor(() => expect(screen.queryByText('有未保存的修改')).toBeNull());
+    expect(screen.getAllByText('已保存').length).toBeGreaterThan(0);
+  });
+
+  it('重新取数（如上传封面后）不冲掉未保存的输入，没改过的字段照常更新', async () => {
+    render(<WorldEditPage />);
+    fireEvent.change(await screen.findByDisplayValue('群星海'), { target: { value: '群星海-草稿' } });
+
+    mocks.loadedWorld = { ...mocks.loadedWorld, temperature: 1.1 };
+    window.dispatchEvent(new Event('we:world-updated'));
+
+    await waitFor(() => expect(screen.getByDisplayValue('1.1')).toBeInTheDocument());
+    expect(screen.getByDisplayValue('群星海-草稿')).toBeInTheDocument();
+    expect(screen.getByText('有未保存的修改')).toBeInTheDocument();
+  });
+
+  it('保存请求途中继续输入，保存完成后保留新输入且仍提示未保存', async () => {
+    let finish;
+    mocks.updateWorld.mockImplementationOnce(() => new Promise((resolve) => { finish = resolve; }));
+    render(<WorldEditPage />);
+    const nameInput = await screen.findByDisplayValue('群星海');
+    fireEvent.change(nameInput, { target: { value: '群星海-一' } });
+    fireEvent.click(screen.getByText('保存'));
+    fireEvent.change(nameInput, { target: { value: '群星海-二' } });
+
+    finish({ id: 'world-1' });
+
+    await waitFor(() => expect(screen.getByText('有未保存的修改')).toBeInTheDocument());
+    expect(screen.getByDisplayValue('群星海-二')).toBeInTheDocument();
   });
 
   it('保存 LLM 参数时保留数值转换', async () => {
@@ -197,7 +227,7 @@ describe('WorldEditPage', () => {
     const llmInputs = screen.getAllByLabelText('留空则使用全局配置');
     fireEvent.change(llmInputs[0], { target: { value: '1.25' } });
     fireEvent.change(llmInputs[1], { target: { value: '2048' } });
-    fireEvent.click(screen.getAllByText('保存')[1]);
+    fireEvent.click(screen.getByText('保存'));
 
     await waitFor(() => expect(mocks.updateWorld).toHaveBeenCalledWith('world-1', {
       name: '群星海',
@@ -263,9 +293,9 @@ describe('WorldEditPage', () => {
 
     const nameInput = await screen.findByDisplayValue('群星海');
     fireEvent.change(nameInput, { target: { value: '   ' } });
-    fireEvent.click(screen.getAllByText('保存')[0]);
+    fireEvent.click(screen.getByText('保存'));
 
-    await waitFor(() => expect(screen.getAllByText('名称为必填项')).toHaveLength(2));
+    expect(await screen.findByText('保存失败：名称为必填项')).toBeInTheDocument();
     expect(mocks.updateWorld).not.toHaveBeenCalled();
   });
 

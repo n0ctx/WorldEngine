@@ -776,6 +776,12 @@
   letter-spacing: var(--we-type-body-tracking);
   color: var(--we-color-text-secondary);
 }
+.we-dialog__header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--we-space-sm);
+  flex-shrink: 0;
+}
 /* 关闭键贴住右上角：按钮自带内边距，往外让一点，图标和标题首行对齐 */
 .we-dialog__close {
   margin: calc(var(--we-space-xxs) * -1) calc(var(--we-space-sm) * -1) 0 0;
@@ -1701,7 +1707,7 @@
   stroke: var(--we-color-status-danger);
 }
 
-/* 分段 tab（SectionTabs variant="gooey"）：选择器多带一层，压过编辑面板里 .we-edit-panel .we-section-tabs 的同级规则 */
+/* 分段 tab（SectionTabs variant="gooey"）：选择器多带一层，压过编辑页里 .we-edit-body .we-section-tabs 的同级规则 */
 .we-section-tabs.we-section-tabs--gooey .we-section-tabs-list {
   align-items: center;
   margin-left: 0;
@@ -2069,7 +2075,7 @@
   width: 100%;
 }
 
-.we-edit-panel .we-section-tabs {
+.we-edit-body .we-section-tabs {
   display: flex;
   flex-direction: column;
   gap: var(--we-space-lg);
@@ -2084,26 +2090,26 @@
   padding-left: var(--we-space-md);
 }
 
-.we-edit-panel .we-section-tabs-bar {
+.we-edit-body .we-section-tabs-bar {
   padding-left: 0;
   margin-bottom: 0;
 }
 
-.we-edit-panel .we-section-tabs-list {
+.we-edit-body .we-section-tabs-list {
   margin-left: calc(-1 * var(--we-space-md));
 }
 
-.we-edit-panel .we-section-tabs-row {
+.we-edit-body .we-section-tabs-row {
   align-items: flex-end;
 }
 
-.we-edit-panel .we-section-tab {
+.we-edit-body .we-section-tab {
   padding-top: var(--we-space-sm);
   padding-bottom: var(--we-space-sm);
 }
 
-.we-edit-panel .we-edit-form-stack:first-child,
-.we-edit-panel .we-panel-tab-body:first-child {
+.we-edit-body .we-edit-form-stack:first-child,
+.we-edit-body .we-panel-tab-body:first-child {
   padding-top: var(--we-space-xxs);
 }
 

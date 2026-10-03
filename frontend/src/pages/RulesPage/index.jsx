@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { useParams, useSearchParams } from 'react-router-dom';
 import RulesHeader from './components/RulesHeader.jsx';
 import RulesNav from './components/RulesNav.jsx';
 import RulesListPane from './components/RulesListPane.jsx';
@@ -11,7 +11,6 @@ import { SCOPES } from './constants.js';
 export default function RulesPage() {
   const { worldId } = useParams();
   const [searchParams] = useSearchParams();
-  const navigate = useNavigate();
 
   // ── 设定条目 ──
   const [entryFilter, setEntryFilter] = useState('all');
@@ -73,10 +72,7 @@ export default function RulesPage() {
   return (
     <div className="we-characters-canvas">
       <div className="we-workshop">
-        <RulesHeader
-          onBack={() => navigate(`/worlds/${worldId}`)}
-          onOpenWizard={() => setWizardOpen(true)}
-        />
+        <RulesHeader onOpenWizard={() => setWizardOpen(true)} />
 
         <div className="we-workshop-body we-workshop-body--3col">
           {/* 左：导航 */}

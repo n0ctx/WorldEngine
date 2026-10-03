@@ -3,6 +3,7 @@ import { createWorld, getWorld, updateWorld } from '../../core/api/worlds';
 import { getConfig } from '../../core/api/config';
 import { useCreateDraftIdentity } from '../../core/hooks/useCreateDraftIdentity.js';
 import { useWorldUpdateReload } from '../../core/hooks/useWorldUpdateReload.js';
+import { keepEdited, useFormBaseline } from '../../core/hooks/useFormBaseline.js';
 import { log } from '../../core/utils/logger.js';
 
 function readCreateDraft() {
@@ -18,16 +19,13 @@ export default function useWorldEditPage({ worldId, isCreate, isOverlay, navigat
   const [loadError, setLoadError] = useState('');
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
+  const [savedKey, setSavedKey] = useState(0);
   const [temperature, setTemperature] = useState('');
   const [maxTokens, setMaxTokens] = useState('');
   const [reloadKey, setReloadKey] = useState(0);
   const [diaryChatDateMode, setDiaryChatDateMode] = useState('virtual');
-  const [saved, setSaved] = useState(null);
   const { name, setName, description, setDescription } = useCreateDraftIdentity(isCreate, readCreateDraft);
-  const dirty = !!saved && (
-    name !== saved.name || description !== saved.description
-    || temperature !== saved.temperature || maxTokens !== saved.maxTokens
-  );
+  const { dirty, baselineRef, setBaseline } = useFormBaseline({ name, description, temperature, maxTokens });
 
   useEffect(() => {
     if (isCreate || !worldId) return;
@@ -48,18 +46,20 @@ export default function useWorldEditPage({ worldId, isCreate, isOverlay, navigat
         temperature: world.temperature != null ? String(world.temperature) : '',
         maxTokens: world.max_tokens != null ? String(world.max_tokens) : '',
       };
-      setSaved(loaded);
-      setName(loaded.name);
-      setDescription(loaded.description);
-      setTemperature(loaded.temperature);
-      setMaxTokens(loaded.maxTokens);
+      // 重新取数（世界更新事件、上传封面、改主色后）不冲掉未保存的输入：只替换基准之后没改过的字段
+      const base = baselineRef.current;
+      setName(keepEdited(base, 'name', loaded));
+      setDescription(keepEdited(base, 'description', loaded));
+      setTemperature(keepEdited(base, 'temperature', loaded));
+      setMaxTokens(keepEdited(base, 'maxTokens', loaded));
+      setBaseline(loaded);
       onWorldLoaded(world);
       setLoading(false);
     }).catch((error) => {
       log.error('world_edit.load_failed', error);
       setLoadError(error.message || '世界加载失败');
     });
-  }, [worldId, reloadKey, isCreate, setName, setDescription, onWorldLoaded]);
+  }, [worldId, reloadKey, isCreate, baselineRef, setName, setDescription, setBaseline, onWorldLoaded]);
 
   useWorldUpdateReload(setReloadKey);
 
@@ -89,14 +89,21 @@ export default function useWorldEditPage({ worldId, isCreate, isOverlay, navigat
         setSaving(false);
         navigate(`/worlds/${world.id}/edit`, { replace: true });
       } else {
+        const sent = { name, description, temperature, maxTokens };
+        const stored = { ...sent, name: name.trim(), description: description.trim() };
         await updateWorld(worldId, {
-          name: name.trim(),
-          description: description.trim(),
+          name: stored.name,
+          description: stored.description,
           temperature: temperature === '' ? null : Number(temperature),
           max_tokens: maxTokens === '' ? null : parseInt(maxTokens, 10),
         });
+        // 提交后又改过的字段保留输入，没改过的换成写进服务端的值
+        setName(keepEdited(sent, 'name', stored));
+        setDescription(keepEdited(sent, 'description', stored));
+        setBaseline(stored);
+        setSaving(false);
+        setSavedKey((key) => key + 1);
         window.dispatchEvent(new Event('we:world-updated'));
-        navigate(-1);
       }
     } catch (error) {
       setSaveError(error.message);
@@ -113,6 +120,7 @@ export default function useWorldEditPage({ worldId, isCreate, isOverlay, navigat
     loadError,
     saving,
     saveError,
+    savedKey,
     name,
     setName,
     description,

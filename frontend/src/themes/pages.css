@@ -1274,71 +1274,13 @@
 }
 
 
-/* ── 编辑页单页羊皮纸布局 ── */
+/* ── 设置页整页形态的羊皮纸画布；编辑表单的通用排版 ── */
 
 .we-edit-canvas {
   min-height: 100%;
   background: transparent;
   padding: 0 var(--we-space-lg) var(--we-space-2xl);
   background-image: var(--we-canvas-texture-image);
-}
-
-.we-edit-panel {
-  max-width: 960px;
-  margin: var(--we-space-2xl) auto 0;
-  background: var(--we-color-bg-canvas);
-  border: 1px solid var(--we-color-border-default);
-  border-radius: var(--we-radius-sm);
-  padding: var(--we-space-2xl);
-  box-shadow: 0 8px 32px var(--we-color-shade-3);
-}
-
-.we-edit-panel-overlay {
-  width: min(960px, calc(100vw - 48px));
-  max-width: min(960px, calc(100vw - 48px));
-  margin: var(--we-space-xl) auto var(--we-space-2xl);
-  /* 遮罩是定高 flex 容器，100% 即遮罩高度。96px 按 52px 顶栏写死，桌面顶栏 30px 时会把底部裁掉 */
-  max-height: calc(100% - var(--we-space-xl) - var(--we-space-2xl));
-  overflow-y: auto;
-  /* 入场由动效包决定（单次挂载，不随更新重放） */
-  animation: var(--we-fx-panel);
-}
-
-.we-edit-header {
-  margin-bottom: var(--we-space-lg);
-  padding-bottom: var(--we-space-lg);
-  border-bottom: 1px solid var(--we-color-border-default);
-}
-
-.we-edit-back {
-  display: flex;
-  width: fit-content;
-  margin-bottom: var(--we-space-lg);
-}
-
-.we-edit-header-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--we-space-lg);
-}
-
-.we-edit-header-actions {
-  display: flex;
-  align-items: center;
-  gap: var(--we-space-sm);
-  flex-shrink: 0;
-}
-
-.we-edit-title {
-  font-family: var(--we-font-display);
-  font-size: var(--we-type-title-size);
-  line-height: var(--we-type-title-leading);
-  font-style: italic;
-  font-weight: var(--we-weight-light);
-  color: var(--we-color-text-primary);
-  letter-spacing: var(--we-type-title-tracking);
-  margin: 0;
 }
 
 .we-edit-form-stack {
@@ -1427,14 +1369,60 @@
   margin-bottom: 0;
 }
 
-.we-edit-save-row {
+/* 编辑弹层保存栏（SaveCapsule）：停靠位始终占一行胶囊高度，内容长时贴在弹层正文可视区底部，内容从胶囊下面滚过 */
+.we-save-capsule-dock {
+  position: sticky;
+  bottom: var(--we-space-md);
   display: flex;
+  justify-content: center;
+  min-height: calc(var(--we-control-h-sm) + var(--we-space-xs) * 2);
+  margin-top: var(--we-space-lg);
+  pointer-events: none;
+}
+
+.we-save-capsule {
+  display: inline-flex;
   align-items: center;
-  justify-content: flex-end;
   gap: var(--we-space-md);
-  margin-top: var(--we-space-xl);
-  padding-top: var(--we-space-xl);
-  border-top: 1px solid var(--we-color-border-default);
+  max-width: 100%;
+  padding: var(--we-space-xs) var(--we-space-xs) var(--we-space-xs) var(--we-space-lg);
+  border: 1px solid color-mix(in srgb, var(--we-color-accent) var(--we-alpha-3), transparent);
+  border-radius: var(--we-radius-full);
+  background: var(--we-color-bg-canvas);
+  box-shadow: var(--we-elevation-3);
+  pointer-events: auto;
+}
+.we-save-capsule--saved {
+  min-height: calc(var(--we-control-h-sm) + var(--we-space-xs) * 2);
+  padding: var(--we-space-xs) var(--we-space-lg);
+}
+.we-save-capsule--error {
+  border-color: color-mix(in srgb, var(--we-color-status-danger) var(--we-alpha-3), transparent);
+}
+
+.we-save-capsule__dot {
+  flex-shrink: 0;
+  width: var(--we-space-sm);
+  height: var(--we-space-sm);
+  margin-right: calc(var(--we-space-sm) * -1);
+  border-radius: var(--we-radius-full);
+  background: var(--we-color-accent);
+}
+
+.we-save-capsule__text {
+  min-width: 0;
+  font-size: var(--we-type-ui-size);
+  line-height: var(--we-type-ui-leading);
+  letter-spacing: var(--we-type-ui-tracking);
+  color: var(--we-color-text-secondary);
+  overflow-wrap: anywhere;
+}
+.we-save-capsule--error .we-save-capsule__text {
+  color: var(--we-color-status-danger);
+}
+
+.we-save-capsule__tag {
+  margin-left: 0;
 }
 
 /* 世界主色（封面即光源）：自动/手动切换行 */
@@ -2107,11 +2095,6 @@
 
 .we-session-list-head {
   padding: 14px 14px 10px;
-}
-
-/* 规则页页头的「返回世界」：贴左，不随页头拉满 */
-.we-workshop-back {
-  align-self: flex-start;
 }
 
 /* 玻璃面板上的强调按钮：主色淡底 + 细描边，悬停加深一档 */

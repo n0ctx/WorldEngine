@@ -122,13 +122,11 @@ describe('RulesPage', () => {
     mocks.logError.mockReset();
   });
 
-  it('页头「返回世界」回到当前世界页', async () => {
+  it('页面级返回只走顶栏面包屑，页头不再自带「返回世界」', async () => {
     render(<RulesPage />);
     await waitFor(() => expect(mocks.listWorldEntries).toHaveBeenCalledWith('world-1'));
 
-    fireEvent.click(screen.getByRole('button', { name: '返回世界' }));
-
-    expect(mocks.navigate).toHaveBeenCalledWith('/worlds/world-1');
+    expect(screen.queryByRole('button', { name: '返回世界' })).toBeNull();
   });
 
   it('左栏按触发机制自动分组，状态字段保留三个作用域', async () => {

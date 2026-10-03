@@ -34,6 +34,7 @@ export default function CharacterEditPage() {
   const { applyLoaded, failLoad, reloadKey } = form;
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
+  const [savedKey, setSavedKey] = useState(0);
   const [exporting, setExporting] = useState(false);
   const [doneKey, setDoneKey] = useState(0);
 
@@ -84,6 +85,7 @@ export default function CharacterEditPage() {
       post_prompt: form.prompts.postPrompt,
       first_message: form.prompts.firstMessage,
     };
+    const sent = form.values;
     setSaving(true);
     setSaveError('');
     try {
@@ -100,8 +102,10 @@ export default function CharacterEditPage() {
         navigate(`/characters/${newChar.id}/edit`, { replace: true });
       } else {
         await updateCharacter(characterId, body);
+        form.markSaved(sent, { ...sent, name: body.name, description: body.description });
+        setSaving(false);
+        setSavedKey((k) => k + 1);
         window.dispatchEvent(new Event(UPDATED_EVENT));
-        navigate(-1);
       }
     } catch (e) {
       setSaveError(e.message);
@@ -121,11 +125,6 @@ export default function CharacterEditPage() {
         nameField={{ label: '名称', placeholder: '角色的名字', required: true, autoFocus: isCreate }}
         descriptionPlaceholder="一句话介绍这个角色…"
         prompts={PROMPTS}
-        saveError={saveError}
-        saving={saving}
-        saveLabel={isCreate ? '创建角色' : '保存'}
-        savingLabel={isCreate ? '创建中…' : '保存中…'}
-        onSave={handleSave}
       />
     ),
   };
@@ -152,10 +151,17 @@ export default function CharacterEditPage() {
         loadError={form.loadError}
         onRetry={form.retryLoad}
         dirty={form.dirty}
-        isOverlay={isOverlay}
         onClose={() => navigate(-1)}
-        title={isCreate ? '新建角色' : (form.name ? `编辑角色 · ${form.name}` : '')}
+        title={isCreate ? '新建角色' : (form.name ? `编辑角色 · ${form.name}` : '编辑角色')}
         headerActions={exportAction}
+        save={{
+          creating: isCreate,
+          saving,
+          error: saveError,
+          savedKey,
+          saveLabel: isCreate ? '创建角色' : '保存',
+          onSave: handleSave,
+        }}
       >
         <CardEditTabs basicTab={basicTab} stateInit={stateInit} />
       </EditPageShell>

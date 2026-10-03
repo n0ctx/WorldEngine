@@ -39,6 +39,7 @@ export default function PersonaEditPage() {
   const form = useCardEditForm({ isCreate: isNew, draftKey: 'persona_create_draft', promptKeys: ['systemPrompt'], updatedEvent: UPDATED_EVENT });
   const { applyLoaded, failLoad, reloadKey } = form;
   const [saving, setSaving] = useState(false);
+  const [savedKey, setSavedKey] = useState(0);
   // 加载完成后的实际 persona id（新建模式下为 null，直到创建成功）
   const [resolvedPersonaId, setResolvedPersonaId] = useState(null);
 
@@ -79,6 +80,7 @@ export default function PersonaEditPage() {
 
   async function handleSave() {
     const body = { name: form.name, description: form.description, system_prompt: form.prompts.systemPrompt };
+    const sent = form.values;
     setSaving(true);
     try {
       if (isNew) {
@@ -96,8 +98,10 @@ export default function PersonaEditPage() {
       } else {
         if (resolvedPersonaId) await updatePersonaById(resolvedPersonaId, body);
         else await updatePersona(worldId, body);
+        form.markSaved(sent, sent);
+        setSaving(false);
+        setSavedKey((k) => k + 1);
         window.dispatchEvent(new Event(UPDATED_EVENT));
-        navigate(-1);
       }
     } catch (err) {
       log.error('persona.save_failed', err, { toast: `保存失败：${err.message}` });
@@ -125,10 +129,6 @@ export default function PersonaEditPage() {
         nameField={{ label: '玩家名', placeholder: '你在这个世界里的名字' }}
         descriptionPlaceholder="一句话介绍这个玩家…"
         prompts={PROMPTS}
-        saving={saving}
-        saveLabel={isNew ? '创建' : '保存'}
-        savingLabel="保存中…"
-        onSave={handleSave}
       />
     ),
   };
@@ -152,10 +152,16 @@ export default function PersonaEditPage() {
       loadError={form.loadError}
       onRetry={form.retryLoad}
       dirty={form.dirty}
-      isOverlay={isOverlay}
       onClose={() => navigate(-1)}
       title={isNew ? '创建玩家' : '编辑玩家卡'}
       headerActions={exportAction}
+      save={{
+        creating: isNew,
+        saving,
+        savedKey,
+        saveLabel: isNew ? '创建' : '保存',
+        onSave: handleSave,
+      }}
     >
       <CardEditTabs basicTab={basicTab} stateInit={stateInit} />
     </EditPageShell>

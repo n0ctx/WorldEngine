@@ -2,10 +2,10 @@ import MessageList from '../../../components/chat/MessageList.jsx';
 import InputBox from '../../../components/chat/InputBox.jsx';
 import Pager from '../../../components/chat/Pager.jsx';
 import ProviderSafetyBanner from '../../../components/ui/ProviderSafetyBanner.jsx';
-import { ChevronLeft, RotateCcw } from 'lucide-react';
+import { RotateCcw } from 'lucide-react';
 import Button from '../../../components/ui/Button.jsx';
 
-export default function WritingSpaceConversationPane({ worldId, navigate, config, pageState, lifecycle, stream }) {
+export default function WritingSpaceConversationPane({ worldId, config, pageState, lifecycle, stream }) {
   const { chapterTurnSize, pageTurnSize } = config;
   const { pageInfo, setPageInfo, inputBoxRef, messageListRef } = pageState;
   const { persona, isInitializing, initError, retryInitialization } = lifecycle;
@@ -20,13 +20,6 @@ export default function WritingSpaceConversationPane({ worldId, navigate, config
 
   return (
     <div className="we-chat-center-pane flex-1 min-w-0 flex flex-col overflow-hidden relative">
-        <div className="we-chat-pane-nav">
-          <Button variant="text" size="sm" onClick={() => navigate(`/worlds/${worldId}`)}>
-            <ChevronLeft size={16} />
-            返回世界
-          </Button>
-        </div>
-
         {isInitializing ? (
           <div className="flex-1 flex items-center justify-center we-type-ui text-[var(--we-color-text-tertiary)]">
             正在准备写作空间…

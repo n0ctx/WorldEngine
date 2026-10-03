@@ -211,14 +211,11 @@ describe('ChatPage', () => {
     expect(screen.getByTestId('state-panel')).toHaveTextContent('world-1');
   });
 
-  it('会话栏收起时，对话列顶部仍可点「返回世界」', async () => {
+  it('页面级返回只走顶栏面包屑，对话列不再自带「返回世界」', async () => {
     renderChatPage();
     await waitFor(() => expect(mocks.getCharacter).toHaveBeenCalledWith('char-1'));
 
-    expect(screen.getByRole('button', { name: '展开故事线列表' })).toHaveAttribute('aria-expanded', 'false');
-    fireEvent.click(await screen.findByRole('button', { name: '返回世界' }));
-
-    expect(mocks.navigate).toHaveBeenCalledWith('/worlds/world-1');
+    expect(screen.queryByRole('button', { name: '返回世界' })).toBeNull();
   });
 
   it('两侧抽屉默认收起为窄轨，展开后才挂载内容，收起也能收回去（第 10 步核心行为）', async () => {

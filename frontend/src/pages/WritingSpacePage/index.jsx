@@ -1,4 +1,4 @@
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import PageLayout from '../layout/PageLayout.jsx';
 import NearbyPanel from './components/NearbyPanel.jsx';
 import WorldTimelinePanel from '../../components/session/WorldTimelinePanel.jsx';
@@ -13,7 +13,6 @@ import { useWritingSpaceLifecycle, useWritingSpaceMode } from './hooks/useWritin
 
 export default function WritingSpacePage() {
   const { worldId } = useParams();
-  const navigate = useNavigate();
   const config = usePageConfig('writing');
   useWritingSpaceMode();
 
@@ -53,7 +52,6 @@ export default function WritingSpacePage() {
       main={(
         <WritingSpaceConversationPane
           worldId={worldId}
-          navigate={navigate}
           config={config}
           pageState={pageState}
           lifecycle={lifecycle}

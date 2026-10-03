@@ -17,6 +17,7 @@ export default function PromptConfigPanel({
   return (
     <div>
       <SectionTitle level="section" rule="under" as="h2">全局提示词</SectionTitle>
+      <p className="we-edit-hint we-edit-hint-settings">提示词改完要点下方「保存」才生效。</p>
 
       {settingsMode === SETTINGS_MODE.WRITING ? (
         <>
