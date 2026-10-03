@@ -17,7 +17,7 @@ export default function ChatPageShell({
 }) {
   return (
     <PageLayout
-      leftLabel="会话列表"
+      leftLabel="故事线列表"
       rightLabel="状态面板"
       left={(
         <WorldTimelinePanel
@@ -29,7 +29,7 @@ export default function ChatPageShell({
           headerRight={(
             <Button size="sm" variant="secondary" className="we-session-list-create" onClick={onCreateSession}>
               <Plus size={16} />
-              新建会话
+              新建故事线
             </Button>
           )}
         />

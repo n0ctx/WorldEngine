@@ -91,7 +91,7 @@ export function useChatPageSession({
       chatSessionListBridge.addSession?.(session);
       handleSessionCreate(session);
     } catch (e) {
-      log.error('session.create_failed', e, { toast: e.message || '创建会话失败' });
+      log.error('session.create_failed', e, { toast: e.message || '创建故事线失败' });
     }
   }
 

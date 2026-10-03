@@ -116,7 +116,7 @@ function RelatedEntries({ worldId, scope, field, reloadKey, onNew, onEdit }) {
   return (
     <div className="we-workshop-section">
       <div className="we-workshop-section-head">
-        <span className="we-entry-editor-label">相关触发条目</span>
+        <span className="we-entry-editor-label">相关设定条目</span>
         <Button size="sm" variant="secondary" onClick={onNew}>+ 新建条目</Button>
       </div>
       {loading ? (

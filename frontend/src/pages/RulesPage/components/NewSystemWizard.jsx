@@ -49,7 +49,7 @@ export default function NewSystemWizard({ worldId, scope, scopeKey, onClose, onF
             <Button variant="ghost" onClick={() => onFinish(createdField?.field_key)}>
               跳过，不配条目
             </Button>
-            <Button variant="primary" onClick={() => setStep(3)}>下一步：配触发条目</Button>
+            <Button variant="primary" onClick={() => setStep(3)}>下一步：配设定条目</Button>
           </>
         )}
       >

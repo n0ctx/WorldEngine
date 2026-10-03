@@ -80,8 +80,8 @@ export function useWritingSpaceLifecycle({ worldId, stream, log }) {
           setIsInitializing(false);
         }).catch((err) => {
           if (cancelled) return;
-          log.error('writing.session.create_failed', err, { toast: err.message || '创建写作会话失败' });
-          setInitError('创建写作会话失败，请重试');
+          log.error('writing.session.create_failed', err, { toast: err.message || '创建写作故事线失败' });
+          setInitError('创建写作故事线失败，请重试');
           setIsInitializing(false);
         });
         return;
@@ -91,8 +91,8 @@ export function useWritingSpaceLifecycle({ worldId, stream, log }) {
       setIsInitializing(false);
     }).catch((err) => {
       if (cancelled) return;
-      log.error('writing.session.list_failed', err, { toast: err.message || '加载写作会话失败' });
-      setInitError('加载写作会话失败，请重试');
+      log.error('writing.session.list_failed', err, { toast: err.message || '加载写作故事线失败' });
+      setInitError('加载写作故事线失败，请重试');
       setIsInitializing(false);
     });
     return () => {
@@ -131,7 +131,7 @@ export function useWritingSpaceLifecycle({ worldId, stream, log }) {
       writingSessionListBridge.addSession?.(session);
       handleSessionCreate(session);
     } catch (e) {
-      log.error('session.create_failed', e, { toast: e.message || '创建会话失败' });
+      log.error('session.create_failed', e, { toast: e.message || '创建故事线失败' });
     }
   }
 
@@ -148,7 +148,7 @@ export function useWritingSpaceLifecycle({ worldId, stream, log }) {
       writingSessionListBridge.addSession?.(session);
       enterSession(session);
     } catch (err) {
-      log.error('writing.session.delete_recover_failed', err, { toast: '恢复写作会话失败' });
+      log.error('writing.session.delete_recover_failed', err, { toast: '恢复写作故事线失败' });
     }
   }
 

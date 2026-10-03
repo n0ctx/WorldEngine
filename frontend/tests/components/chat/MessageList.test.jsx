@@ -276,3 +276,27 @@ describe('MessageList 的 AI 回复编辑入口', () => {
     expect(screen.getAllByTestId('bubble').every((el) => el.dataset.editable === 'false')).toBe(true);
   });
 });
+
+describe('MessageList 的回到底部按钮', () => {
+  it('离开底部超过三分之一屏才浮出，点击后滚到底并收起', async () => {
+    await renderList({ prose: false });
+    await waitFor(() => expect(screen.getAllByTestId('bubble')).toHaveLength(4));
+    const list = document.querySelector('.we-chat-area');
+    let top = 700;
+    Object.defineProperty(list, 'scrollHeight', { configurable: true, get: () => 1000 });
+    Object.defineProperty(list, 'clientHeight', { configurable: true, get: () => 300 });
+    Object.defineProperty(list, 'scrollTop', { configurable: true, get: () => top, set: (v) => { top = v; } });
+
+    top = 650;
+    fireEvent.scroll(list);
+    expect(screen.queryByRole('button', { name: '回到底部' })).toBeNull();
+
+    top = 100;
+    fireEvent.scroll(list);
+    fireEvent.click(await screen.findByRole('button', { name: '回到底部' }));
+    expect(top).toBe(1000);
+
+    fireEvent.scroll(list);
+    await waitFor(() => expect(screen.queryByRole('button', { name: '回到底部' })).toBeNull());
+  });
+});

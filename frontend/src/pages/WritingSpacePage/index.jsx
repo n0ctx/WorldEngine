@@ -32,7 +32,7 @@ export default function WritingSpacePage() {
 
   return (
     <PageLayout
-      leftLabel="会话列表"
+      leftLabel="故事线列表"
       rightLabel="附近角色与状态"
       left={(
         <WorldTimelinePanel
@@ -42,9 +42,9 @@ export default function WritingSpacePage() {
           onActiveSessionDeleted={lifecycle.handleActiveWritingSessionDeleted}
           onActiveSessionRenamed={(title) => setCurrentSession((prev) => (prev ? { ...prev, title } : prev))}
           headerRight={(
-            <Button size="sm" variant="secondary" className="we-session-list-create" onClick={lifecycle.handleCreateWritingSession} aria-label="新建会话">
+            <Button size="sm" variant="secondary" className="we-session-list-create" onClick={lifecycle.handleCreateWritingSession} aria-label="新建故事线">
               <Plus size={16} />
-              新建会话
+              新建故事线
             </Button>
           )}
         />

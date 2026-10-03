@@ -9,7 +9,7 @@ export default function WorldProfileDefaultsDetail({ worldId }) {
       <div className="we-workshop-detail-head">
         <div>
           <SectionTitle level="group">档案默认值</SectionTitle>
-          <p className="we-workshop-detail-desc">开场时间和开场地点。新会话开始时带入，已有会话不受影响。</p>
+          <p className="we-workshop-detail-desc">开场时间和开场地点。新故事线开始时带入，已有故事线不受影响。</p>
         </div>
       </div>
       <WorldProfileDefaultsFields worldId={worldId} />

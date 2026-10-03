@@ -71,6 +71,13 @@ vi.mock('../../../src/components/ui/SectionTabs.jsx', () => ({
   ),
 }));
 
+vi.mock('../../../src/components/session/MiddleSummaryModal.jsx', () => ({
+  default: ({ sessionId }) => <div data-testid="summary-modal">{sessionId}</div>,
+}));
+vi.mock('../../../src/components/session/StateMemoryModal.jsx', () => ({
+  default: ({ sessionId }) => <div data-testid="state-memory-modal">{sessionId}</div>,
+}));
+
 import NearbyPanel from '../../../src/pages/WritingSpacePage/components/NearbyPanel.jsx';
 
 function entity(overrides = {}) {
@@ -216,5 +223,26 @@ describe('NearbyPanel 的在场 + 置顶实体页签', () => {
     await waitFor(() => expect(tabLabels()).toEqual(['附近']));
 
     expect(mocks.fetchStateMemory).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('会话状态面板的剧情摘要 / 状态记忆入口', () => {
+  it('点击入口打开对应会话的弹窗', async () => {
+    mocks.fetchStateMemory.mockResolvedValue(stateMemory());
+    await renderPanel();
+
+    fireEvent.click(screen.getByRole('button', { name: '剧情摘要' }));
+    expect(await screen.findByTestId('summary-modal')).toHaveTextContent('s1');
+
+    fireEvent.click(screen.getByRole('button', { name: '状态记忆' }));
+    expect(await screen.findByTestId('state-memory-modal')).toHaveTextContent('s1');
+  });
+
+  it('没有会话时不显示入口', async () => {
+    mocks.fetchStateMemory.mockResolvedValue(stateMemory());
+    render(<NearbyPanel worldId="w1" sessionId={null} persona={{ name: '玩家甲' }} />);
+
+    expect(screen.queryByRole('button', { name: '剧情摘要' })).toBeNull();
+    expect(screen.queryByRole('button', { name: '状态记忆' })).toBeNull();
   });
 });

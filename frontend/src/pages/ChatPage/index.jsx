@@ -20,8 +20,7 @@ export default function ChatPage() {
   const { currentSessionId, setCurrentSessionId, setCurrentCharacterId } = useStore();
   const { character, persona } = useChatPageCharacter(characterId);
   const {
-    summaryOpen, setSummaryOpen, stateMemoryOpen, setStateMemoryOpen, pageInfo, setPageInfo,
-    inputBoxRef, messageListRef, memory,
+    pageInfo, setPageInfo, inputBoxRef, messageListRef, memory,
   } = useConversationPageState();
   const { memoryRecalling, memoryWriting, recallSummary } = memory;
 
@@ -71,10 +70,7 @@ export default function ChatPage() {
           currentSession={stream.currentSession}
           currentSessionId={currentSessionId}
           config={{ chapterTurnSize, pageTurnSize }}
-          pageState={{
-            summaryOpen, setSummaryOpen, stateMemoryOpen, setStateMemoryOpen, pageInfo, setPageInfo,
-            inputBoxRef, messageListRef,
-          }}
+          pageState={{ pageInfo, setPageInfo, inputBoxRef, messageListRef }}
           stream={stream}
           motionPrefs={motionPrefs}
           onBack={() => navigate(`/worlds/${character?.world_id}`)}

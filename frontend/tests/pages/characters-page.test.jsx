@@ -15,6 +15,7 @@ const mocks = vi.hoisted(() => ({
   importPersona: vi.fn(),
   readJsonFile: vi.fn(),
   listCharacterStateFields: vi.fn(),
+  listPersonaStateFields: vi.fn(),
   listPersonas: vi.fn(),
   activatePersona: vi.fn(),
   deletePersona: vi.fn(),
@@ -54,6 +55,9 @@ vi.mock('../../src/core/api/import-export', () => ({
 }));
 vi.mock('../../src/core/api/character-state-fields', () => ({
   listCharacterStateFields: (...args) => mocks.listCharacterStateFields(...args),
+}));
+vi.mock('../../src/core/api/persona-state-fields', () => ({
+  listPersonaStateFields: (...args) => mocks.listPersonaStateFields(...args),
 }));
 vi.mock('../../src/core/api/personas', () => ({
   listPersonas: (...args) => mocks.listPersonas(...args),
@@ -128,6 +132,7 @@ describe('CharactersPage', () => {
     mocks.getSessions.mockResolvedValue([{ id: 'sess-latest', character_id: 'char-1' }]);
     mocks.deleteCharacter.mockResolvedValue({});
     mocks.listCharacterStateFields.mockResolvedValue([{ field_key: 'hp' }]);
+    mocks.listPersonaStateFields.mockResolvedValue([{ field_key: 'fame' }]);
     mocks.readJsonFile.mockResolvedValue({ character: { name: '新角色' }, character_state_values: [] });
     mocks.importCharacter.mockResolvedValue({});
   });
@@ -138,8 +143,9 @@ describe('CharactersPage', () => {
     expect(await screen.findAllByText('阿塔')).toHaveLength(1);
     expect(screen.getAllByText('旅者')).toHaveLength(1);
     expect(screen.getByText('世界规则')).toBeInTheDocument();
-    // 数字是滚动计数器：读屏读到的是完整数值，滚轮本身对读屏隐藏
-    expect(screen.getByRole('button', { name: /1\s*条设定 · 2\s*个状态字段/ })).toBeInTheDocument();
+    // 数字是滚动计数器：读屏读到的是完整数值，滚轮本身对读屏隐藏；
+    // 状态字段数是世界 2 + 角色 1 + 玩家 1 的合计，与规则页概览同口径
+    expect(screen.getByRole('button', { name: /1\s*条设定条目 · 4\s*个状态字段/ })).toBeInTheDocument();
   });
 
   it('故事线为空时展示空态', async () => {
@@ -380,7 +386,7 @@ describe('CharactersPage', () => {
     expect(mocks.getWorldTimeline).toHaveBeenCalledTimes(1);
 
     fireEvent.click(screen.getByText('切换'));
-    fireEvent.click(screen.getByLabelText('激活玩家卡'));
+    fireEvent.click(screen.getByLabelText('切换到该玩家卡'));
 
     await waitFor(() => expect(mocks.activatePersona).toHaveBeenCalledWith('world-1', 'persona-2'));
     await waitFor(() => expect(mocks.getWorldTimeline).toHaveBeenCalledTimes(2));
@@ -388,9 +394,9 @@ describe('CharactersPage', () => {
 
   it('世界规则入口卡点击后跳转到规则页', async () => {
     render(<CharactersPage />);
-    await screen.findByRole('button', { name: /1\s*条设定 · 2\s*个状态字段/ });
+    await screen.findByRole('button', { name: /1\s*条设定条目 · 4\s*个状态字段/ });
 
-    fireEvent.click(screen.getByText('规则与状态'));
+    fireEvent.click(screen.getByText('这个世界的规则'));
     expect(mocks.navigate).toHaveBeenCalledWith('/worlds/world-1/rules');
   });
 
@@ -409,7 +415,7 @@ describe('CharactersPage', () => {
       expect(await screen.findByText('先做这三件事，这个世界就活了')).toBeInTheDocument();
       expect(screen.getByText('写一写这个世界观')).toBeInTheDocument();
       expect(screen.getByText('加一个角色')).toBeInTheDocument();
-      expect(screen.getByText('定一条这里的规则')).toBeInTheDocument();
+      expect(screen.getByText('写一条设定条目')).toBeInTheDocument();
       expect(document.querySelectorAll('.we-onboarding-step[data-state="checked"]')).toHaveLength(0);
       // 引导接管页面时，右栏的正常空态不应该再渲染
       expect(screen.queryByText('世界规则')).not.toBeInTheDocument();
@@ -444,9 +450,9 @@ describe('CharactersPage', () => {
       );
     });
 
-    it('点击「定一条这里的规则」跳转到规则空间', async () => {
+    it('点击「写一条设定条目」跳转到规则空间', async () => {
       render(<CharactersPage />);
-      fireEvent.click(await screen.findByText('定一条这里的规则'));
+      fireEvent.click(await screen.findByText('写一条设定条目'));
       expect(mocks.navigate).toHaveBeenCalledWith('/worlds/world-1/rules');
     });
 

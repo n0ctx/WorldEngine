@@ -32,7 +32,7 @@ export function usePersonaActions({ worldId, setPersonas, setTimeline, setPerson
       const tl = await getWorldTimeline(worldId);
       setTimeline(tl);
     } catch (err) {
-      log.error('character.activate_failed', err, { toast: `激活失败：${err.message}` });
+      log.error('character.activate_failed', err, { toast: `切换失败：${err.message}` });
     }
   }
 

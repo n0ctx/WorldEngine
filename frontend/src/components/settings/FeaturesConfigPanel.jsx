@@ -152,7 +152,7 @@ function MemorySettings({
 
       <ToggleRow
         label="长期召回"
-        hint="每轮生成前由辅助模型按历史目录挑选相关轮次原文，会增加首字等待"
+        hint="每轮生成前由副模型按历史目录挑选相关轮次原文，会增加首字等待"
         checked={expansionEnabled}
         onChange={onToggleExpansion}
       />
@@ -170,7 +170,7 @@ function MemorySettings({
         <div className="we-settings-date-mode">
           <p className="we-settings-date-label">日期模式</p>
           <SegmentedControl options={DIARY_DATE_OPTIONS} value={dateMode} onChange={onDateMode} label="日期模式" />
-          <p className="we-settings-date-hint">切换仅影响新建会话</p>
+          <p className="we-settings-date-hint">切换仅影响新建的故事线</p>
         </div>
       )}
     </>

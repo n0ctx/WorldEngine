@@ -25,9 +25,9 @@ export function RulesEntryCard({ entryCount, fieldCount, onOpen }) {
     >
       <Folder state={folderState} width={48} />
       <div className="we-rules-entry-info">
-        <p className="we-rules-entry-label">规则与状态</p>
+        <p className="we-rules-entry-label">这个世界的规则</p>
         <p className="we-rules-entry-count">
-          {entryCount} 条设定 · {fieldCount} 个状态字段
+          {entryCount} 条设定条目 · {fieldCount} 个状态字段
         </p>
       </div>
       <ChevronRight size={16} />

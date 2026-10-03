@@ -25,7 +25,7 @@ export function PersonaCard({ persona, dragHandleProps, onActivate, onEdit, onDe
       onClick={isActive ? clickProps.onClick : undefined}
       onKeyDown={isActive ? clickProps.onKeyDown : undefined}
       aria-disabled={isActive ? undefined : true}
-      title={isActive ? undefined : '先激活该玩家卡再进入写作'}
+      title={isActive ? undefined : '先切换到该玩家卡再进入写作'}
       style={isActive ? undefined : { cursor: 'not-allowed' }}
     >
       <div className="we-character-card-body">
@@ -34,7 +34,7 @@ export function PersonaCard({ persona, dragHandleProps, onActivate, onEdit, onDe
         <div className="we-character-card-info">
           <div className="we-persona-card-name-row">
             <p className="we-character-card-name">{persona.name || '（未命名玩家）'}</p>
-            {isActive && <Badge tone="accent">激活</Badge>}
+            {isActive && <Badge tone="accent">当前</Badge>}
           </div>
         </div>
       </div>
@@ -46,8 +46,8 @@ export function PersonaCard({ persona, dragHandleProps, onActivate, onEdit, onDe
         {!isActive && (
           <IconButton
             size="sm"
-            label="激活玩家卡"
-            title="设为激活（对话用）"
+            label="切换到该玩家卡"
+            title="设为当前玩家"
             onClick={onActivate}
           >
             <Check size={16} />

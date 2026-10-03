@@ -1,4 +1,4 @@
-import { ArrowDownToLine, BookMarked, Database, FastForward, UserRoundPen } from 'lucide-react';
+import { FastForward, UserRoundPen } from 'lucide-react';
 import IconButton from '../ui/IconButton.jsx';
 
 // 点击工具条按钮时不让输入框失焦；动作本身走 onClick，键盘 Enter/Space 同样可触发
@@ -9,19 +9,13 @@ function keepInputFocus(e) {
 export default function InputBoxToolbar({
   pagerSlot,
   generating,
-  onScrollToBottom,
   onContinue,
   onImpersonate,
-  onMiddleSummary,
-  onStateMemory,
 }) {
   return (
     <div className="we-chat-input__toolbar">
       <div className="we-chat-input__toolbar-pager">{pagerSlot}</div>
       <div className="we-chat-quick-actions">
-        <IconButton size="sm" label="跳转到底部" onMouseDown={keepInputFocus} onClick={() => onScrollToBottom?.()}>
-          <ArrowDownToLine size={16} />
-        </IconButton>
         <IconButton
           size="sm"
           label="续写上一条 AI 回复"
@@ -40,16 +34,6 @@ export default function InputBoxToolbar({
         >
           <UserRoundPen size={16} />
         </IconButton>
-        {onMiddleSummary && (
-          <IconButton size="sm" label="剧情摘要" onMouseDown={keepInputFocus} onClick={() => onMiddleSummary()}>
-            <BookMarked size={16} />
-          </IconButton>
-        )}
-        {onStateMemory && (
-          <IconButton size="sm" label="状态记忆" onMouseDown={keepInputFocus} onClick={() => onStateMemory()}>
-            <Database size={16} />
-          </IconButton>
-        )}
       </div>
     </div>
   );

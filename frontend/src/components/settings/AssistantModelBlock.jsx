@@ -9,9 +9,9 @@ import SectionTitle from '../ui/SectionTitle';
 export default function AssistantModelBlock({ modelSource, onModelSourceChange }) {
   return (
     <div className="we-settings-field-group">
-      <SectionTitle level="group" as="p">写作助手模型(LLM)</SectionTitle>
+      <SectionTitle level="group" as="p">写卡助手模型（LLM）</SectionTitle>
 
-      <FormGroup label="模型来源" hint="写作助手（创建/编辑卡片）使用的 LLM 模型来源。" variant="settings">
+      <FormGroup label="模型来源" hint="写卡助手（创建/编辑卡片）使用的 LLM 模型来源。" variant="settings">
         <Select
           value={modelSource || 'main'}
           onChange={onModelSourceChange}

@@ -4,7 +4,7 @@ const SLASH_COMMANDS = [
   { cmd: '/continue',    desc: '续写上一条 AI 回复' },
   { cmd: '/impersonate', desc: 'AI 替你写一条消息' },
   { cmd: '/retry',       desc: '删除最后一条 AI 回复并重新生成' },
-  { cmd: '/title',       desc: '根据最近对话上下文重新生成会话标题' },
+  { cmd: '/title',       desc: '根据最近对话上下文重新生成故事线标题' },
 ];
 
 export const SLASH_LISTBOX_ID = 'we-chat-slash-listbox';

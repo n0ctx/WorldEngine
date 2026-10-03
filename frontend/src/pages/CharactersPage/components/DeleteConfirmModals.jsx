@@ -28,7 +28,7 @@ export function DeleteConfirmModals({
                   即将删除角色 <span className="we-confirm-msg-name">「{deletingChar.name}」</span>。
                 </p>
                 <p className="we-confirm-msg-danger">
-                  此操作将同时删除该角色的所有会话记录，且无法恢复。
+                  此操作将同时删除该角色的所有故事线，且无法恢复。
                 </p>
               </>
             }

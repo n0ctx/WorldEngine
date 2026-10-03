@@ -32,7 +32,7 @@ export default function WorldProfileDefaultsFields({ worldId }) {
   const location = rows.find((row) => row.field_key === 'location');
 
   return (
-    <FormGroup label="档案默认值" hint="新会话开始时带入。已有会话里的当前时间、当前地点不会被覆盖。">
+    <FormGroup label="档案默认值" hint="新故事线开始时带入。已有故事线里的当前时间、当前地点不会被覆盖。">
       <div className="we-state-value-list">
         {time && <TimeDefault row={time} onSave={save} />}
         {location && <LocationDefault row={location} onSave={save} />}

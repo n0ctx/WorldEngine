@@ -192,7 +192,7 @@ function StateTemplatesSection({ worldId, navigate, diaryChatDateMode }) {
   return (
     <div>
       <p className="we-config-workshop-hint">
-        想以字段为中心、一站式设置各角色/玩家默认值与触发条目？
+        想以字段为中心、一站式设置各角色/玩家默认值与设定条目？
         <button
           type="button"
           className="we-workshop-entry-link"

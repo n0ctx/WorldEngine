@@ -20,7 +20,7 @@ function Harness() {
   return (
     <>
       <button type="button" onClick={() => setActiveId('b')}>切换条目</button>
-      <SideDrawer side="left" open={open} onToggle={() => setOpen((v) => !v)} label="会话列表">
+      <SideDrawer side="left" open={open} onToggle={() => setOpen((v) => !v)} label="故事线列表">
         <Timeline activeId={activeId} />
       </SideDrawer>
     </>
@@ -37,18 +37,18 @@ describe('SideDrawer', () => {
     fireEvent.click(screen.getByRole('button', { name: '切换条目' }));
     await act(() => new Promise((resolve) => setTimeout(resolve, 50)));
 
-    fireEvent.click(screen.getByRole('button', { name: '收起会话列表' }));
+    fireEvent.click(screen.getByRole('button', { name: '收起故事线列表' }));
 
     await waitFor(() => expect(drawer()).not.toHaveClass('we-side-drawer--open'), { timeout: 2000 });
     expect(drawer().querySelector('.we-side-drawer-content')).toBeNull();
-    expect(screen.getByRole('button', { name: '展开会话列表' })).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.getByRole('button', { name: '展开故事线列表' })).toHaveAttribute('aria-expanded', 'false');
   });
 
   it('收起途中再次展开，内容保留并回到展开态', async () => {
     render(<Harness />);
 
-    fireEvent.click(screen.getByRole('button', { name: '收起会话列表' }));
-    fireEvent.click(screen.getByRole('button', { name: '展开会话列表' }));
+    fireEvent.click(screen.getByRole('button', { name: '收起故事线列表' }));
+    fireEvent.click(screen.getByRole('button', { name: '展开故事线列表' }));
 
     await waitFor(() => expect(drawer().querySelector('.we-side-drawer-content')).toHaveStyle({ opacity: '1' }), { timeout: 2000 });
     expect(drawer()).toHaveClass('we-side-drawer--open');

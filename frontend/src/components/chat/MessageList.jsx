@@ -1,5 +1,9 @@
 import { forwardRef } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
+import { ArrowDown } from 'lucide-react';
 import Button from '../ui/Button.jsx';
+import IconButton from '../ui/IconButton.jsx';
+import { useMotion } from '../../core/hooks/useMotion.js';
 import ProximityRail from '../motion/ProximityRail.jsx';
 import ChangeText from '../motion/ChangeText.jsx';
 import ProseChapters from './ProseChapters.jsx';
@@ -39,9 +43,12 @@ const MessageList = forwardRef(function MessageList({
   const {
     listRef, messages, loading, loadError, reload, pageMessages, onLastPage,
     hasEarlierMessages, loadEarlierMessages, handleJumpToMessage,
+    awayFromBottom, syncAwayFromBottom, scrollPageToBottom,
   } = useMessageListState(ref, {
     sessionId, onMessagesLoaded, pageTurnSize, onPageInfoChange, generating, continuingMessageId,
+    streamingText, continuingText,
   });
+  const m = useMotion();
 
   const {
     messagesForDisplay, lastAssistantId, suppressLastFrozen, optionsStreaming, chapters, railItems,
@@ -58,7 +65,7 @@ const MessageList = forwardRef(function MessageList({
 
   return (
     <div className="relative flex-1 min-h-0">
-    <div ref={listRef} className="we-chat-area absolute inset-0 overflow-y-auto px-3 pt-2 pb-4">
+    <div ref={listRef} onScroll={syncAwayFromBottom} className="we-chat-area absolute inset-0 overflow-y-auto px-3 pt-2 pb-4">
       {hasEarlierMessages ? (
         <div className="text-center py-2">
           <Button type="button" variant="text" size="sm" onClick={loadEarlierMessages}>
@@ -134,6 +141,24 @@ const MessageList = forwardRef(function MessageList({
 
     </div>
     <ProximityRail containerRef={listRef} items={railItems} onSelect={handleJumpToMessage} />
+    <AnimatePresence>
+      {awayFromBottom && (
+        <div key="jump-to-bottom" className="we-chat-jump-bottom">
+          <motion.div
+            variants={m.variant('enter')}
+            initial="hidden"
+            animate="visible"
+            exit="exit"
+            transition={m.transition('enter')}
+          >
+            {/* 按下时不抢输入框焦点 */}
+            <IconButton variant="secondary" label="回到底部" onMouseDown={(e) => e.preventDefault()} onClick={scrollPageToBottom}>
+              <ArrowDown size={16} />
+            </IconButton>
+          </motion.div>
+        </div>
+      )}
+    </AnimatePresence>
 
     </div>
   );

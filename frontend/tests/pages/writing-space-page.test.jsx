@@ -176,7 +176,7 @@ describe('WritingSpacePage', () => {
   it('会话栏收起时，写作列顶部仍可点「返回世界」', async () => {
     renderWritingSpacePage();
 
-    expect(screen.getByRole('button', { name: '展开会话列表' })).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.getByRole('button', { name: '展开故事线列表' })).toHaveAttribute('aria-expanded', 'false');
     fireEvent.click(screen.getByRole('button', { name: '返回世界' }));
 
     expect(mocks.navigate).toHaveBeenCalledWith('/worlds/world-1');
@@ -212,7 +212,7 @@ describe('WritingSpacePage', () => {
 
     renderWritingSpacePage();
 
-    expect(await screen.findByText('加载写作会话失败，请重试')).toBeInTheDocument();
+    expect(await screen.findByText('加载写作故事线失败，请重试')).toBeInTheDocument();
     fireEvent.click(screen.getByText('重试'));
 
     await waitFor(() => expect(mocks.listWritingSessions.mock.calls.length).toBeGreaterThanOrEqual(2));
@@ -229,7 +229,7 @@ describe('WritingSpacePage', () => {
     renderWritingSpacePage();
 
     await waitFor(() => expect(screen.getByTestId('message-list')).toHaveTextContent('ws-1'));
-    fireEvent.click(screen.getByRole('button', { name: '展开会话列表' }));
+    fireEvent.click(screen.getByRole('button', { name: '展开故事线列表' }));
     await screen.findByTestId('session-list');
     fireEvent.click(screen.getByText('delete-active-session'));
     await waitFor(() => expect(screen.getByTestId('message-list')).toHaveTextContent('ws-2'));

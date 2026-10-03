@@ -1,6 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
+import { AnimatePresence } from 'framer-motion';
+import { BookMarked, Database } from 'lucide-react';
 
 import { Button, EmptyState, SectionTitle, Skeleton } from '../index.js';
+import MiddleSummaryModal from '../session/MiddleSummaryModal.jsx';
+import StateMemoryModal from '../session/StateMemoryModal.jsx';
 import SectionTabs from '../ui/SectionTabs.jsx';
 import EntityStateBlock from './EntityStateBlock.jsx';
 import StatusSection from './StatusSection.jsx';
@@ -149,6 +153,33 @@ function DiaryTab({
   );
 }
 
+/** 面板顶部的剧情摘要 / 状态记忆入口，各自打开当前会话的弹窗 */
+function SessionTools({ sessionId }) {
+  const [summaryOpen, setSummaryOpen] = useState(false);
+  const [stateMemoryOpen, setStateMemoryOpen] = useState(false);
+
+  return (
+    <div className="we-state-panel-tools">
+      <Button type="button" variant="secondary" size="sm" onClick={() => setSummaryOpen(true)}>
+        <BookMarked size={16} />
+        剧情摘要
+      </Button>
+      <Button type="button" variant="secondary" size="sm" onClick={() => setStateMemoryOpen(true)}>
+        <Database size={16} />
+        状态记忆
+      </Button>
+      <AnimatePresence>
+        {summaryOpen && (
+          <MiddleSummaryModal key="middle-summary-modal" sessionId={sessionId} onClose={() => setSummaryOpen(false)} />
+        )}
+        {stateMemoryOpen && (
+          <StateMemoryModal key="state-memory-modal" sessionId={sessionId} onClose={() => setStateMemoryOpen(false)} />
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
 /** 本轮变化的会话状态值行 → field_key 集合，供「现状」高亮 */
 function changedFieldKeys(changes) {
   return new Set(changes.map((change) => change.row.field_key));
@@ -238,7 +269,7 @@ function PlayerTab({
 }
 
 /**
- * 会话状态面板的公共壳：世界区块 + 玩家区块 + 日记区块 + 整理中浮层。
+ * 会话状态面板的公共壳：剧情摘要 / 状态记忆入口 + 世界区块 + 玩家区块 + 日记区块 + 整理中浮层。
  *
  * 两种模式的差异只剩三处，均由入参注入：
  * - `extraSections`：插在玩家与日记之间的区块（对话是角色，写作是附近角色）
@@ -403,6 +434,7 @@ export default function SessionStatePanel({
   return (
     <div className={classNames.panel}>
       <div className={classNames.scroll}>
+        {sessionId && <SessionTools sessionId={sessionId} />}
         {worldTab}
         <section className="we-state-block we-state-block--cast">
           <SectionTabs sections={sections} defaultKey="player" globalActions={globalActions} />

@@ -48,7 +48,7 @@ export default function RulesDetailPane({
           <RulesOverview
             entries={entries}
             fieldsByScope={fieldsByScope}
-            hint="选择左侧条目查看详情，或点「+ 新建」创建一条设定"
+            hint="选择左侧条目查看详情，或点「+ 新建」创建一条设定条目"
           />
         )
       ) : selectedFieldKey === 'profile' ? (

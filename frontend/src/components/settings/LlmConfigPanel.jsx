@@ -29,7 +29,7 @@ export default function LlmConfigPanel({
       {/* 主模型区块：对话/写作共用 MainLlmBlock，inheritFrom 切换继承语义 */}
       {settingsMode === SETTINGS_MODE.WRITING ? (
         <MainLlmBlock
-          title="主模型(LLM)"
+          title="主模型（LLM）"
           providers={LLM_PROVIDERS}
           config={writingLlm}
           onProviderChange={(v) => onWritingLlmChange('provider', v)}

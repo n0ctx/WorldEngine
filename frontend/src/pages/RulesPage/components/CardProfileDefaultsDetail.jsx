@@ -57,7 +57,7 @@ export default function CardProfileDefaultsDetail({ worldId, scopeKey }) {
         <div>
           <SectionTitle level="group">档案默认值</SectionTitle>
           <p className="we-workshop-detail-desc">
-            每张{owner.label}卡的身份、外貌{scopeKey === 'character' ? '、人格' : ''}。新会话开始时带入，已有会话不受影响。
+            每张{owner.label}卡的身份、外貌{scopeKey === 'character' ? '、人格' : ''}。新故事线开始时带入，已有故事线不受影响。
           </p>
         </div>
       </div>

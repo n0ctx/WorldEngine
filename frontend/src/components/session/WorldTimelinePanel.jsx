@@ -9,7 +9,7 @@
  * 语义各自绑定当前页面上下文，跟世界层「+ 新建」（只能新建写作，因为没有角色上下文）不是一回事。
  * 所以头部的新建按钮由调用方通过 headerRight 传入，组件只负责渲染时间线本身。
  *
- * 编辑标题 / 删除会话：只对「与当前页面同模式」的条目提供内联操作——删除经 deleteStoryline
+ * 编辑标题 / 删除故事线：只对「与当前页面同模式」的条目提供内联操作——删除经 deleteStoryline
  * 按 item.mode 选对应接口，重命名两种模式共用同一个通用接口（renameSession，按 session id 不分
  * mode）。跨模式条目不给内联编辑：点它们直接跳转过去，到了对应页面本来就能编辑/删除，
  * 「保留原有能力」不等于「所有能力都要能在同一个列表里对所有模式做」。
@@ -144,13 +144,13 @@ function TimelineItem({ item, title, index, isActive, editable, onClick, onRenam
             </div>
           ) : (
             <div className="we-session-item__btn-group">
-              <IconButton size="sm" label="编辑会话标题" title="编辑标题" onClick={startEdit}>
+              <IconButton size="sm" label="编辑故事线标题" title="编辑标题" onClick={startEdit}>
                 <PencilLine size={16} />
               </IconButton>
               <IconButton
                 size="sm"
                 variant="danger"
-                label="删除会话"
+                label="删除故事线"
                 onClick={(e) => { e.stopPropagation(); setConfirmDelete(true); }}
               >
                 <Trash2 size={16} />
@@ -244,7 +244,7 @@ export default function WorldTimelinePanel({
         onActiveSessionDeleted?.();
       }
     } catch (err) {
-      log.error('timeline.panel.delete_failed', err, { toast: err.message || '删除会话失败' });
+      log.error('timeline.panel.delete_failed', err, { toast: err.message || '删除故事线失败' });
     }
   }
 
@@ -256,7 +256,7 @@ export default function WorldTimelinePanel({
         onActiveSessionRenamed?.(updated.title);
       }
     } catch (err) {
-      log.error('timeline.panel.rename_failed', err, { toast: err.message || '重命名会话失败' });
+      log.error('timeline.panel.rename_failed', err, { toast: err.message || '重命名故事线失败' });
     }
   }
 

@@ -21,6 +21,8 @@ export default function useMessageListState(ref, {
   onPageInfoChange,
   generating,
   continuingMessageId,
+  streamingText,
+  continuingText,
 }) {
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -29,6 +31,7 @@ export default function useMessageListState(ref, {
   // 翻页锚点：followLast=true 永远跟随末页（新消息到来时自动追随）；用户手动翻页后 followLast=false 停在固定页
   const [pageAnchor, setPageAnchor] = useState({ idx: 0, followLast: true });
   const listRef = useRef(null);
+  const [awayFromBottom, setAwayFromBottom] = useState(false);
   const scrollToLatestPendingRef = useRef(false);
   const messagesRef = useRef([]);
   const lastPageIdxRef = useRef(0);
@@ -136,16 +139,28 @@ export default function useMessageListState(ref, {
       const el = listRef.current;
       if (el) el.scrollTop = el.scrollHeight;
     },
-    scrollPageToBottom: () => {
-      // 用户点"跳转到底部"：留在当前页，仅把滚动容器拖到底
-      const el = listRef.current;
-      if (el) el.scrollTop = el.scrollHeight;
-    },
     scrollToMessage: handleJumpToMessage,
     get messagesRef() {
       return messagesRef;
     },
   }));
+
+  // 离底部超过三分之一屏才算「离开底部」，贴底附近的小幅滚动不浮出回到底部按钮
+  const syncAwayFromBottom = useCallback(() => {
+    const el = listRef.current;
+    if (!el) return;
+    setAwayFromBottom(el.scrollHeight - el.scrollTop - el.clientHeight > el.clientHeight / 3);
+  }, []);
+  // 内容变长（翻页、流式输出、续写）不会触发 scroll 事件，需要另外重算
+  useEffect(() => {
+    syncAwayFromBottom();
+  }, [pageMessages, streamingText, continuingText, syncAwayFromBottom]);
+
+  // 回到底部：留在当前页，仅把滚动容器拖到底
+  const scrollPageToBottom = useCallback(() => {
+    const el = listRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, []);
 
   const notifyPageInfo = useEffectEvent((info) => onPageInfoChange?.(info));
   useEffect(() => {
@@ -196,5 +211,8 @@ export default function useMessageListState(ref, {
     hasEarlierMessages,
     loadEarlierMessages,
     handleJumpToMessage,
+    awayFromBottom,
+    syncAwayFromBottom,
+    scrollPageToBottom,
   };
 }

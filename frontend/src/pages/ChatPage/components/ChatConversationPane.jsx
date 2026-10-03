@@ -1,8 +1,5 @@
-import { AnimatePresence } from 'framer-motion';
 import { ChevronLeft } from 'lucide-react';
 import Button from '../../../components/ui/Button.jsx';
-import MiddleSummaryModal from '../../../components/session/MiddleSummaryModal.jsx';
-import StateMemoryModal from '../../../components/session/StateMemoryModal.jsx';
 import MessageList from '../../../components/chat/MessageList.jsx';
 import SpeakerStage from '../../../components/chat/SpeakerStage.jsx';
 import InputBox from '../../../components/chat/InputBox.jsx';
@@ -22,30 +19,10 @@ export default function ChatConversationPane({
   onBack,
 }) {
   const { chapterTurnSize, pageTurnSize } = config;
-  const {
-    summaryOpen, setSummaryOpen, stateMemoryOpen, setStateMemoryOpen, pageInfo, setPageInfo,
-    inputBoxRef, messageListRef,
-  } = pageState;
+  const { pageInfo, setPageInfo, inputBoxRef, messageListRef } = pageState;
 
   return (
     <div className="we-main we-chat-center-pane flex-1 min-w-0 flex flex-col overflow-hidden">
-      <AnimatePresence>
-        {summaryOpen && currentSession && (
-          <MiddleSummaryModal
-            key="middle-summary-modal"
-            sessionId={currentSession.id}
-            onClose={() => setSummaryOpen(false)}
-          />
-        )}
-        {stateMemoryOpen && currentSession && (
-          <StateMemoryModal
-            key="state-memory-modal"
-            sessionId={currentSession.id}
-            onClose={() => setStateMemoryOpen(false)}
-          />
-        )}
-      </AnimatePresence>
-
       <div className="we-chat-pane-nav">
         <Button variant="text" size="sm" onClick={onBack}>
           <ChevronLeft size={16} />
@@ -103,13 +80,10 @@ export default function ChatConversationPane({
         onStop={stream.handleStop}
         generating={stream.generating}
         impersonating={stream.impersonating}
-        onScrollToBottom={() => messageListRef.current?.scrollPageToBottom?.()}
         onContinue={stream.handleContinue}
         onImpersonate={stream.handleImpersonate}
         onRetry={stream.handleRetryLast}
         onTitle={stream.handleRetitle}
-        onMiddleSummary={currentSession ? () => setSummaryOpen(true) : null}
-        onStateMemory={currentSession ? () => setStateMemoryOpen(true) : null}
         worldId={character?.world_id ?? null}
         sessionId={currentSessionId}
         mode="chat"

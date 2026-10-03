@@ -135,7 +135,7 @@ export default function WorldsPage() {
                   即将删除世界 <span className="we-confirm-msg-name">「{deletingWorld.name}」</span>。
                 </p>
                 <p className="we-confirm-msg-danger">
-                  此操作将同时删除其下所有角色和会话，且无法恢复。
+                  此操作将同时删除其下所有角色和故事线，且无法恢复。
                 </p>
               </>
             )}

@@ -1051,6 +1051,21 @@
   z-index: var(--we-z-action);
 }
 
+/* 回到底部：离开底部时浮在消息区底部正中 */
+.we-chat-jump-bottom {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: var(--we-space-md);
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+  z-index: var(--we-z-action);
+}
+.we-chat-jump-bottom > * {
+  pointer-events: auto;
+}
+
 /* Main textarea */
 .we-chat-textarea {
   display: block; /* 行内文本域会在下方留出基线空隙，把胶囊撑高、文字偏上 */

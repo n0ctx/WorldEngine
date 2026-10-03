@@ -225,7 +225,7 @@ function MainLlmGenerationSettings({ config, inheritFrom, onTemperatureChange, o
  *   - { label, model }（写作模式）：provider 留空回退；temperature 0 = 继承；max_tokens 留空继承。
  */
 export default function MainLlmBlock({
-  title = '主模型(LLM)',
+  title = '主模型（LLM）',
   providers,
   config,
   onProviderChange,

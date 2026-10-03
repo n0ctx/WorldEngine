@@ -30,7 +30,7 @@ export default function CharactersPage() {
     characters, setCharacters,
     personas, setPersonas,
     entries,
-    stateFields,
+    stateFieldCount,
     timeline, setTimeline,
     loading,
     loadError,
@@ -150,7 +150,7 @@ export default function CharactersPage() {
           onActivatePersona={handleActivatePersona}
           setDeletingPersona={setDeletingPersona}
           entryCount={entries.length}
-          fieldCount={stateFields.length}
+          fieldCount={stateFieldCount}
         />
       </div>
       )}

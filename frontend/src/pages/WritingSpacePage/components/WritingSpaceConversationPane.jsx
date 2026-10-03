@@ -1,19 +1,13 @@
-import { AnimatePresence } from 'framer-motion';
 import MessageList from '../../../components/chat/MessageList.jsx';
 import InputBox from '../../../components/chat/InputBox.jsx';
 import Pager from '../../../components/chat/Pager.jsx';
 import ProviderSafetyBanner from '../../../components/ui/ProviderSafetyBanner.jsx';
-import MiddleSummaryModal from '../../../components/session/MiddleSummaryModal.jsx';
-import StateMemoryModal from '../../../components/session/StateMemoryModal.jsx';
 import { ChevronLeft, RotateCcw } from 'lucide-react';
 import Button from '../../../components/ui/Button.jsx';
 
 export default function WritingSpaceConversationPane({ worldId, navigate, config, pageState, lifecycle, stream }) {
   const { chapterTurnSize, pageTurnSize } = config;
-  const {
-    summaryOpen, setSummaryOpen, stateMemoryOpen, setStateMemoryOpen, pageInfo, setPageInfo,
-    inputBoxRef, messageListRef,
-  } = pageState;
+  const { pageInfo, setPageInfo, inputBoxRef, messageListRef } = pageState;
   const { persona, isInitializing, initError, retryInitialization } = lifecycle;
   const {
     currentSession, generating, streamingText, streamingKey, continuingMessageId,
@@ -26,22 +20,6 @@ export default function WritingSpaceConversationPane({ worldId, navigate, config
 
   return (
     <div className="we-chat-center-pane flex-1 min-w-0 flex flex-col overflow-hidden relative">
-        <AnimatePresence>
-          {summaryOpen && currentSession && (
-            <MiddleSummaryModal
-              key="middle-summary-modal"
-              sessionId={currentSession.id}
-              onClose={() => setSummaryOpen(false)}
-            />
-          )}
-          {stateMemoryOpen && currentSession && (
-            <StateMemoryModal
-              key="state-memory-modal"
-              sessionId={currentSession.id}
-              onClose={() => setStateMemoryOpen(false)}
-            />
-          )}
-        </AnimatePresence>
         <div className="we-chat-pane-nav">
           <Button variant="text" size="sm" onClick={() => navigate(`/worlds/${worldId}`)}>
             <ChevronLeft size={16} />
@@ -125,12 +103,9 @@ export default function WritingSpaceConversationPane({ worldId, navigate, config
           worldId={worldId}
           sessionId={currentSession?.id}
           mode="writing"
-          onScrollToBottom={() => messageListRef.current?.scrollPageToBottom?.()}
           onContinue={handleContinue}
           onImpersonate={handleImpersonate}
           onTitle={handleRetitle}
-          onMiddleSummary={currentSession ? () => setSummaryOpen(true) : null}
-          onStateMemory={currentSession ? () => setStateMemoryOpen(true) : null}
           pagerSlot={(
             <Pager
               totalPages={pageInfo.totalPages}

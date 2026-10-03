@@ -3,8 +3,6 @@ import { useDanmakuBandStore } from '../state/danmakuBand.js';
 import { useMemoryIndicators } from './useMemoryIndicators.js';
 
 export function useConversationPageState() {
-  const [summaryOpen, setSummaryOpen] = useState(false);
-  const [stateMemoryOpen, setStateMemoryOpen] = useState(false);
   const [pageInfo, setPageInfo] = useState({ totalPages: 1, currentPage: 0 });
   const inputBoxRef = useRef(null);
   const messageListRef = useRef(null);
@@ -14,10 +12,6 @@ export function useConversationPageState() {
   useEffect(() => () => clearDanmakuBand(), [clearDanmakuBand]);
 
   return {
-    summaryOpen,
-    setSummaryOpen,
-    stateMemoryOpen,
-    setStateMemoryOpen,
     pageInfo,
     setPageInfo,
     inputBoxRef,

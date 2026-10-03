@@ -27,7 +27,7 @@ describe('WorldTimelinePanel 内联重命名', () => {
 
     const title = await screen.findByText('旧标题');
     fireEvent.mouseEnter(title.closest('.we-storyline-item'));
-    fireEvent.click(screen.getByLabelText('编辑会话标题'));
+    fireEvent.click(screen.getByLabelText('编辑故事线标题'));
 
     const input = screen.getByDisplayValue('旧标题');
     fireEvent.keyDown(input, { key: ' ' });

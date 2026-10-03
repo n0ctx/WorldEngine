@@ -24,7 +24,7 @@ export default function RenderPageLayout({
   inspector = null,
   overlay = null,
   recall = null,
-  leftLabel = '会话列表',
+  leftLabel = '故事线列表',
   rightLabel = '状态面板',
 }) {
   const leftOpen = useSidePanelsStore((s) => s.leftOpen);

@@ -30,7 +30,7 @@ describe('新建系统向导', () => {
     await act(() => seen.field.onSave({ field_key: 'hp', label: '体力', type: 'number' }));
     expect(screen.getByRole('dialog', { name: '新建系统' })).toBeInTheDocument();
 
-    act(() => screen.getByRole('button', { name: '下一步：配触发条目' }).click());
+    act(() => screen.getByRole('button', { name: '下一步：配设定条目' }).click());
     expect(seen.entry.dialog).toMatchObject({ continued: true });
     expect(seen.entry.dialog.footerStart).toBeTruthy();
   });

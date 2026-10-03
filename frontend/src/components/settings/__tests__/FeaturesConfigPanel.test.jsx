@@ -74,7 +74,7 @@ describe('FeaturesConfigPanel', () => {
     const stateBudgetInput = screen.getByRole('spinbutton', { name: '状态注入预算' });
     expect(stateBudgetInput).toHaveValue(3000);
     expect(screen.getByText('长期召回')).toBeInTheDocument();
-    expect(screen.getByText('每轮生成前由辅助模型按历史目录挑选相关轮次原文，会增加首字等待')).toBeInTheDocument();
+    expect(screen.getByText('每轮生成前由副模型按历史目录挑选相关轮次原文，会增加首字等待')).toBeInTheDocument();
     expect(screen.queryByText('长期记忆')).not.toBeInTheDocument();
     expect(screen.getByText('对话日记')).toBeInTheDocument();
     expect(screen.queryByText('写作日记')).not.toBeInTheDocument();

@@ -215,7 +215,7 @@ describe('ChatPage', () => {
     renderChatPage();
     await waitFor(() => expect(mocks.getCharacter).toHaveBeenCalledWith('char-1'));
 
-    expect(screen.getByRole('button', { name: '展开会话列表' })).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.getByRole('button', { name: '展开故事线列表' })).toHaveAttribute('aria-expanded', 'false');
     fireEvent.click(await screen.findByRole('button', { name: '返回世界' }));
 
     expect(mocks.navigate).toHaveBeenCalledWith('/worlds/world-1');
@@ -226,7 +226,7 @@ describe('ChatPage', () => {
 
     await waitFor(() => expect(mocks.getCharacter).toHaveBeenCalledWith('char-1'));
 
-    const toggleLeft = screen.getByRole('button', { name: '展开会话列表' });
+    const toggleLeft = screen.getByRole('button', { name: '展开故事线列表' });
     const toggleRight = screen.getByRole('button', { name: '展开状态面板' });
 
     // 默认收起：切换按钮 aria-expanded=false，抽屉内容尚未挂载
@@ -238,13 +238,13 @@ describe('ChatPage', () => {
     // 展开后内容挂载，按钮文案与 aria-expanded 同步翻转
     fireEvent.click(toggleLeft);
     fireEvent.click(toggleRight);
-    expect(screen.getByRole('button', { name: '收起会话列表' })).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByRole('button', { name: '收起故事线列表' })).toHaveAttribute('aria-expanded', 'true');
     expect(screen.getByRole('button', { name: '收起状态面板' })).toHaveAttribute('aria-expanded', 'true');
     expect(screen.getByTestId('session-list')).toBeInTheDocument();
     expect(screen.getByTestId('state-panel')).toBeInTheDocument();
 
     // 再次收起，内容淡出后卸载
-    fireEvent.click(screen.getByRole('button', { name: '收起会话列表' }));
+    fireEvent.click(screen.getByRole('button', { name: '收起故事线列表' }));
     fireEvent.click(screen.getByRole('button', { name: '收起状态面板' }));
     await waitFor(() => {
       expect(screen.queryByTestId('session-list')).not.toBeInTheDocument();
@@ -258,12 +258,12 @@ describe('ChatPage', () => {
     await waitFor(() => expect(mocks.getCharacter).toHaveBeenCalledWith('char-1'));
 
     expect(container.querySelector('.we-side-drawer-scrim')).toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: '展开会话列表' }));
+    fireEvent.click(screen.getByRole('button', { name: '展开故事线列表' }));
     const scrim = container.querySelector('.we-side-drawer-scrim');
     expect(scrim).not.toBeNull();
 
     fireEvent.click(scrim);
-    expect(screen.getByRole('button', { name: '展开会话列表' })).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.getByRole('button', { name: '展开故事线列表' })).toHaveAttribute('aria-expanded', 'false');
     await waitFor(() => expect(container.querySelector('.we-side-drawer-scrim')).toBeNull());
   });
 

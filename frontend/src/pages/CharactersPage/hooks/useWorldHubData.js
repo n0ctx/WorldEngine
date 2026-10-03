@@ -2,15 +2,18 @@ import { useState, useEffect, useCallback } from 'react';
 import { getWorld } from '../../../core/api/worlds';
 import { loadWorldContent } from '../../../core/data/loadWorldContent.js';
 import { getWorldTimeline } from '../../../core/api/sessions';
+import { listCharacterStateFields } from '../../../core/api/character-state-fields';
+import { listPersonaStateFields } from '../../../core/api/persona-state-fields';
 
-// ── 世界层数据加载：world / characters / personas / entries / stateFields / timeline ──
+// ── 世界层数据加载：world / characters / personas / entries / 状态字段数 / timeline ──
 
 export function useWorldHubData(worldId) {
   const [world, setWorld] = useState(null);
   const [characters, setCharacters] = useState([]);
   const [personas, setPersonas] = useState([]);
   const [entries, setEntries] = useState([]);
-  const [stateFields, setStateFields] = useState([]);
+  // 世界、角色、玩家三类状态字段的合计，与规则页概览的「合计」同口径
+  const [stateFieldCount, setStateFieldCount] = useState(0);
   const [timeline, setTimeline] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
@@ -20,16 +23,18 @@ export function useWorldHubData(worldId) {
     setLoading(true);
     setLoadError('');
     try {
-      const [w, content, tl] = await Promise.all([
+      const [w, content, characterFields, personaFields, tl] = await Promise.all([
         getWorld(worldId),
         loadWorldContent(worldId),
+        listCharacterStateFields(worldId),
+        listPersonaStateFields(worldId),
         getWorldTimeline(worldId),
       ]);
       setWorld(w);
       setCharacters(content.characters);
       setPersonas(content.personas);
       setEntries(content.worldEntries);
-      setStateFields(content.worldFields);
+      setStateFieldCount(content.worldFields.length + characterFields.length + personaFields.length);
       setTimeline(tl);
     } catch (err) {
       setLoadError(err.message || '读取失败');
@@ -62,7 +67,7 @@ export function useWorldHubData(worldId) {
     characters, setCharacters,
     personas, setPersonas,
     entries,
-    stateFields,
+    stateFieldCount,
     timeline, setTimeline,
     loading,
     loadError,

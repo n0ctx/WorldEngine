@@ -1,5 +1,13 @@
 /* 状态：会话右栏的状态展示、状态记忆弹窗、卡片初始状态的 AI 提取预览（components/state、session、card-edit） */
 
+/* ── 会话右栏顶部：剧情摘要 / 状态记忆入口 ── */
+.we-state-panel-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--we-space-sm);
+  margin-bottom: var(--we-space-md);
+}
+
 /* ── State Extract Preview（AI 提取状态字段建议值弹窗）── */
 .we-extract-toolbar {
   display: flex;

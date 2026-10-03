@@ -19,13 +19,10 @@ const InputBox = forwardRef(function InputBox({
   worldId,
   sessionId,
   mode = 'chat',
-  onScrollToBottom,
   onContinue,
   onImpersonate,
   onRetry,
   onTitle,
-  onMiddleSummary = null,
-  onStateMemory = null,
   pagerSlot = null,
 }, ref) {
   const m = useMotion();
@@ -130,11 +127,8 @@ const InputBox = forwardRef(function InputBox({
       <InputBoxToolbar
         pagerSlot={pagerSlot}
         generating={generating}
-        onScrollToBottom={onScrollToBottom}
         onContinue={onContinue}
         onImpersonate={onImpersonate}
-        onMiddleSummary={onMiddleSummary}
-        onStateMemory={onStateMemory}
       />
 
       <InputBoxComposer
