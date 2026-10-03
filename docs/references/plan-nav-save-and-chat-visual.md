@@ -1,75 +1,18 @@
 # 计划：返回与保存统一、对话页视觉升级
 
-来源：2026-10-03 产品设计审计第 8、9 条。两件事互相独立，可以分两个会话做，建议先做第 8 条。
+来源：2026-10-03 产品设计审计第 8、9 条。第 8 条已完成，剩第 9 条。
 
-开工前先读：`CLAUDE.md`、`frontend/CLAUDE.md`、`frontend/src/visual/README.md`（第 9 条需要）。视觉由用户在浏览器里验证，不要用 agent-browser 截图代替。
+开工前先读：`CLAUDE.md`、`frontend/CLAUDE.md`、`frontend/src/visual/README.md`。视觉由用户在浏览器里验证，不要用 agent-browser 截图代替。
 
 ---
 
-## 一、返回和保存的做法统一（审计第 8 条）
+## 一、返回和保存的做法统一（审计第 8 条）—— 已完成（2026-10-04，`183a0950`）
 
-### 问题
+和第 9 条相关的结果：
 
-同一类操作在不同页面做法不一样，用户无法预期：
-
-- 返回：同时存在面包屑、「返回世界」、「← 返回」三种方式。编辑弹层没有组件规范要求的 ×。
-- 保存：同一个弹层里，有的字段要点保存，有的立即生效，有的单独保存。保存按钮的位置也不固定。
-
-### 现状清单（动手前再核对一遍）
-
-**返回入口**
-
-| 位置 | 做法 | 代码 |
-|---|---|---|
-| 顶栏 | 三级面包屑（世界 / 某世界 / 当前页） | `frontend/src/shells/book-spread/chrome/TopBar.jsx` |
-| 世界页 | 已收口到面包屑，页面不再自带返回 | `pages/CharactersPage/index.jsx:95` 的注释 |
-| 对话页、写作页 | 消息区左上角「返回世界」 | `pages/ChatPage/components/ChatConversationPane.jsx`、`pages/WritingSpacePage/components/WritingSpaceConversationPane.jsx`（`.we-chat-pane-nav`） |
-| 规则页 | 标题上方「返回世界」 | `pages/RulesPage/components/RulesHeader.jsx` |
-| 世界 / 角色 / 玩家编辑 | 面板左上角「← 返回」，弹层和整页两种形态共用 | `pages/layout/EditPageShell.jsx`（加载失败态约第 50 行，正常态约第 93 行） |
-| 设置 | 左栏顶部「← 返回」，弹层形态 | `pages/SettingsPage/index.jsx` |
-| 标准弹窗 | 右上角 ×，Esc 和点空白都能关 | `components/ui/Dialog.jsx` |
-
-**保存方式**
-
-| 位置 | 现状 |
-|---|---|
-| 世界编辑 | 「基础设定」和「LLM 参数」两个页签各有一个保存按钮，调用同一个 `handleSave`，一次保存两个页签的全部字段，保存后关闭弹层（`pages/WorldEditPage/useWorldEditPage.js`）。基础页签的保存按钮夹在「简介」和「封面图」之间（`WorldEditSections.jsx:100`）。封面图和主色上传后立即生效，新建世界时不显示。「状态模板」页签的改动即时生效。 |
-| 角色 / 玩家编辑 | 「设定」页签末尾有保存行（`components/card-edit/CardBasicForm.jsx`）。「状态初始值」页签逐字段自动保存（`components/card-edit/CardEditTabs.jsx`）。 |
-| 设置 | 模型相关字段改完即保存（`core/hooks/useSettingsConfigSource.js` 的 `patchConfig`），数字框失焦时保存。API Key 单独点「保存密钥」，原因是密钥不随其他配置提交。全局提示词、自定义 CSS、正则规则各有自己的保存按钮。 |
-
-### 建议方案
-
-**返回**
-
-1. 页面级返回只用面包屑。删掉对话页、写作页、规则页里的「返回世界」，与世界页已有的做法一致。
-2. 所有弹层（编辑弹层、设置）的关闭方式与 `Dialog` 一致：右上角 ×、Esc、点空白。去掉「← 返回」文字按钮。有未保存修改时仍先弹确认（`EditPageShell` 已有 `dirty` 确认逻辑，保留）。
-3. 编辑页的整页形态（直接打开 `/worlds/:id/edit` 这类地址）同样用 ×，关闭后回到上一页。
-
-**保存**
-
-规则：**一个弹层里只有一种保存方式**。如果做不到，就把例外标清楚。
-
-1. 世界编辑：需要点保存的字段集中到弹层底部固定的保存栏，所有页签共用这一个按钮。有未保存修改时，保存栏显示提示。封面和主色保持即时生效，在字段说明里写明「上传后立即生效」。
-2. 角色 / 玩家编辑：「设定」页签用同样的底部保存栏。「状态初始值」页签保持自动保存，在页签顶部写明「修改自动保存」。
-3. 设置：现有做法基本自洽，即改即存。只补两处说明：API Key 旁边说明为什么要单独保存；提示词、CSS、正则这类大段文本说明需要手动保存。不改保存机制。
-
-### 开工时先问用户
-
-1. 保存后要不要关闭弹层？现状是关闭。建议改为留在原处，并显示「已保存」。
-2. `EditPageShell` 的弹层形态和 `Dialog` 有大量重复：焦点圈定、Esc、点空白关闭。要不要借这次把编辑弹层迁到 `Dialog`（xl 宽度）？建议：本次只统一关闭方式和保存栏，迁移另开一项，因为要核对 `Dialog` 的固定宽度、内部滚动与 `SectionTabs` 页签动效能否兼容。
-3. 底部保存栏是新的视觉元素，按 `frontend/CLAUDE.md` 的规定要先在 `/dev/design` 出样。需要和用户确认它的样式。
-
-### 验收标准
-
-- 对话、写作、规则、世界、角色编辑、玩家编辑、设置，每个页面只有一种返回或关闭方式：页面用面包屑，弹层用 ×、Esc、点空白。
-- 每个编辑弹层里，需要手动保存的字段共用一个位置固定的保存按钮。即时生效的字段在界面上写明。
-- 有未保存修改时，关闭前仍然会确认。
-
-### 验证
-
-- 测试：`frontend/src/pages/__tests__/WorldEditPage.test.jsx`、`frontend/tests/pages/` 下与编辑页、设置、对话、写作、规则相关的用例。测试里用「返回」「返回世界」查找按钮的地方要同步修改。
-- 跑 `npm run lint:frontend`、`npm run test:frontend`、`npm run check:guards`、`npm run build --prefix frontend`。
-- 交给用户验证时，列出要看的页面，夜航（暗）和古典羊皮纸（亮）两套主题都要看。
+- 页面级返回只用顶栏面包屑。对话、写作、规则页里的「返回世界」已删除，正文列顶部直接是 `SpeakerStage`。手机宽度下两侧抽屉缩成正文左右上角的圆形按钮，`.we-chat-center-pane` 顶部留了 `40px + --we-space-xs` 给按钮让位（`themes/chat.css`），改台前时要保留这段让位。
+- 面包屑的世界名点击直接回到该世界，不再弹切换世界的下拉；各层与分隔符统一为界面字体、`ui` 字号（`shells/book-spread/chrome/TopBar.jsx`、`themes/shell.css` 的 `.we-topbar-crumb*`）。
+- 世界 / 角色 / 玩家编辑与设置都是 `Dialog` 式弹层（×、Esc、点空白关闭）。编辑弹层底部是浮起的保存胶囊 `pages/layout/SaveCapsule.jsx`，动效位 `save-capsule`。存好后的「已保存」用的是状态变化标签 `.we-change-tag` + `ChangeText decode`，第 9 条第 4 个方向的变化提示可以直接复用这一套，不要另起样式。
 
 ---
 
@@ -79,14 +22,17 @@
 
 书架是全产品视觉冲击力最强的页面，但用户大部分时间在对话页和写作页。那里是深色底配灰字的长列表，`frontend/CLAUDE.md` 定的「年轻、大胆、创新，炫酷、动感、游戏感」在核心页面上体现得很少。
 
-### 现状（审计截图拍于 2026-09-30，早于 10 月 1 日的组件整理，开工前先让用户提供新截图或口头确认）
+### 现状（截图已于 2026-10-04 第 8 条完成后重拍）
 
-- 对话区顶部是 `SpeakerStage`（`components/chat/SpeakerStage.jsx`）：32px 角色印章、名字和简介排成一行，换角色时有入场动效。
+- 当前截图在 `docs/images/`（本地私密文件，不提交）：`chat.png` / `chat-panels.png` 是对话页两侧收起 / 展开，`writing.png` / `writing-panels.png` 是写作页，`world-overview.png` 是世界页。都是夜航主题、1552×936 的 2 倍图；对话、写作页另有古典羊皮纸版（文件名带 `-classic-parchment`，用户日常用的是这套）。出样时两套都要看。
+- 截图里对话页的问题很直观：正文列只有顶部一行台前和一条消息，下面大片空白深色；两侧收起时只剩两条窄轨，没有任何世界或角色的视觉元素。
+- 对话区顶部是 `SpeakerStage`（`components/chat/SpeakerStage.jsx`）：32px 角色印章、名字和简介排成一行，换角色时有入场动效。写作页没有台前，正文直接从顶部开始。
 - 角色形象只有 `CharacterSeal`：有头像时显示头像，没有时显示名字首字。世界页的角色列表、对话页的台前都用它，尺寸 32px。
 - 世界封面和主色只出现在书架和世界页。主色由封面提取，只在深色主题下覆盖强调色。对话页没有延续世界的氛围。
-- 已有能力：弹幕层（`DanmakuLayer.jsx`）、流式输出动效变量（`useMotion().stream()`）、状态变化的高亮与浮层（`StatusValueChange.jsx`、`useChangeBurst.js`、`StateBusyOverlay`）、写作页的选项卡片。
+- 已有能力：弹幕层（`DanmakuLayer.jsx`）、流式输出动效变量（`useMotion().stream()`）、状态变化的高亮与浮层（`StatusValueChange.jsx`、`components/motion/useChangeBurst.js`、`components/state/panel-parts.jsx` 里的 `StateBusyOverlay`）、写作页的选项卡片。
+- `slots.js` 里已有的对话相关动效位：`message`（聊天消息入场）、`speaker`（说话人切换）、`stream`（流式输出）、`busy`（状态整理遮罩与思考指示）、`state-values`（状态数值变化）、`option-card`（剧情选项卡）。
 - 动效包有三个，各有一个签名动作：墨流（洇）、信号（锁）、活字（印）。新增的动效要服务于当前包的签名动作，不能各自另起一套。
-- 2026-10-04 已改：「回到底部」变成离开底部时浮出的按钮；「剧情摘要」「状态记忆」移到右侧状态面板顶部。右侧面板默认收起（`core/state/sidePanels.js`），所以这两个入口的可见度要在本次一并考虑。
+- 「回到底部」是离开底部时浮出的按钮；「剧情摘要」「状态记忆」在右侧状态面板顶部。右侧面板默认收起（`core/state/sidePanels.js`），所以这两个入口的可见度要在本次一并考虑。
 
 ### 目标
 
@@ -114,11 +60,12 @@
 
 ### 步骤
 
-1. 和用户确认现状截图，以及这次的范围是上面四个方向中的哪几个。
+1. 和用户确认这次的范围是上面四个方向中的哪几个（截图已更新，可直接引用 `docs/images/` 里的文件）。
 2. 为选中的方向各出一版样，说明它服务于哪个签名动作，先跟用户确认幅度。
 3. 用户选定后按 `frontend/CLAUDE.md` 的「落地清单」落地：动效包与样式、`slots.js` 登记、去掉字面量、清理出样文件。
 4. 跑 `npm run check:guards`（含 `check:motion`、`check:themes`）、frontend 的 `tests/motion`、`tests/components/motion`、`DesignLabPage` 测试，以及 `npm run test:frontend`、`npm run build --prefix frontend`。
 5. 告诉用户在哪些页面、哪两套主题下验证。
+6. 落地后重拍截图（存档用，不代替用户验证）：`npm run shots -- chat chat-panels writing writing-panels`，再加 `--theme classic-parchment` 拍一遍亮色。台前或消息结构变了导致脚本里的等待条件失效时，改 `scripts/screenshots.mjs` 里对应那张的步骤。
 
 ### 不在本次范围
 

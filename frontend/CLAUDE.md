@@ -6,7 +6,7 @@
 
 - 核心 token 与动效包样式在 `frontend/src/themes/`（动效包样式在其 `motion/` 下）；可切换的视觉主题包在 `frontend/src/visual/<theme-id>/`，由 `core/visual/visualThemes.js` 按目录收录。
 - 主题包只覆写 `--we-*` token，不写组件选择器或 `@font-face`。
-- 页面截图位于 `docs/images/`；除 `bookshelf.png` 外均为本地私密文件，不得提交；完成视觉改动后，用当前页面的新截图覆盖对应文件。
+- 页面截图位于 `docs/images/`；除 `bookshelf.png` 外均为本地私密文件，不得提交；完成视觉改动后，用当前页面的新截图覆盖对应文件：起好前后端后运行 `npm run shots -- <名字…>`（不带名字拍全部，`--theme <id>` 另存一套其他主题；名字与拍摄口径见 `scripts/screenshots.mjs`）。
 
 ## 视觉设计流程
 
