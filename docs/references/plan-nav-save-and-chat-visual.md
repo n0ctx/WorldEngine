@@ -1,6 +1,6 @@
 # 计划：返回与保存统一、对话页视觉升级
 
-来源：2026-10-03 产品设计审计第 8、9 条。第 8 条已完成，剩第 9 条。
+来源：2026-10-03 产品设计审计第 8、9 条。两条都已落地（2026-10-04）。
 
 开工前先读：`CLAUDE.md`、`frontend/CLAUDE.md`、`frontend/src/visual/README.md`。视觉由用户在浏览器里验证，不要用 agent-browser 截图代替。
 
@@ -16,7 +16,14 @@
 
 ---
 
-## 二、对话页视觉升级（审计第 9 条）
+## 二、对话页视觉升级（审计第 9 条）—— 已落地（2026-10-04）
+
+结果（对话页与写作页都用上）：
+
+- 台前放大：`components/chat/SpeakerStage.jsx`。展开时是大台前（世界画 `WorldArt`、立绘、展示字号的名字），正文滚离顶部（`useStageCompact`）收成一行台前；写作页只有世界的大台前，收起后不留一行。换人上台由动效包接管，动效位 `speaker`。
+- 世界氛围：`components/chat/ChatAtmosphere.jsx`，铺在正文纸面上沿，浓度取 `--we-atmosphere-glow-strength` 的倍数。世界数据经 `core/hooks/useWorld.js`。
+- 回复的开始与收尾：`useLiveMoment`（`components/message/useMessageHooks.js`）给消息行 / 写作段落打 `data-moment="start|end"`，三个动效包样式各接管一套，动效位 `reply-moment`。
+- 本轮变化条：`core/hooks/useTurnChanges.js`（会话状态值 + 状态记忆，同一套 diff）→ `useMessageDisplay` 挂到当轮最后一条回复 → `components/chat/TurnChangeStrip.jsx`；点击经 `sidePanels.revealStateField` 展开状态面板、切页签并定位字段（`panel-utils.js` 的 `useStateFocus`）。
 
 ### 问题
 
@@ -60,12 +67,12 @@
 
 ### 步骤
 
-1. 和用户确认这次的范围是上面四个方向中的哪几个（截图已更新，可直接引用 `docs/images/` 里的文件）。
-2. 为选中的方向各出一版样，说明它服务于哪个签名动作，先跟用户确认幅度。
-3. 用户选定后按 `frontend/CLAUDE.md` 的「落地清单」落地：动效包与样式、`slots.js` 登记、去掉字面量、清理出样文件。
-4. 跑 `npm run check:guards`（含 `check:motion`、`check:themes`）、frontend 的 `tests/motion`、`tests/components/motion`、`DesignLabPage` 测试，以及 `npm run test:frontend`、`npm run build --prefix frontend`。
+1. 和用户确认这次的范围是上面四个方向中的哪几个（截图已更新，可直接引用 `docs/images/` 里的文件）。——已确认（2026-10-04）：四个方向都做，动效幅度按强烈档。
+2. 为选中的方向各出一版样，说明它服务于哪个签名动作，先跟用户确认幅度。——已出样并经用户确认，出样文件已清理。
+3. 用户选定后按 `frontend/CLAUDE.md` 的「落地清单」落地：动效包与样式、`slots.js` 登记、去掉字面量、清理出样文件。——已完成。
+4. 跑 `npm run check:guards`（含 `check:motion`、`check:themes`）、frontend 的 `tests/motion`、`tests/components/motion`、`DesignLabPage` 测试，以及 `npm run test:frontend`、`npm run build --prefix frontend`。——已全部通过。
 5. 告诉用户在哪些页面、哪两套主题下验证。
-6. 落地后重拍截图（存档用，不代替用户验证）：`npm run shots -- chat chat-panels writing writing-panels`，再加 `--theme classic-parchment` 拍一遍亮色。台前或消息结构变了导致脚本里的等待条件失效时，改 `scripts/screenshots.mjs` 里对应那张的步骤。
+6. 落地后重拍截图（存档用，不代替用户验证）：`npm run shots -- chat chat-panels writing writing-panels`，再加 `--theme classic-parchment` 拍一遍亮色。台前或消息结构变了导致脚本里的等待条件失效时，改 `scripts/screenshots.mjs` 里对应那张的步骤。——已重拍（2026-10-04），等待条件不受这次改动影响，脚本未改。
 
 ### 不在本次范围
 

@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { applyRules } from '../../core/utils/regex-runner.js';
 import { useDisplaySettingsStore } from '../../core/state/displaySettings.js';
 import { useMessageEditing } from '../../core/hooks/useMessageEditing.js';
-import { useMessageBlocks } from '../message/useMessageHooks.js';
+import { useLiveMoment, useMessageBlocks } from '../message/useMessageHooks.js';
 import StreamingMarkdown, { StreamCaret } from '../message/StreamingMarkdown.jsx';
 import UserMessageRow from './UserMessageRow.jsx';
 import AssistantMessageRow from './AssistantMessageRow.jsx';
@@ -25,6 +25,7 @@ function areMessageItemPropsEqual(prev, next) {
     && prev.streamingText === next.streamingText
     && prev.showCaret === next.showCaret
     && prev.isGreeting === next.isGreeting
+    && prev.turnChanges === next.turnChanges
     && Boolean(prev.onEditAssistant) === Boolean(next.onEditAssistant);
 }
 
@@ -41,6 +42,7 @@ function MessageItem({
   onEditAssistant,
   onDelete,
   isGreeting = false,
+  turnChanges,
 }) {
   const {
     editing, draft, setDraft, startEdit, confirmEdit, cancelEdit, handleKeyDown,
@@ -59,6 +61,10 @@ function MessageItem({
     transition: m.transition('enter'),
     exit: 'exit',
   };
+
+  // 生成中的回复由开始 / 收尾的签名动作代替通用入场；等首字的一行与有字后的一行是两次挂载，开始只放在前者
+  const moment = useLiveMoment(isStreaming);
+  const liveEnterProps = moment ? { ...enterProps, initial: false } : enterProps;
 
   const speakerName = isUser
     ? (persona?.name || '玩家')
@@ -83,13 +89,14 @@ function MessageItem({
     return (
       <MotionDiv
         data-message-id={message?.id}
+        data-moment={moment ?? undefined}
         className="we-message-row we-message-assistant"
-        {...enterProps}
+        {...liveEnterProps}
         transition={m.transition('enter', { delay: MOTION.enter.duration })}
       >
         <div className="we-message-row-inner">
           <div className="we-message-body--assistant">
-            <div className="we-message-label">{speakerName}</div>
+            <div className="we-message-label" data-text={speakerName}>{speakerName}</div>
             <div className="we-message-bubble-assistant">
               <div className="we-message-content">
                 {showCaret && <StreamCaret />}
@@ -143,7 +150,9 @@ function MessageItem({
       onRegenerate={onRegenerate}
       onDelete={onDelete}
       isGreeting={isGreeting}
-      enterProps={enterProps}
+      enterProps={liveEnterProps}
+      moment={moment === 'end' ? 'end' : undefined}
+      turnChanges={turnChanges}
     />
   );
 }

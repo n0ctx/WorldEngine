@@ -7,7 +7,7 @@ import { SideDrawerDemo, TopBarDemo } from './shell.jsx';
 import { WorldPortalDemo } from './portal.jsx';
 import { InputFocusDemo, SelectDemo, SwitchRangeDemo } from './input.jsx';
 import { LegacyEnterDemo } from './legacy.jsx';
-import { BusyDemo, LoopsDemo, StreamDemo } from './stream.jsx';
+import { BusyDemo, LoopsDemo, ReplyMomentDemo, StreamDemo } from './stream.jsx';
 import { ChapterDemo, DoneConfirmDemo, StateValuesDemo } from './world.jsx';
 import { RhythmDemo } from './rhythm.jsx';
 
@@ -44,6 +44,7 @@ export const DEMOS = {
   sortable: SortableDemo,
   'badge-empty': BadgeEmptyDemo,
   stream: StreamDemo,
+  'reply-moment': ReplyMomentDemo,
   busy: BusyDemo,
   loops: LoopsDemo,
   'state-values': StateValuesDemo,

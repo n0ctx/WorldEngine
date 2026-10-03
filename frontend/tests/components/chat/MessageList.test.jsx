@@ -10,8 +10,8 @@ vi.mock('../../../src/core/api/sessions.js', () => ({
 
 // 用轻量替身盯住「渲染形态选择」，避免把断言绑死在两个 item 组件的内部实现上
 vi.mock('../../../src/components/chat/MessageItem.jsx', () => ({
-  default: ({ message, showCaret, onEditAssistant }) => (
-    <div data-testid="bubble" data-id={message.id} data-caret={String(showCaret)} data-editable={String(!!onEditAssistant)}>
+  default: ({ message, showCaret, onEditAssistant, turnChanges }) => (
+    <div data-testid="bubble" data-id={message.id} data-caret={String(showCaret)} data-editable={String(!!onEditAssistant)} data-changes={turnChanges?.length ?? 0}>
       {message.content}
     </div>
   ),
@@ -298,5 +298,18 @@ describe('MessageList 的回到底部按钮', () => {
 
     fireEvent.scroll(list);
     await waitFor(() => expect(screen.queryByRole('button', { name: '回到底部' })).toBeNull());
+  });
+});
+
+describe('MessageList 的本轮变化', () => {
+  it('每整理完一轮，变化挂到当时最后一条回复上，其他消息不挂', async () => {
+    const change = { id: 'gold', label: '资产', text: '▼2000', tone: 'down', target: { tab: 'player', fieldKeys: ['gold'] } };
+    const { view } = await renderList({ prose: false, turnChanges: { round: 0, changes: [] } });
+    await waitFor(() => expect(screen.getAllByTestId('bubble')).toHaveLength(4));
+
+    view.rerender(<MessageList sessionId="s1" prose={false} turnChanges={{ round: 1, changes: [change] }} />);
+
+    const counts = screen.getAllByTestId('bubble').map((node) => [node.dataset.id, node.dataset.changes]);
+    expect(counts).toEqual([['m1', '0'], ['m2', '0'], ['m3', '0'], ['m4', '1']]);
   });
 });

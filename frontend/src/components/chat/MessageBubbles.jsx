@@ -28,6 +28,7 @@ export default function MessageBubbles({
   onDismissOptions,
   optionCollapsed,
   onOptionCollapsedChange,
+  turnChanges = null,
 }) {
   return (
     <div className="we-message-list">
@@ -56,6 +57,7 @@ export default function MessageBubbles({
                 onEditAssistant={msg.id === lastAssistantId ? onEditAssistantMessage : undefined}
                 onDelete={isStream ? undefined : onDeleteMessage}
                 isGreeting={msgIdx === 0 && msg.role === 'assistant' && !isStream}
+                turnChanges={turnChanges?.messageId === msg.id ? turnChanges.changes : undefined}
               />
             );
             if (displayMsg._options?.length > 0 && !isStream && !(suppressLastFrozen && msg.id === lastAssistantId)) {

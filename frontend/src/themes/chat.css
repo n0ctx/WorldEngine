@@ -445,14 +445,129 @@
   }
 }
 
-/* 台前：当前说话的角色，名字直接落在正文上方，与正文同宽、同一左边线 */
+/* 台前：正文顶部。展开时是一整块大台前（世界画 + 立绘 + 展示字号的名字），正文往下滚收成一行台前
+   （印章 + 名字 + 简介，名字与正文同一左边线）；写作页没有角色，只有世界的大台前，收起后不留一行。
+   换人时大台前的上台动作由动效包接管 */
 .we-speaker-stage {
+  --stage-hero-h: 248px; /* design exact */
+  --stage-bar-h: 56px;   /* design exact: 32px 头像 + 上下留白，换角色时台前不塌陷 */
+  position: relative;
   flex-shrink: 0;
+  height: var(--stage-hero-h);
+  overflow: hidden;
+  border-radius: var(--we-radius-md) var(--we-radius-md) 0 0;
+  transition: height var(--we-motion-page-duration) var(--we-motion-page-easing);
+}
+.we-speaker-stage[data-compact] {
+  height: var(--stage-bar-h);
+}
+.we-speaker-stage[data-compact][data-bare] {
+  height: 0;
+}
+
+/* 大台前整块上滑出框并淡出；一行台前从下方落位。藏起的一侧不可见、不可点
+   （visibility 在过渡中只要一端可见就保持可见：显现时立刻可见，藏起时等淡出走完才隐藏） */
+.we-speaker-stage__hero-slot,
+.we-speaker-stage__bar {
+  position: absolute;
+  inset: 0 0 auto;
+  transition:
+    opacity var(--we-motion-page-duration) var(--we-motion-page-easing),
+    translate var(--we-motion-page-duration) var(--we-motion-page-easing),
+    visibility var(--we-motion-page-duration) var(--we-motion-page-easing);
+}
+.we-speaker-stage__hero-slot {
+  height: var(--stage-hero-h);
+}
+.we-speaker-stage[data-compact] .we-speaker-stage__hero-slot,
+.we-speaker-stage:not([data-compact]) .we-speaker-stage__bar {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+.we-speaker-stage[data-compact] .we-speaker-stage__hero-slot {
+  translate: 0 calc(var(--stage-bar-h) - var(--stage-hero-h));
+}
+.we-speaker-stage:not([data-compact]) .we-speaker-stage__bar {
+  translate: 0 var(--stage-bar-h);
+}
+
+.we-speaker-stage__hero {
+  position: absolute;
+  inset: 0;
+}
+/* 世界画：铺满上半，往下渐隐进纸面，名字落在已经淡到底的那一段上 */
+.we-speaker-stage__art {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(to bottom, black 0%, color-mix(in srgb, black var(--we-alpha-5), transparent) 45%, transparent 88%);
+  mask-image: linear-gradient(to bottom, black 0%, color-mix(in srgb, black var(--we-alpha-5), transparent) 45%, transparent 88%);
+}
+.we-speaker-stage__scene {
+  display: block;
   width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 30%;
+}
+/* 立绘：贴着正文列右边线，占满台前高度，底部渐隐 */
+.we-speaker-stage__portrait {
+  position: absolute;
+  bottom: 0;
+  right: max(var(--we-space-xl), calc((100% - var(--we-type-prose-measure)) / 2));
+  height: calc(100% - var(--we-space-md));
+  aspect-ratio: 3 / 4;
+  object-fit: cover;
+  object-position: center 20%;
+  border-radius: var(--we-radius-md) var(--we-radius-md) 0 0;
+  -webkit-mask-image: linear-gradient(to bottom, black 55%, transparent 100%);
+  mask-image: linear-gradient(to bottom, black 55%, transparent 100%);
+}
+.we-speaker-stage__title {
+  position: absolute;
+  inset: auto 0 var(--we-space-md);
+  display: grid;
+  gap: var(--we-space-xxs);
+  width: min(calc(100% - var(--we-space-xl) * 2), var(--we-type-prose-measure));
+  margin: 0 auto;
+  /* 纸色光晕托住文字：画面没淡干净时，字边仍是纸色 */
+  text-shadow: 0 0 1.2em var(--we-color-bg-canvas), 0 0 0.3em var(--we-color-bg-canvas);
+}
+.we-speaker-stage__world {
+  font-size: var(--we-type-eyebrow-size);
+  line-height: var(--we-type-eyebrow-leading);
+  letter-spacing: var(--we-type-eyebrow-tracking);
+  font-weight: var(--we-type-eyebrow-weight);
+  color: var(--we-color-accent);
+}
+.we-speaker-stage__headline {
+  position: relative;
+  justify-self: start;
+  font-family: var(--we-font-display);
+  font-size: var(--we-type-display-size);
+  line-height: var(--we-type-display-leading);
+  letter-spacing: var(--we-type-display-tracking);
+  font-weight: var(--we-type-display-weight);
+  color: var(--we-color-text-primary);
+}
+.we-speaker-stage__intro {
+  max-width: 32em;
+  font-family: var(--we-font-prose);
+  font-size: var(--we-type-body-size);
+  line-height: var(--we-type-body-leading);
+  letter-spacing: var(--we-type-body-tracking);
+  color: var(--we-color-text-secondary);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.we-speaker-stage__bar {
   max-width: var(--we-type-prose-measure);
   margin: 0 auto;
   padding: var(--we-space-lg) 0 var(--we-space-sm);
-  min-height: 56px; /* design exact: 32px 头像 + 上下留白，换角色时台前不塌陷 */
 }
 
 .we-speaker-stage__cast {
@@ -490,20 +605,71 @@
   text-overflow: ellipsis;
 }
 
+/* 世界氛围：封面低浓度铺在纸面上沿并向下渐隐，左上、右下各压一团世界色光晕（--atmosphere-tint 由 ChatAtmosphere 写入）。
+   浓度取主题环境光强度的倍数，亮色主题自动更淡；大台前展开时那一段已经有世界画，纸面上这层先藏起来 */
+.we-chat-atmosphere {
+  position: absolute;
+  inset: 0;
+  z-index: var(--we-z-behind);
+  overflow: hidden;
+  border-radius: inherit;
+  pointer-events: none;
+  background:
+    radial-gradient(60% 45% at 0% 0%, color-mix(in srgb, var(--atmosphere-tint) calc(var(--we-atmosphere-glow-strength) * 2.5), transparent), transparent 70%),
+    radial-gradient(55% 40% at 100% 100%, color-mix(in srgb, var(--atmosphere-tint) calc(var(--we-atmosphere-glow-strength) * 1.5), transparent), transparent 70%);
+}
+.we-chat-atmosphere__art {
+  position: absolute;
+  inset: 0 0 auto;
+  display: block;
+  width: 100%;
+  height: 62%;
+  object-fit: cover;
+  object-position: center 30%;
+  opacity: calc(var(--we-atmosphere-glow-strength) * 2.2);
+  -webkit-mask-image: linear-gradient(to bottom, black 0%, transparent 100%);
+  mask-image: linear-gradient(to bottom, black 0%, transparent 100%);
+  transition: opacity var(--we-motion-page-duration) var(--we-motion-page-easing);
+}
+.we-chat-center-pane:has(.we-speaker-stage:not([data-compact])) .we-chat-atmosphere__art {
+  opacity: 0;
+}
+
+/* 本轮变化条：挂在产生变化的回复下方，每枚是字段名 + 本轮变化标签 */
+.we-turn-changes {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--we-space-xs) var(--we-space-sm);
+  margin-top: var(--we-space-sm);
+}
+.we-turn-changes .we-change-tag {
+  margin-left: 0;
+}
+
 @media (max-width: 767px) {
   /* 两侧抽屉缩成悬浮在正文左右上角的圆形按钮（40px），正文列顶部给按钮让出一行 */
   .we-chat-center-pane {
     padding-top: calc(40px + var(--we-space-xs));
   }
-  /* 正文列比阅读宽度窄时台前没有外侧留白，左右按正文的缩进留出，名字与正文对齐 */
   .we-speaker-stage {
+    --stage-hero-h: 184px; /* design exact */
+    --stage-bar-h: 48px;   /* design exact */
+    border-radius: 0;
+  }
+  /* 正文列比阅读宽度窄时台前没有外侧留白，左右按正文的缩进留出，名字与正文对齐 */
+  .we-speaker-stage__bar {
     padding: var(--we-space-md) calc(var(--we-space-md) + var(--we-space-xl)) var(--we-space-xs);
-    min-height: 48px; /* design exact */
   }
   .we-speaker-stage__name {
     font-size: var(--we-type-subheading-size);
     line-height: var(--we-type-subheading-leading);
     letter-spacing: var(--we-type-subheading-tracking);
+  }
+  .we-speaker-stage__headline {
+    font-size: var(--we-type-title-size);
+    line-height: var(--we-type-title-leading);
+    letter-spacing: var(--we-type-title-tracking);
   }
 }
 

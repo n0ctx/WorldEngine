@@ -1,11 +1,15 @@
+import ChatAtmosphere from '../../../components/chat/ChatAtmosphere.jsx';
 import MessageList from '../../../components/chat/MessageList.jsx';
+import SpeakerStage from '../../../components/chat/SpeakerStage.jsx';
+import useStageCompact from '../../../components/chat/useStageCompact.js';
 import InputBox from '../../../components/chat/InputBox.jsx';
 import Pager from '../../../components/chat/Pager.jsx';
 import ProviderSafetyBanner from '../../../components/ui/ProviderSafetyBanner.jsx';
 import { RotateCcw } from 'lucide-react';
 import Button from '../../../components/ui/Button.jsx';
+import { useTurnChanges } from '../../../core/hooks/useTurnChanges.js';
 
-export default function WritingSpaceConversationPane({ worldId, config, pageState, lifecycle, stream }) {
+export default function WritingSpaceConversationPane({ worldId, world, config, pageState, lifecycle, stream }) {
   const { chapterTurnSize, pageTurnSize } = config;
   const { pageInfo, setPageInfo, inputBoxRef, messageListRef } = pageState;
   const { persona, isInitializing, initError, retryInitialization } = lifecycle;
@@ -15,11 +19,15 @@ export default function WritingSpaceConversationPane({ worldId, config, pageStat
     setOptionCollapsed, chapterTitles, messageListKey, impersonating, handleStop,
     handleSend, handleEditMessage, handleRegenerateMessage, handleRetryAfterError,
     handleEditAssistantMessage, handleDeleteMessage, handleContinue, handleImpersonate,
-    handleRetitle, handleChapterEdit, handleChapterRetitle, selectOption, handleMessagesLoaded,
+    handleRetitle, handleChapterEdit, handleChapterRetitle, selectOption, handleMessagesLoaded, stateTick,
   } = stream;
+  const stage = useStageCompact();
+  const turnChanges = useTurnChanges(currentSession?.id ?? null, stateTick);
 
   return (
     <div className="we-chat-center-pane flex-1 min-w-0 flex flex-col overflow-hidden relative">
+        <ChatAtmosphere world={world} />
+        <SpeakerStage world={world} compact={stage.compact} />
         {isInitializing ? (
           <div className="flex-1 flex items-center justify-center we-type-ui text-[var(--we-color-text-tertiary)]">
             正在准备写作空间…
@@ -61,6 +69,8 @@ export default function WritingSpaceConversationPane({ worldId, config, pageStat
             chapterTurnSize={chapterTurnSize}
             pageTurnSize={pageTurnSize}
             onPageInfoChange={setPageInfo}
+            onScroll={stage.onScroll}
+            turnChanges={turnChanges}
           />
         )}
 

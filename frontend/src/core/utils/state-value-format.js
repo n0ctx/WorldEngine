@@ -98,3 +98,11 @@ export function parseRawValue(effectiveValueJson, type) {
     return effectiveValueJson ?? '';
   }
 }
+
+/** 本轮变化标签：数字给出方向与幅度（▲350 / ▼4），其余类型只标「更新」 */
+export function changeTag(from, to, isNumber) {
+  if (!isNumber) return { text: '更新', tone: 'neutral' };
+  const delta = Math.round((Number(to) - Number(from)) * 1e6) / 1e6;
+  if (!Number.isFinite(delta) || delta === 0) return { text: '更新', tone: 'neutral' };
+  return { text: `${delta > 0 ? '▲' : '▼'}${Math.abs(delta)}`, tone: delta > 0 ? 'up' : 'down' };
+}

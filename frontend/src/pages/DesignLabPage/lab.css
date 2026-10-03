@@ -214,12 +214,9 @@
   color: var(--we-color-shell-text-primary);
 }
 
-/* 说话人切换 */
-.we-design-lab__stage .we-speaker-stage__name {
-  color: var(--we-color-shell-text-primary);
-}
-.we-design-lab__stage .we-speaker-stage__line {
-  color: color-mix(in srgb, var(--we-color-bg-canvas) var(--we-alpha-1), var(--we-color-shell-text-primary));
+/* 台前：放在真实的正文纸面上看，大台前与一行台前的颜色都与正式页面一致 */
+.we-design-lab__stage-pane {
+  color: var(--we-color-text-primary);
 }
 
 /* 剧情选项卡：演示借聊天中栏作用域，选项无 surface 底色（下拉面板与选中态自带底色，不动） */

@@ -40,9 +40,11 @@ export const SLOTS = [
     usedIn: ['MessageItem'],
   },
   {
-    id: 'speaker', category: 'appear', title: '说话人切换', status: 'pack',
+    id: 'speaker', category: 'appear', title: '台前上台与收放', status: 'pack',
     api: ['variant:enter', 'transition:enter'],
+    hooks: ['we-speaker-stage'],
     usedIn: ['SpeakerStage'],
+    note: '大台前（世界画、立绘、展示字号的名字）换人时整块重新上台，动作由包样式接管；正文滚离顶部后收成一行台前，一行台前换人走 variant:enter。收放本身是页面角色的过渡。',
   },
   {
     id: 'error-bubble', category: 'appear', title: '生成失败提示', status: 'pack',
@@ -236,6 +238,13 @@ export const SLOTS = [
 
   // ── 流式与等待 ──
   {
+    id: 'reply-moment', category: 'stream', title: '回复的开始与收尾', status: 'pack',
+    api: [],
+    hooks: ['we-message-assistant', 'we-message-bubble-assistant', 'we-message-label', 'we-writing-prose'],
+    usedIn: ['MessageItem', 'AssistantMessageRow', 'WritingMessageItem'],
+    note: '一轮回复开始（等首字时）与收尾（流式转定稿）各做一次签名动作，按 data-moment="start|end" 由包样式接管；开始代替通用入场。写作页作用在整段叙事上。',
+  },
+  {
     id: 'stream', category: 'stream', title: '流式输出', status: 'pack',
     hooks: ['we-stream-char', 'we-stream-caret', 'we-fx-glyph', 'we-chat-empty-state', 'we-asst-stream-cursor'],
     api: ['stream'], usedIn: ['StreamingMarkdown'],
@@ -259,7 +268,7 @@ export const SLOTS = [
   {
     id: 'state-values', category: 'world', title: '状态数值变化', status: 'pack',
     hooks: ['we-change-tag', 'we-fx-burst', 'we-ink-warp'],
-    api: ['fx'], usedIn: ['StatusValueChange', 'ChangeText'],
+    api: ['fx'], usedIn: ['StatusValueChange', 'ChangeText', 'TurnChangeStrip'],
   },
   {
     id: 'chapter', category: 'world', title: '章节开场', status: 'pack',

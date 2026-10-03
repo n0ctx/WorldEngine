@@ -61,6 +61,7 @@ function StatusTableField({ row, index, fieldExtra, editable, onSave }) {
 
   return (
     <div
+      data-field-key={row.field_key}
       className={`we-status-field we-status-field--table${fieldExtra}`}
       style={{ animationDelay: `${index * STAGGER}s` }}
     >
@@ -160,6 +161,7 @@ function StatusField({
 
   return (
     <div
+      data-field-key={row.field_key}
       className={`we-status-field${fieldExtra}${isEditing ? ' we-status-field--editing' : ''}`}
       style={{ animationDelay: `${index * STAGGER}s` }}
     >

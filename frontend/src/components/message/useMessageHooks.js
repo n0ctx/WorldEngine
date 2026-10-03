@@ -41,3 +41,14 @@ export function useDeleteConfirmation(onDelete) {
 
   return { confirming, handleClick };
 }
+
+/**
+ * 一轮回复的开始与收尾（样式由动效包按 data-moment 接管）：挂载时就在生成的是 'start'；
+ * 同一条消息从流式转为定稿是 'end'；续写时已有的回复重新进入流式记 'stream'，结束时再收尾一次。
+ * 历史消息为 null。
+ */
+export function useLiveMoment(isStreaming) {
+  const [live, setLive] = useState({ streaming: isStreaming, moment: isStreaming ? 'start' : null });
+  if (live.streaming !== isStreaming) setLive({ streaming: isStreaming, moment: isStreaming ? 'stream' : 'end' });
+  return live.moment;
+}

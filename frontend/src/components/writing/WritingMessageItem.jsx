@@ -10,9 +10,10 @@ import { applyRules } from '../../core/utils/regex-runner.js';
 import ActivatedEntriesRow from '../message/ActivatedEntriesRow.jsx';
 import SeamlessEditableSurface from '../../../../shared/SeamlessEditableSurface.jsx';
 import MessageBlockList from '../message/MessageBlockList.jsx';
-import { useMessageBlocks } from '../message/useMessageHooks.js';
+import { useLiveMoment, useMessageBlocks } from '../message/useMessageHooks.js';
 import ThinkBlock from '../message/ThinkBlock.jsx';
 import TokenUsageRow from '../message/TokenUsageRow.jsx';
+import TurnChangeStrip from '../chat/TurnChangeStrip.jsx';
 import { CopyButton, DeleteButton, EditButton, EditConfirmActions, RegenerateButton } from '../message/MessageActions.jsx';
 const REMARK_PLUGINS_W = [remarkGfm];
 const REHYPE_PLUGINS_W = [rehypeRaw, [rehypeSanitize, markdownSanitizeSchema]];
@@ -30,6 +31,7 @@ function areWritingItemPropsEqual(prev, next) {
     && prev.isStreaming === next.isStreaming
     && prev.showCaret === next.showCaret
     && prev.worldId === next.worldId
+    && prev.turnChanges === next.turnChanges
     && Boolean(prev.onEditAssistant) === Boolean(next.onEditAssistant);
 }
 
@@ -42,7 +44,9 @@ function WritingMessageItem({
   onEditAssistant,
   onDelete,
   worldId,
+  turnChanges,
 }) {
+  const moment = useLiveMoment(isStreaming);
   const rawContent = message.content || '';
   const isUser = message.role === 'user';
   const showThinking = useDisplaySettingsStore((s) => s.writingShowThinking);
@@ -124,6 +128,7 @@ function WritingMessageItem({
   return (
     <div
       data-message-id={message?.id}
+      data-moment={moment}
       className="we-writing-prose"
     >
       <>
@@ -168,6 +173,7 @@ function WritingMessageItem({
             const entriesGoWithActions = !tokenRowVisible && hasEntries;
             return (
               <>
+                {!editingAI && <TurnChangeStrip changes={turnChanges} />}
                 {tokenRowVisible && (
                   <TokenUsageRow
                     message={message}

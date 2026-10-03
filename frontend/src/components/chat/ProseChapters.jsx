@@ -28,6 +28,7 @@ export default function ProseChapters({
   onDismissOptions,
   optionCollapsed,
   onOptionCollapsedChange,
+  turnChanges = null,
 }) {
   return (
     <div className="we-prose-message-list">
@@ -60,6 +61,7 @@ export default function ProseChapters({
                   onRegenerate={isStream ? undefined : onRegenerateMessage}
                   onEditAssistant={!isStream && msg.id === lastAssistantId ? onEditAssistantMessage : undefined}
                   onDelete={isStream ? undefined : onDeleteMessage}
+                  turnChanges={turnChanges?.messageId === msg.id ? turnChanges.changes : undefined}
                 />
                 {displayMsg._options?.length > 0 && !isStream && !(suppressLastFrozen && msg.id === lastAssistantId) && (
                   <FrozenOptionCard

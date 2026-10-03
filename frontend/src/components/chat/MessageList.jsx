@@ -39,6 +39,8 @@ const MessageList = forwardRef(function MessageList({
   chapterTurnSize,
   pageTurnSize,
   onPageInfoChange,
+  onScroll,
+  turnChanges = null,
 }, ref) {
   const {
     listRef, messages, loading, loadError, reload, pageMessages, onLastPage,
@@ -51,10 +53,10 @@ const MessageList = forwardRef(function MessageList({
   const m = useMotion();
 
   const {
-    messagesForDisplay, lastAssistantId, suppressLastFrozen, optionsStreaming, chapters, railItems,
+    messagesForDisplay, lastAssistantId, suppressLastFrozen, optionsStreaming, chapters, railItems, attachedChanges,
   } = useMessageDisplay({
     messages, pageMessages, onLastPage, prose, generating, continuingMessageId,
-    streamingKey, streamingText, options, chapterTurnSize,
+    streamingKey, streamingText, options, chapterTurnSize, turnChanges,
   });
   // 只有会话以 AI 回复结尾时才能编辑它；末尾是失败残留的用户消息时后端会拒绝
   const editLastAssistant = messages.at(-1)?.role === 'assistant' ? onEditAssistantMessage : undefined;
@@ -65,7 +67,7 @@ const MessageList = forwardRef(function MessageList({
 
   return (
     <div className="relative flex-1 min-h-0">
-    <div ref={listRef} onScroll={syncAwayFromBottom} className="we-chat-area absolute inset-0 overflow-y-auto px-3 pt-2 pb-4">
+    <div ref={listRef} onScroll={(event) => { syncAwayFromBottom(event); onScroll?.(event); }} className="we-chat-area absolute inset-0 overflow-y-auto px-3 pt-2 pb-4">
       {hasEarlierMessages ? (
         <div className="text-center py-2">
           <Button type="button" variant="text" size="sm" onClick={loadEarlierMessages}>
@@ -111,6 +113,7 @@ const MessageList = forwardRef(function MessageList({
           onDismissOptions={onDismissOptions}
           optionCollapsed={optionCollapsed}
           onOptionCollapsedChange={onOptionCollapsedChange}
+          turnChanges={attachedChanges}
         />
       ) : (
         <MessageBubbles
@@ -136,6 +139,7 @@ const MessageList = forwardRef(function MessageList({
           onDismissOptions={onDismissOptions}
           optionCollapsed={optionCollapsed}
           onOptionCollapsedChange={onOptionCollapsedChange}
+          turnChanges={attachedChanges}
         />
       )}
 

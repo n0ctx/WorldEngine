@@ -333,6 +333,18 @@
 }
 .we-change-tag--up   { --change-tone: var(--we-color-status-success); }
 .we-change-tag--down { --change-tone: var(--we-color-status-danger); }
+
+/* 从正文的本轮变化条跳过来：被定位的字段整行亮一下，随后退回常态 */
+.we-status-field--located {
+  border-radius: var(--we-radius-sm);
+  animation: we-status-located calc(var(--we-motion-page-duration) * 5) var(--we-motion-page-easing);
+}
+@keyframes we-status-located {
+  from, 30% {
+    background: var(--we-color-accent-bg);
+    box-shadow: inset 0 0 0 1px var(--we-color-accent-border);
+  }
+}
 /* ── 状态栏实体区块：「查看全部档案」切换，与上方现状用一条稀疏分隔线隔开 ─── */
 .we-state-change-toggle {
   display: flex;

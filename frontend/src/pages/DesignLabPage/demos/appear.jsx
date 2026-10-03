@@ -8,7 +8,7 @@ import Button from '../../../components/ui/Button.jsx';
 import ChatErrorBubble from '../../ChatPage/components/ChatErrorBubble.jsx';
 import { useMotion } from '../../../core/hooks/useMotion.js';
 import SlotSection from '../SlotSection.jsx';
-import { CARDS, CHAT, CODE, OPTIONS, SPEAKERS } from './fixtures.js';
+import { CARDS, CHAT, CODE, OPTIONS, SPEAKERS, WORLDS } from './fixtures.js';
 
 const noop = () => {};
 
@@ -74,12 +74,22 @@ export function MessageDemo() {
 
 export function SpeakerDemo() {
   const [index, setIndex] = useState(0);
+  const [compact, setCompact] = useState(false);
   return (
     <SlotSection
       id="speaker"
-      actions={<Button variant="secondary" size="sm" onClick={() => setIndex((i) => (i + 1) % SPEAKERS.length)}>换人</Button>}
+      actions={(
+        <>
+          <Button variant="secondary" size="sm" onClick={() => setIndex((i) => (i + 1) % SPEAKERS.length)}>换人</Button>
+          <Button variant="secondary" size="sm" aria-pressed={compact} onClick={() => setCompact((v) => !v)}>
+            {compact ? '展开台前' : '收起台前'}
+          </Button>
+        </>
+      )}
     >
-      <SpeakerStage character={SPEAKERS[index]} />
+      <div className="we-chat-center-pane we-design-lab__stage-pane">
+        <SpeakerStage character={SPEAKERS[index]} world={WORLDS[0]} compact={compact} />
+      </div>
     </SlotSection>
   );
 }

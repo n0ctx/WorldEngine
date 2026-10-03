@@ -7,6 +7,7 @@ import Button from '../../components/ui/Button.jsx';
 import { log } from '../../core/utils/logger.js';
 import { usePageConfig } from '../../core/hooks/usePageConfig.js';
 import { useConversationPageState } from '../../core/hooks/useConversationPageState.js';
+import { useWorld } from '../../core/hooks/useWorld.js';
 import { useWritingStream } from './hooks/useWritingStream.js';
 import WritingSpaceConversationPane from './components/WritingSpaceConversationPane.jsx';
 import { useWritingSpaceLifecycle, useWritingSpaceMode } from './hooks/useWritingSpaceLifecycle.js';
@@ -16,6 +17,7 @@ export default function WritingSpacePage() {
   const config = usePageConfig('writing');
   useWritingSpaceMode();
 
+  const world = useWorld(worldId);
   const pageState = useConversationPageState();
   const { inputBoxRef, messageListRef, memory } = pageState;
 
@@ -52,6 +54,7 @@ export default function WritingSpacePage() {
       main={(
         <WritingSpaceConversationPane
           worldId={worldId}
+          world={world}
           config={config}
           pageState={pageState}
           lifecycle={lifecycle}

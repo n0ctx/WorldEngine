@@ -5,6 +5,7 @@ import ActivatedEntriesRow from '../message/ActivatedEntriesRow.jsx';
 import TokenUsageRow from '../message/TokenUsageRow.jsx';
 import { CopyButton, DeleteButton, EditButton, EditConfirmActions, RegenerateButton } from '../message/MessageActions.jsx';
 import { AssistantMessageContent, AttachmentThumbnail, MessageTime } from './MessageItemShared.jsx';
+import TurnChangeStrip from './TurnChangeStrip.jsx';
 
 const MotionDiv = motion.div;
 
@@ -65,6 +66,8 @@ export default function AssistantMessageRow({
   onDelete,
   isGreeting,
   enterProps,
+  moment,
+  turnChanges,
 }) {
   const hasEntries = !editingAI && message.activated_entries?.length > 0;
   const tokenRowVisible = !editingAI && !isStreaming && message.token_usage && showTokenUsage;
@@ -73,6 +76,7 @@ export default function AssistantMessageRow({
   return (
     <MotionDiv
       data-message-id={message?.id}
+      data-moment={moment}
       className="we-message-row we-message-assistant"
       {...enterProps}
     >
@@ -117,6 +121,7 @@ export default function AssistantMessageRow({
               </div>
             )}
           </div>
+          {!editingAI && <TurnChangeStrip changes={turnChanges} />}
           {tokenRowVisible && (
             <TokenUsageRow
               message={message}

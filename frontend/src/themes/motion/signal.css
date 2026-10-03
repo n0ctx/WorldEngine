@@ -60,7 +60,7 @@
 /* ── 错位撕裂与切片成字 ───────────────────────────────────────── */
 /* 两路错位色：A 取当前世界强调色，B 取它的色环对面，每个世界的错位配色都不同。
    时长由 useMotion().fx() 以 --we-fx-* 内联下发；关键帧一律 steps(1) 硬切。 */
-:where(:root[data-motion="signal"]) :is(.we-fx-burst, .we-done-confirm, .we-option-list > .we-option-btn--selected) {
+:where(:root[data-motion="signal"]) :is(.we-fx-burst, .we-done-confirm, .we-option-list > .we-option-btn--selected, .we-speaker-stage__headline, .we-message-assistant[data-moment="start"] .we-message-label) {
   --glitch-a: var(--we-color-accent);
   --glitch-b: hsl(from var(--we-color-accent) calc(h + 180) s l);
 }
@@ -786,4 +786,72 @@
 
 :where(:root[data-motion="signal"]) .we-stream-caret--fading {
   animation: we-stream-caret-out var(--we-stream-caret-out-duration) var(--sig-cut) forwards;
+}
+
+/* ── 台前上台：锁 ─── */
+/* 换人时整块大台前重新上台：画面硬切闪两下亮起，立绘晚两帧；名字双曝光撕裂一次（两路错位色见上方 --glitch-a / --glitch-b），
+   锁定那一拍名字外围的磷光帧锁两帧；世界名和简介随后逐格锁定（本包的入场） */
+:where(:root[data-motion="signal"]) .we-speaker-stage__art {
+  animation: we-signal-blink var(--sig-beat) var(--sig-cut) both;
+}
+:where(:root[data-motion="signal"]) .we-speaker-stage__portrait {
+  animation: we-signal-blink var(--sig-beat) var(--sig-cut) calc(var(--sig-frame) * 2) both;
+}
+:where(:root[data-motion="signal"]) :is(.we-speaker-stage__headline, .we-message-assistant[data-moment="start"] .we-message-label) {
+  position: relative;
+  isolation: isolate;
+}
+:where(:root[data-motion="signal"]) :is(.we-speaker-stage__headline, .we-message-assistant[data-moment="start"] .we-message-label)::before,
+:where(:root[data-motion="signal"]) :is(.we-speaker-stage__headline, .we-message-assistant[data-moment="start"] .we-message-label)::after {
+  content: attr(data-text);
+  position: absolute;
+  inset: 0;
+  z-index: var(--we-z-behind);
+  pointer-events: none;
+  opacity: 0;
+}
+:where(:root[data-motion="signal"]) .we-speaker-stage__headline {
+  --sig-tear-at: calc(var(--sig-frame) * 3);
+}
+:where(:root[data-motion="signal"]) .we-message-assistant[data-moment="start"] .we-message-label {
+  --sig-tear-at: var(--we-motion-enter-duration);
+}
+:where(:root[data-motion="signal"]) :is(.we-speaker-stage__headline, .we-message-assistant[data-moment="start"] .we-message-label) {
+  animation: we-glitch-jolt var(--sig-hold) var(--sig-cut) var(--sig-tear-at) both;
+}
+:where(:root[data-motion="signal"]) :is(.we-speaker-stage__headline, .we-message-assistant[data-moment="start"] .we-message-label)::before {
+  color: var(--glitch-a);
+  animation: we-glitch-split-a var(--sig-hold) var(--sig-cut) var(--sig-tear-at) both;
+}
+:where(:root[data-motion="signal"]) :is(.we-speaker-stage__headline, .we-message-assistant[data-moment="start"] .we-message-label)::after {
+  color: var(--glitch-b);
+  animation: we-glitch-split-b var(--sig-hold) var(--sig-cut) var(--sig-tear-at) both;
+}
+:where(:root[data-motion="signal"]) .we-speaker-stage__title {
+  border-radius: var(--we-radius-sm);
+  animation:
+    we-signal-snap-a calc(var(--sig-frame) * 2) var(--sig-cut) calc(var(--sig-hold) + var(--sig-frame) * 2),
+    we-signal-snap-b calc(var(--sig-frame) * 2) var(--sig-cut) calc(var(--sig-hold) + var(--sig-frame) * 4);
+}
+:where(:root[data-motion="signal"]) :is(.we-speaker-stage__world, .we-speaker-stage__intro) {
+  animation: we-signal-in var(--sig-beat) var(--sig-cut) calc(var(--sig-beat) + var(--sig-frame) * 2) both;
+}
+
+/* ── 回复的开始与收尾：锁 ─── */
+/* 开始（等首字时，排在玩家消息入场之后）：气泡（写作页是整段叙事）硬切闪两下亮起，亮定那一拍磷光帧锁两帧，名字双曝光撕裂一次；
+   收尾：底色亮一帧，磷光帧再锁两帧 */
+:where(:root[data-motion="signal"]) :is(.we-message-assistant[data-moment="start"] .we-message-bubble-assistant, .we-writing-prose[data-moment="start"]) {
+  animation:
+    we-signal-blink var(--sig-beat) var(--sig-cut) var(--we-motion-enter-duration) both,
+    we-signal-snap-a calc(var(--sig-frame) * 2) var(--sig-cut) calc(var(--we-motion-enter-duration) + var(--sig-beat)),
+    we-signal-snap-b calc(var(--sig-frame) * 2) var(--sig-cut) calc(var(--we-motion-enter-duration) + var(--sig-beat) + var(--sig-frame) * 2);
+}
+:where(:root[data-motion="signal"]) :is(.we-message-assistant[data-moment="end"] .we-message-bubble-assistant, .we-writing-prose[data-moment="end"]) {
+  animation:
+    we-signal-reply-flash calc(var(--sig-frame) * 2) var(--sig-cut),
+    we-signal-snap-a calc(var(--sig-frame) * 2) var(--sig-cut) calc(var(--sig-frame) * 2),
+    we-signal-snap-b calc(var(--sig-frame) * 2) var(--sig-cut) calc(var(--sig-frame) * 4);
+}
+@keyframes we-signal-reply-flash {
+  from, to { background-color: color-mix(in srgb, var(--we-color-accent) var(--we-alpha-3), transparent); }
 }

@@ -8,6 +8,7 @@ import { useConversationPageState } from '../../core/hooks/useConversationPageSt
 import { useChatStream } from './hooks/useChatStream.js';
 import { useChatPageCharacter, useChatPageSession } from './hooks/useChatPageSession.js';
 import { useMotion } from '../../core/hooks/useMotion.js';
+import { useWorld } from '../../core/hooks/useWorld.js';
 import ChatPageShell from './components/ChatPageShell.jsx';
 import ChatConversationPane from './components/ChatConversationPane.jsx';
 
@@ -18,6 +19,7 @@ export default function ChatPage() {
   const { chapterTurnSize, pageTurnSize } = usePageConfig();
   const { currentSessionId, setCurrentSessionId, setCurrentCharacterId } = useStore();
   const { character, persona } = useChatPageCharacter(characterId);
+  const world = useWorld(character?.world_id ?? null);
   const {
     pageInfo, setPageInfo, inputBoxRef, messageListRef, memory,
   } = useConversationPageState();
@@ -65,6 +67,7 @@ export default function ChatPage() {
       main={(
         <ChatConversationPane
           character={character}
+          world={world}
           persona={persona}
           currentSession={stream.currentSession}
           currentSessionId={currentSessionId}

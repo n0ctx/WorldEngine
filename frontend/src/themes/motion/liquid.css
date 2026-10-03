@@ -825,3 +825,78 @@
     mask-image: none;
   }
 }
+
+/* ── 台前上台：洇 ─── */
+/* 换人时整块大台前重新上台：世界画从名字所在的左下角洇开，洇开时更饱和、更亮，随后干成常态；
+   立绘随后从下方浮上来；名字带着湿墨色和光晕浮起、慢慢干成正文色；世界名与简介最后浮起 */
+:where(:root[data-motion="liquid"]) .we-speaker-stage__art {
+  animation: we-ink-stage-seep var(--ink-t5) var(--ink-surface) backwards;
+}
+@keyframes we-ink-stage-seep {
+  from { clip-path: circle(0 at 10% 100%); filter: saturate(1.8) brightness(1.3); }
+  60%  { filter: saturate(1.3) brightness(1.1); }
+  to   { clip-path: circle(150% at 10% 100%); filter: none; }
+}
+:where(:root[data-motion="liquid"]) .we-speaker-stage__portrait {
+  animation: we-ink-stage-float var(--ink-t5) var(--ink-spring-soft) var(--ink-t2) backwards;
+}
+:where(:root[data-motion="liquid"]) .we-speaker-stage__headline {
+  animation:
+    we-ink-stage-float var(--ink-t4) var(--ink-spring) var(--ink-t1) backwards,
+    we-ink-wet var(--ink-t6) var(--ink-flow) var(--ink-t1) backwards;
+}
+:where(:root[data-motion="liquid"]) :is(.we-speaker-stage__world, .we-speaker-stage__intro) {
+  animation: we-ink-stage-float var(--ink-t4) var(--ink-spring-soft) var(--ink-t3) backwards;
+}
+@keyframes we-ink-stage-float {
+  from { opacity: 0; translate: 0 40px; filter: blur(8px); }
+  40%  { opacity: 1; filter: blur(0); }
+  to   { opacity: 1; translate: 0 0; filter: none; }
+}
+/* 湿墨：刚落下的字是湿的强调色、带光，随后干回常态色（不写 to，落回元素自己的颜色与投影） */
+@keyframes we-ink-wet {
+  0%, 35% { color: var(--ink-wet); text-shadow: 0 0 0.4em var(--ink-glow), 0 0 0.1em var(--ink-glow); }
+}
+
+/* ── 回复的开始与收尾：洇 ─── */
+/* 开始（等首字时，排在玩家消息入场之后）：墨从名字那一角洇满气泡，气泡先是湿的强调色再干成常态底色，名字湿墨色干下去；
+   写作页没有气泡，整段叙事同样从左上角洇开。
+   收尾：墨从最后一个字（右下角）回洇整块，外沿晕开一圈光后干掉 */
+:where(:root[data-motion="liquid"]) :is(.we-message-assistant[data-moment] .we-message-bubble-assistant, .we-writing-prose[data-moment]) {
+  position: relative;
+}
+:where(:root[data-motion="liquid"]) :is(.we-message-assistant[data-moment="start"] .we-message-bubble-assistant, .we-writing-prose[data-moment="start"]) {
+  animation: we-ink-reply-seep var(--ink-t5) var(--ink-surface) var(--we-motion-enter-duration) backwards;
+}
+:where(:root[data-motion="liquid"]) .we-message-assistant[data-moment="start"] .we-message-label {
+  animation: we-ink-wet var(--ink-t6) var(--ink-flow) var(--we-motion-enter-duration) backwards;
+}
+@keyframes we-ink-reply-seep {
+  from {
+    clip-path: circle(0 at 0 0);
+    background-color: color-mix(in srgb, var(--we-color-accent) var(--we-alpha-4), transparent);
+    box-shadow: 0 0 32px var(--ink-glow);
+  }
+  60%, to { clip-path: circle(150% at 0 0); }
+}
+:where(:root[data-motion="liquid"]) :is(.we-message-assistant[data-moment="end"] .we-message-bubble-assistant, .we-writing-prose[data-moment="end"]) {
+  animation: we-ink-reply-halo var(--ink-t5) var(--ink-surface);
+}
+:where(:root[data-motion="liquid"]) :is(.we-message-assistant[data-moment="end"] .we-message-bubble-assistant, .we-writing-prose[data-moment="end"])::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: radial-gradient(circle at 100% 100%, var(--ink-glow), transparent 75%);
+  opacity: 0;
+  animation: we-ink-reply-backseep var(--ink-t5) var(--ink-surface);
+}
+@keyframes we-ink-reply-halo {
+  from { box-shadow: 0 0 0 0 var(--ink-glow), 0 0 40px var(--ink-glow); }
+  to   { box-shadow: 0 0 0 20px transparent, 0 0 0 transparent; }
+}
+@keyframes we-ink-reply-backseep {
+  from { opacity: 1; clip-path: circle(0 at 100% 100%); }
+  to   { opacity: 0; clip-path: circle(150% at 100% 100%); }
+}

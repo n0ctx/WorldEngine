@@ -1,12 +1,17 @@
 import MessageList from '../../../components/chat/MessageList.jsx';
 import SpeakerStage from '../../../components/chat/SpeakerStage.jsx';
+import ChatAtmosphere from '../../../components/chat/ChatAtmosphere.jsx';
+import useStageCompact from '../../../components/chat/useStageCompact.js';
 import InputBox from '../../../components/chat/InputBox.jsx';
 import ProviderSafetyBanner from '../../../components/ui/ProviderSafetyBanner.jsx';
 import Pager from '../../../components/chat/Pager.jsx';
+import { useTurnChanges } from '../../../core/hooks/useTurnChanges.js';
+import useStore from '../../../core/state/index.js';
 import ChatErrorBubble from './ChatErrorBubble.jsx';
 
 export default function ChatConversationPane({
   character,
+  world,
   persona,
   currentSession,
   currentSessionId,
@@ -17,10 +22,14 @@ export default function ChatConversationPane({
 }) {
   const { chapterTurnSize, pageTurnSize } = config;
   const { pageInfo, setPageInfo, inputBoxRef, messageListRef } = pageState;
+  const stage = useStageCompact();
+  const stateRound = useStore((s) => s.memoryRefreshTick);
+  const turnChanges = useTurnChanges(currentSessionId, stateRound, character?.id ?? null);
 
   return (
     <div className="we-main we-chat-center-pane flex-1 min-w-0 flex flex-col overflow-hidden">
-      <SpeakerStage character={character} />
+      <ChatAtmosphere world={world} />
+      <SpeakerStage character={character} world={world} compact={stage.compact} />
 
       {/* 消息列表 */}
       <MessageList
@@ -49,6 +58,8 @@ export default function ChatConversationPane({
         chapterTurnSize={chapterTurnSize}
         pageTurnSize={pageTurnSize}
         onPageInfoChange={setPageInfo}
+        onScroll={stage.onScroll}
+        turnChanges={turnChanges}
       />
 
       {/* 错误气泡：生成失败时保留可见，提供重试入口 */}

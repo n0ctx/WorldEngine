@@ -1,14 +1,7 @@
 import ChangeText from '../motion/ChangeText.jsx';
 import { useChangeBurst } from '../motion/useChangeBurst.js';
 import { useMotion } from '../../core/hooks/useMotion.js';
-
-// 本轮变化标签：数字给出方向与幅度（▲350 / ▼4），其余类型只标「更新」
-function changeTag(from, to, isNumber) {
-  if (!isNumber) return { text: '更新', tone: 'neutral' };
-  const delta = Math.round((Number(to) - Number(from)) * 1e6) / 1e6;
-  if (!Number.isFinite(delta) || delta === 0) return { text: '更新', tone: 'neutral' };
-  return { text: `${delta > 0 ? '▲' : '▼'}${Math.abs(delta)}`, tone: delta > 0 ? 'up' : 'down' };
-}
+import { changeTag } from '../../core/utils/state-value-format.js';
 
 /**
  * 状态字段值：本轮真的变了就来一次信号故障——数字错位重播，文字从乱码解码成新值，

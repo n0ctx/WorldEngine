@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import { BookMarked, Database } from 'lucide-react';
 
@@ -18,6 +18,7 @@ import {
   DIARY_RECENT_LIMIT,
   splitDiaryEntries,
   useDiarySelection,
+  useStateFocus,
 } from './panel-utils.js';
 import { getWorld } from '../../core/api/worlds.js';
 import { getConfig } from '../../core/api/config.js';
@@ -310,6 +311,8 @@ export default function SessionStatePanel({
   } = useSessionState(sessionId, ticks.state, ticks.diary, ticks.queued, ticks.failed);
 
   const { diff: stateDiff } = useStateDiff(stateData, sessionId);
+  const panelRef = useRef(null);
+  const focusTabs = useStateFocus(panelRef, stateData !== null && stateMemory != null);
 
   const worldRows = stateData?.world ?? null;
 
@@ -432,12 +435,12 @@ export default function SessionStatePanel({
   ];
 
   return (
-    <div className={classNames.panel}>
+    <div ref={panelRef} className={classNames.panel}>
       <div className={classNames.scroll}>
         {sessionId && <SessionTools sessionId={sessionId} />}
         {worldTab}
         <section className="we-state-block we-state-block--cast">
-          <SectionTabs sections={sections} defaultKey="player" globalActions={globalActions} />
+          <SectionTabs key={focusTabs.key} sections={sections} defaultKey={focusTabs.defaultKey} globalActions={globalActions} />
         </section>
         {belowTabs}
       </div>

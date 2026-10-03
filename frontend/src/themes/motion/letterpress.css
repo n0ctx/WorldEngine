@@ -623,3 +623,46 @@
   from { translate: 0 0; }
   to   { translate: 0 -400cqh; }
 }
+
+/* ── 台前上台：印 ─── */
+/* 换人时整块大台前重新上台：世界画从高处重落、顿帧压过头再弹回；立绘带着影子晚一拍落下；
+   名字从更高处重落、压出凹印；世界名和简介在名字落地后落纸 */
+:where(:root[data-motion="letterpress"]) .we-speaker-stage__art {
+  --press-from: -32px;
+  --press-over: 4px;
+  animation: we-press-hit var(--press-beat) both;
+}
+:where(:root[data-motion="letterpress"]) .we-speaker-stage__portrait {
+  --press-from: -56px;
+  --press-over: 6px;
+  animation: we-press-hit var(--press-beat) var(--press-hit) both, we-press-height var(--press-beat) var(--press-hit) both;
+}
+:where(:root[data-motion="letterpress"]) .we-speaker-stage__headline {
+  --press-from: -64px;
+  --press-over: 6px;
+  animation: we-press-hit var(--press-beat) var(--press-fall) both, we-press-ink var(--press-beat) var(--press-fall) both;
+}
+:where(:root[data-motion="letterpress"]) :is(.we-speaker-stage__world, .we-speaker-stage__intro) {
+  animation: we-press-drop var(--press-slide) var(--press-friction) calc(var(--press-fall) * 2) both;
+}
+
+/* ── 回复的开始与收尾：印 ─── */
+/* 开始（等首字时，排在玩家消息入场之后）：气泡（写作页是整段叙事）带着影子从高处重落，顿帧压过头再弹回，名字在落地那一帧压出凹印；
+   收尾：整块再压一记，接触面压出凹印随后平复 */
+:where(:root[data-motion="letterpress"]) :is(.we-message-assistant[data-moment="start"] .we-message-bubble-assistant, .we-writing-prose[data-moment="start"]) {
+  --press-from: -40px;
+  --press-over: 4px;
+  animation:
+    we-press-hit var(--press-beat) var(--we-motion-enter-duration) both,
+    we-press-height var(--press-beat) var(--we-motion-enter-duration) backwards;
+}
+:where(:root[data-motion="letterpress"]) .we-message-assistant[data-moment="start"] .we-message-label {
+  animation: we-press-ink var(--press-beat) var(--we-motion-enter-duration) both;
+}
+:where(:root[data-motion="letterpress"]) :is(.we-message-assistant[data-moment="end"] .we-message-bubble-assistant, .we-writing-prose[data-moment="end"]) {
+  --press-over: 4px;
+  animation: we-press-thump var(--press-beat), we-press-dent var(--press-beat);
+}
+:where(:root[data-motion="letterpress"]) .we-message-assistant[data-moment="end"] .we-message-label {
+  animation: we-press-ink var(--press-beat);
+}

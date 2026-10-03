@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { groupMessagesIntoChapters } from '../../core/utils/chapter-grouping.js';
 import { parseStreamingBlocks } from '../../core/utils/think-blocks.js';
 import { areOptionsEqual } from '../../core/utils/next-prompt.js';
@@ -17,7 +17,7 @@ const toRailItems = (messages) => messages
   .filter((m) => !m._isStream && m.id != null)
   .map((m) => ({ id: m.id, kind: m.role === 'user' ? 'user' : 'assistant', label: railLabelOf(m.content) }));
 
-// 展示派生：追加末页流式 stub、定位最后一条 assistant、按章节投影可见消息、生成刻度条目
+// 展示派生：追加末页流式 stub、定位最后一条 assistant、按章节投影可见消息、生成刻度条目、本轮变化挂到哪条回复
 export default function useMessageDisplay({
   messages,
   pageMessages,
@@ -29,6 +29,7 @@ export default function useMessageDisplay({
   streamingText,
   options,
   chapterTurnSize,
+  turnChanges = null,
 }) {
   const messagesForDisplay = useMemo(() => {
     // streaming 仅在末页（followLast 语义）追加，翻到旧页时不展示
@@ -54,6 +55,16 @@ export default function useMessageDisplay({
     }
     return null;
   }, [messages]);
+
+  // 本轮变化挂在产生它的那条回复下面：每整理完一轮状态（round 变化），就认定为当时最后一条回复的变化；
+  // 下一轮生成期间仍挂在原来那条上，直到新一轮整理完成再挪到新回复
+  const [changesOwner, setChangesOwner] = useState({ round: null, messageId: null });
+  if (turnChanges && changesOwner.round !== turnChanges.round) {
+    setChangesOwner({ round: turnChanges.round, messageId: lastAssistantId });
+  }
+  const attachedChanges = turnChanges?.changes.length && changesOwner.messageId
+    ? { messageId: changesOwner.messageId, changes: turnChanges.changes }
+    : null;
 
   const lastAssistantFrozenOptions = useMemo(() => {
     for (let i = messages.length - 1; i >= 0; i--) {
@@ -88,5 +99,5 @@ export default function useMessageDisplay({
   // 刻度只消费已落定消息（stub 被过滤），依赖 pageMessages（流式期间引用稳定）即可，避免每个 token 重跑 parseStreamingBlocks
   const railItems = useMemo(() => toRailItems(pageMessages), [pageMessages]);
 
-  return { messagesForDisplay, lastAssistantId, suppressLastFrozen, optionsStreaming, chapters, railItems };
+  return { messagesForDisplay, lastAssistantId, suppressLastFrozen, optionsStreaming, chapters, railItems, attachedChanges };
 }
