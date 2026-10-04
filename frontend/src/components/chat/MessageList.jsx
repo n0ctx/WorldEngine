@@ -43,7 +43,7 @@ const MessageList = forwardRef(function MessageList({
   turnChanges = null,
 }, ref) {
   const {
-    listRef, messages, loading, loadError, reload, pageMessages, onLastPage,
+    listRef, messages, loadedSessionId, loading, stale, loadError, reload, pageMessages, onLastPage,
     hasEarlierMessages, loadEarlierMessages, handleJumpToMessage,
     awayFromBottom, syncAwayFromBottom, scrollPageToBottom,
   } = useMessageListState(ref, {
@@ -67,7 +67,8 @@ const MessageList = forwardRef(function MessageList({
 
   return (
     <div className="relative flex-1 min-h-0">
-    <div ref={listRef} onScroll={(event) => { syncAwayFromBottom(event); onScroll?.(event); }} className="we-chat-area absolute inset-0 overflow-y-auto px-3 pt-2 pb-4">
+    {/* 切换会话、新消息未到时仍显示上一个会话，这期间不可操作 */}
+    <div ref={listRef} onScroll={(event) => { syncAwayFromBottom(event); onScroll?.(event); }} className="we-chat-area absolute inset-0 overflow-y-auto px-3 pt-2 pb-4" inert={stale} aria-busy={stale}>
       {hasEarlierMessages ? (
         <div className="text-center py-2">
           <Button type="button" variant="text" size="sm" onClick={loadEarlierMessages}>
@@ -89,8 +90,10 @@ const MessageList = forwardRef(function MessageList({
         </div>
       )}
 
+      {/* 按会话重新挂载：换上新会话的消息时整体出现，不逐条做退场与入场 */}
       {prose ? (
         <ProseChapters
+          key={loadedSessionId}
           chapters={chapters}
           chapterTitles={chapterTitles}
           onChapterEdit={onChapterEdit}
@@ -117,6 +120,7 @@ const MessageList = forwardRef(function MessageList({
         />
       ) : (
         <MessageBubbles
+          key={loadedSessionId}
           messagesForDisplay={messagesForDisplay}
           continuingMessageId={continuingMessageId}
           continuingText={continuingText}

@@ -6,10 +6,11 @@ import { getSession, createSession } from '../../../core/api/sessions.js';
 import { chatSessionListBridge } from '../../../core/utils/session-list-bridge.js';
 import { log } from '../../../core/utils/logger.js';
 
+// 换角色时新角色到达前沿用上一个角色与玩家，台前、世界氛围和左侧列表不会先清空再出现
 export function useChatPageCharacter(characterId) {
   const [loadedContext, setLoadedContext] = useState(null);
-  const character = loadedContext?.characterId === characterId ? loadedContext.character : null;
-  const persona = loadedContext?.characterId === characterId ? loadedContext.persona : null;
+  const character = loadedContext?.character ?? null;
+  const persona = loadedContext?.persona ?? null;
 
   useEffect(() => {
     if (!characterId) return;
@@ -17,7 +18,12 @@ export function useChatPageCharacter(characterId) {
 
     getCharacter(characterId).then((loadedCharacter) => {
       if (cancelled) return;
-      setLoadedContext({ characterId, character: loadedCharacter, persona: null });
+      // 同一世界的玩家不变，新玩家到达前先沿用
+      setLoadedContext((current) => ({
+        characterId,
+        character: loadedCharacter,
+        persona: current?.character?.world_id === loadedCharacter.world_id ? current.persona : null,
+      }));
       if (loadedCharacter.world_id) {
         getPersona(loadedCharacter.world_id).then((loadedPersona) => {
           if (!cancelled) {
@@ -30,6 +36,7 @@ export function useChatPageCharacter(characterId) {
         });
       }
     }).catch((err) => {
+      if (!cancelled) setLoadedContext(null);
       log.error('chat.character.load_failed', err, { toast: '加载角色信息失败' });
     });
 

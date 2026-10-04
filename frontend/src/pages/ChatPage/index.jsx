@@ -19,6 +19,8 @@ export default function ChatPage() {
   const { chapterTurnSize, pageTurnSize } = usePageConfig();
   const { currentSessionId, setCurrentSessionId, setCurrentCharacterId } = useStore();
   const { character, persona } = useChatPageCharacter(characterId);
+  // 切换期间 character 可能还是上一个角色，建会话只认与路由一致的角色
+  const routeCharacter = character?.id === characterId ? character : null;
   const world = useWorld(character?.world_id ?? null);
   const {
     pageInfo, setPageInfo, inputBoxRef, messageListRef, memory,
@@ -26,7 +28,7 @@ export default function ChatPage() {
   const { memoryRecalling, memoryWriting, recallSummary } = memory;
 
   const stream = useChatStream({
-    character,
+    character: routeCharacter,
     messageListRef,
     inputBoxRef,
     currentSessionId,
@@ -37,7 +39,7 @@ export default function ChatPage() {
   const { handleCreateChatSession } = useChatPageSession({
     characterId,
     currentSessionId,
-    character,
+    character: routeCharacter,
     setCurrentCharacterId,
     setCurrentSession: stream.setCurrentSession,
     clearActiveSession: stream.clearActiveSession,

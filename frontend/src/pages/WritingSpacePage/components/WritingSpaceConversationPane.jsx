@@ -42,7 +42,7 @@ export default function WritingSpaceConversationPane({ worldId, world, config, p
         ) : (
           <MessageList
             ref={messageListRef}
-            key={`${currentSession?.id}-${messageListKey}`}
+            key={messageListKey}
             sessionId={currentSession?.id}
             character={null}
             persona={persona}

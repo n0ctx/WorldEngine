@@ -5,6 +5,7 @@ import WorldTimelinePanel from '../../components/session/WorldTimelinePanel.jsx'
 import { Plus } from 'lucide-react';
 import Button from '../../components/ui/Button.jsx';
 import { log } from '../../core/utils/logger.js';
+import useStore from '../../core/state/index.js';
 import { usePageConfig } from '../../core/hooks/usePageConfig.js';
 import { useConversationPageState } from '../../core/hooks/useConversationPageState.js';
 import { useWorld } from '../../core/hooks/useWorld.js';
@@ -26,6 +27,8 @@ export default function WritingSpacePage() {
   const stream = useWritingStream({ worldId, messageListRef, inputBoxRef, memory });
   const lifecycle = useWritingSpaceLifecycle({ worldId, stream, log });
   const { persona } = lifecycle;
+  // 点选的故事线还在加载时，左侧选中态先移过去
+  const pendingSessionId = useStore((s) => s.currentWritingSessionId);
   const {
     currentSession, setCurrentSession, setPendingDiaryInject, stateTick, diaryTick,
     stateQueuedTick, stateFailedTick,
@@ -39,7 +42,7 @@ export default function WritingSpacePage() {
         <WorldTimelinePanel
           worldId={worldId}
           currentMode="writing"
-          currentSessionId={currentSession?.id}
+          currentSessionId={pendingSessionId ?? currentSession?.id}
           onActiveSessionDeleted={lifecycle.handleActiveWritingSessionDeleted}
           onActiveSessionRenamed={(title) => setCurrentSession((prev) => (prev ? { ...prev, title } : prev))}
           headerRight={(

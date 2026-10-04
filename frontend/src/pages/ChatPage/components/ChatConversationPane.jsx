@@ -34,7 +34,7 @@ export default function ChatConversationPane({
       {/* 消息列表 */}
       <MessageList
         ref={messageListRef}
-        key={`${currentSessionId}-${stream.messageListKey}`}
+        key={stream.messageListKey}
         sessionId={currentSessionId}
         sessionTitle={currentSession?.title || ''}
         character={character}

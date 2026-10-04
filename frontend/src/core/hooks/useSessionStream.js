@@ -204,7 +204,6 @@ export function useSessionStream({
     resetContinuationState();
     clearMemoryState();
     setPendingDiaryInject(null);
-    setMessageListKey((k) => k + 1);
     onEnterSession?.(session);
   }
 

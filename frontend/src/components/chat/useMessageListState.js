@@ -1,4 +1,4 @@
-import { useRef, useEffect, useState, useCallback, useMemo, useImperativeHandle, useEffectEvent } from 'react';
+import { startTransition, useRef, useEffect, useLayoutEffect, useState, useCallback, useMemo, useImperativeHandle, useEffectEvent } from 'react';
 import { getMessages } from '../../core/api/sessions.js';
 import { log } from '../../core/utils/logger.js';
 import useRenderWindow from './useRenderWindow.js';
@@ -25,8 +25,10 @@ export default function useMessageListState(ref, {
   continuingText,
 }) {
   const [messages, setMessages] = useState([]);
-  const [loading, setLoading] = useState(false);
+  // messages 所属的会话；与 sessionId 不同说明新会话的消息还没到，正在显示的是上一个会话
+  const [loadedSessionId, setLoadedSessionId] = useState(null);
   const [loadError, setLoadError] = useState(null);
+  const stale = Boolean(sessionId) && loadedSessionId !== sessionId;
   const [reloadToken, setReloadToken] = useState(0);
   // 翻页锚点：followLast=true 永远跟随末页（新消息到来时自动追随）；用户手动翻页后 followLast=false 停在固定页
   const [pageAnchor, setPageAnchor] = useState({ idx: 0, followLast: true });
@@ -56,18 +58,18 @@ export default function useMessageListState(ref, {
     messages, pageSize, followLast: pageAnchor.followLast, currentPage,
   });
 
-  // 初始加载
+  // 加载会话消息。切换会话时旧会话的消息留在原处，新消息到达后与翻页锚点、渲染窗口一起整体换上，
+  // 中间不出现空白或骨架；翻页锚点必须随之重置，避免沿用旧会话的页码停在中间历史
   useEffect(() => {
     let cancelled = false;
-    // 切换 session 必须重置翻页锚点，避免沿用旧会话的页码停在中间历史；与异步加载耦合，无法外提
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setPageAnchor({ idx: 0, followLast: true });
-    resetWindow();
 
     if (!sessionId) {
       const timeoutId = setTimeout(() => {
         if (cancelled) return;
+        setPageAnchor({ idx: 0, followLast: true });
+        resetWindow();
         setMessages([]);
+        setLoadedSessionId(null);
         setLoadError(null);
       }, 0);
       return () => {
@@ -79,9 +81,7 @@ export default function useMessageListState(ref, {
     (async () => {
       await Promise.resolve();
       if (cancelled) return;
-      setLoading(true);
       setLoadError(null);
-      setMessages([]);
 
       try {
         const msgs = await getMessages(sessionId);
@@ -93,12 +93,18 @@ export default function useMessageListState(ref, {
         ));
         // 全量加载完毕：定位到最后一条消息（由下方渲染后的 effect 执行）
         scrollToLatestPendingRef.current = hydrated.length > 0;
-        setMessages(hydrated);
-        setLoading(false);
-        handleMessagesLoaded(hydrated);
+        // 长会话一次要解析整页 Markdown：放进过渡更新分片渲染，期间旧内容与侧栏动效照常走帧，渲染完再一起换上
+        startTransition(() => {
+          setPageAnchor({ idx: 0, followLast: true });
+          resetWindow();
+          setMessages(hydrated);
+          setLoadedSessionId(sessionId);
+          handleMessagesLoaded(hydrated);
+        });
       } catch (err) {
         if (!cancelled) {
-          setLoading(false);
+          setMessages([]);
+          setLoadedSessionId(null);
           setLoadError('消息加载失败，请重试');
           log.error('chat.messages.load_failed', err);
         }
@@ -178,32 +184,28 @@ export default function useMessageListState(ref, {
     }
   }, [generating, continuingMessageId]);
 
-  // 初次加载贴底：等加载结果渲染后在下一帧执行。长会话加载会同时把页码从 0 切到末页，
-  // 下方「翻页贴顶」看到待贴底标记会跳过，避免两者按帧先后互相覆盖。
-  useEffect(() => {
-    if (!scrollToLatestPendingRef.current || pageMessages.length === 0) return;
-    requestAnimationFrame(() => {
-      scrollToLatestPendingRef.current = false;
-      const el = listRef.current;
-      if (el) el.scrollTop = el.scrollHeight;
-    });
-  }, [pageMessages]);
-
   // 翻页后一律贴顶（包括末页），从该页第一条开始读。贴底场景由 scrollToBottom imperative 显式处理（初次加载、流式结束、用户点跳底按钮）。
-  useEffect(() => {
+  // 加载会同时把页码切到末页，看到待贴底标记就跳过，交给下方贴底；两者都在绘制前执行，不会先露出页顶再跳
+  useLayoutEffect(() => {
     const el = listRef.current;
     if (!el || scrollToLatestPendingRef.current) return;
-    requestAnimationFrame(() => {
-      const node = listRef.current;
-      if (!node) return;
-      node.scrollTop = 0;
-    });
+    el.scrollTop = 0;
   }, [currentPage]);
+
+  // 加载完贴底：在加载结果绘制前执行
+  useLayoutEffect(() => {
+    if (!scrollToLatestPendingRef.current || pageMessages.length === 0) return;
+    scrollToLatestPendingRef.current = false;
+    const el = listRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [pageMessages]);
 
   return {
     listRef,
     messages,
-    loading,
+    loadedSessionId,
+    loading: stale && loadedSessionId === null && !loadError,
+    stale,
     loadError,
     reload: () => setReloadToken((token) => token + 1),
     pageMessages,

@@ -250,6 +250,31 @@ describe('MessageList 的加载与错误态', () => {
     await waitFor(() => expect(screen.getByText('请选择或创建一个对话')).toBeTruthy());
   });
 
+  it('首次加载时直接显示加载中，不先闪「开始对话吧」', () => {
+    mocks.getMessages.mockReturnValue(new Promise(() => {}));
+    render(<MessageList sessionId="s1" />);
+    expect(screen.getByRole('status')).toBeTruthy();
+    expect(screen.queryByText('开始对话吧')).toBeNull();
+  });
+
+  it('切换会话时保留上一个会话的消息且不可操作，新消息到达后整体换上', async () => {
+    const { view } = await renderList({ prose: false });
+    await waitFor(() => expect(screen.getAllByTestId('bubble')).toHaveLength(4));
+
+    let resolveNext;
+    mocks.getMessages.mockReturnValue(new Promise((resolve) => { resolveNext = resolve; }));
+    view.rerender(<MessageList sessionId="s2" prose={false} />);
+    await waitFor(() => expect(mocks.getMessages).toHaveBeenCalledWith('s2'));
+    expect(screen.queryByRole('status')).toBeNull();
+    expect(screen.getAllByTestId('bubble')).toHaveLength(4);
+    expect(screen.getByText('内容1').closest('[inert]')).toBeTruthy();
+
+    await act(async () => { resolveNext(makeMessages(2, 10)); });
+    await waitFor(() => expect(screen.getAllByTestId('bubble')).toHaveLength(2));
+    expect(screen.queryByText('内容1')).toBeNull();
+    expect(screen.getByText('内容10').closest('[inert]')).toBeNull();
+  });
+
   it('加载失败时展示重试按钮，点击后重新拉取', async () => {
     mocks.getMessages.mockRejectedValueOnce(new Error('网络炸了'));
     render(<MessageList sessionId="s1" />);
