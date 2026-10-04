@@ -26,8 +26,8 @@
   --we-font-display-style: italic;
 
   /* § 3 质感 */
-  /* 背景氛围「素压」：书桌左右边缘不时压下一个不上墨的大字，偶尔一方淡朱印；纸面（正文区、浮层）铺回实底，不透光 */
-  --we-atmosphere-kind: press;
+  /* 背景氛围「字模墙」：书桌铺满铅字模，波浪扫过时抬起一片拼出名字，指针按下一片；纸面（正文区、浮层）铺回实底，不透光 */
+  --we-atmosphere-kind: wall;
   --we-atmosphere-color: #d9b56a;
   --we-atmosphere-shade: rgba(20, 12, 6, 0.35);
   --we-atmosphere-opacity: 0.9;

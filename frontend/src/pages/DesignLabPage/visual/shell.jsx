@@ -33,7 +33,7 @@ export function AtmosphereDemo() {
       </div>
       <div className="we-design-lab__fx-box we-on-shell" style={color ? { '--we-atmosphere-color': color } : undefined}>
         <AtmosphereLayer quiet={quiet} colorKey={color} />
-        <p className="we-design-lab__note">氛围铺在内容后面；这里限制在盒子里，真实页面里铺满整个窗口。代码雨里指针附近的字会亮起，点一下炸出冲击波。</p>
+        <p className="we-design-lab__note">氛围铺在内容后面；这里限制在盒子里，真实页面里铺满整个窗口。代码雨里指针附近的字会亮起，点一下炸出冲击波；字模墙每十来秒一道波拼出一个名字，指针扫过会按下一片字模。</p>
       </div>
     </VisualSection>
   );

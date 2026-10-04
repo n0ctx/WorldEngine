@@ -5,6 +5,7 @@ import { Download, Ellipsis, PencilLine, Trash2 } from 'lucide-react';
 import SortableGrid from '../../components/ui/SortableGrid';
 import AvatarCircle from '../../components/ui/AvatarCircle.jsx';
 import IconButton from '../../components/ui/IconButton.jsx';
+import SlugText from '../../components/motion/SlugText.jsx';
 import WorldSceneArt from '../../components/ui/WorldSceneArt.jsx';
 import { getAvatarUrl } from '../../core/utils/avatar';
 import { relativeTime } from '../../core/utils/time';
@@ -68,6 +69,7 @@ function WorldCard({
   sceneEnter,
   showGlow,
   motionConfig,
+  portalSource,
   onEnterWorld,
   onSetLitWorld,
   onSetActionsOpenId,
@@ -88,6 +90,7 @@ function WorldCard({
       {...attributes}
       {...listeners}
       className={`we-world-card-shell${isFeature ? ' we-world-card-shell--feature' : ''}`}
+      data-portal-source={portalSource || undefined}
     >
       <motion.div
         data-dragging={isDragging || undefined}
@@ -95,11 +98,11 @@ function WorldCard({
         role="link"
         tabIndex={0}
         aria-label={world.name}
-        onClick={() => { if (!isDragging) onEnterWorld(world); }}
+        onClick={(event) => { if (!isDragging) onEnterWorld(world, event); }}
         onKeyDown={(event) => {
           if (event.key !== 'Enter' || event.target !== event.currentTarget) return;
           event.stopPropagation();
-          onEnterWorld(world);
+          onEnterWorld(world, event);
         }}
         onMouseEnter={() => onSetLitWorld(world)}
         onMouseLeave={() => { onSetLitWorld(null); onSetActionsOpenId(null); }}
@@ -131,7 +134,7 @@ function WorldCard({
         {showGlow && !isDragging ? <PortalGlow /> : null}
 
         <div className="we-world-card-foot">
-          <h3 className="we-world-card-name">{world.name}</h3>
+          <h3 className="we-world-card-name"><SlugText text={world.name} /></h3>
           {world.description ? <p className="we-world-card-desc">{world.description}</p> : null}
           <div className="we-world-card-meta">
             {world.character_count > 0 ? (
@@ -219,6 +222,7 @@ export default function WorldsGrid({
   reloadKey,
   handleExportWorld,
   handleEnterWorld,
+  portalWorldId,
   setLitWorld,
 }) {
   const motionConfig = useMotion();
@@ -242,6 +246,7 @@ export default function WorldsGrid({
           sceneEnter={sceneEnter}
           showGlow={showGlow}
           motionConfig={motionConfig}
+          portalSource={portalWorldId === world.id}
           onEnterWorld={handleEnterWorld}
           onSetLitWorld={setLitWorld}
           onSetActionsOpenId={setActionsOpenId}

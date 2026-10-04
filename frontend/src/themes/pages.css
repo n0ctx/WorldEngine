@@ -20,12 +20,23 @@
 
 /* ── 进入世界的页面转场（动效位 world-portal）：结构与抑制规则与动效包无关，编排在 themes/motion/<包>.css ── */
 
-/* 跨路由的转场遮罩：信号锁定跃迁的代码雨画在它身上（墨流、活字不画遮罩） */
+/* 跨路由的转场遮罩：信号锁定跃迁的代码雨画在它身上；活字拆版崩开的碎块（PortalShards）挂在它里面；墨流不画遮罩 */
 .we-portal-veil {
   position: fixed;
   inset: 0;
   z-index: var(--we-z-modal);
   pointer-events: none;
+}
+.we-portal-shards {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+.we-portal-shard {
+  position: absolute;
+  left: 0;
+  top: 0;
+  will-change: transform;
 }
 
 /* 退出中的页面：禁止二次点击；卡片自己的触点涟漪与指针光晕由整页退出接管，不再各播各的 */

@@ -282,34 +282,89 @@
   background: color-mix(in srgb, var(--we-color-bg-canvas) var(--we-alpha-4), transparent);
 }
 
-/* ── 进入世界「翻书」：世界选择页 → 世界枢纽的页面转场 ───
-   JS 侧时序（navigate / total）见 packs/letterpress.js 的 portal；结构规则见 pages.css。
-   点下的书封先压实（framer 的 portal 手势），旧页沿左侧书脊朝人翻起、越翻越暗，翻到侧立时正好切页；
-   枢纽页上先留着翻页投下的影子，三栏随后依次落纸，栏标题落地时压一下凹印。 */
-:where(:root[data-motion="letterpress"]) .we-worlds-canvas[data-portal='leave'] {
-  transform-origin: left center;
-  animation: we-press-leaf var(--press-slide) var(--press-gravity) var(--press-hit) both;
+/* ── 世界卡与进入世界：拆版 ───
+   铅字 = 字形本身往下挤出一截朱砂字身：6 层硬边 text-shadow 逐层错开 1px，连成实心的侧面；不垫底块。
+   平放时 6 层都收在字下面（透明），所以三种状态层数相同、能插值。字身取所在处的强调色，所以声明在用的地方。 */
+:where(:root[data-motion="letterpress"]) :is(.we-world-card-name, .we-portal-shards, .we-worldhub-section-header) {
+  --press-body: 0 1px 0 var(--we-color-accent), 0 2px 0 var(--we-color-accent), 0 3px 0 var(--we-color-accent),
+    0 4px 0 var(--we-color-accent), 0 5px 0 var(--we-color-accent), 0 6px 0 var(--we-color-accent);
+  --press-body-flat: 0 0 0 transparent, 0 0 0 transparent, 0 0 0 transparent,
+    0 0 0 transparent, 0 0 0 transparent, 0 0 0 transparent;
+  --press-body-stub: 0 1px 0 var(--we-color-accent), 0 1px 0 transparent, 0 1px 0 transparent,
+    0 1px 0 transparent, 0 1px 0 transparent, 0 1px 0 transparent;
 }
-/* 透视距离按视口宽度取：翻起时整页右沿朝人转，视距必须大于页宽，宽屏上才不会翻过视点 */
-@keyframes we-press-leaf {
-  from { transform: perspective(calc(100vw * 1.8)) rotateY(0deg); filter: brightness(1); }
-  to   { transform: perspective(calc(100vw * 1.8)) rotateY(-90deg); filter: brightness(0.55); }
+
+/* 世界卡：悬停时名字的铅字从左到右一颗颗弹起、露出字身，按下砸实（整张卡的下沉走 framer 的 portal 手势） */
+:where(:root[data-motion="letterpress"]) .we-world-card-name .we-slug-char {
+  display: inline-block;
+  text-shadow: var(--press-body-flat), 0 1px 12px color-mix(in srgb, var(--we-color-cover-scrim) var(--we-alpha-4), transparent);
+  transition:
+    translate var(--press-fall) var(--press-gravity),
+    text-shadow var(--press-fall) var(--press-gravity);
+  transition-delay: calc(var(--i) * var(--press-hit) / 2);
 }
-:where(:root[data-motion="letterpress"]) .we-characters-canvas[data-portal='enter'] {
-  animation: we-press-cast var(--press-relax) var(--press-friction) both;
+:where(:root[data-motion="letterpress"]) .we-world-card:is(:hover, :focus-visible) .we-slug-char {
+  translate: 0 -6px;
+  text-shadow: var(--press-body), 0 12px 10px var(--we-color-shade-4);
+  transition-duration: var(--press-rebound);
+  transition-timing-function: var(--press-spring);
 }
-@keyframes we-press-cast {
-  from { box-shadow: inset 160px 0 120px -80px var(--we-color-shade-4); }
-  to   { box-shadow: inset 0 0 0 0 transparent; }
+:where(:root[data-motion="letterpress"]) .we-world-card:active .we-slug-char {
+  translate: 0 1px;
+  text-shadow: var(--press-body-stub), 0 2px 2px var(--we-color-shade-4);
+  transition-duration: var(--press-hit);
+  transition-timing-function: var(--press-gravity);
+  transition-delay: 0s;
 }
+
+/* 拆版：点下的卡由碎块接替（PortalShards 挂在 .we-portal-veil 里），原卡隐去——用透明度，SortableGrid 在卡上内联写了 visibility；
+   页头与其余的卡被一件件拆走，越落越快、稍带一点歪，在 packs/letterpress.js 的 portal.navigate 之前落完 */
+:where(:root[data-motion="letterpress"]) .we-worlds-canvas[data-portal='leave'] [data-portal-source] {
+  opacity: 0;
+}
+:where(:root[data-motion="letterpress"]) .we-worlds-canvas[data-portal='leave'] :is(.we-worlds-header, .we-world-card-shell:not([data-portal-source])) {
+  animation: we-press-clear var(--press-slide) var(--press-gravity) calc(var(--press-hit) * var(--d, 0)) forwards;
+}
+:where(:root[data-motion="letterpress"]) .we-worlds-canvas[data-portal='leave'] .we-world-card-shell:nth-child(3n + 1) { --d: 0.5; --tilt: 3deg; }
+:where(:root[data-motion="letterpress"]) .we-worlds-canvas[data-portal='leave'] .we-world-card-shell:nth-child(3n + 2) { --d: 1; --tilt: -2deg; }
+@keyframes we-press-clear {
+  to { translate: 0 110vh; rotate: var(--tilt, -3deg); }
+}
+/* 碎块：封面块底下一道朱砂侧面；名字的铅字是字形带朱砂字身，不垫底块 */
+:where(:root[data-motion="letterpress"]) .we-portal-shard--tile {
+  border-radius: var(--we-radius-xs);
+  background-color: color-mix(in srgb, var(--we-color-accent) var(--shard-tone, var(--we-alpha-3)), var(--we-card-bg));
+  background-repeat: no-repeat;
+  box-shadow: 0 3px 0 var(--we-color-accent), 0 8px 12px var(--we-color-shade-3);
+}
+:where(:root[data-motion="letterpress"]) .we-portal-shard--slug {
+  display: grid;
+  place-items: center;
+  color: var(--we-color-on-cover);
+  font-family: var(--we-font-display);
+  font-style: var(--we-font-display-style);
+  font-weight: var(--we-weight-strong);
+  line-height: var(--we-leading-flush);
+  text-shadow: var(--press-body), 0 12px 10px var(--we-color-shade-4);
+}
+
+/* 枢纽页（版台空了才换上来）：三栏依次落纸，栏标题带着朱砂字身从高处砸下来，落地那一下字身收没、压出凹印 */
 :where(:root[data-motion="letterpress"]) .we-characters-canvas[data-portal='enter'] .we-worldhub-layout > * {
   /* 三栏依次落纸（--col 见 pages.css），与 packs/letterpress.js 的 portal 同步 */
-  --press-from: -16px;
-  --press-over: 1px;
-  animation: we-press-hit var(--press-beat) calc(var(--press-hit) * (1 + var(--col, 0))) both;
+  animation: we-press-drop var(--press-slide) var(--press-friction) calc(var(--press-hit) * (1 + var(--col, 0))) both;
 }
 :where(:root[data-motion="letterpress"]) .we-characters-canvas[data-portal='enter'] .we-worldhub-section-header .we-section-title__text {
-  animation: we-press-ink var(--press-beat) calc(var(--press-hit) * (1 + var(--col, 0))) both;
+  --press-from: -90px;
+  --press-over: 3px;
+  display: inline-block;
+  animation:
+    we-press-hit var(--press-beat) calc(var(--press-hit) * (2 + var(--col, 0))) both,
+    we-press-seat var(--press-beat) calc(var(--press-hit) * (2 + var(--col, 0))) both;
+}
+@keyframes we-press-seat {
+  0%, 33.3% { text-shadow: var(--press-body), 0 16px 14px var(--we-color-shade-4); }
+  33.4%     { text-shadow: var(--press-body-stub), 0 0 0 transparent; animation-timing-function: var(--press-friction); }
+  100%      { text-shadow: var(--press-body-flat), 0 0 0 transparent; }
 }
 
 /* ── 剧情选项：选中的一项被印下，其余项被一道折痕暗影扫过后退淡 ─── */
@@ -394,14 +449,6 @@
 }
 :where(:root[data-motion="letterpress"]) :is(.we-card--raised.is-interactive, .we-character-card) .we-touch-fx__ripple {
   display: none;
-}
-
-/* 入口卡（世界卡）是一本书：书脊在左边，悬停时封面掀开一点（framer），按下合上压实，再进翻书 */
-:where(:root[data-motion="letterpress"]) .we-world-card-shell {
-  perspective: 900px;
-}
-:where(:root[data-motion="letterpress"]) .we-world-card {
-  transform-origin: left center;
 }
 
 /* 输入框聚焦：压线——描边整圈同时压出来，框内一道深凹印，随后平复成常态的聚焦色与聚焦环。

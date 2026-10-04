@@ -38,6 +38,8 @@ export default {
     rail: 'stretch',
     // 思考 / 等待中的小球：ink 墨珠（大尺寸是流体），matrix 字符矩阵
     orb: 'ink',
+    // 进入世界时把世界卡拆成铅字碎块（活字的拆版）
+    shatter: false,
   },
   // 全站节奏：改写 core/utils/motion.js 的节奏角色；墨是慢慢洇开的，状态变化慢一拍（与 liquid.css 的 --we-motion-* 同值）
   rhythm: {

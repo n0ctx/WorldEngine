@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion';
 import { ArrowUp, PencilLine, Trash2 } from 'lucide-react';
 import DeleteButton from '../../../components/motion/DeleteButton.jsx';
+import SlugText from '../../../components/motion/SlugText.jsx';
 import { useTouchFx } from '../../../components/motion/useTouchFx.jsx';
 import Button from '../../../components/ui/Button.jsx';
 import IconButton from '../../../components/ui/IconButton.jsx';
@@ -35,7 +36,7 @@ export function PortalDemo() {
         <div className="we-world-card-shell we-design-lab__portal">
           <motion.button type="button" className="we-world-card we-material" {...m.gesture('portal')} {...touch.handlers}>
             {touch.fx}
-            <span className="we-world-card-foot"><span className="we-world-card-name">进入世界</span></span>
+            <span className="we-world-card-foot"><span className="we-world-card-name"><SlugText text="进入世界" /></span></span>
           </motion.button>
         </div>
       </div>

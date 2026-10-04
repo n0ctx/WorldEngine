@@ -51,11 +51,11 @@
   --we-radius-xl:   28px;
   --we-radius-full: 9999px;
 
-  /* 背景氛围：外壳在内容后画一层动态画布，kind 选 dust 光尘（斜光与微尘）、rain 代码雨或 press 素压（边缘压下不上墨的大字）。
+  /* 背景氛围：外壳在内容后画一层动态画布，kind 选 dust 光尘（斜光与微尘）、rain 代码雨或 wall 字模墙（铺满铅字模，波浪扫过时抬起一片拼出名字）。
      --we-atmosphere-color 默认取主色，进入世界后由外壳按封面主色覆盖 */
   --we-atmosphere-kind: dust;
   --we-atmosphere-color: var(--we-color-accent);
-  --we-atmosphere-shade: rgba(52, 64, 96, 0.22);   /* 对角暗部的冷色；代码雨的系统列取它的色相；素压的影子与暗边取它 */
+  --we-atmosphere-shade: rgba(52, 64, 96, 0.22);   /* 对角暗部的冷色；代码雨的系统列取它的色相 */
   --we-atmosphere-opacity: 0.9;                     /* 场景页光尘强度 0–1 */
   --we-atmosphere-opacity-quiet: 0.6;               /* 阅读页光尘强度 */
   --we-atmosphere-glow-strength: 14%;               /* 静态光晕浓度 */

@@ -9,6 +9,7 @@ import Button from '../../components/ui/Button.jsx';
 import Skeleton from '../../components/ui/Skeleton.jsx';
 import ChangeText from '../../components/motion/ChangeText.jsx';
 import MotionOrb from '../../components/motion/MotionOrb.jsx';
+import { shatterCard } from '../../components/motion/shatter.js';
 import { useMotion } from '../../core/hooks/useMotion.js';
 import { getPortal, startPortal, subscribePortal } from '../../core/motion/portal.js';
 import { useWorldsPageController } from './useWorldsPageController.js';
@@ -27,14 +28,16 @@ export default function WorldsPage() {
   // 进入世界的页面转场：转场期间旧页播退出动画并禁止二次点击
   const portal = useSyncExternalStore(subscribePortal, getPortal);
 
-  function handleEnterWorld(world) {
+  // event 是点下（或回车）世界卡的事件：traits.shatter 的包把这张卡拆成碎块交给转场遮罩
+  function handleEnterWorld(world, event) {
     setCurrentWorldId(world.id);
     const timing = motionConfig.portal();
     if (!timing) {
       navigate(`/worlds/${world.id}`);
       return;
     }
-    startPortal();
+    const shards = motionConfig.pack.traits.shatter ? shatterCard(event.currentTarget, event) : null;
+    startPortal({ worldId: world.id, shards });
     setTimeout(() => navigate(`/worlds/${world.id}`), timing.navigate * 1000);
   }
 
@@ -121,6 +124,7 @@ export default function WorldsPage() {
           reloadKey={page.reloadKey}
           handleExportWorld={page.handleExportWorld}
           handleEnterWorld={handleEnterWorld}
+          portalWorldId={portal?.worldId}
           setLitWorld={setLitWorld}
         />
       )}

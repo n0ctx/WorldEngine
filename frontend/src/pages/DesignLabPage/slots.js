@@ -129,12 +129,12 @@ export const SLOTS = [
   },
   {
     id: 'world-portal', category: 'move', title: '进入世界', status: 'pack',
-    hooks: ['we-portal-veil', 'we-worlds-canvas', 'we-characters-canvas', 'we-worldhub-layout', 'we-worldhub-section-header', 'we-section-title'],
-    api: [], usedIn: ['WorldsPage → CharactersPage', 'AppShell（跨路由遮罩 .we-portal-veil）'],
-    note: '没有独立的动效接口：时序（navigate / total）在动效包的 portal 字段，编排在动效包 CSS 里按 data-portal 接管。'
+    hooks: ['we-portal-veil', 'we-portal-shards', 'we-portal-shard', 'we-worlds-canvas', 'we-worlds-header', 'we-characters-canvas', 'we-worldhub-layout', 'we-worldhub-section-header', 'we-section-title'],
+    api: [], usedIn: ['WorldsPage → CharactersPage', 'AppShell（跨路由遮罩 .we-portal-veil）', 'PortalShards / shatter.js（traits.shatter 的碎块）'],
+    note: '没有独立的动效接口：时序（navigate / total）在动效包的 portal 字段，编排在动效包 CSS 里按 data-portal 接管；traits.shatter 的包另由 shatterCard 把点下的卡切成碎块，PortalShards 挂在遮罩里跑物理。'
       + '墨流「洇门」：旧页沉入水中，枢纽页从柔焦里浮上来，栏标题从湿墨色干成正文色；'
       + '信号「锁定跃迁」：旧页横向撕裂一次、暗半拍后硬切熄灭，新旧页之间的一拍黑里落两列硬切下坠的代码雨，新页闪两下亮起（雨画在 .we-portal-veil 上）；'
-      + '活字「翻书」：书封压实，旧页沿左侧书脊朝人翻起、越翻越暗，侧立时切页，枢纽页留着翻页的影子，三栏依次落纸、栏标题压一下凹印。'
+      + '活字「拆版」：点下的卡连封面裂成几十块方铅块，名字的铅字单独飞出，离点下处越近崩得越猛，落到底边弹一下后掉出画面；页头与其余的卡被一件件拆走；版台空了换页，三栏依次落纸，栏标题带着朱砂字身砸下来、落地时字身收没。'
       + '转场期间旧页禁止二次点击，卡片的触点涟漪与指针光晕由整页退出接管，不重复播放。',
   },
   {
@@ -164,10 +164,10 @@ export const SLOTS = [
   },
   {
     id: 'portal', category: 'press', title: '入口卡片', status: 'pack',
-    hooks: ['we-world-card', 'we-world-card-shell', 'we-world-card-name'],
+    hooks: ['we-world-card', 'we-world-card-shell', 'we-world-card-name', 'we-slug-char'],
     api: ['gesture:portal'], usedIn: ['WorldsGrid'],
     note: '浮起与按下走手势，不缩放。信号的入口卡不画整框——悬停时名字双曝光一次，按下进入时整面冲洗一帧强调色即灭，再进锁定跃迁；'
-      + '活字把入口卡当一本书，悬停时封面沿左侧书脊掀开 8°，按下合上压实，再进翻书。演示借世界卡的类名。',
+      + '活字把名字拆成一颗颗铅字（SlugText，traits.shatter），悬停时从左到右逐颗弹起、露出朱砂字身，按下整张卡砸实一下、字身压扁，再进拆版。演示借世界卡的类名。',
   },
   {
     id: 'sink', category: 'press', title: '发送键', status: 'pack',

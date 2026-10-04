@@ -32,6 +32,8 @@ export default {
     warp: false,
     rail: 'hop',
     orb: 'type',
+    // 拆版：世界卡的名字拆成一颗颗铅字（SlugText），进入世界时整张卡崩成碎块（shatter.js / PortalShards）
+    shatter: true,
   },
   // 全站节奏：纸是脆的，状态变化比默认快半拍（与 letterpress.css 的 --we-motion-* 同值）
   rhythm: {
@@ -86,8 +88,8 @@ export default {
   gestures: {
     // 带字的按钮不缩放：悬停纸边翘起，按下压进纸里；凹印见 letterpress.css
     press:  { whileHover: { y: -1 }, whileTap: { y: 2 } },
-    // 入口卡片是一本书：悬停时封面沿书脊（左边）掀开一点，按下合上压实；书脊位置与透视见 letterpress.css
-    portal: { whileHover: { rotateY: -8 }, whileTap: { rotateY: 0, y: 1 } },
+    // 入口卡片：悬停时名字的铅字一颗颗弹起（letterpress.css），按下整张卡砸实一下，随后拆版
+    portal: { whileTap: { y: 1 } },
     // 发送键只有图标：盖章，按下压扁
     sink:   { whileTap: { y: 3, scaleX: 1.06, scaleY: 0.9 } },
   },
@@ -101,8 +103,9 @@ export default {
     // 生成结束：铅块被抽走
     caretOut: 0.3,
   },
-  // 进入世界的页面转场「翻书」：书封压实，旧页沿左侧书脊翻起，枢纽各栏依次落纸；CSS 编排在 letterpress.css
-  portal: { navigate: 0.45, total: 1.5 },
+  // 进入世界的页面转场「拆版」：点下的卡崩成铅块落下、弹一下掉出画面，页上其余的东西被拆走；
+  // 版台空了换页，枢纽各栏落纸、栏标题带着朱砂字身砸下来。碎块物理在 shatter.js，CSS 编排在 letterpress.css
+  portal: { navigate: 0.45, total: 1.4 },
   fx: {
     // 新值重落：落下 → 顿帧 → 压过头 → 弹回 → 凹印平复
     burst: 0.6,

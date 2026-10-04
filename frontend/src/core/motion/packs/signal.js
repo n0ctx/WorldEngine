@@ -30,6 +30,7 @@ export default {
     warp: false,
     rail: 'hop',
     orb: 'matrix',
+    shatter: false,
   },
   // 全站节奏：沿用默认的节奏角色
   rhythm: {},

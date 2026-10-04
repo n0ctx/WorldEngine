@@ -23,6 +23,7 @@ import AtmosphereLayer from './atmosphere/AtmosphereLayer.jsx';
 import { useAtmosphereNames } from './atmosphere/useAtmosphereNames.js';
 import { useMotion } from '../../core/hooks/useMotion.js';
 import { endPortal, getPortal, subscribePortal } from '../../core/motion/portal.js';
+import PortalShards from '../../components/motion/PortalShards.jsx';
 
 // 长时间阅读的页面：氛围压到最低，只留在边缘
 const QUIET_SCENE = /\/chat$|\/writing$/;
@@ -64,7 +65,11 @@ export default function AppShell({ children, locationKey }) {
         <a href="#we-main-content" className="we-skip-link">跳到主内容</a>
         <TopBar />
         <GlobalToast />
-        {portal && <div className="we-portal-veil" aria-hidden="true" />}
+        {portal && (
+          <div className="we-portal-veil" aria-hidden="true">
+            {portal.shards ? <PortalShards shards={portal.shards} /> : null}
+          </div>
+        )}
         <PageLayoutRendererProvider render={RenderPageLayout}>
           <div className="we-page-body">
             {children}
