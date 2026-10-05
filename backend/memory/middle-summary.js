@@ -17,6 +17,8 @@
  *
  *   closedRoundOf(text, coveredTo) → number  已整理成事件的最后一轮
  *
+ *   openEventLines(sessionId, closedTo, coveredTo) → string[]  进行中事件的逐轮索引行
+ *
  *   renderStorySummary(sessionId, text, coveredTo) → string  已结束的事件加进行中事件的逐轮记录，注入正文用
  *
  *   resolveSpeakers(session) → { userLabel, assistantLabel, namingRule }  摘要类提示词的说话人标注与称呼规则
@@ -150,7 +152,7 @@ export function closedRoundOf(text, coveredTo) {
 }
 
 /** 进行中事件的逐轮记录：(closedTo, coveredTo] 内已生成的索引行 */
-function openEventLines(sessionId, closedTo, coveredTo) {
+export function openEventLines(sessionId, closedTo, coveredTo) {
   return getTurnSummariesInRange(sessionId, closedTo, coveredTo)
     .map((record) => `第${record.round_index}轮：${record.summary.trim()}`);
 }

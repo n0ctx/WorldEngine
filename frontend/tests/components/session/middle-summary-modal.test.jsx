@@ -29,11 +29,20 @@ describe('MiddleSummaryModal', () => {
     await vi.waitFor(() => expect(onClose).toHaveBeenCalledTimes(2));
   });
 
-  it('有进行中的事件时说明哪几轮还没整理', async () => {
+  it('有进行中的事件时列出这几轮的索引，且不放进可编辑的摘要', async () => {
     const { getMiddleSummary } = await import('../../../src/core/api/middle-summary.js');
-    getMiddleSummary.mockResolvedValueOnce({ content: '旧摘要', coveredTo: 16, closedTo: 12 });
+    getMiddleSummary.mockResolvedValueOnce({
+      content: '旧摘要',
+      coveredTo: 14,
+      closedTo: 12,
+      openLines: ['第13轮：李石头夜入南巷。', '第14轮：李石头召来苏婉。'],
+    });
     render(<MiddleSummaryModal sessionId="s4" onClose={vi.fn()} />);
-    expect(await screen.findByText('第 13–16 轮的事件还在进行中，结束后自动整理到这里')).toBeInTheDocument();
+    expect(await screen.findByText('第 13–14 轮的事件还在进行中，下方是这几轮的索引，事件结束后自动整理到摘要里')).toBeInTheDocument();
+    expect(screen.getByText('进行中的事件 · 第 13–14 轮')).toBeInTheDocument();
+    expect(screen.getByText('第13轮：李石头夜入南巷。')).toBeInTheDocument();
+    expect(screen.getByText('第14轮：李石头召来苏婉。')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('旧摘要')).toBeInTheDocument();
   });
 
   it('coveredTo 为 0 时显示尚未覆盖任何轮次', async () => {

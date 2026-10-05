@@ -12,7 +12,7 @@ test('GET /api/sessions/:sessionId/middle-summary 在无 turn record 时返回�
   const session = insertSession(ctx.sandbox.db);
   const res = await ctx.request(`/api/sessions/${session.id}/middle-summary`);
   assert.equal(res.status, 200);
-  assert.deepEqual(await res.json(), { content: '', coveredTo: 0, closedTo: 0 });
+  assert.deepEqual(await res.json(), { content: '', coveredTo: 0, closedTo: 0, openLines: [] });
 
   const notFound = await ctx.request('/api/sessions/no-such/middle-summary');
   assert.equal(notFound.status, 404);
@@ -24,7 +24,7 @@ test('GET /api/sessions/:sessionId/middle-summary 在 middle_covered_to 为 null
 
   const res = await ctx.request(`/api/sessions/${session.id}/middle-summary`);
   assert.equal(res.status, 200);
-  assert.deepEqual(await res.json(), { content: '', coveredTo: 0, closedTo: 0 });
+  assert.deepEqual(await res.json(), { content: '', coveredTo: 0, closedTo: 0, openLines: [] });
 });
 
 test('GET/PUT /api/sessions/:sessionId/middle-summary 往返；PUT 在无 turn record 时 409', async () => {
@@ -39,7 +39,7 @@ test('GET/PUT /api/sessions/:sessionId/middle-summary 往返；PUT 在无 turn r
   insertTurnRecord(ctx.sandbox.db, session.id, { round_index: 1, middle_summary: '原摘要', middle_covered_to: 1 });
 
   const get1 = await ctx.request(`/api/sessions/${session.id}/middle-summary`);
-  assert.deepEqual(await get1.json(), { content: '原摘要', coveredTo: 1, closedTo: 1 });
+  assert.deepEqual(await get1.json(), { content: '原摘要', coveredTo: 1, closedTo: 1, openLines: [] });
 
   const put = await ctx.request(`/api/sessions/${session.id}/middle-summary`, {
     method: 'PUT', headers: { 'Content-Type': 'application/json' },
@@ -49,7 +49,25 @@ test('GET/PUT /api/sessions/:sessionId/middle-summary 往返；PUT 在无 turn r
   assert.deepEqual(await put.json(), { content: '编辑后的摘要' });
 
   const get2 = await ctx.request(`/api/sessions/${session.id}/middle-summary`);
-  assert.deepEqual(await get2.json(), { content: '编辑后的摘要', coveredTo: 1, closedTo: 1 });
+  assert.deepEqual(await get2.json(), { content: '编辑后的摘要', coveredTo: 1, closedTo: 1, openLines: [] });
+});
+
+test('GET /api/sessions/:sessionId/middle-summary 返回进行中事件的逐轮索引行，不含已整理和未滑出的轮次', async () => {
+  const session = insertSession(ctx.sandbox.db);
+  const closed = '【第1–2轮｜不详｜南巷｜李石头】\n起因：无\n经过：无\n结果：无\n变化：无';
+  insertTurnRecord(ctx.sandbox.db, session.id, { round_index: 1, summary: '第一轮索引' });
+  insertTurnRecord(ctx.sandbox.db, session.id, { round_index: 2, summary: '第二轮索引' });
+  insertTurnRecord(ctx.sandbox.db, session.id, { round_index: 3, summary: '第三轮索引' });
+  insertTurnRecord(ctx.sandbox.db, session.id, { round_index: 4, summary: '第四轮索引' });
+  insertTurnRecord(ctx.sandbox.db, session.id, { round_index: 5, summary: '第五轮索引', middle_summary: closed, middle_covered_to: 4 });
+
+  const res = await ctx.request(`/api/sessions/${session.id}/middle-summary`);
+  assert.deepEqual(await res.json(), {
+    content: closed,
+    coveredTo: 4,
+    closedTo: 2,
+    openLines: ['第3轮：第三轮索引', '第4轮：第四轮索引'],
+  });
 });
 
 test('PUT /api/sessions/:sessionId/middle-summary 在会话不存在时 404', async () => {

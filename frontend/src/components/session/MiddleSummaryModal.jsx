@@ -5,12 +5,14 @@ import ConfirmModal from '../ui/ConfirmModal.jsx';
 import Textarea from '../ui/Textarea.jsx';
 import Button from '../ui/Button.jsx';
 import Skeleton from '../ui/Skeleton.jsx';
+import Card from '../ui/Card.jsx';
+import SectionTitle from '../ui/SectionTitle.jsx';
 import { getMiddleSummary, updateMiddleSummary } from '../../core/api/middle-summary.js';
 
 function coverageHint(coveredTo, closedTo) {
   if (coveredTo <= 0) return '尚未覆盖任何轮次';
   if (closedTo >= coveredTo) return `已整理到第 ${coveredTo} 轮`;
-  return `第 ${closedTo + 1}–${coveredTo} 轮的事件还在进行中，结束后自动整理到这里`;
+  return `第 ${closedTo + 1}–${coveredTo} 轮的事件还在进行中，下方是这几轮的索引，事件结束后自动整理到摘要里`;
 }
 
 export default function MiddleSummaryModal({ sessionId, onClose }) {
@@ -18,6 +20,7 @@ export default function MiddleSummaryModal({ sessionId, onClose }) {
   const [savedContent, setSavedContent] = useState('');
   const [coveredTo, setCoveredTo] = useState(0);
   const [closedTo, setClosedTo] = useState(0);
+  const [openLines, setOpenLines] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -29,7 +32,7 @@ export default function MiddleSummaryModal({ sessionId, onClose }) {
       .then((res) => {
         if (cancelled) return;
         const loaded = res?.content ?? '';
-        setError(''); setContent(loaded); setSavedContent(loaded); setCoveredTo(res?.coveredTo ?? 0); setClosedTo(res?.closedTo ?? 0); setLoading(false);
+        setError(''); setContent(loaded); setSavedContent(loaded); setCoveredTo(res?.coveredTo ?? 0); setClosedTo(res?.closedTo ?? 0); setOpenLines(res?.openLines ?? []); setLoading(false);
       })
       .catch((err) => { if (!cancelled) { setError(err.message || '加载失败'); setLoading(false); } });
     return () => { cancelled = true; };
@@ -84,6 +87,14 @@ export default function MiddleSummaryModal({ sessionId, onClose }) {
           rows={16}
           placeholder="（暂无剧情摘要）"
         />
+      )}
+      {openLines.length > 0 && (
+        <Card variant="sunken" density="compact" className="mt-3">
+          <SectionTitle level="eyebrow">{`进行中的事件 · 第 ${closedTo + 1}–${coveredTo} 轮`}</SectionTitle>
+          <ul className="we-type-body mt-2 space-y-1">
+            {openLines.map((line) => <li key={line}>{line}</li>)}
+          </ul>
+        </Card>
       )}
       {error && (
         <p className="we-settings-toggle-hint mt-2 text-[var(--we-color-accent)]">
