@@ -171,32 +171,32 @@ export async function fetchModels(provider, apiKey, baseUrl) {
   throw new Error(`不支持的 provider: ${provider}`);
 }
 
-export async function verifyLlmConnection(llmConfig) {
-  const llm = {
-    ...llmConfig,
-    base_url: validateModelFetchBaseUrl(llmConfig.provider, llmConfig.base_url || DEFAULT_BASE_URLS[llmConfig.provider] || ''),
-    max_tokens: 8,
-    temperature: 0,
-    signal: AbortSignal.timeout(20_000),
-  };
+/**
+ * 按配置组发一次最小请求验证连通性。
+ * complete 只按 configScope 取 provider / api_key / base_url，llmConfig 须是该组解析后的有效配置，仅用于校验与补全模型。
+ *
+ * @param {object} llmConfig
+ * @param {'main'|'aux'|'writing'|'writing-aux'} configScope
+ */
+export async function verifyLlmConnection(llmConfig, configScope) {
+  const baseUrl = validateModelFetchBaseUrl(llmConfig.provider, llmConfig.base_url || DEFAULT_BASE_URLS[llmConfig.provider] || '');
 
-  if (!llm.model) {
-    const models = await fetchModels(llm.provider, llm.api_key, llm.base_url);
-    llm.model = models[0]?.id || '';
+  let model = llmConfig.model;
+  if (!model) {
+    const models = await fetchModels(llmConfig.provider, llmConfig.api_key, baseUrl);
+    model = models[0]?.id || '';
   }
-  if (!llm.model) throw new Error('当前 provider 没有可用模型');
+  if (!model) throw new Error('当前 provider 没有可用模型');
 
-  await complete([{ role: 'user', content: 'ping' }], llm);
+  await complete([{ role: 'user', content: 'ping' }], { configScope, model, signal: AbortSignal.timeout(20_000) });
 }
 
 /** 用已解析的单个模型配置（含 api_key）发一次最小请求验证连通性 */
-export function verifyModelConnection(modelConfig) {
+export function verifyModelConnection(modelConfig, configScope) {
   return verifyLlmConnection({
     provider: modelConfig.provider,
     api_key: (modelConfig.provider && modelConfig.api_key) || '',
     base_url: modelConfig.base_url || '',
     model: modelConfig.model || '',
-    max_tokens: 8,
-    temperature: 0,
-  });
+  }, configScope);
 }

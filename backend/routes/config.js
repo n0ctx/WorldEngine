@@ -240,16 +240,16 @@ function connectionTestRoute(verify) {
 // GET /api/config/test-connection — 验证 LLM 连通性
 router.get('/test-connection', connectionTestRoute(() => {
   const config = getConfig();
-  return verifyLlmConnection({ ...config.llm, api_key: resolveApiKey(config.llm, config.provider_keys || {}) });
+  return verifyLlmConnection({ ...config.llm, api_key: resolveApiKey(config.llm, config.provider_keys || {}) }, 'main');
 }));
 
 // GET /api/config/writing/test-connection — 验证写作主模型 LLM 连通性
-router.get('/writing/test-connection', connectionTestRoute(() => verifyModelConnection(getWritingLlmConfig())));
+router.get('/writing/test-connection', connectionTestRoute(() => verifyModelConnection(getWritingLlmConfig(), 'writing')));
 
 // GET /api/config/writing-aux/test-connection — 验证写作副模型 LLM 连通性
-router.get('/writing-aux/test-connection', connectionTestRoute(() => verifyModelConnection(getWritingAuxLlmConfig())));
+router.get('/writing-aux/test-connection', connectionTestRoute(() => verifyModelConnection(getWritingAuxLlmConfig(), 'writing-aux')));
 
 // GET /api/config/aux/test-connection — 验证副模型 LLM 连通性
-router.get('/aux/test-connection', connectionTestRoute(() => verifyModelConnection(getAuxLlmConfig())));
+router.get('/aux/test-connection', connectionTestRoute(() => verifyModelConnection(getAuxLlmConfig(), 'aux')));
 
 export default router;

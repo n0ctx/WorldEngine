@@ -224,6 +224,39 @@ test('GET /api/config/test-connection 会识别 openai-compatible 的 200 + erro
   }
 });
 
+test('GET /api/config/writing/test-connection 用写作主模型的 provider 与密钥，而不是对话主模型', async () => {
+  const originalFetch = globalThis.fetch;
+  const outbound = [];
+  globalThis.fetch = async (url, init) => {
+    if (String(url).startsWith('http://127.0.0.1:')) return originalFetch(url, init);
+    outbound.push({ url: String(url), auth: new Headers(init?.headers).get('authorization') });
+    return new Response(JSON.stringify({ error: { message: 'The API Key appears to be invalid.' } }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  };
+
+  const current = ctx.sandbox.readConfig();
+  ctx.sandbox.writeConfig({
+    ...current,
+    provider_keys: { mock: 'secret-key', 'glm-coding': 'writing-key' },
+    llm: { ...current.llm, provider: 'mock', model: 'mock-model', base_url: '' },
+    writing: { ...current.writing, llm: { ...current.writing?.llm, provider: 'glm-coding', model: 'GLM-4.7', base_url: '' } },
+  });
+
+  try {
+    const res = await ctx.request('/api/config/writing/test-connection');
+    const data = await res.json();
+    assert.equal(data.success, false);
+    assert.match(data.error, /invalid/i);
+    assert.ok(outbound.length > 0);
+    assert.ok(outbound.every((call) => call.url.startsWith('https://api.z.ai/api/coding/paas/v4')));
+    assert.ok(outbound.every((call) => call.auth === 'Bearer writing-key'));
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test('GET /api/config/models 会为 Gemini 模型列表合并动态价格', async () => {
   const originalFetch = globalThis.fetch;
   globalThis.fetch = async (url, init) => {
