@@ -47,6 +47,7 @@ import { getConfig } from '../services/config.js';
 import { matchEntries } from './entry-matcher.js';
 import { renderCharacterState } from '../memory/recall.js';
 import { recallTurns } from '../memory/long-term-recall.js';
+import { renderStorySummary } from '../memory/middle-summary.js';
 
 import { getOrCreatePersona } from '../services/personas.js';
 import { applyRules } from '../utils/regex-runner.js';
@@ -99,12 +100,13 @@ function readAttachmentAsDataUrl(relativePath) {
   return `data:${mime};base64,${buf.toString('base64')}`;
 }
 
-/** 两种模式共用的历史起点：最新一轮记录给出的中期摘要及其覆盖到的轮次，加上给模型看的全部消息。 */
+/** 两种模式共用的历史起点：最新一轮记录给出的剧情摘要及其覆盖到的轮次，加上给模型看的全部消息。 */
 function loadHistoryBase(sessionId) {
   const latestRecord = getLatestTurnRecord(sessionId);
+  const coveredTo = latestRecord?.middle_covered_to ?? null;
   return {
-    coveredTo: latestRecord?.middle_covered_to ?? null,
-    storySummary: latestRecord?.middle_summary ?? '',
+    coveredTo,
+    storySummary: renderStorySummary(sessionId, latestRecord?.middle_summary ?? '', coveredTo ?? 0),
     uncompressedMessages: getMessagesBySessionId(sessionId, null, 0).map(toPromptMessage),
   };
 }

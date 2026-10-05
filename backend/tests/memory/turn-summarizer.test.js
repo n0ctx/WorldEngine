@@ -2,7 +2,7 @@ import test, { after } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { createTestConfig, createTestSandbox, freshImport, resetMockEnv } from '../helpers/test-env.js';
-import { insertCharacter, insertMessage, insertSession, insertWorld } from '../helpers/fixtures.js';
+import { insertCharacter, insertMessage, insertSession, insertTurnRecord, insertWorld } from '../helpers/fixtures.js';
 
 const sandbox = createTestSandbox('turn-summarizer-suite');
 sandbox.setEnv();
@@ -95,40 +95,43 @@ test('createTurnRecord：末尾是 user 消息（缺 assistant）时跳过，不
   assert.equal(getAllTurnRecordsBySessionId(session.id).length, 0);
 });
 
-const MERGED_PHASE = '【第1–1轮｜庭院｜不详】\n起因：无\n经过：无\n结果：无\n变化：无';
+const MERGED_PHASE = '【第1–1轮｜不详｜庭院｜甲】\n起因：无\n经过：无\n结果：无\n变化：无';
 
-test('createTurnRecord：中期摘要失败时仍建行并抛错，coveredTo 不推进；下一轮以此行为基线重试成功', async () => {
+test('createTurnRecord：中期摘要整理失败时仍建行并抛错，覆盖范围照常推进；下一次滑出时连同之前的轮次重新整理', async () => {
   resetMockEnv();
   sandbox.writeConfig(createTestConfig({ short_term_token_budget: 10 }));
   process.env.MOCK_LLM_COMPLETE_ERROR = '连接超时';
 
   const session = seedSession();
-  seedRound(session.id, 1, { userText: '测'.repeat(50) });
-  seedRound(session.id, 2, { userText: '短' });
+  for (const roundIndex of [1, 2]) {
+    seedRound(session.id, roundIndex, { userText: '测'.repeat(50) });
+    insertTurnRecord(sandbox.db, session.id, { round_index: roundIndex, summary: `庭院里的事${roundIndex}` });
+  }
+  seedRound(session.id, 3, { userText: '测'.repeat(50) });
 
   const { createTurnRecord } = await freshImport('backend/memory/turn-summarizer.js');
-  const { getAllTurnRecordsBySessionId } = await freshImport('backend/db/queries/turn-records.js');
+  const { getAllTurnRecordsBySessionId, updateTurnRecordIndex } = await freshImport('backend/db/queries/turn-records.js');
 
   await assert.rejects(() => createTurnRecord(session.id), /连接超时/);
 
   let records = getAllTurnRecordsBySessionId(session.id);
-  assert.equal(records.length, 1);
-  assert.equal(records[0].round_index, 2);
-  assert.equal(records[0].middle_covered_to, 0);
-  assert.equal(records[0].middle_summary, '');
+  assert.equal(records.length, 3);
+  assert.equal(records[2].round_index, 3);
+  assert.equal(records[2].middle_covered_to, 2);
+  assert.equal(records[2].middle_summary, '');
 
-  // 下一轮：以失败行（coveredTo=0）为基线重试，这次成功后应推进 coveredTo
+  // 下一次滑出：第 1、2 轮仍在进行中的事件里，这次整理成功
   resetMockEnv();
   process.env.MOCK_LLM_COMPLETE = MERGED_PHASE;
-  seedRound(session.id, 3, { userText: '短' });
+  updateTurnRecordIndex(records[2].id, { summary: '庭院后来的事', scene: '', cast_json: null });
+  seedRound(session.id, 4, { userText: '短' });
 
   await createTurnRecord(session.id);
 
   records = getAllTurnRecordsBySessionId(session.id);
-  assert.equal(records.length, 2);
   const latest = records[records.length - 1];
-  assert.equal(latest.round_index, 3);
-  assert.equal(latest.middle_covered_to, 1);
+  assert.equal(latest.round_index, 4);
+  assert.equal(latest.middle_covered_to, 3);
   assert.equal(latest.middle_summary, MERGED_PHASE);
 });
 
@@ -139,7 +142,7 @@ test('createTurnRecord：多轮增长后 buildPrompt 的主模型历史 token �
     suggestion_enabled: false,
     memory_expansion_enabled: false,
   }));
-  process.env.MOCK_LLM_COMPLETE = MERGED_PHASE;
+  process.env.MOCK_LLM_COMPLETE = '未完';
 
   const session = seedSession();
 

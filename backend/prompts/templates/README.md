@@ -15,9 +15,7 @@
 - `memory-turn-summary.md`
   生成轮次目录索引行（scene / cast / summary）的模板。
 - `memory-middle-summary.md`
-  中期剧情摘要合并模板：当前阶段 + 新滑出轮次 → 续写或收尾后的一个或多个阶段。
-- `memory-middle-summary-shrink.md`
-  中期剧情摘要折叠模板：已有前情 + 最老的几个阶段 → 新的【前情】。
+  中期剧情摘要整理模板：已整理的事件 + 进行中事件的逐轮记录 → 已经结束的事件，或「未完」。
 - `memory-title-generation.md`
   生成会话标题的模板。
 - `memory-retitle-generation.md`

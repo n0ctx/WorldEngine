@@ -144,6 +144,23 @@ export function getRecallIndexCandidates(sessionId, coveredTo) {
 }
 
 /**
+ * 取会话内 (afterRound, toRound] 区间里已生成摘要的索引行，按 round_index 升序返回，
+ * 供剧情摘要列出进行中事件的逐轮记录。
+ *
+ * @param {string} sessionId
+ * @param {number} afterRound
+ * @param {number} toRound
+ * @returns {Array<{ round_index:number, summary:string }>}
+ */
+export function getTurnSummariesInRange(sessionId, afterRound, toRound) {
+  return db.prepare(`
+    SELECT round_index, summary FROM turn_records
+    WHERE session_id = ? AND round_index > ? AND round_index <= ? AND summary != ''
+    ORDER BY round_index ASC
+  `).all(sessionId, afterRound, toRound);
+}
+
+/**
  * 取会话内尚未生成摘要（summary = ''）的 turn record，按 round_index 升序返回，
  * 供索引回填任务批量处理。
  *

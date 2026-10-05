@@ -12,7 +12,7 @@ test('GET /api/sessions/:sessionId/middle-summary 在无 turn record 时返回�
   const session = insertSession(ctx.sandbox.db);
   const res = await ctx.request(`/api/sessions/${session.id}/middle-summary`);
   assert.equal(res.status, 200);
-  assert.deepEqual(await res.json(), { content: '', coveredTo: 0 });
+  assert.deepEqual(await res.json(), { content: '', coveredTo: 0, closedTo: 0 });
 
   const notFound = await ctx.request('/api/sessions/no-such/middle-summary');
   assert.equal(notFound.status, 404);
@@ -24,7 +24,7 @@ test('GET /api/sessions/:sessionId/middle-summary 在 middle_covered_to 为 null
 
   const res = await ctx.request(`/api/sessions/${session.id}/middle-summary`);
   assert.equal(res.status, 200);
-  assert.deepEqual(await res.json(), { content: '', coveredTo: 0 });
+  assert.deepEqual(await res.json(), { content: '', coveredTo: 0, closedTo: 0 });
 });
 
 test('GET/PUT /api/sessions/:sessionId/middle-summary 往返；PUT 在无 turn record 时 409', async () => {
@@ -39,7 +39,7 @@ test('GET/PUT /api/sessions/:sessionId/middle-summary 往返；PUT 在无 turn r
   insertTurnRecord(ctx.sandbox.db, session.id, { round_index: 1, middle_summary: '原摘要', middle_covered_to: 1 });
 
   const get1 = await ctx.request(`/api/sessions/${session.id}/middle-summary`);
-  assert.deepEqual(await get1.json(), { content: '原摘要', coveredTo: 1 });
+  assert.deepEqual(await get1.json(), { content: '原摘要', coveredTo: 1, closedTo: 1 });
 
   const put = await ctx.request(`/api/sessions/${session.id}/middle-summary`, {
     method: 'PUT', headers: { 'Content-Type': 'application/json' },
@@ -49,7 +49,7 @@ test('GET/PUT /api/sessions/:sessionId/middle-summary 往返；PUT 在无 turn r
   assert.deepEqual(await put.json(), { content: '编辑后的摘要' });
 
   const get2 = await ctx.request(`/api/sessions/${session.id}/middle-summary`);
-  assert.deepEqual(await get2.json(), { content: '编辑后的摘要', coveredTo: 1 });
+  assert.deepEqual(await get2.json(), { content: '编辑后的摘要', coveredTo: 1, closedTo: 1 });
 });
 
 test('PUT /api/sessions/:sessionId/middle-summary 在会话不存在时 404', async () => {

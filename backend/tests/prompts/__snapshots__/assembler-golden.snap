@@ -3,7 +3,7 @@
     "messages": [
       {
         "role": "system",
-        "content": "GOLDEN 全局提示 金标世界-chat-base\n\n<world_entries>\n【常驻条目】\n常驻条目正文 金标世界-chat-base\n</world_entries>\n\n<user_info>\n名字：金标玩家\n玩家人设 金标玩家\n</user_info>\n\n<char_info>\n角色人设 金标角色\n</char_info>\n\n<story_summary>\n以下是更早剧情按阶段整理的摘要，【前情】是最早一段的浓缩，用于理解前因和人物关系的来历；细节以下方原文为准。\n这是更早剧情的中期摘要正文\n</story_summary>"
+        "content": "GOLDEN 全局提示 金标世界-chat-base\n\n<world_entries>\n【常驻条目】\n常驻条目正文 金标世界-chat-base\n</world_entries>\n\n<user_info>\n名字：金标玩家\n玩家人设 金标玩家\n</user_info>\n\n<char_info>\n角色人设 金标角色\n</char_info>\n\n<story_summary>\n以下是更早的剧情：先是按事件整理的摘要，最后的【进行中的事件】逐轮列出眼下这件事已滑出原文的部分，后续接着下方原文；细节以原文为准。\n这是更早剧情的中期摘要正文\n</story_summary>"
       },
       {
         "role": "user",
@@ -36,7 +36,7 @@
     "messages": [
       {
         "role": "system",
-        "content": "GOLDEN 全局提示 金标世界-chat-base\n\n<world_entries>\n【常驻条目】\n常驻条目正文 金标世界-chat-base\n</world_entries>\n\n<user_info>\n名字：金标玩家\n玩家人设 金标玩家\n</user_info>\n\n<char_info>\n角色人设 金标角色\n</char_info>\n\n<story_summary>\n以下是更早剧情按阶段整理的摘要，【前情】是最早一段的浓缩，用于理解前因和人物关系的来历；细节以下方原文为准。\n这是更早剧情的中期摘要正文\n</story_summary>"
+        "content": "GOLDEN 全局提示 金标世界-chat-base\n\n<world_entries>\n【常驻条目】\n常驻条目正文 金标世界-chat-base\n</world_entries>\n\n<user_info>\n名字：金标玩家\n玩家人设 金标玩家\n</user_info>\n\n<char_info>\n角色人设 金标角色\n</char_info>\n\n<story_summary>\n以下是更早的剧情：先是按事件整理的摘要，最后的【进行中的事件】逐轮列出眼下这件事已滑出原文的部分，后续接着下方原文；细节以原文为准。\n这是更早剧情的中期摘要正文\n</story_summary>"
       },
       {
         "role": "user",
@@ -69,7 +69,7 @@
     "messages": [
       {
         "role": "system",
-        "content": "GOLDEN 全局提示 金标世界-chat-lean\n\n<world_entries>\n【常驻条目】\n常驻条目正文 金标世界-chat-lean\n</world_entries>\n\n<user_info>\n名字：金标玩家\n玩家人设 金标玩家\n</user_info>\n\n<char_info>\n精简人设 精简角色\n</char_info>\n\n<story_summary>\n以下是更早剧情按阶段整理的摘要，【前情】是最早一段的浓缩，用于理解前因和人物关系的来历；细节以下方原文为准。\n这是更早剧情的中期摘要正文\n</story_summary>"
+        "content": "GOLDEN 全局提示 金标世界-chat-lean\n\n<world_entries>\n【常驻条目】\n常驻条目正文 金标世界-chat-lean\n</world_entries>\n\n<user_info>\n名字：金标玩家\n玩家人设 金标玩家\n</user_info>\n\n<char_info>\n精简人设 精简角色\n</char_info>\n\n<story_summary>\n以下是更早的剧情：先是按事件整理的摘要，最后的【进行中的事件】逐轮列出眼下这件事已滑出原文的部分，后续接着下方原文；细节以原文为准。\n这是更早剧情的中期摘要正文\n</story_summary>"
       },
       {
         "role": "user",
@@ -102,7 +102,7 @@
     "messages": [
       {
         "role": "system",
-        "content": "GOLDEN 全局提示 金标世界-chat-budget\n\n<world_entries>\n【常驻条目】\n常驻条目正文 金标世界-chat-budget\n</world_entries>\n\n<user_info>\n名字：金标玩家\n玩家人设 金标玩家\n</user_info>\n\n<char_info>\n预算人设 预算角色\n</char_info>\n\n<story_summary>\n以下是更早剧情按阶段整理的摘要，【前情】是最早一段的浓缩，用于理解前因和人物关系的来历；细节以下方原文为准。\n这是更早剧情的中期摘要正文\n</story_summary>"
+        "content": "GOLDEN 全局提示 金标世界-chat-budget\n\n<world_entries>\n【常驻条目】\n常驻条目正文 金标世界-chat-budget\n</world_entries>\n\n<user_info>\n名字：金标玩家\n玩家人设 金标玩家\n</user_info>\n\n<char_info>\n预算人设 预算角色\n</char_info>\n\n<story_summary>\n以下是更早的剧情：先是按事件整理的摘要，最后的【进行中的事件】逐轮列出眼下这件事已滑出原文的部分，后续接着下方原文；细节以原文为准。\n这是更早剧情的中期摘要正文\n</story_summary>"
       },
       {
         "role": "user",
@@ -135,7 +135,7 @@
     "messages": [
       {
         "role": "system",
-        "content": "GOLDEN 写作全局 金标世界-writing-base\n\n<world_entries>\n【常驻条目】\n常驻条目正文 金标世界-writing-base\n</world_entries>\n\n<user_info>\n名字：金标玩家\n玩家人设 金标玩家\n</user_info>\n\n<story_summary>\n以下是更早剧情按阶段整理的摘要，【前情】是最早一段的浓缩，用于理解前因和人物关系的来历；细节以下方原文为准。\n这是更早剧情的中期摘要正文\n</story_summary>"
+        "content": "GOLDEN 写作全局 金标世界-writing-base\n\n<world_entries>\n【常驻条目】\n常驻条目正文 金标世界-writing-base\n</world_entries>\n\n<user_info>\n名字：金标玩家\n玩家人设 金标玩家\n</user_info>\n\n<story_summary>\n以下是更早的剧情：先是按事件整理的摘要，最后的【进行中的事件】逐轮列出眼下这件事已滑出原文的部分，后续接着下方原文；细节以原文为准。\n这是更早剧情的中期摘要正文\n</story_summary>"
       },
       {
         "role": "user",
@@ -169,7 +169,7 @@
     "messages": [
       {
         "role": "system",
-        "content": "GOLDEN 写作全局 金标世界-writing-multi\n\n<world_entries>\n【常驻条目】\n常驻条目正文 金标世界-writing-multi\n</world_entries>\n\n<user_info>\n名字：金标玩家\n玩家人设 金标玩家\n</user_info>\n\n<story_summary>\n以下是更早剧情按阶段整理的摘要，【前情】是最早一段的浓缩，用于理解前因和人物关系的来历；细节以下方原文为准。\n这是更早剧情的中期摘要正文\n</story_summary>"
+        "content": "GOLDEN 写作全局 金标世界-writing-multi\n\n<world_entries>\n【常驻条目】\n常驻条目正文 金标世界-writing-multi\n</world_entries>\n\n<user_info>\n名字：金标玩家\n玩家人设 金标玩家\n</user_info>\n\n<story_summary>\n以下是更早的剧情：先是按事件整理的摘要，最后的【进行中的事件】逐轮列出眼下这件事已滑出原文的部分，后续接着下方原文；细节以原文为准。\n这是更早剧情的中期摘要正文\n</story_summary>"
       },
       {
         "role": "user",
@@ -203,7 +203,7 @@
     "messages": [
       {
         "role": "system",
-        "content": "GOLDEN 写作全局 金标世界-writing-nonchar\n\n<world_entries>\n【常驻条目】\n常驻条目正文 金标世界-writing-nonchar\n</world_entries>\n\n<user_info>\n名字：金标玩家\n玩家人设 金标玩家\n</user_info>\n\n<story_summary>\n以下是更早剧情按阶段整理的摘要，【前情】是最早一段的浓缩，用于理解前因和人物关系的来历；细节以下方原文为准。\n这是更早剧情的中期摘要正文\n</story_summary>"
+        "content": "GOLDEN 写作全局 金标世界-writing-nonchar\n\n<world_entries>\n【常驻条目】\n常驻条目正文 金标世界-writing-nonchar\n</world_entries>\n\n<user_info>\n名字：金标玩家\n玩家人设 金标玩家\n</user_info>\n\n<story_summary>\n以下是更早的剧情：先是按事件整理的摘要，最后的【进行中的事件】逐轮列出眼下这件事已滑出原文的部分，后续接着下方原文；细节以原文为准。\n这是更早剧情的中期摘要正文\n</story_summary>"
       },
       {
         "role": "user",
@@ -237,7 +237,7 @@
     "messages": [
       {
         "role": "system",
-        "content": "<world_entries>\n【常驻条目】\n常驻条目正文 金标世界-writing-cont\n</world_entries>\n\n<user_info>\n名字：金标玩家\n玩家人设 金标玩家\n</user_info>\n\n<story_summary>\n以下是更早剧情按阶段整理的摘要，【前情】是最早一段的浓缩，用于理解前因和人物关系的来历；细节以下方原文为准。\n这是更早剧情的中期摘要正文\n</story_summary>"
+        "content": "<world_entries>\n【常驻条目】\n常驻条目正文 金标世界-writing-cont\n</world_entries>\n\n<user_info>\n名字：金标玩家\n玩家人设 金标玩家\n</user_info>\n\n<story_summary>\n以下是更早的剧情：先是按事件整理的摘要，最后的【进行中的事件】逐轮列出眼下这件事已滑出原文的部分，后续接着下方原文；细节以原文为准。\n这是更早剧情的中期摘要正文\n</story_summary>"
       },
       {
         "role": "user",

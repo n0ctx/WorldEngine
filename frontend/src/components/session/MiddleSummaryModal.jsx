@@ -7,10 +7,17 @@ import Button from '../ui/Button.jsx';
 import Skeleton from '../ui/Skeleton.jsx';
 import { getMiddleSummary, updateMiddleSummary } from '../../core/api/middle-summary.js';
 
+function coverageHint(coveredTo, closedTo) {
+  if (coveredTo <= 0) return '尚未覆盖任何轮次';
+  if (closedTo >= coveredTo) return `已整理到第 ${coveredTo} 轮`;
+  return `第 ${closedTo + 1}–${coveredTo} 轮的事件还在进行中，结束后自动整理到这里`;
+}
+
 export default function MiddleSummaryModal({ sessionId, onClose }) {
   const [content, setContent] = useState('');
   const [savedContent, setSavedContent] = useState('');
   const [coveredTo, setCoveredTo] = useState(0);
+  const [closedTo, setClosedTo] = useState(0);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -22,7 +29,7 @@ export default function MiddleSummaryModal({ sessionId, onClose }) {
       .then((res) => {
         if (cancelled) return;
         const loaded = res?.content ?? '';
-        setError(''); setContent(loaded); setSavedContent(loaded); setCoveredTo(res?.coveredTo ?? 0); setLoading(false);
+        setError(''); setContent(loaded); setSavedContent(loaded); setCoveredTo(res?.coveredTo ?? 0); setClosedTo(res?.closedTo ?? 0); setLoading(false);
       })
       .catch((err) => { if (!cancelled) { setError(err.message || '加载失败'); setLoading(false); } });
     return () => { cancelled = true; };
@@ -65,7 +72,7 @@ export default function MiddleSummaryModal({ sessionId, onClose }) {
       )}
     >
       <p className="we-settings-toggle-hint mb-2">
-        {coveredTo > 0 ? `已覆盖到第 ${coveredTo} 轮` : '尚未覆盖任何轮次'}
+        {coverageHint(coveredTo, closedTo)}
       </p>
       {loading ? (
         <Skeleton />

@@ -1,7 +1,7 @@
 // 中文字符范围（CJK Unified Ideographs 主区 + 常见标点）
 const CJK_REGEX = /[\u4e00-\u9fff\u3400-\u4dbf\u3000-\u303f\uff00-\uffef]/;
-/** 每个中文字符折算的 token 数；提示词里的字数上限据此由 token 上限换算 */
-export const CJK_TOKENS_PER_CHAR = 0.78;
+/** 每个中文字符折算的 token 数 */
+const CJK_TOKENS_PER_CHAR = 0.78;
 
 /**
  * 估算文本的 token 数。

@@ -40,10 +40,7 @@
   为轮次目录索引行生成 `{scene, cast, summary}` 的 prompt（不是 `turn_records.summary`，该列已废弃）。
   调用方：`backend/memory/turn-summarizer.js`（`generateTurnIndex`）
 - `templates/memory-middle-summary.md`
-  中期剧情摘要合并 prompt：把新滑出的轮次接到最后一个阶段上，续写或收尾后另起新阶段；更早的阶段只作参考。
-  调用方：`backend/memory/middle-summary.js`
-- `templates/memory-middle-summary-shrink.md`
-  中期剧情摘要折叠 prompt：总长超限时把最老的几个阶段压进开头的【前情】，前情超限时再压，最多再压两次。
+  中期剧情摘要整理 prompt：判断进行中事件的逐轮记录里有没有已经结束的事件，有就整理成「时间｜地点｜人物 + 起因、经过、结果、变化」，没有只回「未完」；已整理的事件只作参考。
   调用方：`backend/memory/middle-summary.js`
 - `templates/memory-recall-system.md`
   长期记忆召回判定的 system prompt，喂给模型历史轮次目录索引，要求只返回命中的轮次编号 JSON。

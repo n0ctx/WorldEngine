@@ -43,14 +43,8 @@ export const TURN_SUMMARY_CAST_MAX = 4;
 // ============================
 /** 中期摘要单条最大 token 数 */
 export const MIDDLE_SUMMARY_MAX_TOKENS = 1200;
-/** 中期摘要开头【前情】段的最大 token 数 */
-export const MIDDLE_PROLOGUE_MAX_TOKENS = 360;
-/** 中期摘要单个阶段的目标 token 数（提示词里换算成字数，超出时由模型收尾另起） */
-export const MIDDLE_PHASE_MAX_TOKENS = 200;
-/** 中期摘要压缩输入（原文轮次拼接后）最大 token 数 */
-export const MIDDLE_COMPRESS_INPUT_MAX_TOKENS = 12000;
-/** 中期摘要覆盖的原文轮数上限 */
-export const MIDDLE_RAW_ROUNDS_MAX = 20;
+/** 进行中的事件超过这么多轮时，要求模型至少整理出一个事件 */
+export const MIDDLE_OPEN_EVENT_MAX_ROUNDS = 25;
 /** 短期窗口超预算时一次滑到预算的这个比例以内，之后几轮窗口开头不动，历史前缀可跨轮复用 prompt cache */
 export const SHORT_TERM_EVICT_TARGET_RATIO = 0.7;
 /** 长期记忆索引条目单条最大 token 数 */
