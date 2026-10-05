@@ -1,5 +1,5 @@
 /**
- * 产品图标（切角）：24 网格，只有直线，圆画成八边形，转角切 45°，方头尖角、2.5 粗；箭头一律实心三角。
+ * 产品图标（切角）：24 网格，只有直线，圆画成八边形，转角切 45°，方头尖角、2.5 粗；上下箭头是一根杆加折线箭头，其余带方向的记号（下载、上传、旋转）用实心三角。
  * 每个图标至多一段走强调色（.we-icon-accent），压在强调色或危险色实底上时由样式改回文字色。
  * 箭头、勾选这类指示性的小记号保持单色。只画产品里用到的，新增照同一套规则画。
  */
@@ -54,9 +54,9 @@ export const IconEllipsis = makeIcon([
   { d: 'M19 9.5 21.5 12 19 14.5 16.5 12Z', fill: true },
 ]);
 
-export const IconArrowUp = makeIcon([{ d: 'M12 21v-9' }, { d: 'M12 2.5 20 11.5H4Z', accent: true, fill: true }]);
+export const IconArrowUp = makeIcon([{ d: 'M12 20.5V7.5' }, { d: 'M5 11.5 12 4.5l7 7', accent: true }]);
 
-export const IconArrowDown = makeIcon([{ d: 'M12 3v9' }, { d: 'M12 21.5 4 12.5h16Z', accent: true, fill: true }]);
+export const IconArrowDown = makeIcon([{ d: 'M12 3.5v13' }, { d: 'M5 12.5 12 19.5l7-7', accent: true }]);
 
 export const IconChevronRight = makeIcon([{ d: 'M9 5l7 7-7 7' }]);
 
