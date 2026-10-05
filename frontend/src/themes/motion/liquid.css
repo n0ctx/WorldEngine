@@ -859,11 +859,10 @@
 }
 
 /* ── 回复的开始与收尾：洇 ─── */
-/* 开始（等首字时，排在玩家消息入场之后）：墨从名字那一角洇满气泡，气泡先是湿的强调色再干成常态底色，名字湿墨色干下去；
-   写作页没有气泡，整段叙事同样从左上角洇开。
-   收尾：整块中栏纸面的内沿亮一下——荧光先从下沿（最后一个字落下的那一侧）洇起，再漫满四边，随后干回常态纸边；
-   只在没有回复正在开始或流式时触发，每轮收尾各亮一次 */
-:where(:root[data-motion="liquid"]) :is(.we-message-assistant[data-moment="start"] .we-message-bubble-assistant, .we-writing-prose[data-moment="start"]) {
+/* 对话：一轮是一只有说话人的气泡。
+   开始（等首字时，排在玩家消息入场之后）：墨从名字那一角洇满气泡，气泡先是湿的强调色再干成常态底色，名字湿墨色干下去；
+   收尾（屏幕上的字打完时）：墨从最后一个字所在的右下角回洇进气泡，漫满后干回常态底色；只在气泡里面，压在字下面 */
+:where(:root[data-motion="liquid"]) .we-message-assistant[data-moment="start"] .we-message-bubble-assistant {
   animation: we-ink-reply-seep var(--ink-t5) var(--ink-surface) var(--we-motion-enter-duration) backwards;
 }
 :where(:root[data-motion="liquid"]) .we-message-assistant[data-moment="start"] .we-message-label {
@@ -877,21 +876,71 @@
   }
   60%, to { clip-path: circle(150% at 0 0); }
 }
-:where(:root[data-motion="liquid"]) .we-chat-center-pane:has(:is(.we-message-assistant, .we-writing-prose)[data-moment="end"]):not(:has([data-moment="start"], [data-moment="stream"]))::after {
-  animation: we-ink-pane-glow var(--ink-t6) var(--ink-flow);
+:where(:root[data-motion="liquid"]) .we-message-assistant[data-moment="end"] .we-message-bubble-assistant {
+  position: relative;
+  isolation: isolate;
 }
-/* 不写 from / to：起止都是纸边自己的常态（含输入框聚焦时的主色边） */
-@keyframes we-ink-pane-glow {
-  25% {
-    box-shadow:
-      inset 0 0 0 1px color-mix(in srgb, var(--ink-wet) var(--we-alpha-3), transparent),
-      inset 0 -32px 48px -24px color-mix(in srgb, var(--we-color-accent) var(--we-alpha-3), transparent),
-      inset 0 0 24px color-mix(in srgb, var(--we-color-accent) var(--we-alpha-1), transparent);
-  }
-  50% {
-    box-shadow:
-      inset 0 0 0 1px color-mix(in srgb, var(--ink-wet) var(--we-alpha-4), transparent),
-      inset 0 -24px 40px -24px color-mix(in srgb, var(--we-color-accent) var(--we-alpha-2), transparent),
-      inset 0 0 32px color-mix(in srgb, var(--we-color-accent) var(--we-alpha-3), transparent);
-  }
+:where(:root[data-motion="liquid"]) .we-message-assistant[data-moment="end"] .we-message-bubble-assistant::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: var(--we-z-behind);
+  border-radius: inherit;
+  pointer-events: none;
+  background: radial-gradient(circle at 100% 100%, var(--ink-glow), transparent 70%);
+  opacity: 0;
+  animation: we-ink-reply-backseep var(--ink-t6) var(--ink-surface);
+}
+@keyframes we-ink-reply-backseep {
+  from { opacity: 1; clip-path: circle(0 at 100% 100%); }
+  40%  { opacity: 1; }
+  to   { opacity: 0; clip-path: circle(150% at 100% 100%); }
+}
+/* 写作：连续的书页，没有气泡和名字，一段可能好几屏，续写接在已有的一段后面；都压在字下面，不动字。
+   开始（第一段正文随第一批字出现时）：墨从第一行的起笔处向右洇开一片，漫过这一段后干掉；还没有字时只有书写光标，它不参与；
+   收尾（屏幕上的字打完时）：从最后一个字处洇出一圈湿墨光晕，扩开后干掉；续写时同样只在新写到的结尾 */
+:where(:root[data-motion="liquid"]) .we-writing-prose[data-moment="start"] .we-message-content > :nth-child(1 of div:not(.we-think-block)) > :first-child:not(.we-stream-caret),
+:where(:root[data-motion="liquid"]) .we-writing-prose[data-moment="end"] .we-message-content > :nth-last-child(1 of div:not(.we-think-block)) > :last-child {
+  position: relative;
+  isolation: isolate;
+}
+:where(:root[data-motion="liquid"]) .we-writing-prose[data-moment="start"] .we-message-content > :nth-child(1 of div:not(.we-think-block)) > :first-child:not(.we-stream-caret)::before {
+  content: '';
+  position: absolute;
+  inset: calc(var(--we-space-xs) * -1) calc(var(--we-space-md) * -1);
+  z-index: var(--we-z-behind);
+  pointer-events: none;
+  background: radial-gradient(ellipse 70% 100% at 0 50%, color-mix(in srgb, var(--we-color-accent) var(--we-alpha-3), transparent), transparent);
+  -webkit-mask-image: linear-gradient(90deg, #000 0 40%, transparent 60% 100%);
+  mask-image: linear-gradient(90deg, #000 0 40%, transparent 60% 100%);
+  -webkit-mask-size: 260% 100%;
+  mask-size: 260% 100%;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  opacity: 0;
+  animation: we-ink-first-seep var(--ink-t6) var(--ink-surface);
+}
+@keyframes we-ink-first-seep {
+  from { opacity: 1; -webkit-mask-position: 100% 0; mask-position: 100% 0; }
+  45%  { opacity: 1; }
+  to   { opacity: 0; -webkit-mask-position: 0 0; mask-position: 0 0; }
+}
+/* 末尾的光晕绝对定位、不写偏移，停在最后一个字之后（静态位置），不占排版 */
+:where(:root[data-motion="liquid"]) .we-writing-prose[data-moment="end"] .we-message-content > :nth-last-child(1 of div:not(.we-think-block)) > :last-child::after {
+  content: '';
+  position: absolute;
+  z-index: var(--we-z-behind);
+  width: 5em;
+  height: 5em;
+  margin: calc(0.5lh - 2.5em) 0 0 -2.5em;
+  border-radius: 50%;
+  pointer-events: none;
+  background: radial-gradient(circle, var(--ink-glow), color-mix(in srgb, var(--we-color-accent) var(--we-alpha-1), transparent) 45%, transparent 70%);
+  opacity: 0;
+  animation: we-ink-tail-bloom var(--ink-t5) var(--ink-surface);
+}
+@keyframes we-ink-tail-bloom {
+  from { opacity: 1; transform: scale(0.1); }
+  35%  { opacity: 1; }
+  to   { opacity: 0; transform: scale(1); }
 }

@@ -67,6 +67,7 @@ export default function AssistantMessageRow({
   isGreeting,
   enterProps,
   moment,
+  onTypedOut,
   turnChanges,
 }) {
   const hasEntries = !editingAI && message.activated_entries?.length > 0;
@@ -99,6 +100,7 @@ export default function AssistantMessageRow({
                   isStreaming={isStreaming}
                   showCaret={showCaret}
                   trailingCaret={trailingCaret}
+                  onTypedOut={onTypedOut}
                 />
               )}
               renderEditor={({ editorRef, syncLayout }) => (

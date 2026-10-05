@@ -190,6 +190,34 @@ describe('流式书写', () => {
     expect(container.querySelector('.we-message-content').textContent).toBe('夜色很深。');
   });
 
+  it('回复的收尾等屏幕上的字打完才标记，不在数据一结束就标', () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'performance'] });
+    const text = '夜色很深，雨还没有停，灯泡在头顶晃。';
+    const { container, rerender } = render(streamItem('夜'));
+    rerender(streamItem(text));
+    rerender(streamItem(text, { isStreaming: false }));
+    const row = () => container.querySelector('.we-message-assistant');
+    expect(row().dataset.moment).toBeUndefined();
+
+    act(() => { vi.advanceTimersByTime(STREAM.lag * 2 * 1000); });
+    expect(row().dataset.moment).toBe('end');
+  });
+
+  it('写作页同样等字打完才收尾，打完之前仍是开始', () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'performance'] });
+    const message = { id: 'w-live', role: 'assistant', content: '' };
+    const text = '天亮了。雨停在屋檐上，一滴一滴往下落。';
+    const { container, rerender } = render(<WritingMessageItem message={message} isStreaming />);
+    rerender(<WritingMessageItem message={{ ...message, content: '天' }} isStreaming />);
+    rerender(<WritingMessageItem message={{ ...message, content: text }} isStreaming />);
+    rerender(<WritingMessageItem message={{ ...message, content: text }} isStreaming={false} />);
+    const prose = () => container.querySelector('.we-writing-prose');
+    expect(prose().dataset.moment).toBe('start');
+
+    act(() => { vi.advanceTimersByTime(STREAM.lag * 2 * 1000); });
+    expect(prose().dataset.moment).toBe('end');
+  });
+
   it('在思考阶段中断后，思考块上不再留光标', () => {
     vi.useFakeTimers();
     const { container, rerender } = render(streamItem('<think>先想一想'));

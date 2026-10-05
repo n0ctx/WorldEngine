@@ -1,5 +1,5 @@
 import { act, fireEvent, render, renderHook, screen } from '@testing-library/react';
-import { afterEach, beforeAll, describe, expect, it } from 'vitest';
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import MessageItem from '../../../src/components/chat/MessageItem.jsx';
 import SpeakerStage from '../../../src/components/chat/SpeakerStage.jsx';
@@ -14,13 +14,15 @@ beforeAll(() => {
 
 afterEach(() => {
   useSidePanelsStore.setState({ rightOpen: false, stateFocus: null });
+  vi.useRealTimers();
 });
 
 const live = { id: 'stream-1', role: 'assistant', content: '', created_at: 0 };
 const props = { character: { name: '艾拉' }, persona: null, worldId: 'w-1', onEdit: () => {}, onRegenerate: () => {} };
 
 describe('回复的开始与收尾', () => {
-  it('等首字时标记为开始，流式转为定稿时标记为收尾；历史消息不标记', () => {
+  it('等首字时标记为开始，生成结束、字打完时标记为收尾；历史消息不标记', () => {
+    vi.useFakeTimers();
     const { container, rerender } = render(<MessageItem {...props} message={live} isStreaming streamingText="" />);
     expect(container.querySelector('.we-message-assistant').dataset.moment).toBe('start');
 
@@ -28,6 +30,7 @@ describe('回复的开始与收尾', () => {
     expect(container.querySelector('.we-message-assistant').dataset.moment).toBeUndefined();
 
     rerender(<MessageItem {...props} message={{ ...live, content: '雨夜' }} isStreaming={false} streamingText={undefined} />);
+    act(() => { vi.runAllTimers(); });
     expect(container.querySelector('.we-message-assistant').dataset.moment).toBe('end');
 
     const history = render(<MessageItem {...props} message={{ ...live, id: 'old', content: '旧回复' }} isStreaming={false} />);
@@ -35,10 +38,12 @@ describe('回复的开始与收尾', () => {
   });
 
   it('写作页的整段叙事同样标记开始与收尾', () => {
+    vi.useFakeTimers();
     const message = { id: 'w-stream', role: 'assistant', content: '', created_at: 0 };
     const { container, rerender } = render(<WritingMessageItem message={message} isStreaming worldId="w-1" />);
     expect(container.querySelector('.we-writing-prose').dataset.moment).toBe('start');
     rerender(<WritingMessageItem message={{ ...message, content: '天亮了。' }} isStreaming={false} worldId="w-1" />);
+    act(() => { vi.runAllTimers(); });
     expect(container.querySelector('.we-writing-prose').dataset.moment).toBe('end');
   });
 });

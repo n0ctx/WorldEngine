@@ -12,8 +12,11 @@ export default function MessageBlockList({
   remarkPlugins,
   rehypePlugins,
   components,
+  onTypedOut,
 }) {
   const lastBlockIndex = blocks.length - 1;
+  // 收尾的时机跟着最后一段正文走，生成结束后才交给它；思考块之后没有正文时不收尾
+  const lastTextIndex = blocks.findLastIndex((block) => block.type !== 'thinking' && block.content);
 
   return (
     <>
@@ -41,6 +44,7 @@ export default function MessageBlockList({
                 remarkPlugins={remarkPlugins}
                 rehypePlugins={rehypePlugins}
                 components={components}
+                onTypedOut={i === lastTextIndex && !isStreaming ? onTypedOut : undefined}
               >
                 {block.content}
               </StreamingMarkdown>

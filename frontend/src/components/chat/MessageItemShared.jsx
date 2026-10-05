@@ -67,6 +67,7 @@ export function AssistantMessageContent({
   isStreaming,
   showCaret,
   trailingCaret,
+  onTypedOut,
 }) {
   return (
     <MessageBlockList
@@ -80,6 +81,7 @@ export function AssistantMessageContent({
       remarkPlugins={REMARK_PLUGINS}
       rehypePlugins={REHYPE_PLUGINS}
       components={MD_COMPONENTS}
+      onTypedOut={onTypedOut}
     />
   );
 }

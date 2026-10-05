@@ -46,7 +46,7 @@ function WritingMessageItem({
   worldId,
   turnChanges,
 }) {
-  const moment = useLiveMoment(isStreaming);
+  const { moment, settle } = useLiveMoment(isStreaming);
   const rawContent = message.content || '';
   const isUser = message.role === 'user';
   const showThinking = useDisplaySettingsStore((s) => s.writingShowThinking);
@@ -147,6 +147,7 @@ function WritingMessageItem({
                 showCaret={showCaret}
                 trailingCaret={trailingCaret}
                 ThinkBlock={WritingThinkBlock}
+                onTypedOut={settle}
                 remarkPlugins={REMARK_PLUGINS_W}
                 rehypePlugins={REHYPE_PLUGINS_W}
               />

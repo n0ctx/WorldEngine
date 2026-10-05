@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import MessageBubbles from '../../../components/chat/MessageBubbles.jsx';
+import WritingMessageItem from '../../../components/writing/WritingMessageItem.jsx';
 import { StateBusyOverlay } from '../../../components/state/panel-parts.jsx';
 import StreamingMarkdown from '../../../components/message/StreamingMarkdown.jsx';
 import MotionOrb from '../../../components/motion/MotionOrb.jsx';
@@ -9,7 +10,15 @@ import SlotSection from '../SlotSection.jsx';
 import { CHAT, PROSE, SPEAKERS } from './fixtures.js';
 
 const noop = () => {};
-const REPLY_TEXT = PROSE.slice(0, 60);
+const CHAT_REPLY = PROSE.slice(0, 60);
+const WRITING_PASSAGE = '台下的人没有立刻回答。他把烟头按灭在栏杆上，朝场子另一头努了努嘴——那边的灯更暗，'
+  + '一个光着膀子的人正在缠手带，缠得很慢，一圈压着一圈。\n\n「今晚你要是上，」他说，「就是跟他。」';
+const WRITING_MORE = '你看着那人缠完最后一圈，用牙咬断了胶带。他抬起头，隔着半个场子和你对上了眼，什么也没说。';
+const WRITING_BASE = [
+  { id: 'lab-w1', role: 'assistant', content: PROSE },
+  { id: 'lab-w2', role: 'user', content: '我把湿外套搭上栏杆，问台下的人今晚谁上场。' },
+];
+const TEXTS = { chat: CHAT_REPLY, write: WRITING_PASSAGE, more: WRITING_MORE };
 // 本轮变化条的示例：与 useTurnChanges 产出的形状一致
 const TURN_CHANGES = [
   { id: 'hp', label: '生命', text: '▼25', tone: 'down', target: { tab: 'player', fieldKeys: ['hp'] } },
@@ -17,52 +26,117 @@ const TURN_CHANGES = [
   { id: 'place', label: '位置', text: '更新', tone: 'neutral', target: { tab: null, fieldKeys: ['place'] } },
 ];
 
-// 一轮假的回复：等首字 → 逐字流式 → 定稿（同一个 key，和正式页面一样从流式转为定稿）
-function useFakeReply() {
-  const [turn, setTurn] = useState({ id: 0, phase: 'idle', text: '' });
-  const { id } = turn;
+// 一轮假的生成：等首字 → 逐字流式 → 定稿；写作页的续写接在上一段之后，同一个 key 从流式转为定稿
+function useFakeTurn() {
+  const [turn, setTurn] = useState({ id: 0, kind: null, phase: 'idle', text: '', reply: null, passage: null });
+  const { id, kind } = turn;
   useEffect(() => {
     if (!id) return undefined;
+    const full = TEXTS[kind];
     let pos = 0;
     let timer;
     const tick = () => {
-      pos = Math.min(REPLY_TEXT.length, pos + 3);
-      const done = pos >= REPLY_TEXT.length;
-      setTurn((prev) => ({ ...prev, phase: done ? 'done' : 'stream', text: REPLY_TEXT.slice(0, pos) }));
+      pos = Math.min(full.length, pos + 3);
+      const done = pos >= full.length;
+      setTurn((prev) => ({
+        ...prev,
+        phase: done ? 'done' : 'stream',
+        text: full.slice(0, pos),
+        reply: done && kind === 'chat' ? prev.id : prev.reply,
+        passage: done && kind !== 'chat' ? writtenPassage(prev, full) : prev.passage,
+      }));
       if (!done) timer = setTimeout(tick, 80);
     };
     timer = setTimeout(tick, 900);
     return () => clearTimeout(timer);
-  }, [id]);
-  return { turn, run: () => setTurn((prev) => ({ id: prev.id + 1, phase: 'wait', text: '' })) };
+  }, [id, kind]);
+  const start = (next) => setTurn((prev) => ({ ...prev, id: prev.id + 1, kind: next, phase: 'wait', text: '' }));
+  return { turn, start };
+}
+
+function writtenPassage(turn, full) {
+  if (turn.kind === 'more') return { ...turn.passage, content: `${turn.passage.content}\n\n${full}` };
+  return { id: `lab-w-${turn.id}`, content: full };
+}
+
+// 对话页：生成中的回复与定稿后同一个 key；跑写作的一轮时，上一轮对话回复留在原处
+function ChatSample({ turn }) {
+  const generating = turn.kind === 'chat' && (turn.phase === 'wait' || turn.phase === 'stream');
+  const replyId = generating ? turn.id : turn.reply;
+  const reply = { id: `lab-reply-${replyId}`, _key: `lab-reply-${replyId}`, role: 'assistant', content: CHAT_REPLY, created_at: CHAT[1].created_at };
+  const shown = !generating && turn.reply !== null;
+  return (
+    <div className="we-chat-center-pane we-design-lab__pane">
+      <MessageBubbles
+        messagesForDisplay={shown ? [CHAT[0], reply] : [CHAT[0]]}
+        character={SPEAKERS[0]}
+        persona={{ name: '玩家' }}
+        options={[]}
+        generating={generating}
+        streamingKey={reply._key}
+        streamingText={turn.text}
+        onLastPage
+        turnChanges={shown ? { messageId: reply.id, changes: TURN_CHANGES } : null}
+        onEditMessage={noop}
+        onRegenerateMessage={noop}
+        onEditAssistantMessage={noop}
+        onDeleteMessage={noop}
+      />
+    </div>
+  );
+}
+
+// 写作页最后一段：新写的一段在生成中只有已到的字；续写时接在已定稿的那段后面
+function lastPassage(turn) {
+  const live = turn.phase === 'wait' || turn.phase === 'stream';
+  if (live && turn.kind === 'write') return { id: `lab-w-${turn.id}`, content: turn.text, streaming: true };
+  if (!turn.passage) return null;
+  if (live && turn.kind === 'more') return { ...turn.passage, content: `${turn.passage.content}\n\n${turn.text}`, streaming: true };
+  return { ...turn.passage, streaming: false };
+}
+
+function WritingSample({ turn }) {
+  const passage = lastPassage(turn);
+  const items = passage ? [...WRITING_BASE, { ...passage, role: 'assistant' }] : WRITING_BASE;
+  return (
+    <div className="we-chat-center-pane we-design-lab__pane">
+      <div className="we-prose-message-list">
+        <div className="we-chapter">
+          {items.map((item) => (
+            <WritingMessageItem
+              key={item.id}
+              message={item}
+              isStreaming={!!item.streaming}
+              turnChanges={item.id === passage?.id && !item.streaming ? TURN_CHANGES : undefined}
+              onEdit={noop}
+              onRegenerate={noop}
+              onDelete={noop}
+            />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export function ReplyMomentDemo() {
-  const { turn, run } = useFakeReply();
-  const reply = { id: `lab-reply-${turn.id}`, _key: `lab-reply-${turn.id}`, role: 'assistant', content: REPLY_TEXT, created_at: CHAT[1].created_at };
-  const generating = turn.phase === 'wait' || turn.phase === 'stream';
+  const { turn, start } = useFakeTurn();
+  const busy = turn.phase === 'wait' || turn.phase === 'stream';
   return (
     <SlotSection
       id="reply-moment"
-      actions={<Button variant="secondary" size="sm" onClick={run}>{turn.id ? '再来一轮' : '来一轮回复'}</Button>}
+      actions={(
+        <>
+          <Button variant="secondary" size="sm" disabled={busy} onClick={() => start('chat')}>对话：来一轮回复</Button>
+          <Button variant="secondary" size="sm" disabled={busy} onClick={() => start('write')}>写作：写一段</Button>
+          <Button variant="secondary" size="sm" disabled={busy || !turn.passage} onClick={() => start('more')}>写作：续写</Button>
+        </>
+      )}
     >
-      <div className="we-chat-center-pane we-design-lab__pane">
-        <MessageBubbles
-          messagesForDisplay={turn.phase === 'done' ? [CHAT[0], reply] : [CHAT[0]]}
-          character={SPEAKERS[0]}
-          persona={{ name: '玩家' }}
-          options={[]}
-          generating={generating}
-          streamingKey={reply._key}
-          streamingText={turn.text}
-          onLastPage
-          turnChanges={turn.phase === 'done' ? { messageId: reply.id, changes: TURN_CHANGES } : null}
-          onEditMessage={noop}
-          onRegenerateMessage={noop}
-          onEditAssistantMessage={noop}
-          onDeleteMessage={noop}
-        />
-      </div>
+      <p className="we-design-lab__subheading">对话</p>
+      <ChatSample turn={turn} />
+      <p className="we-design-lab__subheading">写作</p>
+      <WritingSample turn={turn} />
     </SlotSection>
   );
 }

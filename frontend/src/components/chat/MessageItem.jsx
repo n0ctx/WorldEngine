@@ -63,7 +63,7 @@ function MessageItem({
   };
 
   // 生成中的回复由开始 / 收尾的签名动作代替通用入场；等首字的一行与有字后的一行是两次挂载，开始只放在前者
-  const moment = useLiveMoment(isStreaming);
+  const { moment, settle } = useLiveMoment(isStreaming);
   const liveEnterProps = moment ? { ...enterProps, initial: false } : enterProps;
 
   const speakerName = isUser
@@ -152,6 +152,7 @@ function MessageItem({
       isGreeting={isGreeting}
       enterProps={liveEnterProps}
       moment={moment === 'end' ? 'end' : undefined}
+      onTypedOut={settle}
       turnChanges={turnChanges}
     />
   );

@@ -219,6 +219,7 @@ function initialTrack(text, streaming, caret) {
 /**
  * 流式正文：新到达的文字逐字打出，已出现的字保持静止；打字节奏贴着真实到达速度，最多落后当前动效包的 stream.lag。
  * caret=true 时书写光标跟着正在出现的字走，打完停在最后一个字后面；生成结束先暗下去再移除。
+ * onTypedOut：在最后一个字打出时调用（已经打完或不逐字时下一拍调用）；调用方只在生成结束后传入。
  * 聊天与写作共用；reduced motion 下不逐字、光标静止、结束直接移除。
  */
 export default function StreamingMarkdown({
@@ -228,6 +229,7 @@ export default function StreamingMarkdown({
   remarkPlugins,
   rehypePlugins,
   components,
+  onTypedOut,
 }) {
   const m = useMotion();
   const vars = m.stream();
@@ -267,6 +269,12 @@ export default function StreamingMarkdown({
     const timer = setTimeout(() => setTrack((t) => ({ ...t, fading: false, typing: false, chunks: [] })), tail);
     return () => clearTimeout(timer);
   }, [fading, typedUntil, timing]);
+
+  // 回复的收尾从这里开始；新段落在绘制前排期时 typedUntil 随之更新，旧的定时器在触发前就被换掉
+  useEffect(() => {
+    const timer = setTimeout(() => onTypedOut?.(), Math.max(0, typedUntil - performance.now()));
+    return () => clearTimeout(timer);
+  }, [onTypedOut, typedUntil]);
 
   const writing = streaming || fading;
   const chunks = vars && writing ? next.chunks : NO_CHUNKS;
