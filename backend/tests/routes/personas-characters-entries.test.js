@@ -255,6 +255,41 @@ test('POST /api/worlds/:worldId/characters/from-entity 把状态记忆实体制�
   assert.equal(worldMismatch.status, 400);
 });
 
+test('POST /api/worlds/:worldId/personas/from-entity 把状态记忆实体存为玩家卡；实体不存在 404；session 不属于 world 400', async () => {
+  const world = insertWorld(ctx.sandbox.db, { name: '路由-persona-from-entity' });
+  const session = insertSession(ctx.sandbox.db, { world_id: world.id, mode: 'writing' });
+
+  const createEntityRes = await ctx.request(`/api/sessions/${session.id}/state-memory/entities`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ type: 'character', name: '阿绪' }),
+  });
+  const entity = await createEntityRes.json();
+
+  const res = await ctx.request(`/api/worlds/${world.id}/personas/from-entity`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ session_id: session.id, entity_id: entity.entity_id, name: '阿绪', system_prompt: 'sp', description: 'desc' }),
+  });
+  assert.equal(res.status, 201);
+  const created = await res.json();
+  const persona = ctx.sandbox.db.prepare('SELECT * FROM personas WHERE id = ?').get(created.id);
+  assert.equal(persona.world_id, world.id);
+  assert.equal(persona.name, '阿绪');
+  assert.equal(persona.system_prompt, 'sp');
+
+  const notFound = await ctx.request(`/api/worlds/${world.id}/personas/from-entity`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ session_id: session.id, entity_id: 'no-such', name: 'X' }),
+  });
+  assert.equal(notFound.status, 404);
+
+  const otherWorld = insertWorld(ctx.sandbox.db, { name: '路由-persona-from-entity-别的世界' });
+  const worldMismatch = await ctx.request(`/api/worlds/${otherWorld.id}/personas/from-entity`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ session_id: session.id, entity_id: entity.entity_id, name: 'X' }),
+  });
+  assert.equal(worldMismatch.status, 400);
+});
+
 // ─── prompt-entries routes ──────────────────────────────────────────
 
 test('GET / POST /api/worlds/:worldId/entries CRUD', async () => {

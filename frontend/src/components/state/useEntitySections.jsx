@@ -25,7 +25,7 @@ function sortNpcEntities(entities, presentIds) {
 
 /**
  * 「在场 + 置顶」的 NPC 实体页签，对话和写作两种模式共用。
- * 每个页签内容是 EntityStateBlock，操作栏含置顶/取消置顶、制成角色卡、删除。
+ * 每个页签内容是 EntityStateBlock，操作栏含置顶/取消置顶、存为角色卡、删除。
  *
  * 返回 { sections, modals }：sections 交给 SectionTabs，modals（制卡/删除确认弹窗）
  * 由调用方放进 belowTabs。
@@ -82,9 +82,9 @@ export default function useEntitySections({
           size="sm"
           variant="ghost"
           onClick={() => setMakeCardEntity(entity)}
-          title="制成角色卡"
+          title="存为角色卡"
         >
-          <Book size={11} /><span>制成角色卡</span>
+          <Book size={11} /><span>存为角色卡</span>
         </Button>
         <Button
           type="button"

@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
   createEntityFromCard: vi.fn(),
   analyzeEntityForCard: vi.fn(),
   createCharacterFromEntity: vi.fn(),
+  createPersonaFromEntity: vi.fn(),
   getCharactersByWorld: vi.fn(),
   getWorld: vi.fn(),
   getConfig: vi.fn(),
@@ -22,6 +23,7 @@ vi.mock('../../../src/core/api/state-memory.js', () => ({
   createEntityFromCard: (...a) => mocks.createEntityFromCard(...a),
   analyzeEntityForCard: (...a) => mocks.analyzeEntityForCard(...a),
   createCharacterFromEntity: (...a) => mocks.createCharacterFromEntity(...a),
+  createPersonaFromEntity: (...a) => mocks.createPersonaFromEntity(...a),
 }));
 vi.mock('../../../src/core/api/characters.js', () => ({
   getCharactersByWorld: (...a) => mocks.getCharactersByWorld(...a),

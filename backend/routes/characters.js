@@ -8,7 +8,7 @@ import {
   reorderCharacters,
 } from '../services/characters.js';
 import { getWorldById } from '../services/worlds.js';
-import { assertExists } from '../utils/route-helpers.js';
+import { assertExists, sendEntityCardError } from '../utils/route-helpers.js';
 import { createCharacterFromEntity } from '../services/entity-card-maker.js';
 import { createImageUpload, requireUploadedFile } from '../utils/image-upload.js';
 import { createLogger, formatMeta } from '../utils/logger.js';
@@ -46,21 +46,7 @@ router.post('/worlds/:worldId/characters/from-entity', (req, res) => {
     });
     res.status(201).json({ id });
   } catch (err) {
-    const code = err?.code;
-    if (code === 'ENTITY_NOT_FOUND' || code === 'SESSION_NOT_FOUND') {
-      log.warn(`characters.not_found ${formatMeta({ method: req.method, path: req.path, reason: err.message, code })}`);
-      return res.status(404).json({ error: err.message });
-    }
-    if (code === 'SESSION_WORLD_MISMATCH') {
-      log.warn(`characters.bad_request ${formatMeta({ method: req.method, path: req.path, reason: err.message, code })}`);
-      return res.status(400).json({ error: err.message });
-    }
-    if (/required/i.test(err?.message ?? '')) {
-      log.warn(`characters.bad_request ${formatMeta({ method: req.method, path: req.path, reason: err.message })}`);
-      return res.status(400).json({ error: err.message });
-    }
-    log.error(`characters.unhandled ${formatMeta({ method: req.method, path: req.path, msg: err?.message })}`);
-    return res.status(500).json({ error: err?.message || 'Internal error' });
+    sendEntityCardError(res, err, { log, ns: 'characters' });
   }
 });
 

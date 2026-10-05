@@ -227,3 +227,37 @@ test('createCharacterFromEntity：name 缺失 / 实体不属于 session / sessio
     (err) => err.code === 'SESSION_WORLD_MISMATCH',
   );
 });
+
+test('createPersonaFromEntity：落库玩家卡；只把玩家卡可预设的档案（身份、外貌）存成档案初始值；不回写实体 card_id', async () => {
+  const { worldId, sessionId } = makeWorldAndWritingSession('create-persona');
+  const entity = await makeCharacterEntity(sessionId, '种子');
+  const { updateEntity } = await freshImport('backend/services/state-memory.js');
+  updateEntity(sessionId, entity.entity_id, { profile: { gender: '女', hair: '短发', core_traits: ['暴躁'] } });
+
+  const { createPersonaFromEntity } = await freshImport('backend/services/entity-card-maker.js');
+  const newId = createPersonaFromEntity({
+    worldId,
+    sessionId,
+    entityId: entity.entity_id,
+    name: '  阿绪  ',
+    system_prompt: 'sp',
+    description: 'desc',
+  });
+
+  const row = sandbox.db.prepare('SELECT * FROM personas WHERE id = ?').get(newId);
+  assert.equal(row.world_id, worldId);
+  assert.equal(row.name, '阿绪');
+  assert.equal(row.system_prompt, 'sp');
+  assert.equal(row.description, 'desc');
+  assert.deepEqual(JSON.parse(row.profile_defaults_json), { gender: '女', hair: '短发' });
+
+  const entityRow = sandbox.db.prepare(
+    'SELECT card_id FROM state_entities WHERE session_id = ? AND entity_id = ? AND valid_to_round IS NULL',
+  ).get(sessionId, entity.entity_id);
+  assert.equal(entityRow.card_id, null);
+
+  assert.throws(
+    () => createPersonaFromEntity({ worldId, sessionId, entityId: entity.entity_id, name: '  ' }),
+    /name is required/,
+  );
+});

@@ -4,6 +4,7 @@ import {
   analyzeEntityForCard,
   createCharacterFromEntity,
   createEntityFromCard,
+  createPersonaFromEntity,
   createStateEntity,
   createStateRelation,
   createStateThread,
@@ -106,6 +107,15 @@ describe('state-memory api', () => {
     const payload = { session_id: 's1', entity_id: 'e1', name: '沈彦', system_prompt: '', description: '', first_message: '' };
     await createCharacterFromEntity('world-1', payload);
     expect(fetch).toHaveBeenCalledWith('/api/worlds/world-1/characters/from-entity', expect.objectContaining({
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }));
+  });
+
+  it('从实体存为玩家卡', async () => {
+    const payload = { session_id: 's1', entity_id: 'e1', name: '沈彦', system_prompt: '', description: '' };
+    await createPersonaFromEntity('world-1', payload);
+    expect(fetch).toHaveBeenCalledWith('/api/worlds/world-1/personas/from-entity', expect.objectContaining({
       method: 'POST',
       body: JSON.stringify(payload),
     }));

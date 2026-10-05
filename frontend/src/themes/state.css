@@ -676,10 +676,12 @@
   overflow: hidden;
   padding-bottom: 0;
 }
+/* 两栏顶部同留一段裁剪余量：详情栏头按钮悬停上浮、描边与投影不被滚动容器上沿截断 */
 .we-sm-entity-list,
 .we-sm-entity-detail-pane {
   min-height: 0;
   overflow-y: auto;
+  padding-top: var(--we-space-sm);
   padding-right: var(--we-space-xs);
   padding-bottom: var(--we-space-lg);
   scrollbar-width: thin;
@@ -786,9 +788,10 @@
 }
 .we-sm-detail-actions {
   display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
   align-items: center;
   gap: var(--we-space-xs);
-  flex-shrink: 0;
 }
 /* 分组靠组标题的横线区分，组与组之间不再画分隔线 */
 .we-sm-detail .we-state-section + .we-state-section { border-top: none; }

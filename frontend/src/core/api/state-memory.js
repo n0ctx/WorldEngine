@@ -85,6 +85,13 @@ export function createCharacterFromEntity(worldId, payload) {
   });
 }
 
+export function createPersonaFromEntity(worldId, payload) {
+  return request(`${BASE}/worlds/${worldId}/personas/from-entity`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
 export function fetchStateMemorySchema() {
   return request(`${BASE}/state-memory/schema`);
 }

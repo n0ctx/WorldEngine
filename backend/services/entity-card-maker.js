@@ -1,13 +1,16 @@
 /**
- * entity-card-maker.js — 把会话状态记忆里的实体"制成"公共角色卡。
+ * entity-card-maker.js — 把会话状态记忆里的角色实体存为公共角色卡或玩家卡。
  *
  * 两步：
  *   1) analyzeEntityForCard：调 LLM 把实体档案文本（renderEntityProfileText）扩写为完整
  *      system_prompt，并生成 first_message；description 直接复用档案文本。
  *      返回 { name, system_prompt, description, first_message } 草稿（name 透传）。
- *   2) createCharacterFromEntity：写入 characters 表 + 把 nearby_enabled=1 的
- *      字段当前值写入 character_state_values.default_value_json（不写 runtime、
- *      不带实体档案文本），并把该实体的 card_id 回写为新角色卡。
+ *   2) 落库：
+ *      - createCharacterFromEntity：写入 characters 表 + 把 nearby_enabled=1 的
+ *        字段当前值写入 character_state_values.default_value_json（不写 runtime、
+ *        不带实体档案文本），并把该实体的 card_id 回写为新角色卡。
+ *      - createPersonaFromEntity：写入 personas 表，档案存成玩家卡的档案初始值；
+ *        角色状态字段与玩家状态字段是两套，不搬状态值，也不回写 card_id。
  */
 
 import * as llm from '../llm/index.js';
@@ -21,6 +24,7 @@ import { getCharacterStateFieldsByWorldId } from '../db/queries/character-state-
 import { getSessionById } from '../db/queries/sessions.js';
 import { getMessagesBySessionId } from '../db/queries/messages.js';
 import { createCharacter, setCharacterProfileDefaults } from '../db/queries/characters.js';
+import { createPersona, setPersonaProfileDefaults } from '../db/queries/personas.js';
 import { upsertCharacterStateValues } from '../db/queries/character-state-values.js';
 import { splitRounds } from '../utils/session-rounds.js';
 import { ALL_MESSAGES_LIMIT } from '../utils/constants.js';
@@ -70,6 +74,28 @@ function pickRecentMessages(sessionId, rounds) {
   // 一轮约等于 user + assistant 两条；取最后 rounds*2 条即可
   const tail = all.slice(-rounds * 2);
   return tail;
+}
+
+/** 落库前的公共校验：参数齐全、会话属于该世界、实体属于该会话；返回实体与去空白的名字。 */
+function resolveCardSource({ worldId, sessionId, entityId, name }) {
+  if (!worldId) throw new Error('worldId is required');
+  if (!sessionId) throw new Error('sessionId is required');
+  if (!entityId) throw new Error('entityId is required');
+  const trimmedName = typeof name === 'string' ? name.trim() : '';
+  if (!trimmedName) throw new Error('name is required');
+
+  ensureSessionInWorld(sessionId, worldId);
+  return { entity: ensureEntityOwnedBySession(sessionId, entityId), trimmedName };
+}
+
+/** 实体当前档案里、目标卡片类型可预设的字段 → 档案初始值 JSON */
+function entityProfileDefaultsJson(sessionId, worldId, entityId, cardType) {
+  const profile = getEntityDetails(sessionId, [entityId])[entityId]?.profile ?? {};
+  return JSON.stringify(sanitizeProfileDefaults(Object.fromEntries(
+    getEditableProfileFields(worldId, cardType)
+      .filter((field) => profile[field.key])
+      .map((field) => [field.key, JSON.parse(profile[field.key].value_json)]),
+  )));
 }
 
 function stateValuesToArray(sessionId, entityId) {
@@ -146,14 +172,7 @@ export function createCharacterFromEntity({
   description = '',
   first_message = '',
 }) {
-  if (!worldId) throw new Error('worldId is required');
-  if (!sessionId) throw new Error('sessionId is required');
-  if (!entityId) throw new Error('entityId is required');
-  const trimmedName = typeof name === 'string' ? name.trim() : '';
-  if (!trimmedName) throw new Error('name is required');
-
-  ensureSessionInWorld(sessionId, worldId);
-  const entity = ensureEntityOwnedBySession(sessionId, entityId);
+  const { entity, trimmedName } = resolveCardSource({ worldId, sessionId, entityId, name });
 
   const character = createCharacter({
     world_id: worldId,
@@ -179,12 +198,7 @@ export function createCharacterFromEntity({
     })));
 
   // 实体当前档案存成新角色卡的档案初始值
-  const profile = getEntityDetails(sessionId, [entityId])[entityId]?.profile ?? {};
-  setCharacterProfileDefaults(character.id, JSON.stringify(sanitizeProfileDefaults(Object.fromEntries(
-    getEditableProfileFields(worldId, 'character')
-      .filter((field) => profile[field.key])
-      .map((field) => [field.key, JSON.parse(profile[field.key].value_json)]),
-  ))));
+  setCharacterProfileDefaults(character.id, entityProfileDefaultsJson(sessionId, worldId, entityId, 'character'));
 
   // 把实体关联到新角色卡
   upsertEntity(sessionId, {
@@ -194,4 +208,33 @@ export function createCharacterFromEntity({
 
   log.info(`entity_card.create_character  ${formatMeta({ sessionId, worldId, entityId, characterId: character.id, name: trimmedName })}`);
   return character.id;
+}
+
+/**
+ * 把实体落成玩家卡：名字 / 简介 / 人设来自草稿，实体档案里玩家卡可预设的字段（身份、外貌）存成档案初始值。
+ *
+ * @param {object} args
+ * @param {string} args.worldId
+ * @param {string} args.sessionId
+ * @param {string} args.entityId
+ * @param {string} args.name
+ * @param {string} [args.system_prompt]
+ * @param {string} [args.description]
+ * @returns {string} 新玩家卡 id
+ */
+export function createPersonaFromEntity({
+  worldId,
+  sessionId,
+  entityId,
+  name,
+  system_prompt = '',
+  description = '',
+}) {
+  const { trimmedName } = resolveCardSource({ worldId, sessionId, entityId, name });
+
+  const persona = createPersona(worldId, { name: trimmedName, description, system_prompt });
+  setPersonaProfileDefaults(persona.id, entityProfileDefaultsJson(sessionId, worldId, entityId, 'player'));
+
+  log.info(`entity_card.create_persona  ${formatMeta({ sessionId, worldId, entityId, personaId: persona.id, name: trimmedName })}`);
+  return persona.id;
 }

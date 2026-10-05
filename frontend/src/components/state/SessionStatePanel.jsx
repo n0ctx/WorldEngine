@@ -155,7 +155,7 @@ function DiaryTab({
 }
 
 /** 面板顶部的剧情摘要 / 状态记忆入口，各自打开当前会话的弹窗 */
-function SessionTools({ sessionId }) {
+function SessionTools({ sessionId, worldId }) {
   const [summaryOpen, setSummaryOpen] = useState(false);
   const [stateMemoryOpen, setStateMemoryOpen] = useState(false);
 
@@ -174,7 +174,7 @@ function SessionTools({ sessionId }) {
           <MiddleSummaryModal key="middle-summary-modal" sessionId={sessionId} onClose={() => setSummaryOpen(false)} />
         )}
         {stateMemoryOpen && (
-          <StateMemoryModal key="state-memory-modal" sessionId={sessionId} onClose={() => setStateMemoryOpen(false)} />
+          <StateMemoryModal key="state-memory-modal" sessionId={sessionId} worldId={worldId} onClose={() => setStateMemoryOpen(false)} />
         )}
       </AnimatePresence>
     </div>
@@ -437,7 +437,7 @@ export default function SessionStatePanel({
   return (
     <div ref={panelRef} className={classNames.panel}>
       <div className={classNames.scroll}>
-        {sessionId && <SessionTools sessionId={sessionId} />}
+        {sessionId && <SessionTools sessionId={sessionId} worldId={worldId} />}
         {worldTab}
         <section className="we-state-block we-state-block--cast">
           <SectionTabs key={focusTabs.key} sections={sections} defaultKey={focusTabs.defaultKey} globalActions={globalActions} />

@@ -11,6 +11,9 @@ import {
 } from '../services/personas.js';
 import { getPersonaById } from '../db/queries/personas.js';
 import { extractPersonaStateSuggestions } from '../services/state-extract.js';
+import { createPersonaFromEntity } from '../services/entity-card-maker.js';
+import { getWorldById } from '../services/worlds.js';
+import { assertExists, sendEntityCardError } from '../utils/route-helpers.js';
 import { createImageUpload, requireUploadedFile } from '../utils/image-upload.js';
 import { createLogger, formatMeta } from '../utils/logger.js';
 
@@ -89,6 +92,21 @@ router.post('/worlds/:worldId/personas', (req, res) => {
     res.status(201).json(persona);
   } catch (err) {
     sendBadRequest(req, res, err);
+  }
+});
+
+// POST /api/worlds/:worldId/personas/from-entity — 把状态记忆实体存为玩家卡
+router.post('/worlds/:worldId/personas/from-entity', (req, res) => {
+  const { worldId } = req.params;
+  if (!assertExists(res, getWorldById(worldId), '世界不存在')) return;
+  const { session_id, entity_id, name, system_prompt, description } = req.body ?? {};
+  try {
+    const id = createPersonaFromEntity({
+      worldId, sessionId: session_id, entityId: entity_id, name, system_prompt, description,
+    });
+    res.status(201).json({ id });
+  } catch (err) {
+    sendEntityCardError(res, err, { log, ns: 'personas' });
   }
 });
 

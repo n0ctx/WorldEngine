@@ -24,6 +24,9 @@ vi.mock('../../../core/api/session-state-values.js', () => ({
 vi.mock('../../../core/api/state-memory.js', () => ({
   updateStateEntity: vi.fn(),
   updateStateWorld: vi.fn(),
+  analyzeEntityForCard: vi.fn(),
+  createCharacterFromEntity: vi.fn(),
+  createPersonaFromEntity: vi.fn(),
 }));
 vi.mock('../../../core/hooks/useSessionState.js', () => ({
   useSessionState: () => harness.state,

@@ -3,16 +3,23 @@ import Dialog from '../ui/Dialog.jsx';
 import Button from '../ui/Button.jsx';
 import Input from '../ui/Input.jsx';
 import Textarea from '../ui/Textarea.jsx';
-import { analyzeEntityForCard, createCharacterFromEntity } from '../../core/api/state-memory.js';
+import { analyzeEntityForCard, createCharacterFromEntity, createPersonaFromEntity } from '../../core/api/state-memory.js';
 import { log } from '../../core/utils/logger.js';
 
+/** 两种卡片：角色卡带开场白，玩家卡由用户扮演、没有开场白 */
+const CARD_KINDS = {
+  character: { label: '角色卡', create: createCharacterFromEntity, firstMessage: true },
+  persona: { label: '玩家卡', create: createPersonaFromEntity, firstMessage: false },
+};
+
 /**
- * 制卡 Modal —— 基于状态记忆实体，两种模式（对话 NPC 页签、写作角色页签）共用。
- * 打开即用 LLM 生成四字段草稿（可编辑），确认后从该实体新建公共角色卡。
+ * 制卡 Modal —— 基于状态记忆实体，把角色存为角色卡（kind="character"）或玩家卡（kind="persona"）。
+ * 打开即用 LLM 生成草稿（可编辑），确认后从该实体新建卡片。
  *
  * 不引入新色值，沿用既有 we-cast-add-modal-* / we-make-card-modal-* 视觉。
  */
-export default function MakeCardModal({ worldId, sessionId, entity, onClose, onCreated }) {
+export default function MakeCardModal({ kind = 'character', worldId, sessionId, entity, onClose, onCreated }) {
+  const cardKind = CARD_KINDS[kind];
   const [draft, setDraft] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -52,15 +59,15 @@ export default function MakeCardModal({ worldId, sessionId, entity, onClose, onC
     }
     setLoading(true);
     try {
-      await createCharacterFromEntity(worldId, {
+      await cardKind.create(worldId, {
         session_id: sessionId,
         entity_id: entity.entity_id,
         name: draft.name.trim(),
         system_prompt: draft.system_prompt,
         description: draft.description,
-        first_message: draft.first_message,
+        ...(cardKind.firstMessage ? { first_message: draft.first_message } : {}),
       });
-      log.success('card.create.success', null, { toast: '已保存为角色卡' });
+      log.success('card.create.success', null, { toast: `已保存为${cardKind.label}` });
       onCreated?.();
     } catch (e) {
       if (e?.status === 409) log.error('card.name.duplicate', e, { toast: '该名字已被占用' });
@@ -73,7 +80,7 @@ export default function MakeCardModal({ worldId, sessionId, entity, onClose, onC
   return (
     <Dialog
       size="md"
-      title="制成角色卡"
+      title={`存为${cardKind.label}`}
       description="AI 起草的内容可以先改再保存。"
       busy={loading}
       bodyClassName="we-make-card-modal-fields"
@@ -85,7 +92,7 @@ export default function MakeCardModal({ worldId, sessionId, entity, onClose, onC
           </Button>
           {draft && (
             <Button type="button" variant="primary" onClick={handleConfirm} disabled={loading}>
-              {loading ? '保存中…' : '保存为角色卡'}
+              {loading ? '保存中…' : `保存为${cardKind.label}`}
             </Button>
           )}
         </>
@@ -129,15 +136,17 @@ export default function MakeCardModal({ worldId, sessionId, entity, onClose, onC
             />
           </label>
 
-          <label className="we-make-card-modal-field">
-            <span className="we-make-card-modal-label">开场白</span>
-            <Textarea
-              value={draft.first_message}
-              rows={2}
-              onChange={(e) => setDraft({ ...draft, first_message: e.target.value })}
-              disabled={loading}
-            />
-          </label>
+          {cardKind.firstMessage && (
+            <label className="we-make-card-modal-field">
+              <span className="we-make-card-modal-label">开场白</span>
+              <Textarea
+                value={draft.first_message}
+                rows={2}
+                onChange={(e) => setDraft({ ...draft, first_message: e.target.value })}
+                disabled={loading}
+              />
+            </label>
+          )}
         </>
       )}
     </Dialog>

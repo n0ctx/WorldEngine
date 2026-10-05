@@ -77,9 +77,29 @@ const mocks = vi.hoisted(() => ({
   deleteStateRelation: vi.fn(),
   createStateThread: vi.fn(),
   updateStateThread: vi.fn(),
+  analyzeEntityForCard: vi.fn(),
+  createCharacterFromEntity: vi.fn(),
+  createPersonaFromEntity: vi.fn(),
+}));
+
+const entryApi = vi.hoisted(() => ({
+  createWorldEntry: vi.fn(),
+  updateWorldEntry: vi.fn(),
+  getEntryConditions: vi.fn(),
+  replaceEntryConditions: vi.fn(),
+  listWorldEntries: vi.fn(),
 }));
 
 vi.mock('../../../src/core/api/state-memory.js', () => mocks);
+vi.mock('../../../src/core/api/prompt-entries.js', () => entryApi);
+vi.mock('../../../src/core/api/world-state-fields.js', () => ({ listWorldStateFields: vi.fn().mockResolvedValue([]) }));
+vi.mock('../../../src/core/api/character-state-fields.js', () => ({ listCharacterStateFields: vi.fn().mockResolvedValue([]) }));
+vi.mock('../../../src/core/api/persona-state-fields.js', () => ({ listPersonaStateFields: vi.fn().mockResolvedValue([]) }));
+vi.mock('../../../src/core/api/characters.js', () => ({ getCharactersByWorld: vi.fn().mockResolvedValue([]) }));
+vi.mock('../../../src/core/api/personas.js', () => ({ listPersonas: vi.fn().mockResolvedValue([]) }));
+vi.mock('../../../src/components/ui/MarkdownEditor.jsx', () => ({
+  default: ({ value }) => <pre data-testid="markdown-editor">{value}</pre>,
+}));
 
 import StateMemoryModal from '../../../src/components/session/StateMemoryModal.jsx';
 
@@ -94,7 +114,7 @@ function setup(dataOverride) {
   mocks.createStateThread.mockResolvedValue({});
   mocks.updateStateThread.mockResolvedValue({});
   const onClose = vi.fn();
-  render(<StateMemoryModal sessionId="s1" onClose={onClose} />);
+  render(<StateMemoryModal sessionId="s1" worldId="world-1" onClose={onClose} />);
   return { onClose };
 }
 
@@ -296,5 +316,60 @@ describe('StateMemoryModal', () => {
     expect(screen.getByDisplayValue('修好北门的船')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: '重新打开' }));
     expect(mocks.updateStateThread).toHaveBeenCalledWith('s1', 't3', { status: 'active' });
+  });
+
+  it('角色可存为玩家卡：AI 起草后保存，玩家卡不带开场白', async () => {
+    setup();
+    mocks.analyzeEntityForCard.mockResolvedValue({ name: '沈彦', system_prompt: 'sp', description: 'desc', first_message: 'fm' });
+    mocks.createPersonaFromEntity.mockResolvedValue({ id: 'p1' });
+    await screen.findByLabelText('搜索实体');
+    expect(within(detailPane()).getByRole('button', { name: '存为角色卡' })).toBeInTheDocument();
+
+    fireEvent.click(within(detailPane()).getByRole('button', { name: '存为玩家卡' }));
+    fireEvent.click(await screen.findByRole('button', { name: '保存为玩家卡' }));
+    expect(screen.queryByText('开场白')).not.toBeInTheDocument();
+
+    await vi.waitFor(() => {
+      expect(mocks.createPersonaFromEntity).toHaveBeenCalledWith('world-1', {
+        session_id: 's1', entity_id: 'e1', name: '沈彦', system_prompt: 'sp', description: 'desc',
+      });
+    });
+    expect(mocks.createCharacterFromEntity).not.toHaveBeenCalled();
+  });
+
+  it('玩家实体不提供存为卡片', async () => {
+    const player = { ...baseEntities[1], entity_id: 'e3', seq: 3, type: 'player', name: '旅人', status: 'active', activeProfileFields: [] };
+    setup({ ...baseData, entities: [...baseEntities, player] });
+    await screen.findByLabelText('搜索实体');
+    expect(within(detailPane()).getByRole('heading', { name: '旅人' })).toBeInTheDocument();
+    expect(within(detailPane()).queryByRole('button', { name: /^存为/ })).not.toBeInTheDocument();
+  });
+
+  it('地点可存为设定条目：预填档案内容、名字与别名作关键词，默认出现关键词时触发', async () => {
+    const dock = {
+      ...baseEntities[1],
+      aliases: ['旧港'],
+      profile: { category: { value: '港口' }, features: { value: ['潮湿', '人多'] } },
+    };
+    setup({ ...baseData, entities: [baseEntities[0], dock] });
+    entryApi.createWorldEntry.mockResolvedValue({ id: 'entry-1' });
+    await screen.findByLabelText('搜索实体');
+    fireEvent.click(screen.getByRole('tab', { name: /地点/ }));
+    expect(within(detailPane()).queryByRole('button', { name: '存为角色卡' })).not.toBeInTheDocument();
+
+    fireEvent.click(within(detailPane()).getByRole('button', { name: '存为设定条目' }));
+    expect(await screen.findByDisplayValue('码头')).toBeInTheDocument();
+    expect(screen.getAllByTestId('markdown-editor')[0]).toHaveTextContent('类别：港口 特征：潮湿、人多');
+    fireEvent.click(screen.getByRole('button', { name: '保存' }));
+
+    await vi.waitFor(() => {
+      expect(entryApi.createWorldEntry).toHaveBeenCalledWith('world-1', expect.objectContaining({
+        title: '码头',
+        content: '类别：港口\n特征：潮湿、人多',
+        keywords: ['码头', '旧港'],
+        trigger_type: 'keyword',
+        keyword_scope: 'user,assistant',
+      }));
+    });
   });
 });

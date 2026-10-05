@@ -62,7 +62,7 @@ function EntityListItem({ entity, active, present, onSelect }) {
 }
 
 /** 一个实体页签（角色 / 地点 / 物品 / 势力）：types 决定收哪些类型、按什么顺序分组 */
-export default function StateMemoryEntityTab({ sessionId, data, schema, reload, types, intro }) {
+export default function StateMemoryEntityTab({ sessionId, worldId, data, schema, reload, types, intro }) {
   const [search, setSearch] = useState('');
   const [selectedId, setSelectedId] = useState(null);
 
@@ -122,6 +122,7 @@ export default function StateMemoryEntityTab({ sessionId, data, schema, reload, 
           <StateMemoryEntityDetail
             key={selected.entity_id}
             sessionId={sessionId}
+            worldId={worldId}
             entity={selected}
             typeLabel={ENTITY_TYPE_LABELS[selected.type] ?? selected.type}
             present={presentIds.has(selected.entity_id)}

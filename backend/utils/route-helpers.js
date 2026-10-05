@@ -34,3 +34,21 @@ export function sendValidationError(res, err, { log: routeLog, ns, notFoundMessa
   routeLog.warn(`${ns}.bad_request ${formatMeta({ method: req.method, path: req.path, reason: err.message })}`);
   return res.status(400).json({ error: err.message });
 }
+
+const ENTITY_CARD_ERROR_STATUS = { ENTITY_NOT_FOUND: 404, SESSION_NOT_FOUND: 404, SESSION_WORLD_MISMATCH: 400 };
+
+/**
+ * sendEntityCardError — 状态记忆实体存为卡片（角色卡 / 玩家卡）失败时的响应
+ * 实体或会话不存在回 404，会话不属于该世界或缺参数回 400，其余回 500。
+ */
+export function sendEntityCardError(res, err, { log: routeLog, ns }) {
+  const req = res.req;
+  const status = ENTITY_CARD_ERROR_STATUS[err?.code] ?? (/required/i.test(err?.message ?? '') ? 400 : 500);
+  if (status === 500) {
+    routeLog.error(`${ns}.unhandled ${formatMeta({ method: req.method, path: req.path, msg: err?.message })}`);
+    return res.status(500).json({ error: err?.message || 'Internal error' });
+  }
+  const event = status === 404 ? 'not_found' : 'bad_request';
+  routeLog.warn(`${ns}.${event} ${formatMeta({ method: req.method, path: req.path, reason: err.message, code: err.code })}`);
+  return res.status(status).json({ error: err.message });
+}

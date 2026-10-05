@@ -23,7 +23,7 @@ const ENTITY_TABS = [
   { key: 'factions', label: '势力', types: ['faction'], intro: '故事里出现过的组织和势力。置顶的每轮都会提供给 AI。' },
 ];
 
-export default function StateMemoryModal({ sessionId, onClose }) {
+export default function StateMemoryModal({ sessionId, worldId, onClose }) {
   const { data, error, loading, reload } = useStateMemory(sessionId);
   const { schema } = useStateMemorySchema();
 
@@ -35,7 +35,7 @@ export default function StateMemoryModal({ sessionId, onClose }) {
       ...ENTITY_TABS.map(({ key, label, types, intro }) => ({
         key,
         label: <TabLabel text={label} count={entities.filter((e) => e.status === 'active' && types.includes(e.type)).length} />,
-        content: <StateMemoryEntityTab sessionId={sessionId} data={data} schema={schema} reload={reload} types={types} intro={intro} />,
+        content: <StateMemoryEntityTab sessionId={sessionId} worldId={worldId} data={data} schema={schema} reload={reload} types={types} intro={intro} />,
       })),
       {
         key: 'relations',
@@ -48,7 +48,7 @@ export default function StateMemoryModal({ sessionId, onClose }) {
         content: <StateMemoryThreadTab sessionId={sessionId} data={data} reload={reload} />,
       },
     ];
-  }, [sessionId, data, schema, reload]);
+  }, [sessionId, worldId, data, schema, reload]);
 
   return (
     <Dialog
