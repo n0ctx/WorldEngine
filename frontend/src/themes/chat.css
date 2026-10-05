@@ -640,6 +640,11 @@
   mask-image: linear-gradient(to bottom, black 0%, transparent 100%);
   transition: opacity var(--we-motion-page-duration) var(--we-motion-page-easing);
 }
+/* 无封面世界的古地图是硬线条、明暗对比强的插画，同样浓度下比封面照片抢字：
+   压到光晕浓度本身，光晕调得很浓的主题（磷光）也不超过透明度第二档 */
+svg.we-chat-atmosphere__art {
+  opacity: min(var(--we-atmosphere-glow-strength), var(--we-alpha-2));
+}
 .we-chat-center-pane:has(.we-speaker-stage:not([data-compact]):not([data-pending])) .we-chat-atmosphere__art {
   opacity: 0;
 }

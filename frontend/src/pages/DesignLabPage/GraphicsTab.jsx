@@ -6,6 +6,7 @@ import BrandMark from '../../components/ui/BrandMark.jsx';
 import Button from '../../components/ui/Button.jsx';
 import IconButton from '../../components/ui/IconButton.jsx';
 import WorldSceneArt from '../../components/ui/WorldSceneArt.jsx';
+import { worldSceneTint } from '../../core/utils/worldScene.js';
 import * as icons from '../../components/ui/icons.jsx';
 import Section from './Section.jsx';
 
@@ -52,17 +53,27 @@ function Marks() {
   );
 }
 
+function SceneTile({ name, variant, wide = false }) {
+  return (
+    <figure className={`we-design-lab__graphics-scene${wide ? ' we-design-lab__graphics-scene--wide' : ''}`}>
+      <WorldSceneArt name={name} variant={variant} className="we-design-lab__graphics-scene-art" />
+      <figcaption className="we-design-lab__graphics-scene-name">{name}</figcaption>
+      <span className="we-design-lab__graphics-tint" style={{ '--tint': worldSceneTint(name) }} title="氛围染色" />
+    </figure>
+  );
+}
+
 function Scenes() {
   return (
-    <Section id="graphics-scene" title="无封面世界的场景画「星图」">
-      <p className="we-design-lab__note">按世界名稳定生成：同一个名字永远是同一幅，每个字是一颗星，连成这个世界的星座。</p>
+    <Section id="graphics-scene" title="无封面世界的场景画「古地图」">
+      <p className="we-design-lab__note">按世界名稳定生成：同一个名字永远是同一张地图。右下角圆点是这幅画给世界页环境光和正文氛围光晕的染色。</p>
+      <p className="we-design-lab__note">世界卡：4:3，带图框；罗盘、船和海蛇不进左下角（那里写着名字）。正文中间栏的氛围底图用同一张，不画图框。</p>
       <div className="we-design-lab__graphics-scenes">
-        {SCENE_NAMES.map((name) => (
-          <figure key={name} className="we-design-lab__graphics-scene">
-            <WorldSceneArt name={name} className="we-design-lab__graphics-scene-art" />
-            <figcaption className="we-design-lab__graphics-scene-name">{name}</figcaption>
-          </figure>
-        ))}
+        {SCENE_NAMES.map((name) => <SceneTile key={name} name={name} variant="card" />)}
+      </div>
+      <p className="we-design-lab__note">对话、写作页的台前横幅：镜头拉宽，主岛和岛上的山林城镇与世界卡完全一样，两侧添两座远岛；顶边对齐，下沿淡进纸面。</p>
+      <div className="we-design-lab__graphics-banners">
+        {SCENE_NAMES.slice(0, 2).map((name) => <SceneTile key={name} name={name} variant="banner" wide />)}
       </div>
     </Section>
   );
@@ -115,10 +126,10 @@ function IconSet() {
 
 export default function GraphicsTab() {
   return (
-    <>
+    <div className="we-design-lab__graphics">
       <Marks />
       <Scenes />
       <IconSet />
-    </>
+    </div>
   );
 }

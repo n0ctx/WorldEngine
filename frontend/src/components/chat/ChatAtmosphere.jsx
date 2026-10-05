@@ -1,4 +1,4 @@
-import { buildWorldScene } from '../../core/utils/worldScene.js';
+import { worldSceneTint } from '../../core/utils/worldScene.js';
 import WorldArt from './WorldArt.jsx';
 
 /**
@@ -8,10 +8,10 @@ import WorldArt from './WorldArt.jsx';
  */
 export default function ChatAtmosphere({ world }) {
   if (!world) return null;
-  const tint = world.accent_color || buildWorldScene(world.name).tint;
+  const tint = world.accent_color || worldSceneTint(world.name);
   return (
     <div className="we-chat-atmosphere" style={{ '--atmosphere-tint': tint }} aria-hidden="true">
-      <WorldArt world={world} className="we-chat-atmosphere__art" />
+      <WorldArt world={world} className="we-chat-atmosphere__art" sceneVariant="backdrop" />
     </div>
   );
 }

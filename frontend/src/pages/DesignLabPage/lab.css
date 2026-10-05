@@ -671,6 +671,9 @@
 }
 
 /* ── 「图形」分页 ── */
+.we-design-lab__graphics .we-design-lab__section {
+  max-width: 1240px;
+}
 .we-design-lab__graphics-marks {
   display: flex;
   flex-wrap: wrap;
@@ -693,6 +696,24 @@
   overflow: hidden;
   border-radius: var(--we-radius-md);
   background: var(--we-color-shell-bg);
+}
+.we-design-lab__graphics-banners {
+  display: grid;
+  gap: var(--we-space-sm);
+}
+.we-design-lab__graphics-scene--wide {
+  aspect-ratio: 16 / 5;
+}
+.we-design-lab__graphics-tint {
+  position: absolute;
+  right: var(--we-space-sm);
+  bottom: var(--we-space-sm);
+  z-index: var(--we-z-card-content);
+  width: 10px;
+  height: 10px;
+  border-radius: var(--we-radius-full);
+  background: var(--tint);
+  box-shadow: 0 0 0 2px var(--we-color-cover-scrim);
 }
 .we-design-lab__graphics-scene-art {
   position: absolute;

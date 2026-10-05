@@ -14,7 +14,7 @@ function StageHero({ world, character }) {
     <div className="we-speaker-stage__hero">
       {world ? (
         <div className="we-speaker-stage__art" aria-hidden="true">
-          <WorldArt world={world} className="we-speaker-stage__scene" />
+          <WorldArt world={world} className="we-speaker-stage__scene" sceneVariant="banner" />
         </div>
       ) : null}
       {portrait && <img src={portrait} alt="" className="we-speaker-stage__portrait" />}

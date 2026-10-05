@@ -2,13 +2,13 @@ import { useEffect, useState } from 'react';
 import useStore from '../../core/state/index';
 import { extractAccentColorFromImageSrc } from '../../core/utils/extractAccentColor.js';
 import { getAvatarUrl } from '../../core/utils/avatar';
-import { buildWorldScene } from '../../core/utils/worldScene.js';
+import { worldSceneTint } from '../../core/utils/worldScene.js';
 
 function worldTint(world, coverTints) {
   if (world.accent_color) return world.accent_color;
   // 封面还没取到色时沿用主题色；没有封面时用场景画的染色。
   if (world.cover_path) return coverTints[world.id] ?? null;
-  return buildWorldScene(world.name).tint;
+  return worldSceneTint(world.name);
 }
 
 export function useWorldAmbientTint(worlds) {

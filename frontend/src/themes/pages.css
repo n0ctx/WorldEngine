@@ -268,9 +268,9 @@
   z-index: var(--we-z-card-bg);
 }
 
-/* 无封面场景画「星图」右上角的坐标码（WorldSceneArt），字号随画面缩放写在 SVG 里 */
-.we-world-scene__code {
-  font-family: var(--we-font-mono);
+/* 无封面场景画「古地图」罗盘上的 N（WorldSceneArt），字号随画面缩放写在 SVG 里 */
+.we-world-scene__letter {
+  font-family: var(--we-font-display);
 }
 
 .we-world-card-overlay {
