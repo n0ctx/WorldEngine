@@ -95,6 +95,8 @@ test('createTurnRecord：末尾是 user 消息（缺 assistant）时跳过，不
   assert.equal(getAllTurnRecordsBySessionId(session.id).length, 0);
 });
 
+const MERGED_PHASE = '【第1–1轮｜庭院｜不详】\n起因：无\n经过：无\n结果：无\n变化：无';
+
 test('createTurnRecord：中期摘要失败时仍建行并抛错，coveredTo 不推进；下一轮以此行为基线重试成功', async () => {
   resetMockEnv();
   sandbox.writeConfig(createTestConfig({ short_term_token_budget: 10 }));
@@ -117,7 +119,7 @@ test('createTurnRecord：中期摘要失败时仍建行并抛错，coveredTo 不
 
   // 下一轮：以失败行（coveredTo=0）为基线重试，这次成功后应推进 coveredTo
   resetMockEnv();
-  process.env.MOCK_LLM_COMPLETE = '合并后的剧情摘要';
+  process.env.MOCK_LLM_COMPLETE = MERGED_PHASE;
   seedRound(session.id, 3, { userText: '短' });
 
   await createTurnRecord(session.id);
@@ -127,7 +129,7 @@ test('createTurnRecord：中期摘要失败时仍建行并抛错，coveredTo 不
   const latest = records[records.length - 1];
   assert.equal(latest.round_index, 3);
   assert.equal(latest.middle_covered_to, 1);
-  assert.equal(latest.middle_summary, '合并后的剧情摘要');
+  assert.equal(latest.middle_summary, MERGED_PHASE);
 });
 
 test('createTurnRecord：多轮增长后 buildPrompt 的主模型历史 token 保持在短期预算附近', async () => {
@@ -137,7 +139,7 @@ test('createTurnRecord：多轮增长后 buildPrompt 的主模型历史 token �
     suggestion_enabled: false,
     memory_expansion_enabled: false,
   }));
-  process.env.MOCK_LLM_COMPLETE = '滚动合并后的剧情摘要';
+  process.env.MOCK_LLM_COMPLETE = MERGED_PHASE;
 
   const session = seedSession();
 
@@ -167,6 +169,20 @@ test('createTurnRecord：多轮增长后 buildPrompt 的主模型历史 token �
 // ============================================================
 // generateTurnIndex
 // ============================================================
+
+test('renderTurnIndexPrompt：写作模式标注玩家输入与正文，不残留未替换的占位符', async () => {
+  const { __testables } = await freshImport('backend/memory/turn-summarizer.js');
+  const prompt = __testables.renderTurnIndexPrompt(
+    { userLabel: '玩家输入', assistantLabel: '正文', namingRule: '玩家扮演的主角叫"李石头"' },
+    '派青奴去草原',
+    '李石头命青奴北上慕兰草原。',
+  );
+
+  assert.match(prompt, /玩家输入：派青奴去草原/);
+  assert.match(prompt, /正文：李石头命青奴北上慕兰草原。/);
+  assert.match(prompt, /玩家扮演的主角叫"李石头"/);
+  assert.doesNotMatch(prompt, /\{\{/);
+});
 
 test('generateTurnIndex：为最新一轮生成索引，写入 summary / scene / cast_json', async () => {
   resetMockEnv();

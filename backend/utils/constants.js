@@ -43,6 +43,10 @@ export const TURN_SUMMARY_CAST_MAX = 4;
 // ============================
 /** 中期摘要单条最大 token 数 */
 export const MIDDLE_SUMMARY_MAX_TOKENS = 1200;
+/** 中期摘要开头【前情】段的最大 token 数 */
+export const MIDDLE_PROLOGUE_MAX_TOKENS = 360;
+/** 中期摘要单个阶段的目标 token 数（提示词里换算成字数，超出时由模型收尾另起） */
+export const MIDDLE_PHASE_MAX_TOKENS = 200;
 /** 中期摘要压缩输入（原文轮次拼接后）最大 token 数 */
 export const MIDDLE_COMPRESS_INPUT_MAX_TOKENS = 12000;
 /** 中期摘要覆盖的原文轮数上限 */

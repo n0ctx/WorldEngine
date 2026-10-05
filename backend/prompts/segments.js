@@ -72,10 +72,10 @@ export function renderTriggeredEntriesSection(triggeredEntries, tv) {
   return `<world_entries>\n${entryTexts.join('\n\n')}\n</world_entries>`;
 }
 
-/** [8.5] 剧情摘要（中期摘要滚动文本，来自最新 turn_record.middle_summary）；为空时返回 null */
+/** [8.5] 剧情摘要（中期摘要按阶段整理的文本，来自最新 turn_record.middle_summary）；为空时返回 null */
 export function renderStorySummarySection(text, tv) {
   if (!text) return null;
-  return `<story_summary>\n以下是更早剧情的连续摘要，用于理解前因；细节以下方原文为准。\n${tv(text)}\n</story_summary>`;
+  return `<story_summary>\n以下是更早剧情按阶段整理的摘要，【前情】是最早一段的浓缩，用于理解前因和人物关系的来历；细节以下方原文为准。\n${tv(text)}\n</story_summary>`;
 }
 
 /** [7.5] 状态记忆：对话模式在 char_state 之后注入；写作模式没有单一主角色，直接注入该段 */

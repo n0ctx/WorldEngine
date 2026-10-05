@@ -34,7 +34,7 @@ import {
 import { renderBackendPrompt } from '../prompts/prompt-loader.js';
 import { captureFullSnapshot } from './state-rollback.js';
 import { splitRounds } from '../utils/session-rounds.js';
-import { computeMiddleSummary, resolveNames } from './middle-summary.js';
+import { computeMiddleSummary, resolveSpeakers } from './middle-summary.js';
 import { resolveAuxScope } from '../utils/aux-scope.js';
 import { countTokens } from '../utils/token-counter.js';
 import { stripThinkBlocksFromText, toPromptMessage } from '../utils/turn-dialogue.js';
@@ -159,6 +159,16 @@ export async function createTurnRecord(sessionId) {
   }
 }
 
+function renderTurnIndexPrompt(speakers, userContent, assistantContent) {
+  return renderBackendPrompt('memory-turn-summary.md', {
+    NAMING_RULE: speakers.namingRule,
+    USER_LABEL: speakers.userLabel,
+    ASSISTANT_LABEL: speakers.assistantLabel,
+    USER_MESSAGE: userContent,
+    ASSISTANT_MESSAGE: assistantContent,
+  });
+}
+
 function captureTurnSnapshot(sessionId, worldId, characterId) {
   if (!worldId) return null;
   return captureFullSnapshot(sessionId, worldId, characterId ? [characterId] : []);
@@ -169,7 +179,7 @@ function captureTurnSnapshot(sessionId, worldId, characterId) {
  *
  * @returns {Promise<boolean>} 是否成功写入索引
  */
-async function indexOneRecord(sessionId, sid, record, rounds, userName, characterName) {
+async function indexOneRecord(sessionId, sid, record, rounds, speakers) {
   const { userMsg, asstMsg } = findRoundMessages(rounds, record.round_index);
   if (!userMsg || !asstMsg) {
     log.warn(`INDEX SKIP  ${formatMeta({ session: sid, round: record.round_index, reason: 'missing-round-pair' })}`);
@@ -179,12 +189,7 @@ async function indexOneRecord(sessionId, sid, record, rounds, userName, characte
   try {
     const raw = await llm.complete([{
       role: 'user',
-      content: renderBackendPrompt('memory-turn-summary.md', {
-        USER_NAME: userName,
-        CHARACTER_NAME: characterName,
-        USER_MESSAGE: userMsg.content,
-        ASSISTANT_MESSAGE: asstMsg.content,
-      }),
+      content: renderTurnIndexPrompt(speakers, userMsg.content, asstMsg.content),
     }], {
       temperature: LLM_TASK_TEMPERATURE,
       maxTokens: LLM_TURN_SUMMARY_MAX_TOKENS,
@@ -231,11 +236,11 @@ function collectRecordsToIndex(sessionId) {
 }
 
 /** 依次为 records 生成索引，返回成功/失败条数 */
-async function indexRecords(sessionId, sid, records, rounds, userName, characterName) {
+async function indexRecords(sessionId, sid, records, rounds, speakers) {
   let indexed = 0;
   let failed = 0;
   for (const record of records) {
-    const ok = await indexOneRecord(sessionId, sid, record, rounds, userName, characterName);
+    const ok = await indexOneRecord(sessionId, sid, record, rounds, speakers);
     if (ok) indexed++; else failed++;
   }
   return { indexed, failed };
@@ -252,11 +257,11 @@ export async function generateTurnIndex(sessionId) {
   const session = getSessionById(sessionId);
   if (!session) { log.warn(`session not found  session=${sid}`); return; }
 
-  const { userName, characterName } = resolveNames(session);
+  const speakers = resolveSpeakers(session);
   const rounds = splitRounds(getMessagesBySessionId(sessionId, ALL_MESSAGES_LIMIT, 0).map(toPromptMessage));
 
   const { records, backfillCount } = collectRecordsToIndex(sessionId);
-  const { indexed, failed } = await indexRecords(sessionId, sid, records, rounds, userName, characterName);
+  const { indexed, failed } = await indexRecords(sessionId, sid, records, rounds, speakers);
 
   const remaining = getUnindexedTurnRecords(sessionId, Number.MAX_SAFE_INTEGER).length;
   log.info(`DONE  ${formatMeta({ session: sid, indexed, failed, backfilled: backfillCount, remaining })}`);
@@ -264,5 +269,6 @@ export async function generateTurnIndex(sessionId) {
 
 export const __testables = {
   parseSummaryPayload,
+  renderTurnIndexPrompt,
   truncateSummaryToBudget,
 };
