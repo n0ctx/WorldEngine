@@ -28,7 +28,13 @@ export default function WritingSpaceConversationPane({ worldId, world, config, p
   return (
     <div className="we-chat-center-pane flex-1 min-w-0 flex flex-col overflow-hidden relative">
         <ChatAtmosphere world={world} />
-        <SpeakerStage world={world} compact={stage.compact} />
+        {/* 初始化失败时没有正文可等，直接露出台前 */}
+        <SpeakerStage
+          world={world}
+          compact={stage.compact}
+          pending={!stage.settled && !initError}
+          instant={stage.instant}
+        />
         {isInitializing ? (
           <div className="flex-1 flex items-center justify-center we-type-ui text-[var(--we-color-text-tertiary)]">
             正在准备写作空间…
@@ -71,6 +77,7 @@ export default function WritingSpaceConversationPane({ worldId, world, config, p
             pageTurnSize={pageTurnSize}
             onPageInfoChange={setPageInfo}
             onScroll={stage.onScroll}
+            onSettled={stage.onSettled}
             turnChanges={turnChanges}
           />
         )}

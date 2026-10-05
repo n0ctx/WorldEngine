@@ -464,6 +464,15 @@
 .we-speaker-stage[data-compact][data-bare] {
   height: 0;
 }
+/* 正文还没定位好时只占住大台前的位置不露面；定下来时按贴底后的位置直接收放，不走过渡，
+   长会话进来不会先露出大台前再收起 */
+.we-speaker-stage[data-pending] {
+  visibility: hidden;
+}
+.we-speaker-stage[data-instant],
+.we-speaker-stage[data-instant] :is(.we-speaker-stage__hero-slot, .we-speaker-stage__bar) {
+  transition: none;
+}
 
 /* 大台前整块上滑出框并淡出；一行台前从下方落位。藏起的一侧不可见、不可点
    （visibility 在过渡中只要一端可见就保持可见：显现时立刻可见，藏起时等淡出走完才隐藏） */
@@ -631,8 +640,11 @@
   mask-image: linear-gradient(to bottom, black 0%, transparent 100%);
   transition: opacity var(--we-motion-page-duration) var(--we-motion-page-easing);
 }
-.we-chat-center-pane:has(.we-speaker-stage:not([data-compact])) .we-chat-atmosphere__art {
+.we-chat-center-pane:has(.we-speaker-stage:not([data-compact]):not([data-pending])) .we-chat-atmosphere__art {
   opacity: 0;
+}
+.we-chat-center-pane:has(.we-speaker-stage[data-instant]) .we-chat-atmosphere__art {
+  transition: none;
 }
 
 /* 本轮变化条：挂在产生变化的回复下方，每枚是字段名 + 本轮变化标签 */

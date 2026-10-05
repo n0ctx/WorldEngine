@@ -40,6 +40,7 @@ const MessageList = forwardRef(function MessageList({
   pageTurnSize,
   onPageInfoChange,
   onScroll,
+  onSettled,
   turnChanges = null,
 }, ref) {
   const {
@@ -47,7 +48,7 @@ const MessageList = forwardRef(function MessageList({
     hasEarlierMessages, loadEarlierMessages, handleJumpToMessage,
     awayFromBottom, syncAwayFromBottom, scrollPageToBottom,
   } = useMessageListState(ref, {
-    sessionId, onMessagesLoaded, pageTurnSize, onPageInfoChange, generating, continuingMessageId,
+    sessionId, onMessagesLoaded, pageTurnSize, onPageInfoChange, onSettled, generating, continuingMessageId,
     streamingText, continuingText,
   });
   const m = useMotion();

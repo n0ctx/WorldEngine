@@ -32,8 +32,10 @@ function StageHero({ world, character }) {
  * 大台前上滑收走，换成一行台前（印章 + 名字 + 简介），换角色时旧角色退场、新角色从侧面走上台。
  * 写作页不传 character，只有世界的大台前，收起后不留一行。
  * 角色和世界都还没到时不渲染，到了直接以当前高度挂上，不走收放的高度过渡。
+ * pending：正文还没定位好，只占住大台前的位置不露面，大台前等定下来再挂载上台；
+ * instant：这次收放是换上会话时直接定的，不走过渡。
  */
-export default function SpeakerStage({ character = null, world = null, compact = false }) {
+export default function SpeakerStage({ character = null, world = null, compact = false, pending = false, instant = false }) {
   const m = useMotion();
   if (!character && !world) return null;
   return (
@@ -41,9 +43,11 @@ export default function SpeakerStage({ character = null, world = null, compact =
       className="we-speaker-stage"
       data-compact={compact || undefined}
       data-bare={!character || undefined}
+      data-pending={pending || undefined}
+      data-instant={instant || undefined}
     >
       <div className="we-speaker-stage__hero-slot" aria-hidden={compact}>
-        <StageHero key={character?.id ?? world.id} world={world} character={character} />
+        {pending ? null : <StageHero key={character?.id ?? world.id} world={world} character={character} />}
       </div>
       <div className="we-speaker-stage__bar" aria-hidden={!compact}>
         <AnimatePresence mode="wait" initial={false}>

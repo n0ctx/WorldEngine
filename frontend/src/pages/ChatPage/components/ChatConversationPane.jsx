@@ -29,7 +29,13 @@ export default function ChatConversationPane({
   return (
     <div className="we-main we-chat-center-pane flex-1 min-w-0 flex flex-col overflow-hidden">
       <ChatAtmosphere world={world} />
-      <SpeakerStage character={character} world={world} compact={stage.compact} />
+      <SpeakerStage
+        character={character}
+        world={world}
+        compact={stage.compact}
+        pending={!stage.settled}
+        instant={stage.instant}
+      />
 
       {/* 消息列表 */}
       <MessageList
@@ -59,6 +65,7 @@ export default function ChatConversationPane({
         pageTurnSize={pageTurnSize}
         onPageInfoChange={setPageInfo}
         onScroll={stage.onScroll}
+        onSettled={stage.onSettled}
         turnChanges={turnChanges}
       />
 

@@ -2,6 +2,7 @@ import { startTransition, useRef, useEffect, useLayoutEffect, useState, useCallb
 import { getMessages } from '../../core/api/sessions.js';
 import { log } from '../../core/utils/logger.js';
 import useRenderWindow from './useRenderWindow.js';
+import useSettledNotice from './useSettledNotice.js';
 
 // 按消息的顶部留白定位到列表顶部
 function scrollToMessageIn(list, messageId) {
@@ -19,6 +20,7 @@ export default function useMessageListState(ref, {
   onMessagesLoaded,
   pageTurnSize,
   onPageInfoChange,
+  onSettled,
   generating,
   continuingMessageId,
   streamingText,
@@ -199,6 +201,9 @@ export default function useMessageListState(ref, {
     const el = listRef.current;
     if (el) el.scrollTop = el.scrollHeight;
   }, [pageMessages]);
+
+  // 放在贴底之后：交出的是贴底后的位置
+  useSettledNotice(listRef, { stale, loadedSessionId, loadError, onSettled });
 
   return {
     listRef,

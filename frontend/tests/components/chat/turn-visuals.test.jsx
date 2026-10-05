@@ -1,8 +1,9 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, renderHook, screen } from '@testing-library/react';
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 
 import MessageItem from '../../../src/components/chat/MessageItem.jsx';
 import SpeakerStage from '../../../src/components/chat/SpeakerStage.jsx';
+import useStageCompact from '../../../src/components/chat/useStageCompact.js';
 import TurnChangeStrip from '../../../src/components/chat/TurnChangeStrip.jsx';
 import WritingMessageItem from '../../../src/components/writing/WritingMessageItem.jsx';
 import useSidePanelsStore from '../../../src/core/state/sidePanels.js';
@@ -89,6 +90,35 @@ describe('台前', () => {
     expect(container.querySelector('.we-speaker-stage__intro').textContent).toBe('雨夜与拳场');
     expect(container.querySelector('.we-speaker-stage').dataset.bare).toBe('true');
     expect(container.querySelector('.we-speaker-stage__cast')).toBeNull();
+  });
+
+  it('正文没定位好时只占位不露面，大台前等定下来再上台', () => {
+    const { container, rerender } = render(<SpeakerStage world={world} pending />);
+    const stage = container.querySelector('.we-speaker-stage');
+    expect(stage.dataset.pending).toBe('true');
+    expect(container.querySelector('.we-speaker-stage__hero')).toBeNull();
+
+    rerender(<SpeakerStage world={world} compact instant />);
+    expect(stage.dataset.pending).toBeUndefined();
+    expect(stage.dataset.compact).toBe('true');
+    expect(stage.dataset.instant).toBe('true');
+    expect(container.querySelector('.we-speaker-stage__hero')).not.toBeNull();
+  });
+
+  it('长会话贴底后直接收起不走过渡，短会话直接展开；之后的滚动照常带过渡', () => {
+    const { result } = renderHook(() => useStageCompact());
+    expect(result.current).toMatchObject({ compact: false, settled: false });
+
+    act(() => result.current.onSettled({ scrollTop: 800 }));
+    expect(result.current).toMatchObject({ compact: true, settled: true, instant: true });
+
+    act(() => result.current.onScroll({ currentTarget: { scrollTop: 0, scrollHeight: 1200, clientHeight: 400 } }));
+    expect(result.current).toMatchObject({ compact: false, instant: false });
+
+    act(() => result.current.onSettled({ scrollTop: 0 }));
+    expect(result.current).toMatchObject({ compact: false, instant: true });
+    act(() => result.current.onSettled(null));
+    expect(result.current).toMatchObject({ compact: false, settled: true });
   });
 
   it('角色和世界都没到时不占位，到了直接以展开状态挂上，不从收起高度过渡展开', () => {

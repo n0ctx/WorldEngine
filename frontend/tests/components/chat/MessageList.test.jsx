@@ -200,6 +200,27 @@ describe('MessageList 的分页', () => {
     }
   });
 
+  it('消息换上并贴底后、绘制前才交出滚动位置定台前收放，加载中不交', async () => {
+    let resolveMessages;
+    mocks.getMessages.mockReturnValue(new Promise((resolve) => { resolveMessages = resolve; }));
+    let scrollTop = 0;
+    const scrollTopDesc = Object.getOwnPropertyDescriptor(Element.prototype, 'scrollTop');
+    const scrollHeightDesc = Object.getOwnPropertyDescriptor(Element.prototype, 'scrollHeight');
+    Object.defineProperty(Element.prototype, 'scrollTop', { configurable: true, get: () => scrollTop, set: (v) => { scrollTop = v; } });
+    Object.defineProperty(Element.prototype, 'scrollHeight', { configurable: true, get: () => 999 });
+    const settledAt = [];
+    try {
+      await renderList({ prose: false, onSettled: (list) => settledAt.push(list?.scrollTop ?? null) });
+      expect(settledAt).toEqual([]);
+
+      await act(async () => { resolveMessages(makeMessages(10)); });
+      await waitFor(() => expect(settledAt).toEqual([999]));
+    } finally {
+      Object.defineProperty(Element.prototype, 'scrollTop', scrollTopDesc);
+      Object.defineProperty(Element.prototype, 'scrollHeight', scrollHeightDesc);
+    }
+  });
+
   it('setPage 切到指定页后不再跟随末页', async () => {
     mocks.getMessages.mockResolvedValue(makeMessages(10));
     const onPageInfoChange = vi.fn();
