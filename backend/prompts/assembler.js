@@ -247,11 +247,42 @@ function renderLongTermRecallSection(recall, tv, turnContextParts, onRecallEvent
   return expanded.hitIds.length;
 }
 
+/**
+ * 消息给模型看的正文（msg 须是 allMessages 里的同一对象）。选项功能开启时 assistant 末尾接回当轮选项、
+ * 玩家消息开头标明选了哪条：每轮都以选项收尾，模型才会稳定在本轮末尾输出选项；
+ * 标明没选的选项没有发生，不被当成既成剧情。
+ */
+function renderHistoryContent(msg, allMessages, { withOptions, worldId, mode }) {
+  const content = applyRules(msg.content, 'prompt_only', worldId, mode);
+  if (!withOptions) return content;
+  if (msg.role === 'user') {
+    const previous = allMessages[allMessages.indexOf(msg) - 1];
+    const offered = previous?.role === 'assistant' ? previous.next_options ?? [] : [];
+    if (offered.length === 0) return content;
+    // 玩家点选项时原文发出，与上一轮某条选项完全一致就算选了那条
+    const index = offered.indexOf(msg.content.trim());
+    const note = index === -1 ? '（玩家没选上一轮的选项，以下是自行输入）' : `（玩家选了上一轮第 ${index + 1} 条选项）`;
+    return `${note}\n${content}`;
+  }
+  if (!msg.next_options?.length) return content;
+  const optionsText = applyRules(msg.next_options.join('\n'), 'prompt_only', worldId, mode);
+  return `${content}\n\n<next_prompt>\n${optionsText}\n</next_prompt>`;
+}
+
+/** [12] 历史消息；续写时被续写的那条不接旧选项，它的选项在续写完成后重新生成 */
+function pushHistoryMessages(messages, history, allMessages, { continuation, ...ctx }) {
+  history.forEach((msg, index) => {
+    const withOptions = ctx.withOptions && !(continuation && index === history.length - 1);
+    const content = renderHistoryContent(msg, allMessages, { ...ctx, withOptions });
+    messages.push(formatMessageForLLM({ ...msg, content }));
+  });
+}
+
 /** [13+14] 当前用户消息 + 后置提示词合并为一条 user message；没有当前用户消息时单独发后置提示词 */
-function pushCurrentUserTurn(messages, uncompressedMessages, postParts, worldId, mode) {
+function pushCurrentUserTurn(messages, uncompressedMessages, postParts, ctx) {
   const currentUserMsg = getCurrentUserMessage(uncompressedMessages);
   if (currentUserMsg?.role === 'user') {
-    const content = applyRules(currentUserMsg.content, 'prompt_only', worldId, mode);
+    const content = renderHistoryContent(currentUserMsg, uncompressedMessages, ctx);
     const formatted = formatMessageForLLM({ ...currentUserMsg, content });
     if (postParts.length > 0) {
       const postContent = postParts.join('\n\n');
@@ -403,19 +434,15 @@ export async function buildPrompt(sessionId, options = {}) {
   // [12] 历史消息：短期窗口边界由中期覆盖范围决定。
   const shortTermBudget = config.short_term_token_budget ?? 8000;
   const history = sliceHistoryAfterRound(uncompressedMessages, coveredTo, { keepLatestUser: continuation, budget: shortTermBudget });
-  // 历史里不回灌旧的 <next_prompt> 选项块：它们会变成同格式的 few-shot 示范，
-  // 把新一轮选项拽回"延续上文"的老路，且新选项存回历史后自我强化。
-  for (const msg of history) {
-    const content = applyRules(msg.content, 'prompt_only', world.id, 'chat');
-    messages.push(formatMessageForLLM({ ...msg, content }));
-  }
+  const historyCtx = { withOptions: !!config.suggestion_enabled, worldId: world.id, mode: 'chat' };
+  pushHistoryMessages(messages, history, uncompressedMessages, { ...historyCtx, continuation });
   log.debug(`│  [12] history  raw_messages=${history.length}`);
 
   // [13+14] 后置提示词 + 当前用户消息：合并为一条 user message，后置提示词追加在用户消息之后。
   // 续写模式无"本轮新输入"，且后置提示词/suggestion 由 buildContinuationMessages 在续写指令里统一拼一次，
   // 这里整体跳过，避免重复注入与轮次错乱（prompt 自然以待续写的 assistant 收尾）。
   if (!continuation) {
-    pushCurrentUserTurn(messages, uncompressedMessages, postParts, world.id, 'chat');
+    pushCurrentUserTurn(messages, uncompressedMessages, postParts, historyCtx);
   }
   // [5-11] 本轮上下文
   prependTurnContext(messages, turnContext);
@@ -563,11 +590,9 @@ export async function buildWritingPrompt(sessionId, options = {}) {
     coveredTo,
     { keepLatestUser: continuation, budget: shortTermBudget },
   );
-  // 同 chat 版：历史里不回灌旧的 <next_prompt> 选项块，避免变成延续型选项的 few-shot 示范。
-  for (const msg of history) {
-    const content = applyRules(msg.content, 'prompt_only', world.id, 'writing');
-    messages.push(formatMessageForLLM({ ...msg, content }));
-  }
+  // 代拟不带写作指令也不要选项，历史里同样不接选项
+  const historyCtx = { withOptions: !!writing.suggestion_enabled && !skipWritingInstructions, worldId: world.id, mode: 'writing' };
+  pushHistoryMessages(messages, history, uncompressedMessages, { ...historyCtx, continuation });
 
   // [13+14] 后置提示词 + 当前用户消息：合并为一条 user message，后置提示词追加在用户消息之后。
   // 续写模式无"本轮新输入"，后置提示词/suggestion 由 buildContinuationMessages 在续写指令里统一拼一次，
@@ -583,7 +608,7 @@ export async function buildWritingPrompt(sessionId, options = {}) {
       if (writing.suggestion_enabled) postParts.push(tv(SUGGESTION_PROMPT));
     }
 
-    pushCurrentUserTurn(messages, uncompressedMessages, postParts, world.id, 'writing');
+    pushCurrentUserTurn(messages, uncompressedMessages, postParts, historyCtx);
   }
   // [5-11] 本轮上下文
   prependTurnContext(messages, turnContext);

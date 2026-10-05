@@ -213,6 +213,64 @@ test('buildPrompt 在关闭 suggestion 时不会把 next prompt 指令拼到当�
   assert.doesNotMatch(result.messages.at(-1).content, /next_prompt/i);
 });
 
+function insertOptionRounds(session) {
+  const setOptions = (message, options) => sandbox.db
+    .prepare('UPDATE messages SET next_options = ? WHERE id = ?')
+    .run(JSON.stringify(options), message.id);
+  insertMessage(sandbox.db, session.id, { role: 'user', content: '开始', created_at: 1 });
+  setOptions(insertMessage(sandbox.db, session.id, { role: 'assistant', content: '公会大厅', created_at: 2 }), ['接讨伐任务', '接探索任务']);
+  insertMessage(sandbox.db, session.id, { role: 'user', content: '接探索任务', created_at: 3 });
+  setOptions(insertMessage(sandbox.db, session.id, { role: 'assistant', content: '接待员交代路线', created_at: 4 }), ['出北门', '问编号']);
+  insertMessage(sandbox.db, session.id, { role: 'user', content: '先去买火把', created_at: 5 });
+}
+
+test('buildPrompt 开启选项时历史回复带回当轮选项，玩家消息标明选了哪条或没选', async () => {
+  sandbox.writeConfig({ ...sandbox.readConfig(), global_system_prompt: '', global_post_prompt: '', suggestion_enabled: true });
+  const world = insertWorld(sandbox.db, { name: '选项历史世界' });
+  const session = insertSession(sandbox.db, { character_id: insertCharacter(sandbox.db, world.id).id });
+  insertOptionRounds(session);
+
+  const { buildPrompt } = await freshImport('backend/prompts/assembler.js');
+  const { messages } = await buildPrompt(session.id);
+  const history = messages.filter((msg) => msg.role !== 'system');
+
+  assert.equal(history[1].content, '公会大厅\n\n<next_prompt>\n接讨伐任务\n接探索任务\n</next_prompt>');
+  assert.equal(history[2].content, '（玩家选了上一轮第 2 条选项）\n接探索任务');
+  assert.equal(history[3].content, '接待员交代路线\n\n<next_prompt>\n出北门\n问编号\n</next_prompt>');
+  assert.match(history.at(-1).content, /^（玩家没选上一轮的选项，以下是自行输入）\n先去买火把/);
+});
+
+test('buildPrompt 关闭选项时历史不带选项也不标注选择', async () => {
+  sandbox.writeConfig({ ...sandbox.readConfig(), global_system_prompt: '', global_post_prompt: '', suggestion_enabled: false });
+  const world = insertWorld(sandbox.db, { name: '无选项历史世界' });
+  const session = insertSession(sandbox.db, { character_id: insertCharacter(sandbox.db, world.id).id });
+  insertOptionRounds(session);
+
+  const { buildPrompt } = await freshImport('backend/prompts/assembler.js');
+  const { messages } = await buildPrompt(session.id);
+  const history = messages.filter((msg) => msg.role !== 'system');
+
+  assert.equal(history[1].content, '公会大厅');
+  assert.equal(history[2].content, '接探索任务');
+  assert.match(history.at(-1).content, /^先去买火把/);
+});
+
+test('buildPrompt 续写时被续写的回复不接旧选项', async () => {
+  sandbox.writeConfig({ ...sandbox.readConfig(), global_system_prompt: '', global_post_prompt: '', suggestion_enabled: true });
+  const world = insertWorld(sandbox.db, { name: '续写选项世界' });
+  const session = insertSession(sandbox.db, { character_id: insertCharacter(sandbox.db, world.id).id });
+  insertOptionRounds(session);
+  insertMessage(sandbox.db, session.id, { role: 'assistant', content: '杂货铺', created_at: 6 });
+  sandbox.db.prepare('UPDATE messages SET next_options = ? WHERE session_id = ? AND content = ?')
+    .run(JSON.stringify(['买火把']), session.id, '杂货铺');
+
+  const { buildPrompt } = await freshImport('backend/prompts/assembler.js');
+  const { messages } = await buildPrompt(session.id, { continuation: true });
+
+  assert.equal(messages.at(-1).content, '杂货铺');
+  assert.match(messages.at(-3).content, /<next_prompt>\n出北门\n问编号\n<\/next_prompt>$/);
+});
+
 test('buildPrompt always 条目注入本轮上下文', async () => {
   sandbox.writeConfig({
     ...sandbox.readConfig(),

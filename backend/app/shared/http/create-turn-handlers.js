@@ -280,7 +280,6 @@ function createStreamHandlers({ mode, resolveSession, emitSse, logNs, log, badRe
         ...streamIo(sessionId, res),
         activeStreams,
         userMsgId,
-        userContent: requireContent ? content : trimmed,
         diaryInjection: typeof diaryInjection === 'string' ? diaryInjection : undefined,
       });
     },

@@ -5,10 +5,7 @@ import { createTestSandbox, freshImport, resetMockEnv } from '../helpers/test-en
 import {
   insertCharacter,
   insertMessage,
-  insertPersona,
-  insertPersonaStateField,
   insertSession,
-  insertSessionPersonaStateValue,
   insertWorld,
 } from '../helpers/fixtures.js';
 
@@ -35,40 +32,29 @@ test('对话模式 buildTurnContext 会返回 messages、override 参数与 reca
   assert.match(result.messages[0].content, /系统：聊天世界/);
 });
 
-test('补选项上下文使用当前玩家的人设与会话状态', async () => {
-  const world = insertWorld(sandbox.db, { name: '玩家上下文世界' });
-  const player = insertPersona(sandbox.db, world.id, {
-    name: '沈青萝',
-    system_prompt: '冷静的药师，只依据亲眼所见行动。',
-  });
-  sandbox.db.prepare('UPDATE worlds SET active_persona_id = ? WHERE id = ?').run(player.id, world.id);
-  const session = insertSession(sandbox.db, {
-    character_id: insertCharacter(sandbox.db, world.id).id,
-    persona_id: player.id,
-  });
-  insertPersonaStateField(sandbox.db, world.id, { field_key: 'location', label: '位置' });
-  insertSessionPersonaStateValue(sandbox.db, session.id, world.id, {
-    field_key: 'location',
-    runtime_value_json: JSON.stringify('药铺后院'),
-  });
-
+test('副模型补选项沿用主模型的完整消息，再接上本轮回复与补选项指令', async () => {
   const { __testables } = await freshImport('backend/services/chat.js');
-  const context = __testables.getSuggestionPlayerContext(session.id, world.id);
-  const prompt = __testables.renderSuggestionAuxPrompt({
-    mode: 'fallback',
-    userContent: '查看后院动静',
-    assistantText: '药童说外面有人等候。',
-    sessionId: session.id,
-    worldId: world.id,
-  });
+  const promptMessages = [
+    { role: 'system', content: '世界设定与玩家人设' },
+    { role: 'user', content: '取下老矿口的牌子\n\n<suggestion_format>选项规则</suggestion_format>' },
+  ];
 
-  assert.equal(context.name, '沈青萝');
-  assert.match(context.persona, /冷静的药师/);
-  assert.match(context.state, /位置：药铺后院/);
-  assert.match(prompt, /当前玩家：沈青萝/);
-  assert.match(prompt, /冷静的药师/);
-  assert.match(prompt, /位置：药铺后院/);
-  assert.doesNotMatch(prompt, /{{(?:user|USER_NAME|USER_PERSONA|USER_STATE)}}/);
+  const fallback = __testables.buildSuggestionAuxMessages({
+    mode: 'fallback',
+    promptMessages,
+    assistantText: '接待员催你出发。',
+  });
+  assert.deepEqual(fallback.slice(0, 3), [...promptMessages, { role: 'assistant', content: '接待员催你出发。' }]);
+  assert.equal(fallback.length, 4);
+  assert.equal(fallback[3].role, 'user');
+  assert.match(fallback[3].content, /漏了选项区/);
+
+  const continuation = __testables.buildSuggestionAuxMessages({
+    mode: 'continuation',
+    promptMessages,
+    assistantText: '正文\n<next_prompt>\n出发',
+  });
+  assert.match(continuation.at(-1).content, /已有的完整选项原样保留/);
 });
 
 test('processStreamOutput 在正常完成时会剥离选项、套 ai_output 规则并写入 assistant 消息', async () => {

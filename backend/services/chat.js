@@ -4,11 +4,8 @@ import path from 'node:path';
 import * as llm from '../llm/index.js';
 import { updateMessageAttachments, updateMessageNextOptions } from '../db/queries/messages.js';
 import { MAX_ATTACHMENTS_PER_MESSAGE, MAX_ATTACHMENT_SIZE_MB } from '../utils/constants.js';
-import { renderPersonaState } from '../memory/recall.js';
-import { getPersonaById } from '../db/queries/personas.js';
 import { createLogger, previewText } from '../utils/logger.js';
-import { createMessage, getSessionById, touchSession } from './sessions.js';
-import { getOrCreatePersona } from './personas.js';
+import { createMessage, touchSession } from './sessions.js';
 import { applyRules } from '../utils/regex-runner.js';
 import {
   stripAsstContext,
@@ -18,7 +15,7 @@ import {
   findRawNextPromptIdx,
   classifyNextPromptBoundary,
 } from '../utils/turn-dialogue.js';
-import { renderBackendPrompt } from '../prompts/prompt-loader.js';
+import { loadBackendPrompt } from '../prompts/prompt-loader.js';
 import { runHook } from '../hooks/hook-registry.js';
 import { UPLOADS_DIR } from '../utils/data-dir.js';
 
@@ -99,49 +96,36 @@ export function makeSuggestionFallbackCallbacks(emitSse) {
 const SUGGESTION_AUX_VARIANTS = {
   fallback: {
     template: 'shared-suggestion-fallback.md',
-    assistantKey: 'ASSISTANT_MESSAGE',
     callType: 'suggestion_fallback',
+    temperature: 0.7,
   },
   continuation: {
     template: 'shared-suggestion-continuation.md',
-    assistantKey: 'ASSISTANT_PARTIAL',
     callType: 'suggestion_continuation',
+    // 已有选项须逐字保留，不放开随机性
+    temperature: 0,
   },
 };
 
-function getSuggestionPlayerContext(sessionId, worldId) {
-  const session = sessionId ? getSessionById(sessionId) : null;
-  const persona = session?.persona_id
-    ? getPersonaById(session.persona_id)
-    : (worldId ? getOrCreatePersona(worldId) : null);
-
-  return {
-    name: persona?.name || '当前玩家',
-    persona: persona?.system_prompt || '未设置额外人设。',
-    state: worldId ? (renderPersonaState(worldId, sessionId) || '未记录当前状态。') : '未记录当前状态。',
-  };
+/**
+ * 副模型补选项看到的上下文与主模型完全一致：主模型这轮收到的消息、它写出的回复，再加一句补选项指令。
+ * 选项规则已在主模型消息里（<suggestion_format>），指令只说明要补什么。
+ */
+function buildSuggestionAuxMessages({ mode, promptMessages, assistantText }) {
+  return [
+    ...promptMessages,
+    { role: 'assistant', content: assistantText },
+    { role: 'user', content: loadBackendPrompt(SUGGESTION_AUX_VARIANTS[mode].template) },
+  ];
 }
 
-function renderSuggestionAuxPrompt({ mode, userContent, assistantText, sessionId, worldId }) {
-  const variant = SUGGESTION_AUX_VARIANTS[mode];
-  const player = getSuggestionPlayerContext(sessionId, worldId);
-  return renderBackendPrompt(variant.template, {
-    USER_MESSAGE: userContent ?? '',
-    [variant.assistantKey]: assistantText ?? '',
-    USER_NAME: player.name,
-    USER_PERSONA: player.persona,
-    USER_STATE: player.state,
-  });
-}
+export const __testables = { buildSuggestionAuxMessages };
 
-export const __testables = { getSuggestionPlayerContext, renderSuggestionAuxPrompt };
-
-async function buildSuggestionAux({ mode, userContent, assistantText, sessionId, worldId, configScope = 'aux' }) {
+async function buildSuggestionAux({ mode, promptMessages, assistantText, configScope = 'aux' }) {
   const variant = SUGGESTION_AUX_VARIANTS[mode];
-  const prompt = renderSuggestionAuxPrompt({ mode, userContent, assistantText, sessionId, worldId });
-  return llm.complete([{ role: 'user', content: prompt }], {
+  return llm.complete(buildSuggestionAuxMessages({ mode, promptMessages, assistantText }), {
     configScope,
-    temperature: 0,
+    temperature: variant.temperature,
     callType: variant.callType,
   });
 }
@@ -150,8 +134,7 @@ async function resolveSuggestionOptions({
   content,
   suggestionEnabled,
   aborted,
-  userContent,
-  worldId,
+  promptMessages,
   configScope = 'aux',
   sessionId,
   onSuggestionFallback,
@@ -180,10 +163,8 @@ async function resolveSuggestionOptions({
     onSuggestionFallback?.({ mode });
     const raw = await buildSuggestionAux({
       mode,
-      userContent,
+      promptMessages,
       assistantText: visibleContent,
-      sessionId,
-      worldId,
       configScope,
     });
     const extracted = extractNextPromptOptions(raw);
@@ -220,7 +201,7 @@ async function resolveSuggestionOptions({
  * @param {function} [opts.createMessageFn]         消息创建函数，默认使用 sessions.createMessage
  * @param {function} [opts.touchSessionFn]          会话触活函数，默认使用 sessions.touchSession
  * @param {boolean} [opts.suggestionEnabled=false]  是否启用选项区兜底
- * @param {string} [opts.currentUserContent='']     本轮 user message
+ * @param {Array}  [opts.promptMessages=[]]        主模型这轮收到的完整消息，补选项时原样交给副模型
  * @param {string} [opts.configScope='aux']         fallback 所用模型配置域
  * @param {function} [opts.onSuggestionFallback]    进入补选项分支时的回调
  * @param {function} [opts.onSuggestionFallbackSucceeded] fallback 成功时的回调
@@ -233,7 +214,7 @@ export async function processStreamOutput(rawContent, aborted, worldId, sessionI
     createMessageFn = createMessage,
     touchSessionFn = touchSession,
     suggestionEnabled = false,
-    currentUserContent = '',
+    promptMessages = [],
     configScope = 'aux',
     onSuggestionFallback = undefined,
     onSuggestionFallbackSucceeded = undefined,
@@ -251,8 +232,7 @@ export async function processStreamOutput(rawContent, aborted, worldId, sessionI
     content,
     suggestionEnabled,
     aborted,
-    userContent: currentUserContent,
-    worldId,
+    promptMessages,
     configScope,
     sessionId,
     onSuggestionFallback,

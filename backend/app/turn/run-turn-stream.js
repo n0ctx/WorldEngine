@@ -6,7 +6,7 @@ import { runStreamLifecycle } from '../shared/stream/create-stream-runner.js';
 import { finalizeStreamOutput } from '../shared/stream/finalize-stream-output.js';
 import { processStreamOutput, makeSuggestionFallbackCallbacks } from '../../services/chat.js';
 import { buildTurnContext } from './build-turn-context.js';
-import { getLastUserContent, makeStreamErrorHandler } from './turn-helpers.js';
+import { makeStreamErrorHandler } from './turn-helpers.js';
 import { ALL_MESSAGES_LIMIT } from '../../utils/constants.js';
 import { formatMeta } from '../../utils/logger.js';
 import {
@@ -26,7 +26,6 @@ export async function runTurnStream({
   attachSse,
   activeStreams,
   userMsgId,
-  userContent,
   diaryInjection,
   stateRolledBack = false,
 }) {
@@ -120,7 +119,7 @@ export async function runTurnStream({
           createMessageFn: mode.session.createMessage,
           touchSessionFn: mode.session.touch,
           suggestionEnabled: mode.suggestionEnabled(),
-          currentUserContent: userContent ?? getLastUserContent(mode, sessionId),
+          promptMessages: setup.messages,
           configScope: mode.auxScope,
           ...makeSuggestionFallbackCallbacks(emitSse),
         }

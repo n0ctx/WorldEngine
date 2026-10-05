@@ -6,14 +6,8 @@ import {
   failSessionStreamTask,
 } from '../../services/session-stream-task-store.js';
 
-/** 本轮用户输入；调用方未显式传入时用于补选项的上下文 */
-export function getLastUserContent(mode, sessionId) {
-  const messages = mode.session.getMessages(sessionId, ALL_MESSAGES_LIMIT, 0);
-  return [...messages].reverse().find((message) => message.role === 'user')?.content ?? '';
-}
-
 /**
- * 续写的起点：最后一条 assistant，以及它之前最近的一条 user。
+ * 续写的起点：最后一条 assistant。
  * 不满足续写前提时抛 400，由路由层统一转成响应。
  */
 export function resolveContinuationBase(mode, sessionId) {
@@ -31,11 +25,7 @@ export function resolveContinuationBase(mode, sessionId) {
     throw createHttpError(400, '当前会话没有可续写的用户-助手轮次');
   }
 
-  const lastUser = [...messages.slice(0, lastAssistantIndex)]
-    .reverse()
-    .find((message) => message.role === 'user');
-
-  return { messages, lastAssistant, lastUser };
+  return { messages, lastAssistant };
 }
 
 /**

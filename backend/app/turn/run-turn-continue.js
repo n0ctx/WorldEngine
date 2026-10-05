@@ -26,7 +26,7 @@ import {
 export async function runTurnContinue({ mode, sessionId, emitSse: rawEmitSse, attachSse, activeStreams }) {
   const log = mode.log;
   const { session, worldId, characterIds } = mode.resolveScope(sessionId);
-  const { messages: baseMessages, lastAssistant, lastUser } = resolveContinuationBase(mode, sessionId);
+  const { messages: baseMessages, lastAssistant } = resolveContinuationBase(mode, sessionId);
   const originalContent = lastAssistant.content;
 
   log.info(`POST /continue  ${formatMeta({ session: sessionId.slice(0, 8) })}`);
@@ -96,7 +96,7 @@ export async function runTurnContinue({ mode, sessionId, emitSse: rawEmitSse, at
         const processed = await processStreamOutput(fullContent, aborted, worldId, sessionId, {
           mode: mode.id,
           suggestionEnabled: mode.suggestionEnabled(),
-          currentUserContent: lastUser?.content ?? '',
+          promptMessages: setup.continuationMessages,
           configScope: mode.auxScope,
           ...makeSuggestionFallbackCallbacks(emitSse),
           // 续写不新建消息，只把产出拼回原 assistant
