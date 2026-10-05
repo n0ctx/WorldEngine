@@ -148,6 +148,12 @@ async function resolveSuggestionOptions({
 
   if (!suggestionEnabled || aborted || !visibleContent) return extractNextPromptOptions(content);
 
+  if (boundary === 'truncated') {
+    // 模型常停在闭标签前：4 条选项已经写全就直接采用，不再请副模型照抄一遍
+    const peek = extractNextPromptOptions(content);
+    if (peek.options.length >= 4) return peek;
+  }
+
   if (boundary === 'closed') {
     const peek = extractNextPromptOptions(content);
     if (peek.options.length >= 3 || peek.options.length === 0) return peek;

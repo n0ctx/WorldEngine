@@ -163,7 +163,6 @@ test('processStreamOutput 在选项区未闭合时会用副模型兜底补齐选
   const { processStreamOutput } = await freshImport('backend/services/chat.js');
   const result = await processStreamOutput('正文到这里结束', false, world.id, session.id, {
     suggestionEnabled: true,
-    currentUserContent: '下一步怎么办？',
     configScope: 'aux',
   });
 
@@ -186,13 +185,32 @@ test('processStreamOutput 在选项区已完整闭合时不会触发副模型兜
     session.id,
     {
       suggestionEnabled: true,
-      currentUserContent: '继续',
       configScope: 'aux',
     },
   );
 
   assert.equal(result.savedContent, '正文');
   assert.deepEqual(result.options, ['选项甲', '选项乙', '选项丙']);
+});
+
+test('processStreamOutput 在选项区缺闭合标签但 4 条已写全时直接采用，不触发副模型', async () => {
+  resetMockEnv();
+  process.env.MOCK_LLM_COMPLETE_ERROR = 'fallback should not run';
+
+  const world = insertWorld(sandbox.db, { name: '聊天世界-缺闭标签' });
+  const session = insertSession(sandbox.db, { character_id: insertCharacter(sandbox.db, world.id).id });
+
+  const { processStreamOutput } = await freshImport('backend/services/chat.js');
+  const result = await processStreamOutput(
+    '正文\n<next_prompt>\n选项甲\n选项乙\n选项丙\n选项丁\n',
+    false,
+    world.id,
+    session.id,
+    { suggestionEnabled: true },
+  );
+
+  assert.equal(result.savedContent, '正文');
+  assert.deepEqual(result.options, ['选项甲', '选项乙', '选项丙', '选项丁']);
 });
 
 test('processStreamOutput 在副模型兜底失败时保留正文且不抛错', async () => {
@@ -205,7 +223,6 @@ test('processStreamOutput 在副模型兜底失败时保留正文且不抛错', 
   const { processStreamOutput } = await freshImport('backend/services/chat.js');
   const result = await processStreamOutput('没有选项结尾', false, world.id, session.id, {
     suggestionEnabled: true,
-    currentUserContent: '继续',
     configScope: 'aux',
   });
 
@@ -228,7 +245,6 @@ test('processStreamOutput 的闭合检测会先剥离 think block，再决定是
     session.id,
     {
       suggestionEnabled: true,
-      currentUserContent: '继续',
       configScope: 'aux',
     },
   );
@@ -252,7 +268,6 @@ test('processStreamOutput 在选项区闭合但只有 1-2 条时会删掉闭合�
     session.id,
     {
       suggestionEnabled: true,
-      currentUserContent: '继续',
       configScope: 'aux',
     },
   );
@@ -276,7 +291,6 @@ test('processStreamOutput 在已存在 </next_prompt> 时会截掉最后一个�
     session.id,
     {
       suggestionEnabled: true,
-      currentUserContent: '继续',
       configScope: 'aux',
     },
   );
