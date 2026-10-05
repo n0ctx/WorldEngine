@@ -90,4 +90,12 @@ describe('台前', () => {
     expect(container.querySelector('.we-speaker-stage').dataset.bare).toBe('true');
     expect(container.querySelector('.we-speaker-stage__cast')).toBeNull();
   });
+
+  it('角色和世界都没到时不占位，到了直接以展开状态挂上，不从收起高度过渡展开', () => {
+    const { container, rerender } = render(<SpeakerStage />);
+    expect(container.querySelector('.we-speaker-stage')).toBeNull();
+
+    rerender(<SpeakerStage world={world} />);
+    expect(container.querySelector('.we-speaker-stage').dataset.compact).toBeUndefined();
+  });
 });

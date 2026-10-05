@@ -748,8 +748,6 @@
 
 .we-settings-provider-hint {
   margin-top: calc(-1 * var(--we-space-xxs));
-  padding: var(--we-space-md) var(--we-space-md);
-  background: color-mix(in srgb, var(--we-color-accent-bg) var(--we-alpha-3), var(--we-color-bg-canvas));
 }
 
 .we-settings-provider-hint-text {
@@ -880,10 +878,6 @@
 
 .we-settings-llm-panel .we-edit-form-group-settings {
   margin-bottom: var(--we-space-lg);
-}
-
-.we-settings-llm-panel .we-settings-provider-hint {
-  padding: var(--we-space-sm) var(--we-space-md);
 }
 
 .we-settings-llm-panel .we-settings-action-row--spaced {

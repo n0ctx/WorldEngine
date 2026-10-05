@@ -31,21 +31,20 @@ function StageHero({ world, character }) {
  * 正文顶部的台前。对话页是当前说话的角色：正文在顶部时是一整块大台前，正文往下滚（compact）时
  * 大台前上滑收走，换成一行台前（印章 + 名字 + 简介），换角色时旧角色退场、新角色从侧面走上台。
  * 写作页不传 character，只有世界的大台前，收起后不留一行。
+ * 角色和世界都还没到时不渲染，到了直接以当前高度挂上，不走收放的高度过渡。
  */
 export default function SpeakerStage({ character = null, world = null, compact = false }) {
   const m = useMotion();
-  const hasHero = Boolean(character || world);
+  if (!character && !world) return null;
   return (
     <div
       className="we-speaker-stage"
-      data-compact={compact || !hasHero || undefined}
+      data-compact={compact || undefined}
       data-bare={!character || undefined}
     >
-      {hasHero ? (
-        <div className="we-speaker-stage__hero-slot" aria-hidden={compact}>
-          <StageHero key={character?.id ?? world.id} world={world} character={character} />
-        </div>
-      ) : null}
+      <div className="we-speaker-stage__hero-slot" aria-hidden={compact}>
+        <StageHero key={character?.id ?? world.id} world={world} character={character} />
+      </div>
       <div className="we-speaker-stage__bar" aria-hidden={!compact}>
         <AnimatePresence mode="wait" initial={false}>
           {character ? (
