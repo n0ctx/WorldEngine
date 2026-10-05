@@ -224,7 +224,7 @@ function insertOptionRounds(session) {
   insertMessage(sandbox.db, session.id, { role: 'user', content: '先去买火把', created_at: 5 });
 }
 
-test('buildPrompt 开启选项时历史回复带回当轮选项，玩家消息标明选了哪条或没选', async () => {
+test('buildPrompt 开启选项时历史回复带回当轮选项，并按玩家下一条消息标上已选或未选', async () => {
   sandbox.writeConfig({ ...sandbox.readConfig(), global_system_prompt: '', global_post_prompt: '', suggestion_enabled: true });
   const world = insertWorld(sandbox.db, { name: '选项历史世界' });
   const session = insertSession(sandbox.db, { character_id: insertCharacter(sandbox.db, world.id).id });
@@ -234,13 +234,14 @@ test('buildPrompt 开启选项时历史回复带回当轮选项，玩家消息�
   const { messages } = await buildPrompt(session.id);
   const history = messages.filter((msg) => msg.role !== 'system');
 
-  assert.equal(history[1].content, '公会大厅\n\n<next_prompt>\n接讨伐任务\n接探索任务\n</next_prompt>');
-  assert.equal(history[2].content, '（玩家选了上一轮第 2 条选项）\n接探索任务');
-  assert.equal(history[3].content, '接待员交代路线\n\n<next_prompt>\n出北门\n问编号\n</next_prompt>');
-  assert.match(history.at(-1).content, /^（玩家没选上一轮的选项，以下是自行输入）\n先去买火把/);
+  assert.equal(history[1].content, '公会大厅\n\n<next_prompt>\n（未选）接讨伐任务\n（已选）接探索任务\n</next_prompt>');
+  assert.equal(history[2].content, '接探索任务');
+  // 玩家自行输入：选项全部未选
+  assert.equal(history[3].content, '接待员交代路线\n\n<next_prompt>\n（未选）出北门\n（未选）问编号\n</next_prompt>');
+  assert.match(history.at(-1).content, /^先去买火把/);
 });
 
-test('buildPrompt 关闭选项时历史不带选项也不标注选择', async () => {
+test('buildPrompt 关闭选项时历史不带选项', async () => {
   sandbox.writeConfig({ ...sandbox.readConfig(), global_system_prompt: '', global_post_prompt: '', suggestion_enabled: false });
   const world = insertWorld(sandbox.db, { name: '无选项历史世界' });
   const session = insertSession(sandbox.db, { character_id: insertCharacter(sandbox.db, world.id).id });
@@ -268,7 +269,7 @@ test('buildPrompt 续写时被续写的回复不接旧选项', async () => {
   const { messages } = await buildPrompt(session.id, { continuation: true });
 
   assert.equal(messages.at(-1).content, '杂货铺');
-  assert.match(messages.at(-3).content, /<next_prompt>\n出北门\n问编号\n<\/next_prompt>$/);
+  assert.match(messages.at(-3).content, /<next_prompt>\n（未选）出北门\n（未选）问编号\n<\/next_prompt>$/);
 });
 
 test('buildPrompt always 条目注入本轮上下文', async () => {

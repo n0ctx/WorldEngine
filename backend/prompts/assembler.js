@@ -248,24 +248,20 @@ function renderLongTermRecallSection(recall, tv, turnContextParts, onRecallEvent
 }
 
 /**
- * 消息给模型看的正文（msg 须是 allMessages 里的同一对象）。选项功能开启时 assistant 末尾接回当轮选项、
- * 玩家消息开头标明选了哪条：每轮都以选项收尾，模型才会稳定在本轮末尾输出选项；
- * 标明没选的选项没有发生，不被当成既成剧情。
+ * 消息给模型看的正文（msg 须是 allMessages 里的同一对象）。选项功能开启时 assistant 末尾接回当轮选项：
+ * 每轮都以选项收尾，模型才会稳定在本轮末尾输出选项。玩家已回应的那轮，每条选项标上已选或未选，
+ * 玩家自行输入时 4 条都是未选，未选的选项没有发生，不被当成既成剧情。
  */
 function renderHistoryContent(msg, allMessages, { withOptions, worldId, mode }) {
   const content = applyRules(msg.content, 'prompt_only', worldId, mode);
-  if (!withOptions) return content;
-  if (msg.role === 'user') {
-    const previous = allMessages[allMessages.indexOf(msg) - 1];
-    const offered = previous?.role === 'assistant' ? previous.next_options ?? [] : [];
-    if (offered.length === 0) return content;
-    // 玩家点选项时原文发出，与上一轮某条选项完全一致就算选了那条
-    const index = offered.indexOf(msg.content.trim());
-    const note = index === -1 ? '（玩家没选上一轮的选项，以下是自行输入）' : `（玩家选了上一轮第 ${index + 1} 条选项）`;
-    return `${note}\n${content}`;
-  }
-  if (!msg.next_options?.length) return content;
-  const optionsText = applyRules(msg.next_options.join('\n'), 'prompt_only', worldId, mode);
+  if (!withOptions || msg.role !== 'assistant' || !msg.next_options?.length) return content;
+  const next = allMessages[allMessages.indexOf(msg) + 1];
+  // 玩家点选项时原文发出，与某条选项完全一致就算选了那条
+  const chosen = next?.role === 'user' ? next.content.trim() : null;
+  const lines = chosen === null
+    ? msg.next_options
+    : msg.next_options.map((option) => `${option === chosen ? '（已选）' : '（未选）'}${option}`);
+  const optionsText = applyRules(lines.join('\n'), 'prompt_only', worldId, mode);
   return `${content}\n\n<next_prompt>\n${optionsText}\n</next_prompt>`;
 }
 
