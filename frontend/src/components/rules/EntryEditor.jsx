@@ -4,14 +4,16 @@ import { log } from '../../core/utils/logger.js';
 import saveEntryEditor from './saveEntryEditor.js';
 import useEntryEditorData from './useEntryEditorData.js';
 import useEntryTriggerSuggestion from './useEntryTriggerSuggestion.js';
-import { applyConditionPatch, clampActiveTurns, findScopeForFieldLabel, parseKeywordScope } from './entryEditorRules.js';
+import {
+  applyConditionPatch, clampActiveTurns, findScopeForFieldLabel, parseKeywordScope, validateEntryForm,
+} from './entryEditorRules.js';
 
 export default function EntryEditor({
   worldId, entry, defaultTriggerType,
   prefillCondition, onClose, onSave, inline = false, dialog,
 }) {
   const isNew = !entry?.id;
-  const [form, setForm] = useState({
+  const [form, setForm] = useState(() => ({
     title: entry?.title ?? '',
     content: entry?.content ?? '',
     description: entry?.description ?? '',
@@ -23,14 +25,19 @@ export default function EntryEditor({
     keyword_scope: entry ? parseKeywordScope(entry.keyword_scope) : ['user', 'assistant'],
     active_turns: clampActiveTurns(entry?.active_turns ?? 1),
     token: entry?.token ?? 1,
-  });
+  }));
+  const [savedForm, setSavedForm] = useState(form);
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
+  const [savedKey, setSavedKey] = useState(0);
   const editorData = useEntryEditorData({
     worldId, entry, isNew, prefillCondition, triggerType: form.trigger_type,
   });
   const {
-    conditions, setConditions, rawFieldsByScope, fieldTypeMap, conditionsInitRef,
+    conditions, setConditions, savedConditions, setSavedConditions, rawFieldsByScope, fieldTypeMap, conditionsInitRef,
   } = editorData;
+  const dirty = !sameJson(form, savedForm)
+    || (form.trigger_type === 'state' && savedConditions !== null && !sameJson(conditions, savedConditions));
   const { suggestion, setSuggestion, setDismissedFor } = useEntryTriggerSuggestion(
     form.content, form.trigger_type, editorData.properNouns, editorData.allStateFieldLabels,
   );
@@ -74,17 +81,25 @@ export default function EntryEditor({
     setSuggestion(null);
   }
 
+  // 内嵌时失败原因留在保存栏里，弹窗里弹提示
   async function handleSave() {
-    if (!form.title.trim()) return;
-    if (form.trigger_type === 'keyword' && form.keyword_scope.length === 0) {
-      log.error('entry.role.invalid', null, { toast: '必须勾选 user 或 assistant 至少一项' });
+    const invalid = validateEntryForm(form);
+    if (invalid) {
+      if (inline) setSaveError(invalid);
+      else log.error('entry.form.invalid', null, { toast: invalid });
       return;
     }
+    const sent = { form, conditions };
     setSaving(true);
+    setSaveError('');
     try {
       await saveEntryEditor({ worldId, entry, isNew, form, conditions, onSave });
+      setSavedForm(sent.form);
+      setSavedConditions(sent.conditions);
+      setSavedKey((key) => key + 1);
     } catch (err) {
-      log.error('entry.save_failed', err, { toast: `保存失败：${err.message}` });
+      if (inline) setSaveError(err.message || '未知错误');
+      log.error('entry.save_failed', err, inline ? { silent: true } : { toast: `保存失败：${err.message}` });
     } finally {
       setSaving(false);
     }
@@ -92,9 +107,14 @@ export default function EntryEditor({
 
   const model = {
     isNew, form, setForm, saving, onClose,
+    save: { creating: isNew, dirty, saving, error: saveError, savedKey, saveLabel: isNew ? '创建' : '保存', onSave: handleSave },
     addKeyword, removeKeyword,
     suggestion, handleAdoptSuggestion, handleDismissSuggestion,
     conditions, fieldTypeMap, rawFieldsByScope, updateCondition, setConditions, handleSave,
   };
   return <EntryEditorPanel model={model} inline={inline} dialog={dialog} />;
+}
+
+function sameJson(a, b) {
+  return JSON.stringify(a) === JSON.stringify(b);
 }

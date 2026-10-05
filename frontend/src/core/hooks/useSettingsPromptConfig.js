@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
 import { useDisplaySettingsStore } from '../state/displaySettings.js';
-import { useSaveState } from './useSaveState.js';
+import { useFormBaseline } from './useFormBaseline.js';
 import { modePatch, modeValue } from './settingsModeValue.js';
 import {
   readDanmakuSettings,
@@ -36,8 +36,18 @@ export function useSettingsPromptConfig(patchConfig, settingsMode) {
   const [writingPageTurnSize, setWritingPageTurnSize] = useState(null);
   const setDanmakuSpeedStore = useDisplaySettingsStore((state) => state.setDanmakuSpeed);
   const setWritingDanmakuSpeedStore = useDisplaySettingsStore((state) => state.setWritingDanmakuSpeed);
-  const { saving, saved, run: runSave } = useSaveState();
-  const { saving: savingWriting, saved: savedWriting, run: runSaveWriting } = useSaveState();
+  const chatPromptSave = usePromptSave(patchConfig, { globalSystemPrompt, globalPostPrompt }, (values) => ({
+    global_system_prompt: values.globalSystemPrompt,
+    global_post_prompt: values.globalPostPrompt,
+  }));
+  const writingPromptSave = usePromptSave(patchConfig, { writingSystemPrompt, writingPostPrompt }, (values) => ({
+    writing: {
+      global_system_prompt: values.writingSystemPrompt,
+      global_post_prompt: values.writingPostPrompt,
+    },
+  }));
+  const setChatPromptBaseline = chatPromptSave.setBaseline;
+  const setWritingPromptBaseline = writingPromptSave.setBaseline;
 
   const applyPromptSettings = useCallback((settings) => {
     setGlobalSystemPrompt(settings.globalSystemPrompt);
@@ -46,7 +56,9 @@ export function useSettingsPromptConfig(patchConfig, settingsMode) {
     setWritingSystemPrompt(settings.writingSystemPrompt);
     setWritingPostPrompt(settings.writingPostPrompt);
     setWritingShortTermTokenBudget(settings.writingShortTermTokenBudget);
-  }, []);
+    setChatPromptBaseline({ globalSystemPrompt: settings.globalSystemPrompt, globalPostPrompt: settings.globalPostPrompt });
+    setWritingPromptBaseline({ writingSystemPrompt: settings.writingSystemPrompt, writingPostPrompt: settings.writingPostPrompt });
+  }, [setChatPromptBaseline, setWritingPromptBaseline]);
 
   const applyMemorySettings = useCallback((settings) => {
     setMemoryExpansionEnabled(settings.memoryExpansionEnabled);
@@ -88,22 +100,6 @@ export function useSettingsPromptConfig(patchConfig, settingsMode) {
     await patchConfig(isWriting
       ? { writing: { [key]: enabled } }
       : { [key]: enabled });
-  }
-
-  async function handleSaveGeneral() {
-    await runSave(() => patchConfig({
-      global_system_prompt: globalSystemPrompt,
-      global_post_prompt: globalPostPrompt,
-    }, { announceSaved: false }));
-  }
-
-  async function handleSaveWritingGeneral() {
-    await runSaveWriting(() => patchConfig({
-      writing: {
-        global_system_prompt: writingSystemPrompt,
-        global_post_prompt: writingPostPrompt,
-      },
-    }, { announceSaved: false }));
   }
 
   async function handleSaveShortTermTokenBudget(value) {
@@ -221,18 +217,13 @@ export function useSettingsPromptConfig(patchConfig, settingsMode) {
       stateInjectionTokenBudget,
       setStateInjectionTokenBudget,
       onSaveStateInjectionTokenBudget: handleSaveStateInjectionTokenBudget,
-      onSave: handleSaveGeneral,
-      saving,
-      saved,
-      savingWriting,
-      savedWriting,
+      promptSave: isWriting ? writingPromptSave.save : chatPromptSave.save,
       writingSystemPrompt,
       setWritingSystemPrompt,
       writingPostPrompt,
       setWritingPostPrompt,
       writingShortTermTokenBudget,
       setWritingShortTermTokenBudget,
-      onSaveWriting: handleSaveWritingGeneral,
       onSaveWritingShortTermTokenBudget: handleSaveWritingShortTermTokenBudget,
       chapterTurnSize,
       setChapterTurnSize,
@@ -249,4 +240,32 @@ export function useSettingsPromptConfig(patchConfig, settingsMode) {
     },
     applyConfig,
   };
+}
+
+/**
+ * 一组提示词的手动保存：values 与上次存进服务端的值不同即有未保存修改，交给保存栏显示。
+ * toPatch 把这组值换成配置补丁；保存失败的原因留在保存栏里，不另弹提示。
+ */
+function usePromptSave(patchConfig, values, toPatch) {
+  const { dirty, setBaseline } = useFormBaseline(values);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  const [savedKey, setSavedKey] = useState(0);
+
+  async function onSave() {
+    const sent = values;
+    setSaving(true);
+    setError('');
+    try {
+      await patchConfig(toPatch(sent), { announce: false });
+      setBaseline(sent);
+      setSavedKey((key) => key + 1);
+    } catch (err) {
+      setError(err.message || '未知错误');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return { setBaseline, save: { dirty, saving, error, savedKey, onSave } };
 }

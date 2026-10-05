@@ -155,6 +155,28 @@ describe('StateFieldEditor', () => {
     expect(screen.getByText('保存失败')).toBeInTheDocument();
   });
 
+  it('inline: shows the save capsule only after a change and reports save errors in it', async () => {
+    const onSave = vi.fn().mockRejectedValue(new Error('网络中断'));
+    render(
+      <StateFieldEditor
+        inline
+        field={{ id: 1, field_key: 'mood', label: '心情', type: 'text' }}
+        scope="character"
+        onSave={onSave}
+        onClose={vi.fn()}
+      />,
+    );
+    expect(screen.queryByRole('button', { name: '保存' })).toBeNull();
+
+    fireEvent.change(screen.getByPlaceholderText('显示名称'), { target: { value: '情绪' } });
+    expect(screen.getByText('有未保存的修改')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: '保存' }));
+
+    expect(await screen.findByText('保存失败：网络中断')).toBeInTheDocument();
+    expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ label: '情绪' }));
+    expect(screen.getByRole('button', { name: '重试' })).toBeEnabled();
+  });
+
   it('blocks saving a world field whose label is reserved by the system', async () => {
     const onSave = vi.fn();
     render(

@@ -1,8 +1,8 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
-import { getMotionPack } from '../../src/core/motion/motionPack.js';
-import SaveCapsule from '../../src/pages/layout/SaveCapsule.jsx';
+import { getMotionPack } from '../../../src/core/motion/motionPack.js';
+import SaveCapsule from '../../../src/components/ui/SaveCapsule.jsx';
 
 const base = { dirty: false, saving: false, error: '', savedKey: 0, saveLabel: '保存', onSave: vi.fn() };
 
@@ -30,6 +30,11 @@ describe('SaveCapsule', () => {
     rerender(<SaveCapsule {...base} dirty error="网络中断" />);
     expect(screen.getByText('保存失败：网络中断')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '重试' })).toBeEnabled();
+  });
+
+  it('挂载前已保存过的不再补播「已保存」', () => {
+    render(<SaveCapsule {...base} savedKey={2} />);
+    expect(screen.queryByRole('status')).toBeNull();
   });
 
   it('保存成功后显示「已保存」，停一拍再收起', async () => {

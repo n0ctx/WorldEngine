@@ -60,6 +60,13 @@ export function clampActiveTurns(value) {
   return number;
 }
 
+// 保存前的表单校验，返回给用户看的原因，通过时返回空串
+export function validateEntryForm(form) {
+  if (!form.title.trim()) return '标题为必填项';
+  if (form.trigger_type === 'keyword' && form.keyword_scope.length === 0) return '必须勾选 user 或 assistant 至少一项';
+  return '';
+}
+
 export function parseKeywordScope(raw) {
   if (Array.isArray(raw)) return raw.filter((value) => value === 'user' || value === 'assistant');
   if (typeof raw !== 'string') return ['user'];

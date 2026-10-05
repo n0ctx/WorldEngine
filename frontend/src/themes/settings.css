@@ -803,12 +803,6 @@
   color: var(--we-color-text-tertiary);
 }
 
-.we-settings-save-row {
-  display: flex;
-  justify-content: flex-end;
-  margin-top: var(--we-space-lg);
-}
-
 .we-model-selector-loading {
   font-family: var(--we-font-prose);
   font-size: var(--we-type-ui-size);

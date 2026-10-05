@@ -4,7 +4,7 @@ import Button from '../../components/ui/Button.jsx';
 import ConfirmModal from '../../components/ui/ConfirmModal.jsx';
 import Dialog from '../../components/ui/Dialog.jsx';
 import Skeleton from '../../components/ui/Skeleton.jsx';
-import SaveCapsule from './SaveCapsule.jsx';
+import SaveCapsule from '../../components/ui/SaveCapsule.jsx';
 
 /**
  * 世界 / 角色 / 玩家编辑页：从页面打开和直接访问地址都是一个 xl 宽的 Dialog，关闭后回到上一页。

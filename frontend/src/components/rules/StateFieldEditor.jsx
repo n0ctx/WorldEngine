@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import Button from '../ui/Button';
 import Dialog from '../ui/Dialog';
+import SaveCapsule from '../ui/SaveCapsule';
 import { useStateMemorySchema } from '../../core/hooks/useStateMemory.js';
 import {
   StateFieldIdentityFields,
@@ -26,6 +27,7 @@ import {
 export default function StateFieldEditor({ field, scope, onSave, onClose, inline = false, dialog }) {
   const [lockedColumnKeys] = useState(() => createLockedColumnKeys(field));
   const [form, setForm] = useState(() => createStateFieldForm(field));
+  const [initialForm] = useState(form);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const { schema } = useStateMemorySchema();
@@ -51,9 +53,26 @@ export default function StateFieldEditor({ field, scope, onSave, onClose, inline
         lockedColumnKeys={lockedColumnKeys}
       />
       <StateFieldMetadataFields form={form} setForm={setForm} scope={scope} />
-      {error && <p className="we-state-field-error">{error}</p>}
+      {error && !inline && <p className="we-state-field-error">{error}</p>}
     </>
   );
+
+  // 内嵌时取消走外层的「收起定义」，保存后外层收起
+  if (inline) {
+    return (
+      <div className="we-state-field-inline flex flex-col gap-4">
+        <div className="we-state-field-inline__body flex flex-col gap-4">{fields}</div>
+        <SaveCapsule
+          creating={!field}
+          dirty={JSON.stringify(form) !== JSON.stringify(initialForm)}
+          saving={saving}
+          error={error}
+          saveLabel={field ? '保存' : '创建'}
+          onSave={handleSave}
+        />
+      </div>
+    );
+  }
   const actions = (
     <>
       <Button variant="ghost" onClick={onClose}>取消</Button>
@@ -62,15 +81,6 @@ export default function StateFieldEditor({ field, scope, onSave, onClose, inline
       </Button>
     </>
   );
-
-  if (inline) {
-    return (
-      <div className="we-state-field-inline flex flex-col gap-4">
-        <div className="we-state-field-inline__body flex flex-col gap-4">{fields}</div>
-        <div className="we-state-field-inline__footer">{actions}</div>
-      </div>
-    );
-  }
   return (
     <Dialog
       size="lg"

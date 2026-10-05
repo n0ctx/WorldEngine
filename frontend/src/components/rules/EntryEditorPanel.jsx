@@ -1,6 +1,7 @@
 import { X } from 'lucide-react';
 import { Button, Card, IconButton, Input, MarkdownEditor, SectionTitle, SegmentedControl } from '../index.js';
 import Dialog from '../ui/Dialog';
+import SaveCapsule from '../ui/SaveCapsule';
 import EntryEditorKeywordFields from './EntryEditorKeywordFields.jsx';
 import EntryEditorStateFields from './EntryEditorStateFields.jsx';
 import { clampActiveTurns, clampToken, emptyCondition, TRIGGER_SEGMENTS } from './entryEditorRules.js';
@@ -18,7 +19,7 @@ const TRIGGER_OPTIONS = TRIGGER_SEGMENTS.map((seg) => ({
 // dialog：交给外层弹窗的额外参数（向导用它放步骤条、接替上一步）
 export default function EntryEditorPanel({ model, inline, dialog }) {
   const {
-    isNew, form, setForm, saving, onClose,
+    isNew, form, setForm, saving, onClose, save,
     addKeyword, removeKeyword,
     suggestion, handleAdoptSuggestion, handleDismissSuggestion,
     conditions, fieldTypeMap, rawFieldsByScope, updateCondition, setConditions, handleSave,
@@ -170,6 +171,20 @@ export default function EntryEditorPanel({ model, inline, dialog }) {
       )}
     </>
   );
+  if (inline) {
+    return (
+      <Card variant="sunken" className="we-entry-editor-panel" onClick={(e) => e.stopPropagation()}>
+        <div className="we-entry-editor-head">
+          <SectionTitle level="group">{title}</SectionTitle>
+          <IconButton size="sm" label="关闭" onClick={onClose}>
+            <X size={16} />
+          </IconButton>
+        </div>
+        {body}
+        <SaveCapsule {...save} />
+      </Card>
+    );
+  }
   const actions = (
     <>
       <Button variant="ghost" onClick={onClose}>取消</Button>
@@ -182,16 +197,6 @@ export default function EntryEditorPanel({ model, inline, dialog }) {
       </Button>
     </>
   );
-
-  if (inline) {
-    return (
-      <Card variant="sunken" className="we-entry-editor-panel" onClick={(e) => e.stopPropagation()}>
-        <SectionTitle level="group">{title}</SectionTitle>
-        {body}
-        <div className="we-entry-editor-footer">{actions}</div>
-      </Card>
-    );
-  }
   return (
     <Dialog size="xl" title={title} busy={saving} onClose={onClose} footer={actions} {...dialog}>
       {body}

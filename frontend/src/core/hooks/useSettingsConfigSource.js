@@ -3,15 +3,16 @@ import { getConfig, updateConfig } from '../api/config.js';
 import { log } from '../utils/logger.js';
 
 export function useSettingsConfigWriter(suppressNextReloadRef) {
-  return useCallback(async (patch, { announceSaved = true, reload = false } = {}) => {
+  // announce 为 false 时由调用方自己展示保存结果（成功与失败都不弹提示）
+  return useCallback(async (patch, { announce = true, reload = false } = {}) => {
     suppressNextReloadRef.current = !reload;
     try {
       const updated = await updateConfig(patch);
-      if (announceSaved) log.success('settings.saved', null, { toast: '设置已保存' });
+      if (announce) log.success('settings.saved', null, { toast: '设置已保存' });
       return updated;
     } catch (err) {
       suppressNextReloadRef.current = false;
-      log.error('settings.save_failed', err, { toast: `设置保存失败，本次修改未生效：${err.message || '未知错误'}` });
+      log.error('settings.save_failed', err, announce ? { toast: `设置保存失败，本次修改未生效：${err.message || '未知错误'}` } : { silent: true });
       throw err;
     }
   }, [suppressNextReloadRef]);

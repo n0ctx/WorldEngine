@@ -6,7 +6,7 @@ import Dialog from '../../../components/ui/Dialog.jsx';
 import FormGroup from '../../../components/ui/FormGroup.jsx';
 import Input from '../../../components/ui/Input.jsx';
 import Textarea from '../../../components/ui/Textarea.jsx';
-import SaveCapsule from '../../layout/SaveCapsule.jsx';
+import SaveCapsule from '../../../components/ui/SaveCapsule.jsx';
 import { log } from '../../../core/utils/logger.js';
 import SlotSection from '../SlotSection.jsx';
 import { TOASTS } from './fixtures.js';

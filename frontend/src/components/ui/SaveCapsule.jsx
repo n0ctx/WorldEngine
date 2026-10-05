@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import ChangeText from '../../components/motion/ChangeText.jsx';
-import Button from '../../components/ui/Button.jsx';
+import ChangeText from '../motion/ChangeText.jsx';
+import Button from './Button.jsx';
 import { useMotion } from '../../core/hooks/useMotion.js';
 
 function capsuleState({ creating, dirty, saving, error, justSaved }) {
@@ -12,7 +12,7 @@ function capsuleState({ creating, dirty, saving, error, justSaved }) {
 }
 
 /**
- * 编辑弹层的保存栏：浮在正文底部的胶囊，弹层里所有需要手动保存的字段共用这一个按钮。
+ * 保存栏：浮在所在滚动区底部的胶囊，同一块编辑区里所有需要手动保存的字段共用这一个按钮。
  * 没有改动时收起；有改动（或新建）时浮起；存好后「已保存」标签停一拍再收起。
  * savedKey 每次保存成功 +1；停靠位始终占一行高度，胶囊出现、收起时正文不跳。
  */
@@ -20,7 +20,8 @@ export default function SaveCapsule({ creating = false, dirty, saving, error = '
   const m = useMotion();
   const fxVars = m.fx();
   const holdMs = m.pack.fx.stamp * 1000;
-  const [expiredKey, setExpiredKey] = useState(0);
+  // 挂载前的保存不再补播「已保存」
+  const [expiredKey, setExpiredKey] = useState(savedKey);
 
   useEffect(() => {
     if (!savedKey) return undefined;

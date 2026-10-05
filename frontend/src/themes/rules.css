@@ -98,9 +98,10 @@
   flex-shrink: 0;
 }
 
-.we-entry-editor-footer {
+.we-entry-editor-head {
   display: flex;
-  justify-content: flex-end;
+  align-items: flex-start;
+  justify-content: space-between;
   gap: var(--we-space-md);
 }
 

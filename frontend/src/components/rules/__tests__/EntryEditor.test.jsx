@@ -30,7 +30,7 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
-it('更新条目成功后保存按钮恢复可用', async () => {
+it('没有改动时不出保存栏，改动后由保存栏保存，存好后收起改动提示', async () => {
   api.updateWorldEntry.mockResolvedValue({ id: 'entry-1' });
   api.listWorldEntries.mockResolvedValue([]);
   const onSave = vi.fn();
@@ -44,9 +44,13 @@ it('更新条目成功后保存按钮恢复可用', async () => {
     />,
   );
 
+  expect(screen.queryByRole('button', { name: '保存' })).toBeNull();
+  fireEvent.change(screen.getByDisplayValue('旧标题'), { target: { value: '新标题' } });
+  expect(screen.getByText('有未保存的修改')).toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: '保存' }));
-  await waitFor(() => expect(api.updateWorldEntry).toHaveBeenCalledTimes(1));
-  await waitFor(() => expect(screen.getByRole('button', { name: '保存' })).toBeEnabled());
+
+  await waitFor(() => expect(api.updateWorldEntry).toHaveBeenCalledWith('entry-1', expect.objectContaining({ title: '新标题' })));
+  await waitFor(() => expect(screen.queryByText('有未保存的修改')).toBeNull());
   expect(onSave).toHaveBeenCalledTimes(1);
 });
 
@@ -105,7 +109,7 @@ it('删除状态条件后保存空条件列表', async () => {
   expect(onSave).toHaveBeenCalledTimes(1);
 });
 
-it('保存失败时保留编辑界面并恢复保存按钮', async () => {
+it('保存失败时保留编辑内容，保存栏显示原因并可重试', async () => {
   api.updateWorldEntry.mockRejectedValue(new Error('服务不可用'));
   api.listWorldEntries.mockResolvedValue([]);
   const onSave = vi.fn();
@@ -119,8 +123,11 @@ it('保存失败时保留编辑界面并恢复保存按钮', async () => {
     />,
   );
 
+  fireEvent.change(screen.getByDisplayValue('地点'), { target: { value: '新地点' } });
   fireEvent.click(screen.getByRole('button', { name: '保存' }));
 
-  await waitFor(() => expect(screen.getByRole('button', { name: '保存' })).toBeEnabled());
+  expect(await screen.findByText('保存失败：服务不可用')).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: '重试' })).toBeEnabled();
+  expect(screen.getByDisplayValue('新地点')).toBeInTheDocument();
   expect(onSave).not.toHaveBeenCalled();
 });

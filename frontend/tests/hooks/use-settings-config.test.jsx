@@ -98,7 +98,7 @@ describe('useSettingsConfig', () => {
     expect(updateConfig).toHaveBeenCalledWith({ llm: { provider: 'ollama' } });
   });
 
-  it('自动保存成功时提示已保存，带保存按钮的提示词保存不重复提示', async () => {
+  it('自动保存成功时提示已保存，由保存栏保存的提示词不重复提示', async () => {
     const toasts = [];
     const onToast = (e) => toasts.push(e.detail.message);
     window.addEventListener('we:toast', onToast);
@@ -106,7 +106,7 @@ describe('useSettingsConfig', () => {
     await waitFor(() => expect(result.current.loading).toBe(false));
 
     await act(async () => {
-      await result.current.promptProps.onSave();
+      await result.current.promptProps.promptSave.onSave();
     });
     expect(toasts).not.toContain('设置已保存');
 
@@ -136,7 +136,10 @@ describe('useSettingsConfig', () => {
     expect(toasts).toContain('设置保存失败，本次修改未生效：网络错误');
   });
 
-  it('自动保存失败后保留未保存的提示词内容', async () => {
+  it('提示词保存失败后保留内容，原因留在保存栏且不弹提示', async () => {
+    const toasts = [];
+    const onToast = (e) => toasts.push(e.detail.message);
+    window.addEventListener('we:toast', onToast);
     updateConfig.mockRejectedValueOnce(new Error('写入失败'));
     const { result } = renderHook(() => useSettingsConfig());
     await waitFor(() => expect(result.current.loading).toBe(false));
@@ -145,10 +148,13 @@ describe('useSettingsConfig', () => {
       result.current.promptProps.setGlobalSystemPrompt('仍待保存的内容');
     });
     await act(async () => {
-      await expect(result.current.promptProps.onSave()).rejects.toThrow('写入失败');
+      await result.current.promptProps.promptSave.onSave();
     });
+    window.removeEventListener('we:toast', onToast);
 
     expect(result.current.promptProps.globalSystemPrompt).toBe('仍待保存的内容');
+    expect(result.current.promptProps.promptSave).toMatchObject({ dirty: true, saving: false, error: '写入失败' });
+    expect(toasts).toEqual([]);
     expect(getConfig).toHaveBeenCalledTimes(1);
   });
 
@@ -174,10 +180,11 @@ describe('useSettingsConfig', () => {
     expect(getConfig).toHaveBeenCalledTimes(2);
   });
 
-  it('保存 general / writing general 时会发送结构化 patch', async () => {
+  it('对话 / 写作提示词各自记录未保存修改，保存时发送结构化 patch', async () => {
     updateConfig.mockResolvedValue({});
-    const { result } = renderHook(() => useSettingsConfig());
+    const { result, rerender } = renderHook(({ mode }) => useSettingsConfig(mode), { initialProps: { mode: 'chat' } });
     await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.promptProps.promptSave.dirty).toBe(false);
 
     await act(async () => {
       result.current.promptProps.setGlobalSystemPrompt('新系统');
@@ -191,10 +198,15 @@ describe('useSettingsConfig', () => {
       expect(result.current.promptProps.shortTermTokenBudget).toBe(12000);
     });
 
-    await act(async () => {
-      await result.current.promptProps.onSave();
-    });
+    expect(result.current.promptProps.promptSave.dirty).toBe(true);
 
+    await act(async () => {
+      await result.current.promptProps.promptSave.onSave();
+    });
+    expect(result.current.promptProps.promptSave).toMatchObject({ dirty: false, savedKey: 1 });
+
+    rerender({ mode: 'writing' });
+    expect(result.current.promptProps.promptSave).toMatchObject({ dirty: false, savedKey: 0 });
     await act(async () => {
       result.current.promptProps.setWritingSystemPrompt('新写作系统');
       result.current.promptProps.setWritingPostPrompt('新写作后置');
@@ -208,8 +220,9 @@ describe('useSettingsConfig', () => {
     });
 
     await act(async () => {
-      await result.current.promptProps.onSaveWriting();
+      await result.current.promptProps.promptSave.onSave();
     });
+    expect(result.current.promptProps.promptSave).toMatchObject({ dirty: false, savedKey: 1 });
 
     expect(updateConfig).toHaveBeenCalledWith({
       global_system_prompt: '新系统',

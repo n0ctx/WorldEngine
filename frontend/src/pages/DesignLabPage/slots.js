@@ -99,9 +99,10 @@ export const SLOTS = [
     usedIn: ['ToastCard'],
   },
   {
-    id: 'save-capsule', category: 'overlay', title: '编辑弹层保存栏', status: 'pack',
-    api: ['variant:overlayEnter', 'transition:overlay', 'fx'], usedIn: ['SaveCapsule', 'EditPageShell（世界 / 角色 / 玩家编辑）'],
-    note: '编辑弹层里需要手动保存的字段共用一个浮起胶囊，没有改动时收起，一有改动就从正文底部浮起；'
+    id: 'save-capsule', category: 'overlay', title: '保存栏', status: 'pack',
+    api: ['variant:overlayEnter', 'transition:overlay', 'fx'],
+    usedIn: ['SaveCapsule', 'EditPageShell（世界 / 角色 / 玩家编辑）', 'PromptConfigPanel（设置 · 全局提示词）', 'EntryEditor 内嵌（规则 · 设定条目）', 'StateFieldEditor 内嵌（规则 · 字段定义）'],
+    note: '同一块编辑区里需要手动保存的字段共用一个浮起胶囊，没有改动时收起，一有改动就从所在滚动区底部浮起；'
       + '出现和收起沿用弹窗与提示条的入场（墨流托起回弹、信号淡入上浮、活字落纸急停），'
       + '存好后「已保存」标签走状态变化标签的签名动作（墨流拽出墨签、信号实色刷出、活字压下小印），停一拍再收起。',
   },

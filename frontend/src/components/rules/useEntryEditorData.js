@@ -16,6 +16,8 @@ export default function useEntryEditorData({ worldId, entry, isNew, prefillCondi
   const [properNouns, setProperNouns] = useState([]);
   const [allStateFieldLabels, setAllStateFieldLabels] = useState([]);
   const [conditions, setConditions] = useState([emptyCondition()]);
+  // 最近一次与服务端一致的状态条件，还没加载时为 null
+  const [savedConditions, setSavedConditions] = useState(null);
   const [rawFieldsByScope, setRawFieldsByScope] = useState({});
   const [fieldTypeMap, setFieldTypeMap] = useState(new Map());
   const conditionsInitRef = useRef(false);
@@ -25,9 +27,11 @@ export default function useEntryEditorData({ worldId, entry, isNew, prefillCondi
   async function loadConditionsInto(typeMap) {
     if (!isNew) {
       const existingConditions = await getEntryConditions(entry.id);
-      setConditions(existingConditions.length > 0
+      const loaded = existingConditions.length > 0
         ? existingConditions.map((condition) => ({ ...condition, ...parseTargetField(condition.target_field) }))
-        : [emptyCondition()]);
+        : [emptyCondition()];
+      setConditions(loaded);
+      setSavedConditions(loaded);
       return;
     }
     setConditions([buildPrefillCondition(prefillRef.current, typeMap) ?? emptyCondition()]);
@@ -115,6 +119,8 @@ export default function useEntryEditorData({ worldId, entry, isNew, prefillCondi
     allStateFieldLabels,
     conditions,
     setConditions,
+    savedConditions,
+    setSavedConditions,
     rawFieldsByScope,
     fieldTypeMap,
     conditionsInitRef,

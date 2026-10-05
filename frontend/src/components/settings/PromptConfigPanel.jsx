@@ -1,23 +1,21 @@
-import Button from '../ui/Button';
 import SectionTitle from '../ui/SectionTitle';
 import MarkdownEditor from '../ui/MarkdownEditor';
 import FormGroup from '../ui/FormGroup';
+import SaveCapsule from '../ui/SaveCapsule';
 import { SETTINGS_MODE } from '../../core/constants/settings';
 
 export default function PromptConfigPanel({
   settingsMode,
   globalSystemPrompt, setGlobalSystemPrompt,
   globalPostPrompt, setGlobalPostPrompt,
-  onSave, saving, saved,
-  savingWriting, savedWriting,
   writingSystemPrompt, setWritingSystemPrompt,
   writingPostPrompt, setWritingPostPrompt,
-  onSaveWriting,
+  promptSave,
 }) {
   return (
     <div>
       <SectionTitle level="section" rule="under" as="h2">全局提示词</SectionTitle>
-      <p className="we-edit-hint we-edit-hint-settings">提示词改完要点下方「保存」才生效。</p>
+      <p className="we-edit-hint we-edit-hint-settings">提示词改完要点底部浮起的「保存」才生效。</p>
 
       {settingsMode === SETTINGS_MODE.WRITING ? (
         <>
@@ -39,12 +37,6 @@ export default function PromptConfigPanel({
                 minHeight={72}
               />
             </FormGroup>
-          </div>
-
-          <div className="we-settings-save-row">
-            <Button variant="primary" onClick={onSaveWriting} disabled={savingWriting}>
-              {savingWriting ? '保存中…' : savedWriting ? '已保存' : '保存'}
-            </Button>
           </div>
         </>
       ) : (
@@ -68,14 +60,10 @@ export default function PromptConfigPanel({
               />
             </FormGroup>
           </div>
-
-          <div className="we-settings-save-row">
-            <Button variant="primary" onClick={onSave} disabled={saving}>
-              {saving ? '保存中…' : saved ? '已保存' : '保存'}
-            </Button>
-          </div>
         </>
       )}
+
+      <SaveCapsule key={settingsMode} {...promptSave} saveLabel="保存" />
     </div>
   );
 }

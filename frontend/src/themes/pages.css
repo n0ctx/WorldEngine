@@ -1380,62 +1380,6 @@
   margin-bottom: 0;
 }
 
-/* 编辑弹层保存栏（SaveCapsule）：停靠位始终占一行胶囊高度，内容长时贴在弹层正文可视区底部，内容从胶囊下面滚过 */
-.we-save-capsule-dock {
-  position: sticky;
-  bottom: var(--we-space-md);
-  display: flex;
-  justify-content: center;
-  min-height: calc(var(--we-control-h-sm) + var(--we-space-xs) * 2);
-  margin-top: var(--we-space-lg);
-  pointer-events: none;
-}
-
-.we-save-capsule {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--we-space-md);
-  max-width: 100%;
-  padding: var(--we-space-xs) var(--we-space-xs) var(--we-space-xs) var(--we-space-lg);
-  border: 1px solid color-mix(in srgb, var(--we-color-accent) var(--we-alpha-3), transparent);
-  border-radius: var(--we-radius-full);
-  background: var(--we-color-bg-canvas);
-  box-shadow: var(--we-elevation-3);
-  pointer-events: auto;
-}
-.we-save-capsule--saved {
-  min-height: calc(var(--we-control-h-sm) + var(--we-space-xs) * 2);
-  padding: var(--we-space-xs) var(--we-space-lg);
-}
-.we-save-capsule--error {
-  border-color: color-mix(in srgb, var(--we-color-status-danger) var(--we-alpha-3), transparent);
-}
-
-.we-save-capsule__dot {
-  flex-shrink: 0;
-  width: var(--we-space-sm);
-  height: var(--we-space-sm);
-  margin-right: calc(var(--we-space-sm) * -1);
-  border-radius: var(--we-radius-full);
-  background: var(--we-color-accent);
-}
-
-.we-save-capsule__text {
-  min-width: 0;
-  font-size: var(--we-type-ui-size);
-  line-height: var(--we-type-ui-leading);
-  letter-spacing: var(--we-type-ui-tracking);
-  color: var(--we-color-text-secondary);
-  overflow-wrap: anywhere;
-}
-.we-save-capsule--error .we-save-capsule__text {
-  color: var(--we-color-status-danger);
-}
-
-.we-save-capsule__tag {
-  margin-left: 0;
-}
-
 /* 世界主色（封面即光源）：自动/手动切换行 */
 .we-edit-accent-row {
   display: flex;
@@ -1935,14 +1879,6 @@
   border-radius: var(--we-radius-lg);
   padding: var(--we-space-md);
   background: var(--we-color-bg-sunken);
-}
-.we-state-field-inline__footer {
-  display: flex;
-  justify-content: flex-end;
-  gap: var(--we-space-sm);
-  padding-top: var(--we-space-md);
-  margin-top: var(--we-space-md);
-  border-top: 1px solid var(--we-color-border-default);
 }
 .we-config-workshop-hint {
   margin-top: var(--we-space-sm);
