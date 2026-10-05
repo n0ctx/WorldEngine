@@ -14,8 +14,8 @@
 
 import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ArrowDown, BookOpen, Check, Copy, PencilLine, Plus, RotateCcw, Search, SlidersHorizontal, Trash2, Wrench,
-} from 'lucide-react';
+  IconArrowDown, IconBookOpen, IconCheck, IconCopy, IconPencil, IconPlus, IconRotateCcw, IconSearch, IconState, IconTrash, IconWrench,
+} from '../../frontend/src/components/ui/icons.jsx';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { stripToolCallLeakage } from './useAssistantStore.js';
@@ -34,13 +34,13 @@ const TOOL_LABELS = {
 };
 
 const TOOL_ICONS = {
-  read: BookOpen,
-  create: Plus,
-  update: PencilLine,
-  edit: PencilLine,
-  set_state: SlidersHorizontal,
-  delete: Trash2,
-  find: Search,
+  read: IconBookOpen,
+  create: IconPlus,
+  update: IconPencil,
+  edit: IconPencil,
+  set_state: IconState,
+  delete: IconTrash,
+  find: IconSearch,
 };
 
 const STATUS_TEXT = {
@@ -112,7 +112,7 @@ function CopyBtn({ getText }) {
   useEffect(() => () => clearTimeout(timerRef.current), []);
   return (
     <ActionBtn onClick={copy} ariaLabel={copied ? '已复制到剪贴板' : '复制'}>
-      {copied ? <Check size={14} /> : <Copy size={14} />}
+      {copied ? <IconCheck size={14} /> : <IconCopy size={14} />}
       {copied ? '已复制' : '复制'}
     </ActionBtn>
   );
@@ -134,7 +134,7 @@ function DeleteBtn({ onDelete }) {
   useEffect(() => () => clearTimeout(timerRef.current), []);
   return (
     <ActionBtn onClick={handleClick} danger={confirming} ariaLabel={confirming ? '确认删除' : '删除'}>
-      <Trash2 size={14} />
+      <IconTrash size={14} />
       {confirming ? '再点一次删除' : '删除'}
     </ActionBtn>
   );
@@ -216,7 +216,7 @@ function UserEntryImpl({ msg, onEdit, onDelete }) {
             <CopyBtn getText={() => msg.content || ''} />
             {onEdit && (
               <ActionBtn onClick={startEdit} ariaLabel="编辑">
-                <PencilLine size={14} />
+                <IconPencil size={14} />
                 编辑
               </ActionBtn>
             )}
@@ -274,7 +274,7 @@ function AssistantEntryImpl({ msg, onRegenerate, onDelete }) {
           <CopyBtn getText={() => msg.content || ''} />
           {hasActions && onRegenerate && msg.id && (
             <ActionBtn onClick={() => onRegenerate(msg.id)} ariaLabel="重新生成">
-              <RotateCcw size={14} />
+              <IconRotateCcw size={14} />
               重新生成
             </ActionBtn>
           )}
@@ -294,7 +294,7 @@ function ToolEntryImpl({ msg }) {
   const isRunning = msg.status === 'running';
   const isError = msg.status === 'error';
   const sub = isError && msg.error ? `失败：${formatToolError(msg.error)}` : (STATUS_TEXT[msg.status] ?? '');
-  const ToolIcon = TOOL_ICONS[msg.toolName] ?? Wrench;
+  const ToolIcon = TOOL_ICONS[msg.toolName] ?? IconWrench;
   const variantClass = isError
     ? 'we-asst-entry--tool we-asst-entry--error'
     : isRunning
@@ -307,7 +307,7 @@ function ToolEntryImpl({ msg }) {
       aria-live={isRunning ? 'polite' : undefined}
     >
       <div className="we-asst-entry__head">
-        <ToolIcon size={14} className="we-asst-tool__icon" aria-hidden="true" />
+        <ToolIcon size={14} className="we-asst-tool__icon" />
         <span className="we-asst-entry__title">{title}</span>
         {sub && <span className="we-asst-entry__sub">{sub}</span>}
         {isRunning && (
@@ -439,7 +439,7 @@ export default function MessageList({ messages, onEdit, onDelete, onRegenerate, 
           className="we-asst-new-msg-btn"
           aria-label="跳到最新消息"
         >
-          <ArrowDown size={14} className="we-asst-new-msg-arrow" />
+          <IconArrowDown size={14} className="we-asst-new-msg-arrow" />
           新消息
         </button>
       )}

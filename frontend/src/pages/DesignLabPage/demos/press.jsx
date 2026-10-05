@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { ArrowUp, PencilLine, Trash2 } from 'lucide-react';
+import { IconArrowUp, IconPencil, IconTrash } from '../../../components/ui/icons.jsx';
 import DeleteButton from '../../../components/motion/DeleteButton.jsx';
 import SlugText from '../../../components/motion/SlugText.jsx';
 import { useTouchFx } from '../../../components/motion/useTouchFx.jsx';
@@ -19,8 +19,8 @@ export function PressDemo() {
         <Button variant="secondary">存为草稿</Button>
         <Button variant="ghost">幽灵按钮</Button>
         <Button variant="danger">危险操作</Button>
-        <IconButton size="sm" label="编辑"><PencilLine size={16} /></IconButton>
-        <IconButton size="sm" variant="danger" label="删除"><Trash2 size={16} /></IconButton>
+        <IconButton size="sm" label="编辑"><IconPencil size={16} /></IconButton>
+        <IconButton size="sm" variant="danger" label="删除"><IconTrash size={16} /></IconButton>
       </div>
     </SlotSection>
   );
@@ -50,7 +50,7 @@ export function SinkDemo() {
   return (
     <SlotSection id="sink">
       <IconButton variant="primary" label="发送" className="we-chat-send-btn" {...m.gesture('sink')}>
-        <ArrowUp size={20} strokeWidth={2} />
+        <IconArrowUp size={20} />
       </IconButton>
     </SlotSection>
   );

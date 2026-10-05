@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { PencilLine } from 'lucide-react';
+import { IconPencil } from '../ui/icons.jsx';
 import { AnimatePresence } from 'framer-motion';
 import { Button, Card, EmptyState, IconButton, Input, SectionTitle, Skeleton, SortableList, Textarea, ToggleSwitch } from '../index.js';
 import {
@@ -169,7 +169,7 @@ function SnippetRow({ snippet, onEdit, onToggle, onDelete }) {
       <div className="we-css-snippet-row__actions">
         <ToggleSwitch size="sm" checked={!!snippet.enabled} onChange={onToggle} label="启用片段" />
         <IconButton size="sm" label="编辑" onClick={onEdit}>
-          <PencilLine size={16} />
+          <IconPencil size={16} />
         </IconButton>
         <DeleteButton label={`删除片段「${snippet.name}」`} onConfirm={onDelete} />
       </div>

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import remarkGfm from 'remark-gfm';
 import rehypeSanitize from 'rehype-sanitize';
-import { ChevronRight } from 'lucide-react';
+import { IconChevronRight } from '../ui/icons.jsx';
 import { markdownSanitizeSchema } from '../../core/utils/markdown-sanitize.js';
 import { stripNextPromptBlocks } from '../../core/utils/next-prompt.js';
 import InterruptedMark from './InterruptedMark.jsx';
@@ -25,7 +25,7 @@ export default function ThinkBlock({ content, autoCollapse, open = false, stream
         aria-expanded={expanded}
         className="we-think-block-toggle"
       >
-        <ChevronRight
+        <IconChevronRight
           size={16}
           className={`we-think-block-chevron${expanded ? ' we-think-block-chevron--expanded' : ''}`}
         />

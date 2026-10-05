@@ -5,7 +5,7 @@ import useStageCompact from '../../../components/chat/useStageCompact.js';
 import InputBox from '../../../components/chat/InputBox.jsx';
 import Pager from '../../../components/chat/Pager.jsx';
 import ProviderSafetyBanner from '../../../components/ui/ProviderSafetyBanner.jsx';
-import { RotateCcw } from 'lucide-react';
+import { IconRotateCcw } from '../../../components/ui/icons.jsx';
 import Button from '../../../components/ui/Button.jsx';
 import GenerationErrorText from '../../../components/chat/GenerationErrorText.jsx';
 import { useTurnChanges } from '../../../core/hooks/useTurnChanges.js';
@@ -91,7 +91,7 @@ export default function WritingSpaceConversationPane({ worldId, world, config, p
             <div className="we-writing-error-row">
               <GenerationErrorText errorMsg={error.errorMsg} className="we-writing-error-text we-field-error" />
               <Button type="button" variant="secondary" size="sm" onClick={handleRetryAfterError}>
-                <RotateCcw size={16} />
+                <IconRotateCcw size={16} />
                 重新生成
               </Button>
             </div>

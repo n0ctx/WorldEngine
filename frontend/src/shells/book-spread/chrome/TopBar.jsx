@@ -1,7 +1,8 @@
 /* book-spread shell top bar — three-level breadcrumb + shell chrome */
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Settings, Sparkles } from 'lucide-react';
+import { IconAssistant, IconSettings } from '../../../components/ui/icons.jsx';
+import BrandMark from '../../../components/ui/BrandMark.jsx';
 import { useMotion } from '../../../core/hooks/useMotion.js';
 import { useOpenSettings } from '../../../core/hooks/useOpenSettings.js';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -124,7 +125,10 @@ export default function TopBar() {
       {/* 左侧：品牌 + 面包屑导航 */}
       <div className="we-topbar-left">
         {isWorldsList ? (
-          <span className="we-topbar-item we-topbar-crumb we-topbar-crumb-current we-topbar-brand" aria-current="page">WorldEngine</span>
+          <span className="we-topbar-item we-topbar-crumb we-topbar-crumb-current we-topbar-brand" aria-current="page">
+            <BrandMark className="we-topbar-brand-mark" />
+            WorldEngine
+          </span>
         ) : (
           <>
             <motion.button
@@ -172,7 +176,7 @@ export default function TopBar() {
           aria-pressed={isAssistantOpen}
           {...m.gesture('press')}
         >
-          <Sparkles size={20} />
+          <IconAssistant size={20} />
           <span className="we-topbar-item-label">助手</span>
         </motion.button>
 
@@ -183,7 +187,7 @@ export default function TopBar() {
           title="设置"
           {...m.gesture('press')}
         >
-          <Settings size={20} className="we-topbar-settings-icon" />
+          <IconSettings size={20} className="we-topbar-settings-icon" />
         </motion.button>
       </div>
     </div>

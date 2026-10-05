@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { AnimatePresence } from 'framer-motion';
-import { Plus, RotateCw } from 'lucide-react';
+import { IconPlus, IconRotateCw } from '../../../components/ui/icons.jsx';
 
 import Button from '../../../components/ui/Button.jsx';
 import EmptyState from '../../../components/ui/EmptyState.jsx';
@@ -33,7 +33,7 @@ function EmptyNearbyTab({ loading, error, onRetry }) {
           <div className="we-cast-error">
             <p className="we-field-error">{error}</p>
             <Button type="button" size="sm" variant="ghost" onClick={onRetry}>
-              <RotateCw size={11} /><span>重试</span>
+              <IconRotateCw size={11} /><span>重试</span>
             </Button>
           </div>
         ) : (
@@ -76,7 +76,7 @@ export default function NearbyPanel({
 
   const addNearbyGlobalAction = (
     <IconButton size="sm" label="从角色卡添加" onClick={() => setAddModalOpen(true)}>
-      <Plus size={16} />
+      <IconPlus size={16} />
     </IconButton>
   );
 

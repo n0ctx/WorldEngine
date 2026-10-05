@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { X } from 'lucide-react';
+import { IconClose } from '../../components/ui/icons.jsx';
 import { useSettingsConfig } from '../../core/hooks/useSettingsConfig';
 import { useEscapeKey } from '../../core/hooks/useEscapeKey.js';
 import { useFocusTrap } from '../../core/hooks/useFocusTrap.js';
@@ -114,7 +114,7 @@ export default function SettingsPage() {
         {...dialogProps}
       >
         <IconButton size="sm" label="关闭" className="we-settings-close" onClick={handleClose}>
-          <X size={16} />
+          <IconClose size={16} />
         </IconButton>
         <nav className="we-settings-nav">
           <div className="we-settings-nav-header">

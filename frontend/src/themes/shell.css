@@ -244,6 +244,13 @@
   color: var(--we-color-shell-accent);
   background: none;
 }
+.we-topbar-brand {
+  gap: var(--we-space-xs);
+}
+/* 标识主体用壳层正文色，正面的强调色才跳得出来 */
+.we-topbar-brand-mark {
+  color: var(--we-color-shell-text-primary);
+}
 .we-topbar-crumb-label {
   max-width: 240px;
   overflow: hidden;

@@ -10,7 +10,7 @@
  *   - 点击 toggle 详情；点击关闭按钮显式 dismiss
  */
 import { useEffect, useState, useMemo } from 'react';
-import { X } from 'lucide-react';
+import { IconClose } from './icons.jsx';
 import Button from './Button.jsx';
 import IconButton from './IconButton.jsx';
 import { subscribeProviderSafetySignals } from '../../core/api/provider-safety-events.js';
@@ -99,7 +99,7 @@ export default function ProviderSafetyBanner() {
           {expanded ? '收起' : '详情'}
         </Button>
         <IconButton size="sm" label="关闭安全信号提示" onClick={() => setSignal(null)}>
-          <X size={16} />
+          <IconClose size={16} />
         </IconButton>
       </div>
       {expanded && (

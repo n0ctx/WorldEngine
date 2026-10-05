@@ -1,7 +1,7 @@
 import { useSyncExternalStore } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Plus, Upload } from 'lucide-react';
+import { IconPlus, IconUpload } from '../../components/ui/icons.jsx';
 import useStore from '../../core/state';
 import ConfirmModal from '../../components/ui/ConfirmModal';
 import EmptyState from '../../components/ui/EmptyState.jsx';
@@ -54,7 +54,7 @@ export default function WorldsPage() {
             onClick={() => worldImportRef.current?.click()}
             disabled={importingWorld}
           >
-            <Upload size={16} />
+            <IconUpload size={16} />
             {importingWorld ? '导入中…' : '导入世界卡'}
           </Button>
           <input
@@ -69,7 +69,7 @@ export default function WorldsPage() {
             className="we-worlds-header-btn--create"
             onClick={() => navigate('/worlds/new', { state: { backgroundLocation: location } })}
           >
-            <Plus size={16} />
+            <IconPlus size={16} />
             创建世界
           </Button>
         </div>

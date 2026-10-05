@@ -1,4 +1,4 @@
-import { Copy, PencilLine, RotateCcw, Trash2 } from 'lucide-react';
+import { IconCopy, IconPencil, IconRotateCcw, IconTrash } from '../ui/icons.jsx';
 import Button from '../ui/Button.jsx';
 import { useCopyFeedback, useDeleteConfirmation } from './useMessageHooks.js';
 
@@ -8,7 +8,7 @@ export function CopyButton({ getText }) {
   const { copied, copy } = useCopyFeedback(getText);
   return (
     <Button variant="text" size="sm" onClick={copy} aria-label={copied ? '已复制到剪贴板' : '复制消息内容'}>
-      <Copy size={16} />
+      <IconCopy size={16} />
       {copied ? '已复制' : '复制'}
     </Button>
   );
@@ -17,7 +17,7 @@ export function CopyButton({ getText }) {
 export function EditButton({ onClick, label = '编辑消息' }) {
   return (
     <Button variant="text" size="sm" onClick={onClick} aria-label={label}>
-      <PencilLine size={16} />
+      <IconPencil size={16} />
       编辑
     </Button>
   );
@@ -26,7 +26,7 @@ export function EditButton({ onClick, label = '编辑消息' }) {
 export function RegenerateButton({ onClick }) {
   return (
     <Button variant="text" size="sm" onClick={onClick} aria-label="重新生成 AI 回复">
-      <RotateCcw size={16} />
+      <IconRotateCcw size={16} />
       重新生成
     </Button>
   );
@@ -42,7 +42,7 @@ export function DeleteButton({ onDelete }) {
       aria-label={confirming ? '确认删除消息' : '删除消息'}
       className={confirming ? 'we-delete-btn--confirming' : undefined}
     >
-      <Trash2 size={16} />
+      <IconTrash size={16} />
       {confirming ? '确认？' : '删除'}
     </Button>
   );

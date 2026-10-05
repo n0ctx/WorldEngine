@@ -2,7 +2,7 @@ import Badge from '../../../components/ui/Badge.jsx';
 import Card from '../../../components/ui/Card.jsx';
 import CharacterSeal from '../../../components/chat/CharacterSeal.jsx';
 import DragHandle from '../../../components/ui/DragHandle.jsx';
-import { Check, PencilLine, X } from 'lucide-react';
+import { IconCheck, IconClose, IconPencil } from '../../../components/ui/icons.jsx';
 import IconButton from '../../../components/ui/IconButton.jsx';
 import { useDragAwareClick } from './useDragAwareClick.js';
 
@@ -50,7 +50,7 @@ export function PersonaCard({ persona, dragHandleProps, onActivate, onEdit, onDe
             title="设为当前玩家"
             onClick={onActivate}
           >
-            <Check size={16} />
+            <IconCheck size={16} />
           </IconButton>
         )}
         <IconButton
@@ -59,7 +59,7 @@ export function PersonaCard({ persona, dragHandleProps, onActivate, onEdit, onDe
           title="编辑"
           onClick={onEdit}
         >
-          <PencilLine size={16} />
+          <IconPencil size={16} />
         </IconButton>
         <IconButton
           size="sm"
@@ -69,7 +69,7 @@ export function PersonaCard({ persona, dragHandleProps, onActivate, onEdit, onDe
           onClick={onDelete}
           disabled={persona._isLast}
         >
-          <X size={16} />
+          <IconClose size={16} />
         </IconButton>
       </div>
     </Card>

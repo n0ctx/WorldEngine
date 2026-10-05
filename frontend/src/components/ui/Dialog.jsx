@@ -1,7 +1,7 @@
 import { useId, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { motion } from 'framer-motion';
-import { X } from 'lucide-react';
+import { IconClose } from './icons.jsx';
 import { useMotion } from '../../core/hooks/useMotion.js';
 import { useEscapeKey } from '../../core/hooks/useEscapeKey.js';
 import { useFocusTrap } from '../../core/hooks/useFocusTrap.js';
@@ -54,7 +54,7 @@ export default function Dialog({
         {headerActions && <div className="we-dialog__header-actions">{headerActions}</div>}
         {!alert && (
           <IconButton size="sm" label="关闭" className="we-dialog__close" onClick={close} disabled={busy}>
-            <X size={16} />
+            <IconClose size={16} />
           </IconButton>
         )}
       </header>

@@ -1,4 +1,4 @@
-import { X } from 'lucide-react';
+import { IconClose } from '../ui/icons.jsx';
 
 export default function AttachmentThumbs({ attachments, removeAttachment }) {
   if (attachments.length === 0) return null;
@@ -17,7 +17,7 @@ export default function AttachmentThumbs({ attachments, removeAttachment }) {
             aria-label={`移除第 ${i + 1} 张图片`}
             className="we-chat-input__attachment-remove"
           >
-            <X size={12} strokeWidth={2.25} />
+            <IconClose size={12} />
           </button>
         </div>
       ))}

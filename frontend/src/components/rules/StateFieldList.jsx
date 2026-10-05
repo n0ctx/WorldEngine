@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { AnimatePresence } from 'framer-motion';
-import { PencilLine, Trash2 } from 'lucide-react';
+import { IconPencil, IconTrash } from '../ui/icons.jsx';
 import { Badge, Button, Card, ConfirmModal, EmptyState, IconButton, SectionTitle, Skeleton, SortableList } from '../index.js';
 import DragHandle from '../ui/DragHandle.jsx';
 import StateFieldEditor from './StateFieldEditor';
@@ -151,10 +151,10 @@ function FieldRow({ field, onEdit, onDelete }) {
 
       <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
         <IconButton size="sm" label="编辑" onClick={onEdit}>
-          <PencilLine size={16} />
+          <IconPencil size={16} />
         </IconButton>
         <IconButton size="sm" variant="danger" label="删除" onClick={onDelete}>
-          <Trash2 size={16} />
+          <IconTrash size={16} />
         </IconButton>
       </div>
     </Card>

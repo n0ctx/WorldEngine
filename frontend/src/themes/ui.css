@@ -246,6 +246,19 @@
   color: var(--we-color-status-danger);
 }
 
+/* ── 图标第二色 ──
+ * 图标（ui/icons.jsx）里强调色的那一段；压在强调色或危险色实底上、或整枚图标要变成危险色时，改回图标本身的颜色。 */
+.we-icon-accent {
+  color: var(--we-color-accent);
+}
+.we-btn-primary .we-icon-accent,
+.we-btn-danger:not(.we-btn-icon) .we-icon-accent,
+.we-btn-icon.we-btn-danger:hover:not(:disabled) .we-icon-accent,
+.we-btn-icon.we-btn-overlay.is-danger:hover:not(:disabled) .we-icon-accent,
+.we-checkbox__box .we-icon-accent {
+  color: inherit;
+}
+
 /* ── Input / Textarea ── */
 /* 输入框与多行输入：圆角 sm，与 Select、组合框、标签输入同一套底色、描边与焦点环。
    单行两档高度取控件高度：md 正文字号，sm（.we-input-sm）说明文字字号，用在编辑器与表单行内 */
@@ -1653,6 +1666,10 @@
 .we-delete-btn__trigger:hover,
 .we-delete-btn[data-state="open"] .we-delete-btn__trigger {
   color: var(--we-color-status-danger);
+}
+.we-delete-btn__trigger:hover .we-icon-accent,
+.we-delete-btn[data-state="open"] .we-delete-btn__trigger .we-icon-accent {
+  color: inherit;
 }
 .we-delete-btn__trigger:focus-visible,
 .we-delete-btn__circle:focus-visible {

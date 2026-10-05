@@ -1,7 +1,7 @@
 import CharacterSeal from '../../../components/chat/CharacterSeal.jsx';
 import Card from '../../../components/ui/Card.jsx';
 import DragHandle from '../../../components/ui/DragHandle.jsx';
-import { MessageSquarePlus, PencilLine, X } from 'lucide-react';
+import { IconChatPlus, IconClose, IconPencil } from '../../../components/ui/icons.jsx';
 import IconButton from '../../../components/ui/IconButton.jsx';
 import { useDragAwareClick } from './useDragAwareClick.js';
 
@@ -47,7 +47,7 @@ export function CharacterCard({ char, dragHandleProps, onCardClick, onNewChat, o
           label="和这个角色开一段新对话"
           onClick={onNewChat}
         >
-          <MessageSquarePlus size={16} />
+          <IconChatPlus size={16} />
         </IconButton>
         <IconButton
           size="sm"
@@ -55,7 +55,7 @@ export function CharacterCard({ char, dragHandleProps, onCardClick, onNewChat, o
           title="编辑"
           onClick={onEdit}
         >
-          <PencilLine size={16} />
+          <IconPencil size={16} />
         </IconButton>
         <IconButton
           size="sm"
@@ -64,7 +64,7 @@ export function CharacterCard({ char, dragHandleProps, onCardClick, onNewChat, o
           title="删除"
           onClick={onDelete}
         >
-          <X size={16} />
+          <IconClose size={16} />
         </IconButton>
       </div>
     </Card>

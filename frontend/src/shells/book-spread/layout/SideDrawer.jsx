@@ -10,7 +10,7 @@
  */
 import { useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { ChevronDown, PanelRight, TextAlignStart } from 'lucide-react';
+import { IconAlignLeft, IconChevronDown, IconPanelRight } from '../../../components/ui/icons.jsx';
 import IconButton from '../../../components/ui/IconButton.jsx';
 import { STAGGER } from '../../../core/utils/motion.js';
 import { useMotion } from '../../../core/hooks/useMotion.js';
@@ -23,10 +23,10 @@ const MotionDiv = motion.div;
    把「再点一次会关掉」讲明白。 */
 const COLLAPSED_GLYPH = {
   left: (
-    <TextAlignStart size={16} />
+    <IconAlignLeft size={16} />
   ),
   right: (
-    <PanelRight size={16} />
+    <IconPanelRight size={16} />
   ),
 };
 
@@ -90,7 +90,7 @@ export default function SideDrawer({ side, open, onToggle, label, footer = null,
           aria-expanded={open}
         >
           {open ? (
-            <ChevronDown
+            <IconChevronDown
               size={16}
               style={{ transform: `rotate(${CHEVRON_ROTATION[side]}deg)` }}
             />

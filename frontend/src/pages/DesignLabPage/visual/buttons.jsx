@@ -1,4 +1,4 @@
-import { ArrowUp, ChevronRight, Download, PencilLine, Trash2 } from 'lucide-react';
+import { IconArrowUp, IconChevronRight, IconDownload, IconPencil, IconTrash } from '../../../components/ui/icons.jsx';
 import Button from '../../../components/ui/Button.jsx';
 import IconButton from '../../../components/ui/IconButton.jsx';
 import VisualSection from '../VisualSection.jsx';
@@ -34,10 +34,10 @@ export function ButtonsDemo() {
           {SIZES.map(([size, label]) => (
             <div key={size} className="we-design-lab__row">
               <span className="we-design-lab__count">{label}</span>
-              <IconButton size={size} label="编辑" onClick={noop}><PencilLine size={ICON_PX[size]} /></IconButton>
-              <IconButton size={size} variant="secondary" label="下一页" onClick={noop}><ChevronRight size={ICON_PX[size]} /></IconButton>
-              <IconButton size={size} variant="primary" label="发送" onClick={noop}><ArrowUp size={ICON_PX[size]} /></IconButton>
-              <IconButton size={size} variant="danger" label="删除" onClick={noop}><Trash2 size={ICON_PX[size]} /></IconButton>
+              <IconButton size={size} label="编辑" onClick={noop}><IconPencil size={ICON_PX[size]} /></IconButton>
+              <IconButton size={size} variant="secondary" label="下一页" onClick={noop}><IconChevronRight size={ICON_PX[size]} /></IconButton>
+              <IconButton size={size} variant="primary" label="发送" onClick={noop}><IconArrowUp size={ICON_PX[size]} /></IconButton>
+              <IconButton size={size} variant="danger" label="删除" onClick={noop}><IconTrash size={ICON_PX[size]} /></IconButton>
             </div>
           ))}
         </div>
@@ -54,8 +54,8 @@ export function ButtonsDemo() {
         <div className="we-design-lab__grid">
           <h3 className="we-design-lab__subheading">压在封面图上</h3>
           <div className="we-design-lab__cover we-design-lab__row">
-            <IconButton variant="overlay" size="sm" label="导出" onClick={noop}><Download size={16} /></IconButton>
-            <IconButton variant="overlay" size="sm" label="删除" className="is-danger" onClick={noop}><Trash2 size={16} /></IconButton>
+            <IconButton variant="overlay" size="sm" label="导出" onClick={noop}><IconDownload size={16} /></IconButton>
+            <IconButton variant="overlay" size="sm" label="删除" className="is-danger" onClick={noop}><IconTrash size={16} /></IconButton>
           </div>
         </div>
       </div>

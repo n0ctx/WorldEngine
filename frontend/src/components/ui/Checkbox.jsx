@@ -1,4 +1,4 @@
-import { Check } from 'lucide-react';
+import { IconCheck } from './icons.jsx';
 
 /**
  * 复选框：原生 input 负责键盘与读屏，旁边画一个方框；勾取压在强调色上的字色。
@@ -15,7 +15,7 @@ export default function Checkbox({ checked, onChange, disabled = false, label, c
         onChange={(e) => onChange(e.target.checked)}
         {...props}
       />
-      <span className="we-checkbox__box" aria-hidden="true"><Check size={12} strokeWidth={3} /></span>
+      <span className="we-checkbox__box" aria-hidden="true"><IconCheck size={12} /></span>
       {children}
     </label>
   );

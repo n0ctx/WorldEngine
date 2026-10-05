@@ -4,7 +4,7 @@ import Button from '../ui/Button.jsx';
 import EmptyState from '../ui/EmptyState.jsx';
 import Input from '../ui/Input.jsx';
 import IconButton from '../ui/IconButton.jsx';
-import { X } from 'lucide-react';
+import { IconClose } from '../ui/icons.jsx';
 import Select from '../ui/Select.jsx';
 import { createStateRelation, deleteStateRelation } from '../../core/api/state-memory.js';
 import { log } from '../../core/utils/logger.js';
@@ -112,7 +112,7 @@ function NewRelationForm({ entities, relations, schema, sessionId, reload, onDon
 
 function DeleteIcon() {
   return (
-    <X size={16} />
+    <IconClose size={16} />
   );
 }
 

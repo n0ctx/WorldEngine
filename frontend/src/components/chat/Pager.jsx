@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { IconChevronLeft, IconChevronRight } from '../ui/icons.jsx';
 import ChangeText from '../motion/ChangeText.jsx';
 import IconButton from '../ui/IconButton.jsx';
 
@@ -20,13 +20,13 @@ export default function Pager({ totalPages, currentPage, onChange }) {
   return (
     <div className="we-pager-bar we-pager-bar--inline">
       <IconButton size="sm" variant="secondary" label="上一页" onClick={() => go(current - 1)} disabled={current <= 0}>
-        <ChevronLeft size={16} />
+        <IconChevronLeft size={16} />
       </IconButton>
       <span className="we-pager-label">
         <span className="we-pager-index">第 <ChangeText text={String(current + 1)} playKey={current} decode /> / <ChangeText text={String(totalPages)} playKey={totalPages} decode /> 页</span>
       </span>
       <IconButton size="sm" variant="secondary" label="下一页" onClick={() => go(current + 1)} disabled={current >= lastIdx}>
-        <ChevronRight size={16} />
+        <IconChevronRight size={16} />
       </IconButton>
     </div>
   );

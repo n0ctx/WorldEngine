@@ -1,6 +1,6 @@
 import { forwardRef } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { ArrowDown } from 'lucide-react';
+import { IconArrowDown } from '../ui/icons.jsx';
 import Button from '../ui/Button.jsx';
 import IconButton from '../ui/IconButton.jsx';
 import { useMotion } from '../../core/hooks/useMotion.js';
@@ -162,7 +162,7 @@ const MessageList = forwardRef(function MessageList({
           >
             {/* 按下时不抢输入框焦点 */}
             <IconButton variant="secondary" label="回到底部" onMouseDown={(e) => e.preventDefault()} onClick={scrollPageToBottom}>
-              <ArrowDown size={16} />
+              <IconArrowDown size={16} />
             </IconButton>
           </motion.div>
         </div>

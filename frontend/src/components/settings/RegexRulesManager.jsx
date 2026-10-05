@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { AnimatePresence } from 'framer-motion';
-import { PencilLine } from 'lucide-react';
+import { IconPencil } from '../ui/icons.jsx';
 import { Button, Card, EmptyState, IconButton, SectionTitle, Skeleton, SortableList, ToggleSwitch } from '../index.js';
 import {
   listRegexRules,
@@ -188,7 +188,7 @@ function RuleRow({ rule, worldName, onEdit, onToggle, onDelete }) {
       <div className="we-regex-rule-actions">
         <ToggleSwitch size="sm" checked={!!rule.enabled} onChange={onToggle} label="启用规则" />
         <IconButton size="sm" label="编辑正则规则" title="编辑" onClick={onEdit}>
-          <PencilLine size={16} />
+          <IconPencil size={16} />
         </IconButton>
         <DeleteButton label={`删除正则规则「${rule.name}」`} onConfirm={onDelete} />
       </div>

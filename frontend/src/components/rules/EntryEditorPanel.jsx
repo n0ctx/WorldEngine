@@ -1,4 +1,4 @@
-import { X } from 'lucide-react';
+import { IconClose } from '../ui/icons.jsx';
 import { Button, Card, IconButton, Input, MarkdownEditor, SectionTitle, SegmentedControl } from '../index.js';
 import Dialog from '../ui/Dialog';
 import SaveCapsule from '../ui/SaveCapsule';
@@ -124,7 +124,7 @@ export default function EntryEditorPanel({ model, inline, dialog }) {
               采用
             </Button>
             <IconButton size="sm" label="忽略此建议" onClick={handleDismissSuggestion}>
-              <X size={16} />
+              <IconClose size={16} />
             </IconButton>
           </div>
         </div>
@@ -177,7 +177,7 @@ export default function EntryEditorPanel({ model, inline, dialog }) {
         <div className="we-entry-editor-head">
           <SectionTitle level="group">{title}</SectionTitle>
           <IconButton size="sm" label="关闭" onClick={onClose}>
-            <X size={16} />
+            <IconClose size={16} />
           </IconButton>
         </div>
         {body}

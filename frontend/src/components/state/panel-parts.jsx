@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from 'framer-motion';
-import { RotateCw } from 'lucide-react';
+import { IconRotateCw } from '../ui/icons.jsx';
 import Button from '../ui/Button.jsx';
 import ChangeText from '../motion/ChangeText.jsx';
 import { useMotion } from '../../core/hooks/useMotion.js';
@@ -36,7 +36,7 @@ export function ResetAction({ onClick, busy }) {
       aria-label="重置本区状态"
       title="重置本区状态"
     >
-      {busy ? '…' : (<><RotateCw size={16} /><span>重置</span></>)}
+      {busy ? '…' : (<><IconRotateCw size={16} /><span>重置</span></>)}
     </Button>
   );
 }

@@ -2,7 +2,7 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Check, ChevronDown } from 'lucide-react';
+import { IconCheck, IconChevronDown } from './icons.jsx';
 import { useClickOutside } from '../../core/hooks/useClickOutside.js';
 import { useMotion } from '../../core/hooks/useMotion.js';
 
@@ -119,7 +119,7 @@ function SelectList({ id, options, selectedIndex, placement, onChoose, onClose, 
           className={['we-menu__item', index === active ? 'is-active' : ''].filter(Boolean).join(' ')}
         >
           <span className={`we-menu__label${option.value === '' ? ' we-menu__hint' : ''}`}>{option.label}</span>
-          {index === selectedIndex && <Check size={14} className="we-menu__check" aria-hidden="true" />}
+          {index === selectedIndex && <IconCheck size={14} className="we-menu__check" />}
         </li>
       ))}
     </motion.ul>
@@ -201,7 +201,7 @@ export default function Select({
         ].filter(Boolean).join(' ')}
       >
         <span>{selected ? selected.label : '—'}</span>
-        <ChevronDown className="we-select-chevron" />
+        <IconChevronDown className="we-select-chevron" />
       </button>
       {createPortal(
         <AnimatePresence>

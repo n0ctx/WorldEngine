@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence } from 'framer-motion';
-import { BookMarked, Database } from 'lucide-react';
+import { IconState, IconSummary } from '../ui/icons.jsx';
 
 import { Button, EmptyState, SectionTitle, Skeleton } from '../index.js';
 import MiddleSummaryModal from '../session/MiddleSummaryModal.jsx';
@@ -162,11 +162,11 @@ function SessionTools({ sessionId, worldId }) {
   return (
     <div className="we-state-panel-tools">
       <Button type="button" variant="secondary" size="sm" onClick={() => setSummaryOpen(true)}>
-        <BookMarked size={16} />
+        <IconSummary size={16} />
         剧情摘要
       </Button>
       <Button type="button" variant="secondary" size="sm" onClick={() => setStateMemoryOpen(true)}>
-        <Database size={16} />
+        <IconState size={16} />
         状态记忆
       </Button>
       <AnimatePresence>

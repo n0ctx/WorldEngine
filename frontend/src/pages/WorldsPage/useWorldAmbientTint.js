@@ -6,9 +6,9 @@ import { buildWorldScene } from '../../core/utils/worldScene.js';
 
 function worldTint(world, coverTints) {
   if (world.accent_color) return world.accent_color;
-  // 封面还没取到色时沿用主题色；没有封面时用场景生成的光源色。
+  // 封面还没取到色时沿用主题色；没有封面时用场景画的染色。
   if (world.cover_path) return coverTints[world.id] ?? null;
-  return buildWorldScene(world.name).light.color;
+  return buildWorldScene(world.name).tint;
 }
 
 export function useWorldAmbientTint(worlds) {

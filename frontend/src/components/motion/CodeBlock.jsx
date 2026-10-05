@@ -4,7 +4,7 @@
  * 复制按钮按下后图标换成对勾并描出笔画。 */
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Copy } from 'lucide-react';
+import { IconCopy } from '../ui/icons.jsx';
 import { Highlight } from 'prism-react-renderer';
 import { useMotion } from '../../core/hooks/useMotion.js';
 import { MOTION, STAGGER } from '../../core/utils/motion.js';
@@ -100,7 +100,7 @@ function CopyButton({ code }) {
       <AnimatePresence initial={false}>
         {copied ? (
           <motion.span key="check" className="we-code-viewer__copy-icon" {...swap} transition={reduced ? REDUCED_SWAP : m.transition('enter')}>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" width="14" height="14" aria-hidden>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="square" strokeLinejoin="miter" width="14" height="14" aria-hidden>
               <motion.path
                 d="M4 12.5l5 5L20 6.5"
                 initial={reduced ? false : { pathLength: 0 }}
@@ -111,7 +111,7 @@ function CopyButton({ code }) {
           </motion.span>
         ) : (
           <motion.span key="copy" className="we-code-viewer__copy-icon" {...swap} transition={reduced ? REDUCED_SWAP : m.transition('enter')}>
-            <Copy size={14} />
+            <IconCopy size={14} />
           </motion.span>
         )}
       </AnimatePresence>

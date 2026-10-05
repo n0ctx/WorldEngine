@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { AnimatePresence } from 'framer-motion';
-import { Book, Pin, Trash2 } from 'lucide-react';
+import { IconCharacterCard, IconPin, IconTrash } from '../ui/icons.jsx';
 import Button from '../ui/Button.jsx';
 import ConfirmModal from '../ui/ConfirmModal.jsx';
 import MakeCardModal from './MakeCardModal.jsx';
@@ -75,7 +75,7 @@ export default function useEntitySections({
           onClick={() => togglePinned(entity)}
           title={entity.pinned ? '取消置顶' : '置顶'}
         >
-          <Pin size={11} /><span>{entity.pinned ? '取消置顶' : '置顶'}</span>
+          <IconPin size={11} /><span>{entity.pinned ? '取消置顶' : '置顶'}</span>
         </Button>
         <Button
           type="button"
@@ -84,7 +84,7 @@ export default function useEntitySections({
           onClick={() => setMakeCardEntity(entity)}
           title="存为角色卡"
         >
-          <Book size={11} /><span>存为角色卡</span>
+          <IconCharacterCard size={11} /><span>存为角色卡</span>
         </Button>
         <Button
           type="button"
@@ -93,7 +93,7 @@ export default function useEntitySections({
           onClick={() => setDeleteTarget(entity)}
           title="删除"
         >
-          <Trash2 size={11} /><span>删除</span>
+          <IconTrash size={11} /><span>删除</span>
         </Button>
       </>
     );

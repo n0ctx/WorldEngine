@@ -8,7 +8,7 @@
  */
 
 import { useEffect, useRef } from 'react';
-import { ArrowUp } from 'lucide-react';
+import { IconArrowUp } from '../../frontend/src/components/ui/icons.jsx';
 import { isImeComposing } from '../../frontend/src/core/utils/ime.js';
 
 export default function InputBox({ value, onChange, onSend, disabled = false, placeholder }) {
@@ -59,7 +59,7 @@ export default function InputBox({ value, onChange, onSend, disabled = false, pl
           title="发送 (Enter)"
           aria-label="发送"
         >
-          <ArrowUp size={20} strokeWidth={2} />
+          <IconArrowUp size={20} />
         </button>
       </div>
       <p className="we-asst-composer__hint">Enter 发送 · Shift+Enter 换行 · /stop 停止</p>

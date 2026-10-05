@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { X } from 'lucide-react';
+import { IconClose } from './icons.jsx';
 import { isImeComposing } from '../../core/utils/ime.js';
 import Badge from './Badge.jsx';
 
@@ -59,7 +59,7 @@ export default function TagInput({
             disabled={disabled}
             onClick={(event) => { event.stopPropagation(); onRemove(value); }}
           >
-            <X size={12} />
+            <IconClose size={12} />
           </button>
         </Badge>
       ))}

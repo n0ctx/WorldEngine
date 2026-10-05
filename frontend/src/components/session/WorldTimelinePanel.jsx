@@ -21,7 +21,7 @@
 import { Button, EmptyState, IconButton, Input } from '../index.js';
 import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { PencilLine, Trash2 } from 'lucide-react';
+import { IconPencil, IconTrash } from '../ui/icons.jsx';
 import StorylineModeBadge from './StorylineModeBadge.jsx';
 import { getWorldTimeline, renameSession } from '../../core/api/sessions.js';
 import { getCharactersByWorld } from '../../core/api/characters.js';
@@ -145,7 +145,7 @@ function TimelineItem({ item, title, index, isActive, editable, onClick, onRenam
           ) : (
             <div className="we-session-item__btn-group">
               <IconButton size="sm" label="编辑故事线标题" title="编辑标题" onClick={startEdit}>
-                <PencilLine size={16} />
+                <IconPencil size={16} />
               </IconButton>
               <IconButton
                 size="sm"
@@ -153,7 +153,7 @@ function TimelineItem({ item, title, index, isActive, editable, onClick, onRenam
                 label="删除故事线"
                 onClick={(e) => { e.stopPropagation(); setConfirmDelete(true); }}
               >
-                <Trash2 size={16} />
+                <IconTrash size={16} />
               </IconButton>
             </div>
           )}

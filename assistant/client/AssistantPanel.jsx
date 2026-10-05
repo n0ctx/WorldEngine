@@ -5,7 +5,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Eraser, RotateCcw, Sparkles, X } from 'lucide-react';
+import { IconAssistant, IconClose, IconEraser, IconRotateCcw } from '../../frontend/src/components/ui/icons.jsx';
 import { useAssistantStore } from './useAssistantStore.js';
 import {
   streamAgent,
@@ -478,18 +478,18 @@ export default function AssistantPanel() {
         <div className="we-asst-drawer__surface we-material">
           <header className="we-asst-drawer__header">
             <span className="we-asst-drawer__title">
-              <Sparkles size={16} aria-hidden="true" />
+              <IconAssistant size={16} />
               写卡助手
             </span>
             <AssistantStatusIndicator status={status} isStreaming={isStreaming} />
             <div className="we-asst-drawer__actions">
               {(messages.length > 0 || taskId) && (
                 <IconButton label="清空对话" onClick={handleReset}>
-                  <Eraser size={16} />
+                  <IconEraser size={16} />
                 </IconButton>
               )}
               <IconButton label="关闭" title="关闭 (Esc)" onClick={close}>
-                <X size={20} />
+                <IconClose size={20} />
               </IconButton>
             </div>
           </header>
@@ -511,7 +511,7 @@ export default function AssistantPanel() {
                   onClick={handleRegenerateLastUser}
                   className="we-asst-error__retry"
                 >
-                  <RotateCcw size={14} />
+                  <IconRotateCcw size={14} />
                   重新生成
                 </button>
               </div>

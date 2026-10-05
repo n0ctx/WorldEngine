@@ -1,7 +1,7 @@
 import { useRef, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { motion, useMotionTemplate, useMotionValue } from 'framer-motion';
-import { Download, Ellipsis, PencilLine, Trash2 } from 'lucide-react';
+import { IconDownload, IconEllipsis, IconPencil, IconTrash } from '../../components/ui/icons.jsx';
 import SortableGrid from '../../components/ui/SortableGrid';
 import AvatarCircle from '../../components/ui/AvatarCircle.jsx';
 import IconButton from '../../components/ui/IconButton.jsx';
@@ -175,7 +175,7 @@ function WorldCard({
                 onClick={(event) => onExportWorld(world, event)}
                 disabled={exportingWorldId === world.id}
               >
-                <Download size={16} />
+                <IconDownload size={16} />
               </IconButton>
               <IconButton
                 variant="overlay"
@@ -183,7 +183,7 @@ function WorldCard({
                 label="编辑世界"
                 onClick={() => navigate(`/worlds/${world.id}/edit`, { state: { backgroundLocation: location } })}
               >
-                <PencilLine size={16} />
+                <IconPencil size={16} />
               </IconButton>
               <IconButton
                 variant="overlay"
@@ -192,7 +192,7 @@ function WorldCard({
                 className="is-danger"
                 onClick={() => onSetDeletingWorld(world)}
               >
-                <Trash2 size={16} />
+                <IconTrash size={16} />
               </IconButton>
             </>
           ) : null}
@@ -204,7 +204,7 @@ function WorldCard({
             onClick={() => onSetActionsOpenId(actionsOpen ? null : world.id)}
             aria-expanded={actionsOpen}
           >
-            <Ellipsis size={16} />
+            <IconEllipsis size={16} />
           </IconButton>
         </div>
       </motion.div>

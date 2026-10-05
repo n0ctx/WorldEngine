@@ -1,4 +1,4 @@
-import { FastForward, UserRoundPen } from 'lucide-react';
+import { IconFastForward, IconUserPen } from '../ui/icons.jsx';
 import IconButton from '../ui/IconButton.jsx';
 
 // 点击工具条按钮时不让输入框失焦；动作本身走 onClick，键盘 Enter/Space 同样可触发
@@ -23,7 +23,7 @@ export default function InputBoxToolbar({
           onClick={() => onContinue?.()}
           disabled={generating}
         >
-          <FastForward size={16} fill="currentColor" fillOpacity={0.22} />
+          <IconFastForward size={16} />
         </IconButton>
         <IconButton
           size="sm"
@@ -32,7 +32,7 @@ export default function InputBoxToolbar({
           onClick={() => onImpersonate?.()}
           disabled={generating}
         >
-          <UserRoundPen size={16} />
+          <IconUserPen size={16} />
         </IconButton>
       </div>
     </div>

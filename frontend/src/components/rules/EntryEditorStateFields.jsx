@@ -1,4 +1,4 @@
-import { X } from 'lucide-react';
+import { IconClose } from '../ui/icons.jsx';
 import DatetimePartInput from './DatetimePartInput';
 import Button from '../ui/Button';
 import IconButton from '../ui/IconButton';
@@ -96,7 +96,7 @@ export default function EntryEditorStateFields({
               onClick={() => removeCondition(index)}
               label={`删除状态条件 ${index + 1}`}
             >
-              <X size={16} />
+              <IconClose size={16} />
             </IconButton>
           </div>
         );

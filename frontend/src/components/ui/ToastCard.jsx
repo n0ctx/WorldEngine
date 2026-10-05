@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { X } from 'lucide-react';
+import { IconClose } from './icons.jsx';
 import IconButton from './IconButton.jsx';
 import ChangeText from '../motion/ChangeText.jsx';
 import { useMotion } from '../../core/hooks/useMotion.js';
@@ -45,7 +45,7 @@ export default function ToastCard({ toast, onClose, onMouseEnter, onMouseLeave }
           <div className="we-toast-card__message"><ChangeText text={toast.message} playKey={fxKey} decode /></div>
         </div>
         <IconButton size="sm" label="关闭通知" onClick={onClose}>
-          <X size={16} />
+          <IconClose size={16} />
         </IconButton>
       </div>
     </motion.div>

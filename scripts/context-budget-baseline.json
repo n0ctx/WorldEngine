@@ -4901,10 +4901,10 @@
     "frontend/src/components/chat/MessageList.jsx": {
       "kind": "code",
       "metrics": {
-        "file_tokens": 905,
-        "largest_function": 134,
+        "file_tokens": 1279,
+        "largest_function": 160,
         "function_class_count": 1,
-        "internal_dependencies": 7
+        "internal_dependencies": 11
       },
       "largest_function_name": "MessageList",
       "sections": []
@@ -5297,10 +5297,10 @@
     "frontend/src/components/session/StateMemoryEntityDetail.jsx": {
       "kind": "code",
       "metrics": {
-        "file_tokens": 1023,
-        "largest_function": 94,
-        "function_class_count": 5,
-        "internal_dependencies": 7
+        "file_tokens": 1634,
+        "largest_function": 121,
+        "function_class_count": 7,
+        "internal_dependencies": 11
       },
       "largest_function_name": "StateMemoryEntityDetail",
       "sections": []
@@ -5825,10 +5825,10 @@
     "frontend/src/components/state/SessionStatePanel.jsx": {
       "kind": "code",
       "metrics": {
-        "file_tokens": 3184,
-        "largest_function": 173,
-        "function_class_count": 17,
-        "internal_dependencies": 13
+        "file_tokens": 3461,
+        "largest_function": 175,
+        "function_class_count": 18,
+        "internal_dependencies": 16
       },
       "largest_function_name": "SessionStatePanel",
       "sections": []
@@ -8762,10 +8762,10 @@
     "frontend/src/pages/WorldsPage/WorldsGrid.jsx": {
       "kind": "code",
       "metrics": {
-        "file_tokens": 2079,
-        "largest_function": 152,
+        "file_tokens": 2119,
+        "largest_function": 156,
         "function_class_count": 4,
-        "internal_dependencies": 8
+        "internal_dependencies": 11
       },
       "largest_function_name": "WorldCard",
       "sections": []
@@ -8795,10 +8795,10 @@
     "frontend/src/pages/WritingSpacePage/components/WritingSpaceConversationPane.jsx": {
       "kind": "code",
       "metrics": {
-        "file_tokens": 1280,
-        "largest_function": 150,
+        "file_tokens": 1144,
+        "largest_function": 116,
         "function_class_count": 1,
-        "internal_dependencies": 7
+        "internal_dependencies": 11
       },
       "largest_function_name": "WritingSpaceConversationPane",
       "sections": []
@@ -8828,10 +8828,10 @@
     "frontend/src/pages/WritingSpacePage/index.jsx": {
       "kind": "code",
       "metrics": {
-        "file_tokens": 619,
-        "largest_function": 67,
+        "file_tokens": 677,
+        "largest_function": 66,
         "function_class_count": 1,
-        "internal_dependencies": 10
+        "internal_dependencies": 13
       },
       "largest_function_name": "WritingSpacePage",
       "sections": []

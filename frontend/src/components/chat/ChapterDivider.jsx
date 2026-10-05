@@ -1,5 +1,5 @@
 import { useRef, useEffect, useState } from 'react';
-import { RotateCcw, SquarePen } from 'lucide-react';
+import { IconRotateCcw, IconSquarePen } from '../ui/icons.jsx';
 import Button from '../ui/Button.jsx';
 import MotionOrb from '../motion/MotionOrb.jsx';
 import ChangeText from '../motion/ChangeText.jsx';
@@ -112,14 +112,14 @@ export default function ChapterDivider({ chapterIndex, title, onEdit, onRegenera
             <div className="we-chapter-actions">
               {onEdit && (
                 <Button variant="text" size="sm" onClick={startEdit} aria-label="编辑章节标题">
-                  <SquarePen size={16} />
+                  <IconSquarePen size={16} />
                   编辑
                 </Button>
               )}
               {onRegenerate && (
                 <Button variant="text" size="sm" onClick={handleRegenerate} disabled={regenerating} aria-label="重新生成章节标题">
                   {regenerating ? <MotionOrb size={16} /> : (
-                    <RotateCcw size={16} />
+                    <IconRotateCcw size={16} />
                   )}
                   {regenerating ? '生成中…' : '重新生成'}
                 </Button>

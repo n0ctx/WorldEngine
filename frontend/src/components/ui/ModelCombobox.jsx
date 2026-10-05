@@ -1,5 +1,5 @@
 import { useId, useState, useRef } from 'react';
-import { Check, ChevronDown } from 'lucide-react';
+import { IconCheck, IconChevronDown } from './icons.jsx';
 import { isImeComposing } from '../../core/utils/ime.js';
 import { useClickOutside } from '../../core/hooks/useClickOutside.js';
 
@@ -49,7 +49,7 @@ function ComboboxList({ id, options, value, active, optionDomId, onPick, onHover
           >
             <span className="we-menu__label">{optionValue}</span>
             <OptionPrice option={option} />
-            {optionValue === value && <Check size={14} className="we-menu__check" aria-hidden="true" />}
+            {optionValue === value && <IconCheck size={14} className="we-menu__check" />}
           </li>
         );
       })}
@@ -164,7 +164,7 @@ export default function ModelCombobox({
           className="we-combobox-toggle"
           aria-label={open ? '收起列表' : '展开列表'}
         >
-          <ChevronDown
+          <IconChevronDown
             className="we-combobox-chevron"
             style={{ transform: open ? 'rotate(180deg)' : 'none' }}
           />

@@ -1,4 +1,4 @@
-import { Plus } from 'lucide-react';
+import { IconPlus } from '../../../components/ui/icons.jsx';
 import Button from '../../../components/ui/Button.jsx';
 import WorldTimelinePanel from '../../../components/session/WorldTimelinePanel.jsx';
 import PageLayout from '../../layout/PageLayout.jsx';
@@ -28,7 +28,7 @@ export default function ChatPageShell({
           onActiveSessionRenamed={(title) => setCurrentSession((prev) => (prev ? { ...prev, title } : prev))}
           headerRight={(
             <Button size="sm" variant="secondary" className="we-session-list-create" onClick={onCreateSession}>
-              <Plus size={16} />
+              <IconPlus size={16} />
               新建故事线
             </Button>
           )}

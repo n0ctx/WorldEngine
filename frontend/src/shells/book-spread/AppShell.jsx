@@ -12,7 +12,6 @@
  */
 import { useEffect, useSyncExternalStore } from 'react';
 import { MotionConfig } from 'framer-motion';
-import { LucideProvider } from 'lucide-react';
 import TopBar from './chrome/TopBar.jsx';
 import GlobalToast from '../../components/ui/GlobalToast.jsx';
 import { PageLayoutRendererProvider } from '../../pages/layout/PageLayout.jsx';
@@ -52,10 +51,8 @@ export default function AppShell({ children, locationKey }) {
   }, [portal, pack]);
 
   // reducedMotion="user"：系统要求减少动效时，所有 framer 动画关闭位移与缩放，只保留透明度
-  // Lucide 图标统一细描边：24 视口下 1.75，20 / 16 尺寸按比例缩放，整站线重一致
   return (
     <MotionConfig reducedMotion="user">
-      <LucideProvider strokeWidth={1.75}>
       <div className="we-app-root we-shell-book-spread" style={rootVars ?? undefined}>
         <AtmosphereLayer
           quiet={QUIET_SCENE.test(locationKey)}
@@ -76,7 +73,6 @@ export default function AppShell({ children, locationKey }) {
           </div>
         </PageLayoutRendererProvider>
       </div>
-      </LucideProvider>
     </MotionConfig>
   );
 }

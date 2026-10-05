@@ -2,7 +2,7 @@ import { useParams } from 'react-router-dom';
 import PageLayout from '../layout/PageLayout.jsx';
 import NearbyPanel from './components/NearbyPanel.jsx';
 import WorldTimelinePanel from '../../components/session/WorldTimelinePanel.jsx';
-import { Plus } from 'lucide-react';
+import { IconPlus } from '../../components/ui/icons.jsx';
 import Button from '../../components/ui/Button.jsx';
 import { log } from '../../core/utils/logger.js';
 import useStore from '../../core/state/index.js';
@@ -47,7 +47,7 @@ export default function WritingSpacePage() {
           onActiveSessionRenamed={(title) => setCurrentSession((prev) => (prev ? { ...prev, title } : prev))}
           headerRight={(
             <Button size="sm" variant="secondary" className="we-session-list-create" onClick={lifecycle.handleCreateWritingSession} aria-label="新建故事线">
-              <Plus size={16} />
+              <IconPlus size={16} />
               新建故事线
             </Button>
           )}

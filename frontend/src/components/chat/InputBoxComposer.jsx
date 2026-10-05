@@ -1,4 +1,4 @@
-import { ArrowUp, ImagePlus, Square } from 'lucide-react';
+import { IconArrowUp, IconImagePlus, IconStop } from '../ui/icons.jsx';
 import { MAX_ATTACHMENTS_PER_MESSAGE } from '../../core/utils/constants.js';
 import MotionOrb from '../motion/MotionOrb.jsx';
 import IconButton from '../ui/IconButton.jsx';
@@ -38,7 +38,7 @@ export default function InputBoxComposer({
           onClick={() => fileInputRef.current?.click()}
           disabled={generating || attachments.length >= MAX_ATTACHMENTS_PER_MESSAGE}
         >
-          <ImagePlus size={20} />
+          <IconImagePlus size={20} />
         </IconButton>
         <input
           ref={fileInputRef}
@@ -93,7 +93,7 @@ export default function InputBoxComposer({
             className="we-chat-send-btn"
             {...m.gesture('sink')}
           >
-            <Square size={16} fill="currentColor" />
+            <IconStop size={16} />
           </IconButton>
         ) : (
           <IconButton
@@ -105,7 +105,7 @@ export default function InputBoxComposer({
             className="we-chat-send-btn"
             {...m.gesture('sink', { disabled: !text.trim() })}
           >
-            <ArrowUp size={20} strokeWidth={2} />
+            <IconArrowUp size={20} />
           </IconButton>
         )}
       </div>

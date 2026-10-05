@@ -1,4 +1,4 @@
-import { ChevronRight } from 'lucide-react';
+import { IconChevronRight } from '../../../components/ui/icons.jsx';
 import Button from '../../../components/ui/Button.jsx';
 import TaskList from '../../../components/motion/TaskList.jsx';
 import { cardClassName } from '../../../components/ui/cardClassName.js';
@@ -55,7 +55,7 @@ export function NewWorldGuide({ completed, onStepClick, onDismiss }) {
           trailing: (
             <span className="we-onboarding-step-action">
               {completed[step.key] ? '回去改改' : step.action}
-              <ChevronRight size={16} />
+              <IconChevronRight size={16} />
             </span>
           ),
         }))}

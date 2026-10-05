@@ -1,5 +1,5 @@
 import Card from '../../../components/ui/Card.jsx';
-import { Trash2 } from 'lucide-react';
+import { IconTrash } from '../../../components/ui/icons.jsx';
 import IconButton from '../../../components/ui/IconButton.jsx';
 import SectionTitle from '../../../components/ui/SectionTitle.jsx';
 import StorylineModeBadge from '../../../components/session/StorylineModeBadge.jsx';
@@ -19,7 +19,7 @@ function StorylineDeleteButton({ onDelete }) {
       onClick={(e) => { e.stopPropagation(); onDelete(); }}
       onKeyDown={(e) => e.stopPropagation()}
     >
-      <Trash2 size={16} />
+      <IconTrash size={16} />
     </IconButton>
   );
 }
