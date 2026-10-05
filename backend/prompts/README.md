@@ -90,8 +90,8 @@
 - `templates/continue-user-instruction.md`
   续写（continue）操作时附加给模型的指令片段，提示模型按既有语气延续而非重起一段。
   调用方：`backend/app/turn/continuation-messages.js`
-- `templates/shared-suggestion.md`
-  选项生成功能的后置 prompt，要求模型在正文末尾输出 `<next_prompt>` 选项块。
+- `templates/chat-suggestion.md`、`templates/writing-suggestion.md`
+  选项生成功能的后置 prompt，要求模型在正文末尾输出 `<next_prompt>` 选项块；对话模式的选项是玩家第一人称的对白和（动作），写作模式的选项是不带主语的动作。
   调用方：`backend/prompts/assembler.js`
 - `templates/shared-suggestion-fallback.md`
   当主回复未以 `</next_prompt>` 结尾时，交给副模型补齐 `<next_prompt>` 选项块的兜底 prompt。

@@ -32,7 +32,9 @@
   批量更新世界 / 玩家 / 角色状态并写入状态记忆的模板。
 - `chat-impersonate.md`
   聊天模式和写作模式共用的代拟用户输入的模板。
-- `shared-suggestion.md`
-  生成 `<next_prompt>` 选项块的共享模板。
+- `chat-suggestion.md`
+  对话模式生成 `<next_prompt>` 选项块的模板：选项是玩家第一人称的对白和（动作）。
+- `writing-suggestion.md`
+  写作模式生成 `<next_prompt>` 选项块的模板：选项是不带主语的动作，可带一句台词。
 - `shared-suggestion-fallback.md`
   当主回复末尾未正确闭合 `</next_prompt>` 时，用副模型补齐 `<next_prompt>` 选项块的兜底模板。

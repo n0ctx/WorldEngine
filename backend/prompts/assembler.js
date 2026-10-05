@@ -74,7 +74,8 @@ import {
 } from './segments.js';
 
 const log = createLogger('assembler', 'magenta');
-const SUGGESTION_PROMPT = loadBackendPrompt('shared-suggestion.md');
+const CHAT_SUGGESTION_PROMPT = loadBackendPrompt('chat-suggestion.md');
+const WRITING_SUGGESTION_PROMPT = loadBackendPrompt('writing-suggestion.md');
 
 /** 将字符数格式化为可读单位，如 3241 → '3.2k' */
 function fmtK(n) { return n >= 1000 ? `${(n / 1000).toFixed(1)}k` : `${n}`; }
@@ -376,12 +377,12 @@ async function buildChatSystemPrompt(sessionId, character, world, config, option
   const turnContext = turnContextParts.join('\n\n');
   // 本轮激活的非常驻条目（trigger_type !== 'always'），供 SSE 透传给前端展示
   const activatedEntries = selectActivatedEntries(triggeredEntries);
-  const suggestionText = config.suggestion_enabled ? tv(SUGGESTION_PROMPT) : null;
+  const suggestionText = config.suggestion_enabled ? tv(CHAT_SUGGESTION_PROMPT) : null;
   const postParts = continuation ? [] : [config.global_post_prompt, character.post_prompt].filter(Boolean).map(tv);
   if (!continuation && !character.post_prompt) {
     postParts.push(tv('（你正在扮演{{char}}，请严格保持角色名字和设定。）'));
   }
-  if (!continuation && config.suggestion_enabled) postParts.push(tv(SUGGESTION_PROMPT));
+  if (!continuation && config.suggestion_enabled) postParts.push(tv(CHAT_SUGGESTION_PROMPT));
   return { cachedContent, systemContent, turnContext, recallHitCount, activatedEntries, suggestionText, postParts };
 }
 
@@ -495,7 +496,7 @@ async function buildWritingCoreSystemParts(sessionId, world, writing, persona, o
   // [8.5] 剧情摘要进 system 尾部
   const summarySystemParts = buildSummarySystemParts(storySummary, tv);
   const activatedEntries = selectActivatedEntries(triggeredEntries);
-  const suggestionText = writing.suggestion_enabled ? tv(SUGGESTION_PROMPT) : null;
+  const suggestionText = writing.suggestion_enabled ? tv(WRITING_SUGGESTION_PROMPT) : null;
   return { cachedSystemParts, summarySystemParts, turnContextParts, activatedEntries, suggestionText };
 }
 
@@ -603,7 +604,7 @@ export async function buildWritingPrompt(sessionId, options = {}) {
       if (personaName) {
         postParts.push(tv('（玩家角色名为{{user}}，请在叙述中严格使用此名字，不可捏造或替换。）'));
       }
-      if (writing.suggestion_enabled) postParts.push(tv(SUGGESTION_PROMPT));
+      if (writing.suggestion_enabled) postParts.push(tv(WRITING_SUGGESTION_PROMPT));
     }
 
     pushCurrentUserTurn(messages, uncompressedMessages, postParts, historyCtx);

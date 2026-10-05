@@ -2159,15 +2159,6 @@
       "largest_function_name": null,
       "sections": []
     },
-    "backend/prompts/templates/shared-suggestion.md": {
-      "kind": "document",
-      "metrics": {
-        "document_tokens": 547,
-        "document_loc": 29
-      },
-      "largest_function_name": null,
-      "sections": []
-    },
     "backend/prompts/templates/state-compress-runtime.md": {
       "kind": "document",
       "metrics": {
