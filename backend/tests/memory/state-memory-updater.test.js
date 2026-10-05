@@ -264,6 +264,40 @@ test('system 前缀带上本世界启用的常驻条目作为世界观，不带�
   assert.ok(!system.includes('已废弃的设定'));
 });
 
+test('本轮正文命中的非常驻条目进入动态后缀，未命中的不带', async () => {
+  resetMockEnv();
+  const world = insertWorld(sandbox.db, { name: '雾都' });
+  insertWorldEntry(sandbox.db, world.id, { title: '地理', content: '终年大雾。', trigger_type: 'always' });
+  const secret = insertWorldEntry(sandbox.db, world.id, { title: '秘闻', content: '{{user}}知道钟楼下有密道。', trigger_type: 'keyword', keywords: ['钟楼'] });
+  const guild = insertWorldEntry(sandbox.db, world.id, { title: '行会', content: '盗贼行会控制码头。', trigger_type: 'llm' });
+  insertWorldEntry(sandbox.db, world.id, { title: '传说', content: '河里住着水妖。', trigger_type: 'keyword', keywords: ['河'] });
+  const character = insertCharacter(sandbox.db, world.id, { name: '丁' });
+  const session = insertSession(sandbox.db, { character_id: character.id, world_id: world.id });
+  insertMessage(sandbox.db, session.id, { role: 'user', content: '去钟楼。', created_at: 1 });
+  const reply = insertMessage(sandbox.db, session.id, { role: 'assistant', content: '钟楼到了。', created_at: 2 });
+
+  const { updateMessageActivatedEntries, getMessagesBySessionId } = await freshImport('backend/db/queries/messages.js');
+  updateMessageActivatedEntries(reply.id, [
+    { id: secret.id, title: '秘闻', trigger_type: 'keyword' },
+    { id: guild.id, title: '行会', trigger_type: 'llm' },
+  ]);
+
+  const { resolveCurrentRound, buildRuntimeUserPrompt } = await freshImport('backend/memory/state-update-context.js');
+  const { buildTriggeredSettingText } = await freshImport('backend/memory/combined-state-updater.js');
+  const { getWorldById } = await freshImport('backend/db/queries/worlds.js');
+  const { activatedEntries } = resolveCurrentRound(getMessagesBySessionId(session.id, null));
+  const prompt = buildRuntimeUserPrompt({
+    sessionId: session.id, worldId: world.id, mainCharacterEntityId: null, valueSections: [], dialogue: '', responseKeys: [], round: 1,
+    relevantIds: new Set(), triggeredSetting: buildTriggeredSettingText(getWorldById(world.id), '旅人', activatedEntries),
+  });
+
+  const section = prompt.slice(prompt.indexOf('【本轮触发的世界观条目】'), prompt.indexOf('【实体目录】'));
+  assert.ok(section.includes('旅人知道钟楼下有密道。'));
+  assert.ok(section.includes('盗贼行会控制码头。'));
+  assert.ok(!section.includes('终年大雾'));
+  assert.ok(!section.includes('河里住着水妖'));
+});
+
 test('system 前缀带上会话人设正文作为玩家人设', async () => {
   resetMockEnv();
   const world = insertWorld(sandbox.db, { name: '雾都' });

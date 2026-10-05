@@ -4,6 +4,9 @@
 
 本轮轮号：{{ROUND}}
 
+【本轮触发的世界观条目】（本轮正文生成时按剧情命中的设定，与【世界观】同等对待）
+{{TRIGGERED_SETTING}}
+
 【实体目录】
 {{ENTITY_DIRECTORY}}
 

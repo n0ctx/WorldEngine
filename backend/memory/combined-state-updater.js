@@ -128,12 +128,26 @@ function buildStateUpdateExampleKeys(worldActiveFields, charactersWithFields, pe
 
 /**
  * 世界观：本世界所有启用的常驻（always）条目，供补全档案时保持设定一致。只依赖世界与人设，
- * 逐轮稳定，放进可缓存的 system 前缀；关键词 / AI 判断触发的条目要额外匹配，这里不带。
+ * 逐轮稳定，放进可缓存的 system 前缀；需触发的条目见 buildTriggeredSettingText。
  */
 export function buildWorldSettingText(world, personaName) {
   if (!world) return '';
+  return renderWorldEntries(world, personaName, (entry) => entry.trigger_type === 'always');
+}
+
+/**
+ * 本轮触发的条目：正文生成时命中的非常驻条目（关键词 / AI 判断 / 状态条件），取自本轮 AI 回复上的记录，
+ * 与正文看到的保持一致，不再重新匹配。逐轮变化，放进动态后缀。
+ */
+export function buildTriggeredSettingText(world, personaName, activatedEntries) {
+  const ids = new Set(activatedEntries.map((entry) => entry.id));
+  if (!world || ids.size === 0) return '';
+  return renderWorldEntries(world, personaName, (entry) => entry.trigger_type !== 'always' && ids.has(entry.id));
+}
+
+function renderWorldEntries(world, personaName, include) {
   const entries = getAllWorldEntries(world.id)
-    .filter((entry) => entry.enabled !== 0 && entry.trigger_type === 'always' && entry.content)
+    .filter((entry) => entry.enabled !== 0 && entry.content && include(entry))
     .sort((a, b) => (a.token ?? 1) - (b.token ?? 1) || (a.sort_order ?? 0) - (b.sort_order ?? 0));
   const tv = (text) => applyTemplateVars(text, { user: personaName || '', char: null, world: world.name });
   return renderTriggeredEntriesSection(entries, tv) ?? '';
@@ -290,7 +304,7 @@ export async function updateAllStates(worldId, characterIds, sessionId) {
   // 状态记忆常开：只要会话有消息就调用。
   const messages = getMessagesBySessionId(sessionId, ALL_MESSAGES_LIMIT, 0).map(toPromptMessage);
   if (messages.length === 0) return;
-  const { round, turnText } = resolveCurrentRound(messages);
+  const { round, turnText, activatedEntries } = resolveCurrentRound(messages);
 
   // ── 确定各类活跃字段 ──
   const targets = loadStateUpdateTargets(worldId, characterIds, world);
@@ -325,14 +339,15 @@ export async function updateAllStates(worldId, characterIds, sessionId) {
 
   // ── 切分稳定前缀 / 动态后缀（prompt caching） ──
   // 必须逐字成为 system 消息内容的前缀，provider 层据此切出可缓存段（参考 assembler.js）。
-  // 动态后缀（user 段）：各字段当前取值 + 实体目录/相关实体详情 + 本轮对话，逐轮变化，不进缓存。
+  // 动态后缀（user 段）：各字段当前取值 + 本轮触发的条目 + 实体目录/相关实体详情 + 本轮对话，逐轮变化，不进缓存。
   const persona = resolvePersona(session, worldId);
   const worldSetting = buildWorldSettingText(world, persona?.name);
   const personaSetting = buildPersonaSettingText(world, persona);
   const cacheableSystem = buildCacheableSystemPrompt(worldId, targets, { schemaSections, responseKeys, worldSetting, personaSetting });
   const relevantIds = resolveRelevantEntityIds(sessionId, messages, { playerEntityId, mainCharacterEntityId });
+  const triggeredSetting = buildTriggeredSettingText(world, persona?.name, activatedEntries);
   const runtimeUser = buildRuntimeUserPrompt({
-    sessionId, worldId, mainCharacterEntityId, valueSections, dialogue, turnText, responseKeys, round, relevantIds,
+    sessionId, worldId, mainCharacterEntityId, valueSections, dialogue, turnText, responseKeys, round, relevantIds, triggeredSetting,
   });
 
   const prompt = [

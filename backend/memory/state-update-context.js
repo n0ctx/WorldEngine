@@ -279,15 +279,20 @@ export function captureBaselineIfAbsent(sessionId, worldId, characterIds) {
   setSessionStateBaselineIfAbsent(sessionId, JSON.stringify(baseline));
 }
 
-/** 本轮轮号 + 本轮原文（user+assistant 拼接，供 evidence 核验与地点解析用）。 */
+/**
+ * 本轮轮号 + 本轮原文（user+assistant 拼接，供 evidence 核验与地点解析用）
+ * + 本轮正文生成时命中的非常驻条目（记在本轮 AI 回复上）。
+ */
 export function resolveCurrentRound(messages) {
   const currentRound = splitRounds(messages).at(-1) ?? null;
   const round = currentRound?.roundIndex ?? 0;
-  const turnText = (currentRound?.messages ?? [])
+  const roundMessages = currentRound?.messages ?? [];
+  const turnText = roundMessages
     .filter((m) => m.role === 'user' || m.role === 'assistant')
     .map((m) => m.content)
     .join('\n');
-  return { round, turnText };
+  const activatedEntries = roundMessages.findLast((m) => m.role === 'assistant')?.activated_entries ?? [];
+  return { round, turnText, activatedEntries };
 }
 
 /** 会话使用的人设：会话指定的人设，否则世界默认人设。 */
@@ -333,8 +338,8 @@ export function resolveRelevantEntityIds(sessionId, messages, { playerEntityId, 
   return relevantIds;
 }
 
-/** 状态更新调用的动态后缀（user 段）：各字段当前取值 + 实体目录/相关实体详情 + 本轮对话，逐轮变化，不进缓存。 */
-export function buildRuntimeUserPrompt({ sessionId, worldId, mainCharacterEntityId, valueSections, dialogue, turnText = dialogue, responseKeys, round, relevantIds }) {
+/** 状态更新调用的动态后缀（user 段）：各字段当前取值 + 本轮触发的条目 + 实体目录/相关实体详情 + 本轮对话，逐轮变化，不进缓存。 */
+export function buildRuntimeUserPrompt({ sessionId, worldId, mainCharacterEntityId, valueSections, dialogue, turnText = dialogue, responseKeys, round, relevantIds, triggeredSetting = '' }) {
   // 待补全的实体即使本轮没出场也带上详情，AI 才能按已有信息创作
   const gaps = renderProfileGapsForUpdate(sessionId, { worldId, priorityIds: relevantIds, mainCharacterEntityId });
   return renderBackendPrompt('state-update-runtime.md', {
@@ -342,6 +347,7 @@ export function buildRuntimeUserPrompt({ sessionId, worldId, mainCharacterEntity
     DIALOGUE: dialogue,
     RESPONSE_KEYS: responseKeys.join('、'),
     ROUND: round,
+    TRIGGERED_SETTING: triggeredSetting || '（无）',
     ENTITY_DIRECTORY: renderEntityDirectory(sessionId) || '（无）',
     RELEVANT_THREADS: renderRelevantThreadsForUpdate(sessionId, turnText) || '（无）',
     ENTITY_DETAILS: renderEntityDetailsForUpdate(sessionId, [...new Set([...relevantIds, ...gaps.entityIds])], { worldId, mainCharacterEntityId }) || '（无）',
