@@ -945,6 +945,7 @@ svg.we-chat-atmosphere__art {
 /* ── Prose writing mode overrides ──────────────────────── */
 
 .we-writing-annotation--editing {
+  padding: var(--we-space-sm) var(--we-space-md);
   text-align: left;
   border-radius: var(--we-radius-sm);
   background: color-mix(in srgb, var(--we-color-accent) var(--we-alpha-1), transparent);

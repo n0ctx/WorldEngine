@@ -86,7 +86,7 @@ function WritingMessageItem({
           editing={editing}
           selectEnd
           trackValue={draft}
-          surfaceClassName={editing ? 'we-writing-annotation--editing' : ''}
+          className={editing ? 'we-writing-annotation--editing' : ''}
           readClassName="we-writing-annotation__text"
           renderRead={() => (
             <ReactMarkdown remarkPlugins={REMARK_PLUGINS_W} rehypePlugins={REHYPE_PLUGINS_W}>
