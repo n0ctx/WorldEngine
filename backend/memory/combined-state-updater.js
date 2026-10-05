@@ -119,7 +119,7 @@ function buildStateUpdateExampleKeys(worldActiveFields, charactersWithFields, pe
     charactersWithFields[0] ? '"char_0": {"mood": "开心"}' : null,
     personaActiveFields.length > 0 ? '"persona": {"health": 85}' : null,
     '"entity_fields": {"e3": {"favor": 60}}',
-    '"memory": [{"op": "set_present", "entities": ["e1", "e3"]}, {"op": "set_world", "key": "time", "value": "1000-03-15T14:30"}]',
+    '"memory": [{"op": "set_world", "key": "time", "value": "1000-03-15T14:30"}, {"op": "set_present", "entities": ["e1", "e3"]}]',
   ]
     .filter(Boolean)
     .join(', ');

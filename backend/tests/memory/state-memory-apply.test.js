@@ -20,7 +20,7 @@ const {
 } = await freshImport('backend/memory/state-memory-apply.js');
 const {
   listCurrentEntities, listCurrentRelations, listThreads, listActiveThreads,
-  getCurrentWorldProfile, getEntityDetails, upsertEntity, upsertProfileField,
+  getCurrentWorldProfile, getEntityDetails, upsertEntity, upsertProfileField, getLatestPresence,
 } = await freshImport('backend/db/queries/state-memory.js');
 const { getEntityStateValues } = await freshImport('backend/db/queries/session-entity-state-values.js');
 
@@ -640,6 +640,22 @@ test('retire_entity 关闭其参与的关系，但不关闭事项', () => {
   assert.equal(listThreads(session.id).filter((t) => t.status === 'active').length, 1);
   const entity = listCurrentEntities(session.id).find((e) => e.name === '沈彦');
   assert.equal(entity.status, 'retired');
+});
+
+test('set_present 排在 create_entity 前面时，也能按名字引用同一批新建的实体', () => {
+  const { world, session } = setupSession();
+  const existingId = makeEntity(session.id, { name: '沈彦', seq: 1 });
+  const result = applyStateMemoryOps({
+    sessionId: session.id, worldId: world.id, round: 1,
+    ops: [
+      { op: 'set_present', entities: ['e1', '林乔', '不存在的人'] },
+      { op: 'create_entity', name: '林乔', type: 'character' },
+    ],
+    ...noop,
+  });
+  assert.equal(result.applied, 2);
+  const created = listCurrentEntities(session.id).find((e) => e.name === '林乔');
+  assert.deepEqual(getLatestPresence(session.id).entity_ids, [existingId, created.entity_id]);
 });
 
 // ─── 边界：ops 非数组 ─────────────────────────────────────────────

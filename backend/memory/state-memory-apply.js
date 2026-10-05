@@ -379,7 +379,7 @@ function resolveOpEntity(op, ctx) {
   return entityId ? ctx.index.byId.get(entityId) : null;
 }
 
-/** 解析一组实体引用（数组以外一律视为空），供 open_thread 的 participants、set_present 的 entities 共用。 */
+/** 解析一组实体引用（数组以外一律视为空），供 open_thread 的 participants 使用。 */
 function resolveEntityRefList(refs, ctx) {
   return Array.isArray(refs) ? refs.map((ref) => resolveEntityRef(ref, ctx.index)).filter(Boolean) : [];
 }
@@ -602,8 +602,13 @@ function handleSetWorld(op, ctx) {
 }
 
 function handleSetPresent(op, ctx) {
-  const entityIds = resolveEntityRefList(op.entities, ctx);
-  upsertPresence(ctx.sessionId, ctx.round, entityIds);
+  const refs = Array.isArray(op.entities) ? op.entities : [];
+  const entityIds = refs.map((ref) => resolveEntityRef(ref, ctx.index));
+  const unresolved = refs.filter((_, i) => !entityIds[i]);
+  if (unresolved.length > 0) {
+    log.warn(`STATE MEMORY PRESENT SKIP  ${formatMeta({ session: ctx.sessionId.slice(0, 8), refs: unresolved })}`);
+  }
+  upsertPresence(ctx.sessionId, ctx.round, entityIds.filter(Boolean));
   return { ok: true };
 }
 
@@ -646,6 +651,7 @@ function dormantUntouchedThreads(ctx) {
 
 /**
  * 把一批状态记忆操作应用到当前会话，整批包在一个事务里；单条操作失败不影响其他操作。
+ * set_present 放到最后执行，让它能引用同一批里新建的实体。
  * @returns {{ applied: number, rejected: {op: object, reason: string}[] }}
  */
 export function applyStateMemoryOps({ sessionId, worldId, round, ops, turnText, realDate, mainCharacterEntityId }) {
@@ -660,7 +666,9 @@ export function applyStateMemoryOps({ sessionId, worldId, round, ops, turnText, 
       rejected.push({ op, reason });
       log.warn(`STATE MEMORY OP REJECTED  ${formatMeta({ session: sessionId.slice(0, 8), op: op?.op, reason })}`);
     };
-    for (const op of ops) {
+    const isPresenceOp = (op) => op?.op === 'set_present';
+    const ordered = [...ops.filter((op) => !isPresenceOp(op)), ...ops.filter(isPresenceOp)];
+    for (const op of ordered) {
       if (!op || typeof op !== 'object' || typeof op.op !== 'string') {
         reject(op, '操作格式无效');
         continue;
