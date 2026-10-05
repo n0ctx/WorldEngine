@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 
 import { useDanmakuBandStore } from '../state/danmakuBand.js';
 import { createSessionStreamCallbacks } from './sessionStreamCallbacks.js';
@@ -345,7 +345,14 @@ export function useSessionStream({
       },
     };
   }
-  const actions = createSessionStreamActions(getActionRuntime);
+  // 操作函数只建一次、执行时取最新一次提交的运行时：消息条目的 memo 会留住旧回调，
+  // 回调若闭包住渲染时的 generating 等状态，会按过期状态把操作静默拦下
+  const actionRuntimeRef = useRef(getActionRuntime);
+  useLayoutEffect(() => {
+    actionRuntimeRef.current = getActionRuntime;
+  });
+  // eslint-disable-next-line react-hooks/refs -- 只包进操作函数，操作执行时才读取
+  const [actions] = useState(() => createSessionStreamActions(() => actionRuntimeRef.current()));
 
   return {
     currentSession,
