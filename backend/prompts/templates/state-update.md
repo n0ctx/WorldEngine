@@ -51,7 +51,6 @@
 - {"op": "resolve_thread", "thread": "t<seq>", "outcome": "resolved|failed"}　结束一条未完结事项
 - {"op": "retire_entity", "entity": "e<seq>"}　实体永久退场（死亡/消失等）
 - {"op": "set_world", "key": "time|location", "value": "..."}　设置世界档案：当前时间或当前场景地点
-- {"op": "set_present", "entities": ["e<seq>"]}　设置本轮在场实体列表，每轮都应输出，覆盖上一轮；本轮刚用 create_entity 新建的实体还没有编号，直接写它的名字
 
 逐条核对【本轮相关的未了事项】（含标了［搁置］、本轮又被提到的）：本轮事实表明已经完成（交付、兑现、揭晓、冲突平息、威胁解除都算，不要求出现「完成了」）时用 resolve_thread 标 resolved；本轮事实表明做不成、被放弃或各方不再追究时标 failed；只推进了一步、事情还没结束时用 update_thread 改写还差什么，保持进行中。期限到来本身不是结案，没有结果就只更新内容。本轮没有完成、失败或放弃的事实时不结案，不要为了清清单编造结局。
 

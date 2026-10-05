@@ -1,7 +1,7 @@
 /**
  * state-memory-apply.js — 状态记忆操作写入器
  *
- * 把 all-state 调用输出的 `memory` 操作列表、`entity_fields` 补丁应用到状态记忆多版本表。
+ * 把 all-state 调用输出的 `memory` 操作列表、`present` 在场名单、`entity_fields` 补丁应用到状态记忆多版本表。
  * 纯函数部分（引用解析、占位值/字段归属拦截、文本截断）单独导出便于测试；
  * `applyStateMemoryOps` 把一批操作的执行包在一个事务里，单条操作失败不影响其他操作。
  *
@@ -13,6 +13,8 @@
  *   truncateText(text) / truncateListItems(items)
  *   applyStateMemoryOps({ sessionId, worldId, round, ops, turnText, realDate, mainCharacterEntityId })
  *     → { applied: number, rejected: {op, reason}[] }
+ *   applyPresence({ sessionId, round, present })
+ *     → { written: boolean, unresolved: string[] }
  *   applyEntityFields({ sessionId, worldId, entityFields, mainCharacterEntityId })
  *     → { applied: number, rejected: {ref, fieldKey?, reason}[] }
  *   ensureBaseEntities({ sessionId, worldId, round, persona, mainCharacter })
@@ -601,17 +603,6 @@ function handleSetWorld(op, ctx) {
   return { ok: false, reason: `未知世界档案键: ${op.key}` };
 }
 
-function handleSetPresent(op, ctx) {
-  const refs = Array.isArray(op.entities) ? op.entities : [];
-  const entityIds = refs.map((ref) => resolveEntityRef(ref, ctx.index));
-  const unresolved = refs.filter((_, i) => !entityIds[i]);
-  if (unresolved.length > 0) {
-    log.warn(`STATE MEMORY PRESENT SKIP  ${formatMeta({ session: ctx.sessionId.slice(0, 8), refs: unresolved })}`);
-  }
-  upsertPresence(ctx.sessionId, ctx.round, entityIds.filter(Boolean));
-  return { ok: true };
-}
-
 const OP_HANDLERS = {
   create_entity: handleCreateEntity,
   fill_profile: handleFillProfile,
@@ -630,7 +621,6 @@ const OP_HANDLERS = {
   resolve_thread: handleResolveThread,
   retire_entity: handleRetireEntity,
   set_world: handleSetWorld,
-  set_present: handleSetPresent,
 };
 
 /** 进行中事项连续多轮没被对话碰到时搁置。一次查出再写入，不刷新上次触碰轮次。 */
@@ -651,7 +641,6 @@ function dormantUntouchedThreads(ctx) {
 
 /**
  * 把一批状态记忆操作应用到当前会话，整批包在一个事务里；单条操作失败不影响其他操作。
- * set_present 放到最后执行，让它能引用同一批里新建的实体。
  * @returns {{ applied: number, rejected: {op: object, reason: string}[] }}
  */
 export function applyStateMemoryOps({ sessionId, worldId, round, ops, turnText, realDate, mainCharacterEntityId }) {
@@ -666,9 +655,7 @@ export function applyStateMemoryOps({ sessionId, worldId, round, ops, turnText, 
       rejected.push({ op, reason });
       log.warn(`STATE MEMORY OP REJECTED  ${formatMeta({ session: sessionId.slice(0, 8), op: op?.op, reason })}`);
     };
-    const isPresenceOp = (op) => op?.op === 'set_present';
-    const ordered = [...ops.filter((op) => !isPresenceOp(op)), ...ops.filter(isPresenceOp)];
-    for (const op of ordered) {
+    for (const op of ops) {
       if (!op || typeof op !== 'object' || typeof op.op !== 'string') {
         reject(op, '操作格式无效');
         continue;
@@ -692,6 +679,25 @@ export function applyStateMemoryOps({ sessionId, worldId, round, ops, turnText, 
     }
     return { applied, rejected };
   });
+}
+
+/**
+ * 写入本轮在场名单（all-state 输出的顶层 `present`）。在 memory 操作之后调用，
+ * 才能按名字引用同一批新建的实体；模型没给数组时不写，沿用上一轮名单。
+ * @returns {{ written: boolean, unresolved: string[] }}
+ */
+export function applyPresence({ sessionId, round, present }) {
+  const session = sessionId.slice(0, 8);
+  if (!Array.isArray(present)) {
+    log.warn(`STATE MEMORY PRESENT MISSING  ${formatMeta({ session })}`);
+    return { written: false, unresolved: [] };
+  }
+  const index = buildEntityIndex(listCurrentEntities(sessionId));
+  const entityIds = present.map((ref) => resolveEntityRef(ref, index));
+  const unresolved = present.filter((_, i) => !entityIds[i]);
+  if (unresolved.length > 0) log.warn(`STATE MEMORY PRESENT SKIP  ${formatMeta({ session, refs: unresolved })}`);
+  upsertPresence(sessionId, round, entityIds.filter(Boolean));
+  return { written: true, unresolved };
 }
 
 /**

@@ -16,7 +16,7 @@ after(() => sandbox.cleanup());
 const {
   resolveEntityRef, resolveSeqRef, buildEntityIndex, normalizeEvidence,
   isFieldOwnedByUserField, truncateText, truncateListItems,
-  applyStateMemoryOps, applyEntityFields, ensureBaseEntities,
+  applyStateMemoryOps, applyPresence, applyEntityFields, ensureBaseEntities,
 } = await freshImport('backend/memory/state-memory-apply.js');
 const {
   listCurrentEntities, listCurrentRelations, listThreads, listActiveThreads,
@@ -642,20 +642,28 @@ test('retire_entity 关闭其参与的关系，但不关闭事项', () => {
   assert.equal(entity.status, 'retired');
 });
 
-test('set_present 排在 create_entity 前面时，也能按名字引用同一批新建的实体', () => {
+test('applyPresence 在 memory 操作之后写入：能按名字引用同一批新建的实体，解析不到的引用跳过', () => {
   const { world, session } = setupSession();
   const existingId = makeEntity(session.id, { name: '沈彦', seq: 1 });
-  const result = applyStateMemoryOps({
+  applyStateMemoryOps({
     sessionId: session.id, worldId: world.id, round: 1,
-    ops: [
-      { op: 'set_present', entities: ['e1', '林乔', '不存在的人'] },
-      { op: 'create_entity', name: '林乔', type: 'character' },
-    ],
+    ops: [{ op: 'create_entity', name: '林乔', type: 'character' }],
     ...noop,
   });
-  assert.equal(result.applied, 2);
+  const result = applyPresence({ sessionId: session.id, round: 1, present: ['e1', '林乔', '不存在的人'] });
+  assert.deepEqual(result, { written: true, unresolved: ['不存在的人'] });
   const created = listCurrentEntities(session.id).find((e) => e.name === '林乔');
   assert.deepEqual(getLatestPresence(session.id).entity_ids, [existingId, created.entity_id]);
+});
+
+test('applyPresence 没给数组时不写，沿用上一轮名单；给空数组时清空', () => {
+  const { session } = setupSession();
+  const existingId = makeEntity(session.id, { name: '沈彦', seq: 1 });
+  applyPresence({ sessionId: session.id, round: 1, present: ['e1'] });
+  assert.equal(applyPresence({ sessionId: session.id, round: 2, present: undefined }).written, false);
+  assert.deepEqual(getLatestPresence(session.id), { round_index: 1, entity_ids: [existingId] });
+  applyPresence({ sessionId: session.id, round: 3, present: [] });
+  assert.deepEqual(getLatestPresence(session.id), { round_index: 3, entity_ids: [] });
 });
 
 // ─── 边界：ops 非数组 ─────────────────────────────────────────────
@@ -663,7 +671,7 @@ test('set_present 排在 create_entity 前面时，也能按名字引用同一�
 test('ops 不是数组时整体忽略', () => {
   const { world, session } = setupSession();
   const result = applyStateMemoryOps({
-    sessionId: session.id, worldId: world.id, round: 1, ops: { op: 'set_present', entities: [] },
+    sessionId: session.id, worldId: world.id, round: 1, ops: { op: 'set_world', key: 'time', value: '1000-03-15T14:30' },
     ...noop,
   });
   assert.deepEqual(result, { applied: 0, rejected: [] });

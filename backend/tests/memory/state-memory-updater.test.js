@@ -36,7 +36,7 @@ function snapshotStateMemoryCounts(sessionId) {
   return Object.fromEntries(STATE_MEMORY_TABLES.map((table) => [table, countRows(table, sessionId)]));
 }
 
-test('一次调用同时写用户字段和状态记忆：create_entity 带证据、set_present、set_world time', async () => {
+test('一次调用同时写用户字段和状态记忆：create_entity 带证据、set_world time、present 在场名单', async () => {
   resetMockEnv();
   const world = insertWorld(sandbox.db, { name: '边境' });
   const character = insertCharacter(sandbox.db, world.id, { name: '诺亚' });
@@ -50,9 +50,9 @@ test('一次调用同时写用户字段和状态记忆：create_entity 带证据
     entity_fields: {},
     memory: [
       { op: 'create_entity', name: '向导', type: 'character', evidence: '我们在森林边缘遇到了一位向导' },
-      { op: 'set_present', entities: ['e1'] },
       { op: 'set_world', key: 'time', value: '1000-03-15T14:30' },
     ],
+    present: ['e1', '向导'],
   });
 
   const { updateAllStates } = await freshImport('backend/memory/combined-state-updater.js');
@@ -74,7 +74,7 @@ test('一次调用同时写用户字段和状态记忆：create_entity 带证据
 
   const presence = getLatestPresence(session.id);
   const player = entities.find((e) => e.type === 'player');
-  assert.ok(presence.entity_ids.includes(player.entity_id));
+  assert.deepEqual(presence.entity_ids, [player.entity_id, guide.entity_id]);
 });
 
 test('首次运行建好 player/主角色实体（对话模式）；写作模式只建 player', async () => {

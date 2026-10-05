@@ -32,7 +32,7 @@ import {
   writeRealDateWorldTime, resolveRelevantEntityIds, buildRuntimeUserPrompt,
   resolvePersona,
 } from './state-update-context.js';
-import { applyStateMemoryOps, applyEntityFields } from './state-memory-apply.js';
+import { applyStateMemoryOps, applyPresence, applyEntityFields } from './state-memory-apply.js';
 
 const log = createLogger('all-state');
 
@@ -119,7 +119,8 @@ function buildStateUpdateExampleKeys(worldActiveFields, charactersWithFields, pe
     charactersWithFields[0] ? '"char_0": {"mood": "开心"}' : null,
     personaActiveFields.length > 0 ? '"persona": {"health": 85}' : null,
     '"entity_fields": {"e3": {"favor": 60}}',
-    '"memory": [{"op": "set_world", "key": "time", "value": "1000-03-15T14:30"}, {"op": "set_present", "entities": ["e1", "e3"]}]',
+    '"memory": [{"op": "set_world", "key": "time", "value": "1000-03-15T14:30"}]',
+    '"present": ["e1", "e3"]',
   ]
     .filter(Boolean)
     .join(', ');
@@ -252,10 +253,11 @@ async function writeStatePatch(patch, { sid, sessionId, worldId, world, targets,
   writeCharacterStates(patch, { sessionId, charSchemaFields, charactersWithFields, charValueMaps });
   writePersonaState(patch, { sessionId, worldId, world, personaActiveFields, personaValueMap });
 
-  // ── 状态记忆：实体档案/动态状态/关系/事项（memory）+ NPC 用户字段补丁（entity_fields） ──
+  // ── 状态记忆：实体档案/动态状态/关系/事项（memory）+ 在场名单（present）+ NPC 用户字段补丁（entity_fields） ──
   const memoryResult = applyStateMemoryOps({
     sessionId, worldId, round, ops: patch.memory, turnText, realDate, mainCharacterEntityId,
   });
+  const presenceResult = applyPresence({ sessionId, round, present: patch.present });
   const entityFieldsResult = applyEntityFields({
     sessionId, worldId, entityFields: patch.entity_fields, mainCharacterEntityId,
   });
@@ -263,6 +265,7 @@ async function writeStatePatch(patch, { sid, sessionId, worldId, world, targets,
     session: sid,
     memoryApplied: memoryResult.applied,
     memoryRejected: memoryResult.rejected.length,
+    presentWritten: presenceResult.written,
     entityFieldsApplied: entityFieldsResult.applied,
     entityFieldsRejected: entityFieldsResult.rejected.length,
   })}`);
@@ -314,6 +317,7 @@ export async function updateAllStates(worldId, characterIds, sessionId) {
   responseKeys.push(
     '"entity_fields"（NPC 用户字段补丁，无更新时返回 {}）',
     '"memory"（状态记忆操作数组，无变化时返回 []）',
+    '"present"（本轮在场实体列表，每轮必填，覆盖上一轮；写 e<seq> 编号，本轮刚用 create_entity 新建的实体写名字；无人在场时返回 []）',
   );
 
   // 对话上下文：取最近 4 条（2 轮），分"上一轮"/"本轮"打标签（用第一个角色名，没有则"角色"）
