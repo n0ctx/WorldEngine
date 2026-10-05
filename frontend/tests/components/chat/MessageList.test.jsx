@@ -167,10 +167,11 @@ describe('MessageList 的分页', () => {
     const onPageInfoChange = vi.fn();
     await renderList({ prose: false, pageTurnSize: 2, onPageInfoChange });
 
-    // 10 条 / 每页 4 条 = 3 页；followLast 默认窗口 1 页 = 末尾 4 条（m7-m10）
-    await waitFor(() => expect(screen.getAllByTestId('bubble')).toHaveLength(4));
+    // 10 条 / 每页 4 条 = 3 页；末页按页对齐 = m9-m10
+    await waitFor(() => expect(screen.getAllByTestId('bubble')).toHaveLength(2));
     await waitFor(() => expect(onPageInfoChange).toHaveBeenLastCalledWith({ totalPages: 3, currentPage: 2 }));
-    expect(screen.getByText('内容7')).toBeTruthy();
+    expect(screen.getByText('内容9')).toBeTruthy();
+    expect(screen.queryByText('内容8')).toBeNull();
   });
 
   it('多页会话初次加载直接贴底，不先跳到页顶', async () => {
@@ -190,7 +191,7 @@ describe('MessageList 的分页', () => {
       writes.length = 0;
 
       await act(async () => { resolveMessages(makeMessages(10)); });
-      await waitFor(() => expect(screen.getAllByTestId('bubble')).toHaveLength(4));
+      await waitFor(() => expect(screen.getAllByTestId('bubble')).toHaveLength(2));
       while (frames.length) frames.shift()();
       expect(writes).toEqual([999]);
     } finally {
@@ -225,8 +226,7 @@ describe('MessageList 的分页', () => {
     mocks.getMessages.mockResolvedValue(makeMessages(10));
     const onPageInfoChange = vi.fn();
     const { ref } = await renderList({ prose: false, pageTurnSize: 2, onPageInfoChange });
-    // followLast 默认窗口 = 末尾 4 条（m7-m10）
-    await waitFor(() => expect(screen.getAllByTestId('bubble')).toHaveLength(4));
+    await waitFor(() => expect(screen.getAllByTestId('bubble')).toHaveLength(2));
 
     act(() => ref.current.setPage(0));
     await waitFor(() => expect(screen.getAllByTestId('bubble')).toHaveLength(4));
@@ -248,20 +248,48 @@ describe('MessageList 的分页', () => {
     mocks.getMessages.mockResolvedValue(makeMessages(10));
     await renderList({ prose: false, pageTurnSize: 2 });
 
-    // 默认窗口 = 最后一页 4 条（m7-m10），顶部给出加载更早入口
-    await waitFor(() => expect(screen.getAllByTestId('bubble')).toHaveLength(4));
-    expect(screen.getByText('内容7')).toBeTruthy();
-    expect(screen.queryByText('内容4')).toBeNull();
+    // 默认窗口 = 最后一页（m9-m10），顶部给出加载更早入口
+    await waitFor(() => expect(screen.getAllByTestId('bubble')).toHaveLength(2));
+    expect(screen.getByText('内容9')).toBeTruthy();
+    expect(screen.queryByText('内容8')).toBeNull();
     expect(screen.queryByText('— 对话开始 —')).toBeNull();
 
+    // 向上扩大一整页（m5-m8）
     fireEvent.click(screen.getByText('加载更早消息'));
-    await waitFor(() => expect(screen.getAllByTestId('bubble')).toHaveLength(8));
-    expect(screen.getByText('内容3')).toBeTruthy();
+    await waitFor(() => expect(screen.getAllByTestId('bubble')).toHaveLength(6));
+    expect(screen.getByText('内容5')).toBeTruthy();
+    expect(screen.queryByText('内容4')).toBeNull();
 
     // 再点一次覆盖全部历史，入口消失、恢复「对话开始」标记
     fireEvent.click(screen.getByText('加载更早消息'));
     await waitFor(() => expect(screen.getByText('— 对话开始 —')).toBeTruthy());
     expect(screen.queryByText('加载更早消息')).toBeNull();
+  });
+
+  it('新消息开出新页时只显示新页，不带上一页的内容', async () => {
+    mocks.getMessages.mockResolvedValue(makeMessages(8));
+    const onPageInfoChange = vi.fn();
+    const { ref } = await renderList({ prose: true, pageTurnSize: 2, chapterTurnSize: 10, onPageInfoChange });
+    await waitFor(() => expect(screen.getAllByTestId('prose')).toHaveLength(4));
+
+    act(() => ref.current.appendMessage({ id: 'm9', role: 'user', content: '内容9', created_at: 9 }));
+    await waitFor(() => expect(onPageInfoChange).toHaveBeenLastCalledWith({ totalPages: 3, currentPage: 2 }));
+    expect(screen.getAllByTestId('prose')).toHaveLength(1);
+    expect(screen.getByText('内容9')).toBeTruthy();
+  });
+
+  it('翻回末页时只显示末页，不沿用展开过的更早窗口', async () => {
+    mocks.getMessages.mockResolvedValue(makeMessages(10));
+    const { ref } = await renderList({ prose: false, pageTurnSize: 2 });
+    await waitFor(() => expect(screen.getAllByTestId('bubble')).toHaveLength(2));
+    fireEvent.click(screen.getByText('加载更早消息'));
+    await waitFor(() => expect(screen.getAllByTestId('bubble')).toHaveLength(6));
+
+    act(() => ref.current.setPage(1));
+    await waitFor(() => expect(screen.getByText('内容5')).toBeTruthy());
+    act(() => ref.current.setPage(2));
+    await waitFor(() => expect(screen.getAllByTestId('bubble')).toHaveLength(2));
+    expect(screen.getByText('内容9')).toBeTruthy();
   });
 });
 

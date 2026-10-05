@@ -124,6 +124,8 @@ export default function useMessageListState(ref, {
     updateMessages: (updater) => setMessages(updater),
     setPage: (idx) => {
       const safe = Number.isFinite(idx) ? Math.max(0, Math.floor(idx)) : 0;
+      // 翻回末页时只显示末页本身，不沿用之前「加载更早消息」展开的窗口
+      resetWindow();
       setPageAnchor({ idx: safe, followLast: safe >= (lastPageIdxRef.current ?? 0) });
     },
     freezeOptions: (frozenOptions, selectedIndex, collapsed) => {
