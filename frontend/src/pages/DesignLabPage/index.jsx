@@ -51,18 +51,21 @@ export default function DesignLabPage() {
   const [accent, setAccent] = useState(ACCENTS[0].color);
   const [themeId, setThemeId] = useState(DEFAULT_THEME_ID);
 
+  // 离开时等配置读到再恢复：开发期 StrictMode 挂载后立即卸载一次，此时配置还没到，不能先套默认值
   useEffect(() => {
-    let configured = { theme: DEFAULT_THEME_ID, motion: undefined };
+    const configured = getConfig()
+      .then((config) => ({ theme: config.ui?.theme || DEFAULT_THEME_ID, motion: config.ui?.motion }))
+      .catch(() => ({ theme: DEFAULT_THEME_ID, motion: undefined }));
     let cancelled = false;
-    getConfig().then((config) => {
-      if (cancelled) return;
-      configured = { theme: config.ui?.theme || DEFAULT_THEME_ID, motion: config.ui?.motion };
-      setThemeId(configured.theme);
-    }).catch(() => {});
+    configured.then(({ theme }) => {
+      if (!cancelled) setThemeId(theme);
+    });
     return () => {
       cancelled = true;
-      setMotionPack(configured.motion);
-      applyVisualTheme(configured.theme);
+      configured.then(({ theme, motion }) => {
+        setMotionPack(motion);
+        applyVisualTheme(theme);
+      });
     };
   }, []);
 

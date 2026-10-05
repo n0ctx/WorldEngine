@@ -1,4 +1,5 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { StrictMode } from 'react';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -54,6 +55,18 @@ describe('DesignLabPage', () => {
     unmount();
     await waitFor(() => expect(themesApi.applyVisualTheme).toHaveBeenLastCalledWith('nocturne'));
     expect(getMotionPack().id).toBe('liquid');
+  });
+
+  it('StrictMode 下的挂载即卸载不把主题和动效换回默认', async () => {
+    configApi.getConfig.mockResolvedValue({ ui: { theme: 'neon-noir', motion: 'signal' } });
+    setMotionPack('signal');
+    render(<StrictMode><MemoryRouter><DesignLabPage /></MemoryRouter></StrictMode>);
+
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Neon Noir' })).toHaveAttribute('aria-pressed', 'true'));
+    await waitFor(() => expect(themesApi.applyVisualTheme).toHaveBeenCalled());
+    expect(themesApi.applyVisualTheme).not.toHaveBeenCalledWith('nocturne');
+    expect(themesApi.applyVisualTheme).toHaveBeenLastCalledWith('neon-noir');
+    expect(getMotionPack().id).toBe('signal');
   });
 
   it('草稿主题直接套用草稿里的 CSS：不写配置，离开时恢复设置里的主题', async () => {
