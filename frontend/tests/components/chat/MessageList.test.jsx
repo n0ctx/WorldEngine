@@ -244,26 +244,20 @@ describe('MessageList 的分页', () => {
     await waitFor(() => expect(screen.queryByTestId('active-options')).toBeNull());
   });
 
-  it('末页窗口只渲染末尾一页，点「加载更早消息」向上扩大窗口', async () => {
-    mocks.getMessages.mockResolvedValue(makeMessages(10));
-    await renderList({ prose: false, pageTurnSize: 2 });
+  it('末页整页渲染，没有「加载更早消息」；只有第一页标「对话开始」', async () => {
+    mocks.getMessages.mockResolvedValue(makeMessages(130));
+    const { ref } = await renderList({ prose: false, pageTurnSize: 50 });
 
-    // 默认窗口 = 最后一页（m9-m10），顶部给出加载更早入口
-    await waitFor(() => expect(screen.getAllByTestId('bubble')).toHaveLength(2));
-    expect(screen.getByText('内容9')).toBeTruthy();
-    expect(screen.queryByText('内容8')).toBeNull();
+    // 130 条 / 每页 100 条：末页 m101-m130 整页渲染，不拼入上一页
+    await waitFor(() => expect(screen.getAllByTestId('bubble')).toHaveLength(30));
+    expect(screen.getByText('内容101')).toBeTruthy();
+    expect(screen.queryByText('内容100')).toBeNull();
+    expect(screen.queryByText('加载更早消息')).toBeNull();
     expect(screen.queryByText('— 对话开始 —')).toBeNull();
 
-    // 向上扩大一整页（m5-m8）
-    fireEvent.click(screen.getByText('加载更早消息'));
-    await waitFor(() => expect(screen.getAllByTestId('bubble')).toHaveLength(6));
-    expect(screen.getByText('内容5')).toBeTruthy();
-    expect(screen.queryByText('内容4')).toBeNull();
-
-    // 再点一次覆盖全部历史，入口消失、恢复「对话开始」标记
-    fireEvent.click(screen.getByText('加载更早消息'));
-    await waitFor(() => expect(screen.getByText('— 对话开始 —')).toBeTruthy());
-    expect(screen.queryByText('加载更早消息')).toBeNull();
+    act(() => ref.current.setPage(0));
+    await waitFor(() => expect(screen.getAllByTestId('bubble')).toHaveLength(100));
+    expect(screen.getByText('— 对话开始 —')).toBeTruthy();
   });
 
   it('新消息开出新页时只显示新页，不带上一页的内容', async () => {
@@ -275,20 +269,6 @@ describe('MessageList 的分页', () => {
     act(() => ref.current.appendMessage({ id: 'm9', role: 'user', content: '内容9', created_at: 9 }));
     await waitFor(() => expect(onPageInfoChange).toHaveBeenLastCalledWith({ totalPages: 3, currentPage: 2 }));
     expect(screen.getAllByTestId('prose')).toHaveLength(1);
-    expect(screen.getByText('内容9')).toBeTruthy();
-  });
-
-  it('翻回末页时只显示末页，不沿用展开过的更早窗口', async () => {
-    mocks.getMessages.mockResolvedValue(makeMessages(10));
-    const { ref } = await renderList({ prose: false, pageTurnSize: 2 });
-    await waitFor(() => expect(screen.getAllByTestId('bubble')).toHaveLength(2));
-    fireEvent.click(screen.getByText('加载更早消息'));
-    await waitFor(() => expect(screen.getAllByTestId('bubble')).toHaveLength(6));
-
-    act(() => ref.current.setPage(1));
-    await waitFor(() => expect(screen.getByText('内容5')).toBeTruthy());
-    act(() => ref.current.setPage(2));
-    await waitFor(() => expect(screen.getAllByTestId('bubble')).toHaveLength(2));
     expect(screen.getByText('内容9')).toBeTruthy();
   });
 });

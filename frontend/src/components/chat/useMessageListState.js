@@ -1,7 +1,6 @@
 import { startTransition, useRef, useEffect, useLayoutEffect, useState, useCallback, useMemo, useImperativeHandle, useEffectEvent } from 'react';
 import { getMessages } from '../../core/api/sessions.js';
 import { log } from '../../core/utils/logger.js';
-import useRenderWindow from './useRenderWindow.js';
 import useSettledNotice from './useSettledNotice.js';
 
 // 按消息的顶部留白定位到列表顶部
@@ -56,11 +55,12 @@ export default function useMessageListState(ref, {
   const totalPages = Math.max(1, Math.ceil(messages.length / pageSize));
   const lastPageIdx = totalPages - 1;
   const currentPage = pageAnchor.followLast ? lastPageIdx : Math.min(pageAnchor.idx, lastPageIdx);
-  const { pageMessages, hasEarlierMessages, loadEarlierMessages, resetWindow } = useRenderWindow(listRef, {
-    messages, pageSize, followLast: pageAnchor.followLast, currentPage,
-  });
+  const pageMessages = useMemo(
+    () => messages.slice(currentPage * pageSize, (currentPage + 1) * pageSize),
+    [messages, currentPage, pageSize],
+  );
 
-  // 加载会话消息。切换会话时旧会话的消息留在原处，新消息到达后与翻页锚点、渲染窗口一起整体换上，
+  // 加载会话消息。切换会话时旧会话的消息留在原处，新消息到达后与翻页锚点一起整体换上，
   // 中间不出现空白或骨架；翻页锚点必须随之重置，避免沿用旧会话的页码停在中间历史
   useEffect(() => {
     let cancelled = false;
@@ -69,7 +69,6 @@ export default function useMessageListState(ref, {
       const timeoutId = setTimeout(() => {
         if (cancelled) return;
         setPageAnchor({ idx: 0, followLast: true });
-        resetWindow();
         setMessages([]);
         setLoadedSessionId(null);
         setLoadError(null);
@@ -98,7 +97,6 @@ export default function useMessageListState(ref, {
         // 长会话一次要解析整页 Markdown：放进过渡更新分片渲染，期间旧内容与侧栏动效照常走帧，渲染完再一起换上
         startTransition(() => {
           setPageAnchor({ idx: 0, followLast: true });
-          resetWindow();
           setMessages(hydrated);
           setLoadedSessionId(sessionId);
           handleMessagesLoaded(hydrated);
@@ -116,7 +114,7 @@ export default function useMessageListState(ref, {
     return () => {
       cancelled = true;
     };
-  }, [sessionId, reloadToken, resetWindow]);
+  }, [sessionId, reloadToken]);
 
 
   useImperativeHandle(ref, () => ({
@@ -124,8 +122,6 @@ export default function useMessageListState(ref, {
     updateMessages: (updater) => setMessages(updater),
     setPage: (idx) => {
       const safe = Number.isFinite(idx) ? Math.max(0, Math.floor(idx)) : 0;
-      // 翻回末页时只显示末页本身，不沿用之前「加载更早消息」展开的窗口
-      resetWindow();
       setPageAnchor({ idx: safe, followLast: safe >= (lastPageIdxRef.current ?? 0) });
     },
     freezeOptions: (frozenOptions, selectedIndex, collapsed) => {
@@ -217,8 +213,7 @@ export default function useMessageListState(ref, {
     reload: () => setReloadToken((token) => token + 1),
     pageMessages,
     onLastPage,
-    hasEarlierMessages,
-    loadEarlierMessages,
+    onFirstPage: currentPage === 0,
     handleJumpToMessage,
     awayFromBottom,
     syncAwayFromBottom,

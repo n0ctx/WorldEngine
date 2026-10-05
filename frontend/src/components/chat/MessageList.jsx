@@ -1,7 +1,6 @@
 import { forwardRef } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { IconArrowDown } from '../ui/icons.jsx';
-import Button from '../ui/Button.jsx';
 import IconButton from '../ui/IconButton.jsx';
 import { useMotion } from '../../core/hooks/useMotion.js';
 import ProximityRail from '../motion/ProximityRail.jsx';
@@ -45,7 +44,7 @@ const MessageList = forwardRef(function MessageList({
 }, ref) {
   const {
     listRef, messages, loadedSessionId, loading, stale, loadError, reload, pageMessages, onLastPage,
-    hasEarlierMessages, loadEarlierMessages, handleJumpToMessage,
+    onFirstPage, handleJumpToMessage,
     awayFromBottom, syncAwayFromBottom, scrollPageToBottom,
   } = useMessageListState(ref, {
     sessionId, onMessagesLoaded, pageTurnSize, onPageInfoChange, onSettled, generating, continuingMessageId,
@@ -70,16 +69,8 @@ const MessageList = forwardRef(function MessageList({
     <div className="relative flex-1 min-h-0">
     {/* 切换会话、新消息未到时仍显示上一个会话，这期间不可操作 */}
     <div ref={listRef} onScroll={(event) => { syncAwayFromBottom(event); onScroll?.(event); }} className="we-chat-area absolute inset-0 overflow-y-auto px-3 pt-2 pb-4" inert={stale} aria-busy={stale}>
-      {hasEarlierMessages ? (
-        <div className="text-center py-2">
-          <Button type="button" variant="text" size="sm" onClick={loadEarlierMessages}>
-            加载更早消息
-          </Button>
-        </div>
-      ) : (
-        messages.length > 0 && (
-          <div className="text-center we-type-caption text-[var(--we-color-text-faint)] py-2">— 对话开始 —</div>
-        )
+      {onFirstPage && messages.length > 0 && (
+        <div className="text-center we-type-caption text-[var(--we-color-text-faint)] py-2">— 对话开始 —</div>
       )}
 
       {messages.length === 0 && !generating && (
