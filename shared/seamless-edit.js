@@ -8,14 +8,22 @@ function autoSizeTextarea(element) {
   return nextHeight;
 }
 
+// 量出的尺寸要回写成 CSS 宽高，只能取布局尺寸：getBoundingClientRect 含祖先 transform 缩放与 zoom，
+// 回写后 ResizeObserver 再量一次就再乘一次，编辑框会逐帧变宽或变窄
+function layoutSize(element) {
+  const style = getComputedStyle(element);
+  return {
+    width: Math.ceil(parseFloat(style.width) || 0),
+    height: Math.ceil(parseFloat(style.height) || 0),
+  };
+}
+
 function measureEditorHeight(element) {
   if (!element) return 0;
   if (element.tagName === 'TEXTAREA') {
-    return autoSizeTextarea(element) || Math.ceil(element.scrollHeight || element.getBoundingClientRect().height);
+    return autoSizeTextarea(element) || Math.ceil(element.scrollHeight || layoutSize(element).height);
   }
-  const rectHeight = Math.ceil(element.getBoundingClientRect().height || 0);
-  const scrollHeight = Math.ceil(element.scrollHeight || 0);
-  return Math.max(rectHeight, scrollHeight);
+  return Math.max(layoutSize(element).height, Math.ceil(element.scrollHeight || 0));
 }
 
 export function useSeamlessEditLayout({
@@ -31,18 +39,14 @@ export function useSeamlessEditLayout({
     const anchor = anchorRef.current;
     const editor = editorRef.current;
     const nextStyle = {};
+    const anchorSize = anchor ? layoutSize(anchor) : { width: 0, height: 0 };
 
-    if (anchor) {
-      const width = Math.ceil(anchor.getBoundingClientRect().width);
-      const height = Math.ceil(anchor.getBoundingClientRect().height);
-      if (width > 0) nextStyle.width = `${width}px`;
-      if (height > 0) nextStyle.minHeight = `${height}px`;
-    }
+    if (anchorSize.width > 0) nextStyle.width = `${anchorSize.width}px`;
+    if (anchorSize.height > 0) nextStyle.minHeight = `${anchorSize.height}px`;
 
     if (editor) {
       const editorHeight = measureEditorHeight(editor);
-      const anchorHeight = anchor ? Math.ceil(anchor.getBoundingClientRect().height) : 0;
-      const nextHeight = Math.max(anchorHeight, editorHeight);
+      const nextHeight = Math.max(anchorSize.height, editorHeight);
       if (nextHeight > 0) nextStyle.minHeight = `${nextHeight}px`;
     }
 

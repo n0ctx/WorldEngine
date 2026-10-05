@@ -46,6 +46,41 @@ describe('MessageItem', () => {
     expect(screen.getByText('确认')).toBeInTheDocument();
   });
 
+  it('祖先缩放或页面缩放时，编辑框宽度按布局尺寸锁定，不随测量放大', () => {
+    let notifyResize;
+    const PrevResizeObserver = global.ResizeObserver;
+    global.ResizeObserver = class {
+      constructor(callback) { notifyResize = callback; }
+      observe() {}
+      disconnect() {}
+    };
+    const rectSpy = vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect')
+      .mockReturnValue({ width: 375, height: 50, top: 0, left: 0, right: 375, bottom: 50 });
+
+    try {
+      const { container } = render(
+        <MessageItem
+          message={{ id: 'msg-1', role: 'user', content: '一句话', created_at: '2026-05-14T09:30:00.000Z' }}
+          persona={{ name: '玩家' }}
+          character={null}
+          worldId="world-1"
+          isStreaming={false}
+          streamingText=""
+          onEdit={vi.fn()}
+        />
+      );
+      fireEvent.click(screen.getByRole('button', { name: '编辑消息' }));
+      container.querySelector('.we-seamless-edit__anchor').style.width = '300px';
+      act(() => notifyResize());
+      act(() => notifyResize());
+
+      expect(container.querySelector('.we-seamless-edit__surface').style.width).toBe('300px');
+    } finally {
+      rectSpy.mockRestore();
+      global.ResizeObserver = PrevResizeObserver;
+    }
+  });
+
   it('用户消息保留 HTML 清洗、附件预览、复制和删除确认', () => {
     const onDelete = vi.fn();
     const writeText = vi.fn();
