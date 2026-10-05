@@ -34,7 +34,7 @@ export default function AuxLlmBlock({ providers, config, onProviderChange, onBas
     }
   }
 
-  const { isLocal, needsBaseUrl, providerHint, thinkingOptions, isModelDrivenThinking } =
+  const { isLocal, needsBaseUrl, providerHint, thinkingOptions } =
     getProviderDisplaySettings(config.provider, onThinkingLevelChange);
 
   return (
@@ -116,12 +116,6 @@ export default function AuxLlmBlock({ providers, config, onProviderChange, onBas
             onChange={(v) => onThinkingLevelChange(v || null)}
             options={[{ value: '', label: '自动（模型默认）' }, ...thinkingOptions]}
           />
-        </FormGroup>
-      )}
-
-      {isModelDrivenThinking && (
-        <FormGroup label="思考强度" hint="这家服务商由模型自己决定是否思考（如 kimi-k2-thinking / minimax-m2），这里不能切换。" variant="settings">
-          <Input value="模型驱动" disabled readOnly />
         </FormGroup>
       )}
 

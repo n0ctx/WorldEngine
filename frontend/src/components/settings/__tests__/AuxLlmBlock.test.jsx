@@ -69,16 +69,17 @@ describe('AuxLlmBlock', () => {
     expect(await screen.findByText('连接失败：API Key 无效')).toBeInTheDocument();
   });
 
-  it('Kimi 显示模型驱动的思考链状态', () => {
+  it('Kimi 显示思考强度档位', () => {
     renderAuxLlmBlock({ provider: 'kimi', has_key: true, model: '' });
 
-    expect(screen.getByDisplayValue('模型驱动')).toBeDisabled();
+    expect(screen.getByText('思考强度')).toBeInTheDocument();
+    expect(screen.getByText('自动（模型默认）')).toBeInTheDocument();
   });
 
   it('展示 provider 专属提示和思考档位', () => {
     const { unmount } = renderAuxLlmBlock({ provider: 'xiaomi', has_key: true, model: '' });
-    expect(screen.getByText(/小米官方模型接口/)).toBeInTheDocument();
-    expect(screen.getByText('打开小米开放平台')).toBeInTheDocument();
+    expect(screen.getByText(/小米 MiMo 官方接口/)).toBeInTheDocument();
+    expect(screen.getByText('查看 MiMo 接口文档')).toBeInTheDocument();
     unmount();
 
     renderAuxLlmBlock({ provider: 'openai', has_key: true, model: '' });

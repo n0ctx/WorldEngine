@@ -37,8 +37,8 @@ const DEFAULT_BASE_URLS = {
 };
 
 // 统一拼 /v1/chat/completions 请求体，并按 provider 注入 thinking/effort 字段。
-// llamacpp 的 effort_* → reasoning_effort（按请求覆盖 server 默认值）；
-// ollama / lmstudio 在 thinking.js 走 default 分支，不写任何字段，行为不变。
+// ollama / llamacpp 的思考档位按 thinking.js 写入（按请求覆盖 server 默认值）；
+// lmstudio 的兼容接口不认思考参数，走 default 分支不写任何字段。
 function buildLocalChatBody({ messages, stream, extra = {} }, config) {
   const body = {
     model: config.model,

@@ -135,11 +135,14 @@ export const STATE_NAME_MATCH_MIN = 2;
 export const THREAD_DORMANT_AFTER_ROUNDS = 12;
 
 // ============================
-// Anthropic / Gemini extended thinking budget
+// 思考强度档位与预算（前后端共享单一来源）
 // ============================
-export const LLM_THINKING_BUDGET_LOW    = 1024;
-export const LLM_THINKING_BUDGET_MEDIUM = 8192;
-export const LLM_THINKING_BUDGET_HIGH   = 16384;
+export {
+  THINKING_BUDGET_LOW,
+  THINKING_BUDGET_MEDIUM,
+  THINKING_BUDGET_HIGH,
+  isThinkingLevelSupported,
+} from '../../shared/thinking-levels.mjs';
 
 // ============================
 // 章节分组与翻页（前后端共享单一来源，互相解耦）

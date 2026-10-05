@@ -39,6 +39,27 @@ test('动效包默认墨流；保存与读取时未知的动效包都回落默�
   assert.equal(sandbox.readConfig().ui.motion, 'liquid');
 });
 
+test('思考档位：保存与读取时，当前服务商不支持的档位都回到自动', () => {
+  fs.rmSync(sandbox.configPath, { force: true });
+  updateConfig({ llm: { provider: 'kimi-coding', thinking_level: 'effort_max' } });
+  assert.equal(getConfig().llm.thinking_level, 'effort_max');
+
+  const switched = updateConfig({ llm: { provider: 'grok' } });
+  assert.equal(switched.llm.thinking_level, null);
+  assert.equal(updateConfig({ llm: { thinking_level: 'effort_xhigh' } }).llm.thinking_level, 'effort_xhigh');
+
+  sandbox.writeConfig({
+    llm: { provider: 'xiaomi', model: 'mimo', thinking_level: 'effort_high' },
+    aux_llm: { provider: 'anthropic', model: 'claude', thinking_level: 'budget_low' },
+    writing: { llm: { provider: null, thinking_level: 'none' } },
+  });
+  const config = getConfig();
+  assert.equal(config.llm.thinking_level, null);
+  assert.equal(config.aux_llm.thinking_level, 'budget_low');
+  assert.equal(config.writing.llm.thinking_level, null);
+  assert.equal(sandbox.readConfig().llm.thinking_level, null);
+});
+
 test('对话和写作的行为配置分别保存', () => {
   fs.rmSync(sandbox.configPath, { force: true });
   updateConfig({

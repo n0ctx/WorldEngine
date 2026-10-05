@@ -1,4 +1,9 @@
-import { OLLAMA_DEFAULT_BASE_URL, LMSTUDIO_DEFAULT_BASE_URL, LLAMACPP_DEFAULT_BASE_URL } from '../utils/constants.js';
+import {
+  OLLAMA_DEFAULT_BASE_URL,
+  LMSTUDIO_DEFAULT_BASE_URL,
+  LLAMACPP_DEFAULT_BASE_URL,
+  PROVIDER_THINKING_LEVELS,
+} from '../utils/constants.js';
 
 export const LLM_PROVIDERS = [
   { value: 'openai', label: 'OpenAI' },
@@ -50,9 +55,9 @@ const PROVIDER_HINTS = {
     ],
   },
   xiaomi: {
-    summary: '小米官方模型接口按 OpenAI 兼容方式接入；请填写控制台提供的 Base URL。',
+    summary: '小米 MiMo 官方接口按 OpenAI 兼容方式接入；接口地址留空即用官方地址。',
     links: [
-      { label: '打开小米开放平台', url: 'https://dev.mi.com/' },
+      { label: '查看 MiMo 接口文档', url: 'https://mimo.mi.com/docs/en-US/api/chat/openai-api' },
     ],
   },
 };
@@ -88,103 +93,19 @@ export const DEFAULT_BASE_URLS = {
   ollama: OLLAMA_DEFAULT_BASE_URL,
   lmstudio: LMSTUDIO_DEFAULT_BASE_URL,
   llamacpp: LLAMACPP_DEFAULT_BASE_URL,
-  xiaomi: 'https://your-xiaomi-api-endpoint/v1',
+  xiaomi: 'https://api.xiaomimimo.com/v1',
 };
 
 export const SETTINGS_MODE = { CHAT: 'chat', WRITING: 'writing' };
 
 export const DIARY_DATE_MODE = { VIRTUAL: 'virtual', REAL: 'real' };
 
-/**
- * 各 provider 思考链配置选项 — 与后端请求体写入逻辑严格对应
- * （openai-compatible 族见 backend/llm/providers/openai-compatible/thinking.js#applyThinkingToOpenAICompatibleBody，
- *   kimi-coding 走 anthropic 适配器，见 backend/llm/providers/anthropic/index.js#resolveKimiCodingEffort）
- *
- * 编码命名空间：
- *   effort_*           → reasoning_effort 或 reasoning.effort（OpenAI o-series / OpenRouter / Grok / Xiaomi / kimi-coding）
- *   budget_*           → thinking.budget_tokens / thinkingConfig.thinkingBudget（Anthropic / Gemini / minimax-coding）
- *   thinking_enabled/disabled → thinking: { type } 或 reasoning: { enabled } 或 enable_thinking 开关
- *   qwen_*             → enable_thinking=true + thinking_budget 数值（Qwen / SiliconFlow）
- */
-function getProviderThinkingOptions(provider) {
-  switch (provider) {
-    case 'anthropic':
-    case 'gemini':
-    case 'minimax-coding':
-      return [
-        { value: 'budget_low', label: '少（最多 1024 Token）' },
-        { value: 'budget_medium', label: '中（最多 8192 Token）' },
-        { value: 'budget_high', label: '多（最多 16384 Token）' },
-      ];
-    // kimi-coding（K3 / K2.8 Preview）官方档位为 low/high/max
-    case 'kimi-coding':
-      return [
-        { value: 'effort_low', label: '低' },
-        { value: 'effort_high', label: '高' },
-        { value: 'effort_max', label: '最高' },
-      ];
-    case 'openai':
-    case 'xiaomi':
-    case 'openai_compatible':
-      return [
-        { value: 'effort_low', label: '低' },
-        { value: 'effort_medium', label: '中' },
-        { value: 'effort_high', label: '高' },
-      ];
-    case 'openrouter':
-      return [
-        { value: 'effort_low', label: '低' },
-        { value: 'effort_medium', label: '中' },
-        { value: 'effort_high', label: '高' },
-        { value: 'thinking_enabled', label: '开启（强度由模型决定）' },
-        { value: 'thinking_disabled', label: '关闭' },
-      ];
-    case 'llamacpp':
-      // 服务端 Qwen3 模板只认 low|medium|xhigh，effort_high 在后端映射为 xhigh
-      return [
-        { value: 'thinking_disabled', label: '关闭' },
-        { value: 'effort_low', label: '低' },
-        { value: 'effort_medium', label: '中' },
-        { value: 'effort_high', label: '高' },
-      ];
-    case 'grok':
-      return [
-        { value: 'effort_low', label: '低（仅 grok-3-mini）' },
-        { value: 'effort_high', label: '高（仅 grok-3-mini）' },
-      ];
-    case 'glm':
-    case 'glm-coding':
-      return [
-        { value: 'thinking_enabled', label: '开启' },
-        { value: 'thinking_disabled', label: '关闭' },
-      ];
-    case 'deepseek':
-      return [
-        { value: 'thinking_enabled', label: '开启（仅 v3.1 及以上）' },
-        { value: 'thinking_disabled', label: '关闭（仅 v3.1 及以上）' },
-      ];
-    case 'qwen':
-    case 'siliconflow':
-      return [
-        { value: 'thinking_disabled', label: '关闭' },
-        { value: 'thinking_enabled', label: '开启（强度由模型决定）' },
-        { value: 'qwen_low', label: '少（最多 1024 Token）' },
-        { value: 'qwen_medium', label: '中（最多 8192 Token）' },
-        { value: 'qwen_high', label: '多（最多 16384 Token）' },
-      ];
-    // kimi / minimax：模型驱动（kimi-k2-thinking / minimax-m2 等模型自动思考），不暴露开关
-    default:
-      return [];
-  }
-}
-
 export function getProviderDisplaySettings(provider, onThinkingLevelChange) {
   const isLocal = provider && LOCAL_PROVIDERS.includes(provider);
   const needsBaseUrl = provider && NEEDS_BASE_URL_PROVIDERS.has(provider);
   const providerHint = provider ? (PROVIDER_HINTS[provider] || null) : null;
-  const thinkingOptions = onThinkingLevelChange ? getProviderThinkingOptions(provider) : [];
-  const isModelDrivenThinking = onThinkingLevelChange && thinkingOptions.length === 0
-    && (provider === 'kimi' || provider === 'minimax');
+  // 思考强度档位的单一来源见 shared/thinking-levels.mjs，后端按同一张表校验与拼请求体
+  const thinkingOptions = onThinkingLevelChange ? (PROVIDER_THINKING_LEVELS[provider] ?? []) : [];
 
-  return { isLocal, needsBaseUrl, providerHint, thinkingOptions, isModelDrivenThinking };
+  return { isLocal, needsBaseUrl, providerHint, thinkingOptions };
 }

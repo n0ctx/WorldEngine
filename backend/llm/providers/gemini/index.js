@@ -1,6 +1,7 @@
 import { getBaseUrl } from '../_shared/base-urls.js';
 import { apiError, readHttpErrorText, parseSSE } from '../_shared/fetch-utils.js';
-import { resolveThinkingBudget } from '../_shared/thinking-budget.js';
+import { resolveThinkingBudget, resolveThinkingEffort } from '../_shared/thinking-budget.js';
+import { isThinkingLevelSupported } from '../../../utils/constants.js';
 import { convertToGeminiContents } from '../_shared/converters.js';
 import { cacheUsageLogFields, recordTokenUsage } from '../_shared/cache-usage.js';
 import { getOrCreateCache } from './cache.js';
@@ -114,16 +115,24 @@ async function buildMessagesBody(messages, config, logTag) {
   return body;
 }
 
+/** 强度档 → thinkingLevel（Gemini 3 及以上），预算档 → thinkingBudget（Gemini 2.5）；两者不能同时发 */
+function resolveThinkingConfig(config) {
+  const level = config.thinking_level;
+  if (!level || !isThinkingLevelSupported(config.provider, level)) return null;
+  const effort = resolveThinkingEffort(level);
+  return effort ? { thinkingLevel: effort } : { thinkingBudget: resolveThinkingBudget(level) };
+}
+
 /**
- * @param {'thoughts'|'budget'|null} thinking  thoughts：带思考预算并返回思考内容；budget：只设预算；null：不设
+ * @param {'thoughts'|'budget'|null} thinking  thoughts：设思考强度并返回思考内容；budget：只设思考强度；null：不设
  */
 function buildGenerationConfig(config, thinking) {
   const generationConfig = {};
   if (config.temperature != null) generationConfig.temperature = config.temperature;
   if (config.max_tokens != null) generationConfig.maxOutputTokens = config.max_tokens;
-  const thinkingBudget = thinking ? resolveThinkingBudget(config.thinking_level) : null;
-  if (thinkingBudget != null) {
-    generationConfig.thinkingConfig = thinking === 'thoughts' ? { thinkingBudget, includeThoughts: true } : { thinkingBudget };
+  const thinkingConfig = thinking ? resolveThinkingConfig(config) : null;
+  if (thinkingConfig) {
+    generationConfig.thinkingConfig = thinking === 'thoughts' ? { ...thinkingConfig, includeThoughts: true } : thinkingConfig;
   }
   return generationConfig;
 }

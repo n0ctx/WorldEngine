@@ -14,3 +14,5 @@ export {
   LLAMACPP_DEFAULT_BASE_URL,
   RESTART_INTERRUPTED_ERROR,
 } from '../../../../shared/runtime-constants.mjs';
+
+export { PROVIDER_THINKING_LEVELS } from '../../../../shared/thinking-levels.mjs';

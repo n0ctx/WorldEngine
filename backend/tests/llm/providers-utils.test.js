@@ -3,6 +3,12 @@ import assert from 'node:assert/strict';
 
 import { parseSSE } from '../../llm/providers/_shared/fetch-utils.js';
 import { applyThinkingToOpenAICompatibleBody } from '../../llm/providers/openai-compatible/thinking.js';
+import { OPENAI_COMPATIBLE, getBaseUrl } from '../../llm/providers/_shared/base-urls.js';
+import { PROVIDER_THINKING_LEVELS, THINKING_BUDGET_HIGH } from '../../../shared/thinking-levels.mjs';
+
+const LOCAL_PROVIDERS = ['ollama', 'lmstudio', 'llamacpp'];
+// 这两家在 OPENAI_COMPATIBLE 集合里，但请求走 Anthropic 适配器（见 cloud-router.js），由 anthropic 的测试覆盖
+const NAMED_ADAPTER_PROVIDERS = ['kimi-coding', 'minimax-coding'];
 
 test('parseSSE 支持 Web ReadableStream 返回体', async () => {
   const encoder = new TextEncoder();
@@ -73,69 +79,71 @@ test('parseSSE 兼容冒号后无空格的 SSE 行格式', async () => {
   ]);
 });
 
-test('applyThinking: openai 写入 reasoning_effort 顶层字段', () => {
-  const body = {};
-  const state = applyThinkingToOpenAICompatibleBody(body, { provider: 'openai', thinking_level: 'effort_medium' });
-  assert.equal(body.reasoning_effort, 'medium');
-  assert.equal(state, 'enabled');
+function applyThinking(provider, thinking_level, body = {}) {
+  const state = applyThinkingToOpenAICompatibleBody(body, { provider, thinking_level });
+  return { body, state };
+}
+
+test('applyThinking: openai 写入 reasoning_effort，关闭发 none 并保留 temperature', () => {
+  assert.deepEqual(applyThinking('openai', 'effort_xhigh'), { body: { reasoning_effort: 'xhigh' }, state: 'enabled' });
+  assert.deepEqual(applyThinking('openai', 'thinking_disabled'), { body: { reasoning_effort: 'none' }, state: 'disabled' });
 });
 
-test('applyThinking: openrouter 使用 reasoning.effort 对象', () => {
-  const body = {};
-  const state = applyThinkingToOpenAICompatibleBody(body, { provider: 'openrouter', thinking_level: 'effort_high' });
-  assert.deepEqual(body.reasoning, { effort: 'high' });
-  assert.equal(state, 'enabled');
+test('applyThinking: openrouter 强度档用 reasoning.effort，开关用 reasoning.enabled', () => {
+  assert.deepEqual(applyThinking('openrouter', 'effort_max').body, { reasoning: { effort: 'max' } });
+  assert.deepEqual(applyThinking('openrouter', 'thinking_enabled'), { body: { reasoning: { enabled: true } }, state: 'enabled' });
+  assert.deepEqual(applyThinking('openrouter', 'thinking_disabled'), { body: { reasoning: { enabled: false } }, state: 'disabled' });
 });
 
-test('applyThinking: openrouter 支持 thinking_enabled → reasoning.enabled', () => {
-  const body = {};
-  const state = applyThinkingToOpenAICompatibleBody(body, { provider: 'openrouter', thinking_level: 'thinking_enabled' });
-  assert.deepEqual(body.reasoning, { enabled: true });
-  assert.equal(state, 'enabled');
+test('applyThinking: grok 强度原样下发', () => {
+  assert.deepEqual(applyThinking('grok', 'effort_medium'), { body: { reasoning_effort: 'medium' }, state: 'enabled' });
 });
 
-test('applyThinking: grok 把 medium 兜底为 high（grok 仅支持 low/high）', () => {
-  const body = {};
-  const state = applyThinkingToOpenAICompatibleBody(body, { provider: 'grok', thinking_level: 'effort_medium' });
-  assert.equal(body.reasoning_effort, 'high');
-  assert.equal(state, 'enabled');
+test('xiaomi 未填接口地址时用 MiMo 官方地址，填了则用填写的', () => {
+  assert.equal(getBaseUrl({ provider: 'xiaomi' }), 'https://api.xiaomimimo.com/v1');
+  assert.equal(getBaseUrl({ provider: 'xiaomi', base_url: 'https://proxy.example/v1/' }), 'https://proxy.example/v1');
 });
 
-test('applyThinking: glm 写入 thinking.type=enabled', () => {
-  const body = {};
-  const state = applyThinkingToOpenAICompatibleBody(body, { provider: 'glm', thinking_level: 'thinking_enabled' });
-  assert.deepEqual(body.thinking, { type: 'enabled' });
-  assert.equal(state, 'enabled');
+test('applyThinking: xiaomi 用 thinking.type 开关，不发 reasoning_effort', () => {
+  assert.deepEqual(applyThinking('xiaomi', 'thinking_enabled'), { body: { thinking: { type: 'enabled' } }, state: 'enabled' });
+  assert.deepEqual(applyThinking('xiaomi', 'effort_high'), { body: {}, state: null });
 });
 
-test('applyThinking: glm-coding 与 glm 行为一致', () => {
-  const body = {};
-  const state = applyThinkingToOpenAICompatibleBody(body, { provider: 'glm-coding', thinking_level: 'thinking_disabled' });
-  assert.deepEqual(body.thinking, { type: 'disabled' });
-  assert.equal(state, 'disabled');
+test('applyThinking: glm / glm-coding 开关写 thinking.type，强度档另加 reasoning_effort', () => {
+  assert.deepEqual(applyThinking('glm', 'thinking_enabled').body, { thinking: { type: 'enabled' } });
+  assert.deepEqual(applyThinking('glm-coding', 'thinking_disabled'), { body: { thinking: { type: 'disabled' } }, state: 'disabled' });
+  assert.deepEqual(applyThinking('glm', 'effort_high').body, { thinking: { type: 'enabled' }, reasoning_effort: 'high' });
 });
 
-test('applyThinking: deepseek 写入 thinking.type', () => {
-  const body = {};
-  const state = applyThinkingToOpenAICompatibleBody(body, { provider: 'deepseek', thinking_level: 'thinking_enabled' });
-  assert.deepEqual(body.thinking, { type: 'enabled' });
-  assert.equal(state, 'enabled');
+test('applyThinking: deepseek 关闭写 thinking.type，强度档开启并带 reasoning_effort', () => {
+  assert.deepEqual(applyThinking('deepseek', 'thinking_disabled'), { body: { thinking: { type: 'disabled' } }, state: 'disabled' });
+  assert.deepEqual(applyThinking('deepseek', 'effort_max').body, { thinking: { type: 'enabled' }, reasoning_effort: 'max' });
 });
 
-test('applyThinking: qwen qwen_high → enable_thinking + thinking_budget', () => {
-  const body = {};
-  const state = applyThinkingToOpenAICompatibleBody(body, { provider: 'qwen', thinking_level: 'qwen_high' });
-  assert.equal(body.enable_thinking, true);
-  assert.equal(typeof body.thinking_budget, 'number');
-  assert.ok(body.thinking_budget > 0);
-  assert.equal(state, 'enabled');
+test('applyThinking: kimi 关闭写 thinking.type（K2.6），强度档写 reasoning_effort（K3）', () => {
+  assert.deepEqual(applyThinking('kimi', 'thinking_disabled'), { body: { thinking: { type: 'disabled' } }, state: 'disabled' });
+  assert.deepEqual(applyThinking('kimi', 'effort_low'), { body: { reasoning_effort: 'low' }, state: 'enabled' });
+});
+
+test('applyThinking: minimax 开启发 adaptive，关闭发 disabled', () => {
+  assert.deepEqual(applyThinking('minimax', 'thinking_enabled').body, { thinking: { type: 'adaptive' } });
+  assert.deepEqual(applyThinking('minimax', 'thinking_disabled'), { body: { thinking: { type: 'disabled' } }, state: 'disabled' });
+});
+
+test('applyThinking: qwen 预算档 → enable_thinking + thinking_budget', () => {
+  assert.deepEqual(applyThinking('qwen', 'qwen_high'), {
+    body: { enable_thinking: true, thinking_budget: THINKING_BUDGET_HIGH },
+    state: 'enabled',
+  });
 });
 
 test('applyThinking: siliconflow thinking_disabled → enable_thinking=false', () => {
-  const body = {};
-  const state = applyThinkingToOpenAICompatibleBody(body, { provider: 'siliconflow', thinking_level: 'thinking_disabled' });
-  assert.equal(body.enable_thinking, false);
-  assert.equal(state, 'disabled');
+  assert.deepEqual(applyThinking('siliconflow', 'thinking_disabled'), { body: { enable_thinking: false }, state: 'disabled' });
+});
+
+test('applyThinking: ollama 强度档写 reasoning_effort，关闭发 none', () => {
+  assert.deepEqual(applyThinking('ollama', 'effort_low'), { body: { reasoning_effort: 'low' }, state: 'enabled' });
+  assert.deepEqual(applyThinking('ollama', 'thinking_disabled'), { body: { reasoning_effort: 'none' }, state: 'disabled' });
 });
 
 test('applyThinking: llamacpp effort_* → reasoning_effort（Qwen3 模板按请求覆盖）', () => {
@@ -145,47 +153,50 @@ test('applyThinking: llamacpp effort_* → reasoning_effort（Qwen3 模板按请
     ['effort_high', 'xhigh'],
   ];
   for (const [lvl, expected] of cases) {
-    const body = {};
-    const state = applyThinkingToOpenAICompatibleBody(body, { provider: 'llamacpp', thinking_level: lvl });
-    assert.equal(body.reasoning_effort, expected);
-    assert.equal(state, 'enabled');
+    assert.deepEqual(applyThinking('llamacpp', lvl), { body: { reasoning_effort: expected }, state: 'enabled' });
   }
 });
 
 test('applyThinking: llamacpp thinking_disabled → chat_template_kwargs.enable_thinking=false', () => {
-  const body = { chat_template_kwargs: { other: 1 } };
-  const state = applyThinkingToOpenAICompatibleBody(body, { provider: 'llamacpp', thinking_level: 'thinking_disabled' });
+  const { body, state } = applyThinking('llamacpp', 'thinking_disabled', { chat_template_kwargs: { other: 1 } });
   assert.equal(state, 'disabled');
   assert.deepEqual(body, { chat_template_kwargs: { other: 1, enable_thinking: false } });
 });
 
-test('applyThinking: llamacpp 非 effort_* 命名空间不下发字段', () => {
-  for (const lvl of ['qwen_high', 'thinking_enabled', 'none']) {
-    const body = {};
-    const state = applyThinkingToOpenAICompatibleBody(body, { provider: 'llamacpp', thinking_level: lvl });
-    assert.equal(state, null);
-    assert.deepEqual(body, {});
+test('applyThinking: 档位表里没有的档位不下发（换服务商带过来的旧档位、lmstudio）', () => {
+  const cases = [
+    ['openai', 'effort_minimal'],
+    ['openai', 'budget_low'],
+    ['grok', 'effort_max'],
+    ['deepseek', 'effort_medium'],
+    ['llamacpp', 'qwen_high'],
+    ['lmstudio', 'effort_high'],
+    ['openai', 'none'],
+  ];
+  for (const [provider, lvl] of cases) {
+    assert.deepEqual(applyThinking(provider, lvl), { body: {}, state: null }, `${provider} ${lvl}`);
   }
-});
-
-test('applyThinking: kimi / minimax 模型驱动，不下发字段', () => {
-  for (const provider of ['kimi', 'minimax']) {
-    const body = {};
-    const state = applyThinkingToOpenAICompatibleBody(body, { provider, thinking_level: 'effort_high' });
-    assert.equal(state, null);
-    assert.deepEqual(body, {});
-  }
-});
-
-test('applyThinking: 不识别的命名空间静默忽略（如 deepseek 收到 effort_*）', () => {
-  const body = {};
-  const state = applyThinkingToOpenAICompatibleBody(body, { provider: 'deepseek', thinking_level: 'effort_high' });
-  assert.equal(state, null);
-  assert.deepEqual(body, {});
 });
 
 test('applyThinking: thinking_level 为空时返回 null', () => {
-  const body = {};
-  const state = applyThinkingToOpenAICompatibleBody(body, { provider: 'openai', thinking_level: null });
-  assert.equal(state, null);
+  assert.deepEqual(applyThinking('openai', null), { body: {}, state: null });
+});
+
+test('applyThinking: openai-compatible 族档位表里的每个档位都写出了请求字段', () => {
+  const otherAdapters = [];
+  for (const [provider, options] of Object.entries(PROVIDER_THINKING_LEVELS)) {
+    const viaThisFunction = (OPENAI_COMPATIBLE.has(provider) || LOCAL_PROVIDERS.includes(provider))
+      && !NAMED_ADAPTER_PROVIDERS.includes(provider);
+    if (!viaThisFunction) {
+      otherAdapters.push(provider);
+      continue;
+    }
+    for (const { value } of options) {
+      const { body, state } = applyThinking(provider, value);
+      assert.notEqual(state, null, `${provider} ${value}`);
+      assert.ok(Object.keys(body).length > 0, `${provider} ${value}`);
+    }
+  }
+  // 其余走 Anthropic / Gemini 适配器，由 thinking-request-body.test.js 逐档覆盖
+  assert.deepEqual(otherAdapters.sort(), ['anthropic', 'gemini', 'kimi-coding', 'minimax-coding']);
 });

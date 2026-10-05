@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createLogger, formatMeta } from '../utils/logger.js';
+import { isThinkingLevelSupported } from '../utils/constants.js';
 
 const log = createLogger('svc', 'green');
 
@@ -194,9 +195,17 @@ function normalizeTemperature(value, fallback) {
   return Math.min(2, Math.max(0, number));
 }
 
+// 当前服务商不支持的思考档位（换了服务商、档位表更新）回到「自动」；返回是否改动过
+function clearUnsupportedThinkingLevel(section) {
+  if (section?.thinking_level == null) return false;
+  if (isThinkingLevelSupported(section.provider, section.thinking_level)) return false;
+  section.thinking_level = null;
+  return true;
+}
+
 function normalizeLlmSection(section, defaults) {
   const src = ensurePlainObject(section);
-  return {
+  const normalized = {
     ...defaults,
     ...src,
     provider: src.provider == null ? defaults.provider : String(src.provider),
@@ -210,6 +219,8 @@ function normalizeLlmSection(section, defaults) {
       ? { temperature: normalizeTemperature(src.temperature, defaults.temperature) }
       : {}),
   };
+  clearUnsupportedThinkingLevel(normalized);
+  return normalized;
 }
 
 // ui 里需要纠正的取值：旧主题名迁到默认主题，未知的动效包回落默认；返回是否改动过
@@ -342,9 +353,10 @@ function migrateConfig(config) {
     }
   }
 
-  // 把旧版各 section 的 key 收拢到顶层共享池
+  // 把旧版各 section 的 key 收拢到顶层共享池，并清掉服务商不支持的思考档位
   for (const section of [config.llm, config.aux_llm, config.writing?.llm, config.writing?.aux_llm]) {
-    dirty = mergeSectionKeys(section, config.provider_keys) || dirty;
+    const changed = [mergeSectionKeys(section, config.provider_keys), clearUnsupportedThinkingLevel(section)];
+    dirty = changed.includes(true) || dirty;
   }
 
   // 对话 / 写作显示设置拆分前只有顶层 ui：写作还没有自己的 ui 时继承旧值，不落回默认的关闭

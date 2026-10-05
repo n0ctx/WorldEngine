@@ -1533,9 +1533,9 @@
     "backend/llm/providers/_shared/thinking-budget.js": {
       "kind": "code",
       "metrics": {
-        "file_tokens": 101,
+        "file_tokens": 181,
         "largest_function": 8,
-        "function_class_count": 1,
+        "function_class_count": 2,
         "internal_dependencies": 1
       },
       "largest_function_name": "resolveThinkingBudget",
@@ -1555,10 +1555,10 @@
     "backend/llm/providers/anthropic/index.js": {
       "kind": "code",
       "metrics": {
-        "file_tokens": 3683,
+        "file_tokens": 3968,
         "largest_function": 57,
-        "function_class_count": 20,
-        "internal_dependencies": 10
+        "function_class_count": 21,
+        "internal_dependencies": 11
       },
       "largest_function_name": "oneTurn",
       "sections": []
@@ -1588,10 +1588,10 @@
     "backend/llm/providers/gemini/index.js": {
       "kind": "code",
       "metrics": {
-        "file_tokens": 3409,
+        "file_tokens": 3541,
         "largest_function": 46,
-        "function_class_count": 19,
-        "internal_dependencies": 10
+        "function_class_count": 20,
+        "internal_dependencies": 11
       },
       "largest_function_name": "streamGemini",
       "sections": []
@@ -1610,7 +1610,7 @@
     "backend/llm/providers/ollama/index.js": {
       "kind": "code",
       "metrics": {
-        "file_tokens": 1818,
+        "file_tokens": 1826,
         "largest_function": 40,
         "function_class_count": 15,
         "internal_dependencies": 5
@@ -1632,10 +1632,10 @@
     "backend/llm/providers/openai-compatible/thinking.js": {
       "kind": "code",
       "metrics": {
-        "file_tokens": 1002,
-        "largest_function": 75,
-        "function_class_count": 2,
-        "internal_dependencies": 1
+        "file_tokens": 850,
+        "largest_function": 50,
+        "function_class_count": 1,
+        "internal_dependencies": 2
       },
       "largest_function_name": "applyThinkingToOpenAICompatibleBody",
       "sections": []
@@ -2739,10 +2739,10 @@
     "backend/services/config.js": {
       "kind": "code",
       "metrics": {
-        "file_tokens": 4825,
+        "file_tokens": 5117,
         "largest_function": 77,
-        "function_class_count": 21,
-        "internal_dependencies": 1
+        "function_class_count": 22,
+        "internal_dependencies": 2
       },
       "largest_function_name": "normalizeConfigSections",
       "sections": []
@@ -3253,17 +3253,6 @@
       "largest_function_name": "readPathsWithPreload",
       "sections": []
     },
-    "backend/tests/llm/anthropic-kimi-coding-thinking.test.js": {
-      "kind": "code",
-      "metrics": {
-        "file_tokens": 627,
-        "largest_function": 18,
-        "function_class_count": 2,
-        "internal_dependencies": 0
-      },
-      "largest_function_name": "captureBody",
-      "sections": []
-    },
     "backend/tests/llm/anthropic-stream.test.js": {
       "kind": "code",
       "metrics": {
@@ -3388,10 +3377,10 @@
     "backend/tests/llm/providers-utils.test.js": {
       "kind": "code",
       "metrics": {
-        "file_tokens": 1952,
+        "file_tokens": 2517,
         "largest_function": 5,
-        "function_class_count": 3,
-        "internal_dependencies": 2
+        "function_class_count": 4,
+        "internal_dependencies": 4
       },
       "largest_function_name": "start",
       "sections": []
@@ -3905,12 +3894,12 @@
     "backend/tests/services/config.test.js": {
       "kind": "code",
       "metrics": {
-        "file_tokens": 2278,
-        "largest_function": 0,
+        "file_tokens": 2797,
+        "largest_function": 1,
         "function_class_count": 0,
         "internal_dependencies": 1
       },
-      "largest_function_name": null,
+      "largest_function_name": "(匿名)",
       "sections": []
     },
     "backend/tests/services/entity-card-maker.test.js": {
@@ -4279,10 +4268,10 @@
     "backend/utils/constants.js": {
       "kind": "code",
       "metrics": {
-        "file_tokens": 2423,
+        "file_tokens": 2547,
         "largest_function": 0,
         "function_class_count": 0,
-        "internal_dependencies": 2
+        "internal_dependencies": 3
       },
       "largest_function_name": null,
       "sections": []
@@ -5363,7 +5352,7 @@
     "frontend/src/components/settings/__tests__/AuxLlmBlock.test.jsx": {
       "kind": "code",
       "metrics": {
-        "file_tokens": 1067,
+        "file_tokens": 1088,
         "largest_function": 10,
         "function_class_count": 1,
         "internal_dependencies": 1
@@ -5396,7 +5385,7 @@
     "frontend/src/components/settings/__tests__/MainLlmBlock.test.jsx": {
       "kind": "code",
       "metrics": {
-        "file_tokens": 1400,
+        "file_tokens": 1449,
         "largest_function": 10,
         "function_class_count": 1,
         "internal_dependencies": 1
@@ -5451,10 +5440,10 @@
     "frontend/src/components/settings/AuxLlmBlock.jsx": {
       "kind": "code",
       "metrics": {
-        "file_tokens": 1277,
-        "largest_function": 115,
+        "file_tokens": 1290,
+        "largest_function": 109,
         "function_class_count": 2,
-        "internal_dependencies": 8
+        "internal_dependencies": 9
       },
       "largest_function_name": "AuxLlmBlock",
       "sections": []
@@ -5517,10 +5506,10 @@
     "frontend/src/components/settings/MainLlmBlock.jsx": {
       "kind": "code",
       "metrics": {
-        "file_tokens": 2028,
-        "largest_function": 138,
+        "file_tokens": 2118,
+        "largest_function": 132,
         "function_class_count": 4,
-        "internal_dependencies": 10
+        "internal_dependencies": 11
       },
       "largest_function_name": "MainLlmProviderSettings",
       "sections": []
@@ -6793,12 +6782,12 @@
     "frontend/src/core/constants/settings.js": {
       "kind": "code",
       "metrics": {
-        "file_tokens": 2363,
-        "largest_function": 71,
-        "function_class_count": 2,
+        "file_tokens": 1307,
+        "largest_function": 9,
+        "function_class_count": 1,
         "internal_dependencies": 1
       },
-      "largest_function_name": "getProviderThinkingOptions",
+      "largest_function_name": "getProviderDisplaySettings",
       "sections": []
     },
     "frontend/src/core/data/loadWorldContent.js": {
@@ -6925,8 +6914,8 @@
     "frontend/src/core/hooks/settingsConfigState.js": {
       "kind": "code",
       "metrics": {
-        "file_tokens": 1100,
-        "largest_function": 20,
+        "file_tokens": 1132,
+        "largest_function": 21,
         "function_class_count": 12,
         "internal_dependencies": 1
       },
@@ -7475,10 +7464,10 @@
     "frontend/src/core/utils/constants.js": {
       "kind": "code",
       "metrics": {
-        "file_tokens": 79,
+        "file_tokens": 106,
         "largest_function": 0,
         "function_class_count": 0,
-        "internal_dependencies": 2
+        "internal_dependencies": 3
       },
       "largest_function_name": null,
       "sections": []
@@ -9648,7 +9637,7 @@
     "frontend/tests/hooks/settings-config-state.test.js": {
       "kind": "code",
       "metrics": {
-        "file_tokens": 613,
+        "file_tokens": 640,
         "largest_function": 7,
         "function_class_count": 4,
         "internal_dependencies": 1
@@ -10783,6 +10772,28 @@
           "largest_section_loc": 10
         }
       ]
+    },
+    "backend/tests/llm/thinking-request-body.test.js": {
+      "kind": "code",
+      "metrics": {
+        "file_tokens": 1400,
+        "largest_function": 21,
+        "function_class_count": 3,
+        "internal_dependencies": 1
+      },
+      "largest_function_name": "captureRequest",
+      "sections": []
+    },
+    "shared/thinking-levels.mjs": {
+      "kind": "code",
+      "metrics": {
+        "file_tokens": 1011,
+        "largest_function": 10,
+        "function_class_count": 5,
+        "internal_dependencies": 0
+      },
+      "largest_function_name": "budgets",
+      "sections": []
     }
   }
 }

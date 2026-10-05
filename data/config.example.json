@@ -20,7 +20,7 @@
       "grok": "grok-3-fast",
       "openai_compatible": ""
     },
-    "thinking_level": "none"
+    "thinking_level": null
   },
   "embedding": {
     "provider": "openai_compatible",

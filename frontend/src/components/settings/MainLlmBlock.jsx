@@ -28,7 +28,7 @@ function MainLlmProviderSettings({
   const inherit = !!inheritFrom;
   const inheritLabel = inheritFrom?.label ?? '主模型';
   const inheritModel = inheritFrom?.model ?? '';
-  const { isLocal, needsBaseUrl, providerHint, thinkingOptions, isModelDrivenThinking } =
+  const { isLocal, needsBaseUrl, providerHint, thinkingOptions } =
     getProviderDisplaySettings(config.provider, onThinkingLevelChange);
 
   async function handleSaveKey() {
@@ -138,12 +138,6 @@ function MainLlmProviderSettings({
               ...thinkingOptions,
             ]}
           />
-        </FormGroup>
-      )}
-
-      {isModelDrivenThinking && (
-        <FormGroup label="思考强度" hint="这家服务商由模型自己决定是否思考（如 kimi-k2-thinking / minimax-m2），这里不能切换。" variant="settings">
-          <Input value="模型驱动" disabled readOnly />
         </FormGroup>
       )}
     </>

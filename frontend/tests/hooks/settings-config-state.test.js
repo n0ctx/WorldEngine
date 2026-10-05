@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { createModelSectionChangeHandler } from '../../src/core/hooks/settingsConfigState.js';
 
 function createHarness(options, updated = {}) {
-  let section = { provider: 'openai', base_url: 'x', model: 'm', has_key: true, temperature: 1 };
+  let section = { provider: 'openai', base_url: 'x', model: 'm', has_key: true, thinking_level: 'effort_max', temperature: 1 };
   const setSection = vi.fn((update) => { section = update(section); });
   const patchConfig = vi.fn(async () => updated);
   const handle = createModelSectionChangeHandler(patchConfig, setSection, options);
@@ -11,16 +11,18 @@ function createHarness(options, updated = {}) {
 }
 
 describe('createModelSectionChangeHandler', () => {
-  it('切换 provider 时按路径提交补丁并用返回值刷新本地', async () => {
+  it('切换 provider 时按路径提交补丁并用返回值刷新本地（含后端清空的思考档位）', async () => {
     const { handle, patchConfig, getSection } = createHarness(
       { path: ['writing', 'aux_llm'], providerPatch: (value) => ({ provider: value, base_url: '' }), empty: null },
-      { writing: { aux_llm: { base_url: 'b', model: 'n', has_key: false } } },
+      { writing: { aux_llm: { base_url: 'b', model: 'n', has_key: false, thinking_level: null } } },
     );
 
     await handle('provider', 'anthropic');
 
     expect(patchConfig).toHaveBeenCalledWith({ writing: { aux_llm: { provider: 'anthropic', base_url: '' } } }, { reload: true });
-    expect(getSection()).toEqual({ provider: 'anthropic', base_url: 'b', model: 'n', has_key: false, temperature: 1 });
+    expect(getSection()).toEqual({
+      provider: 'anthropic', base_url: 'b', model: 'n', has_key: false, thinking_level: null, temperature: 1,
+    });
   });
 
   it('返回值缺字段时用缺省值，清空 provider 回落为缺省值', async () => {

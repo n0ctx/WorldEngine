@@ -61,15 +61,19 @@ describe('MainLlmBlock', () => {
     expect(screen.queryByPlaceholderText('输入后单独保存，不随其他配置提交')).not.toBeInTheDocument();
   });
 
-  it('保留 provider 提示、思考档位和模型驱动状态', () => {
+  it('保留 provider 提示，按服务商显示思考档位', () => {
     const { unmount } = renderMainLlmBlock({ provider: 'xiaomi', has_key: true, model: '' });
-    expect(screen.getByText(/小米官方模型接口/)).toBeInTheDocument();
-    expect(screen.getByText('打开小米开放平台')).toBeInTheDocument();
+    expect(screen.getByText(/小米 MiMo 官方接口/)).toBeInTheDocument();
+    expect(screen.getByText('查看 MiMo 接口文档')).toBeInTheDocument();
 
     unmount();
-    renderMainLlmBlock({ provider: 'kimi', has_key: true, model: '' });
-    expect(screen.getByDisplayValue('模型驱动')).toBeDisabled();
-    expect(screen.queryByText('自动（模型默认）')).not.toBeInTheDocument();
+    const kimi = renderMainLlmBlock({ provider: 'kimi', has_key: true, model: '' });
+    expect(screen.getByText('思考强度')).toBeInTheDocument();
+    expect(screen.getByText('自动（模型默认）')).toBeInTheDocument();
+
+    kimi.unmount();
+    renderMainLlmBlock({ provider: 'lmstudio', has_key: false, model: '' });
+    expect(screen.queryByText('思考强度')).not.toBeInTheDocument();
   });
 
   it('连接测试失败后显示服务端错误', async () => {

@@ -14,7 +14,7 @@ test('代拟的 thinking_level：对话强制关闭，写作沿用配置', { con
   const sandbox = createTestSandbox('llm-impersonate-thinking', {
     provider_keys: { mock: 'secret' },
     llm: { provider: 'mock', model: 'cfg-model', thinking_level: 'high' },
-    writing: { llm: { provider: 'mock', model: 'w-model', thinking_level: 'thinking_enabled' } },
+    writing: { llm: { provider: 'glm', model: 'w-model', thinking_level: 'thinking_enabled' } },
   });
   t.after(() => {
     resetMockEnv();

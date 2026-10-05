@@ -371,7 +371,7 @@ test('写作模式全局设置只更新有效的 writing 字段', () => {
       model: 'gpt-new',
       temperature: 0.75,
       max_tokens: 512,
-      thinking_level: 'high',
+      thinking_level: 'effort_high',
     },
   };
   payload.custom_css_snippets = [];
@@ -387,7 +387,7 @@ test('写作模式全局设置只更新有效的 writing 字段', () => {
   assert.equal(imported.writing.llm.model, 'gpt-new');
   assert.equal(imported.writing.llm.temperature, 0.75);
   assert.equal(imported.writing.llm.max_tokens, 512);
-  assert.equal(imported.writing.llm.thinking_level, 'high');
+  assert.equal(imported.writing.llm.thinking_level, 'effort_high');
 });
 
 test('导入旧版全局设置文件时忽略 context_history_rounds 旧键', () => {

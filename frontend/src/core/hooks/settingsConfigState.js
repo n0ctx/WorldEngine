@@ -105,7 +105,8 @@ function nestUnder(path, value) {
 
 /**
  * 模型配置段（llm / aux_llm 等）的字段变更处理：
- * 切换 provider 时写回后端并用返回的 base_url/model/has_key 刷新本地；has_key 只改本地；其余字段本地与后端同步写。
+ * 切换 provider 时写回后端并用返回的 base_url/model/has_key/thinking_level 刷新本地（新服务商不支持的思考档位由后端清空）；
+ * has_key 只改本地；其余字段本地与后端同步写。
  * @param {string[]} path 配置段在 config 中的路径，如 ['writing', 'aux_llm']
  * @param {(provider: string) => object} providerPatch 切换 provider 时提交的补丁
  * @param {'' | null} empty provider/base_url 缺省值
@@ -122,6 +123,7 @@ export function createModelSectionChangeHandler(patchConfig, setSection, { path,
         base_url: section?.base_url ?? empty,
         model: section?.model ?? emptyModel,
         has_key: section?.has_key ?? false,
+        thinking_level: section?.thinking_level ?? null,
       }));
     } else if (field === 'has_key') {
       setSection((previous) => ({ ...previous, has_key: value }));
