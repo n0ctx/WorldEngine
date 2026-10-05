@@ -241,9 +241,9 @@ export const SLOTS = [
   {
     id: 'reply-moment', category: 'stream', title: '回复的开始与收尾', status: 'pack',
     api: [],
-    hooks: ['we-message-assistant', 'we-message-bubble-assistant', 'we-message-label', 'we-writing-prose'],
+    hooks: ['we-message-assistant', 'we-message-bubble-assistant', 'we-message-label', 'we-writing-prose', 'we-chat-center-pane'],
     usedIn: ['MessageItem', 'AssistantMessageRow', 'WritingMessageItem'],
-    note: '一轮回复开始（等首字时）与收尾（流式转定稿）各做一次签名动作，按 data-moment="start|end" 由包样式接管；开始代替通用入场。写作页作用在整段叙事上。',
+    note: '一轮回复开始（等首字时）与收尾（流式转定稿）各做一次签名动作，按 data-moment="start|end" 由包样式接管；开始代替通用入场。写作页作用在整段叙事上。收尾可作用在整块中栏纸面上（墨流：纸边内沿亮一下；信号：内沿磷光框硬切外扩三帧）。',
   },
   {
     id: 'stream', category: 'stream', title: '流式输出', status: 'pack',

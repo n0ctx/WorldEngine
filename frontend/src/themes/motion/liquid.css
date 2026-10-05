@@ -861,10 +861,8 @@
 /* ── 回复的开始与收尾：洇 ─── */
 /* 开始（等首字时，排在玩家消息入场之后）：墨从名字那一角洇满气泡，气泡先是湿的强调色再干成常态底色，名字湿墨色干下去；
    写作页没有气泡，整段叙事同样从左上角洇开。
-   收尾：墨从最后一个字（右下角）回洇整块，外沿晕开一圈光后干掉 */
-:where(:root[data-motion="liquid"]) :is(.we-message-assistant[data-moment] .we-message-bubble-assistant, .we-writing-prose[data-moment]) {
-  position: relative;
-}
+   收尾：整块中栏纸面的内沿亮一下——荧光先从下沿（最后一个字落下的那一侧）洇起，再漫满四边，随后干回常态纸边；
+   只在没有回复正在开始或流式时触发，每轮收尾各亮一次 */
 :where(:root[data-motion="liquid"]) :is(.we-message-assistant[data-moment="start"] .we-message-bubble-assistant, .we-writing-prose[data-moment="start"]) {
   animation: we-ink-reply-seep var(--ink-t5) var(--ink-surface) var(--we-motion-enter-duration) backwards;
 }
@@ -879,24 +877,21 @@
   }
   60%, to { clip-path: circle(150% at 0 0); }
 }
-:where(:root[data-motion="liquid"]) :is(.we-message-assistant[data-moment="end"] .we-message-bubble-assistant, .we-writing-prose[data-moment="end"]) {
-  animation: we-ink-reply-halo var(--ink-t5) var(--ink-surface);
+:where(:root[data-motion="liquid"]) .we-chat-center-pane:has(:is(.we-message-assistant, .we-writing-prose)[data-moment="end"]):not(:has([data-moment="start"], [data-moment="stream"]))::after {
+  animation: we-ink-pane-glow var(--ink-t6) var(--ink-flow);
 }
-:where(:root[data-motion="liquid"]) :is(.we-message-assistant[data-moment="end"] .we-message-bubble-assistant, .we-writing-prose[data-moment="end"])::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  pointer-events: none;
-  background: radial-gradient(circle at 100% 100%, var(--ink-glow), transparent 75%);
-  opacity: 0;
-  animation: we-ink-reply-backseep var(--ink-t5) var(--ink-surface);
-}
-@keyframes we-ink-reply-halo {
-  from { box-shadow: 0 0 0 0 var(--ink-glow), 0 0 40px var(--ink-glow); }
-  to   { box-shadow: 0 0 0 20px transparent, 0 0 0 transparent; }
-}
-@keyframes we-ink-reply-backseep {
-  from { opacity: 1; clip-path: circle(0 at 100% 100%); }
-  to   { opacity: 0; clip-path: circle(150% at 100% 100%); }
+/* 不写 from / to：起止都是纸边自己的常态（含输入框聚焦时的主色边） */
+@keyframes we-ink-pane-glow {
+  25% {
+    box-shadow:
+      inset 0 0 0 1px color-mix(in srgb, var(--ink-wet) var(--we-alpha-3), transparent),
+      inset 0 -32px 48px -24px color-mix(in srgb, var(--we-color-accent) var(--we-alpha-3), transparent),
+      inset 0 0 24px color-mix(in srgb, var(--we-color-accent) var(--we-alpha-1), transparent);
+  }
+  50% {
+    box-shadow:
+      inset 0 0 0 1px color-mix(in srgb, var(--ink-wet) var(--we-alpha-4), transparent),
+      inset 0 -24px 40px -24px color-mix(in srgb, var(--we-color-accent) var(--we-alpha-2), transparent),
+      inset 0 0 32px color-mix(in srgb, var(--we-color-accent) var(--we-alpha-3), transparent);
+  }
 }

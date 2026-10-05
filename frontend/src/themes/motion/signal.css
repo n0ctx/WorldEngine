@@ -838,20 +838,20 @@
 }
 
 /* ── 回复的开始与收尾：锁 ─── */
-/* 开始（等首字时，排在玩家消息入场之后）：气泡（写作页是整段叙事）硬切闪两下亮起，亮定那一拍磷光帧锁两帧，名字双曝光撕裂一次；
-   收尾：底色亮一帧，磷光帧再锁两帧 */
+/* 开始（等首字时，排在玩家消息入场之后）：气泡（写作页是整段叙事）硬切闪两下亮起，名字双曝光撕裂一次；气泡上不套框。
+   收尾：整块中栏纸面锁一下——内沿打出一个磷光框，逐帧硬切着外扩到纸边后熄灭（共三帧）；
+   只在没有回复正在开始或流式时触发，每轮收尾各锁一次 */
 :where(:root[data-motion="signal"]) :is(.we-message-assistant[data-moment="start"] .we-message-bubble-assistant, .we-writing-prose[data-moment="start"]) {
-  animation:
-    we-signal-blink var(--sig-beat) var(--sig-cut) var(--we-motion-enter-duration) both,
-    we-signal-snap-a calc(var(--sig-frame) * 2) var(--sig-cut) calc(var(--we-motion-enter-duration) + var(--sig-beat)),
-    we-signal-snap-b calc(var(--sig-frame) * 2) var(--sig-cut) calc(var(--we-motion-enter-duration) + var(--sig-beat) + var(--sig-frame) * 2);
+  animation: we-signal-blink var(--sig-beat) var(--sig-cut) var(--we-motion-enter-duration) both;
 }
-:where(:root[data-motion="signal"]) :is(.we-message-assistant[data-moment="end"] .we-message-bubble-assistant, .we-writing-prose[data-moment="end"]) {
-  animation:
-    we-signal-reply-flash calc(var(--sig-frame) * 2) var(--sig-cut),
-    we-signal-snap-a calc(var(--sig-frame) * 2) var(--sig-cut) calc(var(--sig-frame) * 2),
-    we-signal-snap-b calc(var(--sig-frame) * 2) var(--sig-cut) calc(var(--sig-frame) * 4);
+:where(:root[data-motion="signal"]) .we-chat-center-pane:has(:is(.we-message-assistant, .we-writing-prose)[data-moment="end"]):not(:has([data-moment="start"], [data-moment="stream"]))::after {
+  outline: 0 solid transparent;
+  animation: we-signal-pane-lock calc(var(--sig-frame) * 6) var(--sig-cut);
 }
-@keyframes we-signal-reply-flash {
-  from, to { background-color: color-mix(in srgb, var(--we-color-accent) var(--we-alpha-3), transparent); }
+/* 每段配 --sig-cut 整帧硬切，100% 那一帧不显示：动画结束即熄灭 */
+@keyframes we-signal-pane-lock {
+  0%   { outline: 2px solid var(--sig-phos); outline-offset: -12px; }
+  34%  { outline: 1px solid var(--we-color-accent); outline-offset: -6px; }
+  67%  { outline: 1px solid color-mix(in srgb, var(--sig-phos) var(--we-alpha-4), transparent); outline-offset: -2px; }
+  100% { outline: 0 solid transparent; outline-offset: 0; }
 }

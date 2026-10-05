@@ -46,21 +46,23 @@ export function ReplyMomentDemo() {
       id="reply-moment"
       actions={<Button variant="secondary" size="sm" onClick={run}>{turn.id ? '再来一轮' : '来一轮回复'}</Button>}
     >
-      <MessageBubbles
-        messagesForDisplay={turn.phase === 'done' ? [CHAT[0], reply] : [CHAT[0]]}
-        character={SPEAKERS[0]}
-        persona={{ name: '玩家' }}
-        options={[]}
-        generating={generating}
-        streamingKey={reply._key}
-        streamingText={turn.text}
-        onLastPage
-        turnChanges={turn.phase === 'done' ? { messageId: reply.id, changes: TURN_CHANGES } : null}
-        onEditMessage={noop}
-        onRegenerateMessage={noop}
-        onEditAssistantMessage={noop}
-        onDeleteMessage={noop}
-      />
+      <div className="we-chat-center-pane we-design-lab__pane">
+        <MessageBubbles
+          messagesForDisplay={turn.phase === 'done' ? [CHAT[0], reply] : [CHAT[0]]}
+          character={SPEAKERS[0]}
+          persona={{ name: '玩家' }}
+          options={[]}
+          generating={generating}
+          streamingKey={reply._key}
+          streamingText={turn.text}
+          onLastPage
+          turnChanges={turn.phase === 'done' ? { messageId: reply.id, changes: TURN_CHANGES } : null}
+          onEditMessage={noop}
+          onRegenerateMessage={noop}
+          onEditAssistantMessage={noop}
+          onDeleteMessage={noop}
+        />
+      </div>
     </SlotSection>
   );
 }
