@@ -104,6 +104,9 @@ function mapStrippedToSrc(spans, dstIdx) {
   return -1;
 }
 
+// 与 backend/utils/turn-dialogue.js 一致：去掉模型从历史抄来的「（已选）」「（未选）」标注
+const OPTION_CHOICE_TAG_RE = /^[（(]\s*[已未]选\s*[)）]\s*/;
+
 /**
  * 解析流式文本中的 <next_prompt> 块。
  * - display: 原始文本中 <next_prompt> 之前的部分（保留 think 标签原样，由 MessageItem 折叠渲染）。
@@ -121,7 +124,7 @@ export function parseNextPromptStream(text, isStreaming = false) {
   if (rawIdx < 0 || !raw.startsWith(NEXT_OPEN, rawIdx)) return { display: raw, options: [] };
   const display = raw.slice(0, rawIdx);
   const after = stripped.slice(idxInCleaned + NEXT_OPEN.length).replace(NEXT_CLOSE, '');
-  const options = after.split('\n').map((s) => s.trim()).filter(Boolean);
+  const options = after.split('\n').map((s) => s.trim().replace(OPTION_CHOICE_TAG_RE, '')).filter(Boolean);
   return { display, options };
 }
 

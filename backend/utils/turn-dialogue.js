@@ -196,6 +196,9 @@ export function classifyNextPromptBoundary(visibleContent) {
   return closeIdx === -1 ? 'truncated' : 'closed';
 }
 
+// 历史里的选项带「（已选）」「（未选）」标注（见 prompts/assembler.js），模型会照着格式抄进新选项
+const OPTION_CHOICE_TAG_RE = /^[（(]\s*[已未]选\s*[)）]\s*/;
+
 /**
  * 从 AI 输出中提取 <next_prompt> 选项块并剥除该标签。
  * 先剥除 think 块再查找,避免 think 内的示例标签被误提取。
@@ -227,7 +230,7 @@ export function extractNextPromptOptions(text) {
     inner = text.slice(rawNpIdx + '<next_prompt>'.length);
   }
 
-  const options = inner.split('\n').map((s) => s.trim()).filter(Boolean);
+  const options = inner.split('\n').map((s) => s.trim().replace(OPTION_CHOICE_TAG_RE, '')).filter(Boolean);
   const content = text.slice(0, rawNpIdx).replace(/\n+$/, '');
   return { content, options };
 }

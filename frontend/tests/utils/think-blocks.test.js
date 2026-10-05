@@ -62,6 +62,11 @@ describe('think blocks', () => {
 });
 
 describe('next prompt stream', () => {
+  it('去掉模型从历史抄来的已选/未选标注', () => {
+    const { options } = parseNextPromptStream('正文\n<next_prompt>\n（未选）选项A\n(已选) 选项B\n选项C\n</next_prompt>');
+    expect(options).toEqual(['选项A', '选项B', '选项C']);
+  });
+
   it('不解析 think 块内的 next_prompt', () => {
     const raw = '<think>推理 <next_prompt>\n选项A\n</next_prompt></think>\n正文';
     expect(parseNextPromptStream(raw)).toEqual({ display: raw, options: [] });

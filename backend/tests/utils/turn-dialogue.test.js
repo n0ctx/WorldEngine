@@ -53,6 +53,11 @@ test('extractNextPromptOptions：完整闭合标签', () => {
   assert.deepEqual(r.options, ['选项A', '选项B']);
 });
 
+test('extractNextPromptOptions：去掉模型从历史抄来的已选/未选标注', () => {
+  const r = extractNextPromptOptions('回复\n<next_prompt>\n（未选）选项A\n(已选) 选项B\n选项C\n</next_prompt>');
+  assert.deepEqual(r.options, ['选项A', '选项B', '选项C']);
+});
+
 test('extractNextPromptOptions：标签未闭合（截断）回退到匹配到结尾', () => {
   const r = extractNextPromptOptions('回复\n<next_prompt>\n选项A\n选项B');
   assert.equal(r.content, '回复');
