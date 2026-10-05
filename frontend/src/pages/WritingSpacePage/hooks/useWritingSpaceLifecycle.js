@@ -24,7 +24,8 @@ export function useWritingSpaceMode() {
 
 export function useWritingSpaceLifecycle({ worldId, stream, log }) {
   const [persona, setPersona] = useState(null);
-  const [isInitializing, setIsInitializing] = useState(false);
+  // 首帧就处于初始化：否则正文会先以「没有会话」挂上并报定位完成，台前提前展开露面
+  const [isInitializing, setIsInitializing] = useState(Boolean(worldId));
   const [initError, setInitError] = useState(null);
   const [initRetryToken, setInitRetryToken] = useState(0);
   const currentWritingSessionId = useStore((s) => s.currentWritingSessionId);

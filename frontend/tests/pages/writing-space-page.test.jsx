@@ -203,6 +203,14 @@ describe('WritingSpacePage', () => {
     expect(mocks.refreshCustomCss).toHaveBeenCalledWith('chat');
   });
 
+  it('首帧就处于准备中，正文不会先以「没有会话」挂上', async () => {
+    renderWritingSpacePage();
+
+    expect(screen.getByText('正在准备写作空间…')).toBeInTheDocument();
+    expect(screen.queryByTestId('message-list')).toBeNull();
+    expect(await screen.findByTestId('message-list')).toHaveTextContent('ws-1');
+  });
+
   it('初始化失败时显示错误并允许重试', async () => {
     mocks.listWritingSessions
       .mockRejectedValueOnce(new Error('boom'))

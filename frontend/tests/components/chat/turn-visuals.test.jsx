@@ -121,11 +121,18 @@ describe('台前', () => {
     expect(result.current).toMatchObject({ compact: false, settled: true });
   });
 
-  it('角色和世界都没到时不占位，到了直接以展开状态挂上，不从收起高度过渡展开', () => {
-    const { container, rerender } = render(<SpeakerStage />);
-    expect(container.querySelector('.we-speaker-stage')).toBeNull();
+  it('角色和世界都没到时只占位不露面，到了按已定的收放直接露面', () => {
+    const character = { id: 'c-1', name: '艾拉', description: '拳场的老板娘' };
+    const { container, rerender } = render(<SpeakerStage compact />);
+    const stage = container.querySelector('.we-speaker-stage');
+    expect(stage.dataset.pending).toBe('true');
+    // 对话页角色没到时也不当作写作页，收起时仍占一行台前的高度
+    expect(stage.dataset.bare).toBeUndefined();
+    expect(container.querySelector('.we-speaker-stage__hero')).toBeNull();
 
-    rerender(<SpeakerStage world={world} />);
-    expect(container.querySelector('.we-speaker-stage').dataset.compact).toBeUndefined();
+    rerender(<SpeakerStage character={character} compact />);
+    expect(stage.dataset.pending).toBeUndefined();
+    expect(stage.dataset.compact).toBe('true');
+    expect(container.querySelector('.we-speaker-stage__name').textContent).toBe('艾拉');
   });
 });
