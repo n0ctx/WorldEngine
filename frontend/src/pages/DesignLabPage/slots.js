@@ -241,9 +241,9 @@ export const SLOTS = [
   {
     id: 'reply-moment', category: 'stream', title: '回复的开始与收尾', status: 'pack',
     api: [],
-    hooks: ['we-message-assistant', 'we-message-bubble-assistant', 'we-message-label', 'we-writing-prose', 'we-message-content', 'we-think-block'],
+    hooks: ['we-message-assistant', 'we-message-bubble-assistant', 'we-message-label', 'we-writing-prose', 'we-message-content', 'we-think-block', 'we-chat-center-pane'],
     usedIn: ['MessageItem', 'AssistantMessageRow', 'WritingMessageItem', 'StreamingMarkdown'],
-    note: '按 data-moment 由包样式接管，对话与写作分开设计。开始：对话在等首字时作用在气泡与名字上（代替通用入场）；写作在第一段正文随第一批字出现时作用在这一段上。收尾在生成结束、屏幕上的字打完时（StreamingMarkdown 的 onTypedOut）标记：对话作用在这只气泡里面；写作只作用在最后一个字的位置（活字是最后一段），续写时只标新写到的结尾。',
+    note: '按 data-moment 由包样式接管，对话与写作分开设计。开始：对话在等首字时作用在气泡与名字上（代替通用入场）；写作在第一段正文随第一批字出现时作用在这一段上。收尾在生成结束、屏幕上的字打完时（StreamingMarkdown 的 onTypedOut）标记：对话作用在这只气泡里面；写作的消息上不铺底、不加框，墨流与信号作用在整块中栏纸面上（纸边内沿亮一下 / 内沿磷光框外扩），活字只再压最后一段。',
   },
   {
     id: 'stream', category: 'stream', title: '流式输出', status: 'pack',

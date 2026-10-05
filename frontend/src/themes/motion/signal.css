@@ -855,26 +855,14 @@
   67%  { outline: 1px solid color-mix(in srgb, var(--sig-phos) var(--we-alpha-4), transparent); outline-offset: -2px; }
   100% { outline: 0 solid transparent; outline-offset: 0; }
 }
-/* 写作：连续的书页，没有气泡和名字，一段可能好几屏，续写接在已有的一段后面。
-   开始（第一段正文随第一批字出现时）：等头几个字到了，第一段的字双曝光撕裂一次后锁定（两路错位色见上方 --glitch-a / --glitch-b），不套框；
-   收尾（屏幕上的字打完时）：最后一个字后亮起一格磷光，随即成框，逐帧硬切外扩两次后熄灭；续写时同样只在新写到的结尾 */
+/* 写作：连续的书页，没有气泡和名字，一段可能好几屏，续写接在已有的一段后面；消息上不加框。
+   开始（第一段正文随第一批字出现时）：等头几个字到了，第一段的字双曝光撕裂一次后锁定（两路错位色见上方 --glitch-a / --glitch-b）；
+   收尾（屏幕上的字打完时）：整块中栏纸面锁一下——内沿打出磷光框，逐帧硬切外扩到纸边后熄灭（与对话气泡的收尾同一组帧）；
+   只在没有写作回复正在开始或流式时触发，每次生成收尾各锁一次 */
 :where(:root[data-motion="signal"]) .we-writing-prose[data-moment="start"] .we-message-content > :nth-child(1 of div:not(.we-think-block)) > :first-child:not(.we-stream-caret) {
   animation: we-signal-option-tear var(--sig-hold) var(--sig-cut) var(--sig-beat) both;
 }
-/* 末尾这一格绝对定位、不写偏移，停在最后一个字之后（静态位置），不占排版 */
-:where(:root[data-motion="signal"]) .we-writing-prose[data-moment="end"] .we-message-content > :nth-last-child(1 of div:not(.we-think-block)) > :last-child::after {
-  content: '';
-  position: absolute;
-  width: 0.6em;
-  height: 1em;
-  margin: calc(0.5lh - 0.5em) 0 0 0.15em;
-  pointer-events: none;
+:where(:root[data-motion="signal"]) .we-chat-center-pane:has(.we-writing-prose[data-moment="end"]):not(:has(.we-writing-prose:is([data-moment="start"], [data-moment="stream"])))::after {
   outline: 0 solid transparent;
-  animation: we-signal-tail-lock var(--sig-beat) var(--sig-cut);
-}
-@keyframes we-signal-tail-lock {
-  0%   { background: var(--sig-phos); outline: 2px solid var(--sig-phos); outline-offset: 0; }
-  34%  { background: transparent; outline: 1px solid var(--we-color-accent); outline-offset: 0.4em; }
-  67%  { background: transparent; outline: 1px solid color-mix(in srgb, var(--sig-phos) var(--we-alpha-4), transparent); outline-offset: 0.9em; }
-  100% { background: transparent; outline: 0 solid transparent; outline-offset: 0; }
+  animation: we-signal-reply-lock calc(var(--sig-frame) * 6) var(--sig-cut);
 }
