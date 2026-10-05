@@ -39,9 +39,9 @@ export default function AuxLlmBlock({ providers, config, onProviderChange, onBas
 
   return (
     <div className="we-settings-field-group">
-      <SectionTitle level="group" as="p">副模型（LLM）</SectionTitle>
+      <SectionTitle level="group" as="p">副模型</SectionTitle>
 
-      <FormGroup label="Provider" hint={`用于摘要、状态栏、记忆展开、日记、标题等后台任务；${fallbackHint}。`} variant="settings">
+      <FormGroup label="服务商" hint={`用于摘要、状态栏、记忆展开、日记、标题等后台任务；${fallbackHint}。`} variant="settings">
         <Select
           value={config.provider || ''}
           onChange={onProviderChange}
@@ -89,7 +89,7 @@ export default function AuxLlmBlock({ providers, config, onProviderChange, onBas
       )}
 
       {needsBaseUrl && (
-        <FormGroup label="Base URL" variant="settings">
+        <FormGroup label="接口地址" hint="即 Base URL，模型服务的请求地址。" variant="settings">
           <Input
             value={config.base_url || ''}
             onChange={(e) => onBaseUrlChange(e.target.value)}
@@ -110,7 +110,7 @@ export default function AuxLlmBlock({ providers, config, onProviderChange, onBas
       )}
 
       {thinkingOptions.length > 0 && onThinkingLevelChange && (
-        <FormGroup label="思考链级别" hint="auto = 不传参数，使用模型默认行为" variant="settings">
+        <FormGroup label="思考强度" hint="模型回答前先想多久；想得越多越慢、越费 Token。选「自动」就不发送这项，由模型自己决定。" variant="settings">
           <Select
             value={config.thinking_level || ''}
             onChange={(v) => onThinkingLevelChange(v || null)}
@@ -120,7 +120,7 @@ export default function AuxLlmBlock({ providers, config, onProviderChange, onBas
       )}
 
       {isModelDrivenThinking && (
-        <FormGroup label="思考链级别" hint="该 provider 由模型决定是否思考（如 kimi-k2-thinking / minimax-m2），无需也无法在请求中切换" variant="settings">
+        <FormGroup label="思考强度" hint="这家服务商由模型自己决定是否思考（如 kimi-k2-thinking / minimax-m2），这里不能切换。" variant="settings">
           <Input value="模型驱动" disabled readOnly />
         </FormGroup>
       )}

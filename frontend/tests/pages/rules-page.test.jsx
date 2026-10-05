@@ -76,8 +76,8 @@ vi.mock('../../src/core/utils/logger.js', () => ({
 // EntryEditor / StateFieldEditor / StateValueField 都是复杂子组件，这里只关心 RulesPage 自身的
 // 机制导航、列表筛选、启用开关、删除确认这些结构性行为，子组件内部逻辑各自有单测覆盖。
 vi.mock('../../src/components/rules/EntryEditor', () => ({
-  default: ({ entry, onClose }) => (
-    <div data-testid="entry-editor">
+  default: ({ entry, defaultTriggerType, onClose }) => (
+    <div data-testid="entry-editor" data-default-trigger={defaultTriggerType}>
       <span>条目编辑器：{entry ? entry.title : '（新建）'}</span>
       <button onClick={onClose}>关闭编辑器</button>
     </div>
@@ -271,5 +271,16 @@ describe('RulesPage', () => {
 
     await waitFor(() => expect(mocks.listCharacterStateFields).toHaveBeenCalled());
     expect(screen.getByText('暂无字段')).toBeInTheDocument();
+  });
+
+  it('?new=always 时直接打开一条新的「一直生效」条目，中栏只列一直生效', async () => {
+    mocks.useSearchParams.mockReturnValue([new URLSearchParams('new=always')]);
+    render(<RulesPage />);
+    await waitFor(() => expect(mocks.listWorldEntries).toHaveBeenCalledWith('world-1'));
+
+    const editor = screen.getByTestId('entry-editor');
+    expect(editor).toHaveTextContent('条目编辑器：（新建）');
+    expect(editor.dataset.defaultTrigger).toBe('always');
+    expect(screen.queryByText('战斗触发')).not.toBeInTheDocument();
   });
 });

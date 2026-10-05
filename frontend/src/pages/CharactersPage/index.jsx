@@ -72,7 +72,7 @@ export default function CharactersPage() {
   });
 
   const {
-    handleStorylineClick, handleCreateStoryline, handleCharacterChat, deletingStoryline, setDeletingStoryline, handleDeleteStoryline,
+    handleStorylineClick, handleCreateStoryline, handleCharacterChat, handleCharacterNewChat, deletingStoryline, setDeletingStoryline, handleDeleteStoryline,
   } = useStorylineActions(worldId, navigate, setCurrentWritingSessionId, setTimeline);
 
   const { deletingChar, setDeletingChar, handleDeleteChar, handleCharReorderEnd } = useCharacterActions(worldId, setCharacters);
@@ -94,7 +94,7 @@ export default function CharactersPage() {
     <div className="we-characters-canvas" data-portal={portal && enteredViaPortal ? 'enter' : undefined}>
       {/* 返回导航已收口到顶栏面包屑（TopBar），此页不再自带返回按钮 */}
 
-      {/* 新世界搭建引导：三步未完成且未被手动关闭时，取代下方整套空态 */}
+      {/* 新世界搭建引导：未完成且未被手动关闭时，取代下方整套空态 */}
       {showGuide && (
         <NewWorldGuide
           completed={guideCompleted}
@@ -128,6 +128,7 @@ export default function CharactersPage() {
           charImportRef={charImportRef}
           onImportCharFile={handleImportCharFile}
           onCharacterClick={handleCharacterChat}
+          onCharacterNewChat={handleCharacterNewChat}
           setDeletingChar={setDeletingChar}
         />
 

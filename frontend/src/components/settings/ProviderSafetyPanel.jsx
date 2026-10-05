@@ -143,9 +143,9 @@ export default function ProviderSafetyPanel() {
 
   return (
     <div className="we-provider-safety-panel">
-      <SectionTitle level="section" rule="under" as="h2">Provider 安全信号</SectionTitle>
+      <SectionTitle level="section" rule="under" as="h2">服务商安全信号</SectionTitle>
       <p className="we-provider-safety-panel__hint">
-        监听 Provider 返回的安全 / 拒绝 / 敏感 / 过滤 / 截断信号。不展示原始敏感文本，只记录归一化后的元数据。
+        记录服务商返回的安全、拒绝、敏感、过滤和截断提示。不展示原始敏感文本，只记录整理后的概要。
       </p>
 
       {stats && (

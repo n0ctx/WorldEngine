@@ -3,7 +3,7 @@ import { getConfig, updateConfig, getAuxLlmConfig, getWritingLlmConfig, getWriti
 import { validateModelFetchBaseUrl } from '../utils/network-safety.js';
 import { applyProxy } from '../utils/proxy.js';
 import { resolveModelPricing } from '../services/model-pricing.js';
-import { fetchModels, getThinkingOptions, verifyLlmConnection, verifyModelConnection } from '../services/model-catalog.js';
+import { fetchModels, verifyLlmConnection, verifyModelConnection } from '../services/model-catalog.js';
 import { createLogger, formatMeta, getLoggingConfig } from '../utils/logger.js';
 
 const router = Router();
@@ -173,9 +173,8 @@ router.get('/models', async (_req, res) => {
   const apiKey = getProviderKey(provider);
   try {
     const models = await fetchModels(provider, apiKey, base_url);
-    const thinkingOptions = getThinkingOptions(provider);
-    log.info(`GET /api/config/models  ${formatMeta({ provider, count: models.length, thinkingOptions: thinkingOptions.length })}`);
-    res.json({ models, thinkingOptions });
+    log.info(`GET /api/config/models  ${formatMeta({ provider, count: models.length })}`);
+    res.json({ models });
   } catch (err) {
     log.warn(`GET /api/config/models FAIL  ${formatMeta({ provider, error: err.message })}`);
     res.status(502).json({ error: '无法获取模型列表，请检查 API Key 和网络连接' });
@@ -189,9 +188,8 @@ router.get('/writing/models', async (_req, res) => {
   const apiKey = writingConfig.api_key;
   try {
     const models = await fetchModels(provider, apiKey, base_url);
-    const thinkingOptions = getThinkingOptions(provider);
-    log.info(`GET /api/config/writing/models  ${formatMeta({ provider, count: models.length, thinkingOptions: thinkingOptions.length })}`);
-    res.json({ models, thinkingOptions });
+    log.info(`GET /api/config/writing/models  ${formatMeta({ provider, count: models.length })}`);
+    res.json({ models });
   } catch (err) {
     log.warn(`GET /api/config/writing/models FAIL  ${formatMeta({ provider, error: err.message })}`);
     res.status(502).json({ error: '无法获取模型列表，请检查 API Key 和网络连接' });
@@ -205,9 +203,8 @@ router.get('/writing-aux/models', async (_req, res) => {
   const apiKey = auxConfig.api_key;
   try {
     const models = await fetchModels(provider, apiKey, base_url);
-    const thinkingOptions = getThinkingOptions(provider);
-    log.info(`GET /api/config/writing-aux/models  ${formatMeta({ provider, count: models.length, thinkingOptions: thinkingOptions.length })}`);
-    res.json({ models, thinkingOptions });
+    log.info(`GET /api/config/writing-aux/models  ${formatMeta({ provider, count: models.length })}`);
+    res.json({ models });
   } catch (err) {
     log.warn(`GET /api/config/writing-aux/models FAIL  ${formatMeta({ provider, error: err.message })}`);
     res.status(502).json({ error: '无法获取模型列表，请检查 API Key 和网络连接' });
@@ -221,9 +218,8 @@ router.get('/aux/models', async (_req, res) => {
   const apiKey = auxConfig.api_key;
   try {
     const models = await fetchModels(provider, apiKey, base_url);
-    const thinkingOptions = getThinkingOptions(provider);
-    log.info(`GET /api/config/aux/models  ${formatMeta({ provider, count: models.length, thinkingOptions: thinkingOptions.length })}`);
-    res.json({ models, thinkingOptions });
+    log.info(`GET /api/config/aux/models  ${formatMeta({ provider, count: models.length })}`);
+    res.json({ models });
   } catch (err) {
     log.warn(`GET /api/config/aux/models FAIL  ${formatMeta({ provider, error: err.message })}`);
     res.status(502).json({ error: '无法获取模型列表，请检查 API Key 和网络连接' });

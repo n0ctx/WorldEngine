@@ -88,7 +88,7 @@ describe('AuxLlmBlock', () => {
   it('本地 provider 保留 Base URL 设置并隐藏 API Key 输入', () => {
     renderAuxLlmBlock({ provider: 'ollama', has_key: false, base_url: 'local-endpoint' });
 
-    expect(screen.getByText('Base URL')).toBeInTheDocument();
+    expect(screen.getByText('接口地址')).toBeInTheDocument();
     expect(screen.getByDisplayValue('local-endpoint')).toBeInTheDocument();
     expect(screen.queryByPlaceholderText('输入后单独保存，不随其他配置提交')).not.toBeInTheDocument();
   });

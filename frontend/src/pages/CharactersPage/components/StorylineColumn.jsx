@@ -24,7 +24,7 @@ export function StorylineColumn({ loading, timeline, charactersById, onCreateSto
             onClick={onCreateStoryline}
             title="新建写作故事线"
           >
-            + 新建
+            + 写作
           </Button>
         )}
       >
@@ -36,7 +36,7 @@ export function StorylineColumn({ loading, timeline, charactersById, onCreateSto
           size="sm"
           className="we-storyline-empty"
           title="还没有故事线"
-          hint="点击「+ 新建」开始写作，或在右侧选择一个角色开始对话。"
+          hint="点「+ 写作」开始写作，或点右侧的角色开始对话。"
         />
       ) : (
         <div className="we-storyline-body">

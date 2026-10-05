@@ -33,7 +33,7 @@ describe('LlmConfigPanel', () => {
   it('不再渲染 Embedding 区块或其测试按钮', async () => {
     renderPanel();
 
-    await waitFor(() => expect(screen.getByText('LLM 配置')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('模型')).toBeInTheDocument());
     expect(screen.queryByText('Embedding 模型')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /测试 Embedding/ })).not.toBeInTheDocument();
     expect(screen.getByText(/仅对 LLM 网络请求生效/)).toBeInTheDocument();

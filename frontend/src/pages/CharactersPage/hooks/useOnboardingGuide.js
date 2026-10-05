@@ -4,35 +4,32 @@ import { log } from '../../../core/utils/logger.js';
 
 // ── 新世界搭建引导：完成度判断 + 引导内的跳转 / 关闭 ──────────────────────────
 //
-// 「新世界」判断标准：世界观描述 / 角色 / 规则三项是否都已存在内容，纯客观完成度，
-// 不看创建时间——时间阈值会过期（老账号里几分钟前建的世界和半年前建的世界该一视同
-// 仁），完成度不会。三项全部完成后引导自动消失，不再占位；未完成时即使用户来回
-// 切换页面也会稳定复现，不会像"已读标记"那样过几天自己消失。
+// 「新世界」判断标准：世界前提（一条启用中的「一直生效」设定条目）与角色两项是否都已存在，
+// 纯客观完成度，不看创建时间——时间阈值会过期（老账号里几分钟前建的世界和半年前建的世界
+// 该一视同仁），完成度不会。世界简介只在书架展示、不进提示词，所以不算世界前提。两项全部
+// 完成后引导自动消失，不再占位；未完成时即使用户来回切换页面也会稳定复现，不会像"已读标记"
+// 那样过几天自己消失。
 //
 // 「关闭」与「完成」是两件独立的事：完成是可计算的客观状态，关闭是用户的主观选择
-// （persisted 到 worlds.onboarding_dismissed）。关闭后即便三步仍未做完也不再弹出，
-// 尊重用户"我知道，不用管我"的意愿；但反过来，只要三步真的做完了，引导必然消失，
-// 不依赖是否点过关闭——不会出现「已经把三件事都做完了，却因为没点过关闭一直被打扰」
-// 的情况。
+// （persisted 到 worlds.onboarding_dismissed）。关闭后即便仍未做完也不再弹出，
+// 尊重用户"我知道，不用管我"的意愿；但反过来，只要两步真的做完了，引导必然消失，
+// 不依赖是否点过关闭——不会出现「已经都做完了，却因为没点过关闭一直被打扰」的情况。
 
 export function useOnboardingGuide({ worldId, world, setWorld, characters, entries, navigate, location }) {
   const guideCompleted = useMemo(() => ({
-    world: !!(world?.description && world.description.trim()),
+    world: entries.some((e) => e.trigger_type === 'always' && e.enabled !== 0),
     character: characters.length > 0,
-    rule: entries.length > 0,
-  }), [world, characters, entries]);
+  }), [characters, entries]);
 
-  const guideAllDone = guideCompleted.world && guideCompleted.character && guideCompleted.rule;
+  const guideAllDone = guideCompleted.world && guideCompleted.character;
   // 不看 loading：保存后重新拉取期间引导保持挂载，刚完成的一步才能在原地划掉、沉底
   const showGuide = !!world && !guideAllDone && !world.onboarding_dismissed;
 
   function handleGuideStepClick(stepKey) {
     if (stepKey === 'world') {
-      navigate(`/worlds/${worldId}/edit`, { state: { backgroundLocation: location } });
+      navigate(`/worlds/${worldId}/rules?new=always`);
     } else if (stepKey === 'character') {
       navigate(`/worlds/${worldId}/characters/new`, { state: { backgroundLocation: location } });
-    } else if (stepKey === 'rule') {
-      navigate(`/worlds/${worldId}/rules`);
     }
   }
 

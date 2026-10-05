@@ -1,13 +1,14 @@
 import CharacterSeal from '../../../components/chat/CharacterSeal.jsx';
 import Card from '../../../components/ui/Card.jsx';
 import DragHandle from '../../../components/ui/DragHandle.jsx';
-import { PencilLine, X } from 'lucide-react';
+import { MessageSquarePlus, PencilLine, X } from 'lucide-react';
 import IconButton from '../../../components/ui/IconButton.jsx';
 import { useDragAwareClick } from './useDragAwareClick.js';
 
 // ── CharacterCard（内联组件，紧凑变体）──────────────────────────────────────
 
-export function CharacterCard({ char, dragHandleProps, onCardClick, onEdit, onDelete }) {
+// 点卡片继续和这个角色最近的一段对话；「新对话」另开一条
+export function CharacterCard({ char, dragHandleProps, onCardClick, onNewChat, onEdit, onDelete }) {
   const clickProps = useDragAwareClick(onCardClick);
 
   return (
@@ -16,6 +17,7 @@ export function CharacterCard({ char, dragHandleProps, onCardClick, onEdit, onDe
       interactive
       className="we-character-card we-character-card--compact"
       role="button"
+      title="继续对话"
       tabIndex={0}
       onMouseDown={clickProps.onMouseDown}
       onClick={clickProps.onClick}
@@ -40,6 +42,13 @@ export function CharacterCard({ char, dragHandleProps, onCardClick, onEdit, onDe
         className="we-character-card-actions"
         onClick={(e) => e.stopPropagation()}
       >
+        <IconButton
+          size="sm"
+          label="和这个角色开一段新对话"
+          onClick={onNewChat}
+        >
+          <MessageSquarePlus size={16} />
+        </IconButton>
         <IconButton
           size="sm"
           label="编辑角色"

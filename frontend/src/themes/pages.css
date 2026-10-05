@@ -1882,27 +1882,9 @@
   padding: var(--we-space-md) 0;
 }
 
-/* 右栏空态：世界规则概览，代替一句灰字占满六成屏 */
-.we-rules-overview-stats {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--we-space-lg);
-}
-.we-rules-overview-stat {
-  display: flex;
-  flex-direction: column;
-  gap: var(--we-space-xxs);
-  min-width: 56px;
-}
-.we-rules-overview-stat-value {
-  font-family: var(--we-font-display);
-  font-size: var(--we-type-title-size);
-  letter-spacing: var(--we-type-title-tracking);
-  font-weight: var(--we-type-title-weight);
-  color: var(--we-color-text-primary);
-  line-height: var(--we-leading-flush);
-}
-.we-rules-overview-stat-label {
+/* 右栏空态：下一轮会发给 AI 的内容 */
+.we-rules-overview-note {
+  margin: 0;
   font-size: var(--we-type-caption-size);
   line-height: var(--we-type-caption-leading);
   letter-spacing: var(--we-type-caption-tracking);
@@ -1934,9 +1916,11 @@
   width: 1.2em;
   text-align: right;
 }
-.we-rules-overview-order li.is-disabled {
-  color: var(--we-color-text-secondary);
-  opacity: var(--we-opacity-disabled);
+.we-rules-overview-order--plain li {
+  flex-wrap: wrap;
+}
+.we-rules-overview-order--plain li::before {
+  content: none;
 }
 
 .we-workshop-entry-link {

@@ -2,6 +2,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { RotateCcw } from 'lucide-react';
 import Button from '../../../components/ui/Button.jsx';
 import CharacterSeal from '../../../components/chat/CharacterSeal.jsx';
+import GenerationErrorText from '../../../components/chat/GenerationErrorText.jsx';
 
 export default function ChatErrorBubble({ character, errorBubble, generating, onRetry, motionPrefs }) {
   return (
@@ -27,9 +28,10 @@ export default function ChatErrorBubble({ character, errorBubble, generating, on
                   </div>
                 )}
                 <div className="flex items-center gap-2 mt-1">
-                  <span className="we-type-caption px-2 py-1 rounded-[var(--we-radius-full)] bg-[var(--we-color-accent-bg)] text-[var(--we-color-status-danger)] border border-[var(--we-color-border-focus)]">
-                    生成失败：{errorBubble.errorMsg}
-                  </span>
+                  <GenerationErrorText
+                    errorMsg={errorBubble.errorMsg}
+                    className="we-type-caption px-2 py-1 rounded-[var(--we-radius-full)] bg-[var(--we-color-accent-bg)] text-[var(--we-color-status-danger)] border border-[var(--we-color-border-focus)]"
+                  />
                   <Button variant="secondary" size="sm" onClick={onRetry}>
                     <RotateCcw size={16} />
                     重新生成

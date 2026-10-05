@@ -4,12 +4,17 @@ import { deleteSession } from '../api/sessions.js';
 import { deleteWritingSession } from '../api/writing-sessions.js';
 import { formatDateLiterary } from '../utils/date-format.js';
 
+/** 对话故事线没有标题时的叫法；世界页列表和对话页面包屑共用 */
+export function chatStorylineTitle(characterName) {
+  return `与${characterName}的对话`;
+}
+
 /** 世界时间线条目的显示标题：无标题时按对话角色或写作创建日期生成 */
 export function storylineTitle(item, charactersById) {
   if (item.title) return item.title;
   if (item.mode === 'chat') {
     const c = charactersById[item.character_id];
-    return c ? `与 ${c.name} 的对话` : '对话';
+    return c ? chatStorylineTitle(c.name) : '对话';
   }
   return `${formatDateLiterary(item.created_at)}的写作`;
 }

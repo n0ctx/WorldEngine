@@ -116,7 +116,7 @@ describe('CharactersPage', () => {
     vi.clearAllMocks();
     mocks.useParams.mockReturnValue({ worldId: 'world-1' });
     mocks.useLocation.mockReturnValue({ pathname: '/worlds/world-1', state: null });
-    // 默认给一个「已完成三步」的成熟世界，避免每条既有用例都被引导页接管；
+    // 默认给一个「引导已完成」的成熟世界，避免每条既有用例都被引导页接管；
     // 引导本身的行为单独在下面的 describe 块里覆盖。
     mocks.getWorld.mockResolvedValue({
       id: 'world-1',
@@ -203,6 +203,19 @@ describe('CharactersPage', () => {
     expect(mocks.createSession).not.toHaveBeenCalled();
   });
 
+  it('角色卡「新对话」：已有会话也另开一条并进入', async () => {
+    mocks.createSession.mockResolvedValue({ id: 'sess-new', character_id: 'char-1' });
+    render(<CharactersPage />);
+    await screen.findAllByText('阿塔');
+
+    fireEvent.click(screen.getByLabelText('和这个角色开一段新对话'));
+
+    await waitFor(() => expect(mocks.navigate).toHaveBeenCalledWith('/characters/char-1/chat'));
+    expect(mocks.createSession).toHaveBeenCalledWith('char-1');
+    expect(mocks.getSessions).not.toHaveBeenCalledWith('char-1', 1);
+    expect(mocks.setCurrentSessionId).toHaveBeenCalledWith('sess-new');
+  });
+
   it('点击角色卡：没有会话时新建一条并进入', async () => {
     mocks.getSessions.mockResolvedValue([]);
     mocks.createSession.mockResolvedValue({ id: 'sess-new', character_id: 'char-1' });
@@ -275,10 +288,10 @@ describe('CharactersPage', () => {
     render(<CharactersPage />);
 
     expect(await screen.findByText('继续上次')).toBeInTheDocument();
-    expect(screen.getByText('与 阿塔 的对话')).toBeInTheDocument();
+    expect(screen.getByText('与阿塔的对话')).toBeInTheDocument();
     expect(screen.getByText('写作标题')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByText('与 阿塔 的对话'));
+    fireEvent.click(screen.getByText('与阿塔的对话'));
 
     expect(mocks.setCurrentCharacterId).toHaveBeenCalledWith('char-1');
     expect(mocks.setCurrentSessionId).toHaveBeenCalledWith('sess-chat-1');
@@ -325,7 +338,7 @@ describe('CharactersPage', () => {
     expect(mocks.navigate).not.toHaveBeenCalled();
   });
 
-  it('故事线：点击「+ 新建」创建写作会话并跳转', async () => {
+  it('故事线：点击「+ 写作」创建写作会话并跳转', async () => {
     mocks.createWritingSession.mockResolvedValue({ id: 'sess-new' });
     render(<CharactersPage />);
 
@@ -402,43 +415,59 @@ describe('CharactersPage', () => {
 
   describe('新世界搭建引导', () => {
     beforeEach(() => {
-      // 全空世界：三步全部未完成
+      // 全空世界：两步全部未完成
       mocks.getWorld.mockResolvedValue({ id: 'world-1', description: '', onboarding_dismissed: 0 });
       mocks.getCharactersByWorld.mockResolvedValue([]);
       mocks.listWorldEntries.mockResolvedValue([]);
       mocks.listWorldStateFields.mockResolvedValue([]);
     });
 
-    it('三步全未完成时展示引导，且三步都标记为未完成', async () => {
+    it('两步全未完成时展示引导，且两步都标记为未完成', async () => {
       render(<CharactersPage />);
 
-      expect(await screen.findByText('先做这三件事，这个世界就活了')).toBeInTheDocument();
-      expect(screen.getByText('写一写这个世界观')).toBeInTheDocument();
+      expect(await screen.findByText('先做这两件事，这个世界就活了')).toBeInTheDocument();
+      expect(screen.getByText('写下这个世界的前提')).toBeInTheDocument();
       expect(screen.getByText('加一个角色')).toBeInTheDocument();
-      expect(screen.getByText('写一条设定条目')).toBeInTheDocument();
+      expect(document.querySelectorAll('.we-onboarding-step')).toHaveLength(2);
       expect(document.querySelectorAll('.we-onboarding-step[data-state="checked"]')).toHaveLength(0);
       // 引导接管页面时，右栏的正常空态不应该再渲染
       expect(screen.queryByText('世界规则')).not.toBeInTheDocument();
     });
 
-    it('只有世界观写完时，只有这一步打勾并排到最后，引导仍然展示', async () => {
+    it('只写了世界简介不算写下世界前提：简介不进提示词', async () => {
       mocks.getWorld.mockResolvedValue({ id: 'world-1', description: '这里没有魔法', onboarding_dismissed: 0 });
       render(<CharactersPage />);
 
-      await screen.findByText('先做这三件事，这个世界就活了');
-      const steps = document.querySelectorAll('.we-onboarding-step');
-      expect(steps).toHaveLength(3);
-      expect([...steps].map((el) => el.dataset.state)).toEqual(['unchecked', 'unchecked', 'checked']);
-      expect(steps[2]).toHaveTextContent('写一写这个世界观');
+      await screen.findByText('先做这两件事，这个世界就活了');
+      expect(document.querySelectorAll('.we-onboarding-step[data-state="checked"]')).toHaveLength(0);
     });
 
-    it('点击「写一写这个世界观」跳转到世界编辑页', async () => {
+    it('有启用中的「一直生效」条目时世界前提打勾并排到最后，非一直生效或已禁用的不算', async () => {
+      mocks.listWorldEntries.mockResolvedValue([
+        { id: 'entry-1', title: '关键词条目', trigger_type: 'keyword', token: 0, sort_order: 0 },
+        { id: 'entry-2', title: '禁用的前提', trigger_type: 'always', enabled: 0, token: 0, sort_order: 1 },
+      ]);
+      const { unmount } = render(<CharactersPage />);
+      await screen.findByText('先做这两件事，这个世界就活了');
+      expect(document.querySelectorAll('.we-onboarding-step[data-state="checked"]')).toHaveLength(0);
+      unmount();
+
+      mocks.listWorldEntries.mockResolvedValue([
+        { id: 'entry-3', title: '世界前提', trigger_type: 'always', enabled: 1, token: 0, sort_order: 0 },
+      ]);
       render(<CharactersPage />);
-      fireEvent.click(await screen.findByText('写一写这个世界观'));
-      expect(mocks.navigate).toHaveBeenCalledWith(
-        '/worlds/world-1/edit',
-        { state: { backgroundLocation: { pathname: '/worlds/world-1', state: null } } },
-      );
+      await screen.findByText('先做这两件事，这个世界就活了');
+      await waitFor(() => {
+        const steps = document.querySelectorAll('.we-onboarding-step');
+        expect([...steps].map((el) => el.dataset.state)).toEqual(['unchecked', 'checked']);
+        expect(steps[1]).toHaveTextContent('写下这个世界的前提');
+      });
+    });
+
+    it('点击「写下这个世界的前提」跳转到规则页并直接新建一条一直生效的条目', async () => {
+      render(<CharactersPage />);
+      fireEvent.click(await screen.findByText('写下这个世界的前提'));
+      expect(mocks.navigate).toHaveBeenCalledWith('/worlds/world-1/rules?new=always');
     });
 
     it('点击「加一个角色」跳转到角色创建页', async () => {
@@ -450,21 +479,14 @@ describe('CharactersPage', () => {
       );
     });
 
-    it('点击「写一条设定条目」跳转到规则空间', async () => {
-      render(<CharactersPage />);
-      fireEvent.click(await screen.findByText('写一条设定条目'));
-      expect(mocks.navigate).toHaveBeenCalledWith('/worlds/world-1/rules');
-    });
-
-    it('三步都完成后引导不再出现，恢复正常世界层布局', async () => {
-      mocks.getWorld.mockResolvedValue({ id: 'world-1', description: '写好了', onboarding_dismissed: 0 });
+    it('两步都完成后引导不再出现，恢复正常世界层布局', async () => {
       mocks.getCharactersByWorld.mockResolvedValue([{ id: 'char-1', name: '阿塔', description: '守夜人' }]);
       mocks.listWorldEntries.mockResolvedValue([{ id: 'entry-1', title: '规则', trigger_type: 'always', token: 0, sort_order: 0 }]);
 
       render(<CharactersPage />);
 
       await screen.findByText('世界规则');
-      expect(screen.queryByText('先做这三件事，这个世界就活了')).not.toBeInTheDocument();
+      expect(screen.queryByText('先做这两件事，这个世界就活了')).not.toBeInTheDocument();
     });
 
     it('点击「跳过引导」持久化关闭状态，并立即隐藏引导', async () => {
@@ -472,17 +494,17 @@ describe('CharactersPage', () => {
       fireEvent.click(await screen.findByText('跳过引导'));
 
       await waitFor(() => expect(mocks.updateWorld).toHaveBeenCalledWith('world-1', { onboarding_dismissed: 1 }));
-      expect(screen.queryByText('先做这三件事，这个世界就活了')).not.toBeInTheDocument();
+      expect(screen.queryByText('先做这两件事，这个世界就活了')).not.toBeInTheDocument();
       // 关闭后恢复正常布局，能看到世界规则入口
       expect(await screen.findByText('世界规则')).toBeInTheDocument();
     });
 
-    it('已被关闭过的世界即使三步未完成也不再展示引导', async () => {
+    it('已被关闭过的世界即使未完成也不再展示引导', async () => {
       mocks.getWorld.mockResolvedValue({ id: 'world-1', description: '', onboarding_dismissed: 1 });
       render(<CharactersPage />);
 
       await screen.findByText('世界规则');
-      expect(screen.queryByText('先做这三件事，这个世界就活了')).not.toBeInTheDocument();
+      expect(screen.queryByText('先做这两件事，这个世界就活了')).not.toBeInTheDocument();
     });
   });
 });

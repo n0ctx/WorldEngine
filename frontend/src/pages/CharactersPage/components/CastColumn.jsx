@@ -18,6 +18,7 @@ export function CastColumn({
   charImportRef,
   onImportCharFile,
   onCharacterClick,
+  onCharacterNewChat,
   setDeletingChar,
 }) {
   return (
@@ -75,6 +76,7 @@ export function CastColumn({
                   char={char}
                   dragHandleProps={dragHandleProps}
                   onCardClick={() => onCharacterClick(char)}
+                  onNewChat={() => onCharacterNewChat(char)}
                   onEdit={() => navigate(`/characters/${char.id}/edit`, { state: { backgroundLocation: location } })}
                   onDelete={() => setDeletingChar(char)}
                 />

@@ -4,7 +4,7 @@ import { createWritingSession } from '../../../core/api/writing-sessions';
 import { log } from '../../../core/utils/logger.js';
 import { useOpenStoryline, deleteStoryline } from '../../../core/hooks/storyline.js';
 
-// ── 故事线：打开已有条目 / 新建写作 / 点角色进入对话 / 删除 ──────────────────────
+// ── 故事线：打开已有条目 / 新建写作 / 点角色进入对话 / 和角色开新对话 / 删除 ──────
 
 export function useStorylineActions(worldId, navigate, setCurrentWritingSessionId, setTimeline) {
   const handleStorylineClick = useOpenStoryline(worldId);
@@ -31,6 +31,16 @@ export function useStorylineActions(worldId, navigate, setCurrentWritingSessionI
     }
   }
 
+  // 角色卡上的「新对话」：不管有没有旧会话都新开一条
+  async function handleCharacterNewChat(character) {
+    try {
+      const session = await createSession(character.id);
+      handleStorylineClick({ mode: 'chat', id: session.id, character_id: character.id });
+    } catch (err) {
+      log.error('storyline.create_failed', err, { toast: `创建失败：${err.message}` });
+    }
+  }
+
   async function handleDeleteStoryline() {
     const item = deletingStoryline;
     try {
@@ -46,6 +56,7 @@ export function useStorylineActions(worldId, navigate, setCurrentWritingSessionI
     handleStorylineClick,
     handleCreateStoryline,
     handleCharacterChat,
+    handleCharacterNewChat,
     deletingStoryline,
     setDeletingStoryline,
     handleDeleteStoryline,

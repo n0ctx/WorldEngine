@@ -9,13 +9,6 @@
         "frontend/src/shells/book-spread/atmosphere/lightDust.js:61-65"
       ]
     },
-    "0eed7e14aa44426f": {
-      "tokens": 44,
-      "locations": [
-        "backend/services/model-catalog.js:222-227",
-        "frontend/src/core/constants/settings.js:144-149"
-      ]
-    },
     "2a4b98e5e9ab8e01": {
       "tokens": 57,
       "locations": [
@@ -76,8 +69,8 @@
     "dfc42a79ae6558f0": {
       "tokens": 43,
       "locations": [
-        "frontend/src/components/chat/MessageItem.jsx:45-48",
-        "frontend/src/components/writing/WritingMessageItem.jsx:67-70"
+        "frontend/src/components/chat/MessageItem.jsx:47-50",
+        "frontend/src/components/writing/WritingMessageItem.jsx:71-74"
       ]
     },
     "f4684b0c8b2784ee": {

@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Settings, Sparkles } from 'lucide-react';
 import { useMotion } from '../../../core/hooks/useMotion.js';
+import { useOpenSettings } from '../../../core/hooks/useOpenSettings.js';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { getWorld } from '../../../core/api/worlds.js';
 import { getCharacter } from '../../../core/api/characters.js';
@@ -64,6 +65,7 @@ function getLeafLabel(pathname, worldId, storyTitle) {
 export default function TopBar() {
   const navigate = useNavigate();
   const location = useLocation();
+  const openSettings = useOpenSettings();
   const m = useMotion();
   const topbarPathname = resolveTopbarPathname(location);
   const { characterId, worldId } = extractIds(topbarPathname);
@@ -177,20 +179,7 @@ export default function TopBar() {
         <motion.button
           className="we-topbar-item we-topbar-settings-btn"
           aria-label="打开设置"
-          onClick={() => {
-            const realBackground = location.state?.backgroundLocation ?? location;
-            navigate('/settings', {
-              state: {
-                backgroundLocation: realBackground,
-                from: {
-                  pathname: location.pathname,
-                  search: location.search,
-                  hash: location.hash,
-                  state: location.state,
-                },
-              },
-            });
-          }}
+          onClick={openSettings}
           title="设置"
           {...m.gesture('press')}
         >

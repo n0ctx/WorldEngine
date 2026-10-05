@@ -7,6 +7,7 @@ import Pager from '../../../components/chat/Pager.jsx';
 import ProviderSafetyBanner from '../../../components/ui/ProviderSafetyBanner.jsx';
 import { RotateCcw } from 'lucide-react';
 import Button from '../../../components/ui/Button.jsx';
+import GenerationErrorText from '../../../components/chat/GenerationErrorText.jsx';
 import { useTurnChanges } from '../../../core/hooks/useTurnChanges.js';
 
 export default function WritingSpaceConversationPane({ worldId, world, config, pageState, lifecycle, stream }) {
@@ -81,9 +82,7 @@ export default function WritingSpaceConversationPane({ worldId, world, config, p
               <div className="we-writing-error-partial">{error.partialContent}</div>
             )}
             <div className="we-writing-error-row">
-              <span className="we-writing-error-text we-field-error">
-                生成失败：{error.errorMsg}
-              </span>
+              <GenerationErrorText errorMsg={error.errorMsg} className="we-writing-error-text we-field-error" />
               <Button type="button" variant="secondary" size="sm" onClick={handleRetryAfterError}>
                 <RotateCcw size={16} />
                 重新生成

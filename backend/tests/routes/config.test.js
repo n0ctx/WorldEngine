@@ -100,7 +100,6 @@ test('GET /api/config/models 对 coding plan provider 返回静态模型列表',
 
   assert.ok(data.models.some((m) => m.id === 'MiniMax-M2.7'));
   assert.ok(data.models.some((m) => m.id === 'MiniMax-M2'));
-  assert.equal(data.thinkingOptions.length, 3);
 });
 
 test('GET /api/config/models 对 kimi-coding 优先动态拉取模型列表', async () => {
@@ -135,8 +134,7 @@ test('GET /api/config/models 对 kimi-coding 优先动态拉取模型列表', as
     assert.equal(res.status, 200);
     const data = await res.json();
     assert.deepEqual(data.models.map((m) => m.id), ['k3', 'kimi-for-coding', 'kimi-for-coding-highspeed']);
-    assert.equal(data.thinkingOptions.length, 3);
-  } finally {
+    } finally {
     globalThis.fetch = originalFetch;
   }
 });
@@ -190,7 +188,6 @@ test('GET /api/config/models 对 xiaomi provider 允许手填模型', async () =
   const data = await res.json();
 
   assert.deepEqual(data.models, []);
-  assert.equal(data.thinkingOptions.length, 0);
 });
 
 test('GET /api/config/test-connection 会识别 openai-compatible 的 200 + error JSON 鉴权失败', async () => {

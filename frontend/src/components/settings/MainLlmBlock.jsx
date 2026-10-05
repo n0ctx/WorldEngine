@@ -52,11 +52,11 @@ function MainLlmProviderSettings({
     : providers;
   const providerHintText = inherit
     ? `用于写作页生成；未配置则回退${inheritLabel}（${inheritModel || '未配置'}）。`
-    : undefined;
+    : '即 Provider，提供模型的服务；本地模型选 Ollama、LM Studio 或 llama.cpp。';
 
   return (
     <>
-      <FormGroup label="Provider" hint={providerHintText} variant="settings">
+      <FormGroup label="服务商" hint={providerHintText} variant="settings">
         <Select
           value={config.provider || ''}
           onChange={onProviderChange}
@@ -104,7 +104,7 @@ function MainLlmProviderSettings({
       )}
 
       {needsBaseUrl && (
-        <FormGroup label="Base URL" variant="settings">
+        <FormGroup label="接口地址" hint="即 Base URL，模型服务的请求地址。" variant="settings">
           <Input
             value={config.base_url || ''}
             onChange={(e) => onBaseUrlChange(e.target.value)}
@@ -126,8 +126,8 @@ function MainLlmProviderSettings({
 
       {thinkingOptions.length > 0 && onThinkingLevelChange && (
         <FormGroup
-          label="思考链级别"
-          hint="auto = 不传参数，使用模型默认行为"
+          label="思考强度"
+          hint="模型回答前先想多久；想得越多越慢、越费 Token。选「自动」就不发送这项，由模型自己决定。"
           variant="settings"
         >
           <Select
@@ -142,7 +142,7 @@ function MainLlmProviderSettings({
       )}
 
       {isModelDrivenThinking && (
-        <FormGroup label="思考链级别" hint="该 provider 由模型决定是否思考（如 kimi-k2-thinking / minimax-m2），无需也无法在请求中切换" variant="settings">
+        <FormGroup label="思考强度" hint="这家服务商由模型自己决定是否思考（如 kimi-k2-thinking / minimax-m2），这里不能切换。" variant="settings">
           <Input value="模型驱动" disabled readOnly />
         </FormGroup>
       )}
@@ -167,10 +167,12 @@ function MainLlmGenerationSettings({ config, inheritFrom, onTemperatureChange, o
         <div className="we-settings-inline-control-block">
           <div className="we-settings-range-head">
             <FieldLabel
-              hint={inherit ? '拉到最左侧（0）则继承对话温度' : undefined}
+              hint={inherit
+                ? '即 Temperature。拉到最左侧（0）则继承对话设置'
+                : '即 Temperature。越高越天马行空，越低越稳定'}
               variant="settings"
             >
-              {inherit ? '写作 Temperature' : 'Temperature'}
+              {inherit ? '写作随机度' : '随机度'}
             </FieldLabel>
             <span className="we-settings-range-value">{tempDisplay}</span>
           </div>
@@ -193,8 +195,10 @@ function MainLlmGenerationSettings({ config, inheritFrom, onTemperatureChange, o
 
       {onMaxTokensChange && (
         <FormGroup
-          label={inherit ? '写作 Max Tokens' : 'Max Tokens'}
-          hint={inherit ? '留空则继承对话最大 Token' : undefined}
+          label={inherit ? '写作单次回复上限' : '单次回复上限'}
+          hint={inherit
+            ? '即 Max Tokens。留空则继承对话设置'
+            : '即 Max Tokens，一次回复最多生成多少 Token'}
           variant="settings"
         >
           <Input
@@ -225,7 +229,7 @@ function MainLlmGenerationSettings({ config, inheritFrom, onTemperatureChange, o
  *   - { label, model }（写作模式）：provider 留空回退；temperature 0 = 继承；max_tokens 留空继承。
  */
 export default function MainLlmBlock({
-  title = '主模型（LLM）',
+  title = '主模型',
   providers,
   config,
   onProviderChange,

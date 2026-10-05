@@ -48,6 +48,7 @@ const mocks = vi.hoisted(() => {
 vi.mock('react-router-dom', () => ({
   useParams: () => mocks.useParams(),
   useNavigate: () => mocks.navigate,
+  useLocation: () => ({ pathname: '/', search: '', hash: '', state: null }),
 }));
 vi.mock('../../src/core/state/appMode.js', () => ({
   useAppModeStore: (selector) => selector({ setAppMode: mocks.setAppMode }),

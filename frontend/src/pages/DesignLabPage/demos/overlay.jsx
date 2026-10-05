@@ -107,8 +107,8 @@ function CapsuleSample({ failNext, creating }) {
       <div className="we-edit-form-stack">
         <FormGroup label="名称" required><Input {...field('name')} placeholder="世界的名称" /></FormGroup>
         <FormGroup label="简介"><Textarea rows={3} {...field('description')} placeholder="一句话介绍这个世界…" /></FormGroup>
-        <FormGroup label="Temperature"><Input type="number" {...field('temperature')} placeholder="留空则使用全局配置" /></FormGroup>
-        <FormGroup label="最大 Token 数"><Input type="number" {...field('maxTokens')} placeholder="留空则使用全局配置" /></FormGroup>
+        <FormGroup label="随机度"><Input type="number" {...field('temperature')} placeholder="留空则使用全局配置" /></FormGroup>
+        <FormGroup label="单次回复上限"><Input type="number" {...field('maxTokens')} placeholder="留空则使用全局配置" /></FormGroup>
       </div>
       <SaveCapsule
         creating={creating}

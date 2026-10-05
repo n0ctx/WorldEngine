@@ -46,6 +46,7 @@ const mocks = vi.hoisted(() => {
 vi.mock('react-router-dom', () => ({
   useParams: () => mocks.useParams(),
   useNavigate: () => mocks.navigate,
+  useLocation: () => ({ pathname: '/', search: '', hash: '', state: null }),
 }));
 vi.mock('../../src/core/api/characters.js', () => ({ getCharacter: (...args) => mocks.getCharacter(...args) }));
 vi.mock('../../src/core/api/personas.js', () => ({ getPersona: (...args) => mocks.getPersona(...args) }));

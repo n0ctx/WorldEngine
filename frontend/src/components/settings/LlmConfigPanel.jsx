@@ -24,12 +24,12 @@ export default function LlmConfigPanel({
 
   return (
     <div className="we-settings-llm-panel">
-      <SectionTitle level="section" rule="under" as="h2">LLM 配置</SectionTitle>
+      <SectionTitle level="section" rule="under" as="h2">模型</SectionTitle>
 
       {/* 主模型区块：对话/写作共用 MainLlmBlock，inheritFrom 切换继承语义 */}
       {settingsMode === SETTINGS_MODE.WRITING ? (
         <MainLlmBlock
-          title="主模型（LLM）"
+          title="主模型"
           providers={LLM_PROVIDERS}
           config={writingLlm}
           onProviderChange={(v) => onWritingLlmChange('provider', v)}
@@ -46,7 +46,7 @@ export default function LlmConfigPanel({
         />
       ) : (
         <MainLlmBlock
-          title="主模型（LLM）"
+          title="主模型"
           providers={LLM_PROVIDERS}
           config={llm}
           onProviderChange={(v) => onLlmChange('provider', v)}

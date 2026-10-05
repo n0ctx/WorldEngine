@@ -70,14 +70,14 @@ export const NAV_KEY = {
 };
 
 export const NAV_SECTIONS = [
-  { key: NAV_KEY.LLM, label: 'LLM 配置' },
+  { key: NAV_KEY.LLM, label: '模型' },
   { key: NAV_KEY.FEATURES, label: '功能配置' },
   { key: NAV_KEY.PROMPT, label: '全局提示词' },
   { key: NAV_KEY.THEME, label: '主题' },
   { key: NAV_KEY.CSS, label: '自定义 CSS' },
   { key: NAV_KEY.REGEX, label: '正则规则' },
   { key: NAV_KEY.IMPORT_EXPORT, label: '导入导出' },
-  { key: NAV_KEY.PROVIDER_SAFETY, label: 'Provider 安全信号' },
+  { key: NAV_KEY.PROVIDER_SAFETY, label: '服务商安全信号' },
   { key: NAV_KEY.ABOUT, label: '关于' },
 ];
 
@@ -112,65 +112,65 @@ function getProviderThinkingOptions(provider) {
     case 'gemini':
     case 'minimax-coding':
       return [
-        { value: 'budget_low', label: '思考：低（1024 tokens）' },
-        { value: 'budget_medium', label: '思考：中（8192 tokens）' },
-        { value: 'budget_high', label: '思考：高（16384 tokens）' },
+        { value: 'budget_low', label: '少（最多 1024 Token）' },
+        { value: 'budget_medium', label: '中（最多 8192 Token）' },
+        { value: 'budget_high', label: '多（最多 16384 Token）' },
       ];
     // kimi-coding（K3 / K2.8 Preview）官方档位为 low/high/max
     case 'kimi-coding':
       return [
-        { value: 'effort_low', label: '思考：低（reasoning_effort=low）' },
-        { value: 'effort_high', label: '思考：高（reasoning_effort=high）' },
-        { value: 'effort_max', label: '思考：最高（reasoning_effort=max）' },
+        { value: 'effort_low', label: '低' },
+        { value: 'effort_high', label: '高' },
+        { value: 'effort_max', label: '最高' },
       ];
     case 'openai':
     case 'xiaomi':
     case 'openai_compatible':
       return [
-        { value: 'effort_low', label: '推理：低（reasoning_effort=low）' },
-        { value: 'effort_medium', label: '推理：中（reasoning_effort=medium）' },
-        { value: 'effort_high', label: '推理：高（reasoning_effort=high）' },
+        { value: 'effort_low', label: '低' },
+        { value: 'effort_medium', label: '中' },
+        { value: 'effort_high', label: '高' },
       ];
     case 'openrouter':
       return [
-        { value: 'effort_low', label: '推理：低（reasoning.effort=low）' },
-        { value: 'effort_medium', label: '推理：中（reasoning.effort=medium）' },
-        { value: 'effort_high', label: '推理：高（reasoning.effort=high）' },
-        { value: 'thinking_enabled', label: '思考：开启（reasoning.enabled=true）' },
-        { value: 'thinking_disabled', label: '思考：关闭（reasoning.enabled=false）' },
+        { value: 'effort_low', label: '低' },
+        { value: 'effort_medium', label: '中' },
+        { value: 'effort_high', label: '高' },
+        { value: 'thinking_enabled', label: '开启（强度由模型决定）' },
+        { value: 'thinking_disabled', label: '关闭' },
       ];
     case 'llamacpp':
       // 服务端 Qwen3 模板只认 low|medium|xhigh，effort_high 在后端映射为 xhigh
       return [
-        { value: 'thinking_disabled', label: '思考：关闭（enable_thinking=false）' },
-        { value: 'effort_low', label: '推理：低（reasoning_effort=low）' },
-        { value: 'effort_medium', label: '推理：中（reasoning_effort=medium）' },
-        { value: 'effort_high', label: '推理：高（reasoning_effort=xhigh）' },
+        { value: 'thinking_disabled', label: '关闭' },
+        { value: 'effort_low', label: '低' },
+        { value: 'effort_medium', label: '中' },
+        { value: 'effort_high', label: '高' },
       ];
     case 'grok':
       return [
-        { value: 'effort_low', label: '推理：低（仅 grok-3-mini）' },
-        { value: 'effort_high', label: '推理：高（仅 grok-3-mini）' },
+        { value: 'effort_low', label: '低（仅 grok-3-mini）' },
+        { value: 'effort_high', label: '高（仅 grok-3-mini）' },
       ];
     case 'glm':
     case 'glm-coding':
       return [
-        { value: 'thinking_enabled', label: '思考：开启（thinking.type=enabled）' },
-        { value: 'thinking_disabled', label: '思考：关闭（thinking.type=disabled）' },
+        { value: 'thinking_enabled', label: '开启' },
+        { value: 'thinking_disabled', label: '关闭' },
       ];
     case 'deepseek':
       return [
-        { value: 'thinking_enabled', label: '思考：开启（thinking.type=enabled，仅 v3.1+）' },
-        { value: 'thinking_disabled', label: '思考：关闭（thinking.type=disabled，仅 v3.1+）' },
+        { value: 'thinking_enabled', label: '开启（仅 v3.1 及以上）' },
+        { value: 'thinking_disabled', label: '关闭（仅 v3.1 及以上）' },
       ];
     case 'qwen':
     case 'siliconflow':
       return [
-        { value: 'thinking_disabled', label: '思考：关闭（enable_thinking=false）' },
-        { value: 'thinking_enabled', label: '思考：开启（enable_thinking=true）' },
-        { value: 'qwen_low', label: '思考：低（thinking_budget=1024）' },
-        { value: 'qwen_medium', label: '思考：中（thinking_budget=8192）' },
-        { value: 'qwen_high', label: '思考：高（thinking_budget=16384）' },
+        { value: 'thinking_disabled', label: '关闭' },
+        { value: 'thinking_enabled', label: '开启（强度由模型决定）' },
+        { value: 'qwen_low', label: '少（最多 1024 Token）' },
+        { value: 'qwen_medium', label: '中（最多 8192 Token）' },
+        { value: 'qwen_high', label: '多（最多 16384 Token）' },
       ];
     // kimi / minimax：模型驱动（kimi-k2-thinking / minimax-m2 等模型自动思考），不暴露开关
     default:

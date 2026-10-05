@@ -38,7 +38,7 @@ export default function WorldEditSections({ isCreate, worldId, navigate, diaryCh
     },
     {
       key: 'llm',
-      label: 'LLM 参数',
+      label: '模型参数',
       content: (
         <LlmSettingsSection
           temperature={page.temperature}
@@ -144,7 +144,7 @@ function BasicSettingsSection({ isCreate, name, setName, description, setDescrip
 function LlmSettingsSection({ temperature, setTemperature, maxTokens, setMaxTokens }) {
   return (
     <div className="we-edit-form-stack">
-      <FormGroup label="Temperature" hint="覆盖全局 temperature，留空则使用全局配置（世界级 > 全局）">
+      <FormGroup label="随机度" hint="即 Temperature。只对这个世界生效，留空则用全局设置">
         <Input
           type="number"
           step="0.01"
@@ -155,7 +155,7 @@ function LlmSettingsSection({ temperature, setTemperature, maxTokens, setMaxToke
           placeholder="留空则使用全局配置"
         />
       </FormGroup>
-      <FormGroup label="最大 Token 数" hint="覆盖全局 max_tokens，留空则使用全局配置">
+      <FormGroup label="单次回复上限" hint="即 Max Tokens。只对这个世界生效，留空则用全局设置">
         <Input
           type="number"
           step="1"

@@ -9,6 +9,7 @@ import { useChatStream } from './hooks/useChatStream.js';
 import { useChatPageCharacter, useChatPageSession } from './hooks/useChatPageSession.js';
 import { useMotion } from '../../core/hooks/useMotion.js';
 import { useWorld } from '../../core/hooks/useWorld.js';
+import { chatStorylineTitle } from '../../core/hooks/storyline.js';
 import ChatPageShell from './components/ChatPageShell.jsx';
 import ChatConversationPane from './components/ChatConversationPane.jsx';
 
@@ -52,7 +53,7 @@ export default function ChatPage() {
 
   const setStoryTitle = useCurrentStoryStore((s) => s.setStoryTitle);
   useEffect(() => {
-    setStoryTitle(stream.currentSession?.title || (character ? `与${character.name}的对话` : null));
+    setStoryTitle(stream.currentSession?.title || (character ? chatStorylineTitle(character.name) : null));
   }, [stream.currentSession?.title, character, setStoryTitle]);
   useEffect(() => () => setStoryTitle(null), [setStoryTitle]);
 

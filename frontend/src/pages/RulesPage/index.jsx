@@ -13,10 +13,12 @@ export default function RulesPage() {
   const [searchParams] = useSearchParams();
 
   // ── 设定条目 ──
-  const [entryFilter, setEntryFilter] = useState('all');
+  // 新世界引导的「写下这个世界的前提」带 ?new=always 进来：直接打开一条新的「一直生效」条目
+  const opensPremiseEditor = searchParams.get('new') === 'always';
+  const [entryFilter, setEntryFilter] = useState(opensPremiseEditor ? 'always' : 'all');
   const [orderMode, setOrderMode] = useState(false);
   const [selectedEntryId, setSelectedEntryId] = useState(null);
-  const [creatingEntry, setCreatingEntry] = useState(false);
+  const [creatingEntry, setCreatingEntry] = useState(opensPremiseEditor);
 
   // ── 状态字段 ──
   // 顶层导航：'entries'（设定条目）| 'fields'（状态字段）。旧的 /state-workshop

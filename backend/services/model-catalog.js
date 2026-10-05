@@ -189,47 +189,6 @@ export async function verifyLlmConnection(llmConfig) {
   await complete([{ role: 'user', content: 'ping' }], llm);
 }
 
-/**
- * 返回当前 provider 支持的 thinking 级别选项
- * 空数组表示该 provider 不支持 API 级别的 thinking 配置
- * （DeepSeek R1 等模型天然输出 <think> 标签，无需此处配置）
- */
-export function getThinkingOptions(provider) {
-  switch (provider) {
-    case 'anthropic':
-    case 'gemini':
-    case 'minimax-coding':
-      return [
-        { value: 'budget_low', label: '思考：低（1024 tokens）' },
-        { value: 'budget_medium', label: '思考：中（8192 tokens）' },
-        { value: 'budget_high', label: '思考：高（16384 tokens）' },
-      ];
-    // kimi-coding（K3 / K2.8 Preview）官方档位为 low/high/max，见 anthropic 适配器 resolveKimiCodingEffort
-    case 'kimi-coding':
-      return [
-        { value: 'effort_low', label: '思考：低（reasoning_effort=low）' },
-        { value: 'effort_high', label: '思考：高（reasoning_effort=high）' },
-        { value: 'effort_max', label: '思考：最高（reasoning_effort=max）' },
-      ];
-    case 'openai':
-    case 'glm-coding':
-      return [
-        { value: 'effort_low', label: '推理：低（仅 o-series 模型）' },
-        { value: 'effort_medium', label: '推理：中（仅 o-series 模型）' },
-        { value: 'effort_high', label: '推理：高（仅 o-series 模型）' },
-      ];
-    case 'llamacpp':
-      return [
-        { value: 'thinking_disabled', label: '思考：关闭（enable_thinking=false）' },
-        { value: 'effort_low', label: '推理：低（reasoning_effort=low）' },
-        { value: 'effort_medium', label: '推理：中（reasoning_effort=medium）' },
-        { value: 'effort_high', label: '推理：高（reasoning_effort=xhigh）' },
-      ];
-    default:
-      return [];
-  }
-}
-
 /** 用已解析的单个模型配置（含 api_key）发一次最小请求验证连通性 */
 export function verifyModelConnection(modelConfig) {
   return verifyLlmConnection({

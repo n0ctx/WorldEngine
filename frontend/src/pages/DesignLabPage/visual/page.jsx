@@ -28,7 +28,7 @@ export function PageCanvasDemo() {
         </div>
         <NewWorldGuide completed={{ world: true }} onStepClick={noop} onDismiss={noop} />
         {CAST.map((character) => (
-          <CharacterCard key={character.id} char={character} onCardClick={noop} onEdit={noop} onDelete={noop} />
+          <CharacterCard key={character.id} char={character} onCardClick={noop} onNewChat={noop} onEdit={noop} onDelete={noop} />
         ))}
         <ParchmentTexture opacity={0.55} />
       </div>
