@@ -14,6 +14,7 @@ const OPENAI_PREFIX_PROVIDERS = new Set([
   'siliconflow',
   'qwen',
   'xiaomi',
+  'xiaomi-coding',
 ]);
 
 function firstNumber(...values) {

@@ -15,6 +15,7 @@ export const LLM_PROVIDERS = [
   { value: 'siliconflow', label: 'SiliconFlow' },
   { value: 'qwen', label: 'Qwen (阿里云百炼)' },
   { value: 'xiaomi', label: 'Xiaomi (小米)' },
+  { value: 'xiaomi-coding', label: 'Xiaomi Coding Plan (小米)' },
   { value: 'glm', label: 'GLM (智谱)' },
   { value: 'glm-coding', label: 'GLM Coding Plan (智谱)' },
   { value: 'kimi', label: 'Kimi (月之暗面)' },
@@ -60,6 +61,13 @@ const PROVIDER_HINTS = {
       { label: '查看 MiMo 接口文档', url: 'https://mimo.mi.com/docs/en-US/api/chat/openai-api' },
     ],
   },
+  'xiaomi-coding': {
+    summary: '小米 MiMo Token Plan 的 Key 以 tp- 开头，与按量付费的 Key 不通用。接口地址按订阅地区填写：国内 token-plan-cn、新加坡 token-plan-sgp、欧洲 token-plan-ams（如 https://token-plan-sgp.xiaomimimo.com/v1）；留空即用国内地址。',
+    links: [
+      { label: '打开 Token Plan 控制台', url: 'https://platform.xiaomimimo.com/token-plan' },
+      { label: '查看 MiMo 接口文档', url: 'https://mimo.mi.com/docs/en-US/api/chat/openai-api' },
+    ],
+  },
 };
 
 export const NAV_KEY = {
@@ -87,13 +95,14 @@ export const NAV_SECTIONS = [
 ];
 
 export const LOCAL_PROVIDERS = ['ollama', 'lmstudio', 'llamacpp'];
-const NEEDS_BASE_URL_PROVIDERS = new Set([...LOCAL_PROVIDERS, 'openai_compatible', 'xiaomi']);
+const NEEDS_BASE_URL_PROVIDERS = new Set([...LOCAL_PROVIDERS, 'openai_compatible', 'xiaomi', 'xiaomi-coding']);
 
 export const DEFAULT_BASE_URLS = {
   ollama: OLLAMA_DEFAULT_BASE_URL,
   lmstudio: LMSTUDIO_DEFAULT_BASE_URL,
   llamacpp: LLAMACPP_DEFAULT_BASE_URL,
   xiaomi: 'https://api.xiaomimimo.com/v1',
+  'xiaomi-coding': 'https://token-plan-cn.xiaomimimo.com/v1',
 };
 
 export const SETTINGS_MODE = { CHAT: 'chat', WRITING: 'writing' };

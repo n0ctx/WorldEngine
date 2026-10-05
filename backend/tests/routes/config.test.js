@@ -98,6 +98,7 @@ test('GET /api/config/models 对 coding plan provider 返回静态模型列表',
   assert.equal(res.status, 200);
   const data = await res.json();
 
+  assert.ok(data.models.some((m) => m.id === 'MiniMax-M3'));
   assert.ok(data.models.some((m) => m.id === 'MiniMax-M2.7'));
   assert.ok(data.models.some((m) => m.id === 'MiniMax-M2'));
 });
@@ -171,7 +172,48 @@ test('GET /api/config/models 对 kimi-coding 动态拉取失败时回退静态�
   }
 });
 
-test('GET /api/config/models 对 xiaomi provider 允许手填模型', async () => {
+test('GET /api/config/models 对 minimax-coding 有 Key 时按 Anthropic 协议动态拉取模型列表', async () => {
+  const originalFetch = globalThis.fetch;
+  let sentKey = null;
+  globalThis.fetch = async (url, init) => {
+    const target = String(url);
+    if (target.startsWith('http://127.0.0.1:')) return originalFetch(url, init);
+    if (target === 'https://api.minimax.io/anthropic/v1/models') {
+      sentKey = init?.headers?.['x-api-key'];
+      return new Response(JSON.stringify({
+        data: [{ id: 'MiniMax-M3', type: 'model' }, { id: 'MiniMax-M2.7', type: 'model' }],
+        has_more: false,
+      }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+    throw new Error(`unexpected fetch: ${target}`);
+  };
+
+  ctx.sandbox.writeConfig({
+    ...ctx.sandbox.readConfig(),
+    provider_keys: { 'minimax-coding': 'sk-cp-test' },
+    llm: {
+      ...ctx.sandbox.readConfig().llm,
+      provider: 'minimax-coding',
+      model: '',
+      base_url: '',
+    },
+  });
+
+  try {
+    const res = await ctx.request('/api/config/models');
+    assert.equal(res.status, 200);
+    const data = await res.json();
+    assert.equal(sentKey, 'sk-cp-test');
+    assert.deepEqual(data.models.map((m) => m.id), ['MiniMax-M3', 'MiniMax-M2.7']);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('GET /api/config/models 对 xiaomi 无 Key 时返回静态模型列表，不发请求', async () => {
   ctx.sandbox.writeConfig({
     ...ctx.sandbox.readConfig(),
     provider_keys: {},
@@ -187,7 +229,81 @@ test('GET /api/config/models 对 xiaomi provider 允许手填模型', async () =
   assert.equal(res.status, 200);
   const data = await res.json();
 
-  assert.deepEqual(data.models, []);
+  assert.ok(data.models.some((m) => m.id === 'mimo-v2.6-pro'));
+  assert.ok(data.models.some((m) => m.id === 'mimo-v2.6-pro-ultraspeed'));
+});
+
+test('GET /api/config/models 对 xiaomi-coding 按填写的地区地址动态拉取模型列表', async () => {
+  const originalFetch = globalThis.fetch;
+  let sentAuth = null;
+  globalThis.fetch = async (url, init) => {
+    const target = String(url);
+    if (target.startsWith('http://127.0.0.1:')) return originalFetch(url, init);
+    if (target === 'https://token-plan-sgp.xiaomimimo.com/v1/models') {
+      sentAuth = init?.headers?.Authorization;
+      return new Response(JSON.stringify({
+        object: 'list',
+        data: [{ id: 'mimo-v2.6-pro', object: 'model' }, { id: 'mimo-v2.6-flash', object: 'model' }],
+      }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+    throw new Error(`unexpected fetch: ${target}`);
+  };
+
+  ctx.sandbox.writeConfig({
+    ...ctx.sandbox.readConfig(),
+    provider_keys: { 'xiaomi-coding': 'tp-test' },
+    llm: {
+      ...ctx.sandbox.readConfig().llm,
+      provider: 'xiaomi-coding',
+      model: '',
+      base_url: 'https://token-plan-sgp.xiaomimimo.com/v1',
+    },
+  });
+
+  try {
+    const res = await ctx.request('/api/config/models');
+    assert.equal(res.status, 200);
+    const data = await res.json();
+    assert.equal(sentAuth, 'Bearer tp-test');
+    assert.deepEqual(data.models.map((m) => m.id), ['mimo-v2.6-pro', 'mimo-v2.6-flash']);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('GET /api/config/models 对 xiaomi-coding 动态拉取失败时回退静态模型列表', async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (url, init) => {
+    const target = String(url);
+    if (target.startsWith('http://127.0.0.1:')) return originalFetch(url, init);
+    if (target === 'https://token-plan-cn.xiaomimimo.com/v1/models') {
+      return new Response(JSON.stringify({ error: { message: 'Invalid API Key' } }), { status: 401 });
+    }
+    throw new Error(`unexpected fetch: ${target}`);
+  };
+
+  ctx.sandbox.writeConfig({
+    ...ctx.sandbox.readConfig(),
+    provider_keys: { 'xiaomi-coding': 'bad-key' },
+    llm: {
+      ...ctx.sandbox.readConfig().llm,
+      provider: 'xiaomi-coding',
+      model: '',
+      base_url: '',
+    },
+  });
+
+  try {
+    const res = await ctx.request('/api/config/models');
+    assert.equal(res.status, 200);
+    const data = await res.json();
+    assert.deepEqual(data.models.map((m) => m.id), ['mimo-v2.6-pro', 'mimo-v2.6-flash', 'mimo-v2.5-pro', 'mimo-v2.5']);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
 });
 
 test('GET /api/config/test-connection 会识别 openai-compatible 的 200 + error JSON 鉴权失败', async () => {

@@ -277,6 +277,7 @@ export const KNOWN_PRICES = new Map([
   // Kimi Coding Plan（按会员配额计费，无 token 单价）
   ['kimi-for-coding',       { inputPrice: 0,     outputPrice: 0     }],
   // MiniMax Coding Plan（按 Token Plan 配额计费，无 token 单价）
+  ['MiniMax-M3',            { inputPrice: 0,     outputPrice: 0     }],
   ['MiniMax-M2.7',          { inputPrice: 0,     outputPrice: 0     }],
   ['MiniMax-M2.7-highspeed',{ inputPrice: 0,     outputPrice: 0     }],
   ['MiniMax-M2.5',          { inputPrice: 0,     outputPrice: 0     }],

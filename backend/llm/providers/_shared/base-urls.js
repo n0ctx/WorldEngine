@@ -14,12 +14,13 @@ export const DEFAULT_BASE_URLS = {
   siliconflow:     'https://api.siliconflow.cn/v1',
   qwen:            'https://dashscope.aliyuncs.com/compatible-mode/v1',
   xiaomi:          'https://api.xiaomimimo.com/v1',
+  'xiaomi-coding': 'https://token-plan-cn.xiaomimimo.com/v1',
   anthropic:       'https://api.anthropic.com',
   gemini:          'https://generativelanguage.googleapis.com',
 };
 
 export const OPENAI_COMPATIBLE = new Set([
-  'openai', 'openrouter', 'glm', 'glm-coding', 'kimi', 'kimi-coding', 'minimax', 'deepseek', 'grok', 'siliconflow', 'qwen', 'xiaomi',
+  'openai', 'openrouter', 'glm', 'glm-coding', 'kimi', 'kimi-coding', 'minimax', 'deepseek', 'grok', 'siliconflow', 'qwen', 'xiaomi', 'xiaomi-coding',
 ]);
 
 export function getBaseUrl(config) {

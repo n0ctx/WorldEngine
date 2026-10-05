@@ -22,7 +22,7 @@
     "backend/services/import-export.js#createImportedWorld": 50,
     "backend/services/import-export.js#importGlobalSettings": 34,
     "backend/services/import-export.js#importWorld>runImportTransaction": 50,
-    "backend/services/model-catalog.js#fetchModels": 41,
+    "backend/services/model-catalog.js#fetchModels": 32,
     "backend/services/state-values.js#validateStateValue": 42,
     "backend/utils/state-field-validate.js#validateValue": 46,
     "frontend/src/components/message/StreamingMarkdown.jsx#StreamingMarkdown": 42,

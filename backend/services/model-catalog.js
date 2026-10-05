@@ -66,12 +66,39 @@ async function fetchOpenAICompatibleModels(base, apiKey, provider) {
   });
 }
 
+/**
+ * Anthropic 原生协议的模型列表拉取（GET {base}/v1/models）
+ * 适用于：Anthropic / MiniMax Coding Plan（/anthropic 兼容端点）
+ */
+async function fetchAnthropicModels(base, apiKey, provider) {
+  const resp = await fetch(`${base.replace(/\/+$/, '')}/v1/models`, {
+    headers: {
+      'x-api-key': apiKey,
+      'anthropic-version': ANTHROPIC_API_VERSION,
+    },
+  });
+  if (!resp.ok) {
+    let providerError = null;
+    try {
+      providerError = extractProviderError(await resp.json());
+    } catch { /* not JSON */ }
+    throw new Error(providerError || `API ${resp.status}`);
+  }
+  const data = await resp.json();
+  const dynamicPrices = await getDynamicPricingOrEmpty(provider);
+  return (data.data || []).map((m) => {
+    const known = lookupPricingFromMap(dynamicPrices, m.id) || getFallbackPricing(m.id) || {};
+    return { id: m.id, ...known };
+  });
+}
+
 function getStaticCodingPlanModels(provider) {
   switch (provider) {
     case 'kimi-coding':
       return [{ id: 'kimi-for-coding', ...KNOWN_PRICES.get('kimi-for-coding') }];
     case 'minimax-coding':
       return [
+        'MiniMax-M3',
         'MiniMax-M2.7',
         'MiniMax-M2.7-highspeed',
         'MiniMax-M2.5',
@@ -89,24 +116,56 @@ function getStaticCodingPlanModels(provider) {
         'GLM-4.5-Air',
       ].map((id) => ({ id, ...KNOWN_PRICES.get(id) }));
     case 'xiaomi':
-      return [];
+      return [
+        'mimo-v2.6-pro',
+        'mimo-v2.6-pro-ultraspeed',
+        'mimo-v2.6-flash',
+        'mimo-v2.5-pro',
+        'mimo-v2.5',
+      ].map((id) => ({ id }));
+    // Token Plan 按套餐额度计费，没有 ultraspeed
+    case 'xiaomi-coding':
+      return [
+        'mimo-v2.6-pro',
+        'mimo-v2.6-flash',
+        'mimo-v2.5-pro',
+        'mimo-v2.5',
+      ].map((id) => ({ id, inputPrice: 0, outputPrice: 0 }));
     default:
       return null;
+  }
+}
+
+/**
+ * 有静态表的 provider 中，有模型列表端点的动态拉取；无端点或无 Key 时返回空数组
+ * kimi-coding 走 OpenAI 兼容协议（/coding/v1/models，与 chat 的 /coding 不同源）；
+ * minimax-coding 走 Anthropic 兼容协议（与 chat 同源的 /anthropic/v1/models）；
+ * xiaomi / xiaomi-coding 走 OpenAI 兼容协议（与 chat 同源的 /v1/models，Token Plan 按订阅地区换地址）
+ */
+async function fetchListedModels(provider, apiKey, baseUrl) {
+  if (!apiKey) return [];
+  switch (provider) {
+    case 'kimi-coding':
+      return fetchOpenAICompatibleModels(OPENAI_COMPATIBLE_BASE_URLS['kimi-coding'], apiKey, provider);
+    case 'minimax-coding':
+      return fetchAnthropicModels(validateModelFetchBaseUrl(provider, baseUrl || DEFAULT_BASE_URLS[provider]), apiKey, provider);
+    case 'xiaomi':
+    case 'xiaomi-coding':
+      return fetchOpenAICompatibleModels(validateModelFetchBaseUrl(provider, baseUrl || DEFAULT_BASE_URLS[provider]), apiKey, provider);
+    default:
+      return [];
   }
 }
 
 export async function fetchModels(provider, apiKey, baseUrl) {
   const staticModels = getStaticCodingPlanModels(provider);
   if (staticModels) {
-    // kimi-coding 的模型列表端点走 OpenAI 兼容协议（/coding/v1/models，与 chat 的 /coding 不同源），
-    // 优先动态拉取真实模型名（随会员档位变化），失败或无 Key 时回退静态表
-    if (provider === 'kimi-coding') {
-      try {
-        const models = await fetchOpenAICompatibleModels(OPENAI_COMPATIBLE_BASE_URLS['kimi-coding'], apiKey, provider);
-        if (models.length) return models;
-      } catch (error) {
-        log.warn(`models.dynamic_fetch_failed ${formatMeta({ provider, error: error.message })}`);
-      }
+    // 优先动态拉取真实模型名（随会员档位与新模型上线变化），失败、无 Key 或无列表端点时回退静态表
+    try {
+      const models = await fetchListedModels(provider, apiKey, baseUrl);
+      if (models.length) return models;
+    } catch (error) {
+      log.warn(`models.dynamic_fetch_failed ${formatMeta({ provider, error: error.message })}`);
     }
     return staticModels;
   }
@@ -114,26 +173,7 @@ export async function fetchModels(provider, apiKey, baseUrl) {
   // Anthropic — 原生 /v1/models 接口
   if (provider === 'anthropic') {
     if (!apiKey) throw new Error('Anthropic 需要 API Key 才能拉取模型列表');
-    const base = (baseUrl || DEFAULT_BASE_URLS.anthropic).replace(/\/+$/, '');
-    const resp = await fetch(`${base}/v1/models`, {
-      headers: {
-        'x-api-key': apiKey,
-        'anthropic-version': ANTHROPIC_API_VERSION,
-      },
-    });
-    if (!resp.ok) {
-      let providerError = null;
-      try {
-        providerError = extractProviderError(await resp.json());
-      } catch { /* not JSON */ }
-      throw new Error(providerError || `API ${resp.status}`);
-    }
-    const data = await resp.json();
-    const dynamicPrices = await getDynamicPricingOrEmpty('anthropic', provider);
-    return (data.data || []).map((m) => {
-      const known = lookupPricingFromMap(dynamicPrices, m.id) || getFallbackPricing(m.id) || {};
-      return { id: m.id, ...known };
-    });
+    return fetchAnthropicModels(baseUrl || DEFAULT_BASE_URLS.anthropic, apiKey, provider);
   }
 
   // Gemini — 原生接口（暂无价格）

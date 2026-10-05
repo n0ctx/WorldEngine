@@ -104,9 +104,16 @@ test('xiaomi 未填接口地址时用 MiMo 官方地址，填了则用填写的'
   assert.equal(getBaseUrl({ provider: 'xiaomi', base_url: 'https://proxy.example/v1/' }), 'https://proxy.example/v1');
 });
 
-test('applyThinking: xiaomi 用 thinking.type 开关，不发 reasoning_effort', () => {
-  assert.deepEqual(applyThinking('xiaomi', 'thinking_enabled'), { body: { thinking: { type: 'enabled' } }, state: 'enabled' });
-  assert.deepEqual(applyThinking('xiaomi', 'effort_high'), { body: {}, state: null });
+test('xiaomi-coding 未填接口地址时用 Token Plan 国内地址，填了则用所填地区地址', () => {
+  assert.equal(getBaseUrl({ provider: 'xiaomi-coding' }), 'https://token-plan-cn.xiaomimimo.com/v1');
+  assert.equal(getBaseUrl({ provider: 'xiaomi-coding', base_url: 'https://token-plan-ams.xiaomimimo.com/v1' }), 'https://token-plan-ams.xiaomimimo.com/v1');
+});
+
+test('applyThinking: xiaomi / xiaomi-coding 用 thinking.type 开关，不发 reasoning_effort', () => {
+  for (const provider of ['xiaomi', 'xiaomi-coding']) {
+    assert.deepEqual(applyThinking(provider, 'thinking_enabled'), { body: { thinking: { type: 'enabled' } }, state: 'enabled' });
+    assert.deepEqual(applyThinking(provider, 'effort_high'), { body: {}, state: null });
+  }
 });
 
 test('applyThinking: glm / glm-coding 开关写 thinking.type，强度档另加 reasoning_effort', () => {

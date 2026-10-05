@@ -58,6 +58,7 @@ export const PROVIDER_THINKING_LEVELS = Object.freeze({
   siliconflow: QWEN_LEVELS,
   qwen: QWEN_LEVELS,
   xiaomi: [off(), on()],
+  'xiaomi-coding': [off(), on()],
   glm: GLM_LEVELS,
   'glm-coding': GLM_LEVELS,
   kimi: [off('K2.6'), ...efforts(['low', 'high', 'max'], 'K3')],

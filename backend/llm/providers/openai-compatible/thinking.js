@@ -25,7 +25,7 @@ const LLAMACPP_EFFORTS = { effort_low: 'low', effort_medium: 'medium', effort_hi
  * - openai / ollama：reasoning_effort: none（关闭）/ low / medium / high / xhigh / max
  * - grok：reasoning_effort: low / medium / high / xhigh
  * - openrouter：reasoning: { effort } 或 reasoning: { enabled }
- * - xiaomi：thinking: { type: enabled | disabled }
+ * - xiaomi / xiaomi-coding：thinking: { type: enabled | disabled }
  * - minimax：thinking: { type: adaptive | disabled }（disabled 仅 M3 生效，M2.x 忽略）
  * - deepseek / glm / glm-coding：thinking: { type }，强度档另加 reasoning_effort（GLM 仅 5.2 及以上）
  * - kimi：关闭发 thinking: { type: disabled }（K2.6）；强度档发 reasoning_effort（K3）
@@ -58,6 +58,7 @@ export function applyThinkingToOpenAICompatibleBody(body, config) {
       body.reasoning = effort ? { effort } : { enabled: !disabled };
       return state;
     case 'xiaomi':
+    case 'xiaomi-coding':
       body.thinking = { type: state };
       return state;
     case 'minimax':
