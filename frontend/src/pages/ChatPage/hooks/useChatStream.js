@@ -41,7 +41,7 @@ export function useChatStream({ character, messageListRef, inputBoxRef, currentS
     const store = useStore.getState();
     if (kind === 'queued') store.triggerStateQueued();
     else if (kind === 'failed') store.triggerStateFailed();
-    // 对话页的状态与日记共用同一个刷新 tick
+    else if (kind === 'diary') store.triggerDiaryRefresh();
     else store.triggerMemoryRefresh();
   }, []);
 

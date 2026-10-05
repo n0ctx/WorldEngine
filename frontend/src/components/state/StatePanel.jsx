@@ -24,6 +24,7 @@ const CLASS_NAMES = {
 
 export default function StatePanel({ sessionId, character, worldId, persona, onDiaryInject }) {
   const tick = useStore((s) => s.memoryRefreshTick);
+  const diaryTick = useStore((s) => s.diaryRefreshTick);
   const queuedTick = useStore((s) => s.stateQueuedRefreshTick);
   const failedTick = useStore((s) => s.stateFailedTick);
   const [charResetting, setCharResetting] = useState(false);
@@ -101,7 +102,7 @@ export default function StatePanel({ sessionId, character, worldId, persona, onD
       worldId={worldId}
       persona={persona}
       charName={character?.name ?? ''}
-      ticks={{ state: tick, diary: tick, queued: queuedTick, failed: failedTick }}
+      ticks={{ state: tick, diary: diaryTick, queued: queuedTick, failed: failedTick }}
       diaryScope="chat"
       classNames={CLASS_NAMES}
       stateMemory={stateMemory}

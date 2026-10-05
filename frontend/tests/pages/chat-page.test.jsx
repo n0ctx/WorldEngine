@@ -559,6 +559,39 @@ describe('ChatPage', () => {
     expect(mocks.sendMessage).toHaveBeenCalledTimes(2);
   });
 
+  it('日记写完只推日记 tick，不推状态 tick（否则本轮变化会被空 diff 清掉）', async () => {
+    const callbacksRef = { current: null };
+    mocks.getSession.mockResolvedValue({ id: 'session-1', title: '会话', character_id: 'char-1' });
+    useStore.setState({
+      currentWorldId: null,
+      currentCharacterId: 'char-1',
+      currentSessionId: 'session-1',
+      memoryRefreshTick: 0,
+      diaryRefreshTick: 0,
+    });
+    mocks.sendMessage.mockImplementation((_sid, _content, _attachments, callbacks) => {
+      callbacksRef.current = callbacks;
+      return vi.fn();
+    });
+
+    renderChatPage();
+
+    await waitFor(() => expect(mocks.getCharacter).toHaveBeenCalledWith('char-1'));
+
+    fireEvent.click(screen.getByText('send'));
+    await waitFor(() => expect(mocks.sendMessage).toHaveBeenCalledTimes(1));
+
+    await act(async () => {
+      callbacksRef.current.onStateUpdated?.();
+    });
+    expect(useStore.getState()).toMatchObject({ memoryRefreshTick: 1, diaryRefreshTick: 0 });
+
+    await act(async () => {
+      callbacksRef.current.onDiaryUpdated?.();
+    });
+    expect(useStore.getState()).toMatchObject({ memoryRefreshTick: 1, diaryRefreshTick: 1 });
+  });
+
   it('中断后的流式临时选项不会残留到下一轮', async () => {
     const callbacksRef = { current: null };
     mocks.getSession.mockResolvedValue({ id: 'session-1', title: '会话', character_id: 'char-1' });
