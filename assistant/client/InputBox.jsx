@@ -9,6 +9,7 @@
 
 import { useEffect, useRef } from 'react';
 import { IconArrowUp } from '../../frontend/src/components/ui/icons.jsx';
+import IconButton from '../../frontend/src/components/ui/IconButton.jsx';
 import { isImeComposing } from '../../frontend/src/core/utils/ime.js';
 
 export default function InputBox({ value, onChange, onSend, disabled = false, placeholder }) {
@@ -51,16 +52,16 @@ export default function InputBox({ value, onChange, onSend, disabled = false, pl
           rows={1}
           className="we-chat-textarea we-asst-composer__textarea"
         />
-        <button
-          type="button"
+        <IconButton
+          variant="primary"
+          label="发送"
+          title="发送 (Enter)"
           onClick={onSend}
           disabled={sendDisabled}
           className="we-chat-send-btn"
-          title="发送 (Enter)"
-          aria-label="发送"
         >
           <IconArrowUp size={20} />
-        </button>
+        </IconButton>
       </div>
       <p className="we-asst-composer__hint">Enter 发送 · Shift+Enter 换行 · /stop 停止</p>
     </div>

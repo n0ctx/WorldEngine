@@ -158,6 +158,8 @@
 }
 
 .we-asst-composer__textarea {
+  /* 单行总高仍等于中号控件高度，与发送键同高居中；内边距按本处正文行高重算 */
+  padding-block: calc((var(--we-control-h-md) - var(--we-type-body-leading) * 1em) / 2);
   font-size: var(--we-type-body-size);
   line-height: var(--we-type-body-leading);
   letter-spacing: var(--we-type-body-tracking);
