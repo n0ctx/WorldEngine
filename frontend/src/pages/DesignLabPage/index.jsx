@@ -11,6 +11,7 @@ import { MOTION_PACKS, setMotionPack } from '../../core/motion/motionPack.js';
 import { DRAFTS } from './drafts.js';
 import './lab.css';
 import './sketch/sketch.css';
+import GraphicsTab from './GraphicsTab.jsx';
 import MotionTab from './MotionTab.jsx';
 import VisualTab from './VisualTab.jsx';
 
@@ -24,6 +25,7 @@ const ACCENTS = [
 const TABS = [
   { key: 'motion', label: '动效', Content: MotionTab },
   { key: 'visual', label: '视觉', Content: VisualTab },
+  { key: 'graphics', label: '图形', Content: GraphicsTab },
 ];
 
 function ChipGroup({ label, items, isActive, onSelect }) {

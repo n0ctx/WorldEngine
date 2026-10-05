@@ -18,6 +18,7 @@ vi.mock('../drafts.js', () => ({
 
 const DesignLabPage = (await import('../index.jsx')).default;
 const { getMotionPack, setMotionPack } = await import('../../../core/motion/motionPack.js');
+const icons = await import('../../../components/ui/icons.jsx');
 
 describe('DesignLabPage', () => {
   beforeEach(() => {
@@ -40,6 +41,18 @@ describe('DesignLabPage', () => {
     expect(screen.getByRole('heading', { name: '基础色板' })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /^聊天/ }));
     expect(screen.getByRole('heading', { name: '聊天消息' })).toBeInTheDocument();
+    await screen.findByRole('button', { name: 'Neon Noir' });
+  });
+
+  it('可切到「图形」分页：标识、场景画和图标集，icons.jsx 的每个图标都有展示', async () => {
+    const { container } = render(<MemoryRouter><DesignLabPage /></MemoryRouter>);
+    fireEvent.click(screen.getByRole('button', { name: '图形' }));
+    for (const name of ['品牌标识「骰界」', '无封面世界的场景画「星图」', '图标「切角」']) {
+      expect(screen.getByRole('heading', { name })).toBeInTheDocument();
+    }
+    expect(container.querySelectorAll('.we-design-lab__graphics-scene')).toHaveLength(4);
+    const shown = [...container.querySelectorAll('.we-design-lab__graphics-icon')].map((cell) => cell.title);
+    expect(shown.sort()).toEqual(Object.keys(icons).sort());
     await screen.findByRole('button', { name: 'Neon Noir' });
   });
 
