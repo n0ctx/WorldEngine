@@ -42,6 +42,8 @@ export const useAssistantStore = create(
       status: 'idle',
       messages: [], // [{ role, content, streaming? }]
       error: null,
+      // 最近一次模型请求前估算的上下文占用 { tokens, limit }
+      contextUsage: null,
       // replaceTailWithUser 写入后设置；防止 MESSAGES_CHANGED 广播在 abort 尚未完全生效时吞掉本地 user 消息
       pendingUserMessageId: null,
 
@@ -51,6 +53,7 @@ export const useAssistantStore = create(
           status: 'idle',
           messages: [],
           error: null,
+          contextUsage: null,
           pendingUserMessageId: null,
         }),
 
@@ -105,6 +108,8 @@ export const useAssistantStore = create(
               }
               return { ...s, messages: newMessages, pendingUserMessageId: null };
             }
+            case SSE_EVENTS.CONTEXT_USAGE:
+              return { ...s, contextUsage: evt.usage, messages: [...s.messages, ...evt.appended] };
             case SSE_EVENTS.TOOL_CALL_STARTED:
               return {
                 ...s,
@@ -194,6 +199,7 @@ export const useAssistantStore = create(
         status: s.status,
         messages: sanitizeMessagesForPersist(s.messages),
         error: s.error,
+        contextUsage: s.contextUsage,
       }),
       // rehydrate 时再过一次清洗：兼容旧版本写入的脏数据，保证刷新后不残留
       // streaming 标志和"运行中"占位行。
@@ -296,7 +302,7 @@ function clearStreamingFlag(messages) {
 function sanitizeMessagesForPersist(messages) {
   if (!Array.isArray(messages)) return [];
   return messages
-    .filter((m) => m && ['user', 'assistant', 'tool_call'].includes(m.role))
+    .filter((m) => m && ['user', 'assistant', 'tool_call', 'compaction'].includes(m.role))
     .map((m) => {
       if (m.role === 'assistant' && m.streaming) {
         const rest = { ...m };
@@ -326,6 +332,8 @@ function applyTaskSnapshot(state, task) {
     status: task.status ?? 'idle',
     messages: sanitizeMessagesForPersist(task.messages),
     error: task.error ?? null,
+    // 服务端重启后快照里没有占用值，沿用上次的显示
+    contextUsage: task.contextUsage ?? state.contextUsage,
   };
 }
 

@@ -330,6 +330,7 @@ export default function AssistantPanel() {
   const status = useAssistantStore((s) => s.status);
   const messages = useAssistantStore((s) => s.messages);
   const error = useAssistantStore((s) => s.error);
+  const contextUsage = useAssistantStore((s) => s.contextUsage);
 
   const currentWorldId = useStore((s) => s.currentWorldId);
   const currentCharacterId = useStore((s) => s.currentCharacterId);
@@ -482,6 +483,7 @@ export default function AssistantPanel() {
               写卡助手
             </span>
             <AssistantStatusIndicator status={status} isStreaming={isStreaming} />
+            <ContextUsageIndicator usage={contextUsage} />
             <div className="we-asst-drawer__actions">
               {(messages.length > 0 || taskId) && (
                 <IconButton label="清空对话" onClick={handleReset}>
@@ -532,6 +534,16 @@ export default function AssistantPanel() {
 }
 
 // 标题栏的"正在处理"微指示：仅在任务运行或本地流仍在进行时显示，其它状态不显示。
+function ContextUsageIndicator({ usage }) {
+  if (!usage?.limit) return null;
+  const percent = Math.min(100, Math.round((usage.tokens / usage.limit) * 100));
+  return (
+    <span className="we-asst-drawer__status" title={`已用约 ${usage.tokens} / 上限 ${usage.limit} token`}>
+      上下文 {percent}%
+    </span>
+  );
+}
+
 function AssistantStatusIndicator({ status, isStreaming }) {
   if (status !== 'running' && !isStreaming) return null;
   return (

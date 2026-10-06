@@ -2,13 +2,18 @@ import test, { after, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { createTestSandbox, freshImport, resetMockEnv } from '../../backend/tests/helpers/test-env.js';
-import { insertWorld } from '../../backend/tests/helpers/fixtures.js';
+import { insertWorld, insertWorldEntry } from '../../backend/tests/helpers/fixtures.js';
 
 const sandbox = createTestSandbox('assistant-agent');
 sandbox.setEnv();
 
 const taskStore = await freshImport('assistant/server/task-store.js');
-const { runAgent, buildHistory, buildSystemPrompt } = await freshImport('assistant/server/agent.js');
+const { runAgent, buildHistory, buildModelMessages, buildSystemPrompt } = await freshImport('assistant/server/agent.js');
+const { DEFAULT_CONTEXT_LIMIT } = await freshImport('backend/services/model-context-limit.js');
+
+// 约 10 万 token 的一段历史：超过默认上限的 80%
+const OVER_THRESHOLD_TEXT = '海'.repeat(130_000);
+const SUMMARY_REPLY = '<analysis>梳理过程</analysis>\n<summary>\n1. 用户的请求与意图：续写港口设定\n</summary>';
 
 afterEach(() => resetMockEnv());
 after(() => sandbox.cleanup());
@@ -153,4 +158,120 @@ test('批量工具调用：一轮建世界，下一轮一次建字段与条目�
   const titles = sandbox.db.prepare('SELECT title FROM world_prompt_entries WHERE world_id = ?').all(world.id).map((r) => r.title);
   assert.deepEqual(titles, ['重伤反应']);
   assert.match(buildHistory(task.messages).at(-1).content, /- create entry×1 field×1 ✓ 已创建 2 项：/);
+});
+
+test('占用低于阈值时不压缩，只记录占用', async () => {
+  const task = taskStore.createTask({ context: {} });
+  process.env.MOCK_LLM_COMPLETE = '好的';
+  await runAgent(task, '你好');
+  assert.equal(task.status, 'completed');
+  assert.equal(task.contextUsage.limit, DEFAULT_CONTEXT_LIMIT);
+  assert.ok(task.contextUsage.tokens > 0 && task.contextUsage.tokens < DEFAULT_CONTEXT_LIMIT * 0.8);
+  assert.equal(task.modelContext ?? null, null);
+  assert.equal(task.messages.some((m) => m.role === 'compaction'), false);
+});
+
+test('任务开始时占用超过 80%：先压缩成摘要再继续，下一轮只回放压缩之后的消息', async () => {
+  const task = taskStore.createTask({ context: {} });
+  taskStore.appendMessage(task.id, { id: 'u0', role: 'user', content: OVER_THRESHOLD_TEXT });
+  taskStore.appendMessage(task.id, { id: 'a0', role: 'assistant', content: '已记下。' });
+  process.env.MOCK_LLM_TOOL_TURNS_QUEUE = JSON.stringify(['继续完成了。']);
+  process.env.MOCK_LLM_COMPLETE = SUMMARY_REPLY;
+
+  await runAgent(task, '接着写', { userMessageId: 'u1' });
+
+  assert.equal(task.status, 'completed');
+  assert.equal(task.messages.at(-1).content, '继续完成了。');
+  const marker = task.messages.find((m) => m.role === 'compaction');
+  assert.ok(marker.tokensBefore >= DEFAULT_CONTEXT_LIMIT * 0.8);
+  assert.ok(marker.tokensAfter < marker.tokensBefore / 10);
+  assert.deepEqual(task.modelContext, { summary: '1. 用户的请求与意图：续写港口设定', untilId: marker.id });
+  assert.equal(task.contextUsage.tokens, marker.tokensAfter);
+
+  const next = buildModelMessages('SYSTEM', task, false);
+  assert.match(next[0].content, /^SYSTEM\n\n# 更早对话的摘要\n1\. 用户的请求与意图/);
+  assert.equal(next.some((m) => m.content.includes('海海海')), false);
+  assert.deepEqual(next.slice(1).map((m) => m.role), ['user', 'assistant']);
+  assert.equal(next.at(-1).content, '继续完成了。');
+});
+
+test('工具调用途中占用超过 80%：压缩后接着完成，压缩记录排在已执行的工具之后', async () => {
+  const world = insertWorld(sandbox.db, { name: 'compact-world' });
+  const entry = insertWorldEntry(sandbox.db, world.id, { title: '长条目', content: '潮'.repeat(40_000) });
+  const task = taskStore.createTask({ context: { worldId: world.id } });
+  const reads = Array.from({ length: 6 }, () => ({ name: 'read', arguments: { ref: `entry:${entry.id}` } }));
+  process.env.MOCK_LLM_TOOL_TURNS_QUEUE = JSON.stringify([reads, '读完并整理好了。']);
+  process.env.MOCK_LLM_COMPLETE = SUMMARY_REPLY;
+
+  await runAgent(task, '把长条目读几遍', { userMessageId: 'u1' });
+
+  assert.equal(task.status, 'completed');
+  assert.deepEqual(
+    task.messages.map((m) => m.role),
+    ['user', ...reads.map(() => 'tool_call'), 'compaction', 'assistant'],
+  );
+  assert.equal(task.modelContext.untilId, task.messages.find((m) => m.role === 'compaction').id);
+  assert.equal(task.messages.at(-1).content, '读完并整理好了。');
+});
+
+test('压缩请求失败时任务失败并说明原因，不带着超限的上下文继续', async () => {
+  const task = taskStore.createTask({ context: {} });
+  taskStore.appendMessage(task.id, { id: 'u0', role: 'user', content: OVER_THRESHOLD_TEXT });
+  taskStore.appendMessage(task.id, { id: 'a0', role: 'assistant', content: '已记下。' });
+  process.env.MOCK_LLM_COMPLETE_ERROR = 'summary exploded';
+
+  await runAgent(task, '接着写');
+
+  assert.equal(task.status, 'failed');
+  assert.match(task.error, /^上下文压缩失败：.*summary exploded/);
+  assert.equal(task.modelContext ?? null, null);
+  assert.equal(task.messages.some((m) => m.role === 'compaction'), false);
+});
+
+test('压缩期间取消任务：立即停止，不留下摘要', async () => {
+  const task = taskStore.createTask({ context: {} });
+  taskStore.appendMessage(task.id, { id: 'u0', role: 'user', content: OVER_THRESHOLD_TEXT });
+  taskStore.appendMessage(task.id, { id: 'a0', role: 'assistant', content: '已记下。' });
+  process.env.MOCK_LLM_COMPLETE = SUMMARY_REPLY;
+  process.env.MOCK_LLM_COMPLETE_DELAY_MS = '5000';
+
+  const running = runAgent(task, '接着写');
+  await new Promise((resolve) => setTimeout(resolve, 50));
+  const startedAt = Date.now();
+  taskStore.setStatus(task.id, 'cancelled');
+  await running;
+
+  assert.ok(Date.now() - startedAt < 2500, '取消后不应等完压缩请求的 5 秒延时');
+  assert.equal(task.status, 'cancelled');
+  assert.equal(task.modelContext ?? null, null);
+  assert.equal(task.messages.some((m) => m.role === 'compaction'), false);
+});
+
+test('buildModelMessages：压缩标记被截掉后摘要作废，回放全部消息', () => {
+  const task = taskStore.createTask({ context: {} });
+  taskStore.appendMessage(task.id, { id: 'u1', role: 'user', content: '第一句' });
+  taskStore.setModelContext(task.id, { summary: '旧摘要', untilId: 'gone' });
+
+  const messages = buildModelMessages('SYSTEM', task, false);
+
+  assert.deepEqual(messages, [{ role: 'system', content: 'SYSTEM' }, { role: 'user', content: '第一句' }]);
+  assert.equal(task.modelContext, null);
+});
+
+test('buildModelMessages：标记之后以助手内容开头时先垫一条 user 说明', () => {
+  const task = taskStore.createTask({ context: {} });
+  taskStore.appendMessage(task.id, { id: 'u1', role: 'user', content: '被压缩的请求' });
+  taskStore.appendMessage(task.id, { id: 'c1', role: 'compaction', tokensBefore: 99000, tokensAfter: 5000 });
+  taskStore.appendMessage(task.id, { id: 't1', role: 'tool_call', toolName: 'create', summary: 'entry 港口', status: 'done', result: '已创建 entry:e1' });
+  taskStore.appendMessage(task.id, { id: 'a1', role: 'assistant', content: '建好了。' });
+  taskStore.appendMessage(task.id, { id: 'u2', role: 'user', content: '再加一条' });
+  taskStore.setModelContext(task.id, { summary: '摘要', untilId: 'c1' });
+
+  const messages = buildModelMessages('SYSTEM', task, false);
+
+  assert.deepEqual(messages.map((m) => m.role), ['system', 'user', 'assistant', 'user']);
+  assert.match(messages[1].content, /已压缩为系统提示词末尾的摘要/);
+  assert.match(messages[2].content, /本轮操作记录[\s\S]*entry:e1[\s\S]*建好了。/);
+  assert.equal(messages[3].content, '再加一条');
+  assert.equal(messages.some((m) => m.content.includes('被压缩的请求')), false);
 });

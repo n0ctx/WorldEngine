@@ -320,6 +320,18 @@ function ToolEntryImpl({ msg }) {
 
 const ToolEntry = memo(ToolEntryImpl, sameMsg);
 
+function CompactionEntry({ msg }) {
+  const toK = (tokens) => `${Math.round(tokens / 1000)}k`;
+  return (
+    <div className="we-asst-entry we-asst-entry--tool">
+      <div className="we-asst-entry__head">
+        <span className="we-asst-entry__title">已自动压缩更早的对话</span>
+        <span className="we-asst-entry__sub">约 {toK(msg.tokensBefore)} → {toK(msg.tokensAfter)} token</span>
+      </div>
+    </div>
+  );
+}
+
 function ErrorEntry({ msg }) {
   return (
     <div className="we-asst-entry we-asst-entry--tool we-asst-entry--error" role="alert">
@@ -413,6 +425,7 @@ export default function MessageList({ messages, onEdit, onDelete, onRegenerate, 
         {messages.map((msg, i) => {
           const key = msg.id ?? `${msg.role}-${i}`;
           if (msg.role === 'tool_call') return <ToolEntry key={key} msg={msg} />;
+          if (msg.role === 'compaction') return <CompactionEntry key={key} msg={msg} />;
           if (msg.role === 'user') {
             return <UserEntry key={key} msg={msg} onEdit={onEdit} onDelete={onDelete} />;
           }

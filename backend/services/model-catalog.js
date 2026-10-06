@@ -20,7 +20,7 @@ const log = createLogger('config', 'blue');
 /**
  * OpenAI-compatible 模型列表拉取（通用）
  * 适用于：OpenAI / OpenRouter / GLM / Kimi / MiniMax / DeepSeek / Grok / SiliconFlow / LM Studio / llama.cpp
- * 返回 { id, inputPrice?, outputPrice? }[]，价格单位 $/1M tokens
+ * 返回 { id, inputPrice?, outputPrice?, contextLimit? }[]，价格单位 $/1M tokens
  * 目前只有 OpenRouter 在模型列表 API 中返回价格
  */
 const OPENAI_COMPATIBLE_BASE_URLS = {
@@ -38,6 +38,12 @@ const OPENAI_COMPATIBLE_BASE_URLS = {
   lmstudio: LMSTUDIO_DEFAULT_BASE_URL,
   llamacpp: LLAMACPP_DEFAULT_BASE_URL,
 };
+
+/** 模型列表条目里的上下文上限：正整数才带上，供 model-context-limit.js 读取 */
+function withContextLimit(entry, value) {
+  if (Number.isInteger(value) && value > 0) entry.contextLimit = value;
+  return entry;
+}
 
 async function fetchOpenAICompatibleModels(base, apiKey, provider) {
   const url = `${base.replace(/\/+$/, '')}/models`;
@@ -62,7 +68,7 @@ async function fetchOpenAICompatibleModels(base, apiKey, provider) {
       const known = lookupPricingFromMap(dynamicPrices, m.id) || getFallbackPricing(m.id);
       if (known) Object.assign(entry, known);
     }
-    return entry;
+    return withContextLimit(entry, m.context_length);
   });
 }
 
@@ -88,7 +94,7 @@ async function fetchAnthropicModels(base, apiKey, provider) {
   const dynamicPrices = await getDynamicPricingOrEmpty(provider);
   return (data.data || []).map((m) => {
     const known = lookupPricingFromMap(dynamicPrices, m.id) || getFallbackPricing(m.id) || {};
-    return { id: m.id, ...known };
+    return withContextLimit({ id: m.id, ...known }, m.max_input_tokens);
   });
 }
 
@@ -187,7 +193,7 @@ export async function fetchModels(provider, apiKey, baseUrl) {
     return (data.models || []).map((m) => {
       const id = m.name.replace(/^models\//, '');
       const known = lookupPricingFromMap(dynamicPrices, id) || getFallbackPricing(id) || {};
-      return { id, ...known };
+      return withContextLimit({ id, ...known }, m.inputTokenLimit);
     });
   }
 

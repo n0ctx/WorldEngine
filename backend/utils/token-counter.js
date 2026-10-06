@@ -34,3 +34,24 @@ export function countMessages(messages) {
   }
   return total;
 }
+
+/** 每条消息的角色与分隔符折算的 token 数 */
+const MESSAGE_OVERHEAD_TOKENS = 4;
+
+function contentText(content) {
+  if (typeof content === 'string') return content;
+  if (!Array.isArray(content)) return '';
+  return content.map((part) => (typeof part?.text === 'string' ? part.text : '')).join('');
+}
+
+/**
+ * 估算一次带工具的模型请求占用的 token 数：消息正文、assistant 的工具调用、工具结果与工具定义都计入。
+ */
+export function countContextTokens(messages, toolDefs = []) {
+  let total = toolDefs.length ? countTokens(JSON.stringify(toolDefs)) : 0;
+  for (const msg of messages) {
+    total += MESSAGE_OVERHEAD_TOKENS + countTokens(contentText(msg.content));
+    if (msg.tool_calls?.length) total += countTokens(JSON.stringify(msg.tool_calls));
+  }
+  return total;
+}

@@ -213,3 +213,34 @@ test('isToolLoopControlSignal 识别错误', () => {
   assert.equal(isToolLoopControlSignal(new Error('x')), false);
   assert.equal(isToolLoopControlSignal({ name: 'ToolLoopControlSignal' }), true);
 });
+
+test('runToolLoop: beforeTurn 每次模型请求前收到当前消息，返回 null 时状态不变', async () => {
+  const rec = recordingProvider((iter) => (iter === 0 ? toolsTurn([{ name: 'foo' }]) : { kind: 'text', text: 'done' }));
+  const seen = [];
+  const out = await runToolLoop({
+    provider: rec.provider,
+    messages: [{ role: 'user', content: 'go' }],
+    toolDefs: [],
+    toolHandlers: { foo: async () => 'r1' },
+    config: { beforeTurn: async (messages, iter) => { seen.push([iter, messages.map((m) => m.role)]); return null; } },
+  });
+  assert.equal(out, 'done');
+  assert.deepEqual(seen, [[0, ['user']], [1, ['user', 'assistant', 'tool']]]);
+  assert.deepEqual(rec.turnStates[1].map((m) => m.role), ['user', 'assistant', 'tool']);
+});
+
+test('runToolLoop: beforeTurn 返回新消息数组后，下一次请求和触顶兜底都以它为准', async () => {
+  const rec = recordingProvider(() => toolsTurn([{ name: 'foo' }]));
+  const compacted = [{ role: 'user', content: '压缩后的请求' }];
+  await runToolLoop({
+    provider: rec.provider,
+    messages: [{ role: 'user', content: '原始请求' }],
+    toolDefs: [],
+    toolHandlers: { foo: async () => 'r1' },
+    config: { maxIterations: 2, beforeTurn: async (_messages, iter) => (iter === 1 ? compacted : null) },
+  });
+  assert.deepEqual(rec.turnStates[1], compacted);
+  const noteMessages = rec.noToolsMessages[0];
+  assert.equal(noteMessages.length, 1);
+  assert.match(noteOf(noteMessages), /^压缩后的请求/);
+});

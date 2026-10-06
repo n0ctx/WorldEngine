@@ -31,4 +31,7 @@ export const SSE_EVENTS = Object.freeze({
   // 消息状态
   MESSAGES_CHANGED: 'messages_changed',
   USER_MESSAGE: 'user_message',
+
+  // 上下文占用：{ usage: { tokens, limit }, appended }，appended 是本次追加到消息列表的记录（压缩标记），没有时为空数组
+  CONTEXT_USAGE: 'context_usage',
 });

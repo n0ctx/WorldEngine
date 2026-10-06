@@ -312,6 +312,7 @@ export const __testables = {
  *   options.timeoutMs — 每次模型请求一个超时窗口，未传用 LLM_TOOL_TURN_TIMEOUT_MS / LLM_LOCAL_TOOL_TURN_TIMEOUT_MS
  *   options.signal    — 中止后抛 ToolLoopCancelledError
  *   options.loopRef   — 回传 { stopReason, toolCallCount }，做法同 usageRef
+ *   options.beforeTurn — async (messages, iter) => Array|null，每次模型请求前调用；返回新消息数组则替换循环状态
  */
 export async function completeWithTools(messages, tools, options = {}) {
   const result = await completeWithToolsDetailed(messages, tools, options);
@@ -349,6 +350,7 @@ export async function completeWithToolsDetailed(messages, tools, options = {}) {
       timeoutMs,
       retry,
       loopRef: options.loopRef || undefined,
+      beforeTurn: options.beforeTurn,
     });
     const text = typeof result === 'string' ? result : (result?.text ?? '');
     log.info(`COMPLETE_TOOLS DONE  ${formatMeta({

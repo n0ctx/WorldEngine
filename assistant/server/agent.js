@@ -17,16 +17,17 @@ import { SSE_EVENTS } from './sse-events.js';
 import { createWorkspace } from './workspace/index.js';
 import { listDocs } from './workspace/docs.js';
 import { buildWrappedTools } from './tools/index.js';
+import { createContextGuard } from './context-guard.js';
+import { withSummary } from './context-summary.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const log = createLogger('as-agent', 'cyan');
 
 const PROMPT_PATH = path.resolve(__dirname, '../prompts/system.md');
 const MAX_TOOL_ITERATIONS = 60;
-const CONTEXT_RAW_LIMIT = 8;
-const CONTEXT_CHAR_LIMIT = 24_000;
 const DELTA_CHUNK_SIZE = 48;
 const RESUME_NOTE = '（系统）上一次执行被中断。请先 read 核对已完成的改动，再继续完成用户的请求。';
+const AFTER_SUMMARY_NOTE = '（系统）更早的对话已压缩为系统提示词末尾的摘要，以下是紧接其后的内容。';
 
 function yieldToEventLoop() {
   return new Promise((resolve) => setImmediate(resolve));
@@ -103,40 +104,16 @@ export function buildHistory(messages) {
   return out;
 }
 
-// 历史过长时把较早部分压成摘要，只保留最近若干条原文（原文从 user 消息开始）。
-async function refreshSummary(task, history, { configScope, runId }) {
-  const totalChars = summarizeMessages(history).chars;
-  let prefixCount = Math.max(0, history.length - CONTEXT_RAW_LIMIT);
-  if (prefixCount === 0 && history.length > 1 && totalChars > CONTEXT_CHAR_LIMIT) prefixCount = history.length - 1;
-  while (prefixCount > 0 && history[prefixCount]?.role !== 'user') prefixCount -= 1;
-  const prefix = history.slice(0, prefixCount);
-  const prefixChars = summarizeMessages(prefix).chars;
-  if (prefix.length === 0 || (prefix.length <= CONTEXT_RAW_LIMIT && prefixChars <= CONTEXT_CHAR_LIMIT)) {
-    if (task.modelContext) taskStore.setModelContext(task.id, null);
-    return null;
-  }
-  const untilId = prefix.at(-1).id;
-  if (task.modelContext?.untilId === untilId && task.modelContext?.summary) return task.modelContext;
-
-  const summary = String(await llm.complete([
-    {
-      role: 'system',
-      content: '你在为写卡助手压缩对话上下文。输出 8 行以内中文摘要，只保留：用户目标、用户明确提出的约束与命名、已完成的改动（保留 ref）、未决问题。不要使用 Markdown 标题。',
-    },
-    { role: 'user', content: prefix.map((m) => `${m.role}: ${m.content}`).join('\n\n') },
-  ], { temperature: 0.2, thinking_level: null, configScope, callType: 'assistant-summary' }) ?? '').trim();
-  if (task.status === 'cancelled') return task.modelContext ?? null;
-  const modelContext = { summary, untilId };
-  taskStore.setModelContext(task.id, modelContext);
-  log.info(`CONTEXT_SUMMARY  ${formatMeta({ runId, taskId: task.id, sourceMsgs: prefix.length, sourceChars: prefixChars, summaryChars: summary.length })}`);
-  return modelContext;
-}
-
-function buildModelMessages(systemPrompt, history, modelContext, resumed) {
-  const tail = modelContext ? history.slice(history.findIndex((m) => m.id === modelContext.untilId) + 1) : history;
-  // 摘要并入唯一的 system 消息：部分本地模型的对话模板只允许一条且必须在最前。
-  const system = modelContext?.summary ? `${systemPrompt}\n\n# 更早对话的摘要\n${modelContext.summary}` : systemPrompt;
-  const messages = [{ role: 'system', content: system }];
+// 摘要标记之前的消息已进摘要，只回放标记之后的；标记被截断或删除时摘要作废，回放全部消息。
+export function buildModelMessages(systemPrompt, task, resumed) {
+  const all = Array.isArray(task.messages) ? task.messages : [];
+  const boundary = task.modelContext ? all.findIndex((m) => m.id === task.modelContext.untilId) : -1;
+  if (task.modelContext && boundary < 0) taskStore.setModelContext(task.id, null);
+  const summary = boundary < 0 ? null : task.modelContext.summary;
+  const tail = buildHistory(all.slice(boundary + 1));
+  const messages = [{ role: 'system', content: withSummary(systemPrompt, summary) }];
+  // 标记落在一轮中间时，其后的内容以助手消息开头；部分模型要求对话以 user 开头
+  if (summary && tail[0]?.role === 'assistant') messages.push({ role: 'user', content: AFTER_SUMMARY_NOTE });
   messages.push(...tail.map(({ role, content }) => ({ role, content })));
   if (resumed) messages.push({ role: 'user', content: RESUME_NOTE });
   return messages;
@@ -207,9 +184,10 @@ export async function runAgent(task, userInput, opts = {}) {
     });
     const configScope = getConfig().assistant?.model_source === 'aux' ? 'aux' : 'main';
     const systemPrompt = await buildSystemPrompt(workspace.session);
-    const history = buildHistory(task.messages);
-    const modelContext = await refreshSummary(task, history, { configScope, runId });
-    const messages = buildModelMessages(systemPrompt, history, modelContext, resumed);
+    const messages = buildModelMessages(systemPrompt, task, resumed);
+    const beforeTurn = await createContextGuard({
+      task, configScope, tools, systemPrompt, anchor: messages.at(-1).content, emitFn, runId,
+    });
 
     log.info(`START  ${formatMeta({
       runId, taskId: task.id, resumed, msgs: messages.length, chars: summarizeMessages(messages).chars,
@@ -224,6 +202,7 @@ export async function runAgent(task, userInput, opts = {}) {
       usageRef,
       callType: 'assistant',
       maxIterations: MAX_TOOL_ITERATIONS,
+      beforeTurn,
       signal: taskStore.getAbortSignal(task.id),
     }) ?? '').trim();
     if (task.status === 'cancelled') {

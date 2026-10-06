@@ -187,6 +187,9 @@ test('buildTaskSnapshot 与 getLatestRecoverableTask 返回可恢复快照', (t)
   const snapshot = taskStore.buildTaskSnapshot(recovered);
   assert.equal(snapshot.messages[0].content, 'hi');
   assert.equal(snapshot.error, taskStore.__testables.RESTART_INTERRUPTED_ERROR);
+  assert.equal(snapshot.contextUsage, null);
+  taskStore.setContextUsage(recovered.id, { tokens: 1200, limit: 122880 });
+  assert.deepEqual(taskStore.buildTaskSnapshot(recovered).contextUsage, { tokens: 1200, limit: 122880 });
 
   const completed = freshTask();
   taskStore.setStatus(completed.id, 'completed');

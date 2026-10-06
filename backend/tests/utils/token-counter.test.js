@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { countMessages, countTokens } from '../../utils/token-counter.js';
+import { countContextTokens, countMessages, countTokens } from '../../utils/token-counter.js';
 
 test('countTokens：空串/nullish 返回 0', () => {
   assert.equal(countTokens(''), 0);
@@ -39,4 +39,24 @@ test('countMessages：累加每条消息 content 的 tokens', () => {
 
 test('countMessages：空数组返回 0', () => {
   assert.equal(countMessages([]), 0);
+});
+
+test('countContextTokens：正文、工具调用、工具结果与工具定义都计入', () => {
+  const overhead = 4;
+  // "abcd" → 1 token
+  assert.equal(countContextTokens([{ role: 'user', content: 'abcd' }]), overhead + 1);
+  assert.equal(
+    countContextTokens([{ role: 'user', content: [{ type: 'text', text: 'abcd' }, { type: 'image_url' }] }]),
+    overhead + 1,
+  );
+
+  const toolCalls = [{ id: 't1', type: 'function', function: { name: 'read', arguments: '{"ref":"world"}' } }];
+  assert.equal(
+    countContextTokens([{ role: 'assistant', content: null, tool_calls: toolCalls }]),
+    overhead + countTokens(JSON.stringify(toolCalls)),
+  );
+  assert.equal(countContextTokens([{ role: 'tool', tool_call_id: 't1', content: '你好世界' }]), overhead + 4);
+
+  const defs = [{ type: 'function', function: { name: 'read', parameters: {} } }];
+  assert.equal(countContextTokens([], defs), countTokens(JSON.stringify(defs)));
 });

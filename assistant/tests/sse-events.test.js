@@ -8,6 +8,7 @@ test('SSE_EVENTS 导出所有写卡助手用到的事件类型', () => {
     'TOOL_CALL_STARTED', 'TOOL_CALL_COMPLETED',
     'DELTA', 'DONE',
     'MESSAGES_CHANGED', 'USER_MESSAGE',
+    'CONTEXT_USAGE',
   ];
   assert.deepEqual(Object.keys(SSE_EVENTS).sort(), [...expected].sort());
   for (const key of expected) {

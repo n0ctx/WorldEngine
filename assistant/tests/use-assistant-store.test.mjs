@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { __testables } from '../client/useAssistantStore.js';
+import { __testables, useAssistantStore } from '../client/useAssistantStore.js';
+import { SSE_EVENTS } from '../server/sse-events.js';
 
 test('sanitizeMessagesForPersist 保留对话与工具记录、丢弃旧版计划/步骤行、清理运行态', () => {
   const messages = [
@@ -54,4 +55,30 @@ test('applyTaskSnapshot 用服务端快照整体替换任务态', () => {
   assert.deepEqual(next.messages.map((m) => m.role), ['user', 'tool_call']);
   assert.equal(next.messages[1].error, '条目不存在');
   assert.equal(next.error, 'interrupted by restart');
+});
+
+test('上下文占用事件更新占用值，带压缩记录时追加到消息列表，刷新后压缩记录保留', () => {
+  const store = useAssistantStore;
+  store.getState().reset();
+  store.getState().pushUserMessage('你好', 'u1');
+
+  store.getState().ingestEvent({ type: SSE_EVENTS.CONTEXT_USAGE, usage: { tokens: 5000, limit: 122880 }, appended: [] });
+  assert.deepEqual(store.getState().contextUsage, { tokens: 5000, limit: 122880 });
+  assert.equal(store.getState().messages.length, 1);
+
+  const compaction = { id: 'msg-c1', role: 'compaction', tokensBefore: 99000, tokensAfter: 6000 };
+  store.getState().ingestEvent({ type: SSE_EVENTS.CONTEXT_USAGE, usage: { tokens: 6000, limit: 122880 }, appended: [compaction] });
+  assert.deepEqual(store.getState().messages.map((m) => m.role), ['user', 'compaction']);
+  assert.deepEqual(__testables.sanitizeMessagesForPersist(store.getState().messages).at(-1), compaction);
+
+  store.getState().reset();
+  assert.equal(store.getState().contextUsage, null);
+});
+
+test('applyTaskSnapshot 带上快照里的占用值；快照没有时沿用现有值', () => {
+  const state = { taskId: 't', status: 'running', messages: [], error: null, contextUsage: { tokens: 1, limit: 10 } };
+  const withUsage = __testables.applyTaskSnapshot(state, { id: 't', status: 'completed', messages: [], contextUsage: { tokens: 4, limit: 10 } });
+  assert.deepEqual(withUsage.contextUsage, { tokens: 4, limit: 10 });
+  const without = __testables.applyTaskSnapshot(state, { id: 't', status: 'completed', messages: [], contextUsage: null });
+  assert.deepEqual(without.contextUsage, { tokens: 1, limit: 10 });
 });

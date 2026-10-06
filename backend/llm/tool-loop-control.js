@@ -280,6 +280,7 @@ export function appendNoteMessage(messages, note) {
  *   - timeoutMs : 每次模型请求一个超时窗口;缺省不限时
  *   - retry     : { max, delayMs },只重试单次模型请求;缺省不重试
  *   - loopRef   : 回传 { stopReason, toolCallCount }(toolCallCount 只计真正执行了 handler 的调用)
+ *   - beforeTurn: async (messages, iter) => Array|null,每次模型请求前调用;返回新消息数组则以它重建循环状态
  * @param {'text'|'detail'} [opts.completeResultMode='text']
  *   - 'text'  : 返回最终文本字符串
  *   - 'detail': 返回 { text, messages }
@@ -296,10 +297,16 @@ export async function runToolLoop({
   const maxIterations = Number.isInteger(config?.maxIterations) ? config.maxIterations : LLM_TOOL_RESOLUTION_MAX_ITERATIONS;
   const handlers = toolHandlers || {};
   const run = { opLog: [], toolCallCount: 0, tracker: { key: null, count: 0 }, stopReason: null };
+  let baseMessages = messages;
   let state = provider.initState(messages);
   let text = null;
 
   for (let iter = 0; iter < maxIterations && !run.stopReason; iter++) {
+    const replaced = config?.beforeTurn ? await config.beforeTurn(provider.stateToMessages(state), iter) : null;
+    if (replaced) {
+      baseMessages = replaced;
+      state = provider.initState(replaced);
+    }
     const turn = await callTurn(provider, state, toolDefs, iter, config);
     if (turn.kind === 'text') {
       text = turn.text;
@@ -314,9 +321,9 @@ export async function runToolLoop({
 
   const stopReason = run.stopReason || TOOL_LOOP_STOP.MAX_ITERATIONS;
   if (stopReason !== TOOL_LOOP_STOP.COMPLETED) {
-    // 用「原始消息 + 一条说明」重建状态：工具历史以操作清单的形式进说明，不依赖各 provider 的无工具补全是否认工具消息
+    // 用「基线消息 + 一条说明」重建状态：工具历史以操作清单的形式进说明，不依赖各 provider 的无工具补全是否认工具消息
     const note = buildStopNote(stopReason, run.opLog, { maxIterations });
-    const noteState = provider.initState(appendNoteMessage(messages, note));
+    const noteState = provider.initState(appendNoteMessage(baseMessages, note));
     log.warn(`COMPLETE_TOOLS STOP  ${formatMeta({ reason: stopReason, provider: config?.provider, model: config?.model || '', toolCalls: run.toolCallCount })}`);
     text = await callModel((noToolsConfig) => provider.completeNoTools(noteState, noToolsConfig), config, 'no-tools');
   }

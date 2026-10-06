@@ -338,6 +338,12 @@ export function setModelContext(id, modelContext) {
   persist(t);
 }
 
+/** 最近一次模型请求前估算的上下文占用；只在内存里，随任务快照发给面板 */
+export function setContextUsage(id, usage) {
+  const t = tasks.get(id);
+  if (t) t.contextUsage = usage;
+}
+
 export function deleteTask(id) {
   tasks.delete(id);
   sseClients.delete(id);
@@ -502,6 +508,7 @@ export function buildTaskSnapshot(task) {
     messages: Array.isArray(task.messages) ? task.messages : [],
     pendingUserMessages: Array.isArray(task.pendingUserMessages) ? task.pendingUserMessages : [],
     modelContext: task.modelContext ?? null,
+    contextUsage: task.contextUsage ?? null,
     createdAt: task.createdAt ?? null,
     error: task.error,
     updatedAt: task.updatedAt ?? null,
