@@ -41,7 +41,7 @@
 /* 从柔焦的深处浮上来，竖向微微拉长，冲过一点再回落 */
 @keyframes we-ink-surface {
   from { opacity: 0; transform: translateY(20px) scale(0.97, 1.05); filter: blur(8px); }
-  40%  { opacity: 1; filter: blur(0); }
+  40%  { opacity: 1; filter: none; }
   to   { opacity: 1; transform: none; filter: none; }
 }
 /* 被引力往下拽：越往下越拉长、越化开 */
@@ -65,7 +65,7 @@
 }
 @keyframes we-ink-drop {
   0%   { opacity: 0; top: -0.6em; filter: blur(6px); }
-  30%  { opacity: 1; filter: blur(0); }
+  30%  { opacity: 1; filter: none; }
   100% { opacity: 1; top: 0; filter: none; }
 }
 @keyframes we-ink-dry {
@@ -153,7 +153,7 @@
 }
 @keyframes we-ink-spread {
   0%   { -webkit-mask-position: 100% 0; mask-position: 100% 0; color: var(--ink-wet); text-shadow: 0 0 0.5em var(--ink-glow); filter: blur(3px); }
-  50%  { color: var(--ink-wet); text-shadow: 0 0 0.35em var(--ink-glow); filter: blur(0); }
+  50%  { color: var(--ink-wet); text-shadow: 0 0 0.35em var(--ink-glow); filter: none; }
   100% { -webkit-mask-position: 0 0; mask-position: 0 0; text-shadow: 0 0 0 transparent; filter: none; }
 }
 
@@ -170,7 +170,7 @@
 /* 弹簧冲过终点时竖向拉伸会反过来变成压扁：落地那一下自然收缩 */
 @keyframes we-ink-rise {
   0%   { opacity: 0; transform: translateY(0.8em) scale(0.7, 1.45); filter: blur(4px); }
-  30%  { opacity: 1; filter: blur(0); }
+  30%  { opacity: 1; filter: none; }
   100% { opacity: 1; transform: none; filter: none; }
 }
 
@@ -192,7 +192,7 @@
 }
 @keyframes we-ink-pull {
   0%   { opacity: 0; transform: translate(-1em, var(--pull-y, 0)) scale(0.2, 0.5); filter: blur(3px); }
-  25%  { opacity: 1; filter: blur(0); }
+  25%  { opacity: 1; filter: none; }
   100% { opacity: 1; transform: none; filter: none; }
 }
 
@@ -248,7 +248,7 @@
 }
 @keyframes we-ink-spread-out {
   0%   { -webkit-mask-size: 8% 40%; mask-size: 8% 40%; color: var(--ink-wet); text-shadow: 0 0 0.5em var(--ink-glow); filter: blur(3px); }
-  55%  { color: var(--ink-wet); text-shadow: 0 0 0.35em var(--ink-glow); filter: blur(0); }
+  55%  { color: var(--ink-wet); text-shadow: 0 0 0.35em var(--ink-glow); filter: none; }
   100% { -webkit-mask-size: 320% 320%; mask-size: 320% 320%; text-shadow: 0 0 0 transparent; filter: none; }
 }
 
@@ -264,7 +264,7 @@
 }
 @keyframes we-ink-splash {
   0%   { opacity: 0; transform: translateY(-48px) scale(0.72, 1.4); filter: blur(8px); }
-  30%  { opacity: 1; filter: blur(0); }
+  30%  { opacity: 1; filter: none; }
   100% { opacity: 1; transform: none; filter: none; }
 }
 
@@ -334,7 +334,7 @@
 /* 枢纽页：从水下的柔焦里浮上来，冲过一点再回落（--ink-spring）；含字的块只位移不缩放 */
 @keyframes we-ink-portal-rise {
   from { opacity: 0; translate: 0 26px; filter: blur(8px); }
-  40%  { opacity: 1; filter: blur(0); }
+  40%  { opacity: 1; filter: none; }
   to   { opacity: 1; translate: 0 0; filter: none; }
 }
 @keyframes we-ink-portal-rise-soft {
@@ -633,7 +633,7 @@
 }
 @keyframes we-ink-resurface {
   0%   { opacity: 0; transform: translateY(14px) scale(0.82, 1.24); filter: blur(4px); }
-  30%  { opacity: 1; filter: blur(0); }
+  30%  { opacity: 1; filter: none; }
   100% { opacity: 1; transform: none; filter: none; }
 }
 :where(:root[data-motion="liquid"]) .we-delete-btn[data-status="deleted"] .we-delete-btn__done {
@@ -718,7 +718,7 @@
 :where(:root[data-motion="liquid"]) .we-badge:nth-child(n + 3) { --badge-delay: calc(var(--ink-t1) * 2); }
 @keyframes we-ink-badge-fall {
   from { opacity: 0; translate: 0 -24px; filter: blur(4px); }
-  30%  { opacity: 1; filter: blur(0); }
+  30%  { opacity: 1; filter: none; }
   to   { opacity: 1; translate: 0 0; filter: none; }
 }
 @keyframes we-ink-badge-dry {
@@ -850,7 +850,7 @@
 }
 @keyframes we-ink-stage-float {
   from { opacity: 0; translate: 0 40px; filter: blur(8px); }
-  40%  { opacity: 1; filter: blur(0); }
+  40%  { opacity: 1; filter: none; }
   to   { opacity: 1; translate: 0 0; filter: none; }
 }
 /* 湿墨：刚落下的字是湿的强调色、带光，随后干回常态色（不写 to，落回元素自己的颜色与投影） */

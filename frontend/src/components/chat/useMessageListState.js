@@ -168,9 +168,13 @@ export default function useMessageListState(ref, {
     if (!el) return;
     setAwayFromBottom(el.scrollHeight - el.scrollTop - el.clientHeight > el.clientHeight / 3);
   }, []);
-  // 内容变长（翻页、流式输出、续写）不会触发 scroll 事件，需要另外重算
+  // 内容变长（翻页、流式输出、续写）不会触发 scroll 事件，需要另外重算；
+  // 等下一帧画完再读：流式输出每到一段文字就提交一次，提交后立刻读滚动尺寸会逼着整页当场重算样式与排版，
+  // 帧画完时排版已是最新，读取不再额外计算
   useEffect(() => {
-    syncAwayFromBottom();
+    let timer = 0;
+    const frame = requestAnimationFrame(() => { timer = setTimeout(syncAwayFromBottom); });
+    return () => { cancelAnimationFrame(frame); clearTimeout(timer); };
   }, [pageMessages, streamingText, continuingText, syncAwayFromBottom]);
 
   // 回到底部：留在当前页，仅把滚动容器拖到底

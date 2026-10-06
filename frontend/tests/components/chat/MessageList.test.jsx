@@ -374,6 +374,31 @@ describe('MessageList 的回到底部按钮', () => {
     fireEvent.scroll(list);
     await waitFor(() => expect(screen.queryByRole('button', { name: '回到底部' })).toBeNull());
   });
+
+  it('流式文字变长时不在提交后立刻读滚动尺寸，等下一帧画完读一次再决定是否浮出', async () => {
+    const { view } = await renderList({ prose: false, streamingText: '' });
+    await waitFor(() => expect(screen.getAllByTestId('bubble')).toHaveLength(4));
+    const list = document.querySelector('.we-chat-area');
+    const reads = vi.fn(() => 1000);
+    Object.defineProperty(list, 'scrollHeight', { configurable: true, get: reads });
+    Object.defineProperty(list, 'clientHeight', { configurable: true, get: () => 300 });
+    Object.defineProperty(list, 'scrollTop', { configurable: true, get: () => 100 });
+    const frames = [];
+    const raf = vi.spyOn(window, 'requestAnimationFrame').mockImplementation((cb) => frames.push(cb));
+
+    try {
+      view.rerender(<MessageList sessionId="s1" prose={false} streamingText="一" />);
+      view.rerender(<MessageList sessionId="s1" prose={false} streamingText="一段" />);
+      expect(reads).not.toHaveBeenCalled();
+
+      act(() => frames.at(-1)());
+      expect(reads).not.toHaveBeenCalled();
+      expect(await screen.findByRole('button', { name: '回到底部' })).toBeTruthy();
+      expect(reads).toHaveBeenCalledTimes(1);
+    } finally {
+      raf.mockRestore();
+    }
+  });
 });
 
 describe('MessageList 的本轮变化', () => {
