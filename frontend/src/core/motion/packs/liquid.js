@@ -11,6 +11,8 @@ export const SURFACE = [0.16, 1, 0.3, 1];
 const SINK = [0.7, 0, 0.84, 0];
 
 const CLEAR = 'blur(0px)';
+// 柔焦落到 0 后撤掉滤镜：blur(0px) 看不出来，但一直挂在元素上，合成时每个都多一个滤镜节点
+const SETTLED = { filter: 'none' };
 const BLUR_EXIT = 'blur(6px)';
 const PANEL_FADE = 0.36;
 
@@ -49,7 +51,7 @@ export default {
     // 小块入场：从下方的柔焦里浮上来，竖向微微拉长，落位时回弹
     enter: {
       hidden:  { opacity: 0, y: 22, scaleX: 0.97, scaleY: 1.06, filter: 'blur(8px)' },
-      visible: { opacity: 1, y: 0, scaleX: 1, scaleY: 1, filter: CLEAR },
+      visible: { opacity: 1, y: 0, scaleX: 1, scaleY: 1, filter: CLEAR, transitionEnd: SETTLED },
       exit:    { opacity: 0, y: 14, scaleY: 0.96, filter: BLUR_EXIT, transition: EXIT },
     },
     // 大面板入场：从下方托起，冲过位置一截再回落。不缩放（面板里有字，缩放会抖），
@@ -62,7 +64,7 @@ export default {
     // 页签内容：顺着指示条移动的方向流进来；custom 传方向（1 向右、-1 向左）
     tabEnter: {
       hidden:  (dir = 1) => ({ opacity: 0, x: dir * 40, scaleX: 1.04, filter: BLUR_EXIT }),
-      visible: { opacity: 1, x: 0, scaleX: 1, filter: CLEAR },
+      visible: { opacity: 1, x: 0, scaleX: 1, filter: CLEAR, transitionEnd: SETTLED },
     },
     overlayBackdrop: {
       hidden:  { opacity: 0 },
@@ -70,13 +72,13 @@ export default {
     },
     appear: {
       hidden:  { opacity: 0, scale: 0.6, filter: 'blur(4px)' },
-      visible: { opacity: 1, scale: 1, filter: CLEAR },
+      visible: { opacity: 1, scale: 1, filter: CLEAR, transitionEnd: SETTLED },
       exit:    { opacity: 0, scale: 0.8, filter: 'blur(4px)', transition: EXIT },
     },
     // 侧抽屉内容：从外侧被水流带进来，冲过一点再回到位
     edgeEnter: {
       hidden:  (edge) => ({ opacity: 0, x: edge * 2.5, filter: BLUR_EXIT, transition: EXIT }),
-      visible: () => ({ opacity: 1, x: 0, filter: CLEAR, transition: { ...ENTER, delay: 0.14 } }),
+      visible: () => ({ opacity: 1, x: 0, filter: CLEAR, transition: { ...ENTER, delay: 0.14 }, transitionEnd: SETTLED }),
     },
   },
   transitions: {

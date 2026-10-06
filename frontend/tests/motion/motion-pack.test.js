@@ -54,6 +54,16 @@ describe('动效包', () => {
     }
   });
 
+  it('落定态带滤镜的变体，动画结束后撤掉滤镜，不在元素上留 blur(0px)', () => {
+    for (const pack of Object.values(MOTION_PACKS)) {
+      for (const [name, states] of Object.entries(pack.variants)) {
+        const visible = typeof states.visible === 'function' ? states.visible(1) : states.visible;
+        if (visible.filter === undefined) continue;
+        expect(visible.transitionEnd?.filter, `${pack.id}.${name}`).toBe('none');
+      }
+    }
+  });
+
   it('带字的入场（小块、大面板、页签）不翻转：翻转会把正文压扁再拉开，进页时整屏抽一下', () => {
     const ROTATE_KEYS = ['rotate', 'rotateX', 'rotateY'];
     for (const pack of Object.values(MOTION_PACKS)) {
