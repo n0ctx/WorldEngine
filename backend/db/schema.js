@@ -412,6 +412,7 @@ CREATE TABLE IF NOT EXISTS state_threads (
   status             TEXT NOT NULL DEFAULT 'active',
   opened_round       INTEGER NOT NULL,
   last_touched_round INTEGER NOT NULL DEFAULT 0,
+  deadline           TEXT,
   valid_from_round   INTEGER NOT NULL,
   valid_to_round     INTEGER
 );
@@ -797,6 +798,8 @@ function migrateBackfillWritingSessionPersonaId(db) {
     db.exec('ALTER TABLE state_threads ADD COLUMN last_touched_round INTEGER NOT NULL DEFAULT 0');
     db.exec('UPDATE state_threads SET last_touched_round = opened_round');
   }
+  // 事项期限（世界日期格式），故事时间过了期限即由机器标为已过期；NULL 表示没有期限。
+  addColumn(db, 'state_threads', 'deadline', 'TEXT');
   if (db.prepare('SELECT value FROM internal_meta WHERE key = ?').get(key)?.value === '1') return;
 
   const now = Date.now();

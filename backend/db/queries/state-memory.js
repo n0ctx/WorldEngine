@@ -87,7 +87,7 @@ export function replaceThreadRows(sessionId, threads, round) {
   `).run(round, sessionId, ...ids);
   const columns = [
     'row_id', 'thread_id', 'session_id', 'seq', 'kind', 'participants_json', 'content',
-    'status', 'opened_round', 'last_touched_round', 'valid_from_round', 'valid_to_round',
+    'status', 'opened_round', 'last_touched_round', 'deadline', 'valid_from_round', 'valid_to_round',
   ];
   const rowPlaceholder = `(${columns.map(() => '?').join(', ')})`;
   db.prepare(`
@@ -95,7 +95,7 @@ export function replaceThreadRows(sessionId, threads, round) {
   `).run(...threads.flatMap((thread) => [
     crypto.randomUUID(), thread.thread_id, sessionId, thread.seq, thread.kind,
     thread.participants_json, thread.content, thread.status, thread.opened_round,
-    thread.last_touched_round ?? thread.opened_round, round, null,
+    thread.last_touched_round ?? thread.opened_round, thread.deadline ?? null, round, null,
   ]));
 }
 
@@ -205,7 +205,7 @@ export function closeRelation(sessionId, relationId, round) {
 export function upsertThread(sessionId, thread, round) {
   return closeAndInsertRow(
     'state_threads',
-    ['thread_id', 'session_id', 'seq', 'kind', 'participants_json', 'content', 'status', 'opened_round', 'last_touched_round'],
+    ['thread_id', 'session_id', 'seq', 'kind', 'participants_json', 'content', 'status', 'opened_round', 'last_touched_round', 'deadline'],
     ['session_id', 'thread_id'],
     {
       thread_id: thread.threadId,
@@ -217,6 +217,7 @@ export function upsertThread(sessionId, thread, round) {
       status: thread.status ?? 'active',
       opened_round: thread.openedRound,
       last_touched_round: thread.lastTouchedRound ?? thread.openedRound,
+      deadline: thread.deadline ?? null,
     },
     round,
   );

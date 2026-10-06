@@ -3,12 +3,13 @@ import Badge from '../ui/Badge.jsx';
 import Button from '../ui/Button.jsx';
 import Card from '../ui/Card.jsx';
 import EmptyState from '../ui/EmptyState.jsx';
+import Input from '../ui/Input.jsx';
 import { IconChevronRight } from '../ui/icons.jsx';
 import { updateStateThread } from '../../core/api/state-memory.js';
 import { isImeComposing } from '../../core/utils/ime.js';
 import { log } from '../../core/utils/logger.js';
 
-const STATUS_LABELS = { active: '进行中', dormant: '已搁置', resolved: '已解决', failed: '已失败' };
+const STATUS_LABELS = { active: '进行中', dormant: '已搁置', resolved: '已解决', failed: '已失败', expired: '已过期' };
 
 function participantNames(entities, participantIds) {
   const byId = new Map(entities.map((e) => [e.entity_id, e.name]));
@@ -17,8 +18,10 @@ function participantNames(entities, participantIds) {
 
 function ThreadRow({ sessionId, thread, entities, reload }) {
   const [content, setContent] = useState(thread.content);
+  const [deadline, setDeadline] = useState(thread.deadline ?? '');
   const [error, setError] = useState('');
   const active = thread.status === 'active';
+  const open = active || thread.status === 'dormant';
   const participants = participantNames(entities, thread.participants);
 
   async function commit(patch) {
@@ -38,9 +41,10 @@ function ThreadRow({ sessionId, thread, entities, reload }) {
         <Badge>{thread.kind}</Badge>
         <span className="we-sm-thread-meta">
           {participants && <>{participants} · </>}第 {thread.opened_round} 轮起
+          {!open && thread.deadline && <> · 期限 {thread.deadline}</>}
         </span>
         <span className="we-sm-thread-actions">
-          {active || thread.status === 'dormant' ? (
+          {open ? (
             <>
               <Button type="button" size="sm" variant="ghost" title="这件事已经了结" onClick={() => commit({ status: 'resolved' })}>已解决</Button>
               <Button type="button" size="sm" variant="ghost" title="这件事没能完成" onClick={() => commit({ status: 'failed' })}>已失败</Button>
@@ -71,6 +75,26 @@ function ThreadRow({ sessionId, thread, entities, reload }) {
         }}
         onBlur={() => { if (content.trim() && content !== thread.content) commit({ content: content.trim() }); }}
       />
+      {open && (
+        <label className="we-sm-thread-deadline">
+          <span className="we-sm-form-label">期限</span>
+          <Input
+            size="sm"
+            aria-label="事项期限"
+            placeholder="无期限；如 1000-03-15 或 1000-03-15T18:00"
+            value={deadline}
+            onChange={(e) => setDeadline(e.target.value)}
+            onKeyDown={(e) => {
+              if (isImeComposing(e)) return;
+              if (e.key === 'Escape' && deadline !== (thread.deadline ?? '')) {
+                e.preventDefault();
+                setDeadline(thread.deadline ?? '');
+              }
+            }}
+            onBlur={() => { if (deadline.trim() !== (thread.deadline ?? '')) commit({ deadline: deadline.trim() || null }); }}
+          />
+        </label>
+      )}
       {error && <p className="we-settings-toggle-hint text-[var(--we-color-accent)]" role="alert">{error}</p>}
     </Card>
   );
@@ -101,11 +125,11 @@ export default function StateMemoryThreadTab({ sessionId, data, reload }) {
   const threads = data?.threads ?? [];
   const active = threads.filter((t) => t.status === 'active');
   const dormant = threads.filter((t) => t.status === 'dormant');
-  const closed = threads.filter((t) => t.status === 'resolved' || t.status === 'failed');
+  const closed = threads.filter((t) => t.status === 'resolved' || t.status === 'failed' || t.status === 'expired');
 
   return (
     <div className="we-sm-thread-tab">
-      <p className="we-sm-intro">尚未了结的承诺、任务、冲突等。进行中的事项会提醒 AI 延续剧情；长时间没再被提到的会搁置，不再提醒；了结后不再提供。</p>
+      <p className="we-sm-intro">尚未了结的承诺、任务、冲突等。进行中的事项会提醒 AI 延续剧情；长时间没再被提到的会搁置，不再提醒；故事时间过了期限还没了结的标为已过期；了结或过期后不再提供。</p>
 
       {active.length === 0 ? (
         <EmptyState size="sm" title="暂无未了事项" hint="剧情里出现承诺、任务、冲突等时，AI 会自动记录。" />

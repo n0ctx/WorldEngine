@@ -39,7 +39,7 @@ import {
   ENTITY_TYPES, getProfileFieldDefinitions, resolveActiveProfileFields, getEditableProfileFields, parseProfileDefaults,
   isPlaceholderValue, THREAD_KINDS, EXCLUSIVE_PREDICATES, DYNAMIC_LOCATION_KEY,
 } from './state-memory-schema.js';
-import { parseWorldDate, compareWorldDate } from '../utils/world-date.js';
+import { parseWorldDate, compareWorldDate, isPastWorldDeadline } from '../utils/world-date.js';
 import { validateValue } from '../utils/state-field-validate.js';
 import {
   STATE_TEXT_FIELD_MAX, STATE_LIST_ITEM_MAX, STATE_LIST_MAX_ITEMS,
@@ -230,6 +230,7 @@ function buildThreadRow(thread, overrides) {
     participantsJson: thread.participants_json, content: thread.content,
     status: thread.status, openedRound: thread.opened_round,
     lastTouchedRound: thread.last_touched_round ?? thread.opened_round,
+    deadline: thread.deadline ?? null,
     ...overrides,
   };
 }
@@ -518,6 +519,19 @@ function normalizedThreadContent(content) {
   return content.replace(/\s+/g, '');
 }
 
+/**
+ * 读取操作里的期限：没给返回 undefined（不改动）；null 或空串表示取消期限；
+ * 格式无效时当作没给，事项本身照常写入。
+ */
+function readThreadDeadline(op, ctx) {
+  if (op.deadline === undefined) return undefined;
+  const trimmed = typeof op.deadline === 'string' ? op.deadline.trim() : '';
+  if (op.deadline === null || !trimmed) return null;
+  if (parseWorldDate(trimmed)) return trimmed;
+  log.warn(`STATE MEMORY THREAD DEADLINE IGNORED  ${formatMeta({ session: ctx.sessionId.slice(0, 8), op: op.op, deadline: op.deadline })}`);
+  return undefined;
+}
+
 function handleOpenThread(op, ctx) {
   if (!THREAD_KINDS.includes(op.kind)) return { ok: false, reason: `未知事项类型: ${op.kind}` };
   const content = typeof op.content === 'string' ? op.content.trim() : '';
@@ -532,13 +546,14 @@ function handleOpenThread(op, ctx) {
   const threadId = crypto.randomUUID();
   const seq = nextThreadSeq(ctx.sessionId);
   const participantsJson = JSON.stringify(participantIds);
+  const deadline = readThreadDeadline(op, ctx) ?? null;
   upsertThread(ctx.sessionId, {
     threadId, seq, kind: op.kind, participantsJson, content, status: 'active',
-    openedRound: ctx.round, lastTouchedRound: ctx.round,
+    openedRound: ctx.round, lastTouchedRound: ctx.round, deadline,
   }, ctx.round);
   ctx.threads.push({
     thread_id: threadId, seq, kind: op.kind, participants_json: participantsJson,
-    content, status: 'active', opened_round: ctx.round, last_touched_round: ctx.round,
+    content, status: 'active', opened_round: ctx.round, last_touched_round: ctx.round, deadline,
   });
   return { ok: true };
 }
@@ -550,10 +565,13 @@ function handleUpdateThread(op, ctx) {
   if (!content) return { ok: false, reason: '缺少内容' };
   const thread = ctx.threads.find((t) => t.thread_id === threadId);
   const status = thread.status === 'dormant' ? 'active' : thread.status;
-  upsertThread(ctx.sessionId, buildThreadRow(thread, { content, status, lastTouchedRound: ctx.round }), ctx.round);
+  const requested = readThreadDeadline(op, ctx);
+  const deadline = requested === undefined ? thread.deadline ?? null : requested;
+  upsertThread(ctx.sessionId, buildThreadRow(thread, { content, status, lastTouchedRound: ctx.round, deadline }), ctx.round);
   thread.content = content;
   thread.status = status;
   thread.last_touched_round = ctx.round;
+  thread.deadline = deadline;
   return { ok: true };
 }
 
@@ -635,6 +653,17 @@ function dormantUntouchedThreads(ctx) {
   for (const thread of stale) thread.status = 'dormant';
 }
 
+/** 故事时间已过期限、仍未了结（进行中或搁置）的事项标为已过期。在本轮操作之后执行，按本轮推进后的时间判断。 */
+function expireOverdueThreads(ctx) {
+  const now = ctx.worldProfile.time ? parseWorldDate(ctx.worldProfile.time) : null;
+  if (!now) return;
+  const overdue = ctx.threads.filter((thread) => (
+    (thread.status === 'active' || thread.status === 'dormant') && isPastWorldDeadline(thread.deadline, now)
+  ));
+  replaceThreadRows(ctx.sessionId, overdue.map((thread) => ({ ...thread, status: 'expired' })), ctx.round);
+  for (const thread of overdue) thread.status = 'expired';
+}
+
 // ============================
 // 对外接口
 // ============================
@@ -677,6 +706,7 @@ export function applyStateMemoryOps({ sessionId, worldId, round, ops, turnText, 
         log.warn(`STATE MEMORY OP ERROR  ${formatMeta({ session: sessionId.slice(0, 8), op: op.op, error: err.message })}`);
       }
     }
+    expireOverdueThreads(ctx);
     return { applied, rejected };
   });
 }

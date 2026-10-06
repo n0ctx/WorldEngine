@@ -436,7 +436,8 @@ function buildRelationLines(relations, nameOf) {
 function buildThreadLines(threads, nameOf) {
   return threads.map((t) => {
     const participants = JSON.parse(t.participants_json || '[]').map(nameOf).filter(Boolean);
-    return `进行中：［${t.kind}］${t.content}（${participants.join('、')}，第 ${t.opened_round} 轮起）`;
+    const deadline = t.deadline ? `，期限 ${t.deadline}` : '';
+    return `进行中：［${t.kind}］${t.content}（${participants.join('、')}，第 ${t.opened_round} 轮起${deadline}）`;
   });
 }
 

@@ -16,7 +16,7 @@ const {
   createRelation, deleteRelation, createThread, updateThread,
   applyEntityBasicPatch, applyManualProfilePatch, applyManualDynamicPatch,
 } = await freshImport('backend/services/state-memory.js');
-const { upsertPresence, listCurrentEntities } = await freshImport('backend/db/queries/state-memory.js');
+const { upsertPresence, listCurrentEntities, upsertThread } = await freshImport('backend/db/queries/state-memory.js');
 
 function setupSession(patch = {}) {
   const world = insertWorld(sandbox.db, patch.world);
@@ -167,6 +167,23 @@ test('事项：新建、未知类型 400、更新内容与状态、未知状态 
 
   expectError(() => updateThread(session.id, thread.thread_id, { status: '未知状态' }), 'bad_request');
   expectError(() => updateThread(session.id, 'no-such-thread', { status: 'active' }), 'not_found');
+});
+
+test('事项期限：可设置与清空，格式无效 400；重新打开已过期事项时没给新期限就取消旧期限', () => {
+  const { session } = setupSession();
+  const thread = createThread(session.id, { kind: '债务', content: '月底还钱' });
+
+  assert.equal(updateThread(session.id, thread.thread_id, { deadline: '1000-03-31' }).deadline, '1000-03-31');
+  expectError(() => updateThread(session.id, thread.thread_id, { deadline: '月底' }), 'bad_request');
+  assert.equal(updateThread(session.id, thread.thread_id, { deadline: '' }).deadline, null);
+
+  upsertThread(session.id, {
+    threadId: thread.thread_id, seq: thread.seq, kind: thread.kind, content: thread.content,
+    status: 'expired', openedRound: 0, deadline: '1000-03-31',
+  }, 0);
+  const reopened = updateThread(session.id, thread.thread_id, { status: 'active' });
+  assert.equal(reopened.status, 'active');
+  assert.equal(reopened.deadline, null);
 });
 
 test('getStateMemory 返回 presentIds、world、age，会话不存在 404', () => {

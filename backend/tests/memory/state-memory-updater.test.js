@@ -151,6 +151,7 @@ test('本轮明确完成的无参与者事项进入更新输入并可自动结�
     responseKeys: [], round: 2, relevantIds: new Set(),
   });
   assert.match(prompt, /【本轮相关的未了事项】\nt1｜［任务］归还账本/);
+  assert.match(prompt, /【世界当前时间】（未设置）/);
 
   process.env.MOCK_LLM_COMPLETE = JSON.stringify({ entity_fields: {}, memory: [
     { op: 'resolve_thread', thread: 't1', outcome: 'resolved' },
@@ -165,7 +166,7 @@ test('状态更新提示词收紧立案并按事实结案', () => {
   const prompt = readFileSync(new URL('../../prompts/templates/state-update.md', import.meta.url), 'utf8');
   assert.match(prompt, /本轮之后仍未完成/);
   assert.match(prompt, /不要求出现「完成了」/);
-  assert.match(prompt, /期限到来本身不是结案/);
+  assert.match(prompt, /不要因为期限到了就标 failed/);
 });
 
 test('连续 50 轮全是占位值/空操作时，状态记忆各表无新增行（除首轮建的 player/主角色外）', async () => {

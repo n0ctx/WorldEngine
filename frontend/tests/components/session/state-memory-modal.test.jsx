@@ -318,6 +318,32 @@ describe('StateMemoryModal', () => {
     expect(mocks.updateStateThread).toHaveBeenCalledWith('s1', 't3', { status: 'active' });
   });
 
+  it('进行中事项可改期限，清空即取消；已过期事项归入已结束并显示期限', async () => {
+    setup({
+      ...baseData,
+      threads: [
+        { ...baseData.threads[0], deadline: '1000-03-18' },
+        { thread_id: 't4', seq: 4, kind: '债务', participants: [], content: '月底还钱', status: 'expired', opened_round: 1, deadline: '1000-02-30' },
+      ],
+    });
+    await screen.findByLabelText('搜索实体');
+    fireEvent.click(screen.getByRole('tab', { name: /未了事项\s*1/ }));
+
+    const deadline = await screen.findByLabelText('事项期限');
+    expect(deadline).toHaveValue('1000-03-18');
+    fireEvent.change(deadline, { target: { value: '1000-03-20T18:00' } });
+    fireEvent.blur(deadline);
+    expect(mocks.updateStateThread).toHaveBeenCalledWith('s1', 't1', { deadline: '1000-03-20T18:00' });
+    fireEvent.change(deadline, { target: { value: '' } });
+    fireEvent.blur(deadline);
+    expect(mocks.updateStateThread).toHaveBeenCalledWith('s1', 't1', { deadline: null });
+
+    fireEvent.click(screen.getByRole('button', { name: /已结束 1/ }));
+    expect(screen.getByDisplayValue('月底还钱')).toBeInTheDocument();
+    expect(screen.getByText(/第 1 轮起 · 期限 1000-02-30/)).toBeInTheDocument();
+    expect(screen.getByText('已过期')).toBeInTheDocument();
+  });
+
   it('角色可存为玩家卡：AI 起草后保存，玩家卡不带开场白', async () => {
     setup();
     mocks.analyzeEntityForCard.mockResolvedValue({ name: '沈彦', system_prompt: 'sp', description: 'desc', first_message: 'fm' });

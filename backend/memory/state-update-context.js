@@ -21,7 +21,7 @@ import { getAllPersonaStateValues, getAllPersonaStateValuesByPersonaId } from '.
 import { getSessionPersonaStateValues } from '../db/queries/session-persona-state-values.js';
 import { getPersonaById, getPersonaByWorldId } from '../db/queries/personas.js';
 import { setSessionStateBaselineIfAbsent } from '../db/queries/sessions.js';
-import { upsertWorldProfile } from '../db/queries/state-memory.js';
+import { upsertWorldProfile, getCurrentWorldProfile } from '../db/queries/state-memory.js';
 
 import { ENTITY_TYPES, getProfileFieldDefinitions, resolveActiveProfileFields } from './state-memory-schema.js';
 import { ensureBaseEntities } from './state-memory-apply.js';
@@ -339,7 +339,7 @@ export function resolveRelevantEntityIds(sessionId, messages, { playerEntityId, 
   return relevantIds;
 }
 
-/** 状态更新调用的动态后缀（user 段）：各字段当前取值 + 本轮触发的条目 + 实体目录/相关实体详情 + 本轮对话，逐轮变化，不进缓存。 */
+/** 状态更新调用的动态后缀（user 段）：各字段当前取值 + 世界当前时间 + 本轮触发的条目 + 实体目录/相关实体详情 + 本轮对话，逐轮变化，不进缓存。 */
 export function buildRuntimeUserPrompt({ sessionId, worldId, mainCharacterEntityId, valueSections, dialogue, turnText = dialogue, responseKeys, round, relevantIds, triggeredSetting = '' }) {
   // 待补全的实体即使本轮没出场也带上详情，AI 才能按已有信息创作
   const gaps = renderProfileGapsForUpdate(sessionId, { worldId, priorityIds: relevantIds, mainCharacterEntityId });
@@ -348,6 +348,7 @@ export function buildRuntimeUserPrompt({ sessionId, worldId, mainCharacterEntity
     DIALOGUE: dialogue,
     RESPONSE_KEYS: responseKeys.join('、'),
     ROUND: round,
+    WORLD_TIME: getCurrentWorldProfile(sessionId).time || '（未设置）',
     TRIGGERED_SETTING: triggeredSetting || '（无）',
     ENTITY_DIRECTORY: renderEntityDirectory(sessionId) || '（无）',
     RELEVANT_THREADS: renderRelevantThreadsForUpdate(sessionId, turnText) || '（无）',

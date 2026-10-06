@@ -260,6 +260,27 @@ describe('MessageList 的分页', () => {
     expect(screen.getByText('— 对话开始 —')).toBeTruthy();
   });
 
+  it('开场白不计轮数：归第一页，每页仍从用户消息开始，同一轮的回复不跨页', async () => {
+    const opening = { id: 'g', role: 'assistant', content: '开场白', created_at: 0 };
+    mocks.getMessages.mockResolvedValue([opening, ...makeMessages(9)]);
+    const onPageInfoChange = vi.fn();
+    const { ref } = await renderList({ prose: false, pageTurnSize: 2, onPageInfoChange });
+
+    // 开场白 + 第 1-2 轮（m1-m4）一页，m5-m8 一页，末页 m9
+    await waitFor(() => expect(onPageInfoChange).toHaveBeenLastCalledWith({ totalPages: 3, currentPage: 2 }));
+    expect(screen.getAllByTestId('bubble').map((el) => el.dataset.id)).toEqual(['m9']);
+
+    // 新一轮的回复跟着同一页的用户消息
+    act(() => ref.current.appendMessage({ id: 'm10', role: 'assistant', content: '内容10', created_at: 10 }));
+    await waitFor(() => expect(screen.getAllByTestId('bubble').map((el) => el.dataset.id)).toEqual(['m9', 'm10']));
+    expect(onPageInfoChange).toHaveBeenLastCalledWith({ totalPages: 3, currentPage: 2 });
+
+    act(() => ref.current.setPage(0));
+    await waitFor(() => expect(screen.getAllByTestId('bubble').map((el) => el.dataset.id)).toEqual(['g', 'm1', 'm2', 'm3', 'm4']));
+    act(() => ref.current.setPage(1));
+    await waitFor(() => expect(screen.getAllByTestId('bubble').map((el) => el.dataset.id)).toEqual(['m5', 'm6', 'm7', 'm8']));
+  });
+
   it('新消息开出新页时只显示新页，不带上一页的内容', async () => {
     mocks.getMessages.mockResolvedValue(makeMessages(8));
     const onPageInfoChange = vi.fn();

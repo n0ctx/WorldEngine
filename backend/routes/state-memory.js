@@ -13,7 +13,7 @@
  *   POST   /relations                     body: { subject_id, predicate, object_id?, object_value?, note? }
  *   DELETE /relations/:relationId
  *   POST   /threads                       body: { kind, participants, content }
- *   PATCH  /threads/:threadId             body: { content?, status? }
+ *   PATCH  /threads/:threadId             body: { content?, status?, deadline? }
  *
  * 业务逻辑在 services/state-memory.js；这里只做参数透传与错误码映射
  * （service 抛出的 Error.code：'not_found' → 404，'conflict' → 409，其余 → 400）。

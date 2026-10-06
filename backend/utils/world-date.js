@@ -2,7 +2,7 @@
  * world-date.js — 世界日期解析与年龄推算
  *
  * 世界日期格式为 `YYYY-MM-DD` 或 `YYYY-MM-DDTHH:mm`，年份位数不限，用于状态记忆的
- * 世界档案「当前时间」、档案字段「出生日期」「记录年龄」的年龄推算。
+ * 世界档案「当前时间」、未了事项的期限判断、档案字段「出生日期」「记录年龄」的年龄推算。
  */
 
 const WORLD_DATE_PATTERN = /^(\d+)-(\d{2})-(\d{2})(?:T(\d{2}):(\d{2}))?$/;
@@ -34,6 +34,14 @@ export function compareWorldDate(a, b) {
     if (diff !== 0) return diff;
   }
   return 0;
+}
+
+/** 故事时间 now 是否已过期限 deadline（世界日期字符串）。期限只写到日期时，过了当天才算过期。 */
+export function isPastWorldDeadline(deadline, now) {
+  const parsed = parseWorldDate(deadline);
+  if (!parsed || !now) return false;
+  if (!deadline.includes('T')) return compareWorldDate({ ...now, hour: 0, minute: 0 }, parsed) > 0;
+  return compareWorldDate(now, parsed) > 0;
 }
 
 /** 计算 from 到 to 相隔的整年数，按月日比较（生日未到时少算一年） */

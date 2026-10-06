@@ -19,7 +19,7 @@
  *   createRelation(sessionId, { subject_id, predicate, object_id?, object_value?, note? }) → relation
  *   deleteRelation(sessionId, relationId) → { ok: true }
  *   createThread(sessionId, { kind, participants, content }) → thread
- *   updateThread(sessionId, threadId, { content?, status? }) → thread
+ *   updateThread(sessionId, threadId, { content?, status?, deadline? }) → thread
  *
  * updateEntity 的三个分支单独导出（供圈复杂度按独立单元计分，也便于单测）：
  *   applyEntityBasicPatch(sessionId, entity, body, round) → void，改名/别名/置顶
@@ -52,7 +52,7 @@ import {
   getProfileFieldDefinitions, resolveActiveProfileFields, isPlaceholderValue,
 } from '../memory/state-memory-schema.js';
 
-const THREAD_STATUSES = ['active', 'resolved', 'failed', 'dormant'];
+const THREAD_STATUSES = ['active', 'resolved', 'failed', 'dormant', 'expired'];
 const MANUAL_THREAD_STATUSES = ['active', 'resolved', 'failed'];
 
 function serviceError(code, message) {
@@ -476,7 +476,7 @@ function toThreadView(thread) {
   return {
     thread_id: thread.thread_id, seq: thread.seq, kind: thread.kind,
     participants: JSON.parse(thread.participants_json || '[]'), content: thread.content,
-    status: thread.status, opened_round: thread.opened_round,
+    status: thread.status, opened_round: thread.opened_round, deadline: thread.deadline ?? null,
   };
 }
 
@@ -496,14 +496,16 @@ export function createThread(sessionId, body = {}) {
     threadId, seq, kind: body.kind, participantsJson: JSON.stringify(participantIds),
     content, status: 'active', openedRound: round, lastTouchedRound: round,
   }, round);
-  return { thread_id: threadId, seq, kind: body.kind, participants: participantIds, content, status: 'active', opened_round: round };
+  return { thread_id: threadId, seq, kind: body.kind, participants: participantIds, content, status: 'active', opened_round: round, deadline: null };
 }
 
 export function updateThread(sessionId, threadId, body = {}) {
   requireSession(sessionId);
   const thread = listThreads(sessionId).find((t) => t.thread_id === threadId);
   if (!thread) throw serviceError('not_found', '事项不存在');
-  if (body.content === undefined && body.status === undefined) throw serviceError('bad_request', '缺少更新内容');
+  if (body.content === undefined && body.status === undefined && body.deadline === undefined) {
+    throw serviceError('bad_request', '缺少更新内容');
+  }
 
   let content = thread.content;
   if (body.content !== undefined) {
@@ -514,11 +516,18 @@ export function updateThread(sessionId, threadId, body = {}) {
   if (!THREAD_STATUSES.includes(status) || (body.status !== undefined && !MANUAL_THREAD_STATUSES.includes(status))) {
     throw serviceError('bad_request', `未知状态: ${status}`);
   }
+  // 重新打开已过期的事项时，没给新期限就取消旧期限，否则下一轮又会被判过期
+  let deadline = thread.status === 'expired' && status === 'active' ? null : thread.deadline ?? null;
+  if (body.deadline !== undefined) {
+    deadline = typeof body.deadline === 'string' ? body.deadline.trim() : '';
+    if (!deadline) deadline = null;
+    else if (!parseWorldDate(deadline)) throw serviceError('bad_request', '期限格式应为 YYYY-MM-DD 或 YYYY-MM-DDTHH:mm');
+  }
 
   const round = resolveManualRound(sessionId);
   upsertThread(sessionId, {
     threadId: thread.thread_id, seq: thread.seq, kind: thread.kind, participantsJson: thread.participants_json,
-    content, status, openedRound: thread.opened_round, lastTouchedRound: round,
+    content, status, openedRound: thread.opened_round, lastTouchedRound: round, deadline,
   }, round);
-  return toThreadView({ ...thread, content, status });
+  return toThreadView({ ...thread, content, status, deadline });
 }

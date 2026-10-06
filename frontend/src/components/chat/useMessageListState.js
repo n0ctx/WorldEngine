@@ -13,6 +13,20 @@ function scrollToMessageIn(list, messageId) {
   list.scrollTo({ top, behavior: 'smooth' });
 }
 
+// 每页起点的下标。一轮从一条用户消息起，新页总从用户消息开始；首条用户消息之前的开场白归第一页，不计轮数
+function pageStartsOf(messages, pageTurnSize) {
+  const turn = Number(pageTurnSize);
+  const turnsPerPage = Number.isFinite(turn) && turn > 0 ? Math.floor(turn) : 50;
+  const starts = [0];
+  let turns = 0;
+  messages.forEach((m, i) => {
+    if (m.role !== 'user') return;
+    if (turns > 0 && turns % turnsPerPage === 0) starts.push(i);
+    turns++;
+  });
+  return starts;
+}
+
 // MessageList 的消息加载、翻页与滚动定位，以及对外的命令式接口
 export default function useMessageListState(ref, {
   sessionId,
@@ -47,17 +61,14 @@ export default function useMessageListState(ref, {
 
   const handleJumpToMessage = useCallback((messageId) => scrollToMessageIn(listRef.current, messageId), []);
 
-  // 翻页：按 pageTurnSize*2 条切片，每次只渲染当前页消息（不是滚动）
-  const pageSize = useMemo(() => {
-    const turn = Number(pageTurnSize);
-    return (Number.isFinite(turn) && turn > 0 ? Math.floor(turn) : 50) * 2;
-  }, [pageTurnSize]);
-  const totalPages = Math.max(1, Math.ceil(messages.length / pageSize));
+  // 翻页：每页 pageTurnSize 轮，每次只渲染当前页消息（不是滚动）
+  const pageStarts = useMemo(() => pageStartsOf(messages, pageTurnSize), [messages, pageTurnSize]);
+  const totalPages = pageStarts.length;
   const lastPageIdx = totalPages - 1;
   const currentPage = pageAnchor.followLast ? lastPageIdx : Math.min(pageAnchor.idx, lastPageIdx);
   const pageMessages = useMemo(
-    () => messages.slice(currentPage * pageSize, (currentPage + 1) * pageSize),
-    [messages, currentPage, pageSize],
+    () => messages.slice(pageStarts[currentPage], pageStarts[currentPage + 1]),
+    [messages, pageStarts, currentPage],
   );
 
   // 加载会话消息。切换会话时旧会话的消息留在原处，新消息到达后与翻页锚点一起整体换上，
