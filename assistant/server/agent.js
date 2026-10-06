@@ -134,8 +134,9 @@ async function refreshSummary(task, history, { configScope, runId }) {
 
 function buildModelMessages(systemPrompt, history, modelContext, resumed) {
   const tail = modelContext ? history.slice(history.findIndex((m) => m.id === modelContext.untilId) + 1) : history;
-  const messages = [{ role: 'system', content: systemPrompt }];
-  if (modelContext?.summary) messages.push({ role: 'system', content: `# 更早对话的摘要\n${modelContext.summary}` });
+  // 摘要并入唯一的 system 消息：部分本地模型的对话模板只允许一条且必须在最前。
+  const system = modelContext?.summary ? `${systemPrompt}\n\n# 更早对话的摘要\n${modelContext.summary}` : systemPrompt;
+  const messages = [{ role: 'system', content: system }];
   messages.push(...tail.map(({ role, content }) => ({ role, content })));
   if (resumed) messages.push({ role: 'user', content: RESUME_NOTE });
   return messages;
