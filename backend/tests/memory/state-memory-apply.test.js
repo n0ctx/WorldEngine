@@ -735,6 +735,27 @@ test('applyPresence 在 memory 操作之后写入：能按名字引用同一批�
   assert.deepEqual(getLatestPresence(session.id).entity_ids, [existingId, created.entity_id]);
 });
 
+test('applyPresence 把本轮新建的角色补进在场名单，新建的地点和已有角色不补', () => {
+  const { world, session } = setupSession();
+  const existingId = makeEntity(session.id, { name: '沈彦', seq: 1 });
+  const { createdCharacterIds } = applyStateMemoryOps({
+    sessionId: session.id, worldId: world.id, round: 1,
+    ops: [
+      { op: 'create_entity', name: '林乔', type: 'character' },
+      { op: 'create_entity', name: '沈彦', type: 'character' },
+      { op: 'create_entity', name: '青溪镇', type: 'location' },
+    ],
+    ...noop,
+  });
+  const created = listCurrentEntities(session.id).find((e) => e.name === '林乔');
+  assert.deepEqual(createdCharacterIds, [created.entity_id]);
+
+  applyPresence({ sessionId: session.id, round: 1, present: ['e1'], createdCharacterIds });
+  assert.deepEqual(getLatestPresence(session.id).entity_ids, [existingId, created.entity_id]);
+  applyPresence({ sessionId: session.id, round: 2, present: ['e1', '林乔'], createdCharacterIds });
+  assert.deepEqual(getLatestPresence(session.id).entity_ids, [existingId, created.entity_id]);
+});
+
 test('applyPresence 没给数组时不写，沿用上一轮名单；给空数组时清空', () => {
   const { session } = setupSession();
   const existingId = makeEntity(session.id, { name: '沈彦', seq: 1 });
@@ -753,7 +774,7 @@ test('ops 不是数组时整体忽略', () => {
     sessionId: session.id, worldId: world.id, round: 1, ops: { op: 'set_world', key: 'time', value: '1000-03-15T14:30' },
     ...noop,
   });
-  assert.deepEqual(result, { applied: 0, rejected: [] });
+  assert.deepEqual(result, { applied: 0, rejected: [], createdCharacterIds: [] });
   assert.equal(listCurrentEntities(session.id).length, 0);
 });
 

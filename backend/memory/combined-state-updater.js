@@ -273,7 +273,9 @@ async function writeStatePatch(patch, { sid, sessionId, worldId, world, targets,
   const memoryResult = applyStateMemoryOps({
     sessionId, worldId, round, ops: patch.memory, turnText, realDate, mainCharacterEntityId,
   });
-  const presenceResult = applyPresence({ sessionId, round, present: patch.present });
+  const presenceResult = applyPresence({
+    sessionId, round, present: patch.present, createdCharacterIds: memoryResult.createdCharacterIds,
+  });
   const entityFieldsResult = applyEntityFields({
     sessionId, worldId, entityFields: patch.entity_fields, mainCharacterEntityId,
   });

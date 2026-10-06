@@ -32,11 +32,24 @@ export function findJsonObjectText(raw) {
   return match ? match[0] : null;
 }
 
+const KEY_AFTER_COMMA = /\s*,\s*"(?:[^"\\]|\\.)*"\s*:/y;
+
+/**
+ * 多写的右花括号：它关掉的对象外层不是对象（是数组或已到最外层），后面却紧跟 , "键":，
+ * 说明后面的键本该留在这个对象里（如 [{"profile": {...}}, "aliases": [...]}]）。
+ */
+function isStrayObjectClose(text, i, stack) {
+  if (stack.at(-1) !== '}' || stack.at(-2) === '}') return false;
+  KEY_AFTER_COMMA.lastIndex = i + 1;
+  return KEY_AFTER_COMMA.test(text);
+}
+
 /**
  * 修复常见 LLM JSON 输出问题（单遍状态机）：
  *  1. 补全截断括号（原 repairTruncatedJson 功能保留）
  *  2. 去除字符串外的尾部逗号（{"a":1,} 或 [1,2,]）
  *  3. 去除字符串外的 JavaScript 单行注释（// ...）
+ *  4. 去除提前关闭对象的多余右花括号（见 isStrayObjectClose）
  *
  * 进入 inString=true 后所有修复逻辑均跳过，不会破坏字符串内容。
  */
@@ -66,6 +79,7 @@ export function repairJsonIssues(text) {
       out.push(ch);
       continue;
     }
+    if (ch === '}' && isStrayObjectClose(text, i, stack)) continue;
     if (ch === '{') { out.push(ch); stack.push('}'); continue; }
     if (ch === '[') { out.push(ch); stack.push(']'); continue; }
     if (ch === '}' || ch === ']') { out.push(ch); stack.pop(); continue; }

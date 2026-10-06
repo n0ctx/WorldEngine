@@ -174,6 +174,7 @@ function buildApplyContext({ sessionId, worldId, round, turnText, realDate, main
     turnText: turnText ?? '',
     worldProfile: getCurrentWorldProfile(sessionId),
     highBarUsed: new Set(),
+    createdCharacterIds: [],
     profileValues, profileFieldCache, allCharacterFields, nearbyCharacterFields,
   };
 }
@@ -402,6 +403,7 @@ function handleCreateEntity(op, ctx) {
   if (!ENTITY_TYPES.includes(op.type)) return { ok: false, reason: `未知实体类型: ${op.type}` };
   const existing = ctx.index.byNameOrAlias.get(name);
   const entity = existing ?? createNewEntity(ctx, { name, type: op.type, aliases: op.aliases });
+  if (!existing && entity.type === 'character') ctx.createdCharacterIds.push(entity.entity_id);
   if (op.profile && typeof op.profile === 'object') fillProfileEntries(entity, op.profile, ctx);
   return { ok: true };
 }
@@ -670,10 +672,11 @@ function expireOverdueThreads(ctx) {
 
 /**
  * 把一批状态记忆操作应用到当前会话，整批包在一个事务里；单条操作失败不影响其他操作。
- * @returns {{ applied: number, rejected: {op: object, reason: string}[] }}
+ * createdCharacterIds 是本批 create_entity 新建的角色，供 applyPresence 补进在场名单。
+ * @returns {{ applied: number, rejected: {op: object, reason: string}[], createdCharacterIds: string[] }}
  */
 export function applyStateMemoryOps({ sessionId, worldId, round, ops, turnText, realDate, mainCharacterEntityId }) {
-  if (!Array.isArray(ops)) return { applied: 0, rejected: [] };
+  if (!Array.isArray(ops)) return { applied: 0, rejected: [], createdCharacterIds: [] };
 
   return withSessionStateTransaction(() => {
     const ctx = buildApplyContext({ sessionId, worldId, round, turnText, realDate, mainCharacterEntityId });
@@ -707,16 +710,17 @@ export function applyStateMemoryOps({ sessionId, worldId, round, ops, turnText, 
       }
     }
     expireOverdueThreads(ctx);
-    return { applied, rejected };
+    return { applied, rejected, createdCharacterIds: ctx.createdCharacterIds };
   });
 }
 
 /**
  * 写入本轮在场名单（all-state 输出的顶层 `present`）。在 memory 操作之后调用，
- * 才能按名字引用同一批新建的实体；模型没给数组时不写，沿用上一轮名单。
+ * 才能按名字引用同一批新建的实体；本轮新建的角色（createdCharacterIds）模型漏写时也算在场。
+ * 模型没给数组时不写，沿用上一轮名单。
  * @returns {{ written: boolean, unresolved: string[] }}
  */
-export function applyPresence({ sessionId, round, present }) {
+export function applyPresence({ sessionId, round, present, createdCharacterIds = [] }) {
   const session = sessionId.slice(0, 8);
   if (!Array.isArray(present)) {
     log.warn(`STATE MEMORY PRESENT MISSING  ${formatMeta({ session })}`);
@@ -726,7 +730,7 @@ export function applyPresence({ sessionId, round, present }) {
   const entityIds = present.map((ref) => resolveEntityRef(ref, index));
   const unresolved = present.filter((_, i) => !entityIds[i]);
   if (unresolved.length > 0) log.warn(`STATE MEMORY PRESENT SKIP  ${formatMeta({ session, refs: unresolved })}`);
-  upsertPresence(sessionId, round, entityIds.filter(Boolean));
+  upsertPresence(sessionId, round, [...new Set([...entityIds.filter(Boolean), ...createdCharacterIds])]);
   return { written: true, unresolved };
 }
 
