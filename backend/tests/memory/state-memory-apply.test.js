@@ -304,6 +304,19 @@ test('同义用户字段停用档案字段：职业字段生效时 occupation �
   assert.match(result.rejected[0].reason, /档案字段已停用/);
 });
 
+test('applyEntityFields 对 list 字段按当前值合成增删', () => {
+  const { world, session } = setupSession();
+  insertCharacterStateField(sandbox.db, world.id, { field_key: 'spells', label: '法术', type: 'list', update_mode: 'llm_auto' });
+  const entityId = makeEntity(session.id, { name: '林乔', seq: 1 });
+  const write = (patch) => applyEntityFields({
+    sessionId: session.id, worldId: world.id, entityFields: { e1: { spells: patch } }, mainCharacterEntityId: null,
+  });
+
+  assert.equal(write({ add: ['火球', '御风'] }).applied, 1);
+  assert.equal(write({ add: ['冰锥'], remove: ['火球'] }).applied, 1);
+  assert.deepEqual(JSON.parse(getEntityStateValues(session.id, [entityId])[entityId].spells), ['御风', '冰锥']);
+});
+
 test('对 NPC 生效但为手动更新的字段，applyEntityFields 丢弃', () => {
   const { world, session } = setupSession();
   insertCharacterStateField(sandbox.db, world.id, { field_key: 'trust', label: '信任度', type: 'number', update_mode: 'manual' });

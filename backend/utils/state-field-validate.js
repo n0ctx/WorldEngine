@@ -26,6 +26,29 @@ export function parseListValue(value, field) {
   return normalized;
 }
 
+function parseStoredList(json) {
+  if (json == null) return [];
+  let value = json;
+  try { value = JSON.parse(json); } catch { /* 非 JSON 文本按逗号分隔的列表处理 */ }
+  return parseListValue(value, { allow_empty: true }) ?? [];
+}
+
+/**
+ * list 字段的增量写法 {add, remove} 按当前值合成完整列表：remove 按条目原文去掉，add 追加尚未存在的条目。
+ * 非 list 字段、数组等其他写法原样返回，仍按整体替换交给 validateValue。
+ * @param {*} value              模型给出的字段值
+ * @param {object} field         字段定义
+ * @param {string|null} currentJson  当前有效值的 JSON
+ */
+export function resolveListPatch(value, field, currentJson) {
+  if (field.type !== 'list' || !value || typeof value !== 'object' || Array.isArray(value)) return value;
+  if (!('add' in value) && !('remove' in value)) return value;
+  const toItems = (items) => (parseListValue(items ?? [], { allow_empty: true }) ?? []).map((item) => item.trim()).filter(Boolean);
+  const removeSet = new Set(toItems(value.remove));
+  const kept = parseStoredList(currentJson).filter((item) => !removeSet.has(item));
+  return [...new Set([...kept, ...toItems(value.add)])];
+}
+
 function validateListValue(value, field) {
   const normalized = parseListValue(value, field);
   if (normalized === undefined || normalized.length === 0) return normalized;

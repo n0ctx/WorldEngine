@@ -8,8 +8,10 @@ import {
   insertMessage,
   insertPersonaStateField,
   insertSession,
+  insertSessionWorldStateValue,
   insertWorld,
   insertWorldStateField,
+  insertWorldStateValue,
 } from '../helpers/fixtures.js';
 import { STATE_LIST_MAX_ITEMS, STATE_LIST_TRIM_TARGET, STATE_TEXT_MAX_LENGTH } from '../../utils/constants.js';
 
@@ -88,6 +90,34 @@ test('updateAllStates 解析 patch 后写入世界/角色/玩家状态', async (
   assert.equal(worldValue?.runtime_value_json, '"晴朗"');
   assert.equal(charValue?.runtime_value_json, '88');
   assert.equal(personaValue?.runtime_value_json, '"减轻"');
+});
+
+test('updateAllStates 按当前值合成 list 字段的增删', async () => {
+  resetMockEnv();
+  const world = insertWorld(sandbox.db);
+  const character = insertCharacter(sandbox.db, world.id);
+  const session = insertSession(sandbox.db, { character_id: character.id });
+  insertMessage(sandbox.db, session.id, { role: 'user', content: '学会了新法术', created_at: 1 });
+  insertWorldStateField(sandbox.db, world.id, { field_key: 'spells', type: 'list', update_mode: 'llm_auto' });
+  insertWorldStateField(sandbox.db, world.id, { field_key: 'items', type: 'list', update_mode: 'llm_auto' });
+  insertWorldStateValue(sandbox.db, world.id, { field_key: 'spells' });
+  insertSessionWorldStateValue(sandbox.db, session.id, world.id, { field_key: 'spells', runtime_value_json: JSON.stringify(['火球', '御风', '雷闪']) });
+  process.env.MOCK_LLM_COMPLETE = JSON.stringify({
+    world: {
+      spells: { add: ['雷闪·改', '冰锥'], remove: ['雷闪'] },
+      items: { add: ['铁剑'] },
+    },
+  });
+
+  const { updateAllStates } = await freshImport('backend/memory/combined-state-updater.js');
+  await updateAllStates(world.id, [character.id], session.id);
+
+  const rows = sandbox.db.prepare(
+    'SELECT field_key, runtime_value_json FROM session_world_state_values WHERE session_id = ?'
+  ).all(session.id);
+  const values = Object.fromEntries(rows.map((row) => [row.field_key, JSON.parse(row.runtime_value_json)]));
+  assert.deepEqual(values.spells, ['火球', '御风', '雷闪·改', '冰锥']);
+  assert.deepEqual(values.items, ['铁剑']);
 });
 
 test('updateAllStates 压缩超限文本和列表后写入结果', async () => {

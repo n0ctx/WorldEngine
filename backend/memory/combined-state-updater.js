@@ -21,7 +21,7 @@ import { renderTriggeredEntriesSection } from '../prompts/segments.js';
 import { getAllWorldEntries } from '../db/queries/prompt-entries.js';
 import { applyTemplateVars } from '../utils/template-vars.js';
 import { resolveAuxScope } from '../utils/aux-scope.js';
-import { validateValue } from '../utils/state-field-validate.js';
+import { validateValue, resolveListPatch } from '../utils/state-field-validate.js';
 import { toPromptMessage } from '../utils/turn-dialogue.js';
 import { extractJsonPatch } from './state-update-json.js';
 import { compressOverLimitFields } from './state-update-compress.js';
@@ -76,7 +76,9 @@ function applyStatePatch(activeFields, patchData, upsertFn, logLabel, valueMap =
   for (const [key, rawValue] of Object.entries(patchData)) {
     const field = fieldMap[key];
     if (!field) continue;
-    let validated = validateValue(rawValue, field);
+    // list 字段的 {add, remove} 按旧有效值合成完整列表，新增后超过上限时由校验保留最新的条目
+    const cur = valueMap?.[key] ?? { defaultValueJson: field.default_value };
+    let validated = validateValue(resolveListPatch(rawValue, field, cur.runtimeValueJson ?? cur.defaultValueJson), field);
     if (validated === undefined) {
       // 诊断：LLM 输出了该字段但校验失败被丢弃（table/格式问题排查用）
       log.warn(`DROP  ${logLabel}  ${formatMeta({ key, type: field.type, raw: previewText(JSON.stringify(rawValue)) })}`);

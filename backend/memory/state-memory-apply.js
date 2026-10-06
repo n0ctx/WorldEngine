@@ -33,14 +33,14 @@ import {
 } from '../db/queries/state-memory.js';
 import { getWorldById } from '../db/queries/worlds.js';
 import { withSessionStateTransaction } from '../db/queries/session-state-batch.js';
-import { upsertEntityStateValues } from '../db/queries/session-entity-state-values.js';
+import { upsertEntityStateValues, getEntityStateValues } from '../db/queries/session-entity-state-values.js';
 import { getCharacterStateFieldsByWorldId } from '../db/queries/character-state-fields.js';
 import {
   ENTITY_TYPES, getProfileFieldDefinitions, resolveActiveProfileFields, getEditableProfileFields, parseProfileDefaults,
   isPlaceholderValue, THREAD_KINDS, EXCLUSIVE_PREDICATES, DYNAMIC_LOCATION_KEY,
 } from './state-memory-schema.js';
 import { parseWorldDate, compareWorldDate, isPastWorldDeadline } from '../utils/world-date.js';
-import { validateValue } from '../utils/state-field-validate.js';
+import { validateValue, resolveListPatch } from '../utils/state-field-validate.js';
 import {
   STATE_TEXT_FIELD_MAX, STATE_LIST_ITEM_MAX, STATE_LIST_MAX_ITEMS,
   THREAD_DORMANT_AFTER_ROUNDS,
@@ -740,6 +740,8 @@ export function applyEntityFields({ sessionId, worldId, entityFields, mainCharac
 
   const index = buildEntityIndex(listCurrentEntities(sessionId));
   const fieldByKey = new Map(getCharacterStateFieldsByWorldId(worldId).map((field) => [field.field_key, field]));
+  const refIds = Object.keys(entityFields).map((ref) => resolveEntityRef(ref, index)).filter(Boolean);
+  const currentValues = getEntityStateValues(sessionId, [...new Set(refIds)]);
   const rows = [];
   const rejected = [];
 
@@ -758,7 +760,8 @@ export function applyEntityFields({ sessionId, worldId, entityFields, mainCharac
         rejected.push({ ref, fieldKey, reason: '字段不适用或非自动更新' });
         continue;
       }
-      const validated = validateValue(rawValue, field);
+      const currentJson = currentValues[entityId]?.[fieldKey] ?? field.default_value;
+      const validated = validateValue(resolveListPatch(rawValue, field, currentJson), field);
       if (validated === undefined) { rejected.push({ ref, fieldKey, reason: '校验失败' }); continue; }
       rows.push({ entityId, fieldKey, runtimeValueJson: validated === null ? null : JSON.stringify(validated) });
     }
