@@ -1,5 +1,6 @@
 import test, { after } from 'node:test';
 import assert from 'node:assert/strict';
+import path from 'node:path';
 
 import { createTestSandbox, freshImport } from '../helpers/test-env.js';
 import {
@@ -113,6 +114,6 @@ test('resolveUploadPath 会拒绝空值、越权路径并返回 uploadsDir 内�
   assert.equal(resolveUploadPath('../../../../etc/passwd', sandbox.uploadsDir), null);
   assert.equal(
     resolveUploadPath('avatars/hero.png', sandbox.uploadsDir),
-    `${sandbox.uploadsDir}/avatars/hero.png`,
+    path.join(sandbox.uploadsDir, 'avatars', 'hero.png'),
   );
 });

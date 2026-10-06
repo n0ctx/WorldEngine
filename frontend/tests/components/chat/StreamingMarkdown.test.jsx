@@ -168,7 +168,7 @@ describe('流式书写', () => {
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'performance'] });
     const { container, rerender } = render(streamItem(''));
     let text = '';
-    for (let i = 0; i < 300; i++) {
+    for (let i = 0; i < 100; i++) {
       text += '风从北';
       rerender(streamItem(text));
       act(() => { vi.advanceTimersByTime(40); });

@@ -11,12 +11,18 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const TEMP_ROOT = path.resolve(__dirname, '..', '..', '..', '.temp', 'backend-tests');
+const TEMP_ROOT = process.env.WE_TEST_RUN_DIR || path.resolve(__dirname, '..', '..', '..', '.temp', 'backend-tests');
 
 if (!process.env.WE_DATA_DIR) {
   fs.mkdirSync(TEMP_ROOT, { recursive: true });
   const root = fs.mkdtempSync(path.join(TEMP_ROOT, `process-${process.pid}-`));
   process.env.WE_DATA_DIR = root;
   process.env.WE_UPLOADS_DIR = path.join(root, 'uploads');
-  process.on('exit', () => fs.rmSync(root, { recursive: true, force: true }));
+  process.on('exit', () => {
+    try {
+      fs.rmSync(root, { recursive: true, force: true });
+    } catch {
+      // 库文件仍被打开（Windows）时删不掉，经 global-setup.js 跑时由收尾统一删除
+    }
+  });
 }

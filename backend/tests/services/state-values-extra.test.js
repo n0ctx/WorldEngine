@@ -222,5 +222,5 @@ test('resolveUploadPath 处理 .. 段穿插与不在 uploadsDir 的路径', asyn
   const { resolveUploadPath } = await loadModule('backend/services/state-values.js');
   assert.equal(resolveUploadPath(null, sandbox.uploadsDir), null);
   assert.equal(resolveUploadPath('avatars/../../escape.png', sandbox.uploadsDir), null);
-  assert.equal(resolveUploadPath('/avatars/abs.png', sandbox.uploadsDir), `${sandbox.uploadsDir}/avatars/abs.png`);
+  assert.equal(resolveUploadPath('/avatars/abs.png', sandbox.uploadsDir), path.join(sandbox.uploadsDir, 'avatars', 'abs.png'));
 });

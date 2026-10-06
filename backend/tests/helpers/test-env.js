@@ -7,7 +7,8 @@ import { initSchema } from '../../db/schema.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, '..', '..', '..');
-const TEMP_ROOT = path.join(REPO_ROOT, '.temp', 'backend-tests');
+// 经 global-setup.js 跑时用本次运行的专属目录，运行结束整目录删除
+const TEMP_ROOT = process.env.WE_TEST_RUN_DIR || path.join(REPO_ROOT, '.temp', 'backend-tests');
 const MOCK_ENV_KEYS = [
   'MOCK_LLM_RESPONSE',
   'MOCK_LLM_COMPLETE',
@@ -107,8 +108,13 @@ export function createTestSandbox(name, configPatch = {}) {
   fs.mkdirSync(uploadsDir, { recursive: true });
   fs.mkdirSync(assistantStateDir, { recursive: true });
   fs.writeFileSync(configPath, JSON.stringify(createTestConfig(configPatch), null, 2));
+  let configMtimeMs = 0;
 
   const db = new Database(dbPath);
+  // 默认回滚日志模式下建表的每次提交都刷盘，Windows 上单个沙箱要 5~6 秒；WAL + 不刷盘降到几十毫秒。
+  // 测试库用完即删，不需要掉电安全；WAL 与生产 db/index.js 一致，生产模块重开同一文件不受影响。
+  db.pragma('journal_mode = WAL');
+  db.pragma('synchronous = OFF');
   db.pragma('foreign_keys = ON');
   initSchema(db);
 
@@ -132,6 +138,10 @@ export function createTestSandbox(name, configPatch = {}) {
     },
     writeConfig(nextConfig) {
       fs.writeFileSync(configPath, JSON.stringify(nextConfig, null, 2));
+      // services/config.js 按修改时间判断文件是否被外部改过；Windows 的时间戳约 15ms 才走一格，
+      // 连续两次写入时间戳可能相同，第二次会被当成没改。这里把修改时间推到上一次之后，保证每次写入都能被察觉
+      configMtimeMs = Math.max(Date.now(), configMtimeMs + 1000);
+      fs.utimesSync(configPath, new Date(), new Date(configMtimeMs));
     },
     readConfig() {
       return JSON.parse(fs.readFileSync(configPath, 'utf-8'));
@@ -142,7 +152,12 @@ export function createTestSandbox(name, configPatch = {}) {
       } catch {
         // ignore
       }
-      fs.rmSync(root, { recursive: true, force: true });
+      try {
+        fs.rmSync(root, { recursive: true, force: true });
+      } catch (err) {
+        // Windows 下生产模块 db/index.js 的连接仍打开着库文件，进程退出前删不掉；由 global-setup.js 的收尾统一删除
+        if (err.code !== 'EPERM' && err.code !== 'EBUSY') throw err;
+      }
     },
   };
 }

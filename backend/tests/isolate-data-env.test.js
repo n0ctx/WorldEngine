@@ -3,12 +3,12 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { buildChildProcessEnv } from './helpers/test-env.js';
 
 const repoRoot = path.resolve(fileURLToPath(new URL('../..', import.meta.url)));
-const preload = path.join(repoRoot, 'backend/tests/helpers/isolate-data-env.js');
+const preload = pathToFileURL(path.join(repoRoot, 'backend/tests/helpers/isolate-data-env.js')).href;
 
 function readPathsWithPreload() {
   const env = buildChildProcessEnv({ LOG_FILE: 'false' });
@@ -18,7 +18,7 @@ function readPathsWithPreload() {
     '--import', preload,
     '--input-type=module',
     '-e',
-    `const { DATA_ROOT, UPLOADS_DIR } = await import(${JSON.stringify(path.join(repoRoot, 'backend/utils/data-dir.js'))});
+    `const { DATA_ROOT, UPLOADS_DIR } = await import(${JSON.stringify(pathToFileURL(path.join(repoRoot, 'backend/utils/data-dir.js')).href)});
      console.log(JSON.stringify({ DATA_ROOT, UPLOADS_DIR, uploadsEnv: process.env.WE_UPLOADS_DIR }));`,
   ], { cwd: repoRoot, env, encoding: 'utf-8' });
   return JSON.parse(output.trim().split('\n').at(-1));

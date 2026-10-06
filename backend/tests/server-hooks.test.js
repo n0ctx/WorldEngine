@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { buildChildProcessEnv, createTestConfig } from './helpers/test-env.js';
 
@@ -25,7 +25,7 @@ test('import server.js 不会自动启动监听端口', () => {
  [
  '--input-type=module',
  '-e',
- `await import(${JSON.stringify(path.join(repoRoot, 'backend/server.js'))}); console.log('imported');`,
+ `await import(${JSON.stringify(pathToFileURL(path.join(repoRoot, 'backend/server.js')).href)}); console.log('imported');`,
  ],
  {
  cwd: repoRoot,
@@ -38,7 +38,8 @@ test('import server.js 不会自动启动监听端口', () => {
  LOG_FILE: 'false',
  }),
  encoding: 'utf8',
- timeout: 2000,
+ // 误启动监听时进程不会退出，靠超时判失败；全量并行跑时 Windows 上光加载 server.js 就可能超过 2 秒
+ timeout: 15000,
  },
  );
  assert.match(output, /imported/);
@@ -82,8 +83,8 @@ export default function register({ registerHook }) {
         process.env.ASSISTANT_STATE_DIR = ${JSON.stringify(assistantStateDir)};
         process.env.WE_DISABLE_AUTOSTART = 'true';
         process.env.LOG_FILE = 'false';
-        await import(${JSON.stringify(path.join(repoRoot, 'backend/server.js'))});
-        const { listHooks } = await import(${JSON.stringify(path.join(repoRoot, 'backend/hooks/hook-registry.js'))});
+        await import(${JSON.stringify(pathToFileURL(path.join(repoRoot, 'backend/server.js')).href)});
+        const { listHooks } = await import(${JSON.stringify(pathToFileURL(path.join(repoRoot, 'backend/hooks/hook-registry.js')).href)});
         const count = listHooks().get('test:schema:init-order') || 0;
         process.stdout.write(String(count));
       `,
