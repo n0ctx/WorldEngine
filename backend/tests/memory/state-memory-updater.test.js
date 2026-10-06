@@ -169,6 +169,12 @@ test('状态更新提示词收紧立案并按事实结案', () => {
   assert.match(prompt, /不要因为期限到了就标 failed/);
 });
 
+test('状态更新提示词要求新建角色同轮写位置与 NPC 字段，并允许按名字引用', () => {
+  const prompt = readFileSync(new URL('../../prompts/templates/state-update.md', import.meta.url), 'utf8');
+  assert.match(prompt, /新建角色的同一轮还要用 set_state 写它的位置，并在 "entity_fields" 里填满/);
+  assert.match(prompt, /本轮新建的角色写名字作键/);
+});
+
 test('连续 50 轮全是占位值/空操作时，状态记忆各表无新增行（除首轮建的 player/主角色外）', async () => {
   resetMockEnv();
   const world = insertWorld(sandbox.db, { name: '空转世界' });
@@ -419,6 +425,32 @@ test('entity_fields 写入 NPC 的 llm_auto+nearby_enabled 字段', async () => 
   assert.ok(npc, 'NPC 阿吉应已创建（对应 e3）');
   const values = getEntityStateValues(session.id, [npc.entity_id]);
   assert.equal(values[npc.entity_id]?.favor, JSON.stringify(60));
+});
+
+test('本轮新建的角色可按名字同轮写位置与 NPC 字段', async () => {
+  resetMockEnv();
+  const world = insertWorld(sandbox.db, { name: '坊市世界' });
+  insertCharacterStateField(sandbox.db, world.id, { field_key: 'favor', label: '好感度', type: 'number', min_value: 0, max_value: 100, update_mode: 'llm_auto' });
+  const character = insertCharacter(sandbox.db, world.id, { name: '李石头' });
+  const session = insertSession(sandbox.db, { character_id: character.id, world_id: world.id });
+  insertMessage(sandbox.db, session.id, { role: 'user', content: '我去坊市找孙客卿。', created_at: 1 });
+
+  process.env.MOCK_LLM_COMPLETE = JSON.stringify({
+    entity_fields: { 孙客卿: { favor: 20 } },
+    memory: [
+      { op: 'create_entity', name: '孙客卿', type: 'character', profile: { gender: '男' } },
+      { op: 'set_state', entity: '孙客卿', key: '位置', value: '坊市独院' },
+    ],
+  });
+
+  const { updateAllStates } = await freshImport('backend/memory/combined-state-updater.js');
+  await updateAllStates(world.id, [character.id], session.id);
+
+  const { listCurrentEntities, getEntityDetails } = await freshImport('backend/db/queries/state-memory.js');
+  const { getEntityStateValues } = await freshImport('backend/db/queries/session-entity-state-values.js');
+  const { entity_id: npcId } = listCurrentEntities(session.id).find((e) => e.name === '孙客卿');
+  assert.equal(getEntityDetails(session.id, [npcId])[npcId].dynamic['位置'], '坊市独院');
+  assert.equal(getEntityStateValues(session.id, [npcId])[npcId]?.favor, JSON.stringify(20));
 });
 
 test('待补全的实体本轮没出场也带上详情，AI 才能按已有信息补', async () => {

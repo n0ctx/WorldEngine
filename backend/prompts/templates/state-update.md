@@ -34,7 +34,7 @@
 
 "memory" 是操作数组，每条操作是一个对象，"op" 指定操作类型：
 
-- {"op": "create_entity", "name": "...", "type": "character|location|item|faction|other", "aliases": ["..."], "profile": {"字段key": 值 或 {"value": 值, "evidence": "..."}}}　新建实体并填满初始档案；同名或明显对应的实体已存在时不要重复创建，直接引用其编号
+- {"op": "create_entity", "name": "...", "type": "character|location|item|faction|other", "aliases": ["..."], "profile": {"字段key": 值 或 {"value": 值, "evidence": "..."}}}　新建实体并填满初始档案；同名或明显对应的实体已存在时不要重复创建，直接引用其编号。新建角色的同一轮还要用 set_state 写它的位置，并在 "entity_fields" 里填满下方 NPC 适用的用户状态字段，不能只建档案；新实体本轮还没有编号，set_state 的 entity 和 "entity_fields" 的键直接写它的名字
 - {"op": "fill_profile", "entity": "e<seq>", "profile": {"字段key": 值}}　补全【待补全】里列出的空档案字段（只能写空字段，已有值的会被拒绝）；带「角色卡」的实体按角色卡设定补
 - {"op": "update_profile", "entity": "e<seq>", "field": "字段key", "value": ..., "evidence": "..."}　整体替换某档案字段
 - {"op": "list_add", "entity": "e<seq>", "field": "字段key", "items": ["..."], "evidence": "..."}　向 list 型档案字段追加条目
@@ -94,6 +94,6 @@
 
 ### NPC 适用的用户状态字段（entity_fields）
 
-以下字段允许通过顶层 "entity_fields" 写入 NPC 角色实体的用户状态字段值，形如 {"e3": {"字段key": 值}}；不能用于玩家实体和对话模式主角色实体，无更新时 "entity_fields" 返回 {}：
+以下字段允许通过顶层 "entity_fields" 写入 NPC 角色实体的用户状态字段值，形如 {"e3": {"字段key": 值}}，本轮新建的角色写名字作键；不能用于玩家实体和对话模式主角色实体，无更新时 "entity_fields" 返回 {}：
 
 {{STATE_MEMORY_NPC_FIELDS}}
