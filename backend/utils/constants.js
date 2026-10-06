@@ -20,6 +20,9 @@ export const LLM_RETRY_DELAY_MS = 1000;
 export const LLM_BACKGROUND_TASK_TIMEOUT_MS = Number(process.env.WE_LLM_BACKGROUND_TASK_TIMEOUT_MS) || 30_000;
 // 本地 provider（ollama / lmstudio / llamacpp）推理慢，后台任务超时下限单独放宽
 export const LLM_LOCAL_BACKGROUND_TASK_TIMEOUT_MS = Number(process.env.WE_LLM_LOCAL_BACKGROUND_TASK_TIMEOUT_MS) || 60_000;
+// 工具循环（completeWithTools）里每次模型请求的超时窗口；调用方未传 timeoutMs 时使用。本地模型推理慢，单独放宽
+export const LLM_TOOL_TURN_TIMEOUT_MS = Number(process.env.WE_LLM_TOOL_TURN_TIMEOUT_MS) || 300_000;
+export const LLM_LOCAL_TOOL_TURN_TIMEOUT_MS = Number(process.env.WE_LLM_LOCAL_TOOL_TURN_TIMEOUT_MS) || 900_000;
 
 // ============================
 // 异步队列

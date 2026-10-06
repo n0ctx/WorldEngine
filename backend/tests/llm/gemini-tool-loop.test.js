@@ -21,7 +21,7 @@ function mockFetchSequence(responses) {
 }
 
 // helper：构造 Gemini API 响应 body
-function gemResp({ text, toolCalls, thoughtSignatures } = {}) {
+function gemResp({ text, toolCalls, thoughtSignatures, finishReason } = {}) {
   const parts = [];
   if (thoughtSignatures) {
     for (const sig of thoughtSignatures) parts.push({ text: sig, thought: true });
@@ -34,7 +34,7 @@ function gemResp({ text, toolCalls, thoughtSignatures } = {}) {
       parts.push(part);
     }
   }
-  return { candidates: [{ content: { parts } }], usageMetadata: { promptTokenCount: 10, candidatesTokenCount: 5 } };
+  return { candidates: [{ content: { parts }, finishReason: finishReason ?? 'STOP' }], usageMetadata: { promptTokenCount: 10, candidatesTokenCount: 5 } };
 }
 
 const baseConfig = () => ({ model: 'gemini-2.5-flash', api_key: 'test-key', max_tokens: 4096 });
@@ -126,6 +126,78 @@ test('completeGeminiWithTools: 400 → 降级到无工具补全', async () => {
     assert.equal(out, 'plain-fallback');
     assert.equal(calls.length, 2);
     assert.equal(calls[1].body.tools, undefined, 'fallback body must NOT include tools');
+    assert.match(lastText(calls[1].body.contents), /^hi\n\n.*拒绝了工具调用请求，没有执行任何操作/s);
+  } finally { restore(); }
+});
+
+const lastText = (contents) => contents.at(-1).parts.map((p) => p.text || '').join('');
+const hasFunctionParts = (contents) => contents.some((c) => (c.parts || []).some((p) => p.functionCall || p.functionResponse));
+
+test('completeGeminiWithTools: finishReason=MAX_TOKENS 时最后一个调用不执行', async () => {
+  const { calls, restore } = mockFetchSequence([
+    { json: gemResp({ toolCalls: [{ name: 'lookup', args: { q: 'a' } }, { name: 'lookup', args: { q: 'b' } }], finishReason: 'MAX_TOKENS' }) },
+    { json: gemResp({ text: 'done' }) },
+  ]);
+  const ran = [];
+  try {
+    const out = await completeGeminiWithTools(
+      [{ role: 'user', content: 'hi' }],
+      sampleToolDefs,
+      { lookup: async ({ q }) => { ran.push(q); return `r-${q}`; } },
+      baseConfig(),
+    );
+    assert.equal(out, 'done');
+    assert.deepEqual(ran, ['a']);
+    const responses = calls[1].body.contents.at(-1).parts.map((p) => p.functionResponse.response.output);
+    assert.equal(responses[0], 'r-a');
+    assert.match(responses[1], /输出被截断（达到 max_tokens），该调用未执行/);
+  } finally { restore(); }
+});
+
+test('completeGeminiWithTools: 触顶时无工具补全收到带操作清单的说明，不再丢掉工具历史', async () => {
+  const { calls, restore } = mockFetchSequence([
+    { json: gemResp({ toolCalls: [{ name: 'lookup', args: { q: 'a' } }] }) },
+    { json: gemResp({ toolCalls: [{ name: 'lookup', args: { q: 'b' } }] }) },
+    { json: gemResp({ text: 'summary' }) },
+  ]);
+  const loopRef = {};
+  try {
+    const out = await completeGeminiWithTools(
+      [{ role: 'system', content: 'sys' }, { role: 'user', content: 'hi' }],
+      sampleToolDefs,
+      { lookup: async ({ q }) => `r-${q}` },
+      { ...baseConfig(), maxIterations: 2, loopRef },
+    );
+    assert.equal(out, 'summary');
+    assert.equal(calls.length, 3);
+    const finalBody = calls[2].body;
+    assert.equal(finalBody.tools, undefined);
+    assert.equal(hasFunctionParts(finalBody.contents), false);
+    assert.equal(finalBody.systemInstruction.parts[0].text, 'sys');
+    const note = lastText(finalBody.contents);
+    assert.match(note, /轮数已达上限（2 轮）/);
+    assert.match(note, /1\. \[成功\] lookup \{"q":"a"\} → r-a/);
+    assert.match(note, /2\. \[成功\] lookup \{"q":"b"\} → r-b/);
+    assert.deepEqual(loopRef, { stopReason: 'max_iterations', toolCallCount: 2 });
+  } finally { restore(); }
+});
+
+test('completeGeminiWithTools: 中途 400 降级时说明里附操作清单', async () => {
+  const { calls, restore } = mockFetchSequence([
+    { json: gemResp({ toolCalls: [{ name: 'lookup', args: { q: 'a' } }] }) },
+    { status: 400, text: 'bad' },
+    { json: gemResp({ text: 'summary' }) },
+  ]);
+  try {
+    const out = await completeGeminiWithTools(
+      [{ role: 'user', content: 'hi' }],
+      sampleToolDefs,
+      { lookup: async () => 'r-a' },
+      baseConfig(),
+    );
+    assert.equal(out, 'summary');
+    assert.equal(hasFunctionParts(calls[2].body.contents), false);
+    assert.match(lastText(calls[2].body.contents), /中途拒绝了工具调用请求[\s\S]*\[成功\] lookup/);
   } finally { restore(); }
 });
 

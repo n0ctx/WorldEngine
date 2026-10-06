@@ -6,7 +6,7 @@ import { logRawRequest } from '../../raw-logger.js';
 import { fetchAndRecord, readErrorAndRecord, readJsonAndRecord, recordStream } from '../../raw-recorder.js';
 import { createLogger, formatMeta } from '../../../utils/logger.js';
 import { runToolLoop } from '../../tool-loop-control.js';
-import { appendOpenAIToolTurn, parseOpenAIToolCalls } from '../_shared/converters.js';
+import { appendOpenAIToolTurn, normalizeOpenAIToolCalls } from '../_shared/converters.js';
 import {
   extractOpenAICompatibleSignal,
   extractProviderErrorSignal,
@@ -276,7 +276,7 @@ const openaiCompatibleToolLoopProvider = {
     return { messages: [...messages] };
   },
 
-  async oneTurn(state, toolDefs, _iter, config) {
+  async oneTurn(state, toolDefs, iter, config) {
     const baseUrl = getBaseUrl(config);
     const url = `${baseUrl}/chat/completions`;
 
@@ -321,13 +321,13 @@ const openaiCompatibleToolLoopProvider = {
     }
 
     // 工具调用: tool args JSON 字符串 → 对象, runToolLoop 内部以 fn(call.arguments) 调用 handler
-    const toolCalls = parseOpenAIToolCalls(message.tool_calls);
+    const { toolCalls, assistantToolCalls } = normalizeOpenAIToolCalls(message.tool_calls, iter);
 
-    // assistantBlock 保留 OpenAI 原生 tool_calls 结构 + reasoning_content 透传到下一轮
-    const assistantBlock = { role: 'assistant', content: message.content || null, tool_calls: message.tool_calls };
+    // assistantBlock 保留 OpenAI 原生 tool_calls 结构(id 已补齐、arguments 已统一成字符串) + reasoning_content 透传到下一轮
+    const assistantBlock = { role: 'assistant', content: message.content || null, tool_calls: assistantToolCalls };
     if (message.reasoning_content) assistantBlock.reasoning_content = message.reasoning_content;
 
-    return { kind: 'tools', toolCalls, assistantBlock };
+    return { kind: 'tools', toolCalls, assistantBlock, truncated: data.choices[0].finish_reason === 'length' };
   },
 
   appendToolTurn: appendOpenAIToolTurn,

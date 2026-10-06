@@ -160,13 +160,45 @@ function convertContentToGemini(content) {
   });
 }
 
-/** OpenAI 格式的 tool_calls → 工具循环用的 { id, name, arguments }；arguments 解析失败时为 {} */
-export function parseOpenAIToolCalls(toolCalls) {
-  return toolCalls.map((tc) => ({
-    id: tc.id,
-    name: tc.function?.name,
-    arguments: safeParseJson(tc.function?.arguments || '{}'),
-  }));
+const ARGUMENTS_ERROR_PREVIEW_CHARS = 200;
+
+/**
+ * 解析一个工具调用的 arguments，返回 { value, text, error? }：
+ *   value 给 handler 用，text 是回写 assistant 消息用的 JSON 字符串。
+ *   已是对象直接用；空串或缺省视为 {}；JSON 非法时 error 带原文前 200 字符，text 回写成 '{}'（非法 JSON 留在历史里会被部分接口拒收）。
+ */
+function parseToolArguments(raw) {
+  if (raw !== null && typeof raw === 'object') return { value: raw, text: JSON.stringify(raw) };
+  const str = raw === undefined || raw === null ? '' : String(raw);
+  if (!str.trim()) return { value: {}, text: '{}' };
+  try {
+    return { value: JSON.parse(str), text: str };
+  } catch (err) {
+    const preview = str.slice(0, ARGUMENTS_ERROR_PREVIEW_CHARS);
+    return { value: {}, text: '{}', error: `${err.message}；收到的参数开头：${preview}` };
+  }
+}
+
+/**
+ * OpenAI 格式的 tool_calls → 工具循环用的调用列表，并给出回写 assistant 消息用的 tool_calls。
+ *
+ * @returns {{ toolCalls: Array<{id, name, arguments, argumentsError?}>, assistantToolCalls: Array }}
+ *   - toolCalls：解析失败的项带 argumentsError，循环层不会执行它；
+ *   - assistantToolCalls：缺 id 的补成 call_<iter>_<idx>（与 toolCalls 的 id 一致），arguments 一律是字符串。
+ */
+export function normalizeOpenAIToolCalls(rawCalls, iter) {
+  const toolCalls = [];
+  const assistantToolCalls = [];
+  (rawCalls || []).forEach((tc, idx) => {
+    const id = tc.id || `call_${iter}_${idx}`;
+    const name = tc.function?.name;
+    const parsed = parseToolArguments(tc.function?.arguments);
+    const call = { id, name, arguments: parsed.value };
+    if (parsed.error) call.argumentsError = parsed.error;
+    toolCalls.push(call);
+    assistantToolCalls.push({ ...tc, id, type: tc.type || 'function', function: { ...tc.function, name, arguments: parsed.text } });
+  });
+  return { toolCalls, assistantToolCalls };
 }
 
 /** 工具循环：按 OpenAI 格式把 assistant 块和各工具结果追加到消息列表 */

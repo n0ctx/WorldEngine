@@ -9,13 +9,20 @@
  */
 
 import { getConfig, getAuxLlmConfig, getWritingLlmConfig, getWritingAuxLlmConfig } from '../services/config.js';
-import { LLM_RETRY_MAX, LLM_RETRY_DELAY_MS, LLM_LOCAL_BACKGROUND_TASK_TIMEOUT_MS } from '../utils/constants.js';
+import {
+  LLM_RETRY_MAX,
+  LLM_RETRY_DELAY_MS,
+  LLM_LOCAL_BACKGROUND_TASK_TIMEOUT_MS,
+  LLM_TOOL_TURN_TIMEOUT_MS,
+  LLM_LOCAL_TOOL_TURN_TIMEOUT_MS,
+} from '../utils/constants.js';
 import * as cloudProvider from './providers/cloud-router.js';
 import * as localProvider from './providers/ollama/index.js';
 import * as mockProvider from './providers/mock/index.js';
 import { getPromptCacheStrategy } from './providers/_shared/cache-usage.js';
 import { createLogger, formatMeta, summarizeMessages, spinnerAdd, spinnerRemove } from '../utils/logger.js';
 import { isToolLoopCancelledError, isToolLoopControlSignal } from './tool-loop-control.js';
+import { isNonRetryable, sleep, buildTimedSignal, createTimeoutError } from './retry.js';
 
 const log = createLogger('llm');
 
@@ -156,16 +163,6 @@ function wrapError(err, provider) {
   });
 }
 
-/** 判断是否不可重试的客户端错误（4xx 且非 429） */
-function isNonRetryable(err) {
-  const s = err.status;
-  return s && s >= 400 && s < 500 && s !== 429;
-}
-
-function sleep(ms) {
-  return new Promise((r) => setTimeout(r, ms));
-}
-
 // 本地 provider 的调用方超时抬到下限 LLM_LOCAL_BACKGROUND_TASK_TIMEOUT_MS；未传超时（<=0/缺省）保持不限时
 function resolveTimeoutMs(timeoutMs, provider) {
   const parsed = Number(timeoutMs);
@@ -173,16 +170,11 @@ function resolveTimeoutMs(timeoutMs, provider) {
   return LOCAL_PROVIDERS.has(provider) ? Math.max(parsed, LLM_LOCAL_BACKGROUND_TASK_TIMEOUT_MS) : parsed;
 }
 
-function buildTimedSignal(signal, timeoutMs) {
+// 工具循环里每次模型请求的超时窗口：调用方传了就按 resolveTimeoutMs 处理，没传用默认值（本地模型更长）
+function resolveToolTurnTimeoutMs(timeoutMs, provider) {
   const parsed = Number(timeoutMs);
-  if (!Number.isFinite(parsed) || parsed <= 0) {
-    return { signal, didTimeout: () => false };
-  }
-  const timeoutSignal = AbortSignal.timeout(parsed);
-  return {
-    signal: signal ? AbortSignal.any([signal, timeoutSignal]) : timeoutSignal,
-    didTimeout: () => timeoutSignal.aborted && !signal?.aborted,
-  };
+  if (Number.isFinite(parsed) && parsed > 0) return resolveTimeoutMs(parsed, provider);
+  return LOCAL_PROVIDERS.has(provider) ? LLM_LOCAL_TOOL_TURN_TIMEOUT_MS : LLM_TOOL_TURN_TIMEOUT_MS;
 }
 
 // ============================================================
@@ -204,10 +196,7 @@ function prepareCall(messages, options) {
 
 function throwIfTimedOut(timeout, llmConfig, timeoutMs) {
   if (!timeout.didTimeout()) return;
-  const timeoutErr = new Error(`LLM ${llmConfig.callType || 'request'} timed out after ${timeoutMs}ms`);
-  timeoutErr.status = 504;
-  timeoutErr.code = 'LLM_TIMEOUT';
-  throw wrapError(timeoutErr, llmConfig.provider);
+  throw wrapError(createTimeoutError(llmConfig.callType, timeoutMs), llmConfig.provider);
 }
 
 /**
@@ -306,6 +295,7 @@ function splitTools(tools = []) {
 export const __testables = {
   getProvider,
   resolveTimeoutMs,
+  resolveToolTurnTimeoutMs,
   buildLLMConfig,
   splitTools,
   getRetryPolicy,
@@ -317,6 +307,11 @@ export const __testables = {
 /**
  * 非流式调用（含 tool-use 循环），返回完整文本。
  * 若 provider 不支持 tool-use，静默降级为 complete()。
+ *
+ * 重试与超时都在工具循环内按「单次模型请求」生效（见 tool-loop-control.js）：
+ *   options.timeoutMs — 每次模型请求一个超时窗口，未传用 LLM_TOOL_TURN_TIMEOUT_MS / LLM_LOCAL_TOOL_TURN_TIMEOUT_MS
+ *   options.signal    — 中止后抛 ToolLoopCancelledError
+ *   options.loopRef   — 回传 { stopReason, toolCallCount }，做法同 usageRef
  */
 export async function completeWithTools(messages, tools, options = {}) {
   const result = await completeWithToolsDetailed(messages, tools, options);
@@ -335,7 +330,7 @@ export async function completeWithToolsDetailed(messages, tools, options = {}) {
   }
 
   const { defs, handlers } = splitTools(tools);
-  const timeoutMs = resolveTimeoutMs(options.timeoutMs, llmConfig.provider);
+  const timeoutMs = resolveToolTurnTimeoutMs(options.timeoutMs, llmConfig.provider);
   log.info(`COMPLETE_TOOLS START  ${formatMeta({
     callType: llmConfig.callType,
     provider: llmConfig.provider,
@@ -346,48 +341,33 @@ export async function completeWithToolsDetailed(messages, tools, options = {}) {
     cacheStrategy,
   })}`);
 
-  let lastError;
   const spinnerId = spinnerAdd('工具调用中');
   try {
-    for (let attempt = 0; attempt <= retry.max; attempt++) {
-      // 每次尝试都用一个全新的超时窗口，避免上一轮超时后 signal 保持已中止状态，导致后续重试全部瞬间失败
-      const timeout = buildTimedSignal(llmConfig.signal, timeoutMs);
-      try {
-        const result = await provider.completeWithTools(messages, defs, handlers, {
-          ...llmConfig,
-          signal: timeout.signal,
-          toolResultMode: 'detail',
-        });
-        const text = typeof result === 'string' ? result : (result?.text ?? '');
-        log.info(`COMPLETE_TOOLS DONE  ${formatMeta({
-          callType: llmConfig.callType,
-          provider: llmConfig.provider,
-          model: llmConfig.model || '',
-          len: text.length,
-          ms: Date.now() - startedAt,
-          promptTokens: llmConfig.usageRef?.prompt_tokens,
-          completionTokens: llmConfig.usageRef?.completion_tokens,
-          cacheReadTokens: llmConfig.usageRef?.cache_read_tokens,
-          cacheCreationTokens: llmConfig.usageRef?.cache_creation_tokens,
-          cacheMissTokens: llmConfig.usageRef?.cache_miss_tokens,
-        })}`);
-        return typeof result === 'string' ? { text: result, messages } : result;
-      } catch (err) {
-        throwIfTimedOut(timeout, llmConfig, timeoutMs);
-        if (err.name === 'AbortError') throw wrapError(err, llmConfig.provider);
-        if (isToolLoopCancelledError(err) || isToolLoopControlSignal(err)) throw err;
-        if (isNonRetryable(err)) throw wrapError(err, llmConfig.provider);
-        lastError = err;
-        log.warn(`COMPLETE_TOOLS RETRY  ${formatMeta({
-          attempt: attempt + 1,
-          provider: llmConfig.provider,
-          model: llmConfig.model || '',
-          error: err.message,
-        })}`);
-        if (attempt < retry.max) await sleep(retry.delayMs);
-      }
-    }
-    throw wrapError(lastError, llmConfig.provider);
+    const result = await provider.completeWithTools(messages, defs, handlers, {
+      ...llmConfig,
+      toolResultMode: 'detail',
+      timeoutMs,
+      retry,
+      loopRef: options.loopRef || undefined,
+    });
+    const text = typeof result === 'string' ? result : (result?.text ?? '');
+    log.info(`COMPLETE_TOOLS DONE  ${formatMeta({
+      callType: llmConfig.callType,
+      provider: llmConfig.provider,
+      model: llmConfig.model || '',
+      len: text.length,
+      ms: Date.now() - startedAt,
+      stop: options.loopRef?.stopReason,
+      promptTokens: llmConfig.usageRef?.prompt_tokens,
+      completionTokens: llmConfig.usageRef?.completion_tokens,
+      cacheReadTokens: llmConfig.usageRef?.cache_read_tokens,
+      cacheCreationTokens: llmConfig.usageRef?.cache_creation_tokens,
+      cacheMissTokens: llmConfig.usageRef?.cache_miss_tokens,
+    })}`);
+    return typeof result === 'string' ? { text: result, messages } : result;
+  } catch (err) {
+    if (isToolLoopCancelledError(err) || isToolLoopControlSignal(err)) throw err;
+    throw wrapError(err, llmConfig.provider);
   } finally {
     spinnerRemove(spinnerId);
   }

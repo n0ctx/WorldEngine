@@ -312,7 +312,8 @@ const geminiToolLoopProvider = {
       })),
       _geminiParts: parts,
     };
-    return { kind: 'tools', toolCalls, assistantBlock, _rawParts: parts };
+    const truncated = data.candidates[0].finishReason === 'MAX_TOKENS';
+    return { kind: 'tools', toolCalls, assistantBlock, truncated, _rawParts: parts };
   },
 
   appendToolTurn(state, turn, results) {
@@ -336,7 +337,8 @@ const geminiToolLoopProvider = {
   },
 
   async completeNoTools(state, config) {
-    // fallback 用初始 contents,对齐原 completeGeminiWithTools 4xx 行为
+    // 循环层传进来的 state 是用「原始消息 + 一条说明」重新 initState 得到的,
+    // 所以 initialContents 里已带操作清单与结束原因,不含 functionCall / functionResponse。
     return completeGeminiFromNative(state.initialContents, state.systemInstruction, config);
   },
 

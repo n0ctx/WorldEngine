@@ -30,7 +30,7 @@ function mockFetchSequence(responses) {
   return { calls, restore: () => { globalThis.fetch = origFetch; } };
 }
 
-function chatResp({ content, reasoning_content, toolCalls } = {}) {
+function chatResp({ content, reasoning_content, toolCalls, finishReason } = {}) {
   const message = { role: 'assistant', content: content ?? null };
   if (reasoning_content) message.reasoning_content = reasoning_content;
   if (toolCalls) {
@@ -40,7 +40,7 @@ function chatResp({ content, reasoning_content, toolCalls } = {}) {
       function: { name: tc.name, arguments: JSON.stringify(tc.args || {}) },
     }));
   }
-  return { choices: [{ message }] };
+  return { choices: [{ message, finish_reason: finishReason ?? (toolCalls ? 'tool_calls' : 'stop') }] };
 }
 
 const baseConfig = () => ({
@@ -131,7 +131,121 @@ test('completeWithTools: 4xx → 降级到 complete(无 tools)', async () => {
     assert.equal(out, 'plain-fallback');
     assert.equal(calls.length, 2);
     assert.equal(calls[1].body.tools, undefined, 'fallback body must NOT include tools');
+    assert.match(calls[1].body.messages.at(-1).content, /^hi\n\n.*拒绝了工具调用请求，没有执行任何操作/s);
   } finally { restore(); }
+});
+
+test('completeWithTools: 对象参数直接传给 handler，回写的 arguments 序列化成字符串', async () => {
+  const rawCalls = [{ id: 'c0', type: 'function', function: { name: 'lookup', arguments: { a: 1 } } }];
+  const { calls, restore } = mockFetchSequence([
+    { json: { choices: [{ message: { role: 'assistant', content: null, tool_calls: rawCalls }, finish_reason: 'tool_calls' }] } },
+    { json: chatResp({ content: 'done' }) },
+  ]);
+  let received = null;
+  try {
+    await completeOpenAICompatibleWithTools(
+      [{ role: 'user', content: 'hi' }],
+      sampleToolDefs,
+      { lookup: async (args) => { received = args; return 'r'; } },
+      baseConfig(),
+    );
+    assert.deepEqual(received, { a: 1 });
+    const assistant = calls[1].body.messages.find((m) => m.role === 'assistant');
+    assert.equal(assistant.tool_calls[0].function.arguments, '{"a":1}');
+  } finally { restore(); }
+});
+
+test('completeWithTools: 缺 id 的调用补成 call_<iter>_<idx>，assistant 与 tool 消息里的 id 一致', async () => {
+  const noIdCall = (name) => ({ type: 'function', function: { name, arguments: '{}' } });
+  const { calls, restore } = mockFetchSequence([
+    { json: { choices: [{ message: { role: 'assistant', content: null, tool_calls: [noIdCall('lookup')] }, finish_reason: 'tool_calls' }] } },
+    { json: { choices: [{ message: { role: 'assistant', content: null, tool_calls: [noIdCall('lookup'), noIdCall('lookup')] }, finish_reason: 'tool_calls' }] } },
+    { json: chatResp({ content: 'done' }) },
+  ]);
+  try {
+    await completeOpenAICompatibleWithTools(
+      [{ role: 'user', content: 'hi' }],
+      sampleToolDefs,
+      { lookup: async () => 'r' },
+      baseConfig(),
+    );
+    const sent = calls[2].body.messages;
+    const assistantIds = sent.filter((m) => m.role === 'assistant').flatMap((m) => m.tool_calls.map((tc) => tc.id));
+    const toolIds = sent.filter((m) => m.role === 'tool').map((m) => m.tool_call_id);
+    assert.deepEqual(assistantIds, ['call_0_0', 'call_1_0', 'call_1_1']);
+    assert.deepEqual(toolIds, assistantIds);
+  } finally { restore(); }
+});
+
+test('completeWithTools: 参数不是合法 JSON 的调用不执行，回填原因', async () => {
+  const rawCalls = [{ id: 'c0', type: 'function', function: { name: 'lookup', arguments: '{"q": "unterminated' } }];
+  const { calls, restore } = mockFetchSequence([
+    { json: { choices: [{ message: { role: 'assistant', content: null, tool_calls: rawCalls }, finish_reason: 'tool_calls' }] } },
+    { json: chatResp({ content: 'done' }) },
+  ]);
+  let handlerCalls = 0;
+  try {
+    await completeOpenAICompatibleWithTools(
+      [{ role: 'user', content: 'hi' }],
+      sampleToolDefs,
+      { lookup: async () => { handlerCalls += 1; return 'r'; } },
+      baseConfig(),
+    );
+    assert.equal(handlerCalls, 0);
+    const sent = calls[1].body.messages;
+    assert.match(sent.find((m) => m.role === 'tool').content, /^工具参数不是合法 JSON，未执行：.*\{"q": "unterminated。请重新输出完整参数$/);
+    assert.equal(sent.find((m) => m.role === 'assistant').tool_calls[0].function.arguments, '{}');
+  } finally { restore(); }
+});
+
+test('completeWithTools: finish_reason=length 时最后一个调用不执行', async () => {
+  const { calls, restore } = mockFetchSequence([
+    { json: chatResp({ toolCalls: [{ name: 'lookup', args: { q: 'a' } }, { name: 'lookup', args: { q: 'b' } }], finishReason: 'length' }) },
+    { json: chatResp({ content: 'done' }) },
+  ]);
+  const ran = [];
+  try {
+    const out = await completeOpenAICompatibleWithTools(
+      [{ role: 'user', content: 'hi' }],
+      sampleToolDefs,
+      { lookup: async ({ q }) => { ran.push(q); return `r-${q}`; } },
+      baseConfig(),
+    );
+    assert.equal(out, 'done');
+    assert.deepEqual(ran, ['a']);
+    const toolMsgs = calls[1].body.messages.filter((m) => m.role === 'tool');
+    assert.equal(toolMsgs[0].content, 'r-a');
+    assert.match(toolMsgs[1].content, /输出被截断（达到 max_tokens），该调用未执行/);
+  } finally { restore(); }
+});
+
+test('completeWithTools: 500 抛出不降级；带重试配置时只重试那一次请求', async () => {
+  const first = mockFetchSequence([{ status: 500, text: 'boom' }]);
+  try {
+    await assert.rejects(
+      () => completeOpenAICompatibleWithTools([{ role: 'user', content: 'hi' }], sampleToolDefs, {}, baseConfig()),
+      (err) => err.status === 500,
+    );
+    assert.equal(first.calls.length, 1);
+  } finally { first.restore(); }
+
+  const second = mockFetchSequence([
+    { json: chatResp({ toolCalls: [{ name: 'lookup', args: {} }] }) },
+    { status: 500, text: 'boom' },
+    { json: chatResp({ content: 'done' }) },
+  ]);
+  let handlerCalls = 0;
+  try {
+    const out = await completeOpenAICompatibleWithTools(
+      [{ role: 'user', content: 'hi' }],
+      sampleToolDefs,
+      { lookup: async () => { handlerCalls += 1; return 'r'; } },
+      { ...baseConfig(), retry: { max: 1, delayMs: 0 } },
+    );
+    assert.equal(out, 'done');
+    assert.equal(handlerCalls, 1);
+    assert.equal(second.calls.length, 3);
+  } finally { second.restore(); }
 });
 
 test('completeWithTools: assistantMsg.reasoning_content 透传到下一轮 messages', async () => {

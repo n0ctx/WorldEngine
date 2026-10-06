@@ -100,6 +100,27 @@ test('resolveTimeoutMs：本地 provider 后台超时抬到 60s 下限，云端�
   assert.equal(resolveTimeoutMs(0, 'llamacpp'), 0);
 });
 
+test('resolveToolTurnTimeoutMs：未传时云端 5 分钟、本地 15 分钟；传了按 resolveTimeoutMs 处理', { concurrency: false }, async (t) => {
+  const sandbox = createTestSandbox('llm-tool-turn-timeout');
+  t.after(() => sandbox.cleanup());
+  sandbox.setEnv();
+
+  const { __testables } = await freshImport('backend/llm/index.js');
+  const { resolveToolTurnTimeoutMs } = __testables;
+  for (const missing of [undefined, null, 0, -1, 'abc']) {
+    assert.equal(resolveToolTurnTimeoutMs(missing, 'deepseek'), 300_000);
+    assert.equal(resolveToolTurnTimeoutMs(missing, 'mock'), 300_000);
+    for (const provider of ['llamacpp', 'ollama', 'lmstudio']) {
+      assert.equal(resolveToolTurnTimeoutMs(missing, provider), 900_000);
+    }
+  }
+  assert.equal(resolveToolTurnTimeoutMs(20_000, 'deepseek'), 20_000);
+  assert.equal(resolveToolTurnTimeoutMs(20_000, 'ollama'), 60_000);
+  assert.equal(typeof __testables.isNonRetryable, 'function');
+  assert.equal(__testables.isNonRetryable({ status: 429 }), false);
+  assert.equal(__testables.isNonRetryable({ status: 401 }), true);
+});
+
 test('complete 在 provider 非流式调用超时时返回 504 LLMError', { concurrency: false }, async (t) => {
   const sandbox = createTestSandbox('llm-complete-timeout', {
     provider_keys: { mock: 'secret' },

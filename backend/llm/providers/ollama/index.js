@@ -11,7 +11,7 @@ import {
 } from '../../../utils/constants.js';
 import { applyThinkingToOpenAICompatibleBody } from '../openai-compatible/thinking.js';
 import { runToolLoop } from '../../tool-loop-control.js';
-import { appendOpenAIToolTurn, parseOpenAIToolCalls } from '../_shared/converters.js';
+import { appendOpenAIToolTurn, normalizeOpenAIToolCalls } from '../_shared/converters.js';
 import { emitProviderSignal, buildContextFromConfig, hashText } from '../_shared/provider-safety-signals.js';
 import { logRawRequest } from '../../raw-logger.js';
 import { fetchAndRecord, readJsonAndRecord, recordStream } from '../../raw-recorder.js';
@@ -162,6 +162,18 @@ export async function complete(messages, config) {
 // Tool-use（OpenAI-compatible 格式，支持工具调用的本地模型）
 // ============================================================
 
+// 这些状态码表示接口不认工具调用请求（旧版本服务、模型模板不支持等），降级为无工具补全
+const TOOL_UNSUPPORTED_STATUSES = new Set([400, 404, 422, 501]);
+// llama.cpp / LM Studio 在模板渲染工具失败时报 500，正文带这些字样
+const TOOL_UNSUPPORTED_BODY_RE = /tool|jinja|template|function/i;
+
+/** 工具请求的失败响应是否表示「接口不支持工具调用」；其余失败（普通 5xx 等）照常抛出，交给单次请求重试 */
+export function isToolUnsupportedResponse(status, bodyText) {
+  if (TOOL_UNSUPPORTED_STATUSES.has(status)) return true;
+  return status === 500 && TOOL_UNSUPPORTED_BODY_RE.test(bodyText || '');
+}
+
+// 返回 null 表示降级信号；网络错误、中止、超时与普通 5xx 一律抛出
 async function callWithTools(messages, toolDefs, config) {
   const { resp, raw } = await postLocalChat(config, {
     messages,
@@ -169,8 +181,10 @@ async function callWithTools(messages, toolDefs, config) {
     extra: { tools: toolDefs, tool_choice: 'auto' },
   }, config.callType ? `${config.callType}:tools` : 'complete-tools');
   if (!resp.ok) {
-    raw?.error({ status: resp.status, text: await resp.text().catch(() => '') });
-    return null; // 降级信号(4xx/5xx 一视同仁,与历史行为对齐)
+    const text = await resp.text().catch(() => '');
+    raw?.error({ status: resp.status, text });
+    if (isToolUnsupportedResponse(resp.status, text)) return null;
+    throw apiError(`${config.provider} API error: ${resp.status} ${text}`, resp.status);
   }
   return readJsonAndRecord(resp, raw);
 }
@@ -181,8 +195,8 @@ const ollamaToolLoopProvider = {
     return { messages: [...messages] };
   },
 
-  async oneTurn(state, toolDefs, _iter, config) {
-    const data = await callWithTools(state.messages, toolDefs, config).catch(() => null);
+  async oneTurn(state, toolDefs, iter, config) {
+    const data = await callWithTools(state.messages, toolDefs, config);
     if (!data) return { kind: 'fallback' };
 
     const message = data.choices?.[0]?.message;
@@ -192,16 +206,16 @@ const ollamaToolLoopProvider = {
       return { kind: 'text', text: withReasoning(message) };
     }
 
-    const toolCalls = parseOpenAIToolCalls(message.tool_calls);
+    const { toolCalls, assistantToolCalls } = normalizeOpenAIToolCalls(message.tool_calls, iter);
 
-    // assistantBlock 保留 OpenAI 原生格式,直接回写到 messages 数组
+    // assistantBlock 保留 OpenAI 原生格式,直接回写到 messages 数组(id 已补齐、arguments 已统一成字符串)
     const assistantBlock = {
       role: 'assistant',
       content: message.content || null,
-      tool_calls: message.tool_calls,
+      tool_calls: assistantToolCalls,
     };
 
-    return { kind: 'tools', toolCalls, assistantBlock };
+    return { kind: 'tools', toolCalls, assistantBlock, truncated: data.choices[0].finish_reason === 'length' };
   },
 
   appendToolTurn: appendOpenAIToolTurn,

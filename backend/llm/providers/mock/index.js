@@ -1,3 +1,6 @@
+import { runToolLoop } from '../../tool-loop-control.js';
+import { appendOpenAIToolTurn } from '../_shared/converters.js';
+
 function parseJsonEnv(name, fallback) {
   const raw = process.env[name];
   if (!raw) return fallback;
@@ -111,17 +114,106 @@ export async function complete(_messages, llmConfig = {}) {
   return getMockText('complete');
 }
 
-export async function completeWithTools(messages, _defs, handlers, config = {}) {
-  maybeThrow('complete');
-  const toolCalls = takeQueuedToolCalls() ?? parseJsonEnv('MOCK_LLM_TOOL_CALLS', []);
-  for (const call of toolCalls) {
-    const handler = handlers?.[call?.name];
-    if (typeof handler !== 'function') continue;
-    await handler(call.arguments ?? {});
-  }
-  const text = getMockText('complete', { useActionQueue: false });
-  if (config.toolResultMode === 'detail') {
-    return { text, messages };
-  }
-  return text;
+// ============================================================
+// 工具循环：脚本化的 4 原语 provider，走真实的 runToolLoop
+// ============================================================
+//
+// MOCK_LLM_TOOL_TURNS_QUEUE 是 JSON 数组，每次模型请求（含被重试的请求）消费一项：
+//   [ {name, arguments}, ... ]            → 这一轮发出这些工具调用
+//   "文本"                                 → 这一轮直接给出最终回复
+//   { error: "msg", status?: 500 }        → 这次请求抛错（status 决定是否重试）
+//   { fallback: true }                    → 接口拒绝工具调用
+//   { calls: [...], truncated?: true }    → 同数组写法，可标记输出被截断
+//   { text: "文本" }                       → 同字符串写法
+//   对象写法都可带 delayMs：这次请求先等待这么久（会响应中止信号）
+// 队列用完后的请求返回 MOCK_LLM_COMPLETE 文本。
+//
+// 没设该变量时沿用旧变量：MOCK_LLM_TOOL_CALLS_QUEUE（每次 completeWithTools 取一项）
+// 或 MOCK_LLM_TOOL_CALLS 给出第一轮的调用，第二轮返回 MOCK_LLM_COMPLETE 文本。
+
+function mockError(message, status) {
+  const err = new Error(message);
+  err.status = Number(status) || undefined;
+  return err;
+}
+
+function toMockToolTurn(calls, iter, truncated) {
+  const toolCalls = calls.map((call, idx) => ({
+    id: call?.id || `mock_${iter}_${idx}`,
+    name: call?.name,
+    arguments: call?.arguments ?? {},
+  }));
+  const assistantBlock = {
+    role: 'assistant',
+    content: null,
+    tool_calls: toolCalls.map((c) => ({
+      id: c.id,
+      type: 'function',
+      function: { name: c.name, arguments: JSON.stringify(c.arguments) },
+    })),
+  };
+  return { kind: 'tools', toolCalls, assistantBlock, truncated: Boolean(truncated) };
+}
+
+function mockTextTurn(text) {
+  return { kind: 'text', text: text ?? getMockText('complete', { useActionQueue: false }) };
+}
+
+/** 把回合队列里的一项变成 oneTurn 的返回值（或抛错） */
+export function scriptedTurnToResult(item, iter) {
+  if (Array.isArray(item)) return toMockToolTurn(item, iter, false);
+  if (item === null || typeof item !== 'object') return mockTextTurn(item === null ? undefined : String(item));
+  if (item.error) throw mockError(item.error, item.status);
+  if (item.fallback) return { kind: 'fallback' };
+  if (Array.isArray(item.calls)) return toMockToolTurn(item.calls, iter, item.truncated);
+  return mockTextTurn(item.text);
+}
+
+function legacyTurn(state, iter) {
+  if (state.legacyCallsTaken) return mockTextTurn();
+  state.legacyCallsTaken = true;
+  const calls = takeQueuedToolCalls() ?? parseJsonEnv('MOCK_LLM_TOOL_CALLS', []);
+  return Array.isArray(calls) && calls.length > 0 ? toMockToolTurn(calls, iter, false) : mockTextTurn();
+}
+
+const mockToolLoopProvider = {
+  initState(messages) {
+    return { messages: [...messages], legacyCallsTaken: false };
+  },
+
+  async oneTurn(state, _toolDefs, iter, config = {}) {
+    throwIfAborted(config.signal);
+    maybeThrow('complete');
+    if (process.env.MOCK_LLM_TOOL_TURNS_QUEUE === undefined) return legacyTurn(state, iter);
+    const item = takeQueueItem('MOCK_LLM_TOOL_TURNS_QUEUE');
+    if (item === undefined) return mockTextTurn();
+    if (Number(item?.delayMs) > 0) await sleep(Number(item.delayMs), config.signal);
+    return scriptedTurnToResult(item, iter);
+  },
+
+  appendToolTurn(state, turn, results) {
+    // 保留 legacyCallsTaken：旧变量只在第一轮给出调用
+    return { ...state, ...appendOpenAIToolTurn(state, turn, results) };
+  },
+
+  async completeNoTools(_state, config = {}) {
+    throwIfAborted(config.signal);
+    maybeThrow('complete');
+    return getMockText('complete', { useActionQueue: false });
+  },
+
+  stateToMessages(state) {
+    return state.messages;
+  },
+};
+
+export async function completeWithTools(messages, defs, handlers, config = {}) {
+  return runToolLoop({
+    provider: mockToolLoopProvider,
+    messages,
+    toolDefs: defs,
+    toolHandlers: handlers,
+    config,
+    completeResultMode: config.toolResultMode ?? 'text',
+  });
 }

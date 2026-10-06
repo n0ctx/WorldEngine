@@ -360,6 +360,7 @@ const anthropicToolLoopProvider = {
       kind: 'tools',
       toolCalls,
       assistantBlock: { role: 'assistant', content: textContent || null, tool_calls: openaiToolCalls },
+      truncated: data.stop_reason === 'max_tokens',
     };
   },
 

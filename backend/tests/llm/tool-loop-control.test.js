@@ -8,6 +8,7 @@ import {
   isToolLoopCancelledError,
   isToolLoopControlSignal,
 } from '../../llm/tool-loop-control.js';
+import { recordingProvider, toolsTurn, noteOf, userMsg } from '../helpers/tool-loop-fakes.js';
 
 // fake provider 工厂:turns 为每次 oneTurn 返回的结果数组
 function fakeProvider(turns) {
@@ -162,34 +163,43 @@ test('runToolLoop: 工具普通 error 被字符串化喂回模型', async () => 
   assert.match(fedBack.content, /kaboom/);
 });
 
-test('runToolLoop: kind=fallback 走 completeNoTools', async () => {
-  const provider = fakeProvider([{ kind: 'fallback' }]);
+test('runToolLoop: 首轮 kind=fallback → 无工具补全收到「没有执行任何操作」的说明', async () => {
+  const rec = recordingProvider(() => ({ kind: 'fallback' }));
+  const loopRef = {};
   const out = await runToolLoop({
-    provider,
-    messages: [{ role: 'user', content: 'x' }],
+    provider: rec.provider,
+    messages: userMsg,
     toolDefs: [],
     toolHandlers: {},
-    config: {},
+    config: { loopRef },
   });
-  assert.equal(out, 'fallback-no-tools');
+  assert.equal(out, 'no-tools-text');
+  assert.equal(rec.noToolsMessages.length, 1);
+  assert.match(noteOf(rec.noToolsMessages[0]), /^x\n\n\[系统说明\]/);
+  assert.match(noteOf(rec.noToolsMessages[0]), /拒绝了工具调用请求，没有执行任何操作，请告知用户换用支持工具调用的模型/);
+  assert.deepEqual(loopRef, { stopReason: 'fallback', toolCallCount: 0 });
 });
 
-test('runToolLoop: 超 maxIterations 兜底 completeNoTools', async () => {
-  // 所有轮都返回 tools,永不终止
-  const turns = Array.from({ length: 10 }, (_, k) => ({
-    kind: 'tools',
-    toolCalls: [{ id: `t${k}`, name: 'foo', arguments: {} }],
-    assistantBlock: { role: 'assistant', tool_calls: [{ id: `t${k}` }] },
-  }));
-  const provider = fakeProvider(turns);
+test('runToolLoop: 超 maxIterations → 说明含上限与操作清单，loopRef 回传 max_iterations', async () => {
+  // 所有轮都返回 tools,永不终止;每轮参数不同,不触发重复失败保护
+  const rec = recordingProvider((iter) => toolsTurn([{ id: `t${iter}`, name: 'foo', arguments: { n: iter } }]));
+  const loopRef = {};
   const out = await runToolLoop({
-    provider,
-    messages: [{ role: 'user', content: 'x' }],
+    provider: rec.provider,
+    messages: userMsg,
     toolDefs: [],
-    toolHandlers: { foo: async () => 'r' },
-    config: { maxIterations: 3 },
+    toolHandlers: { foo: async ({ n }) => (n === 1 ? { success: false, error: 'bad n' } : 'r') },
+    config: { maxIterations: 3, loopRef },
   });
-  assert.equal(out, 'fallback-no-tools');
+  assert.equal(out, 'no-tools-text');
+  assert.equal(rec.turnCalls, 3);
+  const note = noteOf(rec.noToolsMessages[0]);
+  assert.match(note, /轮数已达上限（3 轮）/);
+  assert.match(note, /共 3 次/);
+  assert.match(note, /1\. \[成功\] foo \{"n":0\} → r/);
+  assert.match(note, /2\. \[失败\] foo \{"n":1\} → .*bad n/);
+  assert.match(note, /哪些部分已经完成、哪些部分没有完成/);
+  assert.deepEqual(loopRef, { stopReason: 'max_iterations', toolCallCount: 3 });
 });
 
 test('isToolLoopCancelledError 识别错误', () => {

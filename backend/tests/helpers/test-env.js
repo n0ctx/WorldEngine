@@ -24,6 +24,7 @@ const MOCK_ENV_KEYS = [
   'MOCK_LLM_ACTION_QUEUE',
   'MOCK_LLM_TOOL_CALLS',
   'MOCK_LLM_TOOL_CALLS_QUEUE',
+  'MOCK_LLM_TOOL_TURNS_QUEUE',
 ];
 
 function mergeDeep(target, source) {
