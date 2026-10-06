@@ -224,6 +224,7 @@ export async function runAgent(task, userInput, opts = {}) {
       usageRef,
       callType: 'assistant',
       maxIterations: MAX_TOOL_ITERATIONS,
+      signal: taskStore.getAbortSignal(task.id),
     }) ?? '').trim();
     if (task.status === 'cancelled') {
       endStream(task, emitFn);

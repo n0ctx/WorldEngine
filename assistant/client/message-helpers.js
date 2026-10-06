@@ -31,9 +31,22 @@ const EDIT_FIELD_NAMES = {
   first_message: '开场白', css: '样式',
 };
 
+// 批量调用的摘要由「kind×数量」组成，如 "entry×3 field×2" → "条目 ×3、状态字段 ×2"
+function formatBatchSummary(text) {
+  const parts = [];
+  for (const token of text.split(/\s+/)) {
+    const [kind, times] = token.split('×');
+    const name = RESOURCE_NAMES[kind];
+    if (!name) return text;
+    parts.push(`${name} ×${times}`);
+  }
+  return parts.join('、');
+}
+
 export function formatToolSummary(summary, toolName) {
   const text = String(summary ?? '').trim();
   if (toolName === 'find') return text;
+  if (text.includes('×')) return formatBatchSummary(text);
   const [head, ...rest] = text.split(/\s+/);
   const kind = head?.split(/[:@]/)[0];
   const name = RESOURCE_NAMES[kind];

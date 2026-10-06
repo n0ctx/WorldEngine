@@ -13,20 +13,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { SSE_EVENTS } from '../server/sse-events.js';
-
-// 写入成功 → 主界面 reload 事件：按工具操作的资源类型实时派发，
-// 让主界面列表不必等到 task_completed 才刷新。
-const WRITE_TOOLS = new Set(['create', 'update', 'edit', 'set_state', 'delete']);
-const TARGET_REFRESH_EVENTS = {
-  world: 'we:world-updated',
-  entry: 'we:world-updated',
-  field: 'we:world-updated',
-  character: 'we:character-updated',
-  persona: 'we:persona-updated',
-  css: 'we:css-updated',
-  regex: 'we:regex-updated',
-  config: 'we:global-config-updated',
-};
+import { dispatchToolRefresh } from './tool-refresh.js';
 
 // 移除模型在普通文本流里泄漏的工具调用 token / XML。
 // 触发场景：工具循环触顶后退到无工具补全，模型仍想调用工具，把内部 function-call 文本
@@ -123,15 +110,11 @@ export const useAssistantStore = create(
                 ...s,
                 messages: [
                   ...s.messages,
-                  { id: evt.callId, role: 'tool_call', toolName: evt.toolName, summary: evt.summary, target: evt.target, status: 'running' },
+                  { id: evt.callId, role: 'tool_call', toolName: evt.toolName, summary: evt.summary, target: evt.target, targets: evt.targets, status: 'running' },
                 ],
               };
             case SSE_EVENTS.TOOL_CALL_COMPLETED: {
-              const call = s.messages.find((m) => m.id === evt.callId);
-              const eventName = evt.success && WRITE_TOOLS.has(call?.toolName) ? TARGET_REFRESH_EVENTS[call?.target] : null;
-              if (eventName && typeof window !== 'undefined') {
-                window.dispatchEvent(new Event(eventName));
-              }
+              dispatchToolRefresh(s.messages.find((m) => m.id === evt.callId), evt);
               return {
                 ...s,
                 messages: s.messages.map((m) =>

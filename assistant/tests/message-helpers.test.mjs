@@ -52,3 +52,9 @@ test('玩家卡不存在时显示可理解的提示，不暴露内部命令', ()
   );
   assert.equal(formatToolError('字段 生命 的值 999 不符合类型 number'), '字段 生命 的值 999 不符合类型 number');
 });
+
+test('批量调用的摘要按资源类型汇总', () => {
+  assert.equal(formatToolSummary('entry×3 field×2', 'create'), '条目 ×3、状态字段 ×2');
+  assert.equal(formatToolSummary('character×2', 'set_state'), '角色卡 ×2');
+  assert.equal(formatToolSummary('unknown×2', 'delete'), 'unknown×2');
+});

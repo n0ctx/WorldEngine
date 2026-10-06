@@ -24,6 +24,8 @@ const sseClients = new Map(); // taskId -> Set<res>
 // 背压缓冲：write 返回 false（客户端消费不动）时暂停直推，缓冲到 drain 再补写，
 // 避免缓冲在 socket 里无限堆积。
 const ssePending = new Map(); // res -> string[]
+// 执行中任务的取消信号：取消时中断进行中的模型请求
+const abortControllers = new Map(); // taskId -> AbortController
 
 export const TERMINAL_TASK_STATUSES = new Set(['completed', 'failed', 'cancelled']);
 export const RESTART_INTERRUPTED_ERROR = 'interrupted by restart';
@@ -133,6 +135,7 @@ function persistUiEvent(taskId, event) {
       toolName: event.toolName,
       summary: event.summary,
       target: event.target,
+      targets: event.targets,
       status: 'running',
     });
   } else if (event.type === SSE_EVENTS.TOOL_CALL_COMPLETED) {
@@ -141,6 +144,7 @@ function persistUiEvent(taskId, event) {
       role: 'tool_call',
       status: event.success ? 'done' : 'error',
       error: event.success ? undefined : (event.error ?? 'tool failed'),
+      partial: event.partial,
       result: event.result,
     });
   }
@@ -303,6 +307,7 @@ export function setStatus(id, status, { error } = {}) {
   }
   touch(t);
   persist(t);
+  if (status === 'cancelled') abortControllers.get(id)?.abort();
   log.info(`STATUS  ${formatMeta({ taskId: id, from: prev, to: status })}`);
 }
 
@@ -310,6 +315,13 @@ export function setExecutionActive(id, active) {
   const t = tasks.get(id);
   if (!t) return;
   t.executionActive = active === true;
+  if (t.executionActive) abortControllers.set(id, new AbortController());
+  else abortControllers.delete(id);
+}
+
+/** 当前这次执行的取消信号；任务被取消时中止。未在执行时返回 undefined */
+export function getAbortSignal(id) {
+  return abortControllers.get(id)?.signal;
 }
 
 export function isExecutionActive(id) {

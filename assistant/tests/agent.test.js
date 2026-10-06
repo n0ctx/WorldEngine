@@ -112,3 +112,16 @@ test('上一轮新建的世界在下一轮仍是当前世界，操作记录带�
   const entry = sandbox.db.prepare('SELECT world_id FROM world_prompt_entries WHERE title = ?').get('港口');
   assert.equal(entry.world_id, worldId);
 });
+
+test('取消会中断进行中的模型请求，不留下回复', async () => {
+  const task = taskStore.createTask({ context: {} });
+  process.env.MOCK_LLM_TOOL_TURNS_QUEUE = JSON.stringify([{ text: '不该出现的回复', delayMs: 5000 }]);
+  const running = runAgent(task, '你好');
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  const startedAt = Date.now();
+  taskStore.setStatus(task.id, 'cancelled');
+  await running;
+  assert.ok(Date.now() - startedAt < 1000, '取消后应立即返回，而不是等模型请求结束');
+  assert.equal(task.status, 'cancelled');
+  assert.equal(task.messages.some((m) => m.role === 'assistant'), false);
+});

@@ -4,7 +4,7 @@
   "functions": {
     "assistant/client/AssistantPanel.jsx#AssistantPanel>useCallback~2": 33,
     "assistant/client/AssistantPanel.jsx#recoverAssistantTask": 33,
-    "assistant/client/useAssistantStore.js#ingestEvent>set": 39,
+    "assistant/client/useAssistantStore.js#ingestEvent>set": 35,
     "assistant/server/agent.js#runAgent": 50,
     "assistant/server/apply-proposal.js#applyProposal": 72,
     "assistant/server/proposal-entry-ops.js#normalizeEntryOp": 46,

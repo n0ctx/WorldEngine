@@ -82,3 +82,40 @@ test('wrapToolEvents: recordResult 的工具成功时带出回执，失败或未
   assert.equal((await run({ recordResult: true, execute: async () => ({ success: false, error: 'x' }) })).result, undefined);
   assert.equal((await run({ execute: async () => '大段读取结果' })).result, undefined);
 });
+
+test('wrapToolEvents: describe 抛错时事件照发，工具照常执行', async () => {
+  const events = [];
+  const tool = {
+    type: 'function',
+    function: { name: 'update' },
+    describe: ({ items }) => ({ summary: items.map((i) => i.ref).join(' ') }),
+    execute: async () => '已更新',
+  };
+  const result = await wrapToolEvents(tool, (e) => events.push(e)).execute({ items: 'not-an-array' });
+  assert.equal(result, '已更新');
+  assert.deepEqual(events.map((e) => [e.type, e.summary ?? null]), [['tool_call_started', null], ['tool_call_completed', null]]);
+  assert.equal(events[1].success, true);
+});
+
+test('wrapToolEvents: 多种资源的 targets 随 started 发出；部分完成时 completed 带 partial', async () => {
+  const events = [];
+  const tool = {
+    type: 'function',
+    function: { name: 'update' },
+    recordResult: true,
+    describe: () => ({ summary: 'entry×1 character×1', target: 'entry', targets: ['entry', 'character'] }),
+    execute: async () => ({ success: false, partial: true, error: '部分完成（已写入 1 项，未写入 1 项）' }),
+  };
+  await wrapToolEvents(tool, (e) => events.push(e)).execute({});
+  assert.deepEqual(events[0].targets, ['entry', 'character']);
+  assert.equal(events[1].success, false);
+  assert.equal(events[1].partial, true);
+  assert.match(events[1].error, /部分完成/);
+});
+
+test('wrapToolEvents: 普通失败不带 partial', async () => {
+  const events = [];
+  const tool = { type: 'function', function: { name: 'x' }, execute: async () => ({ success: false, error: 'boom' }) };
+  await wrapToolEvents(tool, (e) => events.push(e)).execute({});
+  assert.equal(events.at(-1).partial, undefined);
+});

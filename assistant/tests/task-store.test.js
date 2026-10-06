@@ -117,6 +117,27 @@ test('emit 持久化工具调用记录（含操作对象与失败原因）', () 
   assert.deepEqual(persisted.map((m) => [m.id, m.status]), [['call-1', 'done'], ['call-2', 'error']]);
 });
 
+test('执行期间提供取消信号，任务取消时中止；执行结束后收回', () => {
+  const t = freshTask();
+  assert.equal(taskStore.getAbortSignal(t.id), undefined);
+  taskStore.setExecutionActive(t.id, true);
+  const signal = taskStore.getAbortSignal(t.id);
+  assert.equal(signal.aborted, false);
+  taskStore.setStatus(t.id, 'cancelled');
+  assert.equal(signal.aborted, true);
+  taskStore.setExecutionActive(t.id, false);
+  assert.equal(taskStore.getAbortSignal(t.id), undefined);
+});
+
+test('emit 持久化批量调用涉及的资源类型与部分完成标记', () => {
+  const t = freshTask();
+  taskStore.emit(t.id, { type: 'tool_call_started', callId: 'call-b', toolName: 'update', summary: 'entry×1 character×1', target: 'entry', targets: ['entry', 'character'] });
+  taskStore.emit(t.id, { type: 'tool_call_completed', callId: 'call-b', toolName: 'update', success: false, partial: true, error: '部分完成' });
+  const m = t.messages.at(-1);
+  assert.deepEqual(m.targets, ['entry', 'character']);
+  assert.deepEqual([m.status, m.partial, m.error], ['error', true, '部分完成']);
+});
+
 test('endAllSse 关闭未结束的客户端流，已结束的不二次 end', () => {
   const t = freshTask();
   let endedA = false;

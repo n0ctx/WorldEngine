@@ -7,6 +7,7 @@ import { CHARACTER_FIELDS, PERSONA_FIELDS } from '../workspace/cards.js';
 import { WORLD_FIELDS } from '../workspace/world.js';
 import { CSS_FIELDS, REGEX_FIELDS } from '../workspace/style.js';
 import { REF_HELP } from '../workspace/refs.js';
+import { WRITE_TOOLS } from '../tool-meta.js';
 import { wrapToolEvents } from './adapter.js';
 
 const DATA_FIELDS_HELP = [
@@ -28,8 +29,6 @@ function humanizeError(message) {
     .replace(/(entryOps|stateFieldOps|stateValueOps)\[\d+\]\.?/g, '')
     .replace(/changes\./g, '');
 }
-
-const WRITE_TOOLS = new Set(['create', 'update', 'edit', 'set_state', 'delete']);
 
 function defineTool(name, description, properties, required, run, describe) {
   return {
