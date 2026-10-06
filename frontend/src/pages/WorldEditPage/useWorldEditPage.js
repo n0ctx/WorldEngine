@@ -22,6 +22,7 @@ export default function useWorldEditPage({ worldId, isCreate, isOverlay, navigat
   const [savedKey, setSavedKey] = useState(0);
   const [temperature, setTemperature] = useState('');
   const [maxTokens, setMaxTokens] = useState('');
+  const [openingTime, setOpeningTime] = useState('');
   const [reloadKey, setReloadKey] = useState(0);
   const [diaryChatDateMode, setDiaryChatDateMode] = useState('virtual');
   const { name, setName, description, setDescription } = useCreateDraftIdentity(isCreate, readCreateDraft);
@@ -71,6 +72,7 @@ export default function useWorldEditPage({ worldId, isCreate, isOverlay, navigat
 
   async function handleSave() {
     if (!name.trim()) { setSaveError('名称为必填项'); return; }
+    if (isCreate && !openingTime) { setSaveError('开场时间为必填项'); return; }
     setSaving(true);
     setSaveError('');
     try {
@@ -78,6 +80,7 @@ export default function useWorldEditPage({ worldId, isCreate, isOverlay, navigat
         const world = await createWorld({
           name: name.trim(),
           description: description.trim(),
+          profile_defaults: { time: openingTime },
         });
         window.dispatchEvent(new Event('we:world-updated'));
         sessionStorage.removeItem('world_create_draft');
@@ -129,6 +132,8 @@ export default function useWorldEditPage({ worldId, isCreate, isOverlay, navigat
     setTemperature,
     maxTokens,
     setMaxTokens,
+    openingTime,
+    setOpeningTime,
     diaryChatDateMode,
     dirty,
     retryLoad,

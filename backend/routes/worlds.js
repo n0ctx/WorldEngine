@@ -9,6 +9,7 @@ import {
   clearAllDiaryData,
   reorderWorlds,
 } from '../services/worlds.js';
+import { buildNewWorldProfileDefaults } from '../services/world-profile-defaults.js';
 import { assertExists } from '../utils/route-helpers.js';
 import { createImageUpload, requireUploadedFile } from '../utils/image-upload.js';
 import { createLogger, formatMeta } from '../utils/logger.js';
@@ -33,7 +34,14 @@ router.post('/', (req, res) => {
     log.warn(`worlds.bad_request ${formatMeta({ method: req.method, path: req.path, reason: 'name 为必填项' })}`);
     return res.status(400).json({ error: 'name 为必填项' });
   }
-  const world = createWorld(req.body);
+  let profileDefaults;
+  try {
+    profileDefaults = buildNewWorldProfileDefaults(req.body.profile_defaults);
+  } catch (err) {
+    log.warn(`worlds.bad_request ${formatMeta({ method: req.method, path: req.path, reason: err.message })}`);
+    return res.status(400).json({ error: err.message });
+  }
+  const world = createWorld({ ...req.body, profile_defaults_json: JSON.stringify(profileDefaults) });
   res.status(201).json(world);
 });
 

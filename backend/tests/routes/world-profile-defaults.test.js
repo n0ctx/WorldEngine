@@ -11,7 +11,7 @@ function patch(path, body) {
   return ctx.request(path, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
 }
 
-test('世界卡档案默认值：列出开场时间与地点，写入、清除、校验', async () => {
+test('世界卡档案默认值：列出开场时间与地点，写入、清除、校验，开场时间不能清空', async () => {
   const world = insertWorld(ctx.sandbox.db);
   const base = `/api/worlds/${world.id}/profile-defaults`;
 
@@ -30,6 +30,11 @@ test('世界卡档案默认值：列出开场时间与地点，写入、清除�
   assert.equal(byKey.location, null);
 
   assert.equal((await patch(`${base}/time`, { value_json: JSON.stringify('明天') })).status, 400);
+  const clearTime = await patch(`${base}/time`, { value_json: null });
+  assert.equal(clearTime.status, 400);
+  assert.equal((await clearTime.json()).error, '开场时间为必填项');
+  byKey = Object.fromEntries((await (await ctx.request(base)).json()).map((row) => [row.field_key, row.value_json]));
+  assert.equal(byKey.time, JSON.stringify('1005-03-15'));
   assert.equal((await patch(`${base}/weather`, { value_json: JSON.stringify('雨') })).status, 400);
   assert.equal((await ctx.request('/api/worlds/no-such/profile-defaults')).status, 404);
 });

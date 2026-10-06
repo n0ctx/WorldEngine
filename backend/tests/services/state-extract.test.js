@@ -144,6 +144,45 @@ test('档案字段也参与推断：带 profile_key，当前值取卡片上的�
   assert.deepEqual(personaResult.map((r) => r.field_key), ['profile.gender'], '玩家卡没有人格字段');
 });
 
+test('出生日期：写明的照用；只给年龄时按世界开场日期倒推；年龄本身不作为建议返回', async () => {
+  const world = insertWorld(sandbox.db, { name: '提取-出生日期-世界' });
+  sandbox.db.prepare('UPDATE worlds SET profile_defaults_json = ? WHERE id = ?').run(JSON.stringify({ time: '1005-03-15T08:00' }), world.id);
+  const character = insertCharacter(sandbox.db, world.id, { name: '少年', description: '十七岁的学徒。' });
+  const { extractCharacterStateSuggestions } = await freshImport('backend/services/state-extract.js');
+  const birthDateOf = async () => {
+    const result = await extractCharacterStateSuggestions(character.id);
+    assert.ok(result.every((r) => r.field_key !== 'profile.age'));
+    return result.find((r) => r.field_key === 'profile.birth_date')?.suggested_value_json;
+  };
+
+  process.env.MOCK_LLM_COMPLETE = JSON.stringify({ 'profile.age': 17 });
+  assert.equal(await birthDateOf(), JSON.stringify('988-03-15'));
+
+  process.env.MOCK_LLM_COMPLETE = JSON.stringify({ 'profile.birth_date': '987-11-02', 'profile.age': 17 });
+  assert.equal(await birthDateOf(), JSON.stringify('987-11-02'));
+
+  process.env.MOCK_LLM_COMPLETE = JSON.stringify({ 'profile.birth_date': '春天', 'profile.age': 17 });
+  assert.equal(await birthDateOf(), JSON.stringify('988-03-15'), '格式不对的出生日期改用年龄倒推');
+
+  process.env.MOCK_LLM_COMPLETE = JSON.stringify({ 'profile.birth_date': '春天' });
+  assert.equal(await birthDateOf(), undefined);
+
+  process.env.MOCK_LLM_COMPLETE = JSON.stringify({ 'profile.age': 1005 });
+  assert.equal(await birthDateOf(), undefined, '倒推出的年份不是正数时放弃');
+
+  process.env.MOCK_LLM_COMPLETE = JSON.stringify({ 'profile.age': 16.5 });
+  assert.equal(await birthDateOf(), undefined, '年龄须为整数');
+});
+
+test('出生日期：世界没有开场日期时不按年龄倒推', async () => {
+  const world = insertWorld(sandbox.db, { name: '提取-无开场日期-世界' });
+  const character = insertCharacter(sandbox.db, world.id, { name: '少年', description: '十七岁的学徒。' });
+
+  process.env.MOCK_LLM_COMPLETE = JSON.stringify({ 'profile.age': 17 });
+  const { extractCharacterStateSuggestions } = await freshImport('backend/services/state-extract.js');
+  assert.deepEqual(await extractCharacterStateSuggestions(character.id), []);
+});
+
 test('extractCharacterStateSuggestions：角色不存在抛 NOT_FOUND', async () => {
   const { extractCharacterStateSuggestions } = await freshImport('backend/services/state-extract.js');
   await assert.rejects(

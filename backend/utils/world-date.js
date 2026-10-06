@@ -2,7 +2,8 @@
  * world-date.js — 世界日期解析与年龄推算
  *
  * 世界日期格式为 `YYYY-MM-DD` 或 `YYYY-MM-DDTHH:mm`，年份位数不限，用于状态记忆的
- * 世界档案「当前时间」、未了事项的期限判断、档案字段「出生日期」「记录年龄」的年龄推算。
+ * 世界档案「当前时间」、未了事项的期限判断、档案字段「出生日期」「记录年龄」的年龄推算，
+ * 以及 AI 提取角色卡建议时按世界开场日期由年龄倒推出生日期。
  */
 
 const WORLD_DATE_PATTERN = /^(\d+)-(\d{2})-(\d{2})(?:T(\d{2}):(\d{2}))?$/;
@@ -25,6 +26,22 @@ export function parseWorldDate(str) {
     return null;
   }
   return { year, month, day, hour, minute };
+}
+
+/** 世界日期对象格式化为只到日期的 `YYYY-MM-DD` */
+export function formatWorldDateOnly(worldDate) {
+  const mm = String(worldDate.month).padStart(2, '0');
+  const dd = String(worldDate.day).padStart(2, '0');
+  return `${worldDate.year}-${mm}-${dd}`;
+}
+
+/**
+ * 由某天的年龄倒推出生日期 `YYYY-MM-DD`：月日取那一天，即那天刚满这个年龄。
+ * 年龄不是非负整数、或倒推出的年份不是正数时返回 null。
+ */
+export function birthDateFromAge(age, asOf) {
+  if (!Number.isInteger(age) || age < 0 || asOf.year - age <= 0) return null;
+  return formatWorldDateOnly({ ...asOf, year: asOf.year - age });
 }
 
 /** 比较两个世界日期，a 早于 b 返回负数，晚于返回正数，相等返回 0 */

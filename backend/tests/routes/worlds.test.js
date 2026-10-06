@@ -34,19 +34,25 @@ test('GET /api/worlds 返回数组', async () => {
   assert.ok(list.length >= 2);
 });
 
-test('POST /api/worlds 校验 name；成功返回 201', async () => {
+test('POST /api/worlds 校验 name 与开场时间；成功返回 201 并写入档案默认值', async () => {
   const bad1 = await ctx.request('/api/worlds', jsonInit('POST', {}));
   assert.equal(bad1.status, 400);
   const bad2 = await ctx.request('/api/worlds', jsonInit('POST', { name: '   ' }));
   assert.equal(bad2.status, 400);
   const bad3 = await ctx.request('/api/worlds', jsonInit('POST', { name: 123 }));
   assert.equal(bad3.status, 400);
+  const noTime = await ctx.request('/api/worlds', jsonInit('POST', { name: '新世界' }));
+  assert.equal(noTime.status, 400);
+  assert.equal((await noTime.json()).error, '开场时间为必填项');
+  const badTime = await ctx.request('/api/worlds', jsonInit('POST', { name: '新世界', profile_defaults: { time: '明天' } }));
+  assert.equal(badTime.status, 400);
 
-  const ok = await ctx.request('/api/worlds', jsonInit('POST', { name: '新世界' }));
+  const ok = await ctx.request('/api/worlds', jsonInit('POST', { name: '新世界', profile_defaults: { time: '1005-03-15' } }));
   assert.equal(ok.status, 201);
   const created = await ok.json();
   assert.ok(created.id);
   assert.equal(created.name, '新世界');
+  assert.deepEqual(JSON.parse(created.profile_defaults_json), { time: '1005-03-15' });
 });
 
 test('PUT /api/worlds/reorder 校验 items；成功返回 ok', async () => {

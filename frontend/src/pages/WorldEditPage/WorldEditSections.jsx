@@ -1,5 +1,6 @@
 import StateFieldList from '../../components/rules/StateFieldList';
 import WorldProfileDefaultsFields from '../../components/rules/WorldProfileDefaultsFields.jsx';
+import DatetimeSplitInput from '../../components/state/DatetimeSplitInput.jsx';
 import AvatarUpload from '../../components/ui/AvatarUpload';
 import Divider from '../../components/ui/Divider.jsx';
 import FormGroup from '../../components/ui/FormGroup';
@@ -33,6 +34,8 @@ export default function WorldEditSections({ isCreate, worldId, navigate, diaryCh
           setName={page.setName}
           description={page.description}
           setDescription={page.setDescription}
+          openingTime={page.openingTime}
+          setOpeningTime={page.setOpeningTime}
         />
       ),
     },
@@ -61,7 +64,7 @@ export default function WorldEditSections({ isCreate, worldId, navigate, diaryCh
   return <SectionTabs sections={sections} defaultKey="basic" variant="gooey" />;
 }
 
-function BasicSettingsSection({ isCreate, name, setName, description, setDescription, appearance }) {
+function BasicSettingsSection({ isCreate, name, setName, description, setDescription, openingTime, setOpeningTime, appearance }) {
   const {
     coverAvatarUrl,
     worldAvatarColor,
@@ -89,6 +92,11 @@ function BasicSettingsSection({ isCreate, name, setName, description, setDescrip
           placeholder="一句话介绍这个世界…"
         />
       </FormGroup>
+      {isCreate && (
+        <FormGroup label="开场时间" required hint="故事开始时的世界日期，新故事线从这里起算；角色只写了年龄时，也按它推算出生日期。时分可不填">
+          <DatetimeSplitInput value={openingTime} onChange={setOpeningTime} />
+        </FormGroup>
+      )}
       {!isCreate && (
         <FormGroup label="封面图" hint="上传后立即生效。铺满世界卡片背景，建议比例 16:10 或横向图片">
           <AvatarUpload

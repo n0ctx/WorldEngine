@@ -10,7 +10,7 @@ import { REF_HELP } from '../workspace/refs.js';
 import { wrapToolEvents } from './adapter.js';
 
 const DATA_FIELDS_HELP = [
-  `world: ${WORLD_FIELDS.join(', ')}（profile: { "时间": "YYYY-MM-DD", "地点": "开场地点" }，新会话开始时带入）`,
+  `world: ${WORLD_FIELDS.join(', ')}（profile: { "时间": "YYYY-MM-DD", "地点": "开场地点" }，新会话开始时带入；建世界时时间必填）`,
   `entry: ${ENTRY_FIELDS.join(', ')}（trigger: always/keyword/llm/state；conditions: [{ field: "玩家.生命", op: "<", value: 30 }]）`,
   `field: ${FIELD_FIELDS.join(', ')}（target: world/persona/character；type: number/text/enum/list/boolean/datetime/table；default 写原生值）`,
   `character: ${CHARACTER_FIELDS.join(', ')}（profile: { 档案字段标签: 文本或文本列表 }，如 { "性别": "女", "核心性格": ["冷静"] }；state: { 状态字段标签: 原生值 }）`,

@@ -16,7 +16,7 @@ const refOf = (message, kind) => message.match(new RegExp(`${kind}:[\\w.-]+`))[0
 
 test('create world 切换当前世界，后续资源默认建在新世界', async () => {
   const ws = createWorkspace({});
-  const msg = await ws.create('world', { name: '雾港', description: '蒸汽与潮汐的港城' });
+  const msg = await ws.create('world', { name: '雾港', description: '蒸汽与潮汐的港城', profile: { 时间: '1024-03-05' } });
   const worldRef = refOf(msg, 'world');
   assert.equal(ws.session.worldId, worldRef.slice('world:'.length));
 
@@ -104,7 +104,7 @@ test('field：生成 key、默认值按类型转换、同名拒绝、update_inst
 
 test('character / persona：state 用标签写原生值，类型不符给出可读错误', async () => {
   const ws = createWorkspace({});
-  await ws.create('world', { name: 'card-world' });
+  await ws.create('world', { name: 'card-world', profile: { 时间: '1024-03-05' } });
   await ws.create('field', { target: 'character', label: '好感度', type: 'number', min: 0, max: 100 });
   await ws.create('field', { target: 'character', label: '性格', type: 'list' });
 
@@ -188,7 +188,7 @@ test('工具层：失败以 { success:false, error } 返回并去掉内部前缀
 
 test('persona：新世界只有一张空白玩家卡时直接填写它，不再多建一张', async () => {
   const ws = createWorkspace({});
-  await ws.create('world', { name: 'blank-persona-world' });
+  await ws.create('world', { name: 'blank-persona-world', profile: { 时间: '1024-03-05' } });
   await ws.create('field', { target: 'persona', label: '年龄', type: 'number' });
   const before = JSON.parse(ws.read('personas'));
   assert.equal(before.length, 1);
@@ -205,7 +205,7 @@ test('persona：新世界只有一张空白玩家卡时直接填写它，不再�
 
 test('character / persona：profile 写入档案初始值，未知字段和错误类型在建卡前拒绝', async () => {
   const ws = createWorkspace({});
-  await ws.create('world', { name: 'profile-world' });
+  await ws.create('world', { name: 'profile-world', profile: { 时间: '1024-03-05' } });
 
   await assert.rejects(
     () => ws.create('character', { name: '不该建成', profile: { 魔力: '高' } }),
@@ -233,8 +233,11 @@ test('character / persona：profile 写入档案初始值，未知字段和错�
   await assert.rejects(() => ws.update(personaRef, { profile: { 核心性格: ['温和'] } }), /没有档案字段 "核心性格"/);
 });
 
-test('world：profile 经业务层写入，占位值不落库，时间格式无效时报错并给出格式', async () => {
+test('world：profile 经业务层写入，占位值不落库，时间格式无效时报错并给出格式，开场时间必填且不能清空', async () => {
   const ws = createWorkspace({});
+  await assert.rejects(() => ws.create('world', { name: 'no-time' }), /建世界必须在 profile 里写开场时间/);
+  await assert.rejects(() => ws.create('world', { name: 'no-time', profile: { 地点: '雾港' } }), /开场时间为必填项/);
+  assert.equal(ws.session.worldId, null, '缺开场时间时不建世界');
   await ws.create('world', { name: 'world-profile', profile: { 时间: '1024-03-05', 地点: '未知' } });
   assert.deepEqual(JSON.parse(ws.read('world')).profile, { 时间: '1024-03-05' });
 
@@ -244,5 +247,6 @@ test('world：profile 经业务层写入，占位值不落库，时间格式无�
 
   await assert.rejects(() => ws.update(worldRef, { profile: { 时间: '下周' } }), /时间格式无效，用 YYYY-MM-DD/);
   await assert.rejects(() => ws.update(worldRef, { profile: { 天气: '晴' } }), /世界档案只有时间、地点/);
+  await assert.rejects(() => ws.update(worldRef, { profile: { 时间: null } }), /开场时间为必填项/);
   assert.deepEqual(JSON.parse(ws.read('world')).profile, { 时间: '1024-03-05', 地点: '雾港' });
 });

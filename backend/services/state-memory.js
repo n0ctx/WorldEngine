@@ -44,7 +44,7 @@ import { getMessagesBySessionId } from '../db/queries/messages.js';
 import { getCharacterById } from '../db/queries/characters.js';
 import { getAllCharacterStateValues } from '../db/queries/character-state-values.js';
 import { splitRounds } from '../utils/session-rounds.js';
-import { parseWorldDate, deriveAge } from '../utils/world-date.js';
+import { parseWorldDate, deriveAge, formatWorldDateOnly } from '../utils/world-date.js';
 import { validateValue } from '../utils/state-field-validate.js';
 import { truncateText, truncateListItems, seedProfileDefaults } from '../memory/state-memory-apply.js';
 import {
@@ -277,12 +277,6 @@ export function applyEntityBasicPatch(sessionId, entity, body, round) {
   entity.pinned = pinned ? 1 : 0;
 }
 
-function formatWorldDateShort(worldDate) {
-  const mm = String(worldDate.month).padStart(2, '0');
-  const dd = String(worldDate.day).padStart(2, '0');
-  return `${worldDate.year}-${mm}-${dd}`;
-}
-
 function resolveManualProfileFieldDef(entityType, worldId, fieldKey) {
   const fieldDef = getProfileFieldDefinitions(entityType).find((d) => d.key === fieldKey);
   if (!fieldDef) throw serviceError('bad_request', `未知档案字段: ${fieldKey}`);
@@ -300,7 +294,7 @@ function normalizeManualListValue(fieldDef, value) {
 function normalizeManualAgeValue(fieldDef, value, { round, worldDate }) {
   if (typeof value?.age !== 'number') throw serviceError('bad_request', `${fieldDef.key} 格式无效`);
   const recorded = { age: value.age, as_of_round: typeof value.as_of_round === 'number' ? value.as_of_round : round };
-  const asOfDate = value.as_of_date ?? (worldDate ? formatWorldDateShort(worldDate) : undefined);
+  const asOfDate = value.as_of_date ?? (worldDate ? formatWorldDateOnly(worldDate) : undefined);
   if (asOfDate) recorded.as_of_date = asOfDate;
   return recorded;
 }

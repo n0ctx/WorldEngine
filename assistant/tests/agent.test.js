@@ -97,7 +97,7 @@ test('buildSystemPrompt 附带参考文档清单与当前位置', async () => {
 test('上一轮新建的世界在下一轮仍是当前世界，操作记录带上新资源 ref', async () => {
   const task = taskStore.createTask({ context: {} });
   process.env.MOCK_LLM_TOOL_CALLS_QUEUE = JSON.stringify([
-    [{ name: 'create', arguments: { kind: 'world', data: { name: '跨轮世界' } } }],
+    [{ name: 'create', arguments: { kind: 'world', data: { name: '跨轮世界', profile: { 时间: '1024-03-05' } } } }],
     [{ name: 'create', arguments: { kind: 'entry', data: { title: '港口', content: '雾很大。' } } }],
   ]);
   process.env.MOCK_LLM_COMPLETE = '好了';

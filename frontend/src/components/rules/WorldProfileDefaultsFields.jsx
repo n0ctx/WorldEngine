@@ -7,7 +7,7 @@ import { log } from '../../core/utils/logger.js';
 
 const WORLD_DATE_RE = /^\d+-\d{2}-\d{2}(?:T\d{2}:\d{2})?$/;
 
-/** 世界卡的开场时间、开场地点。新会话还没有世界档案时会带入。 */
+/** 世界卡的开场时间（必填，不能清空）、开场地点。新会话还没有世界档案时会带入。 */
 export default function WorldProfileDefaultsFields({ worldId }) {
   const [rows, setRows] = useState([]);
 
@@ -55,14 +55,10 @@ function TimeDefault({ row, onSave }) {
   const value = storedText(row.value_json);
   return (
     <div className="we-state-value-row">
-      <p className="we-state-value-label">{row.label}</p>
+      <p className="we-state-value-label">{row.label}<span className="we-form-required"> *</span></p>
       <DatetimeSplitInput
         value={WORLD_DATE_RE.test(value) ? value : ''}
         onChange={(next) => { if (next === '') return; onSave(row.field_key, JSON.stringify(next)); }}
-        onBlur={(event) => {
-          const digits = event.currentTarget.querySelector('input')?.value ?? '';
-          if (digits === '' && value) onSave(row.field_key, null);
-        }}
       />
     </div>
   );

@@ -98,6 +98,12 @@ vi.mock('../../src/components/ui/SectionTabs.jsx', () => ({
 
 import WorldEditPage from '../../src/pages/WorldEditPage/index.jsx';
 
+function fillOpeningTime() {
+  fireEvent.change(screen.getByLabelText('YYYY'), { target: { value: '1005' } });
+  fireEvent.change(screen.getByLabelText('MM'), { target: { value: '03' } });
+  fireEvent.change(screen.getByLabelText('DD'), { target: { value: '15' } });
+}
+
 describe('WorldEditPage', () => {
   beforeEach(() => {
     mocks.useParams.mockReturnValue({ worldId: 'world-1' });
@@ -299,6 +305,19 @@ describe('WorldEditPage', () => {
     expect(mocks.updateWorld).not.toHaveBeenCalled();
   });
 
+  it('创建时开场时间为必填项，未填不提交', async () => {
+    mocks.useParams.mockReturnValue({});
+    mocks.useLocation.mockReturnValue({ state: {} });
+
+    render(<WorldEditPage />);
+    fireEvent.change(screen.getByLabelText('世界的名称'), { target: { value: '新世界' } });
+    fireEvent.click(screen.getByText('创建世界'));
+
+    expect(await screen.findByText('保存失败：开场时间为必填项')).toBeInTheDocument();
+    expect(mocks.createWorld).not.toHaveBeenCalled();
+    sessionStorage.removeItem('world_create_draft');
+  });
+
   it('创建模式重新打开时会恢复草稿', async () => {
     mocks.useParams.mockReturnValue({});
     mocks.useLocation.mockReturnValue({ state: {} });
@@ -321,11 +340,13 @@ describe('WorldEditPage', () => {
     render(<WorldEditPage />);
 
     fireEvent.change(screen.getByLabelText('世界的名称'), { target: { value: '新世界' } });
+    fillOpeningTime();
     fireEvent.click(screen.getByText('创建世界'));
 
     await waitFor(() => expect(mocks.createWorld).toHaveBeenCalledWith({
       name: '新世界',
       description: '',
+      profile_defaults: { time: '1005-03-15' },
     }));
     expect(mocks.useNavigate).toHaveBeenCalledWith(-1);
   });
@@ -337,11 +358,13 @@ describe('WorldEditPage', () => {
     render(<WorldEditPage />);
 
     fireEvent.change(screen.getByLabelText('世界的名称'), { target: { value: '直达新世界' } });
+    fillOpeningTime();
     fireEvent.click(screen.getByText('创建世界'));
 
     await waitFor(() => expect(mocks.createWorld).toHaveBeenCalledWith({
       name: '直达新世界',
       description: '',
+      profile_defaults: { time: '1005-03-15' },
     }));
     expect(mocks.useNavigate).toHaveBeenCalledWith('/worlds/world-2/edit', { replace: true });
   });

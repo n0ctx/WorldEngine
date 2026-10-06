@@ -4,6 +4,8 @@
  * 只读、只推断，不写库：写库由前端在用户勾选确认后走既有接口——状态字段走
  * PATCH .../state-values/:fieldKey，档案字段（带 profile_key 的建议）走 PATCH .../profile-defaults/:fieldKey。
  *
+ * 出生日期：人设写明了就照写；只写了年龄时按世界卡的开场日期倒推（见 state-extract-birth-date.js）。
+ *
  * 人设为空（name/description/system_prompt 全空）时直接返回空数组，不占用一次 LLM 调用。
  * 每个字段的建议值都经过 validateValue（backend/utils/state-field-validate.js）校验，
  * 校验不过直接丢弃该字段，不让整体调用失败。
@@ -18,6 +20,7 @@ import { getPersonaStateFieldsByWorldId } from '../db/queries/persona-state-fiel
 import { getAllPersonaStateValuesByPersonaId } from '../db/queries/persona-state-values.js';
 import { validateValue } from '../utils/state-field-validate.js';
 import { listProfileDefaultRows } from './profile-defaults.js';
+import { prepareBirthDateAgeInput, resolveBirthDate } from './state-extract-birth-date.js';
 import { isPlaceholderValue } from '../memory/state-memory-schema.js';
 import { renderBackendPrompt } from '../prompts/prompt-loader.js';
 import { LLM_TASK_TEMPERATURE, LLM_STATE_UPDATE_MAX_TOKENS, STATE_TEXT_COMPRESS_TARGET, STATE_LIST_MAX_ITEMS } from '../utils/constants.js';
@@ -149,7 +152,7 @@ async function callExtractLLM({ name, personaText, fields, callType }) {
 }
 
 const PROFILE_KEY_PREFIX = 'profile.';
-const PROFILE_FIELD_HINTS = { birth_date: '格式 YYYY-MM-DD' };
+const PROFILE_FIELD_HINTS = { birth_date: '格式 YYYY-MM-DD，只在人设写明出生日期时填' };
 
 /** 档案字段按状态字段的形状参与推断：key 加 profile. 前缀避免与状态字段重名，当前值取卡片上的档案初始值。 */
 function buildProfileExtractFields(kind, id) {
@@ -174,8 +177,10 @@ async function extractSuggestions(entity, { kind, stateFields, loadValueRows, ca
     ...loadValueRows().map((v) => [v.field_key, v]),
     ...profileFields.map((f) => [f.field_key, { default_value_json: f.current_value_json }]),
   ]);
-  const suggestions = await callExtractLLM({ name: entity.name, personaText, fields, callType });
-  return buildResult(fields, valueMap, suggestions);
+  const ageInput = prepareBirthDateAgeInput(profileFields, entity.world_id);
+  const promptFields = ageInput ? [...fields, ageInput.field] : fields;
+  const suggestions = await callExtractLLM({ name: entity.name, personaText, fields: promptFields, callType });
+  return buildResult(fields, valueMap, resolveBirthDate(suggestions, ageInput));
 }
 
 /**

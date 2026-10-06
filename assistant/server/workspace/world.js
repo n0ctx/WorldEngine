@@ -2,7 +2,7 @@
 
 import { getAllWorlds } from '../../../backend/db/queries/worlds.js';
 import { getWorldById } from '../../../backend/services/worlds.js';
-import { updateWorldProfileDefaults } from '../../../backend/services/world-profile-defaults.js';
+import { buildNewWorldProfileDefaults, updateWorldProfileDefaults } from '../../../backend/services/world-profile-defaults.js';
 import { getAllWorldEntries } from '../../../backend/db/queries/prompt-entries.js';
 
 import { normalizeProposal } from '../normalize-proposal.js';
@@ -52,8 +52,7 @@ function worldProfileView(profileDefaultsJson) {
   return compact({ 时间: parsed.time, 地点: parsed.location });
 }
 
-function saveWorldProfile(worldId, profile) {
-  if (!profile) return;
+function toWorldProfilePatch(profile) {
   if (typeof profile !== 'object' || Array.isArray(profile)) fail('profile 必须是 { 时间, 地点 } 对象');
   const patch = {};
   for (const [name, raw] of Object.entries(profile)) {
@@ -61,14 +60,21 @@ function saveWorldProfile(worldId, profile) {
     if (!key) fail(`世界档案只有时间、地点，不支持 "${name}"`);
     patch[key] = raw;
   }
-  updateWorldProfileDefaults(worldId, patch);
+  return patch;
+}
+
+function saveWorldProfile(worldId, profile) {
+  if (!profile) return;
+  updateWorldProfileDefaults(worldId, toWorldProfilePatch(profile));
 }
 
 export async function createWorld(session, data) {
   const { profile, ...changes } = pickKnown(data, WORLD_FIELDS, 'world');
   requireText(changes.name, 'name（世界名）');
+  if (!profile) fail('建世界必须在 profile 里写开场时间（时间：YYYY-MM-DD 或 YYYY-MM-DDTHH:mm）');
+  const profileDefaults = buildNewWorldProfileDefaults(toWorldProfilePatch(profile));
   const world = await applyProposal(normalizeProposal({ type: 'world-card', operation: 'create', changes }));
-  saveWorldProfile(world.id, profile);
+  updateWorldProfileDefaults(world.id, profileDefaults);
   session.worldId = world.id;
   return `已创建 world:${world.id}（${world.name}），之后的操作默认作用于这个世界。新世界已自带默认状态字段，read("world") 可查看`;
 }
