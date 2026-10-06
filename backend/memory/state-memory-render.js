@@ -188,13 +188,17 @@ function buildIdentityParts(profile, activeKeys, worldDate) {
 }
 
 function buildAppearanceParts(profile, activeKeys) {
-  const bits = ['height', 'build', 'hair', 'eyes']
+  const attractiveness = pickActiveField(profile, activeKeys, 'attractiveness');
+  const bits = ['height', 'weight', 'hair', 'eyes']
     .map((key) => pickActiveField(profile, activeKeys, key))
     .filter(Boolean);
-  const features = pickActiveList(profile, activeKeys, 'distinguishing_features');
+  const features = pickActiveList(profile, activeKeys, 'appearance_features');
+  const body = pickActiveList(profile, activeKeys, 'body_features');
   return {
+    attractiveness: attractiveness ? `颜值：${attractiveness}` : '',
     core: bits.join('，'),
-    features: features ? features.join('、') : '',
+    features: features ? `外貌特征：${features.join('、')}` : '',
+    body: body ? `身材特征：${body.join('、')}` : '',
   };
 }
 
@@ -325,9 +329,13 @@ function buildProfileFragments(entity, ctx, state, bucket, fragments) {
   ]);
 
   const appearance = buildAppearanceParts(details.profile, activeKeys);
+  // 颜值锁定了角色的长相基调，和身份核心一样不随预算裁掉
+  state.appearanceAttractiveness = appearance.attractiveness;
+  if (appearance.attractiveness) requiredParts.push(appearance.attractiveness);
   addOptionalFragments(fragments, bucket, state, [
     [appearance.core, 'appearanceCore'],
     [appearance.features, 'appearanceFeatures'],
+    [appearance.body, 'appearanceBody'],
   ]);
 
   const personality = buildPersonalityParts(details.profile, activeKeys);
@@ -387,10 +395,10 @@ function finalizeCharacterBlock(state) {
   }
   if (identityLine) lines.push(identityLine);
 
-  if (state.appearanceCore || state.appearanceFeatures) {
-    const bits = [state.appearanceCore, state.appearanceFeatures ? `显著特征：${state.appearanceFeatures}` : ''].filter(Boolean);
-    lines.push(`外貌：${bits.join('；')}`);
-  }
+  const appearanceBits = [
+    state.appearanceAttractiveness, state.appearanceCore, state.appearanceFeatures, state.appearanceBody,
+  ].filter(Boolean);
+  if (appearanceBits.length) lines.push(`外貌：${appearanceBits.join('；')}`);
   if (state.outfitText) lines.push(`穿着：${state.outfitText}`);
 
   const personalityBits = [

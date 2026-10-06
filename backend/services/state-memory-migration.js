@@ -75,7 +75,7 @@ const NEARBY_TO_PROFILE_FIELD = {
   outfit: 'outfit',
   personality: 'core_traits',
   age: 'age_recorded',
-  appearance: 'distinguishing_features',
+  appearance: 'appearance_features',
   identity: 'social_identity',
 };
 

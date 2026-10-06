@@ -1,5 +1,7 @@
 import { randomUUID } from 'node:crypto';
 
+import { migrateAppearanceProfileKeys } from './migrations/appearance-profile-keys.js';
+
 const TABLES = `
 CREATE TABLE IF NOT EXISTS worlds (
   id                    TEXT PRIMARY KEY,
@@ -482,6 +484,7 @@ CREATE INDEX IF NOT EXISTS idx_state_world_profile_session_valid ON state_world_
  */
 const MIGRATIONS = [
   migrateLegacySchema,
+  migrateAppearanceProfileKeys,
 ];
 
 export function initSchema(db) {

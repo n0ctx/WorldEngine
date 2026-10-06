@@ -147,6 +147,24 @@ test('预算极小时身份组四要素与说话方式仍保留，其余内容�
   assert.ok(!text.includes('伤势'), '现状应因预算被裁掉');
 });
 
+test('外貌一行依次写颜值、身高体重发型眼睛、外貌特征、身材特征；预算极小时颜值仍保留', () => {
+  const { sessionId, worldId } = setupSession();
+  const entityId = createEntity(sessionId, { name: '林晚', round: 1 });
+  upsertProfileField(sessionId, entityId, 'gender', '"女"', '林晚是个女人', 1);
+  upsertProfileField(sessionId, entityId, 'attractiveness', '"极美，清冷型"', '她美得让人不敢靠近', 1);
+  upsertProfileField(sessionId, entityId, 'height', '"168cm"', '她身高168cm', 1);
+  upsertProfileField(sessionId, entityId, 'weight', '"偏瘦"', '她偏瘦', 1);
+  upsertProfileField(sessionId, entityId, 'appearance_features', '["左眉有疤"]', '她左眉有疤', 1);
+  upsertProfileField(sessionId, entityId, 'body_features', '["腿长"]', '她腿长', 1);
+
+  const full = renderStoryState(sessionId, { worldId, userMessage: '林晚出场', budget: 3000 });
+  assert.match(full, /外貌：颜值：极美，清冷型；168cm，偏瘦；外貌特征：左眉有疤；身材特征：腿长/);
+
+  const tight = renderStoryState(sessionId, { worldId, userMessage: '林晚出场', budget: 1 });
+  assert.match(tight, /外貌：颜值：极美，清冷型/);
+  assert.ok(!tight.includes('168cm'), '其余外貌应因预算被裁掉');
+});
+
 test('世界时间地点不受预算影响', () => {
   const { sessionId, worldId } = setupSession();
   upsertWorldProfile(sessionId, 'time', '1000-03-16T08:00', null, 1);
@@ -230,18 +248,18 @@ test('renderProfileGapsForUpdate：列出空档案、NPC 空用户字段与缺�
   const retired = createEntity(sessionId, { name: '已退场' });
   upsertEntity(sessionId, { entityId: retired, seq: 5, type: 'character', name: '已退场', aliasesJson: '[]', status: 'retired' }, 2);
 
-  const characterKeys = 'gender、birth_date、species、origin、occupation、social_identity、background、height、build、hair、eyes、distinguishing_features、outfit、core_traits、behavioral_patterns、values、speech_style';
+  const characterKeys = 'gender、birth_date、species、origin、occupation、social_identity、background、attractiveness、height、weight、hair、eyes、appearance_features、body_features、outfit、core_traits、behavioral_patterns、values、speech_style';
   const lines = renderProfileGapsForUpdate(sessionId, { worldId, priorityIds: new Set([late]) }).text.split('\n');
   assert.deepEqual(lines, [
     `e4｜丙｜缺档案：${characterKeys}｜缺字段：goal`,
     'e1｜旧港｜缺档案：features',
     `e2｜卡片｜缺档案：${characterKeys}｜缺字段：goal｜缺现状：位置｜角色卡：寡言的旅人`,
-    'e3｜玩家｜缺档案：gender、birth_date、species、origin、occupation、social_identity、background、height、build、hair、eyes、distinguishing_features、outfit｜缺现状：位置',
+    'e3｜玩家｜缺档案：gender、birth_date、species、origin、occupation、social_identity、background、attractiveness、height、weight、hair、eyes、appearance_features、body_features、outfit｜缺现状：位置',
   ]);
 
   const withMain = renderProfileGapsForUpdate(sessionId, { worldId, priorityIds: new Set([player]), mainCharacterEntityId: cardEntity }).text;
   assert.deepEqual(withMain.split('\n'), [
-    'e3｜玩家｜缺档案：gender、birth_date、species、origin、occupation、social_identity、background、height、build、hair、eyes、distinguishing_features、outfit｜缺现状：位置',
+    'e3｜玩家｜缺档案：gender、birth_date、species、origin、occupation、social_identity、background、attractiveness、height、weight、hair、eyes、appearance_features、body_features、outfit｜缺现状：位置',
     'e1｜旧港｜缺档案：features',
     `e2｜卡片｜缺档案：${characterKeys}｜缺现状：位置｜角色卡：寡言的旅人`,
     `e4｜丙｜缺档案：${characterKeys}｜缺字段：goal`,

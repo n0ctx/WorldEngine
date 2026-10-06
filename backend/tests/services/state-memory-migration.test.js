@@ -427,7 +427,7 @@ test('完整旧数据迁移：附近角色、四张表、世界档案、条件�
   assert.equal(background.evidence, '迁移');
   assert.deepEqual(profileValue(session.id, shenyanEntity.entity_id, 'core_traits').value, ['克制', '多疑']);
   assert.deepEqual(profileValue(session.id, shenyanEntity.entity_id, 'age_recorded').value, { age: 34, as_of_round: 0 });
-  assert.deepEqual(profileValue(session.id, shenyanEntity.entity_id, 'distinguishing_features').value, ['高瘦']);
+  assert.deepEqual(profileValue(session.id, shenyanEntity.entity_id, 'appearance_features').value, ['高瘦']);
   assert.deepEqual(profileValue(session.id, shenyanEntity.entity_id, 'social_identity').value, ['退役军人']);
   assert.deepEqual(profileValue(session.id, shenyanEntity.entity_id, 'outfit').value, ['黑色风衣']);
 

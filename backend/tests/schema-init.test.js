@@ -290,7 +290,7 @@ test('initSchema 在新建的空库上记录结构版本，且不生成备份', 
     try {
       // guard-allow(tests): initSchema 是被测对象，每个用例要从各自不同的库状态起步
       initSchema(db);
-      assert.equal(db.pragma('user_version', { simple: true }), 1);
+      assert.equal(db.pragma('user_version', { simple: true }), 2);
       assert.deepEqual(backupFiles(dir), []);
     } finally {
       db.close();
@@ -316,7 +316,7 @@ test('initSchema 升级已有数据的旧库前留下一份升级前的备份，
       initSchema(db);
       initSchema(db);
 
-      assert.equal(db.pragma('user_version', { simple: true }), 1);
+      assert.equal(db.pragma('user_version', { simple: true }), 2);
       const worldColumns = db.pragma('table_info(worlds)').map((column) => column.name);
       assert.ok(!worldColumns.includes('post_prompt'));
 
@@ -355,6 +355,50 @@ test('initSchema 遇到改表失败时直接报错，不记录为已升级', () 
     // guard-allow(tests): initSchema 是被测对象，每个用例要从各自不同的库状态起步
     assert.throws(() => initSchema(db), /post_prompt/);
     assert.equal(db.pragma('user_version', { simple: true }), 0);
+  } finally {
+    db.close();
+  }
+});
+
+test('initSchema 把外貌档案旧字段改成新字段：显著特征 → 外貌特征，体型 → 身材特征第一条', () => {
+  const db = new Database(':memory:');
+  try {
+    // guard-allow(tests): 先建到上一版结构写入旧数据，再退回版本号让本步升级执行
+    initSchema(db);
+    db.pragma('foreign_keys = OFF');
+    db.exec(`
+      INSERT INTO state_profile_fields (row_id, session_id, entity_id, field_key, value_json, valid_from_round, valid_to_round)
+      VALUES ('r1', 's1', 'e1', 'build', '"偏瘦"', 1, 3),
+             ('r2', 's1', 'e1', 'build', '"高瘦"', 3, NULL),
+             ('r3', 's1', 'e1', 'distinguishing_features', '["左眉有疤"]', 1, NULL),
+             ('r4', 's1', 'e1', 'hair', '"黑色长发"', 1, NULL);
+      INSERT INTO worlds (id, name, created_at, updated_at) VALUES ('w1', 'W', 1, 1);
+      INSERT INTO characters (id, world_id, name, created_at, updated_at, profile_defaults_json)
+      VALUES ('c1', 'w1', 'C', 1, 1, '{"build":"壮实","distinguishing_features":["雀斑"],"hair":"短发"}');
+      INSERT INTO personas (id, world_id, created_at, updated_at, profile_defaults_json)
+      VALUES ('p1', 'w1', 1, 1, '{"build":"矮小"}');
+    `);
+    db.pragma('user_version = 1');
+    initSchema(db);
+
+    assert.equal(db.pragma('user_version', { simple: true }), 2);
+    assert.deepEqual(
+      db.prepare('SELECT row_id, field_key, value_json FROM state_profile_fields ORDER BY row_id').all(),
+      [
+        { row_id: 'r1', field_key: 'body_features', value_json: '["偏瘦"]' },
+        { row_id: 'r2', field_key: 'body_features', value_json: '["高瘦"]' },
+        { row_id: 'r3', field_key: 'appearance_features', value_json: '["左眉有疤"]' },
+        { row_id: 'r4', field_key: 'hair', value_json: '"黑色长发"' },
+      ],
+    );
+    assert.deepEqual(
+      JSON.parse(db.prepare('SELECT profile_defaults_json FROM characters').get().profile_defaults_json),
+      { hair: '短发', appearance_features: ['雀斑'], body_features: ['壮实'] },
+    );
+    assert.deepEqual(
+      JSON.parse(db.prepare('SELECT profile_defaults_json FROM personas').get().profile_defaults_json),
+      { body_features: ['矮小'] },
+    );
   } finally {
     db.close();
   }

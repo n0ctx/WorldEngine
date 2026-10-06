@@ -218,6 +218,20 @@ test('角色卡 round-trip 保持角色主体与合法状态值等价', async ()
   assert.deepEqual(normalizeCharacterPackage(reExported), normalizeCharacterPackage(exported));
 });
 
+test('导入旧版角色卡时，档案初始值的体型、显著特征换成身材特征、外貌特征', () => {
+  const sourceWorld = insertWorld(sandbox.db, { name: '旧卡源世界' });
+  const targetWorld = insertWorld(sandbox.db, { name: '旧卡目标世界' });
+  const character = insertCharacter(sandbox.db, sourceWorld.id, { name: '旧卡角色' });
+  const exported = exportCharacter(character.id);
+  exported.character.profile_defaults = { gender: '男', build: '魁梧', distinguishing_features: ['络腮胡'] };
+
+  const imported = importCharacter(targetWorld.id, exported);
+
+  assert.deepEqual(exportCharacter(imported.id).character.profile_defaults, {
+    gender: '男', appearance_features: ['络腮胡'], body_features: ['魁梧'],
+  });
+});
+
 test('玩家卡 round-trip 保持玩家主体与合法状态值等价', async () => {
   const sourceWorld = insertWorld(sandbox.db, { name: '源世界-玩家' });
   const targetWorld = insertWorld(sandbox.db, { name: '目标世界-玩家' });

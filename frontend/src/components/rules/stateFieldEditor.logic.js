@@ -56,7 +56,7 @@ export function updateStateFieldForm(setForm, key, value) {
 }
 
 const APPEARANCE_GROUP = '外貌';
-const APPEARANCE_GROUP_FIELDS_LABEL = '身高、体型、发型、眼睛、显著特征';
+const APPEARANCE_GROUP_FIELDS_LABEL = '颜值、身高、体重、发型、眼睛、外貌特征、身材特征';
 // guard-allow(duplication): backend/memory/state-memory-schema.js 的同义词匹配规则前端镜像，必须逐字一致
 const CHAR_FIELD_KEY_SUFFIX = '_char';
 

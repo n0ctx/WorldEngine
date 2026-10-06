@@ -49,12 +49,13 @@ test('character 档案字段的可变性与分组符合设计', () => {
   assert.equal(byKey.background.appendOnly, true);
   assert.equal(byKey.outfit.mutability, 'dynamic');
   assert.equal(byKey.gender.mutability, 'immutable');
+  assert.equal(byKey.attractiveness.mutability, 'immutable', '颜值建档后锁定');
   assert.equal(byKey.occupation.mutability, 'semi_stable');
 
   for (const key of ['gender', 'birth_date', 'age_recorded', 'species', 'origin', 'occupation', 'social_identity', 'background']) {
     assert.equal(byKey[key].group, '身份');
   }
-  for (const key of ['height', 'build', 'hair', 'eyes', 'distinguishing_features', 'outfit']) {
+  for (const key of ['attractiveness', 'height', 'weight', 'hair', 'eyes', 'appearance_features', 'body_features', 'outfit']) {
     assert.equal(byKey[key].group, '外貌');
   }
   for (const key of ['core_traits', 'behavioral_patterns', 'values', 'speech_style']) {
@@ -65,7 +66,7 @@ test('character 档案字段的可变性与分组符合设计', () => {
 test('外貌组字段共享同义词', () => {
   const fields = getProfileFieldDefinitions('character');
   const byKey = Object.fromEntries(fields.map((f) => [f.key, f]));
-  for (const key of ['height', 'build', 'hair', 'eyes', 'distinguishing_features']) {
+  for (const key of ['attractiveness', 'height', 'weight', 'hair', 'eyes', 'appearance_features', 'body_features']) {
     assert.deepEqual(byKey[key].synonyms, ['外貌', 'appearance']);
   }
 });
@@ -129,7 +130,7 @@ test('外貌同义命中时，外貌组整组停用', () => {
   sandbox.db.prepare('UPDATE character_state_fields SET nearby_enabled = 1 WHERE world_id = ?').run(world.id);
 
   const active = resolveActiveProfileFields(world.id, 'character');
-  for (const key of ['height', 'build', 'hair', 'eyes', 'distinguishing_features']) {
+  for (const key of ['attractiveness', 'height', 'weight', 'hair', 'eyes', 'appearance_features', 'body_features']) {
     assert.ok(!active.includes(key), `${key} 应随外貌组停用`);
   }
   assert.ok(active.includes('outfit'), '穿着不属于外貌组同义词，不受影响');

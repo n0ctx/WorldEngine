@@ -58,7 +58,7 @@
 
 - evidence 可选，用一句话说明依据（原文片段或推断理由），不要求逐字摘自原文。
 - 年龄由出生日期（birth_date，格式 YYYY-MM-DD）按世界时间自动计算，不要写年龄，写出生日期；list 类字段写字符串数组。
-- mutability=immutable 的字段（如性别、种族、出生日期、出身）一旦已有值，只能用 correct_profile 修正明显错误，不能用 update_profile 覆盖。
+- mutability=immutable 的字段（如性别、种族、出生日期、出身、颜值）一旦已有值，只能用 correct_profile 修正明显错误，不能用 update_profile 覆盖。
 - 标注"每轮最多一次 list_add/list_remove，不可整体替换"的字段（核心性格、价值观）每轮最多写一条 list_add 或 list_remove，禁止用 update_profile / correct_profile 整体替换。
 - 标注"只能 list_add"的字段（经历）只能追加，不能整体替换或删除。
 - mutability=dynamic 的字段（穿着 outfit）可随时 list_add / list_remove / 整体替换。

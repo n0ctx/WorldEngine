@@ -44,6 +44,7 @@ import {
   EXPORT_FORMAT_MIGRATION,
 } from './import-export-constants.js';
 import { UPLOADS_DIR } from '../utils/data-dir.js';
+import { upgradeLegacyProfileDefaults } from '../utils/legacy-profile-keys.js';
 import { parseProfileDefaults, sanitizeProfileDefaults } from '../memory/state-memory-schema.js';
 import { sanitizeWorldProfileDefaults } from './world-profile-defaults.js';
 
@@ -179,6 +180,11 @@ function normalizeImportedPersonas(data) {
   }];
 }
 
+/** 卡片里的档案初始值：丢掉形状不对的值，旧版外貌字段换成新字段 */
+function importedProfileDefaultsJson(profileDefaults) {
+  return JSON.stringify(upgradeLegacyProfileDefaults(sanitizeProfileDefaults(profileDefaults)));
+}
+
 /** 角色卡 / 世界卡里的角色转成 characters 行；头像先写盘（在导入事务内调用） */
 function characterRow(characterId, worldId, charData, sortOrder, now) {
   return {
@@ -189,7 +195,7 @@ function characterRow(characterId, worldId, charData, sortOrder, now) {
     system_prompt: charData.system_prompt ?? '',
     post_prompt: charData.post_prompt ?? '',
     first_message: charData.first_message ?? '',
-    profile_defaults_json: JSON.stringify(sanitizeProfileDefaults(charData.profile_defaults)),
+    profile_defaults_json: importedProfileDefaultsJson(charData.profile_defaults),
     avatar_path: saveAvatarFile(characterId, charData.avatar_base64, charData.avatar_mime),
     sort_order: sortOrder,
     created_at: now,
@@ -205,7 +211,7 @@ function personaRow(personaId, worldId, persona, sortOrder, now) {
     name: persona.name ?? '',
     description: persona.description ?? '',
     system_prompt: persona.system_prompt ?? '',
-    profile_defaults_json: JSON.stringify(sanitizeProfileDefaults(persona.profile_defaults)),
+    profile_defaults_json: importedProfileDefaultsJson(persona.profile_defaults),
     avatar_path: saveAvatarFile(personaId, persona.avatar_base64, persona.avatar_mime),
     sort_order: sortOrder,
     created_at: now,

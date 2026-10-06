@@ -27,11 +27,13 @@ const CHARACTER_PROFILE_FIELDS = [
   { key: 'social_identity', label: '社会身份', group: '身份', kind: 'list', mutability: 'semi_stable', synonyms: [] },
   { key: 'background', label: '经历', group: '身份', kind: 'list', mutability: 'semi_stable', appendOnly: true, synonyms: [] },
   // 外貌
+  { key: 'attractiveness', label: '颜值', group: '外貌', kind: 'text', mutability: 'immutable', hint: '整体好不好看、哪种好看；剧情里的外貌变化写进外貌特征', synonyms: APPEARANCE_SYNONYMS },
   { key: 'height', label: '身高', group: '外貌', kind: 'text', mutability: 'semi_stable', synonyms: APPEARANCE_SYNONYMS },
-  { key: 'build', label: '体型', group: '外貌', kind: 'text', mutability: 'semi_stable', synonyms: APPEARANCE_SYNONYMS },
+  { key: 'weight', label: '体重', group: '外貌', kind: 'text', mutability: 'semi_stable', hint: '可写数值，也可写「偏瘦」「壮实」这类说法', synonyms: APPEARANCE_SYNONYMS },
   { key: 'hair', label: '发型', group: '外貌', kind: 'text', mutability: 'semi_stable', synonyms: APPEARANCE_SYNONYMS },
   { key: 'eyes', label: '眼睛', group: '外貌', kind: 'text', mutability: 'semi_stable', synonyms: APPEARANCE_SYNONYMS },
-  { key: 'distinguishing_features', label: '显著特征', group: '外貌', kind: 'list', mutability: 'semi_stable', synonyms: APPEARANCE_SYNONYMS },
+  { key: 'appearance_features', label: '外貌特征', group: '外貌', kind: 'list', mutability: 'semi_stable', hint: '脸部特点，及疤痕、胎记、纹身等可辨认的痕迹', synonyms: APPEARANCE_SYNONYMS },
+  { key: 'body_features', label: '身材特征', group: '外貌', kind: 'list', mutability: 'semi_stable', hint: '体型轮廓、身体比例、体态、肌肉', synonyms: APPEARANCE_SYNONYMS },
   { key: 'outfit', label: '穿着', group: '外貌', kind: 'list', mutability: 'dynamic', synonyms: ['穿着', '服装', '衣着', 'outfit'] },
   // 人格
   { key: 'core_traits', label: '核心性格', group: '人格', kind: 'list', mutability: 'semi_stable', highBar: true, synonyms: ['性格', '个性', 'personality'] },

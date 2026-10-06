@@ -222,12 +222,13 @@ const PROFILE_ENTITY_TYPE_LABELS = {
   character: '角色', location: '地点', item: '物品', faction: '组织', other: '其他', player: '玩家',
 };
 
-/** 档案字段一行说明：key、中文名、可变性，及 list_add-only / 高门槛 list 的额外约束提示。 */
+/** 档案字段一行说明：key、中文名、可变性，list_add-only / 高门槛 list 的额外约束，及字段写什么的提示。 */
 function formatProfileFieldLine(field) {
   const bits = [field.mutability];
   if (field.appendOnly) bits.push('只能 list_add');
   else if (field.highBar) bits.push('每轮最多一次 list_add/list_remove，不可整体替换');
   else if (field.kind === 'list') bits.push('list');
+  if (field.hint) bits.push(field.hint);
   return `- ${field.key}（${field.label}，${bits.join('，')}）`;
 }
 

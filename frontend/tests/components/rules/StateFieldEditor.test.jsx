@@ -23,11 +23,13 @@ vi.mock('../../../src/core/api/state-memory.js', () => ({
     profileFields: {
       character: [
         { key: 'core_traits', label: '核心性格', group: '人格', synonyms: ['性格', '个性', 'personality'] },
+        { key: 'attractiveness', label: '颜值', group: '外貌', synonyms: ['外貌', 'appearance'] },
         { key: 'height', label: '身高', group: '外貌', synonyms: ['外貌', 'appearance'] },
-        { key: 'build', label: '体型', group: '外貌', synonyms: ['外貌', 'appearance'] },
+        { key: 'weight', label: '体重', group: '外貌', synonyms: ['外貌', 'appearance'] },
         { key: 'hair', label: '发型', group: '外貌', synonyms: ['外貌', 'appearance'] },
         { key: 'eyes', label: '眼睛', group: '外貌', synonyms: ['外貌', 'appearance'] },
-        { key: 'distinguishing_features', label: '显著特征', group: '外貌', synonyms: ['外貌', 'appearance'] },
+        { key: 'appearance_features', label: '外貌特征', group: '外貌', synonyms: ['外貌', 'appearance'] },
+        { key: 'body_features', label: '身材特征', group: '外貌', synonyms: ['外貌', 'appearance'] },
       ],
     },
   }),
@@ -207,7 +209,7 @@ describe('StateFieldEditor', () => {
 
     fireEvent.change(screen.getByPlaceholderText('显示名称'), { target: { value: '外貌' } });
     await waitFor(() => expect(
-      screen.getByText('该字段将取代 NPC 档案中的『身高、体型、发型、眼睛、显著特征』'),
+      screen.getByText('该字段将取代 NPC 档案中的『颜值、身高、体重、发型、眼睛、外貌特征、身材特征』'),
     ).toBeInTheDocument());
 
     fireEvent.click(screen.getByLabelText('对 NPC 生效'));
