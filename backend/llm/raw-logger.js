@@ -1,12 +1,13 @@
 /**
- * raw-logger.js — LLM 原始请求落盘与 prompt cache 诊断
+ * raw-logger.js — LLM 原始请求与返回落盘、prompt cache 诊断
  *
  * 用法：
  *   import { logRawRequest } from '../raw-logger.js';
- *   logRawRequest(body, config, 'stream');   // 在 fetch() 之前调用
+ *   const raw = logRawRequest(body, config, 'stream');   // 在 fetch() 之前调用
+ *   raw?.response(data);                                // 拿到返回后补记，见 raw-recorder.js
  *
  * 启用条件：data/config.json 中 logging.mode="raw" 且 logging.llm_raw.enabled=true
- * 输出：data/logs/llm-raw/{timestamp}-{provider}-{callType}.json
+ * 输出：data/logs/llm-raw/{timestamp}-{provider}-{callType}.json，按天数与总量定期清理
  */
 
 import { createHash } from 'node:crypto';
@@ -14,6 +15,9 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { shouldLogRaw, createLogger } from '../utils/logger.js';
 import { DATA_ROOT } from '../utils/data-dir.js';
+import { LOG_RAW_MAX_BYTES, LOG_RAW_PRUNE_EVERY, LOG_RAW_RETENTION_DAYS } from '../utils/constants.js';
+import { pruneRawLogs } from '../utils/log-retention.js';
+import { createRawRecorder, writeDump } from './raw-recorder.js';
 
 const RAW_LOG_DIR = path.join(DATA_ROOT, 'logs', 'llm-raw');
 
@@ -313,23 +317,43 @@ function buildDelta(current, prev) {
 
 // ─── 主入口 ────────────────────────────────────────────────────
 
+let _rawWriteCount = 0;
+
+/** 首个文件起每 LOG_RAW_PRUNE_EVERY 个文件按天数与总量清理一次 */
+function maybePruneRawLogs() {
+  const due = _rawWriteCount % LOG_RAW_PRUNE_EVERY === 0;
+  _rawWriteCount += 1;
+  if (!due) return;
+  pruneRawLogs(RAW_LOG_DIR, { maxAgeDays: LOG_RAW_RETENTION_DAYS, maxBytes: LOG_RAW_MAX_BYTES })
+    .catch((err) => log.warn(`RAW PRUNE ERROR  error=${err.message}`));
+}
+
+function buildRawLogPath(provider, callType) {
+  const ts = new Date().toISOString().replace(/:/g, '-').replace(/\./g, '-');
+  // callType 的 ':tools' 等后缀在 Windows 文件名里非法
+  const safeCallType = String(callType).replace(/[^\w.-]/g, '_');
+  return path.join(RAW_LOG_DIR, `${ts}-${provider}-${safeCallType}.json`);
+}
+
 /**
- * 在真正调用 LLM API 的 fetch() 之前调用，落盘完整 request body 及诊断分析。
- * 由 shouldLogRaw('llm_raw') 守卫，未开启时立即返回。
+ * 在真正调用 LLM API 的 fetch() 之前调用，落盘完整 request body 及诊断分析，
+ * 返回记录器供 provider 在拿到结果后补记返回内容。
+ * 由 shouldLogRaw('llm_raw') 守卫，未开启或建不了日志目录时返回 null。
  *
  * @param {object} body      - 即将发送到 LLM API 的 request body（不含 headers，无 API key）
  * @param {object} config    - buildLLMConfig() 返回的配置对象（含 provider / model）
- * @param {string} callType  - 'stream' | 'complete' | 'complete-tools' | 'complete-native' | 'resolve-tools'
+ * @param {string} callType  - 调用方 callType，工具轮 / Gemini 原生补全带 ':tools' / ':native' 后缀
  */
 export function logRawRequest(body, config, callType) {
-  if (!shouldLogRaw('llm_raw')) return;
+  if (!shouldLogRaw('llm_raw')) return null;
+  const startedAt = Date.now();
 
   let analysis;
   try {
     analysis = analyzeRequest(body, config, callType);
   } catch (err) {
     log.warn(`RAW ANALYSIS ERROR  callType=${callType}  error=${err.message}`);
-    return;
+    return null;
   }
 
   const trackingKey = `${analysis.provider}:${analysis.model}:${callType}`;
@@ -342,36 +366,17 @@ export function logRawRequest(body, config, callType) {
   }
   _prevAnalysis.set(trackingKey, analysis);
 
-  // 落盘
-  let filePath = null;
+  let filePath;
   try {
     fs.mkdirSync(RAW_LOG_DIR, { recursive: true });
-    const ts = new Date().toISOString().replace(/:/g, '-').replace(/\./g, '-');
-    const filename = `${ts}-${analysis.provider}-${callType}.json`;
-    filePath = path.join(RAW_LOG_DIR, filename);
-    const dump = { _meta: { callType, timestamp: analysis.timestamp, provider: analysis.provider, model: analysis.model }, analysis, delta, rawBody: body };
-    fs.writeFileSync(filePath, JSON.stringify(dump, null, 2), 'utf-8');
+    filePath = buildRawLogPath(analysis.provider, callType);
   } catch (err) {
     log.warn(`RAW WRITE ERROR  callType=${callType}  error=${err.message}`);
+    return null;
   }
 
-  // 摘要日志
-  const markerSummary = analysis.allCacheMarkers.map((m) => `${m.location}(≈${m.cumulative_tokens_est}t)`).join(', ') || 'none';
-  log.info(
-    `RAW REQUEST  provider=${analysis.provider}  model=${analysis.model}  callType=${callType}` +
-    `  msgs=${analysis.messageCount}  system_t_est=${analysis.system.tokens_est}` +
-    `  tools=${analysis.tools.count}  cache_markers=[${markerSummary}]` +
-    (filePath ? `  file=${filePath}` : ''),
-  );
-
-  if (delta) {
-    const changed = delta.changedMessages.map((c) => `[${c.index}:${c.role}:${c.change}]`).join(',') || 'none';
-    log.info(
-      `RAW DELTA  provider=${analysis.provider}  callType=${callType}` +
-      `  systemChanged=${delta.systemHashChanged}  toolsChanged=${delta.toolsHashChanged}` +
-      `  rolesChanged=${delta.rolesOrderChanged}  msgChanges=${delta.changedMessages.length}(${changed})` +
-      `  lcp_t_est=${delta.lcpTokensEst}` +
-      `  prefix512Stable=${delta.prefix512HashStable}  prefix1024Stable=${delta.prefix1024HashStable}  prefix2048Stable=${delta.prefix2048HashStable}`,
-    );
-  }
+  const dump = { _meta: { callType, timestamp: analysis.timestamp, provider: analysis.provider, model: analysis.model }, analysis, delta, rawBody: body };
+  writeDump(filePath, dump, callType);
+  maybePruneRawLogs();
+  return createRawRecorder(filePath, dump, startedAt);
 }

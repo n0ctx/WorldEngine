@@ -1,11 +1,12 @@
 import { getBaseUrl } from '../_shared/base-urls.js';
-import { apiError, readHttpErrorText, parseSSE } from '../_shared/fetch-utils.js';
+import { apiError, parseSSE } from '../_shared/fetch-utils.js';
 import { resolveThinkingBudget, resolveThinkingEffort } from '../_shared/thinking-budget.js';
 import { isThinkingLevelSupported } from '../../../utils/constants.js';
 import { convertToGeminiContents } from '../_shared/converters.js';
 import { cacheUsageLogFields, recordTokenUsage } from '../_shared/cache-usage.js';
 import { getOrCreateCache } from './cache.js';
 import { logRawRequest } from '../../raw-logger.js';
+import { fetchAndRecord, readErrorAndRecord, readJsonAndRecord, recordStream } from '../../raw-recorder.js';
 import { createLogger, formatMeta } from '../../../utils/logger.js';
 import { runToolLoop } from '../../tool-loop-control.js';
 import {
@@ -137,17 +138,17 @@ function buildGenerationConfig(config, thinking) {
   return generationConfig;
 }
 
-function postGemini(url, body, config) {
-  return fetch(url, {
+function postGemini(url, body, config, raw) {
+  return fetchAndRecord(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
     signal: config.signal,
-  });
+  }, raw);
 }
 
-async function throwGeminiHttpError(resp, config) {
-  const text = await readHttpErrorText(resp, 'gemini');
+async function throwGeminiHttpError(resp, config, raw) {
+  const text = await readErrorAndRecord(resp, raw, 'gemini');
   const errSig = extractProviderErrorSignal(text, buildContextFromConfig(config, { phase: 'request_error' }));
   if (errSig) await emitProviderSignal(config, errSig);
   throw apiError(`Gemini API error: ${resp.status} ${text}`, resp.status);
@@ -169,10 +170,14 @@ export async function* streamGemini(messages, config) {
   const body = await buildMessagesBody(messages, config, 'STREAM');
   body.generationConfig = buildGenerationConfig(config, 'thoughts');
   body.safetySettings = SAFETY_SETTINGS_OFF;
-  logRawRequest(body, config, config.callType || 'stream');
-  const resp = await postGemini(`${modelUrl(config, 'streamGenerateContent')}&alt=sse`, body, config);
-  if (!resp.ok) await throwGeminiHttpError(resp, config);
+  const raw = logRawRequest(body, config, config.callType || 'stream');
+  const resp = await postGemini(`${modelUrl(config, 'streamGenerateContent')}&alt=sse`, body, config, raw);
+  if (!resp.ok) await throwGeminiHttpError(resp, config, raw);
 
+  yield* recordStream(raw, readGeminiStream, resp, config);
+}
+
+async function* readGeminiStream(resp, config, meta) {
   let inThinking = false;
   let lastUsage = null;
   let chunkIndex = -1;
@@ -181,13 +186,16 @@ export async function* streamGemini(messages, config) {
     try {
       const parsed = JSON.parse(data);
       chunkIndex += 1;
-      const meta = parsed.usageMetadata;
-      if (meta) {
-        lastUsage = meta;
-        if (config.usageRef) recordTokenUsage(config.usageRef, meta, config.provider);
+      const usageMetadata = parsed.usageMetadata;
+      if (usageMetadata) {
+        lastUsage = usageMetadata;
+        meta.usage = usageMetadata;
+        if (config.usageRef) recordTokenUsage(config.usageRef, usageMetadata, config.provider);
       }
+      const finishReason = parsed.candidates?.[0]?.finishReason;
+      if (finishReason) meta.finishReason = finishReason;
       const sig = extractGeminiSignal(parsed, buildContextFromConfig(config, {
-        phase: parsed.candidates?.[0]?.finishReason ? 'stream_stop' : 'stream_chunk',
+        phase: finishReason ? 'stream_stop' : 'stream_chunk',
         stream: true,
         emittedCharsBeforeTrigger: emittedChars,
         chunkIndex,
@@ -216,13 +224,13 @@ export async function completeGemini(messages, config) {
   const body = await buildMessagesBody(messages, config, 'COMPLETE');
   body.generationConfig = buildGenerationConfig(config, 'thoughts');
   body.safetySettings = SAFETY_SETTINGS_OFF;
-  logRawRequest(body, config, config.callType || 'complete');
-  const resp = await postGemini(modelUrl(config, 'generateContent'), body, config);
-  if (!resp.ok) await throwGeminiHttpError(resp, config);
+  const raw = logRawRequest(body, config, config.callType || 'complete');
+  const resp = await postGemini(modelUrl(config, 'generateContent'), body, config, raw);
+  if (!resp.ok) await throwGeminiHttpError(resp, config, raw);
 
   let data;
   try {
-    data = await resp.json();
+    data = await readJsonAndRecord(resp, raw);
   } catch (err) {
     log.error('provider.parse_error', formatMeta({ provider: 'gemini', msg: err.message }));
     throw err;
@@ -242,11 +250,11 @@ async function completeGeminiFromNative(nativeContents, systemInstruction, confi
   if (systemInstruction) body.systemInstruction = systemInstruction;
   body.generationConfig = buildGenerationConfig(config, 'budget');
   body.safetySettings = SAFETY_SETTINGS_OFF;
-  logRawRequest(body, config, config.callType ? `${config.callType}:native` : 'complete-native');
-  const resp = await postGemini(modelUrl(config, 'generateContent'), body, config);
-  if (!resp.ok) await throwGeminiHttpError(resp, config);
+  const raw = logRawRequest(body, config, config.callType ? `${config.callType}:native` : 'complete-native');
+  const resp = await postGemini(modelUrl(config, 'generateContent'), body, config, raw);
+  if (!resp.ok) await throwGeminiHttpError(resp, config, raw);
 
-  const data = await resp.json();
+  const data = await readJsonAndRecord(resp, raw);
   if (data.usageMetadata) logGeminiUsage(config, data.usageMetadata);
   return joinTextParts(data);
 }
@@ -270,15 +278,15 @@ const geminiToolLoopProvider = {
     body.generationConfig = buildGenerationConfig(config, null);
     body.safetySettings = SAFETY_SETTINGS_OFF;
 
-    logRawRequest(body, config, config.callType ? `${config.callType}:tools` : 'complete-tools');
-    const resp = await postGemini(modelUrl(config, 'generateContent'), body, config);
+    const raw = logRawRequest(body, config, config.callType ? `${config.callType}:tools` : 'complete-tools');
+    const resp = await postGemini(modelUrl(config, 'generateContent'), body, config, raw);
     if (!resp.ok) {
-      const text = await readHttpErrorText(resp, 'gemini');
+      const text = await readErrorAndRecord(resp, raw, 'gemini');
       if (resp.status === 400 || resp.status === 422) return { kind: 'fallback' };
       throw apiError(`Gemini API error: ${resp.status} ${text}`, resp.status);
     }
 
-    const data = await resp.json();
+    const data = await readJsonAndRecord(resp, raw);
     const toolSig = extractGeminiSignal(data, buildContextFromConfig(config, { phase: 'tool_loop_turn', stream: false }));
     if (toolSig) await emitProviderSignal(config, toolSig);
     if (data.usageMetadata) logGeminiUsage(config, data.usageMetadata);

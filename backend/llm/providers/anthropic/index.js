@@ -1,11 +1,12 @@
 import { getBaseUrl } from '../_shared/base-urls.js';
-import { apiError, readHttpErrorText, parseSSE } from '../_shared/fetch-utils.js';
+import { apiError, parseSSE } from '../_shared/fetch-utils.js';
 import { resolveThinkingBudget, resolveThinkingEffort } from '../_shared/thinking-budget.js';
 import { isThinkingLevelSupported } from '../../../utils/constants.js';
 import { convertToAnthropicMessages } from '../_shared/converters.js';
 import { cacheUsageLogFields, recordTokenUsage } from '../_shared/cache-usage.js';
 import { ANTHROPIC_API_VERSION, ANTHROPIC_PROMPT_CACHING_BETA } from './constants.js';
 import { logRawRequest } from '../../raw-logger.js';
+import { fetchAndRecord, readErrorAndRecord, readJsonAndRecord, recordStream } from '../../raw-recorder.js';
 import { createLogger, formatMeta } from '../../../utils/logger.js';
 import { runToolLoop } from '../../tool-loop-control.js';
 import {
@@ -135,7 +136,7 @@ function markHistoryCacheable(messages) {
   if (lastUserIndex > 0) markMessageCacheable(messages, lastUserIndex - 1);
 }
 
-async function processAnthropicMetadataEvent(event, data, config, lastUsage) {
+async function processAnthropicMetadataEvent(event, data, config, lastUsage, meta) {
   try {
     const parsed = JSON.parse(data);
     if (event === 'message_start') {
@@ -145,6 +146,7 @@ async function processAnthropicMetadataEvent(event, data, config, lastUsage) {
         if (config.usageRef) recordTokenUsage(config.usageRef, usage, config.provider);
       }
     } else if (event === 'message_delta') {
+      meta.finishReason = parsed.delta?.stop_reason;
       const usage = parsed.usage;
       if (usage?.output_tokens != null) {
         lastUsage = { ...(lastUsage || {}), ...usage };
@@ -203,17 +205,17 @@ function buildMessagesRequest(messages, config, { stream }) {
   return { body, headers };
 }
 
-/** stream / complete 共用：发出请求，HTTP 失败时抛错 */
+/** stream / complete 共用：发出请求，HTTP 失败时抛错；返回响应与原始日志记录器 */
 async function postMessages(messages, config, { stream }) {
   const { body, headers } = buildMessagesRequest(messages, config, { stream });
-  logRawRequest(body, config, config.callType || (stream ? 'stream' : 'complete'));
-  const resp = await fetch(messagesUrl(config), { method: 'POST', headers, body: JSON.stringify(body), signal: config.signal });
-  if (!resp.ok) await throwAnthropicHttpError(resp, config);
-  return resp;
+  const raw = logRawRequest(body, config, config.callType || (stream ? 'stream' : 'complete'));
+  const resp = await fetchAndRecord(messagesUrl(config), { method: 'POST', headers, body: JSON.stringify(body), signal: config.signal }, raw);
+  if (!resp.ok) await throwAnthropicHttpError(resp, config, raw);
+  return { resp, raw };
 }
 
-async function throwAnthropicHttpError(resp, config) {
-  const text = await readHttpErrorText(resp, 'anthropic');
+async function throwAnthropicHttpError(resp, config, raw) {
+  const text = await readErrorAndRecord(resp, raw, 'anthropic');
   const errSignal = extractProviderErrorSignal(text, buildContextFromConfig(config, { phase: 'request_error' }));
   if (errSignal) await emitProviderSignal(config, errSignal);
   throw apiError(`Anthropic API error: ${resp.status} ${text}`, resp.status);
@@ -221,14 +223,17 @@ async function throwAnthropicHttpError(resp, config) {
 
 export async function* streamAnthropic(messages, config) {
   log.debug('provider.request', formatMeta({ provider: 'anthropic', model: config.model, msgs: messages.length, mode: 'stream' }));
-  const resp = await postMessages(messages, config, { stream: true });
+  const { resp, raw } = await postMessages(messages, config, { stream: true });
+  yield* recordStream(raw, readAnthropicStream, resp, config);
+}
 
+async function* readAnthropicStream(resp, config, meta) {
   let inThinkingBlock = false;
   let lastUsage = null;
 
   for await (const { event, data } of parseSSE(resp.body)) {
     if (event === 'message_start' || event === 'message_delta' || event === 'error') {
-      lastUsage = await processAnthropicMetadataEvent(event, data, config, lastUsage);
+      lastUsage = await processAnthropicMetadataEvent(event, data, config, lastUsage, meta);
     } else if (event === 'content_block_start') {
       try {
         const parsed = JSON.parse(data);
@@ -260,16 +265,17 @@ export async function* streamAnthropic(messages, config) {
 
   // 安全兜底:确保 thinking block 已关闭
   if (inThinkingBlock) yield '</think>';
+  meta.usage = lastUsage;
   logUsage(config, lastUsage);
 }
 
 export async function completeAnthropic(messages, config) {
   log.debug('provider.request', formatMeta({ provider: 'anthropic', model: config.model, msgs: messages.length, mode: 'complete' }));
-  const resp = await postMessages(messages, config, { stream: false });
+  const { resp, raw } = await postMessages(messages, config, { stream: false });
 
   let data;
   try {
-    data = await resp.json();
+    data = await readJsonAndRecord(resp, raw);
   } catch (err) {
     log.error('provider.parse_error', formatMeta({ provider: 'anthropic', msg: err.message }));
     throw err;
@@ -320,16 +326,16 @@ const anthropicToolLoopProvider = {
     if (temperature !== undefined) body.temperature = temperature;
     if (system) body.system = withCacheControl(system, config);
 
-    logRawRequest(body, config, config.callType ? `${config.callType}:tools` : 'complete-tools');
-    const resp = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body), signal: config.signal });
+    const raw = logRawRequest(body, config, config.callType ? `${config.callType}:tools` : 'complete-tools');
+    const resp = await fetchAndRecord(url, { method: 'POST', headers, body: JSON.stringify(body), signal: config.signal }, raw);
     if (!resp.ok) {
-      const text = await readHttpErrorText(resp, 'anthropic');
+      const text = await readErrorAndRecord(resp, raw, 'anthropic');
       // 400/422 退到无工具补全
       if (resp.status === 400 || resp.status === 422) return { kind: 'fallback' };
       throw apiError(`Anthropic API error: ${resp.status} ${text}`, resp.status);
     }
 
-    const data = await resp.json();
+    const data = await readJsonAndRecord(resp, raw);
     const toolSig = extractAnthropicSignal(data, buildContextFromConfig(config, { phase: 'tool_loop_turn', stream: false }));
     if (toolSig) await emitProviderSignal(config, toolSig);
     if (data.usage) {

@@ -19,15 +19,15 @@
     "48700827ca3d34bb": {
       "tokens": 43,
       "locations": [
-        "backend/routes/characters.js:120-122",
-        "backend/routes/personas.js:66-68"
+        "backend/routes/characters.js:106-108",
+        "backend/routes/personas.js:69-71"
       ]
     },
     "49d44c86803242b5": {
       "tokens": 54,
       "locations": [
-        "backend/llm/providers/ollama/index.js:113-120",
-        "backend/llm/providers/openai-compatible/index.js:196-203"
+        "backend/llm/providers/ollama/index.js:127-134",
+        "backend/llm/providers/openai-compatible/index.js:204-211"
       ]
     },
     "99dec6c4a3d783f6": {
@@ -37,19 +37,11 @@
         "backend/routes/sessions.js:137-142"
       ]
     },
-    "b5a826c4ce5233e5": {
-      "tokens": 45,
-      "locations": [
-        "backend/llm/providers/anthropic/index.js:295-297",
-        "backend/llm/providers/gemini/index.js:272-274",
-        "backend/llm/providers/openai-compatible/index.js:298-300"
-      ]
-    },
     "d29375798752ac40": {
       "tokens": 73,
       "locations": [
-        "backend/llm/providers/anthropic/index.js:241-246",
-        "backend/llm/providers/gemini/index.js:221-226"
+        "backend/llm/providers/anthropic/index.js:282-287",
+        "backend/llm/providers/gemini/index.js:237-242"
       ]
     },
     "d904930004aa6cec": {
@@ -71,6 +63,14 @@
       "locations": [
         "frontend/src/components/chat/MessageItem.jsx:47-50",
         "frontend/src/components/writing/WritingMessageItem.jsx:71-74"
+      ]
+    },
+    "e4842eda12a4534d": {
+      "tokens": 46,
+      "locations": [
+        "backend/llm/providers/anthropic/index.js:337-339",
+        "backend/llm/providers/gemini/index.js:288-290",
+        "backend/llm/providers/openai-compatible/index.js:306-308"
       ]
     },
     "f4684b0c8b2784ee": {

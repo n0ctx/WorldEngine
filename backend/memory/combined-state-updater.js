@@ -13,9 +13,9 @@ import { upsertSessionWorldStateValues } from '../db/queries/session-world-state
 import { upsertSessionCharacterStateValues } from '../db/queries/session-character-state-values.js';
 import { upsertSessionPersonaStateValues } from '../db/queries/session-persona-state-values.js';
 
-import { ALL_MESSAGES_LIMIT, LLM_TASK_TEMPERATURE, LLM_STATE_UPDATE_MAX_TOKENS, STATE_UPDATE_JSON_RETRY_MAX, LLM_BACKGROUND_TASK_TIMEOUT_MS, STATE_TEXT_COMPRESS_TARGET } from '../utils/constants.js';
+import { ALL_MESSAGES_LIMIT, LLM_TASK_TEMPERATURE, LLM_STATE_UPDATE_MAX_TOKENS, STATE_UPDATE_JSON_RETRY_MAX, LLM_BACKGROUND_TASK_TIMEOUT_MS, STATE_TEXT_COMPRESS_TARGET, LOG_WARN_PREVIEW_CHARS } from '../utils/constants.js';
 import { getSessionById } from '../db/queries/sessions.js';
-import { createLogger, formatMeta, previewText, shouldLogRaw } from '../utils/logger.js';
+import { createLogger, formatMeta, previewText } from '../utils/logger.js';
 import { renderBackendPrompt } from '../prompts/prompt-loader.js';
 import { renderTriggeredEntriesSection } from '../prompts/segments.js';
 import { getAllWorldEntries } from '../db/queries/prompt-entries.js';
@@ -202,18 +202,18 @@ async function requestStatePatch(prompt, cacheableSystem, sid, sessionId) {
     });
     if (!raw) return null;  // LLM API 失败，不进入 JSON 重试
     lastRaw = raw;
-    log.info(`RAW  ${formatMeta({ session: sid, chars: raw.length, attempt, preview: shouldLogRaw('llm_raw') ? previewText(raw) : undefined })}`);
+    log.info(`RAW  ${formatMeta({ session: sid, chars: raw.length, attempt })}`);
 
     patch = extractJsonPatch(raw, sid);
     if (patch !== null) break;
 
     if (attempt < STATE_UPDATE_JSON_RETRY_MAX) {
-      log.warn(`JSON RETRY ${attempt + 1}/${STATE_UPDATE_JSON_RETRY_MAX}  ${formatMeta({ session: sid, preview: previewText(raw) })}`);
+      log.warn(`JSON RETRY ${attempt + 1}/${STATE_UPDATE_JSON_RETRY_MAX}  ${formatMeta({ session: sid, preview: previewText(raw, { limit: LOG_WARN_PREVIEW_CHARS }) })}`);
     }
   }
 
   if (patch === null) {
-    log.warn(`JSON PARSE FAIL  ${formatMeta({ session: sid, preview: previewText(lastRaw) })}`);
+    log.warn(`JSON PARSE FAIL  ${formatMeta({ session: sid, preview: previewText(lastRaw, { limit: LOG_WARN_PREVIEW_CHARS }) })}`);
   }
   return patch;
 }

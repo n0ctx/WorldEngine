@@ -22,6 +22,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { getRequestId } from './request-context.js';
 import { DATA_ROOT } from './data-dir.js';
+import { LOG_MAIN_RETENTION_DAYS } from './constants.js';
+import { pruneMainLogs } from './log-retention.js';
 
 const LOGS_DIR = path.join(DATA_ROOT, 'logs');
 const CONFIG_PATH = process.env.WE_CONFIG_PATH || path.join(DATA_ROOT, 'config.json');
@@ -137,6 +139,8 @@ function currentLogFile() {
     } catch {
       /* ignore */
     }
+    // 启动后首次写入与每次跨天时清理过期主日志
+    pruneMainLogs(LOGS_DIR, { maxAgeDays: LOG_MAIN_RETENTION_DAYS }).catch(() => {});
   }
   return _logFile;
 }

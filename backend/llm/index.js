@@ -14,7 +14,7 @@ import * as cloudProvider from './providers/cloud-router.js';
 import * as localProvider from './providers/ollama/index.js';
 import * as mockProvider from './providers/mock/index.js';
 import { getPromptCacheStrategy } from './providers/_shared/cache-usage.js';
-import { createLogger, formatMeta, previewText, shouldLogRaw, summarizeMessages, spinnerAdd, spinnerRemove } from '../utils/logger.js';
+import { createLogger, formatMeta, summarizeMessages, spinnerAdd, spinnerRemove } from '../utils/logger.js';
 import { isToolLoopCancelledError, isToolLoopControlSignal } from './tool-loop-control.js';
 
 const log = createLogger('llm');
@@ -259,11 +259,7 @@ export async function* chat(messages, options = {}) {
           cacheCreationTokens: llmConfig.usageRef?.cache_creation_tokens,
           cacheMissTokens: llmConfig.usageRef?.cache_miss_tokens,
         });
-        if (shouldLogRaw('llm_raw')) {
-          log.info(`CHAT DONE  ${meta}  preview=${JSON.stringify(previewText(fullResponse))}`);
-        } else {
-          log.info(`CHAT DONE  ${meta}`);
-        }
+        log.info(`CHAT DONE  ${meta}`);
         return;
       } catch (err) {
         // 已开始输出，不可重试（调用方已收到部分数据）
@@ -374,7 +370,6 @@ export async function completeWithToolsDetailed(messages, tools, options = {}) {
           cacheReadTokens: llmConfig.usageRef?.cache_read_tokens,
           cacheCreationTokens: llmConfig.usageRef?.cache_creation_tokens,
           cacheMissTokens: llmConfig.usageRef?.cache_miss_tokens,
-          preview: shouldLogRaw('llm_raw') ? previewText(text) : undefined,
         })}`);
         return typeof result === 'string' ? { text: result, messages } : result;
       } catch (err) {
@@ -446,11 +441,7 @@ export async function complete(messages, options = {}) {
           cacheCreationTokens: llmConfig.usageRef?.cache_creation_tokens,
           cacheMissTokens: llmConfig.usageRef?.cache_miss_tokens,
         });
-        if (shouldLogRaw('llm_raw')) {
-          log.info(`COMPLETE DONE  ${meta}  preview=${JSON.stringify(previewText(result))}`);
-        } else {
-          log.info(`COMPLETE DONE  ${meta}`);
-        }
+        log.info(`COMPLETE DONE  ${meta}`);
         return result;
       } catch (err) {
         throwIfTimedOut(timeout, llmConfig, timeoutMs);

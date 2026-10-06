@@ -3,7 +3,7 @@ import path from 'node:path';
 
 import * as llm from '../llm/index.js';
 import { updateMessageAttachments, updateMessageNextOptions } from '../db/queries/messages.js';
-import { MAX_ATTACHMENTS_PER_MESSAGE, MAX_ATTACHMENT_SIZE_MB } from '../utils/constants.js';
+import { MAX_ATTACHMENTS_PER_MESSAGE, MAX_ATTACHMENT_SIZE_MB, LOG_WARN_PREVIEW_CHARS } from '../utils/constants.js';
 import { createLogger, previewText } from '../utils/logger.js';
 import { createMessage, touchSession } from './sessions.js';
 import { applyRules } from '../utils/regex-runner.js';
@@ -187,7 +187,7 @@ async function resolveSuggestionOptions({
       return { content: cleanedContent, options: extracted.options };
     }
     onSuggestionFallbackFailed?.({ mode, reason: 'empty' });
-    log.warn(`SUGGESTION ${mode.toUpperCase()} EMPTY  session=${sessionId.slice(0, 8)}  preview=${JSON.stringify(previewText(raw))}`);
+    log.warn(`SUGGESTION ${mode.toUpperCase()} EMPTY  session=${sessionId.slice(0, 8)}  preview=${JSON.stringify(previewText(raw, { limit: LOG_WARN_PREVIEW_CHARS }))}`);
   } catch (err) {
     onSuggestionFallbackFailed?.({ mode, reason: 'error' });
     log.warn(`SUGGESTION ${mode.toUpperCase()} FAIL  session=${sessionId.slice(0, 8)}  error=${err.message}`);

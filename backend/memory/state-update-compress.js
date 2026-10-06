@@ -12,6 +12,7 @@ import {
   STATE_LIST_MAX_ITEMS,
   STATE_LIST_TRIM_TARGET,
   LLM_BACKGROUND_TASK_TIMEOUT_MS,
+  LOG_WARN_PREVIEW_CHARS,
 } from '../utils/constants.js';
 import { createLogger, formatMeta, previewText } from '../utils/logger.js';
 import { renderBackendPrompt } from '../prompts/prompt-loader.js';
@@ -73,7 +74,7 @@ function parseCompressedResponse(raw, sid) {
         catch { compressed = JSON.parse(repairJsonIssues(jsonStr)); }
       }
     } catch {
-      log.warn(`COMPRESS PARSE FAIL  ${formatMeta({ session: sid, preview: previewText(raw) })}`);
+      log.warn(`COMPRESS PARSE FAIL  ${formatMeta({ session: sid, preview: previewText(raw, { limit: LOG_WARN_PREVIEW_CHARS }) })}`);
     }
   }
   return compressed && typeof compressed === 'object' ? compressed : {};

@@ -155,3 +155,17 @@ export const CLIENT_LOG_MAX_BATCH = 100;
 export const CLIENT_LOG_MAX_PAYLOAD_BYTES = 256 * 1024;
 /** 每 IP 每秒上报次数上限 */
 export const CLIENT_LOG_RATE_PER_SEC = 10;
+
+// ============================
+// 本地日志保留
+// ============================
+/** 主日志 worldengine-YYYY-MM-DD.log 保留天数 */
+export const LOG_MAIN_RETENTION_DAYS = 14;
+/** 原始日志 llm-raw/*.json 保留天数 */
+export const LOG_RAW_RETENTION_DAYS = 3;
+/** 原始日志总量上限（300MB），超出时从最旧的删起 */
+export const LOG_RAW_MAX_BYTES = 300 * 1024 * 1024;
+/** 每写入多少个原始日志文件检查一次保留规则（首个文件也会检查） */
+export const LOG_RAW_PRUNE_EVERY = 100;
+/** 警告行里模型输出的预览字数；完整原文见原始日志 */
+export const LOG_WARN_PREVIEW_CHARS = 160;

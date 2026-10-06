@@ -23,7 +23,7 @@ import { listProfileDefaultRows } from './profile-defaults.js';
 import { prepareBirthDateAgeInput, resolveBirthDate } from './state-extract-birth-date.js';
 import { isPlaceholderValue } from '../memory/state-memory-schema.js';
 import { renderBackendPrompt } from '../prompts/prompt-loader.js';
-import { LLM_TASK_TEMPERATURE, LLM_STATE_UPDATE_MAX_TOKENS, STATE_TEXT_COMPRESS_TARGET, STATE_LIST_MAX_ITEMS } from '../utils/constants.js';
+import { LLM_TASK_TEMPERATURE, LLM_STATE_UPDATE_MAX_TOKENS, STATE_TEXT_COMPRESS_TARGET, STATE_LIST_MAX_ITEMS, LOG_WARN_PREVIEW_CHARS } from '../utils/constants.js';
 import { createLogger, formatMeta, previewText } from '../utils/logger.js';
 import { extractJsonObject } from '../utils/llm-json.js';
 
@@ -143,7 +143,7 @@ async function callExtractLLM({ name, personaText, fields, callType }) {
 
   const parsed = extractJsonObject(raw);
   if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
-    log.warn(`PARSE FAIL  ${formatMeta({ name, preview: previewText(raw) })}`);
+    log.warn(`PARSE FAIL  ${formatMeta({ name, preview: previewText(raw, { limit: LOG_WARN_PREVIEW_CHARS }) })}`);
     const err = new Error('LLM 返回内容无法解析为 JSON');
     err.code = 'LLM_PARSE_FAILED';
     throw err;

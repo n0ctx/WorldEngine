@@ -1,8 +1,9 @@
 import { getBaseUrl } from '../_shared/base-urls.js';
-import { apiError, readHttpErrorText, parseSSE, extractProviderError } from '../_shared/fetch-utils.js';
+import { apiError, parseSSE, extractProviderError } from '../_shared/fetch-utils.js';
 import { applyThinkingToOpenAICompatibleBody } from './thinking.js';
 import { cacheUsageLogFields, recordTokenUsage } from '../_shared/cache-usage.js';
 import { logRawRequest } from '../../raw-logger.js';
+import { fetchAndRecord, readErrorAndRecord, readJsonAndRecord, recordStream } from '../../raw-recorder.js';
 import { createLogger, formatMeta } from '../../../utils/logger.js';
 import { runToolLoop } from '../../tool-loop-control.js';
 import { appendOpenAIToolTurn, parseOpenAIToolCalls } from '../_shared/converters.js';
@@ -116,17 +117,17 @@ function applyOpenAIPromptCacheKey(body, config) {
   }
 }
 
-function postOpenAICompatible(url, body, config) {
-  return fetch(url, {
+function postOpenAICompatible(url, body, config, raw) {
+  return fetchAndRecord(url, {
     method: 'POST',
     headers: buildOpenAICompatibleHeaders(config),
     body: JSON.stringify(body),
     signal: config.signal,
-  });
+  }, raw);
 }
 
-async function throwOpenAICompatibleHttpError(resp, config) {
-  const text = await readHttpErrorText(resp, config.provider || 'openai');
+async function throwOpenAICompatibleHttpError(resp, config, raw) {
+  const text = await readErrorAndRecord(resp, raw, config.provider || 'openai');
   const errSignal = extractProviderErrorSignal(text, buildContextFromConfig(config, { phase: 'request_error' }));
   if (errSignal) await emitProviderSignal(config, errSignal);
   throw apiError(`${config.provider} API error: ${resp.status} ${text}`, resp.status);
@@ -158,19 +159,24 @@ export async function* streamOpenAICompatible(messages, config) {
   // 思考开启时不传 temperature（OpenAI o-series / DeepSeek thinking 模式不兼容 temperature）
   if (thinkingState !== 'enabled') body.temperature = config.temperature;
 
-  logRawRequest(body, config, config.callType || 'stream');
-  const resp = await postOpenAICompatible(url, body, config);
-  if (!resp.ok) await throwOpenAICompatibleHttpError(resp, config);
+  const raw = logRawRequest(body, config, config.callType || 'stream');
+  const resp = await postOpenAICompatible(url, body, config, raw);
+  if (!resp.ok) await throwOpenAICompatibleHttpError(resp, config, raw);
 
   const contentType = resp.headers.get('content-type') || '';
   if (contentType.includes('application/json')) {
     const data = await resp.json().catch(() => ({}));
+    raw?.response(data);
     const signal = extractOpenAICompatibleSignal(data, buildContextFromConfig(config, { phase: 'request_error', stream: true }));
     if (signal) await emitProviderSignal(config, signal);
     assertOpenAICompatibleData(data, config);
     throw apiError(`${config.provider} API error: 返回了非流式 JSON 响应`, 502);
   }
 
+  yield* recordStream(raw, readOpenAICompatibleStream, resp, config);
+}
+
+async function* readOpenAICompatibleStream(resp, config, meta) {
   let inThinking = false;
   let lastUsage = null;
   let emittedChars = 0;
@@ -183,12 +189,15 @@ export async function* streamOpenAICompatible(messages, config) {
       // 末尾 chunk 可能携带 usage（部分 provider 即使不传 stream_options 也会在最后 chunk 返回）
       if (parsed.usage) {
         lastUsage = parsed.usage;
+        meta.usage = parsed.usage;
         if (config.usageRef) recordTokenUsage(config.usageRef, parsed.usage, config.provider);
       }
+      const finishReason = parsed.choices?.[0]?.finish_reason;
+      if (finishReason) meta.finishReason = finishReason;
       // Provider 安全/敏感/过滤/截断信号检测
       const safetySignal = extractOpenAICompatibleSignal(parsed, {
         ...streamCtx,
-        phase: parsed.choices?.[0]?.finish_reason ? 'stream_stop' : 'stream_chunk',
+        phase: finishReason ? 'stream_stop' : 'stream_chunk',
         emittedCharsBeforeTrigger: emittedChars,
         chunkIndex,
       });
@@ -231,13 +240,13 @@ export async function completeOpenAICompatible(messages, config) {
   const thinkingState = applyThinkingToOpenAICompatibleBody(body, config);
   if (thinkingState !== 'enabled') body.temperature = config.temperature;
 
-  logRawRequest(body, config, config.callType || 'complete');
-  const resp = await postOpenAICompatible(url, body, config);
-  if (!resp.ok) await throwOpenAICompatibleHttpError(resp, config);
+  const raw = logRawRequest(body, config, config.callType || 'complete');
+  const resp = await postOpenAICompatible(url, body, config, raw);
+  if (!resp.ok) await throwOpenAICompatibleHttpError(resp, config, raw);
 
   let data;
   try {
-    data = await resp.json();
+    data = await readJsonAndRecord(resp, raw);
   } catch (err) {
     log.error('provider.parse_error', formatMeta({ provider: config.provider || 'openai', msg: err.message }));
     throw err;
@@ -284,18 +293,18 @@ const openaiCompatibleToolLoopProvider = {
     const thinkingState = applyThinkingToOpenAICompatibleBody(body, config);
     if (thinkingState !== 'enabled') body.temperature = config.temperature;
 
-    logRawRequest(body, config, config.callType ? `${config.callType}:tools` : 'complete-tools');
+    const raw = logRawRequest(body, config, config.callType ? `${config.callType}:tools` : 'complete-tools');
 
-    const resp = await postOpenAICompatible(url, body, config);
+    const resp = await postOpenAICompatible(url, body, config, raw);
 
     if (!resp.ok) {
-      const text = await readHttpErrorText(resp, config.provider || 'openai');
+      const text = await readErrorAndRecord(resp, raw, config.provider || 'openai');
       // 400/422 退到无工具补全
       if (resp.status === 400 || resp.status === 422) return { kind: 'fallback' };
       throw apiError(`${config.provider} API error: ${resp.status} ${text}`, resp.status);
     }
 
-    const data = await resp.json();
+    const data = await readJsonAndRecord(resp, raw);
     const toolSignal = extractOpenAICompatibleSignal(data, buildContextFromConfig(config, { phase: 'tool_loop_turn', stream: false }));
     if (toolSignal) await emitProviderSignal(config, toolSignal);
     assertOpenAICompatibleData(data, config);

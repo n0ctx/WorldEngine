@@ -13,6 +13,8 @@ import { applyThinkingToOpenAICompatibleBody } from '../openai-compatible/thinki
 import { runToolLoop } from '../../tool-loop-control.js';
 import { appendOpenAIToolTurn, parseOpenAIToolCalls } from '../_shared/converters.js';
 import { emitProviderSignal, buildContextFromConfig, hashText } from '../_shared/provider-safety-signals.js';
+import { logRawRequest } from '../../raw-logger.js';
+import { fetchAndRecord, readJsonAndRecord, recordStream } from '../../raw-recorder.js';
 import crypto from 'node:crypto';
 
 function makeLocalErrorSignal(config, status, body, phase) {
@@ -82,34 +84,47 @@ async function* parseSSE(body) {
   }
 }
 
-async function throwLocalHttpError(resp, config) {
+async function throwLocalHttpError(resp, config, raw) {
   const body = await resp.text().catch(() => '');
+  raw?.error({ status: resp.status, text: body });
   await emitProviderSignal(config, makeLocalErrorSignal(config, resp.status, body, 'request_error'));
   throw apiError(`${config.provider} API error: ${resp.status} ${body}`, resp.status);
 }
 
-export async function* streamChat(messages, config) {
-  const baseUrl = getBaseUrl(config);
-  const url = `${baseUrl}/v1/chat/completions`;
-
-  const resp = await fetch(url, {
+/** 拼请求体、落原始日志并发出请求；返回响应与原始日志记录器 */
+async function postLocalChat(config, { messages, stream, extra }, callType) {
+  const body = buildLocalChatBody({ messages, stream, extra }, config);
+  const raw = logRawRequest(body, config, callType);
+  const resp = await fetchAndRecord(`${getBaseUrl(config)}/v1/chat/completions`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(buildLocalChatBody({ messages, stream: true }, config)),
+    body: JSON.stringify(body),
     signal: config.signal,
-  });
+  }, raw);
+  return { resp, raw };
+}
 
-  if (!resp.ok) await throwLocalHttpError(resp, config);
+export async function* streamChat(messages, config) {
+  const { resp, raw } = await postLocalChat(config, { messages, stream: true }, config.callType || 'stream');
+  if (!resp.ok) await throwLocalHttpError(resp, config, raw);
 
+  yield* recordStream(raw, readLocalStream, resp, config);
+}
+
+async function* readLocalStream(resp, config, meta) {
   let inThinking = false;
   for await (const data of parseSSE(resp.body)) {
     try {
       const parsed = JSON.parse(data);
-      if (parsed.usage && config.usageRef) {
-        const u = parsed.usage;
-        if (u.prompt_tokens != null) config.usageRef.prompt_tokens = u.prompt_tokens;
-        if (u.completion_tokens != null) config.usageRef.completion_tokens = u.completion_tokens;
+      if (parsed.usage) {
+        meta.usage = parsed.usage;
+        if (config.usageRef) {
+          const u = parsed.usage;
+          if (u.prompt_tokens != null) config.usageRef.prompt_tokens = u.prompt_tokens;
+          if (u.completion_tokens != null) config.usageRef.completion_tokens = u.completion_tokens;
+        }
       }
+      if (parsed.choices?.[0]?.finish_reason) meta.finishReason = parsed.choices[0].finish_reason;
       const delta = parsed.choices?.[0]?.delta;
       if (!delta) continue;
       // llama.cpp（--jinja）/ LM Studio 将推理内容放在 reasoning_content / reasoning 字段，与 openai-compatible 同样包成 <think>
@@ -136,19 +151,10 @@ function withReasoning(message) {
 }
 
 export async function complete(messages, config) {
-  const baseUrl = getBaseUrl(config);
-  const url = `${baseUrl}/v1/chat/completions`;
+  const { resp, raw } = await postLocalChat(config, { messages, stream: false }, config.callType || 'complete');
+  if (!resp.ok) await throwLocalHttpError(resp, config, raw);
 
-  const resp = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(buildLocalChatBody({ messages, stream: false }, config)),
-    signal: config.signal,
-  });
-
-  if (!resp.ok) await throwLocalHttpError(resp, config);
-
-  const data = await resp.json();
+  const data = await readJsonAndRecord(resp, raw);
   return withReasoning(data.choices?.[0]?.message);
 }
 
@@ -157,20 +163,16 @@ export async function complete(messages, config) {
 // ============================================================
 
 async function callWithTools(messages, toolDefs, config) {
-  const baseUrl = getBaseUrl(config);
-  const url = `${baseUrl}/v1/chat/completions`;
-  const resp = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(buildLocalChatBody({
-      messages,
-      stream: false,
-      extra: { tools: toolDefs, tool_choice: 'auto' },
-    }, config)),
-    signal: config.signal,
-  });
-  if (!resp.ok) return null; // 降级信号(4xx/5xx 一视同仁,与历史行为对齐)
-  return resp.json();
+  const { resp, raw } = await postLocalChat(config, {
+    messages,
+    stream: false,
+    extra: { tools: toolDefs, tool_choice: 'auto' },
+  }, config.callType ? `${config.callType}:tools` : 'complete-tools');
+  if (!resp.ok) {
+    raw?.error({ status: resp.status, text: await resp.text().catch(() => '') });
+    return null; // 降级信号(4xx/5xx 一视同仁,与历史行为对齐)
+  }
+  return readJsonAndRecord(resp, raw);
 }
 
 // runToolLoop 4 原语 provider 适配
