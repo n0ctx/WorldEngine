@@ -286,14 +286,14 @@ test('buildPrompt / buildWritingPrompt 的结构锚点顺序保持稳定', async
       messages: extractMessageShape(chatResult.messages, {
         0: [
           'ANCHOR_[1]_CHAT_GLOBAL', 'ANCHOR_[3.5]_CACHED_TITLE', 'ANCHOR_[3.5]_CACHED_BODY', 'ANCHOR_[2]_PERSONA', 'ANCHOR_[3]_CHAR_ALPHA',
-          'ANCHOR_[8.5]_STORY_CHAT',
+          '<context_guide>', 'ANCHOR_[8.5]_STORY_CHAT',
         ],
         1: ['旧轮用户消息'],
         2: ['旧轮助手消息'],
         3: [
           'ANCHOR_[4]_WORLD_STATE', 'ANCHOR_[5]_PERSONA_STATE', 'ANCHOR_[6]_CHAR_STATE', 'ANCHOR_[6.5]_STORY_STATE_CHAT', 'ANCHOR_[7]_ENTRY_TITLE', 'ANCHOR_[7]_ENTRY_BODY',
           '<expanded_dialogues>', 'ANCHOR_[10]_RECALL_CHAT_USER', 'ANCHOR_[10]_RECALL_CHAT_ASST', 'ANCHOR_[11]_DIARY_CHAT',
-          'ANCHOR_QUERY 当前聊天消息', 'ANCHOR_[11]_CHAT_POST', 'ANCHOR_[11]_CHAR_POST', 'next_prompt',
+          '<user_input>', 'ANCHOR_QUERY 当前聊天消息', 'ANCHOR_[11]_CHAT_POST', 'ANCHOR_[11]_CHAR_POST', 'next_prompt',
         ],
       }),
     },
@@ -306,14 +306,14 @@ test('buildPrompt / buildWritingPrompt 的结构锚点顺序保持稳定', async
         // 写作模式不注入 [3] 角色 system_prompt / [6] 角色状态段
         0: [
           'ANCHOR_[1]_WRITING_GLOBAL', 'ANCHOR_[3.5]_CACHED_TITLE', 'ANCHOR_[3.5]_CACHED_BODY', 'ANCHOR_[2]_PERSONA',
-          'ANCHOR_[8.5]_STORY_WRITING',
+          '<context_guide>', 'ANCHOR_[8.5]_STORY_WRITING',
         ],
         1: ['旧写作用户消息'],
         2: ['旧写作助手消息'],
         3: [
           'ANCHOR_[4]_WORLD_STATE', 'ANCHOR_[5]_PERSONA_STATE', 'ANCHOR_[6.5]_STORY_STATE_WRITING',
           'ANCHOR_[7]_ENTRY_TITLE', 'ANCHOR_[7]_ENTRY_BODY', '<expanded_dialogues>', 'ANCHOR_[10]_RECALL_WRITING_USER', 'ANCHOR_[10]_RECALL_WRITING_ASST', 'ANCHOR_[11]_DIARY_WRITING',
-          'ANCHOR_QUERY 当前写作消息', 'ANCHOR_[11]_WRITING_POST', 'next_prompt',
+          '<user_input>', 'ANCHOR_QUERY 当前写作消息', 'ANCHOR_[11]_WRITING_POST', 'next_prompt',
         ],
       }),
     },

@@ -238,7 +238,7 @@ test('buildPrompt 开启选项时历史回复带回当轮选项，并按玩家�
   assert.equal(history[2].content, '接探索任务');
   // 玩家自行输入：选项全部未选
   assert.equal(history[3].content, '接待员交代路线\n\n<next_prompt>\n（未选）出北门\n（未选）问编号\n</next_prompt>');
-  assert.match(history.at(-1).content, /^先去买火把/);
+  assert.match(history.at(-1).content, /^<user_input>\n先去买火把/);
 });
 
 test('buildPrompt 关闭选项时历史不带选项', async () => {
@@ -253,7 +253,7 @@ test('buildPrompt 关闭选项时历史不带选项', async () => {
 
   assert.equal(history[1].content, '公会大厅');
   assert.equal(history[2].content, '接探索任务');
-  assert.match(history.at(-1).content, /^先去买火把/);
+  assert.match(history.at(-1).content, /^<user_input>\n先去买火把/);
 });
 
 test('buildPrompt 续写时被续写的回复不接旧选项', async () => {
@@ -293,8 +293,10 @@ test('buildPrompt always 条目注入本轮上下文', async () => {
   const { buildPrompt } = await freshImport('backend/prompts/assembler.js');
   const result = await buildPrompt(session.id);
 
-  assert.equal(result.messages.length, 1);
-  assert.match(result.messages[0].content, /^<world_entries>[\s\S]*系统内容[\s\S]*用户消息/);
+  // 只剩标签说明的 system + 本轮 user
+  assert.deepEqual(result.messages.map((m) => m.role), ['system', 'user']);
+  assert.match(result.messages[0].content, /^<context_guide>/);
+  assert.match(result.messages[1].content, /^<world_entries>[\s\S]*系统内容[\s\S]*<user_input>\n用户消息\n<\/user_input>\n\n（你正在扮演/);
 });
 
 test('buildPrompt 角色 system_prompt 注入 cached system，always 条目注入本轮上下文', async () => {
@@ -465,8 +467,9 @@ test('buildPrompt 旧会话过渡（coveredTo 不可用）时按 short_term_toke
   const result = await buildPrompt(session.id);
 
   assert.equal(result.recallHitCount, 0);
-  assert.equal(result.messages.length, 3);
-  assert.equal(result.messages[0].content, '第二轮短提问');
-  assert.equal(result.messages[1].content, '第二轮短回答');
-  assert.doesNotMatch(result.messages[0].content, /甲/);
+  assert.equal(result.messages.length, 4);
+  assert.equal(result.messages[0].role, 'system');
+  assert.equal(result.messages[1].content, '第二轮短提问');
+  assert.equal(result.messages[2].content, '第二轮短回答');
+  assert.ok(result.messages.every((m) => !String(m.content).includes('甲')));
 });

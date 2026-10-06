@@ -15,6 +15,13 @@ import {
 import { renderRecalledTurns } from '../memory/long-term-recall.js';
 import { renderStoryState } from '../memory/state-memory-render.js';
 import { MEMORY_EXPAND_MAX_TOKENS, SUGGESTION_TOKEN_RESERVE } from '../utils/constants.js';
+import { loadBackendPrompt } from './prompt-loader.js';
+
+/** [4.5] 标签说明：固定文本，按模式各一份，留在 cached 前缀末尾 */
+export const CONTEXT_GUIDES = {
+  chat: loadBackendPrompt('context-guide-chat.md'),
+  writing: loadBackendPrompt('context-guide-writing.md'),
+};
 
 /** [2] 常驻 cached 条目（trigger_type=always 且 token=0） */
 export function renderCachedEntriesSection(allWorldEntries, tv) {
@@ -99,7 +106,12 @@ export function renderDiarySection(diaryInjection) {
   return `<diary>\n${diaryInjection}\n</diary>`;
 }
 
-/** 合并为单条 system message：[1-4] cached 前缀 + [8.5] 剧情摘要 */
+/** [13] 玩家本轮发言，用标签与前面的本轮资料、后面的后置提示词隔开 */
+export function renderUserInputSection(content) {
+  return `<user_input>\n${content}\n</user_input>`;
+}
+
+/** 合并为单条 system message：[1-4.5] cached 前缀 + [8.5] 剧情摘要 */
 export function composeSystemContent(cachedSystemParts, summarySystemParts) {
   const cachedContent = cachedSystemParts.filter(Boolean).join('\n\n');
   const summaryContent = summarySystemParts.filter(Boolean).join('\n\n');
