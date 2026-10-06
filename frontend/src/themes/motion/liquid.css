@@ -738,7 +738,10 @@
   border-radius: 50%;
   background: radial-gradient(closest-side, var(--ink-glow), transparent);
   pointer-events: none;
-  animation: we-ink-badge-splash var(--ink-t4) var(--ink-surface) calc(var(--badge-delay) + var(--ink-t1)) both;
+  /* 墨晕比徽标宽，溅完不能停在末帧：常态压成零宽，不再把外层滚动区横向撑开 */
+  opacity: 0;
+  transform: scaleX(0);
+  animation: we-ink-badge-splash var(--ink-t4) var(--ink-surface) calc(var(--badge-delay) + var(--ink-t1)) backwards;
 }
 @keyframes we-ink-badge-splash {
   from { opacity: 1; transform: scaleX(0.25); }

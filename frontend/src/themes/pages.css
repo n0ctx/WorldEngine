@@ -2065,6 +2065,7 @@
 .we-cast-scroll {
   flex: 1;
   overflow-y: auto;
+  overflow-x: hidden;
   padding: 14px; /* design exact */
   display: flex;
   flex-direction: column;
