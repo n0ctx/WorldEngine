@@ -4,10 +4,15 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
   useReducedMotion: vi.fn(),
+  dustFrame: vi.fn(),
 }));
 
 vi.mock('framer-motion', () => ({
   useReducedMotion: () => mocks.useReducedMotion(),
+}));
+
+vi.mock('../../src/shells/book-spread/atmosphere/lightDust.js', () => ({
+  createDustScene: () => ({ resize: vi.fn(), read: vi.fn(), frame: mocks.dustFrame, dispose: vi.fn() }),
 }));
 
 import AtmosphereLayer from '../../src/shells/book-spread/atmosphere/AtmosphereLayer.jsx';
@@ -70,6 +75,18 @@ describe('AtmosphereLayer', () => {
 
     unmount();
     expect(remove).toHaveBeenCalledWith('pointerdown', expect.any(Function));
+  });
+
+  it('画布限到约 30 帧：60Hz 下隔一帧画一次，步进用实际间隔', () => {
+    mocks.dustFrame.mockClear();
+    HTMLCanvasElement.prototype.getContext.mockReturnValue({ setTransform: vi.fn(), clearRect: vi.fn() });
+    render(<AtmosphereLayer />);
+    const tick = () => raf.mock.calls.at(-1)[0];
+    const frameMs = 1000 / 60;
+    for (let i = 1; i <= 6; i++) act(() => tick()(i * frameMs));
+
+    expect(mocks.dustFrame).toHaveBeenCalledTimes(3);
+    expect(mocks.dustFrame.mock.calls[1][1]).toBeCloseTo((2 * frameMs) / 1000, 5);
   });
 
   it('卸载时停掉动画循环', () => {

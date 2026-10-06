@@ -16,6 +16,9 @@ import { createTypeWallScene } from './typeWall.js';
 const MAX_DPR = 2;
 // 主题切换不发事件给这里，按固定间隔重读一次 token；已知的换色（colorKey）立即重读
 const TOKEN_REFRESH_SECONDS = 1;
+// 画布每变一帧，整页（毛玻璃、遮罩、封面图）都要重新合成，满帧率下 Electron 里 GPU 常年占三四成；
+// 氛围运动缓慢，限到 30 帧，步进按实际间隔算，速度不变。60Hz 下帧间隔有抖动，留一点余量才能稳定隔一帧画一次
+const FRAME_INTERVAL_MS = 1000 / 30 - 4;
 const SCENES = { dust: createDustScene, rain: createRainScene, wall: createTypeWallScene };
 const NO_NAMES = [];
 
@@ -78,7 +81,7 @@ function Canvas({ colorKey, names }) {
       scene.read((token) => toRgb(ctx, style.getPropertyValue(token)), (token) => style.getPropertyValue(token).trim(), namesRef.current);
     }
 
-    function tick(now) {
+    function draw(now) {
       const dt = last ? Math.min((now - last) / 1000, 0.05) : 0;
       last = now;
       sinceRead += dt;
@@ -88,6 +91,10 @@ function Canvas({ colorKey, names }) {
         sinceRead = 0;
       }
       scene.frame(ctx, dt);
+    }
+
+    function tick(now) {
+      if (!last || now - last >= FRAME_INTERVAL_MS) draw(now);
       frame = requestAnimationFrame(tick);
     }
 
