@@ -125,3 +125,32 @@ test('取消会中断进行中的模型请求，不留下回复', async () => {
   assert.equal(task.status, 'cancelled');
   assert.equal(task.messages.some((m) => m.role === 'assistant'), false);
 });
+
+test('批量工具调用：一轮建世界，下一轮一次建字段与条目，记录里带汇总摘要与涉及的资源类型', async () => {
+  const task = taskStore.createTask({ context: {} });
+  process.env.MOCK_LLM_TOOL_TURNS_QUEUE = JSON.stringify([
+    [{ name: 'create', arguments: { kind: 'world', data: { name: 'batch-agent-world', profile: { 时间: '1024-03-05' } } } }],
+    [{ name: 'create', arguments: { items: [
+      { kind: 'entry', data: { title: '重伤反应', content: '语气变得急促。', conditions: [{ field: '玩家.生命', op: '<', value: 30 }] } },
+      { kind: 'field', data: { target: 'persona', label: '生命', type: 'number' } },
+    ] } }],
+    [{ name: 'create', arguments: { items: [{ kind: 'entry', data: { title: '缺正文' } }, { kind: 'entry', data: { title: '合格', content: '正文' } }] } }],
+    { text: '世界已建好。' },
+  ]);
+
+  await runAgent(task, '建一个世界');
+
+  assert.equal(task.status, 'completed');
+  const calls = task.messages.filter((m) => m.role === 'tool_call');
+  assert.deepEqual(calls.map((m) => [m.summary, m.status]), [
+    ['world batch-agent-world', 'done'], ['entry×1 field×1', 'done'], ['entry×2', 'error'],
+  ]);
+  assert.deepEqual(calls[1].targets, ['entry', 'field']);
+  assert.match(calls[1].result, /^已创建 2 项：entry:[\w-]+（重伤反应，trigger=state）；field:persona\.\w+（生命）$/);
+  assert.match(calls[2].error, /^整批未写入（共 2 项，1 项有问题）：第 1 项 entry「缺正文」：缺少 content$/);
+
+  const world = sandbox.db.prepare('SELECT id FROM worlds WHERE name = ?').get('batch-agent-world');
+  const titles = sandbox.db.prepare('SELECT title FROM world_prompt_entries WHERE world_id = ?').all(world.id).map((r) => r.title);
+  assert.deepEqual(titles, ['重伤反应']);
+  assert.match(buildHistory(task.messages).at(-1).content, /- create entry×1 field×1 ✓ 已创建 2 项：/);
+});

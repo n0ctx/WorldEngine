@@ -34,13 +34,21 @@
 5. 某个状态字段到达特定值时需要叙事反应（如低血量、阶段切换），为它建 `state` 条目。
 6. 建玩家卡 / 角色卡：档案写进 `profile`，会变化的数值写进 `state`。
 
+建完世界后，第 2-6 步的字段、条目和卡片放进一次 `create` 的 `items`（正文长或总数超过 20 项时分两三次）。同一批里字段先建，条目条件和卡片 `state` 可以直接引用刚建的字段。
+
 用户没说要多详细时，条目数取上面各步的下限，完成后告诉用户还可以补哪些方面。
+
+条目按顺序生效。暂时不用的条目写 `enabled: false` 停用而不是删除；调整位置写 `order`（从 1 开始）。
 
 ## 示例
 
 ```
-create("entry", { "title": "黑市暗号", "keywords": ["影笺", "暗号"],
-  "content": "{{user}} 报出暗号后，黑市探子会暗中跟踪……" })
-create("entry", { "title": "重伤反应", "conditions": [{ "field": "玩家.生命", "op": "<", "value": 30 }],
-  "content": "{{char}} 注意到 {{user}} 伤势严重，语气变得急促。" })
+create({ "items": [
+  { "kind": "field", "data": { "target": "persona", "label": "生命", "type": "number", "min": 0, "max": 100, "default": 100 } },
+  { "kind": "entry", "data": { "title": "黑市暗号", "keywords": ["影笺", "暗号"],
+    "content": "{{user}} 报出暗号后，黑市探子会暗中跟踪……" } },
+  { "kind": "entry", "data": { "title": "重伤反应", "conditions": [{ "field": "玩家.生命", "op": "<", "value": 30 }],
+    "content": "{{char}} 注意到 {{user}} 伤势严重，语气变得急促。" } }
+] })
+update({ "ref": "entry:<id>", "data": { "keywords": { "add": ["黑市"], "remove": ["暗号"] } } })
 ```
