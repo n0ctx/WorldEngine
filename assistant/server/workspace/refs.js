@@ -5,6 +5,8 @@
 // 列表：worlds / entries / fields / characters / personas / css / regex / docs
 // 与世界相关的 ref 可加 @<worldId> 指定世界，省略时用当前世界。
 
+import { getWorldById } from '../../../backend/services/worlds.js';
+
 import { fail } from './common.js';
 
 const LIST_KINDS = ['worlds', 'entries', 'fields', 'characters', 'personas', 'css', 'regex', 'docs'];
@@ -16,7 +18,7 @@ const LIST_OF = {
 export const FIELD_TARGETS = ['world', 'persona', 'character'];
 
 export const REF_HELP = '可用 ref：world、entry:<id>、field:persona.<字段>、character:<id>、persona、css:<id>、regex:<id>、config、doc:<名称>；'
-  + `列表：${LIST_KINDS.join(' / ')}`;
+  + `列表：${LIST_KINDS.join(' / ')}；与世界相关的 ref 可加 @<世界 id> 指定世界`;
 
 export function parseRef(raw) {
   const text = String(raw ?? '').trim();
@@ -26,7 +28,7 @@ export function parseRef(raw) {
   const at = text.lastIndexOf('@');
   if (at > 0) {
     body = text.slice(0, at);
-    worldId = text.slice(at + 1).trim() || null;
+    worldId = text.slice(at + 1).trim().replace(/^world:/, '') || null;
   }
   if (LIST_KINDS.includes(body)) return { text, list: true, kind: body, worldId };
 
@@ -50,6 +52,7 @@ export function parseRef(raw) {
 
 export function worldIdOf(ref, session) {
   const worldId = ref?.worldId ?? session.worldId;
-  if (!worldId) fail('当前没有选中世界：先 create("world", …)，或在 ref 后加 @<worldId>');
+  if (!worldId) fail('当前没有选中世界：先 create world，或在 ref 后加 @<worldId>');
+  if (ref?.worldId && !getWorldById(worldId)) fail(`世界 ${worldId} 不存在；read("worlds") 查看全部世界`);
   return worldId;
 }

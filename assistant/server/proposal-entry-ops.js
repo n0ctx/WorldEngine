@@ -276,4 +276,6 @@ function normalizeEntryCondition(condition, idx, conditionIndex, normalized, con
   };
 }
 
-export { buildWorldConditionContext, resolveConditionField, normalizeEntryOps };
+const CONDITION_OPERATORS = Object.keys(CONDITION_OPERATOR_ALIASES);
+
+export { CONDITION_OPERATORS, buildWorldConditionContext, resolveConditionField, normalizeEntryOps };

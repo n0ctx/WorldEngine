@@ -126,7 +126,7 @@ test('character / persona：state 用标签写原生值，类型不符给出可�
   assert.equal(JSON.parse(ws.read('persona')).ref, personaRef, '新玩家卡成为当前激活玩家卡');
   await ws.update('persona', { description: '远道而来' });
   assert.equal(JSON.parse(ws.read(personaRef)).description, '远道而来');
-  await assert.rejects(() => ws.remove(personaRef), /不支持删除/);
+  await assert.rejects(() => ws.remove(personaRef), /至少保留一张玩家卡/);
 });
 
 test('edit：old_text 未找到 / 出现多次 / 唯一匹配', async () => {

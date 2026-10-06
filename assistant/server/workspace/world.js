@@ -7,12 +7,14 @@ import { getAllWorldEntries } from '../../../backend/db/queries/prompt-entries.j
 
 import { normalizeProposal } from '../normalize-proposal.js';
 import { applyProposal } from '../apply-proposal.js';
-import { compact, fail, pickKnown, requireObjectKeys, requireText } from './common.js';
+import { compact, fail, parseFields, requireObjectKeys, requireText } from './common.js';
+import { intOrNull, numberOrNull, object, text } from './coerce.js';
 import { listFieldRows, fieldRef } from './fields.js';
 import { listCharacters, listPersonaRefs } from './cards.js';
 import { FIELD_TARGETS } from './refs.js';
 
-export const WORLD_FIELDS = ['name', 'description', 'temperature', 'max_tokens', 'profile'];
+const WORLD_SPEC = { name: text, description: text, temperature: numberOrNull, max_tokens: intOrNull, profile: object };
+export const WORLD_FIELDS = Object.keys(WORLD_SPEC);
 
 function loadWorld(worldId) {
   const world = getWorldById(worldId);
@@ -53,7 +55,6 @@ function worldProfileView(profileDefaultsJson) {
 }
 
 function toWorldProfilePatch(profile) {
-  if (typeof profile !== 'object' || Array.isArray(profile)) fail('profile 必须是 { 时间, 地点 } 对象');
   const patch = {};
   for (const [name, raw] of Object.entries(profile)) {
     const key = WORLD_PROFILE_LABELS[name] ?? (name === 'time' || name === 'location' ? name : null);
@@ -63,36 +64,42 @@ function toWorldProfilePatch(profile) {
   return patch;
 }
 
-function saveWorldProfile(worldId, profile) {
-  if (!profile) return;
-  updateWorldProfileDefaults(worldId, toWorldProfilePatch(profile));
-}
-
-export async function createWorld(session, data) {
-  const { profile, ...changes } = pickKnown(data, WORLD_FIELDS, 'world');
+export function planCreateWorld(session, data) {
+  const { profile, ...changes } = parseFields(data, WORLD_SPEC, 'world');
   requireText(changes.name, 'name（世界名）');
   if (!profile) fail('建世界必须在 profile 里写开场时间（时间：YYYY-MM-DD 或 YYYY-MM-DDTHH:mm）');
   const profileDefaults = buildNewWorldProfileDefaults(toWorldProfilePatch(profile));
-  const world = await applyProposal(normalizeProposal({ type: 'world-card', operation: 'create', changes }));
-  updateWorldProfileDefaults(world.id, profileDefaults);
-  session.worldId = world.id;
-  return `已创建 world:${world.id}（${world.name}），之后的操作默认作用于这个世界。新世界已自带默认状态字段，read("world") 可查看`;
+  const proposal = normalizeProposal({ type: 'world-card', operation: 'create', changes });
+  return async () => {
+    const world = await applyProposal(proposal);
+    updateWorldProfileDefaults(world.id, profileDefaults);
+    session.worldId = world.id;
+    return `已创建 world:${world.id}（${world.name}），之后的操作默认作用于这个世界。新世界已自带默认状态字段，read("world") 可查看`;
+  };
 }
 
-export async function updateWorld(worldId, data) {
-  const { profile, ...changes } = pickKnown(data, WORLD_FIELDS, 'world');
+export function planUpdateWorld(worldId, data) {
+  const { profile, ...changes } = parseFields(data, WORLD_SPEC, 'world');
   requireObjectKeys({ ...changes, ...(profile ? { profile } : {}) }, 'world 没有要修改的字段');
   loadWorld(worldId);
-  if (Object.keys(changes).length > 0) {
-    await applyProposal(normalizeProposal({ type: 'world-card', operation: 'update', entityId: worldId, changes }));
-  }
-  saveWorldProfile(worldId, profile);
-  return `已更新 world:${worldId}`;
+  const profilePatch = profile ? toWorldProfilePatch(profile) : null;
+  const proposal = Object.keys(changes).length > 0
+    ? normalizeProposal({ type: 'world-card', operation: 'update', entityId: worldId, changes })
+    : null;
+  return async () => {
+    // 档案的格式校验在业务层：先写它，校验不过时其余字段还没动。
+    if (profilePatch) updateWorldProfileDefaults(worldId, profilePatch);
+    if (proposal) await applyProposal(proposal);
+    return `已更新 world:${worldId}`;
+  };
 }
 
-export async function removeWorld(session, worldId) {
+export function planRemoveWorld(session, worldId) {
   const world = loadWorld(worldId);
-  await applyProposal(normalizeProposal({ type: 'world-card', operation: 'delete', entityId: worldId }));
-  if (session.worldId === worldId) session.worldId = null;
-  return `已删除 world:${worldId}（${world.name}）`;
+  const proposal = normalizeProposal({ type: 'world-card', operation: 'delete', entityId: worldId });
+  return async () => {
+    await applyProposal(proposal);
+    if (session.worldId === worldId) session.worldId = null;
+    return `已删除 world:${worldId}（${world.name}）`;
+  };
 }

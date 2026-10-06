@@ -4,6 +4,8 @@ import { getEditableProfileFields, parseProfileDefaults } from '../../backend/me
 import { updateProfileDefault } from '../../backend/services/profile-defaults.js';
 import { normalizeManualProfileValue } from '../../backend/services/state-memory.js';
 
+import { applyListPatch, isListPatch } from './workspace/common.js';
+
 function fail(message) {
   throw new Error(message);
 }
@@ -27,14 +29,17 @@ function findProfileField(fields, name) {
   return fields.find((field) => field.key === name) ?? fields.find((field) => field.label === name);
 }
 
-function resolveProfileWrites(worldId, entityType, values) {
+// currentJson 是卡片现有的档案（新建时不传）：列表字段写成 { add, remove } 时在它的基础上增删。
+function resolveProfileWrites(worldId, entityType, values, currentJson) {
   if (!values || typeof values !== 'object' || Array.isArray(values)) fail('profile 必须是 { 字段标签或 key: 值 } 对象');
   const fields = getEditableProfileFields(worldId, entityType);
   const available = describeProfileFields(worldId, entityType);
+  const current = parseProfileDefaults(currentJson);
   const writes = [];
-  for (const [name, raw] of Object.entries(values)) {
+  for (const [name, given] of Object.entries(values)) {
     const field = findProfileField(fields, name);
     if (!field) fail(`没有档案字段 "${name}"。可用字段：${available}`);
+    const raw = field.kind === 'list' && isListPatch(given) ? applyListPatch(current[field.key], given, field.label) : given;
     if (raw != null) {
       try {
         normalizeManualProfileValue(field, raw);
@@ -48,14 +53,14 @@ function resolveProfileWrites(worldId, entityType, values) {
 }
 
 /** 校验档案字段。创建前调用，避免卡片已落库后才发现字段写错。 */
-export function assertProfileValues(worldId, entityType, values) {
-  if (values) resolveProfileWrites(worldId, entityType, values);
+export function assertProfileValues(worldId, entityType, values, currentJson) {
+  if (values) resolveProfileWrites(worldId, entityType, values, currentJson);
 }
 
 /** 先校验全部字段，再逐字段写入。null、空文本、空列表表示清除。 */
-export function applyProfileValues(kind, id, worldId, entityType, values) {
+export function applyProfileValues(kind, id, worldId, entityType, values, currentJson) {
   if (!values) return;
-  for (const [fieldKey, valueJson] of resolveProfileWrites(worldId, entityType, values)) {
+  for (const [fieldKey, valueJson] of resolveProfileWrites(worldId, entityType, values, currentJson)) {
     updateProfileDefault(kind, id, fieldKey, valueJson);
   }
 }

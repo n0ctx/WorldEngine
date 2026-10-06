@@ -3,8 +3,8 @@
 import { getConfig } from '../../../backend/services/config.js';
 
 import { normalizeProposal } from '../normalize-proposal.js';
-import { applyProposal } from '../apply-proposal.js';
 import { fail, requireObjectKeys } from './common.js';
+import { applyStep } from './step.js';
 
 const SECRET_KEYS = new Set(['api_key', 'provider_keys']);
 
@@ -32,11 +32,11 @@ export function viewConfig() {
   return { ref: 'config', ...withoutSecrets(getConfig()) };
 }
 
-export async function updateConfig(data) {
+export function planUpdateConfig(data) {
   if (!data || typeof data !== 'object' || Array.isArray(data)) fail('config 的 data 必须是对象（局部补丁，如 { "global_system_prompt": "…" }）');
   requireObjectKeys(data, 'config 没有要修改的字段');
   const secret = findSecretPath(data);
   if (secret) fail(`不能修改密钥字段 ${secret}，请让用户在设置页自行填写`);
-  await applyProposal(normalizeProposal({ type: 'global-config', operation: 'update', changes: data }));
-  return `已更新全局设置：${Object.keys(data).join(', ')}`;
+  const proposal = normalizeProposal({ type: 'global-config', operation: 'update', changes: data });
+  return applyStep(proposal, `已更新全局设置：${Object.keys(data).join(', ')}`);
 }

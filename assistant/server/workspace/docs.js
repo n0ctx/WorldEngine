@@ -19,7 +19,7 @@ function docFiles() {
 // 文档首行 "# 标题" 作为清单里的一句话用途。
 export function listDocs() {
   const rows = docFiles().map((file) => {
-    const firstLine = readFileSync(path.join(DOCS_DIR, file), 'utf-8').split('\n')[0].replace(/^#\s*/, '');
+    const firstLine = readFileSync(path.join(DOCS_DIR, file), 'utf-8').split(/\r?\n/)[0].replace(/^#\s*/, '');
     return `doc:${file.replace(/\.md$/, '')} — ${firstLine}`;
   });
   for (const [name, doc] of Object.entries(GENERATED)) rows.push(`doc:${name} — ${doc.summary}`);
@@ -36,7 +36,7 @@ export function readDoc(name) {
 export function searchDocs(needle) {
   const hits = [];
   for (const file of docFiles()) {
-    const lines = readFileSync(path.join(DOCS_DIR, file), 'utf-8').split('\n');
+    const lines = readFileSync(path.join(DOCS_DIR, file), 'utf-8').split(/\r?\n/);
     for (const line of lines) {
       if (line.toLowerCase().includes(needle)) hits.push({ ref: `doc:${file.replace(/\.md$/, '')}`, text: line.trim() });
     }
