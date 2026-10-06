@@ -202,6 +202,21 @@ test('getStateMemory 返回 presentIds、world、age，会话不存在 404', () 
   expectError(() => getStateMemory('no-such-session'), 'not_found');
 });
 
+test('出生日期可写「?」表示早于世界纪年；故事时间未设置时年龄按系统时间算', () => {
+  const { session } = setupSession();
+  const elder = createEntity(session.id, { type: 'character', name: '老祖' });
+  updateEntity(session.id, elder.entity_id, { profile: { birth_date: '？' } });
+  const young = createEntity(session.id, { type: 'character', name: '少年' });
+  updateEntity(session.id, young.entity_id, { profile: { birth_date: '2000-01-01' } });
+  expectError(() => updateEntity(session.id, young.entity_id, { profile: { birth_date: '不详' } }), 'bad_request');
+
+  const { entities } = getStateMemory(session.id);
+  const found = (id) => entities.find((e) => e.entity_id === id);
+  assert.equal(found(elder.entity_id).profile.birth_date.value, '?');
+  assert.equal(found(elder.entity_id).age, null);
+  assert.ok(found(young.entity_id).age.age >= 26);
+});
+
 test('applyEntityBasicPatch 直接调用：改名、加别名、置顶；改名与其他实体重名 409', () => {
   const { session } = setupSession();
   const a = createEntity(session.id, { type: 'character', name: 'A' });

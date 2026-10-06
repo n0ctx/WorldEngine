@@ -32,7 +32,7 @@ import {
   isPlaceholderValue,
   DYNAMIC_LOCATION_KEY,
 } from './state-memory-schema.js';
-import { parseWorldDate, deriveAge } from '../utils/world-date.js';
+import { currentWorldDate, deriveAge, formatSystemWorldTime } from '../utils/world-date.js';
 import { countTokens } from '../utils/token-counter.js';
 import { STATE_DIRECTORY_BUDGET, STATE_NAME_MATCH_MIN, STATE_PROFILE_FILL_PER_ROUND } from '../utils/constants.js';
 export { renderRelevantThreadsForUpdate } from './state-thread-relevance.js';
@@ -476,7 +476,7 @@ function buildRenderContext(sessionId, { worldId, selectedIds, worldProfile, nam
   const presenceIds = new Set(presence ? presence.entity_ids : []);
   const fieldValues = getEntityStateValues(sessionId, selectedIds);
   const userFields = resolveWorldCharacterFields(worldId);
-  const worldDate = worldProfile.time ? parseWorldDate(worldProfile.time) : null;
+  const worldDate = currentWorldDate(worldProfile.time);
   return {
     details, relations, threads, presenceIds, fieldValues, userFields, worldDate, nameOf,
     activeProfileKeys: activeProfileKeysFactory(worldId),
@@ -588,6 +588,11 @@ function cardNote(entity) {
 
 function isPerson(entity) {
   return entity.type === 'player' || entity.type === 'character';
+}
+
+/** 状态更新用的世界当前时间：故事时间未设置时按系统时间，并注明。 */
+export function renderWorldTimeForUpdate(sessionId) {
+  return getCurrentWorldProfile(sessionId).time || `${formatSystemWorldTime()}（故事时间未设置，暂按系统时间）`;
 }
 
 /**
@@ -719,7 +724,7 @@ export function renderEntityProfileText(sessionId, entityId, { worldId } = {}) {
   const worldProfile = getCurrentWorldProfile(sessionId);
   const ctx = {
     details,
-    worldDate: worldProfile.time ? parseWorldDate(worldProfile.time) : null,
+    worldDate: currentWorldDate(worldProfile.time),
     activeProfileKeys: activeProfileKeysFactory(worldId),
   };
   const state = { header: `【${entity.name}】`, _headerCharged: true };

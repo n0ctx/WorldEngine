@@ -3,7 +3,7 @@
  *
  * 确定本轮活跃字段、读取世界/角色/玩家的默认值与会话运行时值，
  * 并渲染为 prompt 的 schema / values 文本段；另负责状态记忆接入所需的准备步骤
- * （基线捕获、本轮轮号、基础实体、真实日期时间、相关实体与 runtime 段组装）。
+ * （基线捕获、本轮轮号、基础实体、相关实体与 runtime 段组装）。
  */
 
 import { getCharactersByIds } from '../db/queries/characters.js';
@@ -21,17 +21,13 @@ import { getAllPersonaStateValues, getAllPersonaStateValuesByPersonaId } from '.
 import { getSessionPersonaStateValues } from '../db/queries/session-persona-state-values.js';
 import { getPersonaById, getPersonaByWorldId } from '../db/queries/personas.js';
 import { setSessionStateBaselineIfAbsent } from '../db/queries/sessions.js';
-import { upsertWorldProfile, getCurrentWorldProfile } from '../db/queries/state-memory.js';
 
 import { ENTITY_TYPES, getProfileFieldDefinitions, resolveActiveProfileFields } from './state-memory-schema.js';
 import { ensureBaseEntities } from './state-memory-apply.js';
-import { selectRelevantEntities, renderEntityDirectory, renderRelevantThreadsForUpdate, renderEntityDetailsForUpdate, renderProfileGapsForUpdate } from './state-memory-render.js';
+import { selectRelevantEntities, renderEntityDirectory, renderRelevantThreadsForUpdate, renderEntityDetailsForUpdate, renderProfileGapsForUpdate, renderWorldTimeForUpdate } from './state-memory-render.js';
 import { captureFullSnapshot } from './state-rollback.js';
 import { splitRounds } from '../utils/session-rounds.js';
 import { renderBackendPrompt } from '../prompts/prompt-loader.js';
-import { createLogger, formatMeta } from '../utils/logger.js';
-
-const log = createLogger('all-state');
 
 /**
  * 筛选本轮需要更新的活跃字段：状态字段触发机制已收敛为一维 update_mode。
@@ -308,24 +304,6 @@ export function resolveBaseEntities({ session, worldId, sessionId, round, charac
   return ensureBaseEntities({ sessionId, worldId, round, persona: resolvePersona(session, worldId), mainCharacter });
 }
 
-/**
- * 格式化当前时间为日记时间字符串（上海时区），ISO 局部时间 "YYYY-MM-DDTHH:mm"
- */
-function formatRealTimeDiaryStr() {
-  const now = new Date();
-  const local = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Shanghai' }));
-  const pad = (n, w = 2) => String(n).padStart(w, '0');
-  return `${pad(local.getFullYear(), 4)}-${pad(local.getMonth() + 1)}-${pad(local.getDate())}T${pad(local.getHours())}:${pad(local.getMinutes())}`;
-}
-
-/** 真实日期模式：写入世界档案 time，AI 输出的 set_world time 会被丢弃。 */
-export function writeRealDateWorldTime({ realDate, worldId, sessionId, round, sid }) {
-  if (!realDate || !worldId) return;
-  const timeStr = formatRealTimeDiaryStr();
-  upsertWorldProfile(sessionId, 'time', timeStr, null, round);
-  log.info(`REAL TIME  ${formatMeta({ session: sid, time: timeStr })}`);
-}
-
 /** 与本轮相关的实体 id 集合：选取规则命中的实体 + player + 对话模式主角色，供 renderEntityDetailsForUpdate 使用。 */
 export function resolveRelevantEntityIds(sessionId, messages, { playerEntityId, mainCharacterEntityId }) {
   const lastUserMessage = [...messages].reverse().find((m) => m.role === 'user')?.content ?? '';
@@ -348,7 +326,7 @@ export function buildRuntimeUserPrompt({ sessionId, worldId, mainCharacterEntity
     DIALOGUE: dialogue,
     RESPONSE_KEYS: responseKeys.join('、'),
     ROUND: round,
-    WORLD_TIME: getCurrentWorldProfile(sessionId).time || '（未设置）',
+    WORLD_TIME: renderWorldTimeForUpdate(sessionId),
     TRIGGERED_SETTING: triggeredSetting || '（无）',
     ENTITY_DIRECTORY: renderEntityDirectory(sessionId) || '（无）',
     RELEVANT_THREADS: renderRelevantThreadsForUpdate(sessionId, turnText) || '（无）',

@@ -44,7 +44,7 @@ import { getMessagesBySessionId } from '../db/queries/messages.js';
 import { getCharacterById } from '../db/queries/characters.js';
 import { getAllCharacterStateValues } from '../db/queries/character-state-values.js';
 import { splitRounds } from '../utils/session-rounds.js';
-import { parseWorldDate, deriveAge, formatWorldDateOnly } from '../utils/world-date.js';
+import { parseWorldDate, currentWorldDate, normalizeBirthDate, deriveAge, formatWorldDateOnly } from '../utils/world-date.js';
 import { validateValue } from '../utils/state-field-validate.js';
 import { truncateText, truncateListItems, seedProfileDefaults } from '../memory/state-memory-apply.js';
 import {
@@ -133,7 +133,7 @@ function buildEntityViewContext(sessionId, worldId, entityIds, worldProfile) {
     details: getEntityDetails(sessionId, entityIds),
     fieldValues: getEntityStateValues(sessionId, entityIds),
     worldCharacterFields: worldId ? getCharacterStateFieldsByWorldId(worldId).filter((f) => f.nearby_enabled) : [],
-    worldDate: worldProfile.time ? parseWorldDate(worldProfile.time) : null,
+    worldDate: currentWorldDate(worldProfile.time),
     worldId,
   };
 }
@@ -301,9 +301,10 @@ function normalizeManualAgeValue(fieldDef, value, { round, worldDate }) {
 
 function normalizeManualTextValue(fieldDef, value) {
   if (typeof value !== 'string') throw serviceError('bad_request', `${fieldDef.key} 须为文本`);
-  const trimmed = value.trim();
-  if (fieldDef.key === 'birth_date' && !parseWorldDate(trimmed)) throw serviceError('bad_request', '出生日期格式无效');
-  return truncateText(trimmed);
+  if (fieldDef.key !== 'birth_date') return truncateText(value.trim());
+  const birthDate = normalizeBirthDate(value);
+  if (!birthDate) throw serviceError('bad_request', '出生日期格式无效');
+  return birthDate;
 }
 
 export function normalizeManualProfileValue(fieldDef, value, ctx) {

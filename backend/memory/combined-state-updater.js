@@ -29,10 +29,10 @@ import {
   loadStateUpdateTargets, buildEntityStateSections,
   buildStateMemoryProfileFieldsSchema, buildNpcApplicableFieldsSchema,
   captureBaselineIfAbsent, resolveCurrentRound, resolveBaseEntities,
-  writeRealDateWorldTime, resolveRelevantEntityIds, buildRuntimeUserPrompt,
+  resolveRelevantEntityIds, buildRuntimeUserPrompt,
   resolvePersona,
 } from './state-update-context.js';
-import { applyStateMemoryOps, applyPresence, applyEntityFields } from './state-memory-apply.js';
+import { applyStateMemoryOps, applyPresence, applyEntityFields, writeRealDateWorldTime } from './state-memory-apply.js';
 
 const log = createLogger('all-state');
 

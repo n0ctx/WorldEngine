@@ -151,7 +151,7 @@ test('本轮明确完成的无参与者事项进入更新输入并可自动结�
     responseKeys: [], round: 2, relevantIds: new Set(),
   });
   assert.match(prompt, /【本轮相关的未了事项】\nt1｜［任务］归还账本/);
-  assert.match(prompt, /【世界当前时间】（未设置）/);
+  assert.match(prompt, /【世界当前时间】\d{4}-\d{2}-\d{2}T\d{2}:\d{2}（故事时间未设置，暂按系统时间）/);
 
   process.env.MOCK_LLM_COMPLETE = JSON.stringify({ entity_fields: {}, memory: [
     { op: 'resolve_thread', thread: 't1', outcome: 'resolved' },
@@ -169,10 +169,13 @@ test('状态更新提示词收紧立案并按事实结案', () => {
   assert.match(prompt, /不要因为期限到了就标 failed/);
 });
 
-test('状态更新提示词要求新建角色同轮写位置与 NPC 字段，并允许按名字引用', () => {
+test('状态更新提示词：新建角色同轮写位置与 NPC 字段，出生日期按年龄倒推', () => {
   const prompt = readFileSync(new URL('../../prompts/templates/state-update.md', import.meta.url), 'utf8');
   assert.match(prompt, /新建角色的同一轮还要用 set_state 写它的位置，并在 "entity_fields" 里填满/);
   assert.match(prompt, /本轮新建的角色写名字作键/);
+  assert.match(prompt, /年份只写数字，不带纪年名/);
+  assert.match(prompt, /用【世界当前时间】的年份减去它得出出生年份/);
+  assert.match(prompt, /算出的出生年份小于 1（年龄比世界纪年还长）时，出生日期只写一个半角问号 \?/);
 });
 
 test('连续 50 轮全是占位值/空操作时，状态记忆各表无新增行（除首轮建的 player/主角色外）', async () => {

@@ -1,7 +1,9 @@
-import test from 'node:test';
+import test, { mock } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { compareWorldDate, deriveAge, parseWorldDate, yearsBetween } from '../../utils/world-date.js';
+import {
+  compareWorldDate, currentWorldDate, deriveAge, normalizeBirthDate, parseWorldDate, yearsBetween,
+} from '../../utils/world-date.js';
 
 // ─── parseWorldDate ─────────────────────────────────────────────
 
@@ -67,4 +69,23 @@ test('deriveAge：既无 birth_date 也无 age_recorded，返回 null', () => {
 test('deriveAge：无世界日期时不推算，即使有 birth_date', () => {
   const result = deriveAge({ birth_date: '1000-01-01' }, null);
   assert.equal(result, null);
+});
+
+// ─── currentWorldDate / normalizeBirthDate ─────────────────────────────────────────────
+
+test('currentWorldDate 有故事时间时用故事时间，未设置或无法解析时按系统时间（上海时区）', (t) => {
+  t.after(() => mock.timers.reset());
+  mock.timers.enable({ apis: ['Date'], now: Date.parse('2026-10-06T11:30:00Z') });
+  assert.deepEqual(currentWorldDate('62-10-12T15:30'), parseWorldDate('62-10-12T15:30'));
+  assert.deepEqual(currentWorldDate(null), parseWorldDate('2026-10-06T19:30'));
+  assert.deepEqual(currentWorldDate('道元历205年'), parseWorldDate('2026-10-06T19:30'));
+});
+
+test('normalizeBirthDate 接受世界日期与问号，拒绝纪年名、占位词与非字符串', () => {
+  assert.equal(normalizeBirthDate(' 205-03-12 '), '205-03-12');
+  assert.equal(normalizeBirthDate('?'), '?');
+  assert.equal(normalizeBirthDate('？'), '?');
+  assert.equal(normalizeBirthDate('道元历205-03-12'), null);
+  assert.equal(normalizeBirthDate('未知'), null);
+  assert.equal(normalizeBirthDate(null), null);
 });

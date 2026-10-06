@@ -19,6 +19,7 @@
  *     → { applied: number, rejected: {ref, fieldKey?, reason}[] }
  *   ensureBaseEntities({ sessionId, worldId, round, persona, mainCharacter })
  *     → { playerEntityId, mainCharacterEntityId }
+ *   writeRealDateWorldTime({ realDate, worldId, sessionId, round, sid }) → void
  */
 
 import crypto from 'node:crypto';
@@ -39,7 +40,7 @@ import {
   ENTITY_TYPES, getProfileFieldDefinitions, resolveActiveProfileFields, getEditableProfileFields, parseProfileDefaults,
   isPlaceholderValue, THREAD_KINDS, EXCLUSIVE_PREDICATES, DYNAMIC_LOCATION_KEY,
 } from './state-memory-schema.js';
-import { parseWorldDate, compareWorldDate, isPastWorldDeadline } from '../utils/world-date.js';
+import { parseWorldDate, compareWorldDate, isPastWorldDeadline, normalizeBirthDate, formatSystemWorldTime } from '../utils/world-date.js';
 import { validateValue, resolveListPatch } from '../utils/state-field-validate.js';
 import {
   STATE_TEXT_FIELD_MAX, STATE_LIST_ITEM_MAX, STATE_LIST_MAX_ITEMS,
@@ -276,10 +277,11 @@ function writeListLikeField(entity, fieldDef, opType, payload, evidence, ctx) {
   return commitProfileWrite(entity, fieldDef, truncateListItems(items), evidence, ctx);
 }
 
-function writeTextField(entity, fieldDef, opType, value, evidence, ctx) {
+function writeTextField(entity, fieldDef, opType, rawValue, evidence, ctx) {
+  const value = fieldDef.key === 'birth_date' ? normalizeBirthDate(rawValue) : rawValue;
+  if (fieldDef.key === 'birth_date' && !value) return { ok: false, reason: '出生日期格式无效' };
   if (typeof value !== 'string' || isPlaceholderValue(value)) return { ok: false, reason: '占位值或空文本' };
   const trimmed = value.trim();
-  if (fieldDef.key === 'birth_date' && !parseWorldDate(trimmed)) return { ok: false, reason: '出生日期格式无效' };
   if (fieldDef.mutability === 'immutable' && opType === 'correct') {
     log.warn(`STATE MEMORY IMMUTABLE CORRECTED  ${formatMeta({ entity: entity.entity_id, field: fieldDef.key })}`);
   }
@@ -787,6 +789,14 @@ function parseWorldProfileDefaults(profileDefaultsJson) {
   if (!isPlaceholderValue(parsed.time) && parseWorldDate(parsed.time)) defaults.time = parsed.time;
   if (!isPlaceholderValue(parsed.location)) defaults.location = parsed.location;
   return defaults;
+}
+
+/** 真实日期模式：写入世界档案 time，AI 输出的 set_world time 会被丢弃。 */
+export function writeRealDateWorldTime({ realDate, worldId, sessionId, round, sid }) {
+  if (!realDate || !worldId) return;
+  const timeStr = formatSystemWorldTime();
+  upsertWorldProfile(sessionId, 'time', timeStr, null, round);
+  log.info(`REAL TIME  ${formatMeta({ session: sid, time: timeStr })}`);
 }
 
 /** 新会话还没有世界档案时，把世界卡的开场时间、开场地点带入。已有值不覆盖。 */

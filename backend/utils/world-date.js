@@ -28,6 +28,29 @@ export function parseWorldDate(str) {
   return { year, month, day, hour, minute };
 }
 
+/** 系统当前时间（上海时区），格式同世界日期 `YYYY-MM-DDTHH:mm` */
+export function formatSystemWorldTime() {
+  const local = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Shanghai' }));
+  const pad = (n, w = 2) => String(n).padStart(w, '0');
+  return `${pad(local.getFullYear(), 4)}-${pad(local.getMonth() + 1)}-${pad(local.getDate())}T${pad(local.getHours())}:${pad(local.getMinutes())}`;
+}
+
+/** 世界当前日期：故事时间没设置或无法解析时按系统时间 */
+export function currentWorldDate(worldTime) {
+  return parseWorldDate(worldTime) ?? parseWorldDate(formatSystemWorldTime());
+}
+
+/**
+ * 规范出生日期：合法世界日期去掉首尾空白返回；半角或全角问号统一为「?」，
+ * 表示早于世界纪年、年龄无从推算；其余返回 null。
+ */
+export function normalizeBirthDate(value) {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  if (trimmed === '?' || trimmed === '？') return '?';
+  return parseWorldDate(trimmed) ? trimmed : null;
+}
+
 /** 世界日期对象格式化为只到日期的 `YYYY-MM-DD` */
 export function formatWorldDateOnly(worldDate) {
   const mm = String(worldDate.month).padStart(2, '0');
