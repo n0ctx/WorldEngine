@@ -574,7 +574,7 @@ test('故事时间过了期限的未了事项标为已过期，只写日期的�
       { op: 'set_world', key: 'time', value: '1000-03-15T08:00' },
       { op: 'open_thread', kind: '承诺', participants: [], content: '天黑前送信', deadline: '1000-03-15T18:00' },
       { op: 'open_thread', kind: '债务', participants: [], content: '当天还钱', deadline: '1000-03-15' },
-      { op: 'open_thread', kind: '谜团', participants: [], content: '钟楼的秘密' },
+      { op: 'open_thread', kind: '谜团', participants: [], content: '钟楼的秘密', deadline: '无期限' },
       { op: 'open_thread', kind: '任务', participants: [], content: '修好船帆', deadline: '三天后' },
     ],
     ...noop,
@@ -604,7 +604,7 @@ test('故事时间过了期限的未了事项标为已过期，只写日期的�
   assert.equal(byContent.get('修好船帆'), 'active');
 });
 
-test('update_thread 可改期或取消期限，没设置故事时间时不判过期', () => {
+test('update_thread 可改期或改成无期限，没设置故事时间时不判过期', () => {
   const { world, session } = setupSession();
   applyStateMemoryOps({
     sessionId: session.id, worldId: world.id, round: 1,
@@ -621,14 +621,14 @@ test('update_thread 可改期或取消期限，没设置故事时间时不判过
     ops: [
       { op: 'set_world', key: 'time', value: '1000-03-17T08:00' },
       { op: 'update_thread', thread: 't1', content: '船帆修了一半，宽限到月底', deadline: '1000-03-31' },
-      { op: 'update_thread', thread: 't2', content: '守住北门，不再限期', deadline: null },
+      { op: 'update_thread', thread: 't2', content: '守住北门，不再限期', deadline: '无期限' },
     ],
     ...noop,
   });
   const threads = listThreads(session.id);
   assert.deepEqual(threads.map((thread) => [thread.status, thread.deadline]), [
     ['active', '1000-03-31'],
-    ['active', null],
+    ['active', '无期限'],
   ]);
 });
 

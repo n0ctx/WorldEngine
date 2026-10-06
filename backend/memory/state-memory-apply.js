@@ -44,7 +44,7 @@ import { parseWorldDate, compareWorldDate, isPastWorldDeadline, normalizeBirthDa
 import { validateValue, resolveListPatch } from '../utils/state-field-validate.js';
 import {
   STATE_TEXT_FIELD_MAX, STATE_LIST_ITEM_MAX, STATE_LIST_MAX_ITEMS,
-  THREAD_DORMANT_AFTER_ROUNDS,
+  THREAD_DORMANT_AFTER_ROUNDS, THREAD_NO_DEADLINE,
 } from '../utils/constants.js';
 import { threadMatchesTurn } from './state-thread-relevance.js';
 import { createLogger, formatMeta } from '../utils/logger.js';
@@ -524,14 +524,13 @@ function normalizedThreadContent(content) {
 }
 
 /**
- * 读取操作里的期限：没给返回 undefined（不改动）；null 或空串表示取消期限；
- * 格式无效时当作没给，事项本身照常写入。
+ * 读取操作里的期限：世界日期或「无期限」；没给或格式无效时返回 undefined（不改动），
+ * 无效的记一条警告，事项本身照常写入。
  */
 function readThreadDeadline(op, ctx) {
   if (op.deadline === undefined) return undefined;
   const trimmed = typeof op.deadline === 'string' ? op.deadline.trim() : '';
-  if (op.deadline === null || !trimmed) return null;
-  if (parseWorldDate(trimmed)) return trimmed;
+  if (trimmed === THREAD_NO_DEADLINE || parseWorldDate(trimmed)) return trimmed;
   log.warn(`STATE MEMORY THREAD DEADLINE IGNORED  ${formatMeta({ session: ctx.sessionId.slice(0, 8), op: op.op, deadline: op.deadline })}`);
   return undefined;
 }

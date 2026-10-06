@@ -34,7 +34,7 @@ import {
 } from './state-memory-schema.js';
 import { currentWorldDate, deriveAge, formatSystemWorldTime } from '../utils/world-date.js';
 import { countTokens } from '../utils/token-counter.js';
-import { STATE_DIRECTORY_BUDGET, STATE_NAME_MATCH_MIN, STATE_PROFILE_FILL_PER_ROUND } from '../utils/constants.js';
+import { STATE_DIRECTORY_BUDGET, STATE_NAME_MATCH_MIN, STATE_PROFILE_FILL_PER_ROUND, THREAD_NO_DEADLINE } from '../utils/constants.js';
 export { renderRelevantThreadsForUpdate } from './state-thread-relevance.js';
 
 const STORY_STATE_HINT = '以下是当前场景相关人物与事物的既定设定和现状。人物的身份、外貌、性格、说话方式必须与此一致；列出不代表必须登场。';
@@ -436,7 +436,7 @@ function buildRelationLines(relations, nameOf) {
 function buildThreadLines(threads, nameOf) {
   return threads.map((t) => {
     const participants = JSON.parse(t.participants_json || '[]').map(nameOf).filter(Boolean);
-    const deadline = t.deadline ? `，期限 ${t.deadline}` : '';
+    const deadline = t.deadline && t.deadline !== THREAD_NO_DEADLINE ? `，期限 ${t.deadline}` : '';
     return `进行中：［${t.kind}］${t.content}（${participants.join('、')}，第 ${t.opened_round} 轮起${deadline}）`;
   });
 }

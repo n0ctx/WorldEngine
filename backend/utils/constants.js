@@ -127,6 +127,8 @@ export const STATE_PROFILE_FILL_PER_ROUND = 3;
 export const STATE_NAME_MATCH_MIN = 2;
 /** 进行中事项连续这么多轮没被对话碰到，就自动搁置 */
 export const THREAD_DORMANT_AFTER_ROUNDS = 12;
+/** 未了事项期限的取值之一：副模型判断这件事本身没有时限时写这个，不会过期 */
+export const THREAD_NO_DEADLINE = '无期限';
 
 // ============================
 // 思考强度档位与预算（前后端共享单一来源）

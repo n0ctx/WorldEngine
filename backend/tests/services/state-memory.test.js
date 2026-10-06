@@ -169,13 +169,11 @@ test('事项：新建、未知类型 400、更新内容与状态、未知状态 
   expectError(() => updateThread(session.id, 'no-such-thread', { status: 'active' }), 'not_found');
 });
 
-test('事项期限：可设置与清空，格式无效 400；重新打开已过期事项时没给新期限就取消旧期限', () => {
+test('事项期限不能手动改；重新打开已过期事项时清掉旧期限', () => {
   const { session } = setupSession();
   const thread = createThread(session.id, { kind: '债务', content: '月底还钱' });
 
-  assert.equal(updateThread(session.id, thread.thread_id, { deadline: '1000-03-31' }).deadline, '1000-03-31');
-  expectError(() => updateThread(session.id, thread.thread_id, { deadline: '月底' }), 'bad_request');
-  assert.equal(updateThread(session.id, thread.thread_id, { deadline: '' }).deadline, null);
+  expectError(() => updateThread(session.id, thread.thread_id, { deadline: '1000-03-31' }), 'bad_request');
 
   upsertThread(session.id, {
     threadId: thread.thread_id, seq: thread.seq, kind: thread.kind, content: thread.content,

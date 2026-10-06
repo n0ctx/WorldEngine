@@ -19,7 +19,7 @@
  *   createRelation(sessionId, { subject_id, predicate, object_id?, object_value?, note? }) → relation
  *   deleteRelation(sessionId, relationId) → { ok: true }
  *   createThread(sessionId, { kind, participants, content }) → thread
- *   updateThread(sessionId, threadId, { content?, status?, deadline? }) → thread
+ *   updateThread(sessionId, threadId, { content?, status? }) → thread
  *
  * updateEntity 的三个分支单独导出（供圈复杂度按独立单元计分，也便于单测）：
  *   applyEntityBasicPatch(sessionId, entity, body, round) → void，改名/别名/置顶
@@ -498,7 +498,7 @@ export function updateThread(sessionId, threadId, body = {}) {
   requireSession(sessionId);
   const thread = listThreads(sessionId).find((t) => t.thread_id === threadId);
   if (!thread) throw serviceError('not_found', '事项不存在');
-  if (body.content === undefined && body.status === undefined && body.deadline === undefined) {
+  if (body.content === undefined && body.status === undefined) {
     throw serviceError('bad_request', '缺少更新内容');
   }
 
@@ -511,13 +511,8 @@ export function updateThread(sessionId, threadId, body = {}) {
   if (!THREAD_STATUSES.includes(status) || (body.status !== undefined && !MANUAL_THREAD_STATUSES.includes(status))) {
     throw serviceError('bad_request', `未知状态: ${status}`);
   }
-  // 重新打开已过期的事项时，没给新期限就取消旧期限，否则下一轮又会被判过期
-  let deadline = thread.status === 'expired' && status === 'active' ? null : thread.deadline ?? null;
-  if (body.deadline !== undefined) {
-    deadline = typeof body.deadline === 'string' ? body.deadline.trim() : '';
-    if (!deadline) deadline = null;
-    else if (!parseWorldDate(deadline)) throw serviceError('bad_request', '期限格式应为 YYYY-MM-DD 或 YYYY-MM-DDTHH:mm');
-  }
+  // 重新打开已过期的事项时清掉旧期限（变成「未定」，副模型下次碰到时重估），否则下一轮又会被判过期
+  const deadline = thread.status === 'expired' && status === 'active' ? null : thread.deadline ?? null;
 
   const round = resolveManualRound(sessionId);
   upsertThread(sessionId, {

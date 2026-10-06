@@ -3,7 +3,6 @@ import Badge from '../ui/Badge.jsx';
 import Button from '../ui/Button.jsx';
 import Card from '../ui/Card.jsx';
 import EmptyState from '../ui/EmptyState.jsx';
-import Input from '../ui/Input.jsx';
 import { IconChevronRight } from '../ui/icons.jsx';
 import { updateStateThread } from '../../core/api/state-memory.js';
 import { isImeComposing } from '../../core/utils/ime.js';
@@ -18,7 +17,6 @@ function participantNames(entities, participantIds) {
 
 function ThreadRow({ sessionId, thread, entities, reload }) {
   const [content, setContent] = useState(thread.content);
-  const [deadline, setDeadline] = useState(thread.deadline ?? '');
   const [error, setError] = useState('');
   const active = thread.status === 'active';
   const open = active || thread.status === 'dormant';
@@ -41,7 +39,7 @@ function ThreadRow({ sessionId, thread, entities, reload }) {
         <Badge>{thread.kind}</Badge>
         <span className="we-sm-thread-meta">
           {participants && <>{participants} · </>}第 {thread.opened_round} 轮起
-          {!open && thread.deadline && <> · 期限 {thread.deadline}</>}
+          {' · '}{thread.deadline === '无期限' ? '无期限' : `期限 ${thread.deadline ?? '未定'}`}
         </span>
         <span className="we-sm-thread-actions">
           {open ? (
@@ -75,26 +73,6 @@ function ThreadRow({ sessionId, thread, entities, reload }) {
         }}
         onBlur={() => { if (content.trim() && content !== thread.content) commit({ content: content.trim() }); }}
       />
-      {open && (
-        <label className="we-sm-thread-deadline">
-          <span className="we-sm-form-label">期限</span>
-          <Input
-            size="sm"
-            aria-label="事项期限"
-            placeholder="无期限；如 1000-03-15 或 1000-03-15T18:00"
-            value={deadline}
-            onChange={(e) => setDeadline(e.target.value)}
-            onKeyDown={(e) => {
-              if (isImeComposing(e)) return;
-              if (e.key === 'Escape' && deadline !== (thread.deadline ?? '')) {
-                e.preventDefault();
-                setDeadline(thread.deadline ?? '');
-              }
-            }}
-            onBlur={() => { if (deadline.trim() !== (thread.deadline ?? '')) commit({ deadline: deadline.trim() || null }); }}
-          />
-        </label>
-      )}
       {error && <p className="we-settings-toggle-hint text-[var(--we-color-accent)]" role="alert">{error}</p>}
     </Card>
   );

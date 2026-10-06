@@ -297,7 +297,7 @@ describe('StateMemoryModal', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /已结束 1/ }));
     expect(screen.getByDisplayValue('欠酒馆十个银币')).toBeInTheDocument();
-    expect(screen.getByText('第 1 轮起')).toBeInTheDocument();
+    expect(screen.getByText(/^第 1 轮起 · 期限 未定$/)).toBeInTheDocument();
   });
 
   it('已搁置事项默认折叠，重新打开后回到进行中', async () => {
@@ -318,25 +318,23 @@ describe('StateMemoryModal', () => {
     expect(mocks.updateStateThread).toHaveBeenCalledWith('s1', 't3', { status: 'active' });
   });
 
-  it('进行中事项可改期限，清空即取消；已过期事项归入已结束并显示期限', async () => {
+  it('期限只读显示 AI 写的值：日期、无期限、未定；已过期事项归入已结束并显示期限', async () => {
     setup({
       ...baseData,
       threads: [
         { ...baseData.threads[0], deadline: '1000-03-18' },
+        { thread_id: 't5', seq: 5, kind: '目标', participants: [], content: '成为剑仙', status: 'active', opened_round: 2, deadline: '无期限' },
+        { thread_id: 't6', seq: 6, kind: '任务', participants: [], content: '买药材', status: 'active', opened_round: 3, deadline: null },
         { thread_id: 't4', seq: 4, kind: '债务', participants: [], content: '月底还钱', status: 'expired', opened_round: 1, deadline: '1000-02-30' },
       ],
     });
     await screen.findByLabelText('搜索实体');
-    fireEvent.click(screen.getByRole('tab', { name: /未了事项\s*1/ }));
+    fireEvent.click(screen.getByRole('tab', { name: /未了事项\s*3/ }));
 
-    const deadline = await screen.findByLabelText('事项期限');
-    expect(deadline).toHaveValue('1000-03-18');
-    fireEvent.change(deadline, { target: { value: '1000-03-20T18:00' } });
-    fireEvent.blur(deadline);
-    expect(mocks.updateStateThread).toHaveBeenCalledWith('s1', 't1', { deadline: '1000-03-20T18:00' });
-    fireEvent.change(deadline, { target: { value: '' } });
-    fireEvent.blur(deadline);
-    expect(mocks.updateStateThread).toHaveBeenCalledWith('s1', 't1', { deadline: null });
+    expect(await screen.findByText(/期限 1000-03-18/)).toBeInTheDocument();
+    expect(screen.getByText(/第 2 轮起 · 无期限/)).toBeInTheDocument();
+    expect(screen.getByText(/第 3 轮起 · 期限 未定/)).toBeInTheDocument();
+    expect(screen.queryByLabelText('事项期限')).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: /已结束 1/ }));
     expect(screen.getByDisplayValue('月底还钱')).toBeInTheDocument();

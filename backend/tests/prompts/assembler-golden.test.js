@@ -312,6 +312,6 @@ test('buildPrompt / buildWritingPrompt 的输出逐字节稳定', async () => {
     return;
   }
 
-  const expected = fs.readFileSync(SNAPSHOT_PATH, 'utf-8');
+  const expected = fs.readFileSync(SNAPSHOT_PATH, 'utf-8').replace(/\r\n/g, '\n');
   assert.equal(actual, expected, 'assembler 输出发生字节变化，若非预期请勿更新快照');
 });

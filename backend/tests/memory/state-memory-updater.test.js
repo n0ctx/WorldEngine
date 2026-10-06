@@ -167,6 +167,9 @@ test('状态更新提示词收紧立案并按事实结案', () => {
   assert.match(prompt, /本轮之后仍未完成/);
   assert.match(prompt, /不要求出现「完成了」/);
   assert.match(prompt, /不要因为期限到了就标 failed/);
+  assert.match(prompt, /open_thread 必须写 deadline/);
+  assert.match(prompt, /剧情没给时限的，按事情本身估一个合理期限/);
+  assert.match(prompt, /期限显示「未定」的，本轮 update_thread 时按上面的规则补上/);
 });
 
 test('状态更新提示词：新建角色同轮写位置与 NPC 字段，出生日期按年龄倒推', () => {

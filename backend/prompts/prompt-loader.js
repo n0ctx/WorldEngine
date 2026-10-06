@@ -8,7 +8,7 @@ const cache = new Map();
 
 export function loadBackendPrompt(name) {
   if (!cache.has(name)) {
-    cache.set(name, readFileSync(path.resolve(PROMPTS_DIR, name), 'utf-8').trim());
+    cache.set(name, readFileSync(path.resolve(PROMPTS_DIR, name), 'utf-8').replace(/\r\n/g, '\n').trim());
   }
   return cache.get(name);
 }

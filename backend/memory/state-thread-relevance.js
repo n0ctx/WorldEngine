@@ -30,7 +30,7 @@ export function renderRelevantThreadsForUpdate(sessionId, turnText) {
     .map((thread) => {
       const participants = JSON.parse(thread.participants_json || '[]').map(nameOf).filter(Boolean);
       const dormant = thread.status === 'dormant' ? '［搁置］' : '';
-      const deadline = thread.deadline ? `｜期限 ${thread.deadline}` : '';
+      const deadline = `｜期限 ${thread.deadline || '未定'}`;
       return `t${thread.seq}｜${dormant}［${thread.kind}］${thread.content}${participants.length ? `（${participants.join('、')}）` : ''}${deadline}`;
     }).join('\n');
 }

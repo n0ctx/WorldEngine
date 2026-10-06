@@ -959,11 +959,6 @@
   background: var(--we-color-bg-elevated);
   box-shadow: var(--we-focus-ring);
 }
-.we-sm-thread-deadline {
-  display: flex;
-  align-items: center;
-  gap: var(--we-space-sm);
-}
 .we-sm-closed {
   margin-top: var(--we-space-lg);
 }
