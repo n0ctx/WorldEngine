@@ -14,6 +14,12 @@ function stripMotion(state) {
   if (!state || typeof state !== 'object') return state;
   const next = { ...state };
   for (const key of MOTION_KEYS) delete next[key];
+  if (next.transitionEnd) {
+    const end = { ...next.transitionEnd };
+    for (const key of MOTION_KEYS) delete end[key];
+    if (Object.keys(end).length) next.transitionEnd = end;
+    else delete next.transitionEnd;
+  }
   if (Array.isArray(next.opacity)) next.opacity = next.opacity[next.opacity.length - 1];
   if (next.transition) next.transition = REDUCED;
   return next;
