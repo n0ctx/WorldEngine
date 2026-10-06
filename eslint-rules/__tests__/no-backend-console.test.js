@@ -11,6 +11,8 @@ ruleTester.run('no-backend-console', rule, {
     { code: 'createLogger("x")', filename: 'backend/services/bar.js' },
     { code: 'console.log("ok")', filename: 'backend/utils/logger.js' },
     { code: 'console.error("server start")', filename: 'backend/server.js' },
+    { code: 'console.log("ok")', filename: 'D:\\WorldEngine\\backend\\utils\\logger.js' },
+    { code: 'console.log("ready")', filename: 'D:\\WorldEngine\\backend\\server.js' },
     { code: 'console.table([])', filename: 'backend/services/bar.js' },
     { code: 'logger.log("ok")', filename: 'backend/routes/foo.js' },
   ],

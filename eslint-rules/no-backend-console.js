@@ -12,7 +12,8 @@ export default {
         if (node.object?.name !== 'console') return;
         const prop = node.property?.name;
         if (!['log', 'info', 'warn', 'error', 'debug'].includes(prop)) return;
-        const filename = context.filename || context.getFilename();
+        // Windows 下路径用反斜杠，统一成正斜杠再比对豁免文件
+        const filename = (context.filename || context.getFilename()).replace(/\\/g, '/');
         if (filename.endsWith('utils/logger.js')) return;
         if (filename.endsWith('backend/server.js')) return;
         context.report({ node, messageId: 'forbidden' });
