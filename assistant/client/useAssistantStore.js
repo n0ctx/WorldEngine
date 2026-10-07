@@ -34,6 +34,17 @@ export function stripToolCallLeakage(text) {
   return out;
 }
 
+const HEAVY_KEY = 'we-assistant-v2';
+const LIVE_KEY = 'we-assistant-v2:live';
+
+// 跟着某段对话走的界面状态；清空对话时一起清
+const EMPTY_VIEW_STATE = {
+  scrollTop: null,
+  expandedThinks: {},
+  editingMessageId: null,
+  editingDraft: '',
+};
+
 export const useAssistantStore = create(
   persist(
     (set) => ({
@@ -47,6 +58,7 @@ export const useAssistantStore = create(
       // replaceTailWithUser 写入后设置；防止 MESSAGES_CHANGED 广播在 abort 尚未完全生效时吞掉本地 user 消息
       pendingUserMessageId: null,
 
+      // 清空对话；输入栏草稿属于用户还没发出的话，保留
       reset: () =>
         set({
           taskId: null,
@@ -55,6 +67,7 @@ export const useAssistantStore = create(
           error: null,
           contextUsage: null,
           pendingUserMessageId: null,
+          ...EMPTY_VIEW_STATE,
         }),
 
       // 仅重置任务态，保留消息历史（面板重开时使用）
@@ -182,24 +195,40 @@ export const useAssistantStore = create(
       close: () => set({ isOpen: false }),
       setWidth: (w) =>
         set(() => ({ width: Math.min(Math.max(Math.round(w), 320), 720) })),
+
+      // ─── 刷新后要原样回来的界面状态 ────────────────────────────
+      // 输入栏打了一半、还没发出去的文字
+      draft: '',
+      setDraft: (draft) => set({ draft: typeof draft === 'string' ? draft : '' }),
+      ...EMPTY_VIEW_STATE,
+      // null 表示贴在底部（新消息来了继续跟随），数字是用户停留的位置
+      setScrollTop: (scrollTop) => set({ scrollTop }),
+      // 思考块展开态，key 见 thinkKey；顺手剔除已不在列表里的消息，避免越积越多
+      toggleThink: (key) => set((s) => ({ expandedThinks: toggleExpandedThink(s.expandedThinks, s.messages, key) })),
+      // 用户消息的行内编辑：同一时间只编辑一条
+      startEditing: (messageId, content) => set({ editingMessageId: messageId, editingDraft: content ?? '' }),
+      setEditingDraft: (editingDraft) => set({ editingDraft }),
+      stopEditing: () => set({ editingMessageId: null, editingDraft: '' }),
     }),
     {
-      name: 'we-assistant-v2',
-      // 流式期间不写盘：每个 DELTA 帧都会触发一次 partialize + JSON.stringify(messages)，
-      // 累积文本越长每帧成本越高（O(n²)）。这里提供自定义 PersistStorage，在 status==='running'
-      // 时于 stringify 之前直接 early-return，跳过整条写盘链；任务进入终态或 idle 时才落盘一次。
-      // 注意：必须早退而非在 partialize 里省略 messages —— 后者每帧仍会用不含 messages 的
-      // 整体 blob 覆盖 localStorage，导致流式中刷新丢失全部历史。
-      storage: createSkipWhileRunningStorage(),
+      name: HEAVY_KEY,
+      // 写盘拆成两块，见 createSplitStorage
+      storage: createSplitStorage(),
       // 持久化面板偏好 + 最小恢复态；真正任务真相源仍以后端 task snapshot 为准。
+      // messages 原样交给 storage，只在真的写重块时才清洗，避免每个 DELTA 帧都遍历一遍。
       partialize: (s) => ({
         isOpen: s.isOpen,
         width: s.width,
         taskId: s.taskId,
         status: s.status,
-        messages: sanitizeMessagesForPersist(s.messages),
+        messages: s.messages,
         error: s.error,
         contextUsage: s.contextUsage,
+        draft: s.draft,
+        scrollTop: s.scrollTop,
+        expandedThinks: s.expandedThinks,
+        editingMessageId: s.editingMessageId,
+        editingDraft: s.editingDraft,
       }),
       // rehydrate 时再过一次清洗：兼容旧版本写入的脏数据，保证刷新后不残留
       // streaming 标志和"运行中"占位行。
@@ -212,37 +241,69 @@ export const useAssistantStore = create(
   ),
 );
 
-// 自定义持久化存储：流式（status==='running'）期间跳过 setItem，避免每个 DELTA 帧
-// 同步 JSON.stringify 整个 messages 写 localStorage。zustand 在 stringify 之前调用本
-// setItem(name, value)，其中 value 为 { state, version }，因此可在序列化之后、写盘之前
-// 读 value.state.status 决定是否落盘。读/删保持原生行为。
-function createSkipWhileRunningStorage() {
+// 自定义持久化存储，把一份 state 拆成两块写 localStorage：
+// - 重块 HEAVY_KEY 只放 messages。流式（status==='running'）期间不写：每个 DELTA 帧都
+//   JSON.stringify 整个 messages 成本是 O(n²)；保留上一次终态写入的历史，刷新后由
+//   后端任务快照补齐。
+// - 轻块 LIVE_KEY 放其余字段（taskId、状态、输入栏草稿、滚动位置等），都是小值，
+//   流式期间照写。否则任务跑起来后的新 taskId、正在打的字都要等任务结束才落盘，
+//   中途刷新就找不回。
+// 读的时候两块合并，轻块优先。
+function createSplitStorage() {
   return {
-    getItem: (name) => {
-      try {
-        const str = globalThis.localStorage?.getItem(name);
-        return str ? JSON.parse(str) : null;
-      } catch {
-        return null;
-      }
+    getItem: () => {
+      const heavy = readJson(HEAVY_KEY);
+      const live = readJson(LIVE_KEY);
+      if (!heavy && !live) return null;
+      return { state: { ...heavy?.state, ...live?.state }, version: live?.version ?? heavy?.version ?? 0 };
     },
-    setItem: (name, value) => {
-      // 流式期间不写盘：直接早退，保留上一次终态写入的历史不被覆盖
-      if (value?.state?.status === 'running') return;
-      try {
-        globalThis.localStorage?.setItem(name, JSON.stringify(value));
-      } catch {
-        // 静默失败：localStorage 不可用（隐私模式 / 配额满）
-      }
+    setItem: (_name, value) => {
+      const { messages, ...rest } = value?.state ?? {};
+      writeJson(LIVE_KEY, { state: rest, version: value?.version });
+      if (rest.status === 'running') return;
+      writeJson(HEAVY_KEY, { state: { messages: sanitizeMessagesForPersist(messages) }, version: value?.version });
     },
-    removeItem: (name) => {
+    removeItem: () => {
       try {
-        globalThis.localStorage?.removeItem(name);
+        globalThis.localStorage?.removeItem(HEAVY_KEY);
+        globalThis.localStorage?.removeItem(LIVE_KEY);
       } catch {
         // 静默失败
       }
     },
   };
+}
+
+function readJson(key) {
+  try {
+    const str = globalThis.localStorage?.getItem(key);
+    return str ? JSON.parse(str) : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeJson(key, value) {
+  try {
+    globalThis.localStorage?.setItem(key, JSON.stringify(value));
+  } catch {
+    // 静默失败：localStorage 不可用（隐私模式 / 配额满）
+  }
+}
+
+// 思考块展开态的 key：消息 id + 该消息里第几块
+export function thinkKey(messageId, index) {
+  return `${messageId}:${index}`;
+}
+
+function toggleExpandedThink(expanded, messages, key) {
+  const live = new Set(messages.map((m) => m.id));
+  const next = {};
+  for (const k of Object.keys(expanded)) {
+    if (k !== key && live.has(k.slice(0, k.lastIndexOf(':')))) next[k] = true;
+  }
+  if (!expanded[key]) next[key] = true;
+  return next;
 }
 
 function cryptoRandomId() {
@@ -338,6 +399,9 @@ function applyTaskSnapshot(state, task) {
 }
 
 export const __testables = {
+  HEAVY_KEY,
+  LIVE_KEY,
+  createSplitStorage,
   appendDelta,
   adoptUserMessageId,
   clearStreamingFlag,

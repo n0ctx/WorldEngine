@@ -12,13 +12,13 @@
  *   - 删除两段确认（首次"确认？"，2 秒内再次点击才真正删除）
  */
 
-import { memo, useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
   IconArrowDown, IconBookOpen, IconCheck, IconCopy, IconPencil, IconPlus, IconRotateCcw, IconSearch, IconState, IconTrash, IconWrench,
 } from '../../frontend/src/components/ui/icons.jsx';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { stripToolCallLeakage } from './useAssistantStore.js';
+import { stripToolCallLeakage, thinkKey, useAssistantStore } from './useAssistantStore.js';
 import { formatToolError, formatToolSummary } from './message-helpers.js';
 import { parseStreamingBlocks } from '../../frontend/src/core/utils/think-blocks.js';
 import SeamlessEditableSurface from '../../shared/SeamlessEditableSurface.jsx';
@@ -53,14 +53,16 @@ function previewLine(text) {
   return flat.length > 80 ? `${flat.slice(0, 78)}…` : flat;
 }
 
-function ThinkLine({ content, open = false }) {
-  const [expanded, setExpanded] = useState(false);
+// 展开态放在 store 里按 thinkId 记，刷新后保持
+function ThinkLine({ content, open = false, thinkId }) {
+  const expanded = useAssistantStore((s) => s.expandedThinks[thinkId] === true);
+  const toggleThink = useAssistantStore((s) => s.toggleThink);
   const preview = previewLine(content) || '思考中…';
   return (
     <div>
       <button
         type="button"
-        onClick={() => setExpanded((v) => !v)}
+        onClick={() => toggleThink(thinkId)}
         aria-expanded={expanded}
         aria-label={expanded ? '折叠思考过程' : '展开思考过程'}
         className="we-asst-think-line"
@@ -153,23 +155,24 @@ function sameMsg(prev, next) {
   return prev.msg === next.msg;
 }
 
+// 编辑态与改到一半的文字放在 store 里，刷新后仍停在编辑中；只有正在编辑的这条会随按键重渲
 function UserEntryImpl({ msg, onEdit, onDelete }) {
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState('');
+  const editing = useAssistantStore((s) => msg.id != null && s.editingMessageId === msg.id);
+  const draft = useAssistantStore((s) => (msg.id != null && s.editingMessageId === msg.id ? s.editingDraft : ''));
+  const { startEditing, setEditingDraft: setDraft, stopEditing } = useAssistantStore.getState();
 
   function startEdit() {
-    setDraft(msg.content);
-    setEditing(true);
+    startEditing(msg.id, msg.content);
   }
   function confirmEdit() {
     const trimmed = draft.trim();
-    setEditing(false);
+    stopEditing();
     if (trimmed) {
       onEdit?.(msg.id, trimmed);
     }
   }
   function cancelEdit() {
-    setEditing(false);
+    stopEditing();
   }
 
   return (
@@ -257,7 +260,12 @@ function AssistantEntryImpl({ msg, onRegenerate, onDelete }) {
         ) : (
           blocks.map((block, i) =>
             block.type === 'thinking' ? (
-              <ThinkLine key={i} content={block.content} open={!!msg.streaming && block.open} />
+              <ThinkLine
+                key={i}
+                content={block.content}
+                open={!!msg.streaming && block.open}
+                thinkId={thinkKey(msg.id, i)}
+              />
             ) : (
               <div key={i} className="we-asst-bubble__body">
                 <ReactMarkdown remarkPlugins={[remarkGfm]}>{block.content}</ReactMarkdown>
@@ -359,11 +367,14 @@ function PendingEntry() {
 }
 
 const STICKY_BOTTOM_THRESHOLD_PX = 200;
+const SCROLL_SAVE_INTERVAL_MS = 200;
 
 export default function MessageList({ messages, onEdit, onDelete, onRegenerate, pending }) {
   const bottomRef = useRef(null);
   const scrollRef = useRef(null);
   const prevCountRef = useRef(0);
+  const restoredRef = useRef(false);
+  const saveTimerRef = useRef(null);
   const [hasUnread, setHasUnread] = useState(false);
 
   // 用户向上滚出 STICKY_BOTTOM_THRESHOLD_PX 范围后，新消息不再强制滚到底部，
@@ -373,6 +384,19 @@ export default function MessageList({ messages, onEdit, onDelete, onRegenerate, 
     if (!el) return true;
     return el.scrollHeight - el.scrollTop - el.clientHeight <= STICKY_BOTTOM_THRESHOLD_PX;
   };
+
+  // 列表第一次有内容时回到上次停留的位置（没记过或当时贴在底部就到底）。
+  // 放在 layout effect 里赶在绘制前，且先把计数对齐，下面的新消息跟随逻辑不会再把它拽走。
+  useLayoutEffect(() => {
+    const el = scrollRef.current;
+    if (restoredRef.current || !el) return;
+    restoredRef.current = true;
+    prevCountRef.current = messages.length;
+    const saved = useAssistantStore.getState().scrollTop;
+    el.scrollTop = typeof saved === 'number' ? saved : el.scrollHeight;
+  }, [messages.length]);
+
+  useEffect(() => () => clearTimeout(saveTimerRef.current), []);
 
   useEffect(() => {
     if (messages.length <= prevCountRef.current) {
@@ -393,8 +417,15 @@ export default function MessageList({ messages, onEdit, onDelete, onRegenerate, 
     if (pending && isNearBottom()) bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [pending]);
 
+  // 滚动位置每 200ms 记一次；贴在底部时记 null，刷新后继续跟随新消息
   const handleScroll = () => {
     if (hasUnread && isNearBottom()) setHasUnread(false);
+    if (saveTimerRef.current) return;
+    saveTimerRef.current = setTimeout(() => {
+      saveTimerRef.current = null;
+      const el = scrollRef.current;
+      if (el) useAssistantStore.getState().setScrollTop(isNearBottom() ? null : el.scrollTop);
+    }, SCROLL_SAVE_INTERVAL_MS);
   };
 
   const jumpToBottom = () => {

@@ -39,6 +39,9 @@ for (const s of seeds) {
   );
 }
 
+sandbox.db.prepare('UPDATE assistant_tasks SET context_usage_json = ? WHERE id = ?')
+  .run(JSON.stringify({ tokens: 3000, limit: 122880 }), 'task-bbbbbbb1');
+
 fs.writeFileSync(path.join(sandbox.assistantStateDir, 'task-ddddddd1.json'), JSON.stringify({
   id: 'task-ddddddd1',
   status: 'completed',
@@ -69,6 +72,7 @@ test('hydrate: running 保留为可恢复状态，运行中的工具记录标为
   assert.deepEqual(t1.context, { worldId: 'w' });
   assert.deepEqual(t1.pendingUserMessages, ['继续']);
   assert.equal(t1.modelContext.summary, 'old');
+  assert.deepEqual(taskStore.buildTaskSnapshot(t1).contextUsage, { tokens: 3000, limit: 122880 });
   assert.equal(t1.messages[1].status, 'error');
 
   const raw = sandbox.db.prepare('SELECT status, error FROM assistant_tasks WHERE id = ?').get('task-bbbbbbb1');

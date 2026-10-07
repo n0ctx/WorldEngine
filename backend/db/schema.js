@@ -243,6 +243,7 @@ CREATE TABLE IF NOT EXISTS assistant_tasks (
   messages_json              TEXT NOT NULL,
   pending_user_messages_json TEXT NOT NULL,
   model_context_json         TEXT,
+  context_usage_json         TEXT,
   created_at                 INTEGER NOT NULL,
   error                      TEXT,
   updated_at                 INTEGER NOT NULL
@@ -488,6 +489,8 @@ const MIGRATIONS = [
   migrateAppearanceProfileKeys,
   // 事项期限（世界日期格式），故事时间过了期限即由机器标为已过期；NULL 表示没有期限。
   (db) => addColumn(db, 'state_threads', 'deadline', 'TEXT'),
+  // 写卡助手的上下文占用随任务落库，重启后面板顶栏仍能显示百分比。
+  (db) => addColumn(db, 'assistant_tasks', 'context_usage_json', 'TEXT'),
 ];
 
 export function initSchema(db) {

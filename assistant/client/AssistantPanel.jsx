@@ -335,7 +335,9 @@ export default function AssistantPanel() {
   const currentWorldId = useStore((s) => s.currentWorldId);
   const currentCharacterId = useStore((s) => s.currentCharacterId);
 
-  const [input, setInput] = useState('');
+  // 输入栏草稿放在 store 里随面板状态持久化，刷新或重启后打了一半的字还在
+  const input = useAssistantStore((s) => s.draft);
+  const setInput = useAssistantStore((s) => s.setDraft);
   const [isStreaming, setIsStreaming] = useState(false);
   const asideRef = useRef(null);
   const abortRef = useRef(null);
@@ -417,7 +419,7 @@ export default function AssistantPanel() {
         setIsStreaming,
         buildContext,
       }),
-    [input, taskId, buildContext],
+    [input, taskId, setInput, buildContext],
   );
 
   const handleEdit = useCallback(

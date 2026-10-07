@@ -82,3 +82,76 @@ test('applyTaskSnapshot 带上快照里的占用值；快照没有时沿用现�
   const without = __testables.applyTaskSnapshot(state, { id: 't', status: 'completed', messages: [], contextUsage: null });
   assert.deepEqual(without.contextUsage, { tokens: 1, limit: 10 });
 });
+
+// 内存版 localStorage，测拆块写盘与合并读回
+function withMemoryStorage(fn) {
+  const data = new Map();
+  const prev = globalThis.localStorage;
+  globalThis.localStorage = {
+    getItem: (k) => (data.has(k) ? data.get(k) : null),
+    setItem: (k, v) => data.set(k, String(v)),
+    removeItem: (k) => data.delete(k),
+  };
+  try {
+    return fn(data);
+  } finally {
+    globalThis.localStorage = prev;
+  }
+}
+
+test('任务运行中：轻块照写（taskId、输入栏草稿），消息块不写；结束后消息块落盘，两块合并读回', () => {
+  withMemoryStorage((data) => {
+    const { HEAVY_KEY, LIVE_KEY, createSplitStorage } = __testables;
+    const storage = createSplitStorage();
+    const messages = [{ id: 'a1', role: 'assistant', content: '写到一半', streaming: true }];
+
+    storage.setItem(HEAVY_KEY, { state: { taskId: 'task-new', status: 'running', draft: '再加一个', messages }, version: 0 });
+    assert.equal(data.has(HEAVY_KEY), false);
+    assert.deepEqual(storage.getItem(HEAVY_KEY).state, { taskId: 'task-new', status: 'running', draft: '再加一个' });
+
+    storage.setItem(HEAVY_KEY, { state: { taskId: 'task-new', status: 'completed', draft: '', messages }, version: 0 });
+    const restored = storage.getItem(HEAVY_KEY).state;
+    assert.equal(restored.status, 'completed');
+    assert.equal(restored.messages[0].content, '写到一半');
+    assert.equal(restored.messages[0].streaming, undefined);
+    assert.equal(JSON.parse(data.get(LIVE_KEY)).state.messages, undefined);
+
+    storage.removeItem(HEAVY_KEY);
+    assert.equal(storage.getItem(HEAVY_KEY), null);
+  });
+});
+
+test('输入栏草稿、思考块展开、行内编辑、滚动位置都进持久化；清空对话时只保留草稿', () => {
+  const store = useAssistantStore;
+  store.getState().reset();
+  store.setState({ messages: [{ id: 'a1', role: 'assistant', content: 'x' }, { id: 'u1', role: 'user', content: '原文' }] });
+  const s = store.getState();
+  s.setDraft('打了一半');
+  s.toggleThink('a1:0');
+  s.startEditing('u1', '原文');
+  s.setEditingDraft('改了一半');
+  s.setScrollTop(120);
+
+  const persisted = store.persist.getOptions().partialize(store.getState());
+  assert.equal(persisted.draft, '打了一半');
+  assert.deepEqual(persisted.expandedThinks, { 'a1:0': true });
+  assert.equal(persisted.editingMessageId, 'u1');
+  assert.equal(persisted.editingDraft, '改了一半');
+  assert.equal(persisted.scrollTop, 120);
+
+  store.getState().toggleThink('a1:0');
+  assert.deepEqual(store.getState().expandedThinks, {});
+
+  store.getState().reset();
+  const after = store.getState();
+  assert.equal(after.draft, '打了一半');
+  assert.equal(after.editingMessageId, null);
+  assert.equal(after.scrollTop, null);
+});
+
+test('toggleThink 顺手清掉已删除消息的展开记录', () => {
+  const store = useAssistantStore;
+  store.setState({ messages: [{ id: 'a2', role: 'assistant', content: 'x' }], expandedThinks: { 'gone:0': true } });
+  store.getState().toggleThink('a2:1');
+  assert.deepEqual(store.getState().expandedThinks, { 'a2:1': true });
+});

@@ -131,6 +131,49 @@ test('取消会中断进行中的模型请求，不留下回复', async () => {
   assert.equal(task.messages.some((m) => m.role === 'assistant'), false);
 });
 
+function readStoredMessages(taskId) {
+  const row = sandbox.db.prepare('SELECT messages_json FROM assistant_tasks WHERE id = ?').get(taskId);
+  return JSON.parse(row.messages_json);
+}
+
+// 订阅任务 SSE，每收到一段 DELTA 就回调一次
+function onDelta(taskId, fn) {
+  taskStore.attachSse(taskId, {
+    write(frame) {
+      const evt = JSON.parse(frame.slice('data: '.length));
+      if (evt.type === 'delta') fn(evt);
+      return true;
+    },
+  });
+}
+
+test('回复推送途中库里已是完整回复：此时进程退出，重启后回复不丢', async () => {
+  const task = taskStore.createTask({ context: {} });
+  const reply = '雾港'.repeat(60);
+  process.env.MOCK_LLM_COMPLETE = reply;
+  let storedAtFirstDelta = null;
+  onDelta(task.id, (evt) => {
+    storedAtFirstDelta ??= readStoredMessages(task.id).find((m) => m.id === evt.messageId)?.content;
+  });
+  await runAgent(task, '你好');
+  assert.equal(storedAtFirstDelta, reply);
+  assert.equal(task.messages.at(-1).content, reply);
+});
+
+test('回复推送途中取消：只留已推给面板的部分', async () => {
+  const task = taskStore.createTask({ context: {} });
+  process.env.MOCK_LLM_COMPLETE = '潮'.repeat(200);
+  let shown = '';
+  onDelta(task.id, (evt) => {
+    shown += evt.delta;
+    taskStore.setStatus(task.id, 'cancelled');
+  });
+  await runAgent(task, '你好');
+  const reply = readStoredMessages(task.id).find((m) => m.role === 'assistant');
+  assert.ok(shown.length > 0 && shown.length < 200);
+  assert.equal(reply.content, shown);
+});
+
 test('批量工具调用：一轮建世界，下一轮一次建字段与条目，记录里带汇总摘要与涉及的资源类型', async () => {
   const task = taskStore.createTask({ context: {} });
   process.env.MOCK_LLM_TOOL_TURNS_QUEUE = JSON.stringify([

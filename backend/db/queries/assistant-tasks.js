@@ -10,6 +10,7 @@ function decodeRow(row) {
     messages: parseJson(row.messages_json, []),
     pendingUserMessages: parseJson(row.pending_user_messages_json, []),
     modelContext: parseJson(row.model_context_json, null),
+    contextUsage: parseJson(row.context_usage_json, null),
     createdAt: row.created_at,
     error: typeof row.error === 'string' ? row.error : undefined,
     updatedAt: row.updated_at,
@@ -20,14 +21,15 @@ export function upsertAssistantTask(task) {
   db.prepare(`
     INSERT INTO assistant_tasks (
       id, status, context_json, messages_json, pending_user_messages_json,
-      model_context_json, created_at, error, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      model_context_json, context_usage_json, created_at, error, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ON CONFLICT(id) DO UPDATE SET
       status = excluded.status,
       context_json = excluded.context_json,
       messages_json = excluded.messages_json,
       pending_user_messages_json = excluded.pending_user_messages_json,
       model_context_json = excluded.model_context_json,
+      context_usage_json = excluded.context_usage_json,
       created_at = excluded.created_at,
       error = excluded.error,
       updated_at = excluded.updated_at
@@ -38,6 +40,7 @@ export function upsertAssistantTask(task) {
     encodeJson(task.messages, []),
     encodeJson(task.pendingUserMessages, []),
     task.modelContext == null ? null : encodeJson(task.modelContext, null),
+    task.contextUsage == null ? null : encodeJson(task.contextUsage, null),
     task.createdAt,
     task.error ?? null,
     task.updatedAt,

@@ -119,8 +119,14 @@ export function buildModelMessages(systemPrompt, task, resumed) {
   return messages;
 }
 
+// text 进来时已是完整回复，所以建消息时就带上它落库，切片只负责推打字动画。
+// 旧写法先落一条空消息、收尾才写库，推送途中进程退出库里就只剩空壳。
+// appendMessage 不发 SSE，前端仍只按 DELTA 逐段显示，动画不受影响。
+// ponytail: 模型单轮输出本身仍救不回来——助手走非流式 completeWithTools，模型返回前
+// 退出就没有任何文本存在，重启后该轮重跑。要保住「生成中的半句话」得把 5 个服务商的
+// 工具调用循环都改成流式，并按节流把增量写进库。
 async function streamReply(task, text, emitFn) {
-  const stamped = taskStore.appendMessage(task.id, { role: 'assistant', content: '' });
+  const stamped = taskStore.appendMessage(task.id, { role: 'assistant', content: text });
   let emitted = '';
   for (let i = 0; i < text.length; i += DELTA_CHUNK_SIZE) {
     await yieldToEventLoop();
@@ -129,7 +135,9 @@ async function streamReply(task, text, emitFn) {
     emitted += chunk;
     emitFn({ type: SSE_EVENTS.DELTA, delta: chunk, messageId: stamped.id });
   }
-  if (task.status === 'cancelled' && !emitted) {
+  if (task.status !== 'cancelled') return;
+  // 被取消：只留已推给前端的部分，与旧写法的截断语义一致
+  if (!emitted) {
     taskStore.deleteMessage(task.id, stamped.id);
     return;
   }

@@ -42,6 +42,7 @@ function cloneTaskForPersist(task) {
     messages: Array.isArray(task.messages) ? task.messages : [],
     pendingUserMessages: Array.isArray(task.pendingUserMessages) ? task.pendingUserMessages : [],
     modelContext: task.modelContext ?? null,
+    contextUsage: task.contextUsage ?? null,
     createdAt: typeof task.createdAt === 'number' ? task.createdAt : Date.now(),
     error: typeof task.error === 'string' ? task.error : undefined,
     updatedAt: typeof task.updatedAt === 'number' ? task.updatedAt : Date.now(),
@@ -104,6 +105,7 @@ function hydrateTask(data) {
     messages: normalizeRecoveredUiMessages(data.messages),
     pendingUserMessages: Array.isArray(data.pendingUserMessages) ? data.pendingUserMessages : [],
     modelContext: data.modelContext ?? null,
+    contextUsage: data.contextUsage ?? null,
     createdAt: typeof data.createdAt === 'number' ? data.createdAt : Date.now(),
     executionActive: false,
     updatedAt: typeof data.updatedAt === 'number' ? data.updatedAt : (typeof data.createdAt === 'number' ? data.createdAt : Date.now()),
@@ -328,20 +330,24 @@ export function isExecutionActive(id) {
   return tasks.get(id)?.executionActive === true;
 }
 
-export function setModelContext(id, modelContext) {
+// 值有变化才写库，避免每轮相同的值反复整行重写
+function setPersistedField(id, field, value) {
   const t = tasks.get(id);
   if (!t) return;
-  const next = modelContext ?? null;
-  if (JSON.stringify(t.modelContext ?? null) === JSON.stringify(next)) return;
-  t.modelContext = next;
+  const next = value ?? null;
+  if (JSON.stringify(t[field] ?? null) === JSON.stringify(next)) return;
+  t[field] = next;
   touch(t);
   persist(t);
 }
 
-/** 最近一次模型请求前估算的上下文占用；只在内存里，随任务快照发给面板 */
+export function setModelContext(id, modelContext) {
+  setPersistedField(id, 'modelContext', modelContext);
+}
+
+/** 最近一次模型请求前估算的上下文占用，随任务快照发给面板；落库所以重启后仍在 */
 export function setContextUsage(id, usage) {
-  const t = tasks.get(id);
-  if (t) t.contextUsage = usage;
+  setPersistedField(id, 'contextUsage', usage);
 }
 
 export function deleteTask(id) {

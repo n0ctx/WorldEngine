@@ -225,6 +225,19 @@ test('listRecoverableTasks 排除指定 context，按 updatedAt 倒序返回其�
   assert.ok(!ids.includes(a.id), '不应包含当前上下文 world-A');
 });
 
+test('setContextUsage 写库，数值不变时不重写', (ctx) => {
+  ctx.mock.timers.enable({ apis: ['Date'], now: Date.now() });
+  const t = freshTask();
+  const readRow = () => sandbox.db.prepare('SELECT context_usage_json, updated_at FROM assistant_tasks WHERE id = ?').get(t.id);
+  assert.equal(readRow().context_usage_json, null);
+  taskStore.setContextUsage(t.id, { tokens: 900, limit: 8000 });
+  const first = readRow();
+  assert.deepEqual(JSON.parse(first.context_usage_json), { tokens: 900, limit: 8000 });
+  ctx.mock.timers.tick(5);
+  taskStore.setContextUsage(t.id, { tokens: 900, limit: 8000 });
+  assert.equal(readRow().updated_at, first.updated_at);
+});
+
 test.after(() => {
   sandbox.cleanup();
 });
