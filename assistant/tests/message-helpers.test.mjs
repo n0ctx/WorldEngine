@@ -51,10 +51,22 @@ test('工具失败只显示大白话，不暴露 ref、参数名和给模型的�
     '找不到这个玩家卡。',
   );
   assert.equal(
-    formatToolError('content 中找不到 old_text：old_text 的前 15 个字符能对上；先 read("entry:8531e45b") 核对原文'),
-    '要替换的原文没对上，这处没有改动。',
+    formatToolError('content 中找不到 old_text：old_text 的前 15 个字符能对上，之后原文是 "不同的建筑类型孕育出截然不同的幸存者生态。地点的物理结构决定"，而 old_text 是 "### 学校\\n多层建筑，教室可分隔使用，操场开阔但暴露。通常"；先 read("entry:8531e45b-aa6b") 核对原文'),
+    '要替换的原文在正文里没对上，这处没有改动。原文这里是「不同的建筑类型孕育出截然不同的幸存者生态…」，助手写成了「### 学校 多层建筑，教室可分隔使用，…」。',
   );
-  assert.equal(formatToolError('整批未写入（共 2 项，1 项有问题）：第 1 项 entry「缺正文」：缺少 content'), '这一批有内容不合格，全部没有写入。');
+  assert.equal(
+    formatToolError('第 2 处：old_text 在 system_prompt 中出现 3 次；多带一些上下文使其唯一，或加 replace_all: true 全部替换'),
+    '第 2 处要替换的原文在人设里出现了 3 次，分不清改哪一处，这处没有改动。',
+  );
+  assert.equal(
+    formatToolError('整批未写入（共 2 项，1 项有问题）：第 1 项 entry「港口」：条目 entry:e9 不存在；read("entries") 查看当前世界条目'),
+    '这一批 2 项里有 1 项不合格，全部没有写入。第 1 项 条目「港口」：找不到这个条目。',
+  );
+  assert.equal(
+    formatToolError('部分完成（已写入 1 项，未写入 2 项）。已写入：entry:e1。未写入：第 2 项 entry:e2 — 名称不能为空；第 3 项 entry:e3 — 未执行。先 read 核对，不要整批重发。'),
+    '已写入 1 项，还有 2 项没写入。第 2 项 条目：名称不能为空；第 3 项 条目（未执行）。',
+  );
+  assert.equal(formatToolError('字段 生命 的值超出上限。read("fields") 查看'), '字段 生命 的值超出上限。');
   assert.equal(formatToolError('提案格式错误：stateFieldOps[0].field_key 缺失'), '这一步没有成功，助手会调整后重试。');
 });
 

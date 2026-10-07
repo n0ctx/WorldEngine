@@ -1,69 +1,36 @@
 // 写卡助手单代理循环：一个模型、一组工作区工具，直到模型不再调用工具、给出文字回复为止。
 
-import { readFile } from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 
 import * as llm from '../../backend/llm/index.js';
 import { isToolLoopCancelledError } from '../../backend/llm/tool-loop-control.js';
 import { getConfig } from '../../backend/services/config.js';
-import { getWorldById } from '../../backend/services/worlds.js';
-import { getCharacterById } from '../../backend/db/queries/characters.js';
 import { createLogger, formatMeta, previewText, summarizeMessages } from '../../backend/utils/logger.js';
 
 import * as taskStore from './task-store.js';
 import { SSE_EVENTS } from './sse-events.js';
 import { createWorkspace } from './workspace/index.js';
-import { listDocs } from './workspace/docs.js';
 import { buildWrappedTools } from './tools/index.js';
 import { createContextGuard } from './context-guard.js';
 import { withSummary } from './context-summary.js';
+import { buildSystemPrompt, resolveWorkingWorldId } from './system-prompt.js';
+import { appendUserMessages, createAfterReply, createBeforeTurn } from './turn-hooks.js';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const log = createLogger('as-agent', 'cyan');
 
-const PROMPT_PATH = path.resolve(__dirname, '../prompts/system.md');
 const MAX_TOOL_ITERATIONS = 60;
 const DELTA_CHUNK_SIZE = 48;
 const RESUME_NOTE = '（系统）上一次执行被中断。请先 read 核对已完成的改动，再继续完成用户的请求。';
 const OPS_NOTE_HEADER = '（系统附注，不是用户发言）上一轮你实际执行的工具操作：';
-const AFTER_SUMMARY_NOTE ='（系统）更早的对话已压缩为系统提示词末尾的摘要，以下是紧接其后的内容。';
+const AFTER_SUMMARY_NOTE = '（系统）更早的对话已压缩为系统提示词末尾的摘要，以下是紧接其后的内容。';
 
 function yieldToEventLoop() {
   return new Promise((resolve) => setImmediate(resolve));
 }
 
-function describeLocation(session) {
-  const world = session.worldId ? getWorldById(session.worldId) : null;
-  const character = session.characterId ? getCharacterById(session.characterId) : null;
-  return [
-    '# 当前位置',
-    world ? `- 当前世界：world:${world.id}（${world.name}）` : '- 当前未选中世界',
-    ...(character ? [`- 当前角色：character:${character.id}（${character.name}）`] : []),
-  ].join('\n');
-}
-
-export async function buildSystemPrompt(session) {
-  const prompt = await readFile(PROMPT_PATH, 'utf-8');
-  return [prompt.trim(), '# 参考文档（动手前先 read 对应的那份）', listDocs().join('\n'), describeLocation(session)].join('\n\n');
-}
-
 function formatToolLine(m) {
   const mark = m.status === 'done' ? `✓ ${m.result ?? ''}` : m.status === 'error' ? `✗ ${m.error ?? ''}` : '（中断）';
   return `- ${m.toolName} ${m.summary ?? ''} ${mark}`.replace(/\s+/g, ' ').trim();
-}
-
-// 之前轮次里新建的世界仍然存在时，继续作为当前世界；否则用面板所在的世界。
-function resolveWorkingWorldId(task) {
-  const messages = Array.isArray(task.messages) ? task.messages : [];
-  for (let i = messages.length - 1; i >= 0; i -= 1) {
-    const m = messages[i];
-    if (m?.role !== 'tool_call' || m.toolName !== 'create' || m.target !== 'world' || m.status !== 'done') continue;
-    const worldId = /world:([\w-]+)/.exec(m.result ?? '')?.[1];
-    if (worldId && getWorldById(worldId)) return worldId;
-  }
-  return task.context?.worldId ?? null;
 }
 
 // 跨轮只回放 user / assistant 文本，避免依赖各家 provider 互不兼容的 tool 消息格式。
@@ -179,14 +146,11 @@ export async function runAgent(task, userInput, opts = {}) {
 
   taskStore.setExecutionActive(task.id, true);
   try {
-    const incoming = [
+    appendUserMessages(task, [
       ...(resumed ? [] : [{ id: opts.userMessageId, content: String(userInput) }]),
       ...taskStore.takeUserMessages(task.id).map((content) => ({ content })),
-    ];
-    for (const m of incoming) {
-      const stamped = taskStore.appendMessage(task.id, { id: m.id, role: 'user', content: m.content });
-      if (stamped) emitFn({ type: SSE_EVENTS.USER_MESSAGE, taskId: task.id, messageId: stamped.id });
-    }
+    ], emitFn);
+    const runStart = task.messages.length;
     taskStore.setStatus(task.id, 'running', { error: null });
     emitFn({ type: SSE_EVENTS.TASK_SNAPSHOT, taskId: task.id, task: taskStore.buildTaskSnapshot(task) });
 
@@ -202,24 +166,6 @@ export async function runAgent(task, userInput, opts = {}) {
       task, configScope, tools, systemPrompt, anchor: messages.at(-1).content, emitFn, runId,
     });
 
-    // 组合 steer 检查与 context guard：每次模型请求前先检查是否有排队用户消息并注入
-    async function beforeTurn(msgs, iter) {
-      const queued = taskStore.takeUserMessages(task.id);
-      if (queued.length > 0) {
-        for (const content of queued) {
-          msgs.push({ role: 'user', content });
-          const stamped = taskStore.appendMessage(task.id, { role: 'user', content });
-          if (stamped) emitFn({ type: SSE_EVENTS.USER_MESSAGE, taskId: task.id, messageId: stamped.id });
-        }
-      }
-
-      const ctxResult = await contextGuard(msgs, iter);
-      if (ctxResult !== null) return ctxResult;
-      // steer 注入后即使 context guard 未触发压缩，也必须返回（已被修改的）messages
-      if (queued.length > 0) return msgs;
-      return null;
-    }
-
     log.info(`START  ${formatMeta({
       runId, taskId: task.id, resumed, msgs: messages.length, chars: summarizeMessages(messages).chars,
       input: previewText(userInput ?? '', { limit: 120 }),
@@ -232,7 +178,8 @@ export async function runAgent(task, userInput, opts = {}) {
       usageRef,
       callType: 'assistant',
       maxIterations: MAX_TOOL_ITERATIONS,
-      beforeTurn,
+      beforeTurn: createBeforeTurn(task, contextGuard, emitFn),
+      afterReply: createAfterReply(task, runStart),
       signal: taskStore.getAbortSignal(task.id),
     }) ?? '').trim();
     if (task.status === 'cancelled') {

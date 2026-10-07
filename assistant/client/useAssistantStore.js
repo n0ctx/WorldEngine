@@ -14,6 +14,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { SSE_EVENTS } from '../server/sse-events.js';
 import { dispatchToolRefresh } from './tool-refresh.js';
+import { ASSISTANT_STORAGE_NAME, createSplitStorage, sanitizeMessagesForPersist } from './assistant-storage.js';
 
 // 移除模型在普通文本流里泄漏的工具调用 token / XML。
 // 触发场景：工具循环触顶后退到无工具补全，模型仍想调用工具，把内部 function-call 文本
@@ -33,9 +34,6 @@ export function stripToolCallLeakage(text) {
   out = out.replace(/<invoke\b[\s\S]*$/i, '');
   return out;
 }
-
-const HEAVY_KEY = 'we-assistant-v2';
-const LIVE_KEY = 'we-assistant-v2:live';
 
 // 跟着某段对话走的界面状态；清空对话时一起清
 const EMPTY_VIEW_STATE = {
@@ -211,7 +209,7 @@ export const useAssistantStore = create(
       stopEditing: () => set({ editingMessageId: null, editingDraft: '' }),
     }),
     {
-      name: HEAVY_KEY,
+      name: ASSISTANT_STORAGE_NAME,
       // 写盘拆成两块，见 createSplitStorage
       storage: createSplitStorage(),
       // 持久化面板偏好 + 最小恢复态；真正任务真相源仍以后端 task snapshot 为准。
@@ -240,56 +238,6 @@ export const useAssistantStore = create(
     },
   ),
 );
-
-// 自定义持久化存储，把一份 state 拆成两块写 localStorage：
-// - 重块 HEAVY_KEY 只放 messages。流式（status==='running'）期间不写：每个 DELTA 帧都
-//   JSON.stringify 整个 messages 成本是 O(n²)；保留上一次终态写入的历史，刷新后由
-//   后端任务快照补齐。
-// - 轻块 LIVE_KEY 放其余字段（taskId、状态、输入栏草稿、滚动位置等），都是小值，
-//   流式期间照写。否则任务跑起来后的新 taskId、正在打的字都要等任务结束才落盘，
-//   中途刷新就找不回。
-// 读的时候两块合并，轻块优先。
-function createSplitStorage() {
-  return {
-    getItem: () => {
-      const heavy = readJson(HEAVY_KEY);
-      const live = readJson(LIVE_KEY);
-      if (!heavy && !live) return null;
-      return { state: { ...heavy?.state, ...live?.state }, version: live?.version ?? heavy?.version ?? 0 };
-    },
-    setItem: (_name, value) => {
-      const { messages, ...rest } = value?.state ?? {};
-      writeJson(LIVE_KEY, { state: rest, version: value?.version });
-      if (rest.status === 'running') return;
-      writeJson(HEAVY_KEY, { state: { messages: sanitizeMessagesForPersist(messages) }, version: value?.version });
-    },
-    removeItem: () => {
-      try {
-        globalThis.localStorage?.removeItem(HEAVY_KEY);
-        globalThis.localStorage?.removeItem(LIVE_KEY);
-      } catch {
-        // 静默失败
-      }
-    },
-  };
-}
-
-function readJson(key) {
-  try {
-    const str = globalThis.localStorage?.getItem(key);
-    return str ? JSON.parse(str) : null;
-  } catch {
-    return null;
-  }
-}
-
-function writeJson(key, value) {
-  try {
-    globalThis.localStorage?.setItem(key, JSON.stringify(value));
-  } catch {
-    // 静默失败：localStorage 不可用（隐私模式 / 配额满）
-  }
-}
 
 // 思考块展开态的 key：消息 id + 该消息里第几块
 export function thinkKey(messageId, index) {
@@ -358,25 +306,6 @@ function clearStreamingFlag(messages) {
   return messages;
 }
 
-// 持久化用清洗：保留可回放的对话和助手 UI 记录；刷新后不能恢复真实运行态，
-// 因此把残留 running 标为 error，避免显示一条永远运行中的工具/步骤。
-function sanitizeMessagesForPersist(messages) {
-  if (!Array.isArray(messages)) return [];
-  return messages
-    .filter((m) => m && ['user', 'assistant', 'tool_call', 'compaction'].includes(m.role))
-    .map((m) => {
-      if (m.role === 'assistant' && m.streaming) {
-        const rest = { ...m };
-        delete rest.streaming;
-        return rest;
-      }
-      if (m.role === 'tool_call' && m.status === 'running') {
-        return { ...m, status: 'error', error: m.error ?? '刷新后运行状态已中断' };
-      }
-      return m;
-    });
-}
-
 function applyTaskSnapshot(state, task) {
   if (!task || typeof task !== 'object') {
     return {
@@ -399,13 +328,9 @@ function applyTaskSnapshot(state, task) {
 }
 
 export const __testables = {
-  HEAVY_KEY,
-  LIVE_KEY,
-  createSplitStorage,
   appendDelta,
   adoptUserMessageId,
   clearStreamingFlag,
-  sanitizeMessagesForPersist,
   applyTaskSnapshot,
   stripToolCallLeakage,
 };

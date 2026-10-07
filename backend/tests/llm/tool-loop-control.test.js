@@ -229,6 +229,19 @@ test('runToolLoop: beforeTurn 每次模型请求前收到当前消息，返回 n
   assert.deepEqual(rec.turnStates[1].map((m) => m.role), ['user', 'assistant', 'tool']);
 });
 
+test('runToolLoop: afterReply 返回提醒时把回复与提醒追加进对话并继续，返回 null 才结束', async () => {
+  const rec = recordingProvider((iter) => (iter === 0 ? { kind: 'text', text: '已更新' } : { kind: 'text', text: '真的改了' }));
+  const out = await runToolLoop({
+    provider: rec.provider,
+    messages: [{ role: 'user', content: 'go' }],
+    toolDefs: [],
+    toolHandlers: {},
+    config: { afterReply: async (text) => (text === '已更新' ? '你没调用工具' : null) },
+  });
+  assert.equal(out, '真的改了');
+  assert.deepEqual(rec.turnStates[1].map((m) => [m.role, m.content]), [['user', 'go'], ['assistant', '已更新'], ['user', '你没调用工具']]);
+});
+
 test('runToolLoop: beforeTurn 返回新消息数组后，下一次请求和触顶兜底都以它为准', async () => {
   const rec = recordingProvider(() => toolsTurn([{ name: 'foo' }]));
   const compacted = [{ role: 'user', content: '压缩后的请求' }];

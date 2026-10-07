@@ -59,20 +59,66 @@ export function formatToolSummary(summary, toolName) {
   return [name, ...rest].join(' ');
 }
 
-// 工具报错是写给模型看的（带 ref、参数名、修正提示），面板上只给用户一句大白话；
-// 原文仍回填给模型，助手会在最后的回复里说明失败原因。
-const TOOL_ERROR_TEXTS = [
-  [/中找不到 old_text/, '要替换的原文没对上，这处没有改动。'],
-  [/^整批未写入/, '这一批有内容不合格，全部没有写入。'],
-  [/^部分完成/, '只写入了一部分。'],
-  [/^输出被截断/, '内容太长被截断，这次没有执行。'],
-  [/^task cancelled|已取消/, '已取消。'],
-  [/^刷新后运行状态已中断/, '刷新后运行状态已中断。'],
+// 工具报错是写给模型看的（带 ref、参数名、修正提示），面板上改写成用户看得懂的话，
+// 但保留具体是哪处、哪一项、错在哪；原文仍回填给模型。
+const PREVIEW_CHARS = 20;
+const GENERIC_TOOL_ERROR = '这一步没有成功，助手会调整后重试。';
+
+const fieldName = (key) => EDIT_FIELD_NAMES[key] ?? key;
+const preview = (quoted) => {
+  let value = quoted;
+  try { value = JSON.parse(quoted); } catch { /* 不是 JSON 字符串就按原样截取 */ }
+  const flat = value.replace(/\s+/g, ' ').trim();
+  return flat.length > PREVIEW_CHARS ? `${flat.slice(0, PREVIEW_CHARS)}…` : flat;
+};
+const atPart = (where) => (where ? where.replace(/：$/, '') : '');
+// ref（entry:8531…）换成资源名，已知字段名（content）换成中文
+const plainNames = (text) => text
+  .replace(/\b([a-z]+):[\w-]+/g, (ref, kind) => RESOURCE_NAMES[kind] ?? ref)
+  .replace(/\b[a-z_]+\b/g, (word) => EDIT_FIELD_NAMES[word] ?? RESOURCE_NAMES[word] ?? word);
+
+const TOOL_ERROR_RULES = [
+  [/^(第 \d+ 处：)?(\w+) 中找不到 old_text(?:：old_text 的前 \d+ 个字符能对上，之后原文是 ("(?:[^"\\]|\\.)*")，而 old_text 是 ("(?:[^"\\]|\\.)*"))?/,
+    (m) => `${atPart(m[1])}要替换的原文在${fieldName(m[2])}里没对上，这处没有改动。`
+      + (m[3] ? `原文这里是「${preview(m[3])}」，助手写成了「${preview(m[4])}」。` : '')],
+  [/^(第 \d+ 处：)?old_text 在 (\w+) 中出现 (\d+) 次/,
+    (m) => `${atPart(m[1])}要替换的原文在${fieldName(m[2])}里出现了 ${m[3]} 次，分不清改哪一处，这处没有改动。`],
+  [/^整批未写入（共 (\d+) 项，(\d+) 项有问题）：([\s\S]*)$/,
+    (m) => `这一批 ${m[1]} 项里有 ${m[2]} 项不合格，全部没有写入。${formatBatchItems(m[3])}`],
+  [/^部分完成（已写入 (\d+) 项，未写入 (\d+) 项）。[\s\S]*?未写入：([\s\S]*?)。先 read/,
+    (m) => `已写入 ${m[1]} 项，还有 ${m[2]} 项没写入。${formatBatchItems(m[3], ' — ')}`],
+  [/^(玩家卡|角色|条目|CSS 片段|正则规则|世界|文档) \S+ 不存在/,
+    (m) => `找不到这个${m[1] === '角色' ? '角色卡' : m[1]}。`],
+  [/^输出被截断/, () => '内容太长被截断，这次没有执行。'],
+  [/^task cancelled|已取消/, () => '已取消。'],
 ];
+
+// 批量报错的每一项形如「第 1 项 entry「缺正文」：缺少 content」，项之间用「；」分隔
+function formatBatchItems(text, sep = '：') {
+  const items = text.split(/；(?=第 \d+ 项 )/).map((line) => {
+    const at = line.indexOf(sep);
+    const head = plainNames(at < 0 ? line : line.slice(0, at));
+    const reason = at < 0 ? '' : line.slice(at + sep.length).trim();
+    return reason === '未执行' ? `${head}（未执行）` : `${head}：${formatToolError(reason).replace(/。$/, '')}`;
+  });
+  return `${items.join('；')}。`;
+}
+
+// 认不出的报错：去掉 ref 和给模型的操作指令，剩下的若仍是参数名之类就退回通用说明
+function sanitizeToolError(text) {
+  const plain = plainNames(text)
+    .split(/[；\n]/)[0]
+    .replace(/[。.]\s*(先 |请|可用|read\().*$/, '')
+    .trim();
+  if (!plain || /[A-Za-z_]{2,}|[[\]{}]/.test(plain)) return GENERIC_TOOL_ERROR;
+  return /[。！？]$/.test(plain) ? plain : `${plain}。`;
+}
 
 export function formatToolError(error) {
   const text = String(error ?? '').trim();
-  const missing = text.match(/^(玩家卡|角色|条目|CSS 片段|正则规则|世界|文档)\s+(?:persona|character|entry|css|regex|world|doc):[^\s；。]+\s+不存在/);
-  if (missing) return `找不到这个${missing[1] === '角色' ? '角色卡' : missing[1]}。`;
-  return TOOL_ERROR_TEXTS.find(([pattern]) => pattern.test(text))?.[1] ?? '这一步没有成功，助手会调整后重试。';
+  for (const [pattern, render] of TOOL_ERROR_RULES) {
+    const m = text.match(pattern);
+    if (m) return render(m);
+  }
+  return sanitizeToolError(text);
 }

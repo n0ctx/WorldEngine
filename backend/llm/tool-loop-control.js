@@ -281,6 +281,7 @@ export function appendNoteMessage(messages, note) {
  *   - retry     : { max, delayMs },只重试单次模型请求;缺省不重试
  *   - loopRef   : 回传 { stopReason, toolCallCount }(toolCallCount 只计真正执行了 handler 的调用)
  *   - beforeTurn: async (messages, iter) => Array|null,每次模型请求前调用;返回新消息数组则以它重建循环状态
+ *   - afterReply: async (text) => string|null,模型给出最终文本时调用;返回一段提醒则把回复与提醒追加进对话、继续循环
  * @param {'text'|'detail'} [opts.completeResultMode='text']
  *   - 'text'  : 返回最终文本字符串
  *   - 'detail': 返回 { text, messages }
@@ -308,7 +309,14 @@ export async function runToolLoop({
       state = provider.initState(replaced);
     }
     const turn = await callTurn(provider, state, toolDefs, iter, config);
-    if (turn.kind === 'text') {
+    const nudge = turn.kind === 'text' && config?.afterReply ? await config.afterReply(turn.text) : null;
+    if (nudge) {
+      state = provider.initState([
+        ...provider.stateToMessages(state),
+        { role: 'assistant', content: turn.text },
+        { role: 'user', content: nudge },
+      ]);
+    } else if (turn.kind === 'text') {
       text = turn.text;
       run.stopReason = TOOL_LOOP_STOP.COMPLETED;
     } else if (turn.kind === 'fallback') {

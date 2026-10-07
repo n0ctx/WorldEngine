@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import { __testables, useAssistantStore } from '../client/useAssistantStore.js';
+import { __testables as storageTestables, createSplitStorage, sanitizeMessagesForPersist } from '../client/assistant-storage.js';
 import { SSE_EVENTS } from '../server/sse-events.js';
 
 test('sanitizeMessagesForPersist 保留对话与工具记录、丢弃旧版计划/步骤行、清理运行态', () => {
@@ -15,7 +16,7 @@ test('sanitizeMessagesForPersist 保留对话与工具记录、丢弃旧版计�
     { id: 'x', role: 'unknown', content: 'drop' },
   ];
 
-  const got = __testables.sanitizeMessagesForPersist(messages);
+  const got = sanitizeMessagesForPersist(messages);
   assert.deepEqual(got.map((m) => m.role), ['user', 'assistant', 'tool_call', 'tool_call']);
   assert.equal(got[1].streaming, undefined);
   assert.equal(got[2].status, 'done');
@@ -69,7 +70,7 @@ test('上下文占用事件更新占用值，带压缩记录时追加到消息�
   const compaction = { id: 'msg-c1', role: 'compaction', tokensBefore: 99000, tokensAfter: 6000 };
   store.getState().ingestEvent({ type: SSE_EVENTS.CONTEXT_USAGE, usage: { tokens: 6000, limit: 122880 }, appended: [compaction] });
   assert.deepEqual(store.getState().messages.map((m) => m.role), ['user', 'compaction']);
-  assert.deepEqual(__testables.sanitizeMessagesForPersist(store.getState().messages).at(-1), compaction);
+  assert.deepEqual(sanitizeMessagesForPersist(store.getState().messages).at(-1), compaction);
 
   store.getState().reset();
   assert.equal(store.getState().contextUsage, null);
@@ -101,7 +102,7 @@ function withMemoryStorage(fn) {
 
 test('任务运行中：轻块照写（taskId、输入栏草稿），消息块不写；结束后消息块落盘，两块合并读回', () => {
   withMemoryStorage((data) => {
-    const { HEAVY_KEY, LIVE_KEY, createSplitStorage } = __testables;
+    const { HEAVY_KEY, LIVE_KEY } = storageTestables;
     const storage = createSplitStorage();
     const messages = [{ id: 'a1', role: 'assistant', content: '写到一半', streaming: true }];
 

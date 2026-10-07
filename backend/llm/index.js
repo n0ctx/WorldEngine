@@ -313,6 +313,7 @@ export const __testables = {
  *   options.signal    — 中止后抛 ToolLoopCancelledError
  *   options.loopRef   — 回传 { stopReason, toolCallCount }，做法同 usageRef
  *   options.beforeTurn — async (messages, iter) => Array|null，每次模型请求前调用；返回新消息数组则替换循环状态
+ *   options.afterReply — async (text) => string|null，模型给出最终文本时调用；返回提醒则追加进对话继续循环
  */
 export async function completeWithTools(messages, tools, options = {}) {
   const result = await completeWithToolsDetailed(messages, tools, options);
@@ -351,6 +352,7 @@ export async function completeWithToolsDetailed(messages, tools, options = {}) {
       retry,
       loopRef: options.loopRef || undefined,
       beforeTurn: options.beforeTurn,
+      afterReply: options.afterReply,
     });
     const text = typeof result === 'string' ? result : (result?.text ?? '');
     log.info(`COMPLETE_TOOLS DONE  ${formatMeta({
