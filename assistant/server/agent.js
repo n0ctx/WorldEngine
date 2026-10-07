@@ -45,7 +45,7 @@ function describeLocation(session) {
 
 export async function buildSystemPrompt(session) {
   const prompt = await readFile(PROMPT_PATH, 'utf-8');
-  return [prompt.trim(), '# 参考文档（按需 read）', listDocs().join('\n'), describeLocation(session)].join('\n\n');
+  return [prompt.trim(), '# 参考文档（动手前先 read 对应的那份）', listDocs().join('\n'), describeLocation(session)].join('\n\n');
 }
 
 function formatToolLine(m) {
