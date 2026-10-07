@@ -64,7 +64,6 @@ export async function summarizeContext({ previousSummary, messages, configScope,
     { role: 'user', content: sections.join('\n\n') },
   ], {
     temperature: 0.2,
-    thinking_level: null,
     maxTokens: SUMMARY_MAX_TOKENS,
     configScope,
     callType: 'assistant-summary',

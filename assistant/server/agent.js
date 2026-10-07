@@ -27,7 +27,8 @@ const PROMPT_PATH = path.resolve(__dirname, '../prompts/system.md');
 const MAX_TOOL_ITERATIONS = 60;
 const DELTA_CHUNK_SIZE = 48;
 const RESUME_NOTE = '（系统）上一次执行被中断。请先 read 核对已完成的改动，再继续完成用户的请求。';
-const AFTER_SUMMARY_NOTE = '（系统）更早的对话已压缩为系统提示词末尾的摘要，以下是紧接其后的内容。';
+const OPS_NOTE_HEADER = '（系统附注，不是用户发言）上一轮你实际执行的工具操作：';
+const AFTER_SUMMARY_NOTE ='（系统）更早的对话已压缩为系统提示词末尾的摘要，以下是紧接其后的内容。';
 
 function yieldToEventLoop() {
   return new Promise((resolve) => setImmediate(resolve));
@@ -65,15 +66,17 @@ function resolveWorkingWorldId(task) {
   return task.context?.worldId ?? null;
 }
 
-// 跨轮只回放 user / assistant 文本；每轮的工具调用折成一段操作记录附在该轮回复前，
-// 避免依赖各家 provider 互不兼容的 tool 消息格式。
+// 跨轮只回放 user / assistant 文本，避免依赖各家 provider 互不兼容的 tool 消息格式。
+// 每轮的工具调用折成一段系统附注，放进下一条 user 消息开头：若放在助手回复里，
+// 模型会照着历史回复的样子直接写出假的操作记录，而不真去调用工具。
 export function buildHistory(messages) {
   const out = [];
   let ops = [];
+  let replied = false;
   let lastOpId = null;
-  const flushOps = (suffix) => {
+  const flushOps = () => {
     if (ops.length === 0) return null;
-    const note = `［本轮操作记录］\n${ops.join('\n')}${suffix ? `\n${suffix}` : ''}`;
+    const note = `${OPS_NOTE_HEADER}\n${ops.join('\n')}${replied ? '' : '\n（该轮未给出回复）'}`;
     ops = [];
     return note;
   };
@@ -89,18 +92,19 @@ export function buildHistory(messages) {
   for (const m of Array.isArray(messages) ? messages : []) {
     if (m?.role === 'tool_call') {
       ops.push(formatToolLine(m));
+      replied = false;
       lastOpId = m.id;
     } else if (m?.role === 'assistant') {
-      const note = flushOps();
-      push('assistant', note ? `${note}\n\n${m.content ?? ''}` : (m.content ?? ''), m.id);
+      push('assistant', m.content ?? '', m.id);
+      replied = true;
     } else if (m?.role === 'user') {
-      const note = flushOps('（该轮未给出回复）');
-      if (note) push('assistant', note, lastOpId);
+      const note = flushOps();
+      if (note) push('user', note, lastOpId);
       push('user', m.content ?? '', m.id);
     }
   }
-  const tail = flushOps('（该轮未给出回复）');
-  if (tail) push('assistant', tail, lastOpId);
+  const tail = flushOps();
+  if (tail) push('user', tail, lastOpId);
   return out;
 }
 
@@ -115,7 +119,8 @@ export function buildModelMessages(systemPrompt, task, resumed) {
   // 标记落在一轮中间时，其后的内容以助手消息开头；部分模型要求对话以 user 开头
   if (summary && tail[0]?.role === 'assistant') messages.push({ role: 'user', content: AFTER_SUMMARY_NOTE });
   messages.push(...tail.map(({ role, content }) => ({ role, content })));
-  if (resumed) messages.push({ role: 'user', content: RESUME_NOTE });
+  if (resumed && messages.at(-1).role === 'user') messages.at(-1).content += `\n\n${RESUME_NOTE}`;
+  else if (resumed) messages.push({ role: 'user', content: RESUME_NOTE });
   return messages;
 }
 
@@ -222,7 +227,6 @@ export async function runAgent(task, userInput, opts = {}) {
     const usageRef = {};
     const reply = String(await llm.completeWithTools(messages, tools, {
       temperature: 0.3,
-      thinking_level: null,
       configScope,
       cacheableSystem: systemPrompt,
       usageRef,

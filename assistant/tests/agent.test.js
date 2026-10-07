@@ -68,7 +68,7 @@ test('已取消的任务不再执行', async () => {
   assert.equal(task.messages.length, 0);
 });
 
-test('buildHistory：工具调用折叠成操作记录，未回复的轮次也保留', () => {
+test('buildHistory：工具调用折成系统附注放进下一条 user 消息，助手回复里不含操作记录', () => {
   const history = buildHistory([
     { id: 'u1', role: 'user', content: '建世界' },
     { id: 'c1', role: 'tool_call', toolName: 'create', summary: 'world 雾港', status: 'done' },
@@ -78,13 +78,12 @@ test('buildHistory：工具调用折叠成操作记录，未回复的轮次也�
     { id: 'c3', role: 'tool_call', toolName: 'create', summary: 'character 沈渡', status: 'running' },
     { id: 'u3', role: 'user', content: '继续' },
   ]);
-  assert.deepEqual(history.map((m) => m.role), ['user', 'assistant', 'user', 'assistant', 'user']);
-  assert.match(history[1].content, /- create world 雾港 ✓/);
-  assert.match(history[1].content, /- update entry:e1 ✗ 条目不存在/);
-  assert.match(history[1].content, /建好了$/);
-  assert.match(history[3].content, /create character 沈渡 （中断）/);
-  assert.match(history[3].content, /该轮未给出回复/);
-  assert.equal(history[3].id, 'c3');
+  assert.deepEqual(history.map((m) => m.role), ['user', 'assistant', 'user']);
+  assert.equal(history[1].content, '建好了');
+  assert.match(history[2].content, /^（系统附注[\s\S]*- create world 雾港 ✓[\s\S]*- update entry:e1 ✗ 条目不存在[\s\S]*再加角色/);
+  assert.doesNotMatch(history[2].content.split('再加角色')[0], /该轮未给出回复/);
+  assert.match(history[2].content, /create character 沈渡 （中断）\n（该轮未给出回复）[\s\S]*继续$/);
+  assert.equal(history[2].id, 'u3');
 });
 
 test('buildSystemPrompt 附带参考文档清单与当前位置', async () => {
@@ -110,7 +109,7 @@ test('上一轮新建的世界在下一轮仍是当前世界，操作记录带�
   await runAgent(task, '建一个世界');
   const createWorld = task.messages.find((m) => m.role === 'tool_call' && m.target === 'world');
   const worldId = /world:([\w-]+)/.exec(createWorld.result)[1];
-  assert.match(buildHistory(task.messages)[1].content, new RegExp(`已创建 world:${worldId}`));
+  assert.match(buildHistory(task.messages).at(-1).content, new RegExp(`已创建 world:${worldId}`));
 
   await runAgent(task, '加一条港口设定');
   assert.equal(task.status, 'completed');
@@ -397,7 +396,7 @@ test('buildModelMessages：标记之后以助手内容开头时先垫一条 user
 
   assert.deepEqual(messages.map((m) => m.role), ['system', 'user', 'assistant', 'user']);
   assert.match(messages[1].content, /已压缩为系统提示词末尾的摘要/);
-  assert.match(messages[2].content, /本轮操作记录[\s\S]*entry:e1[\s\S]*建好了。/);
-  assert.equal(messages[3].content, '再加一条');
+  assert.equal(messages[2].content, '建好了。');
+  assert.match(messages[3].content, /系统附注[\s\S]*entry:e1[\s\S]*再加一条$/);
   assert.equal(messages.some((m) => m.content.includes('被压缩的请求')), false);
 });

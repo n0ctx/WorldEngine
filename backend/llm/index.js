@@ -116,8 +116,8 @@ function buildLLMConfig(options = {}) {
     model: options.model || llm.model,
     temperature: options.temperature ?? llm.temperature,
     max_tokens: options.maxTokens ?? llm.max_tokens,
-    // 调用方可传 thinking_level: null 显式禁用 thinking（覆盖全局配置）；
-    // 未传时回退全局配置。使用 hasOwnProperty 区分"明确传 null"与"未传"。
+    // 调用方可传 thinking_level 覆盖配置；传 null 表示不下发思考字段（= 模型默认，
+    // 本地 Qwen 等模型默认会思考，并不等于关闭）。未传时沿用配置，用 hasOwnProperty 区分。
     thinking_level: Object.prototype.hasOwnProperty.call(options, 'thinking_level')
       ? (options.thinking_level ?? null)
       : (llm.thinking_level ?? null),

@@ -45,12 +45,17 @@ test('工具记录显示资源名称，不暴露内部引用', () => {
   assert.equal(formatToolSummary('world', 'find'), 'world');
 });
 
-test('玩家卡不存在时显示可理解的提示，不暴露内部命令', () => {
+test('工具失败只显示大白话，不暴露 ref、参数名和给模型的修正提示', () => {
   assert.equal(
     formatToolError('玩家卡 persona:8c638d6d-19b0-45d9-ab8f-f9be0b6b64ad 不存在；read("personas") 查看当前世界玩家卡'),
-    '找不到这张玩家卡。请让助手重新查找当前世界的玩家卡后重试。',
+    '找不到这个玩家卡。',
   );
-  assert.equal(formatToolError('字段 生命 的值 999 不符合类型 number'), '字段 生命 的值 999 不符合类型 number');
+  assert.equal(
+    formatToolError('content 中找不到 old_text：old_text 的前 15 个字符能对上；先 read("entry:8531e45b") 核对原文'),
+    '要替换的原文没对上，这处没有改动。',
+  );
+  assert.equal(formatToolError('整批未写入（共 2 项，1 项有问题）：第 1 项 entry「缺正文」：缺少 content'), '这一批有内容不合格，全部没有写入。');
+  assert.equal(formatToolError('提案格式错误：stateFieldOps[0].field_key 缺失'), '这一步没有成功，助手会调整后重试。');
 });
 
 test('批量调用的摘要按资源类型汇总', () => {
