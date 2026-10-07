@@ -15,6 +15,9 @@ npm install || { echo "根依赖安装失败，请检查网络或 npm 配置"; e
 echo "同步后端依赖..."
 npm install --prefix backend || { echo "后端依赖安装失败，请检查网络或 npm 配置"; exit 1; }
 
+echo "重建原生绑定 (better-sqlite3)..."
+npm rebuild better-sqlite3 --prefix backend || { echo "原生绑定重建失败，检查 Node 版本是否与最初安装时一致"; exit 1; }
+
 echo ""
 echo "========================================="
 echo "  WorldEngine 启动中..."

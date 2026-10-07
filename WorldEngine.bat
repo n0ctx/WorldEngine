@@ -35,6 +35,14 @@ if errorlevel 1 (
   exit /b 1
 )
 
+echo Rebuilding native bindings (better-sqlite3)...
+call npm rebuild better-sqlite3 --prefix backend
+if errorlevel 1 (
+  echo Native binding rebuild failed. Check Node version matches original install.
+  pause
+  exit /b 1
+)
+
 rem Listen on all interfaces so Windows host can reach WSL instance
 set HOST=0.0.0.0
 rem Vite opens the browser itself once the dev server is ready
