@@ -2,6 +2,9 @@
   "name": "worldengine",
   "version": "0.3.2",
   "private": true,
+  "bin": {
+    "worldengine": "./bin/worldengine.js"
+  },
   "workspaces": [
     "frontend",
     "assistant/client"

@@ -47,6 +47,7 @@ export default defineConfig({
   server: {
     // predev 已释放 5173；仍被占用时直接报错，不悄悄换端口
     strictPort: true,
+    host: process.env.HOST || '127.0.0.1',
     proxy: {
       '/api': backendUrl,
     },

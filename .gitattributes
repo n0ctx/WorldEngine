@@ -1,2 +1,18 @@
+# All text files: LF in repo (cross-platform Node.js project standard)
+* text=auto eol=lf
+
+# Windows batch files: always CRLF
 *.bat text eol=crlf
 *.cmd text eol=crlf
+
+# Binary files: never translate
+*.jpg binary
+*.jpeg binary
+*.png binary
+*.gif binary
+*.bmp binary
+*.ico binary
+*.pdf binary
+*.zip binary
+*.tar.gz binary
+*.7z binary

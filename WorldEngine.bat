@@ -35,6 +35,8 @@ if errorlevel 1 (
   exit /b 1
 )
 
+rem Listen on all interfaces so Windows host can reach WSL instance
+set HOST=0.0.0.0
 rem Vite opens the browser itself once the dev server is ready
 set WE_OPEN_BROWSER=1
 
