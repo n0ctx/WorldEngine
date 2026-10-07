@@ -185,9 +185,27 @@ export async function runAgent(task, userInput, opts = {}) {
     const configScope = getConfig().assistant?.model_source === 'aux' ? 'aux' : 'main';
     const systemPrompt = await buildSystemPrompt(workspace.session);
     const messages = buildModelMessages(systemPrompt, task, resumed);
-    const beforeTurn = await createContextGuard({
+    const contextGuard = await createContextGuard({
       task, configScope, tools, systemPrompt, anchor: messages.at(-1).content, emitFn, runId,
     });
+
+    // 组合 steer 检查与 context guard：每次模型请求前先检查是否有排队用户消息并注入
+    async function beforeTurn(msgs, iter) {
+      const queued = taskStore.takeUserMessages(task.id);
+      if (queued.length > 0) {
+        for (const content of queued) {
+          msgs.push({ role: 'user', content });
+          const stamped = taskStore.appendMessage(task.id, { role: 'user', content });
+          if (stamped) emitFn({ type: SSE_EVENTS.USER_MESSAGE, taskId: task.id, messageId: stamped.id });
+        }
+      }
+
+      const ctxResult = await contextGuard(msgs, iter);
+      if (ctxResult !== null) return ctxResult;
+      // steer 注入后即使 context guard 未触发压缩，也必须返回（已被修改的）messages
+      if (queued.length > 0) return msgs;
+      return null;
+    }
 
     log.info(`START  ${formatMeta({
       runId, taskId: task.id, resumed, msgs: messages.length, chars: summarizeMessages(messages).chars,

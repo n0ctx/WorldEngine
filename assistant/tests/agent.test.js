@@ -258,6 +258,89 @@ test('buildModelMessages：压缩标记被截掉后摘要作废，回放全部�
   assert.equal(task.modelContext, null);
 });
 
+test('steer：工具循环运行期间排队的用户消息在下次迭代前注入模型输入', async () => {
+  const world = insertWorld(sandbox.db, { name: 'steer-world' });
+  const task = taskStore.createTask({ context: { worldId: world.id } });
+
+  // 第一轮：创建一个条目（带延迟，以便测试有时间在第二次迭代前排队 steer）
+  process.env.MOCK_LLM_TOOL_TURNS_QUEUE = JSON.stringify([
+    { calls: [{ name: 'create', arguments: { kind: 'entry', data: { title: '初始设定', content: '初始内容' } } }], delayMs: 1500 },
+    { text: '已按用户指令调整为星际帝国设定。' }
+  ]);
+
+  const running = runAgent(task, '创建一个世界设定');
+  // 等第一个工具调用执行完、第二次迭代开始前的窗口期排队 steer 消息
+  await new Promise((r) => setTimeout(r, 800));
+  taskStore.queueUserMessage(task.id, '背景改成星际帝国');
+
+  await running;
+  assert.equal(task.status, 'completed');
+  assert.ok(task.messages.some((m) => m.content === '背景改成星际帝国'), 'steer 消息应出现在任务历史中');
+});
+
+test('steer：多次迭代期间连续排队多条 steer 消息按顺序处理', async () => {
+  const world = insertWorld(sandbox.db, { name: 'steer-multi-world' });
+  const task = taskStore.createTask({ context: { worldId: world.id } });
+
+  process.env.MOCK_LLM_TOOL_TURNS_QUEUE = JSON.stringify([
+    { calls: [{ name: 'create', arguments: { kind: 'entry', data: { title: '第一条', content: '内容' } } }], delayMs: 300 },
+    { calls: [{ name: 'create', arguments: { kind: 'entry', data: { title: '第二条', content: '内容' } } }], delayMs: 300 },
+    { text: '已完成全部设定。' }
+  ]);
+
+  const running = runAgent(task, '创建世界设定');
+  await new Promise((r) => setTimeout(r, 350));
+  taskStore.queueUserMessage(task.id, 'steer-1');
+  taskStore.queueUserMessage(task.id, 'steer-2');
+
+  await running;
+  assert.equal(task.status, 'completed');
+  const steerMsgs = task.messages.filter((m) => m.content === 'steer-1' || m.content === 'steer-2');
+  assert.equal(steerMsgs.length, 2);
+});
+
+test('steer：工具执行中途到达的 steer 消息等待下一次迭代才生效', async () => {
+  const world = insertWorld(sandbox.db, { name: 'steer-mid-tool-world' });
+  const task = taskStore.createTask({ context: { worldId: world.id } });
+
+  // 长耗时工具调用（1000ms），在其执行中途排队 steer，应等工具完成后下一次迭代才生效
+  process.env.MOCK_LLM_TOOL_TURNS_QUEUE = JSON.stringify([
+    { calls: [{ name: 'create', arguments: { kind: 'entry', data: { title: '设定', content: '内容' } } }], delayMs: 1000 },
+    { text: '完成。' }
+  ]);
+
+  const running = runAgent(task, '创建世界设定');
+  // 在工具执行中途排队 steer
+  await new Promise((r) => setTimeout(r, 400));
+  taskStore.queueUserMessage(task.id, '中间插一句');
+
+  await running;
+  assert.equal(task.status, 'completed');
+  assert.ok(task.messages.some((m) => m.content === '中间插一句'), 'steer 消息应出现在历史中');
+  // steer 在工具执行中途排队，但它应该在同一个迭代周期内被处理（因为工具完成后 immediately before next turn）
+  const steerIndex = task.messages.findIndex((m) => m.content === '中间插一句');
+  const toolIndex = task.messages.findIndex((m) => m.role === 'tool_call' && m.summary.includes('设定'));
+  assert.ok(steerIndex > toolIndex, 'steer 消息应出现在工具调用之后');
+});
+
+test('steer：排队空字符串作为 steer 消息不应影响执行', async () => {
+  const world = insertWorld(sandbox.db, { name: 'steer-empty-world' });
+  const task = taskStore.createTask({ context: { worldId: world.id } });
+
+  process.env.MOCK_LLM_TOOL_TURNS_QUEUE = JSON.stringify([
+    { calls: [{ name: 'create', arguments: { kind: 'entry', data: { title: '设定', content: '内容' } } }], delayMs: 300 },
+    { text: '完成。' }
+  ]);
+
+  const running = runAgent(task, '创建世界设定');
+  await new Promise((r) => setTimeout(r, 400));
+  taskStore.queueUserMessage(task.id, '');
+  taskStore.queueUserMessage(task.id, '');
+
+  await running;
+  assert.equal(task.status, 'completed');
+});
+
 test('buildModelMessages：标记之后以助手内容开头时先垫一条 user 说明', () => {
   const task = taskStore.createTask({ context: {} });
   taskStore.appendMessage(task.id, { id: 'u1', role: 'user', content: '被压缩的请求' });
