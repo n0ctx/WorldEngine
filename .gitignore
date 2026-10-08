@@ -5,7 +5,6 @@ dist/
 .DS_Store
 
 # Root-level documentation (keep README.md tracked)
-/AGENTS.md
 /ARCHITECTURE.md
 /CHANGELOG.md
 /PROJECT.md
@@ -49,4 +48,3 @@ frontend/coverage/
 /.grok/
 /.agents/
 /skills-lock.json
-/frontend/AGENTS.md
