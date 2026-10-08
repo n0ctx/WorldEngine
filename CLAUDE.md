@@ -5,6 +5,8 @@
 ## 分区规则
 
 - 改 `frontend/`（含视觉主题、动效、视觉设计）前，先读 `frontend/CLAUDE.md`；视觉主题包的字段、token 白名单、草稿流程见 `frontend/src/visual/README.md`。
+- 改 `backend/` 前，先读 `backend/CLAUDE.md`。
+- 改 `assistant/` 前，先读 `assistant/CLAUDE.md`。
 
 ## 工作原则
 
