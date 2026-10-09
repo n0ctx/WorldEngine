@@ -349,3 +349,30 @@ test('prompt_cache_key: 仅 openai 官方在有 conversationId 时附加', async
     restore();
   }
 });
+
+test('temperature: kimi 始终省略，openai 仅思考开启时省略，其余 provider 照常下发', async () => {
+  const cases = [
+    ['openai', 'effort_high', undefined],
+    ['openai', 'thinking_disabled', 0.7],
+    ['kimi', 'effort_low', undefined],
+    ['kimi', 'thinking_disabled', undefined],
+    ['kimi', null, undefined],
+    ['llamacpp', 'effort_high', 0.7],
+    ['deepseek', 'effort_max', 0.7],
+    ['glm', 'thinking_enabled', 0.7],
+  ];
+  const { calls, restore } = mockFetchSequence(cases.map(() => ({ json: chatResp({ content: 'ok' }) })));
+  try {
+    for (const [provider, thinking_level] of cases) {
+      await completeOpenAICompatibleWithTools([{ role: 'user', content: 'q' }], sampleToolDefs, {}, {
+        ...baseConfig(), provider, thinking_level,
+      });
+    }
+    assert.deepEqual(
+      calls.map((call, i) => [cases[i][0], cases[i][1], call.body.temperature]),
+      cases,
+    );
+  } finally {
+    restore();
+  }
+});

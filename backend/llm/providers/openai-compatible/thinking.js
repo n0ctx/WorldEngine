@@ -18,6 +18,17 @@ const QWEN_BUDGETS = {
 const LLAMACPP_EFFORTS = { effort_low: 'low', effort_medium: 'medium', effort_high: 'xhigh' };
 
 /**
+ * 按 applyThinkingToOpenAICompatibleBody 的返回值判断请求体能否带 temperature。
+ * - kimi：各模型都把 temperature 固定（K3 为 1.0，K2.6 思考 1.0 / 非思考 0.6），传其他值即 400
+ * - openai：推理模型思考开启时不支持 temperature
+ * 其余 provider 思考时照常接受 temperature（或自行忽略），保留用户设置。
+ */
+export function acceptsTemperature(config, thinkingState) {
+  if (config?.provider === 'kimi') return false;
+  return thinkingState !== 'enabled' || config?.provider !== 'openai';
+}
+
+/**
  * 把 thinking_level 翻译成对应 provider 的请求体字段，并写入 body。
  * 只接受 shared/thinking-levels.mjs 里该 provider 列出的档位，其余一律不下发。
  *
@@ -32,10 +43,7 @@ const LLAMACPP_EFFORTS = { effort_low: 'low', effort_medium: 'medium', effort_hi
  * - qwen / siliconflow：enable_thinking + thinking_budget
  * - llamacpp：关闭用 chat_template_kwargs.enable_thinking=false；强度档用 reasoning_effort（按请求覆盖 server 默认值）
  *
- * 返回值：'enabled' | 'disabled' | null
- *   'enabled'  → 思考开启，调用方应抑制 temperature（DeepSeek/OpenAI 思考模式不接受 temp）
- *   'disabled' → 显式关闭思考，保留 temperature
- *   null       → 未应用任何字段（自动 / 不支持），保留 temperature
+ * 返回值：'enabled'（思考开启）| 'disabled'（显式关闭）| null（未应用任何字段：自动 / 不支持）
  */
 export function applyThinkingToOpenAICompatibleBody(body, config) {
   const lvl = config?.thinking_level;

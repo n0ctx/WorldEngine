@@ -1,6 +1,6 @@
 import { getBaseUrl } from '../_shared/base-urls.js';
 import { apiError, parseSSE, extractProviderError } from '../_shared/fetch-utils.js';
-import { applyThinkingToOpenAICompatibleBody } from './thinking.js';
+import { acceptsTemperature, applyThinkingToOpenAICompatibleBody } from './thinking.js';
 import { cacheUsageLogFields, recordTokenUsage } from '../_shared/cache-usage.js';
 import { logRawRequest } from '../../raw-logger.js';
 import { fetchAndRecord, readErrorAndRecord, readJsonAndRecord, recordStream } from '../../raw-recorder.js';
@@ -117,6 +117,14 @@ function applyOpenAIPromptCacheKey(body, config) {
   }
 }
 
+// 三条请求路径共用：按 provider 补兼容字段、缓存键、思考字段和 temperature
+function applyProviderOptions(body, config) {
+  applyGlmCompatibilityOptions(body, config);
+  applyOpenAIPromptCacheKey(body, config);
+  const thinkingState = applyThinkingToOpenAICompatibleBody(body, config);
+  if (acceptsTemperature(config, thinkingState)) body.temperature = config.temperature;
+}
+
 function postOpenAICompatible(url, body, config, raw) {
   return fetchAndRecord(url, {
     method: 'POST',
@@ -152,12 +160,7 @@ export async function* streamOpenAICompatible(messages, config) {
     // 去掉后请求更接近官方示例 curl，语义/输出完全不变。
     body.stream_options = { include_usage: true };
   }
-  applyGlmCompatibilityOptions(body, config);
-  applyOpenAIPromptCacheKey(body, config);
-
-  const thinkingState = applyThinkingToOpenAICompatibleBody(body, config);
-  // 思考开启时不传 temperature（OpenAI o-series / DeepSeek thinking 模式不兼容 temperature）
-  if (thinkingState !== 'enabled') body.temperature = config.temperature;
+  applyProviderOptions(body, config);
 
   const raw = logRawRequest(body, config, config.callType || 'stream');
   const resp = await postOpenAICompatible(url, body, config, raw);
@@ -235,10 +238,7 @@ export async function completeOpenAICompatible(messages, config) {
     max_tokens: config.max_tokens,
     stream: false,
   };
-  applyGlmCompatibilityOptions(body, config);
-  applyOpenAIPromptCacheKey(body, config);
-  const thinkingState = applyThinkingToOpenAICompatibleBody(body, config);
-  if (thinkingState !== 'enabled') body.temperature = config.temperature;
+  applyProviderOptions(body, config);
 
   const raw = logRawRequest(body, config, config.callType || 'complete');
   const resp = await postOpenAICompatible(url, body, config, raw);
@@ -288,10 +288,7 @@ const openaiCompatibleToolLoopProvider = {
       max_tokens: config.max_tokens,
       stream: false,
     };
-    applyGlmCompatibilityOptions(body, config);
-    applyOpenAIPromptCacheKey(body, config);
-    const thinkingState = applyThinkingToOpenAICompatibleBody(body, config);
-    if (thinkingState !== 'enabled') body.temperature = config.temperature;
+    applyProviderOptions(body, config);
 
     const raw = logRawRequest(body, config, config.callType ? `${config.callType}:tools` : 'complete-tools');
 
