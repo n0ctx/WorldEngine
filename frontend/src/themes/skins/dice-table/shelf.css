@@ -31,12 +31,25 @@
   box-shadow: 0 var(--dice-depth) 0 var(--we-color-accent-deep);
 }
 
+/* 盒盖保持世界卡完整的 16:11 画面，标签接在盒盖下面，所以行高随内容走；
+ * 下限是一块盒盖的高度，世界只够排一排时大盒子也不会塌 */
 :root[data-theme="dice-table"] .we-worlds-grid {
   --we-worlds-grid-gap-x: var(--we-space-xl);
   --we-worlds-grid-gap-y: var(--we-space-2xl);
+  grid-auto-rows: minmax(
+    calc((100cqw - (var(--we-worlds-grid-cols) - 1) * var(--we-worlds-grid-gap-x)) / var(--we-worlds-grid-cols) * 11 / 16),
+    auto
+  );
+}
+
+:root[data-theme="dice-table"] .we-world-card-shell {
+  aspect-ratio: auto;
 }
 
 :root[data-theme="dice-table"] .we-world-card-shell .we-skel--block {
+  height: auto;
+  min-height: 100%;
+  aspect-ratio: 16 / 11;
   border-radius: var(--we-radius-md);
 }
 
@@ -71,13 +84,14 @@
   box-shadow: 0 8px 0 var(--box-side), 0 20px 18px -6px var(--we-color-shade-4);
 }
 
-/* 盒盖：封面占标签以上的整块 */
+/* 盒盖：封面按 16:11 完整显示；行高和大盒子的标签对不齐时，多出的高度给标签，不够时盒盖略缩 */
 :root[data-theme="dice-table"] .we-world-card-bg {
   position: relative;
   inset: auto;
-  flex: 1 1 0;
+  flex: 0 1 auto;
   min-height: 0;
   height: auto;
+  aspect-ratio: 16 / 11;
   background: var(--box-side);
 }
 
@@ -90,7 +104,7 @@
 :root[data-theme="dice-table"] .we-world-card-foot {
   gap: var(--we-space-xs);
   padding: var(--we-space-sm) var(--we-space-md) var(--we-space-md);
-  flex: none;
+  flex: 1 0 auto;
   color: var(--dice-card-ink);
   background: var(--dice-card);
   border-top: 4px solid var(--box-tint);
@@ -134,6 +148,7 @@
 
 :root[data-theme="dice-table"] .we-world-card-meta {
   justify-content: space-between;
+  margin-top: auto;
   min-height: 26px;
   color: var(--dice-card-muted);
   text-shadow: none;
