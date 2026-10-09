@@ -49,7 +49,7 @@
   font-weight: var(--we-weight-strong);
 }
 
-/* 角色卡：竖版奶油卡纸，上半是骰红立绘框（印着六角格），没有头像时正中一枚奶油厚边的纸板头像 */
+/* 角色卡：竖版奶油卡纸，上半是立绘框；没有立绘时是这个角色的纸板立牌（base.css） */
 :root[data-theme="dice-table"] .we-character-card {
   border: none;
   border-radius: var(--we-radius-md);
@@ -62,14 +62,10 @@
 }
 
 :root[data-theme="dice-table"] .we-character-card-art {
+  position: relative;
   background:
     var(--we-canvas-texture-image),
     linear-gradient(160deg, var(--we-color-accent), var(--dice-side));
-}
-
-:root[data-theme="dice-table"] .we-character-card-art .we-avatar-circle--lg {
-  --avatar-size: 76px;
-  box-shadow: 0 0 0 4px var(--dice-card), 0 4px 0 4px var(--dice-board);
 }
 
 :root[data-theme="dice-table"] .we-character-card .we-character-card-name {
@@ -135,10 +131,16 @@
     0 26px 30px -12px var(--we-color-shade-4);
 }
 
+/* 封皮上不再画文件夹：骰红底上一只骰红文件夹糊成一片，书名要一行排下 */
+:root[data-theme="dice-table"] .we-rules-entry-card .we-folder {
+  display: none;
+}
+
 :root[data-theme="dice-table"] .we-rules-entry-label {
-  font-size: var(--we-type-heading-size);
-  line-height: var(--we-type-heading-leading);
-  letter-spacing: var(--we-type-heading-tracking);
+  white-space: nowrap;
+  font-size: var(--we-type-subheading-size);
+  line-height: var(--we-type-subheading-leading);
+  letter-spacing: var(--we-type-subheading-tracking);
   font-weight: var(--we-weight-strong);
   color: var(--dice-card);
 }

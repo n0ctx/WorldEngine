@@ -1,6 +1,6 @@
 /**
  * 背景氛围层：垫在全部内容后面的一层静态光晕 + 一张动态画布。
- * - 画布画什么由主题的 --we-atmosphere-kind 选：dust 光尘（lightDust.js）/ rain 代码雨（codeRain.js）/ wall 字模墙（typeWall.js），换主题时随下一次重读切换；
+ * - 画布画什么由主题的 --we-atmosphere-kind 选：dust 光尘（lightDust.js）/ rain 代码雨（codeRain.js）/ wall 字模墙（typeWall.js）/ mat 战棋垫（hexMat.js），换主题时随下一次重读切换；
  * - 颜色取 --we-atmosphere-color：进入世界后随封面主色变，书架页悬停入口时由外壳临时覆盖成该世界主色；
  * - names 是全部世界的世界名、角色名、玩家名（useAtmosphereNames），字模墙从里面取字模上的字和要拼的名字，随下一次重读交给场景；
  * - 强度由 CSS 按场景取 --we-atmosphere-opacity / --we-atmosphere-opacity-quiet 作用在 canvas 上；
@@ -10,6 +10,7 @@ import { useEffect, useRef } from 'react';
 import { useMotion } from '../../../core/hooks/useMotion.js';
 import { hexToRgb } from '../../../core/utils/color.js';
 import { createRainScene } from './codeRain.js';
+import { createHexMatScene } from './hexMat.js';
 import { createDustScene } from './lightDust.js';
 import { createTypeWallScene } from './typeWall.js';
 
@@ -19,7 +20,7 @@ const TOKEN_REFRESH_SECONDS = 1;
 // 画布每变一帧，整页（毛玻璃、遮罩、封面图）都要重新合成，满帧率下 Electron 里 GPU 常年占三四成；
 // 氛围运动缓慢，限到 30 帧，步进按实际间隔算，速度不变。60Hz 下帧间隔有抖动，留一点余量才能稳定隔一帧画一次
 const FRAME_INTERVAL_MS = 1000 / 30 - 4;
-const SCENES = { dust: createDustScene, rain: createRainScene, wall: createTypeWallScene };
+const SCENES = { dust: createDustScene, rain: createRainScene, wall: createTypeWallScene, mat: createHexMatScene };
 const NO_NAMES = [];
 
 /** 借 canvas 把任意 CSS 颜色规范成 #rrggbb 或 rgba(...)，再转成 {r,g,b} */

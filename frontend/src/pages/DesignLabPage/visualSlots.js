@@ -114,9 +114,9 @@ export const VISUAL_SLOTS = [
     note: '颜色全部取壳层色板，这里只认领顶栏高度。用真实的顶栏样式类搭的样机，不含路由和数据。',
   },
   {
-    id: 'atmosphere', category: 'shell', title: '背景氛围（光尘 / 代码雨 / 字模墙）', status: 'ready',
+    id: 'atmosphere', category: 'shell', title: '背景氛围（光尘 / 代码雨 / 字模墙 / 战棋垫）', status: 'ready',
     tokens: ['--we-atmosphere-*'], usedIn: ['AtmosphereLayer'],
-    note: '真实组件，这里收进固定尺寸的盒子里；真实页面里铺满整个窗口。画光尘、代码雨还是字模墙由主题的 --we-atmosphere-kind 决定。',
+    note: '真实组件，这里收进固定尺寸的盒子里；真实页面里铺满整个窗口。画光尘、代码雨、字模墙还是战棋垫由主题的 --we-atmosphere-kind 决定。',
   },
   {
     id: 'panes', category: 'shell', title: '分栏与画布纹理', status: 'ready',

@@ -1,7 +1,7 @@
 /* 骰界皮肤 · 编辑弹窗（世界 / 角色 / 玩家编辑，EditPageShell 的 .we-edit-body）。
  * 弹窗本身已是奶油卡纸（controls.css）；两栏结构归核心（EditPageShell 的 aside），这里只管卡纸上的造型：
  *   两栏之间一道竖虚线，像卡纸上折出的分栏线；
- *   角色、玩家：左栏的立绘框是骰红底、六角格纹、白边、露出纸板厚度；世界：左栏的预览就是书架上的战役盒（shelf.css）；
+ *   角色、玩家：左栏的立绘框白边、露出纸板厚度，没有立绘时是纸板立牌；世界：左栏的预览就是书架上的战役盒（shelf.css）；
  *   长字段（简介、人设、后置提示词、开场白）写在卡纸横线上；
  *   世界：封面图是一张带白边、露出厚度的盒盖印刷纸，主色色块是一枚纸板圆片。 */
 
@@ -42,15 +42,20 @@
   outline-offset: 4px;
 }
 
-/* 框里的图和占位都在白边里面，圆角收一档；没有立绘时透出骰红底，首字用奶油色印在正中 */
+/* 框里的图和占位都在白边里面，圆角收一档；没有立绘时是这个角色的纸板立牌（base.css），圆牌放大一档 */
 :root[data-theme="dice-table"] :is(.we-avatar-img--portrait, .we-avatar-placeholder--portrait, .we-avatar-mask--portrait, .we-avatar-uploading--portrait) {
   border-radius: var(--we-radius-sm);
 }
 
-:root[data-theme="dice-table"] .we-avatar-placeholder--portrait {
-  font-family: var(--we-font-display);
-  color: var(--dice-card);
-  background: transparent;
+/* 立绘框的高度由占位撑起：留在文档流里，不像角色卡那样铺满定位 */
+:root[data-theme="dice-table"] .we-avatar-upload--portrait .we-avatar-placeholder--portrait {
+  --standee: 120px;
+  position: relative;
+  inset: auto;
+  width: 100%;
+  font-size: var(--we-type-display-size);
+  line-height: var(--we-type-display-leading);
+  letter-spacing: var(--we-type-display-tracking);
 }
 
 /* ── 横线：长字段写在卡纸横线上，线距等于行高，随内容一起滚 ── */

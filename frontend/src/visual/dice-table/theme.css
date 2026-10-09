@@ -34,11 +34,11 @@
   --we-radius-xl:   22px;
   --we-radius-full: 9999px;
 
-  /* 背景氛围：游戏垫不动，光尘压到很淡 */
-  --we-atmosphere-kind: dust;
+  /* 背景氛围：战棋垫。静止时只有印刷的六角格，指针走过、按下时格子才亮，所以强度不用压；阅读页留六成 */
+  --we-atmosphere-kind: mat;
   --we-atmosphere-shade: rgba(90, 60, 160, 0.2);
-  --we-atmosphere-opacity: 0.35;
-  --we-atmosphere-opacity-quiet: 0.2;
+  --we-atmosphere-opacity: 1;
+  --we-atmosphere-opacity-quiet: 0.6;
   --we-atmosphere-glow-strength: 10%;
   --we-atmosphere-grain: 0.05;
 
@@ -55,5 +55,5 @@
   --we-card-overlay-bg: linear-gradient(180deg, rgba(17, 15, 23, 0) 45%, rgba(17, 15, 23, 0.85) 100%);
 
   /* 游戏垫上印的六角格 */
-  --we-canvas-texture-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='100'%3E%3Cpath d='M28 66L0 50V16L28 0l28 16v34L28 66zm0 0v34' fill='none' stroke='%23ffffff' stroke-opacity='0.035' stroke-width='1.5'/%3E%3C/svg%3E");
+  --we-canvas-texture-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='100'%3E%3Cpath d='M28 66L0 50V16L28 0l28 16v34L28 66zm0 0v34' fill='none' stroke='%23ffffff' stroke-opacity='0.045' stroke-width='1.5'/%3E%3C/svg%3E");
 }

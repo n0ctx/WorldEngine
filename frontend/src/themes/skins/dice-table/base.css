@@ -50,6 +50,8 @@
   /* 对话、写作页 */
   .we-message-bubble-assistant, .we-prose-message-list .we-chapter, .we-state-block--cast, .we-scene-place,
   .we-session-list-panel .we-storyline-item--active,
+  /* 写卡助手 */
+  .we-asst-bubble--assistant,
   /* 基础控件、编辑弹窗、提示条 */
   .we-dialog, .we-menu, .we-toast-card
 ) {
@@ -78,4 +80,69 @@
   --we-color-status-info: color-mix(in oklab, var(--dice-info) var(--we-alpha-4), var(--dice-card-ink));
   --we-color-status-danger: color-mix(in oklab, var(--dice-danger) var(--we-alpha-4), var(--dice-card-ink));
   color: var(--we-color-text-primary);
+}
+
+/* 纸板立牌：没有立绘的角色（世界页角色卡、编辑弹窗的立绘框）。--avatar-bg 是这个角色的颜色，由头像占位写在元素上。
+ * 底是这个角色颜色印的放射纹，正中一枚奶油厚边的纸板圆牌插在一块塑料底座上，首字印在圆牌上；
+ * 底座 ::before、圆牌 ::after 都垫在首字后面（元素自成层叠上下文），圆牌大小取 --standee。 */
+:root[data-theme="dice-table"] :is(.we-character-card-art .we-avatar-circle--placeholder, .we-avatar-placeholder--portrait) {
+  --standee: 84px;
+  --standee-face: color-mix(in oklab, var(--we-color-shade) var(--we-alpha-2), var(--avatar-bg));
+  position: absolute;
+  inset: 0;
+  isolation: isolate;
+  display: grid;
+  place-items: center;
+  width: auto;
+  height: auto;
+  padding-bottom: calc(var(--standee) * 0.18);
+  border-radius: 0;
+  font-family: var(--we-font-display);
+  font-size: var(--we-type-title-size);
+  line-height: var(--we-type-title-leading);
+  letter-spacing: var(--we-type-title-tracking);
+  font-weight: var(--we-weight-strong);
+  color: var(--dice-card);
+  background:
+    radial-gradient(circle at 50% 44%, transparent 28%, color-mix(in srgb, var(--we-color-shade) var(--we-alpha-4), transparent) 100%),
+    repeating-conic-gradient(from 0deg at 50% 44%, color-mix(in srgb, var(--we-color-white) var(--we-alpha-1), transparent) 0 5deg, transparent 5deg 15deg),
+    var(--we-canvas-texture-image),
+    linear-gradient(170deg, var(--avatar-bg), color-mix(in oklab, var(--we-color-shade) var(--we-alpha-4), var(--avatar-bg)));
+  box-shadow: none;
+}
+
+:root[data-theme="dice-table"] :is(.we-character-card-art .we-avatar-circle--placeholder, .we-avatar-placeholder--portrait)::before,
+:root[data-theme="dice-table"] :is(.we-character-card-art .we-avatar-circle--placeholder, .we-avatar-placeholder--portrait)::after {
+  content: '';
+  position: absolute;
+  z-index: var(--we-z-behind);
+  left: 50%;
+}
+
+/* 底座：一块压扁的深色塑料，上沿一道高光，落一片接地影 */
+:root[data-theme="dice-table"] :is(.we-character-card-art .we-avatar-circle--placeholder, .we-avatar-placeholder--portrait)::before {
+  top: calc(50% + var(--standee) * 0.32);
+  width: calc(var(--standee) * 1.2);
+  height: calc(var(--standee) * 0.3);
+  margin-left: calc(var(--standee) * -0.6);
+  border-radius: 50%;
+  background: linear-gradient(var(--we-color-shade-3), var(--we-color-shade-3)), var(--dice-board);
+  box-shadow:
+    inset 0 2px 0 color-mix(in srgb, var(--we-color-white) var(--we-alpha-2), transparent),
+    0 calc(var(--standee) * 0.12) calc(var(--standee) * 0.16) var(--we-color-shade-4);
+}
+
+/* 圆牌：角色色的牌面，奶油厚边，底下露出纸板厚度 */
+:root[data-theme="dice-table"] :is(.we-character-card-art .we-avatar-circle--placeholder, .we-avatar-placeholder--portrait)::after {
+  top: calc(50% - var(--standee) * 0.59);
+  width: var(--standee);
+  height: var(--standee);
+  margin-left: calc(var(--standee) * -0.5);
+  border-radius: var(--we-radius-full);
+  background:
+    radial-gradient(circle at 35% 28%, color-mix(in srgb, var(--we-color-white) var(--we-alpha-2), transparent), transparent 60%),
+    var(--standee-face);
+  box-shadow:
+    0 0 0 calc(var(--standee) * 0.06) var(--dice-card),
+    0 calc(var(--standee) * 0.08) 0 calc(var(--standee) * 0.06) var(--dice-board);
 }

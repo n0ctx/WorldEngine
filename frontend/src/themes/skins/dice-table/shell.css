@@ -2,9 +2,15 @@
  * 桌面就是游戏垫：两侧抽屉是垫子上印的虚线区域框，中栏不再是一张纸，台词卡、模组书页直接摆在垫子上；
  * 窄屏抽屉浮起来盖住正文时，才换成一块实底的板子。 */
 
-/* ── 顶栏：贴边一行，下沿一道垫子的缝 ── */
+/* ── 顶栏：游戏垫上沿那一道橡胶包边，和两侧、底边的包边连成一圈 ── */
+:root[data-theme="dice-table"] {
+  --dice-rim: color-mix(in oklab, var(--we-color-shade) var(--we-alpha-4), var(--we-color-bg-canvas));
+  --dice-rim-width: 6px;
+}
+
 :root[data-theme="dice-table"] .we-topbar {
-  border-bottom-color: var(--we-color-shell-border);
+  background: var(--dice-rim);
+  border-bottom-color: transparent;
 }
 
 :root[data-theme="dice-table"] .we-topbar-brand {
@@ -33,6 +39,21 @@
       transparent 72%
     ),
     radial-gradient(60% 70% at 104% 108%, var(--we-atmosphere-shade) 0%, transparent 70%);
+}
+
+/* 垫子的包边与印刷：四周一圈橡胶包边，包边内侧一道缝线，边缘往里压一点暗；
+   右下角印着垫子的徽记——一颗二十面骰套在刻度环里，大半截出了画面，只当底纹 */
+:root[data-theme="dice-table"] .we-atmosphere::before {
+  content: '';
+  position: absolute;
+  inset: calc(var(--we-topbar-height) + var(--dice-rim-width)) var(--dice-rim-width) var(--dice-rim-width);
+  border: 2px dashed color-mix(in srgb, var(--we-color-text-primary) var(--we-alpha-2), transparent);
+  border-radius: var(--we-radius-lg);
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200' fill='none' stroke='%23e3d9c6' stroke-opacity='0.04' stroke-linejoin='round'%3E%3Ccircle cx='100' cy='100' r='97' stroke-width='1.5'/%3E%3Ccircle cx='100' cy='100' r='89' stroke-width='5' stroke-dasharray='1.5 5.5'/%3E%3Ccircle cx='100' cy='100' r='80' stroke-width='0.8'/%3E%3Cpolygon stroke-width='2.4' points='100,46 146.8,73 146.8,127 100,154 53.2,127 53.2,73'/%3E%3Cpolygon stroke-width='1.6' points='100,72 126.4,117.6 73.6,117.6'/%3E%3Cpath stroke-width='1.2' d='M100 46L100 72M146.8 73L100 72M53.2 73L100 72M146.8 73L126.4 117.6M146.8 127L126.4 117.6M100 154L126.4 117.6M53.2 73L73.6 117.6M53.2 127L73.6 117.6M100 154L73.6 117.6'/%3E%3Ctext x='100' y='108' text-anchor='middle' font-family='sans-serif' font-weight='700' font-size='20' fill='%23e3d9c6' fill-opacity='0.03' stroke='none'%3E20%3C/text%3E%3C/svg%3E")
+    right -140px bottom -160px / 620px 620px no-repeat;
+  box-shadow:
+    0 0 0 calc(var(--dice-rim-width) + 2px) var(--dice-rim),
+    inset 0 0 80px var(--we-color-shade-3);
 }
 
 :root[data-theme="dice-table"] :is(.we-book-spread-inner, .we-worlds-canvas, .we-characters-canvas, .we-edit-canvas) {

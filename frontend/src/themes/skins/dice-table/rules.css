@@ -1,7 +1,7 @@
 /* 骰界皮肤 · 规则页：一本规则书。
  * 左栏导航是从书页左侧探出来的分隔页签，设定条目按四种触发方式各一色，选中的那张拉长、贴到书页上；
  * 中栏条目列表是奶油色书页（卡纸作用域见 base.css），条目带「§」编号和分色的触发方式标签；
- * 右栏「下一轮会发给 AI 的内容」留在游戏垫上，每轮都发的顺序号落在六角格里。 */
+ * 右栏「下一轮会发给 AI 的内容」是主持人屏风内侧的几张速查表，每轮都发的顺序号落在六角格里。 */
 
 /* 四种触发方式各一色：页签、条目编号与标签共用；状态字段页签与未分类的取中性色。
  * 状态色取 base.css 算定的原色：书页在卡纸作用域里，那里的状态色压深过，取它会和导航页签对不上色 */
@@ -153,15 +153,42 @@
   text-decoration-color: var(--we-color-border-strong);
 }
 
-/* ── 右栏：下一轮会发给 AI 的内容 ── */
+/* ── 右栏：下一轮会发给 AI 的内容 ──
+ * 主持人屏风的内侧：栏头直接印在游戏垫上；下面每块是屏风上的一张速查表，顶上一条骰红表头，
+ * 实底比垫子亮一层，底下露出深色厚度，表与表之间的缝露出垫子 */
 
-/* 屏风面板：比游戏垫亮一层，一道浅色边框，底下露出深色厚度，和垫子分得开 */
 :root[data-theme="dice-table"] .we-rules-overview > .we-workshop-section {
-  padding: var(--we-space-lg);
-  border: 1px solid var(--we-color-border-subtle);
+  overflow: hidden;
+  padding: 0 var(--we-space-lg) var(--we-space-lg);
+  border: none;
   border-radius: var(--we-radius-md);
   background: color-mix(in oklab, var(--we-color-text-primary) var(--we-alpha-1), var(--we-color-bg-surface));
-  box-shadow: 0 var(--dice-depth) 0 var(--we-color-shade-4), 0 14px 26px -12px var(--we-color-shade-4);
+  box-shadow:
+    inset 0 0 0 1px var(--we-color-border-subtle),
+    0 var(--dice-depth) 0 var(--we-color-shade-4),
+    0 14px 26px -12px var(--we-color-shade-4);
+}
+
+:root[data-theme="dice-table"] .we-rules-overview > .we-workshop-section:first-child {
+  overflow: visible;
+  padding: 0 0 var(--we-space-xs);
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+}
+
+:root[data-theme="dice-table"] .we-rules-overview > .we-workshop-section:first-child .we-section-title__text {
+  font-weight: var(--we-weight-strong);
+}
+
+/* 表头：拉满整张表宽的一条骰红，字用卡纸色压粗 */
+:root[data-theme="dice-table"] .we-rules-overview > .we-workshop-section > .we-section-title--eyebrow {
+  margin: 0 calc(var(--we-space-lg) * -1) var(--we-space-md);
+  padding: var(--we-space-xs) var(--we-space-lg);
+  font-weight: var(--we-weight-strong);
+  color: var(--dice-card);
+  background: color-mix(in oklab, var(--we-color-bg-canvas) var(--we-alpha-3), var(--we-color-accent));
+  box-shadow: inset 0 -2px 0 var(--we-color-accent-deep);
 }
 
 :root[data-theme="dice-table"] .we-rules-overview-order {

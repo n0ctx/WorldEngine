@@ -292,6 +292,44 @@
   to { opacity: 0; translate: 0 60px; rotate: var(--tilt, 2deg); }
 }
 
+/* 开局一掷：盒子拿起的同时，一颗二十面骰从左下方被掷进画面，高高抛起翻滚着飞过换页的那一拍，
+   砸在桌面正中、弹两下停稳，再滑下桌收走；整段在 packs/dice.js 的 portal.total 之内走完。
+   骰身是主色的六角剪影（::before），棱线与正对你的一面是一层主色上的文字色（::after），两层同一套关键帧 */
+:where(:root[data-motion="dice"]) .we-portal-veil::before,
+:where(:root[data-motion="dice"]) .we-portal-veil::after {
+  content: '';
+  position: absolute;
+  top: 46%;
+  left: 50%;
+  width: 132px;
+  height: 132px;
+  margin: -66px 0 0 -66px;
+  opacity: 0;
+  animation: we-roll-open calc(var(--roll-throw) + var(--roll-deal)) both;
+}
+:where(:root[data-motion="dice"]) .we-portal-veil::before {
+  background: var(--we-color-accent);
+  clip-path: polygon(50% 8%, 86.6% 29%, 86.6% 71%, 50% 92%, 13.4% 71%, 13.4% 29%);
+}
+:where(:root[data-motion="dice"]) .we-portal-veil::after {
+  background: var(--we-color-on-accent);
+  -webkit-mask: var(--roll-d20) center / contain no-repeat;
+  mask: var(--roll-d20) center / contain no-repeat;
+}
+:root[data-motion="dice"] {
+  --roll-d20: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32' fill='none' stroke='black' stroke-linejoin='round' stroke-linecap='round'%3E%3Cpolygon stroke-width='1.6' points='16,2.5 27.7,9.25 27.7,22.75 16,29.5 4.3,22.75 4.3,9.25'/%3E%3Cpolygon stroke-width='1.2' points='16,9 22.6,20.4 9.4,20.4'/%3E%3Cpath stroke-width='1' d='M16 2.5L16 9M27.7 9.25L16 9M4.3 9.25L16 9M27.7 9.25L22.6 20.4M27.7 22.75L22.6 20.4M16 29.5L22.6 20.4M4.3 9.25L9.4 20.4M4.3 22.75L9.4 20.4M16 29.5L9.4 20.4'/%3E%3Ctext x='16' y='18.4' text-anchor='middle' font-family='sans-serif' font-weight='800' font-size='6' fill='black' stroke='none'%3E20%3C/text%3E%3C/svg%3E");
+}
+@keyframes we-roll-open {
+  0%   { opacity: 1; translate: -58vw 34vh; rotate: -620deg; animation-timing-function: var(--roll-rise); }
+  30%  { translate: -22vw -16vh; rotate: -260deg; animation-timing-function: var(--roll-fall); }
+  52%  { translate: 0 0; rotate: 14deg; animation-timing-function: var(--roll-rise); }
+  62%  { translate: 3vw -6vh; rotate: -8deg; animation-timing-function: var(--roll-fall); }
+  72%  { translate: 5vw 0; rotate: 3deg; animation-timing-function: var(--roll-rise); }
+  77%  { translate: 6vw -1.5vh; rotate: 0deg; animation-timing-function: var(--roll-fall); }
+  82%  { opacity: 1; translate: 6.5vw 0; rotate: 0deg; animation-timing-function: var(--roll-fall); }
+  100% { opacity: 0; translate: 6.5vw 12vh; rotate: 0deg; }
+}
+
 /* 枢纽页：三栏像发牌一样一栏栏滑上桌（--col 见 pages.css），栏标题晚一拍被掷上来、落地弹一下 */
 :where(:root[data-motion="dice"]) .we-characters-canvas[data-portal='enter'] .we-worldhub-layout > * {
   animation: we-roll-deal var(--roll-throw) var(--roll-spring) calc(var(--roll-hit) * (1 + var(--col, 0))) both;
@@ -400,6 +438,11 @@
 }
 :where(:root[data-motion="dice"]) :is(.we-card--raised.is-interactive, .we-character-card) .we-touch-fx__ripple {
   display: none;
+}
+/* 角色卡没有立绘时的纸板立牌（骰界皮肤画在头像占位的 ::after 上）：拿起卡时圆牌在底座上跳一下 */
+:where(:root[data-motion="dice"]) .we-character-card:hover .we-character-card-art .we-avatar-circle--placeholder::after {
+  --roll-hop: 8px;
+  animation: we-roll-hop var(--roll-land);
 }
 
 /* 世界卡（入口卡片）：拿起的高度走 framer 的 portal 手势，这里给盒子的侧面——拿得越高侧面越厚 */

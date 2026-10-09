@@ -123,10 +123,11 @@
 
   /* 背景氛围：外壳在全部内容后画一层静态光晕和一张动态画布（shells/book-spread/atmosphere）。
      画布画什么由 kind 选：dust 光尘（一束斜光和漂浮的微尘）/ rain 代码雨（下落的字列，跟随指针、点击炸开冲击波）/
-     wall 字模墙（书桌铺满铅字模，波浪扫过时抬起一片拼出名字，指针按下一片；字模取壳层色混本色，抬起的侧面取 --we-color-accent）。
+     wall 字模墙（书桌铺满铅字模，波浪扫过时抬起一片拼出名字，指针按下一片；字模取壳层色混本色，抬起的侧面取 --we-color-accent）/
+     mat 战棋垫（只画被点亮的六角格，对齐主题印在 --we-canvas-texture-image 里的六角格：指针走过的格亮起再暗回，按下时一圈圈亮开）。
      颜色随世界封面主色，由外壳在根节点覆盖；主题只选种类、调强度与冷暖。 */
   --we-atmosphere-kind:           dust;
-  --we-atmosphere-color:          var(--we-color-accent);  /* 光与尘的颜色；代码雨里少数主色列的颜色；字模墙字模的金属色与字色 */
+  --we-atmosphere-color:          var(--we-color-accent);  /* 光与尘的颜色；代码雨里少数主色列的颜色；字模墙字模的金属色与字色；战棋垫亮格的颜色 */
   --we-atmosphere-shade:          rgba(52, 64, 96, 0.22);  /* 与光相对的冷色暗部，落在右下角；代码雨里多数系统列取它的色相 */
   --we-atmosphere-opacity:        0.9;   /* 书架、世界等场景页的光尘强度（0–1）*/
   --we-atmosphere-opacity-quiet:  0.6;   /* 会话、写作等长时间阅读页的光尘强度 */
