@@ -1,4 +1,4 @@
-/* 骰界皮肤 · 基础控件（components/ui）：按钮、输入、下拉、开关、分段、勾选、徽标、弹窗、页签、保存栏、滑条。
+/* 骰界皮肤 · 基础控件（components/ui）：按钮、输入、下拉、开关、分段、勾选、徽标、弹窗、提示条、空状态、页签、保存栏、滑条。
  * 能按的东西是一块冲压纸板：底边一道纸板厚度，按下时压回桌面（只动独立的 translate，transform 留给动效包的弹簧）；
  * 能填的东西是压进纸里的凹槽；弹窗、下拉菜单是一张奶油卡纸（已加进 base.css 的卡纸作用域）。
  * 控件既会摆在深色游戏垫上，也会摆在卡纸上：厚度一律从控件自己的底色朝阴影色压暗，两种表面都成立。 */
@@ -102,7 +102,7 @@
   font-weight: var(--we-weight-strong);
 }
 
-/* ── 开关：凹槽里一枚奶油纸板圆片 ── */
+/* ── 开关：凹槽里一颗奶油色小骰子，朝上的一面是两点，开着时点子换骰红 ── */
 :root[data-theme="dice-table"] .we-toggle-track {
   background: var(--we-color-shade-1);
   box-shadow: inset 0 0 0 1px var(--we-color-border-default), inset 0 var(--dice-control-press) 0 var(--we-color-border-subtle);
@@ -114,8 +114,22 @@
 }
 
 :root[data-theme="dice-table"] .we-toggle-thumb {
-  background: var(--dice-card);
+  --dice-pip: var(--dice-card-muted);
+  border-radius: var(--we-radius-xs);
+  background:
+    radial-gradient(circle at 30% 30%, var(--dice-pip) 0 1.5px, transparent 2px),
+    radial-gradient(circle at 70% 70%, var(--dice-pip) 0 1.5px, transparent 2px),
+    var(--dice-card);
   box-shadow: 0 var(--dice-control-press) 0 var(--dice-board);
+}
+
+:root[data-theme="dice-table"] .we-toggle-thumb--enabled {
+  --dice-pip: var(--we-color-accent);
+}
+
+/* 小号开关的骰子太小，不画点 */
+:root[data-theme="dice-table"] .we-toggle-track--sm .we-toggle-thumb {
+  background: var(--dice-card);
 }
 
 /* ── 分段切换：凹槽里一块拿起来的卡纸 ── */
@@ -169,6 +183,18 @@
 
 :root[data-theme="dice-table"] .we-dialog__title {
   font-family: var(--we-font-display);
+  font-weight: var(--we-weight-strong);
+}
+
+/* ── 提示条：一张奶油便条（卡纸作用域见 base.css），左沿一道类型色，底边露出纸板厚度 ── */
+:root[data-theme="dice-table"] .we-toast-card {
+  padding-left: calc(var(--we-space-md) + var(--dice-depth));
+  background: var(--dice-card);
+  box-shadow: inset var(--dice-depth) 0 0 var(--change-tone), var(--dice-drop);
+}
+
+/* ── 整页空状态：标题和其他展示字一样压粗 ── */
+:root[data-theme="dice-table"] .we-empty-state:not(.we-empty-state--sm) > .we-empty-state__title {
   font-weight: var(--we-weight-strong);
 }
 

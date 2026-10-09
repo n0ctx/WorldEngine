@@ -86,6 +86,20 @@
   color: var(--dice-card-muted);
 }
 
+/* 一行台前（正文滚离顶部后）：名字是和台词卡同款的骰红名牌 */
+:root[data-theme="dice-table"] .we-speaker-stage__name {
+  padding: 0 var(--we-space-md);
+  font-size: var(--we-type-subheading-size);
+  line-height: var(--we-type-subheading-leading);
+  letter-spacing: var(--we-type-subheading-tracking);
+  font-weight: var(--we-weight-strong);
+  color: var(--we-color-on-accent);
+  background: var(--we-color-accent);
+  border-radius: var(--we-radius-full);
+  box-shadow: 0 2px 0 var(--we-color-accent-deep);
+  text-shadow: none;
+}
+
 /* ── 台词卡 ── */
 :root[data-theme="dice-table"] .we-message-list {
   padding-top: var(--we-space-md);
@@ -173,6 +187,45 @@
     inset 0 0 0 2px var(--we-color-accent);
 }
 
+/* ── 台词卡、书页上的排版（对话、写作共用）：颜色随所在卡面的作用域走 ──
+ * 中文没有真斜体，引用、表头、思考记录都改正体，靠底色和边条区分 */
+:root[data-theme="dice-table"] .we-message-content blockquote {
+  font-style: normal;
+  background: var(--we-color-hover);
+  box-shadow: inset var(--dice-depth) 0 0 var(--we-color-accent);
+}
+
+:root[data-theme="dice-table"] .we-message-content h1 {
+  border-bottom-width: 2px;
+}
+
+:root[data-theme="dice-table"] .we-message-content th {
+  font-style: normal;
+  background: var(--we-color-bg-strong);
+}
+
+:root[data-theme="dice-table"] .we-message-content hr {
+  height: 0;
+  background: none;
+  border-top: 2px dashed var(--we-color-border-default);
+}
+
+/* 思考记录：主持人压在卡角的暗骰便条——虚线框起来的一块，不铺底 */
+:root[data-theme="dice-table"] .we-think-block {
+  background: transparent;
+  border: 1.5px dashed var(--we-color-border-default);
+}
+
+:root[data-theme="dice-table"] .we-think-block-toggle {
+  font-style: normal;
+  font-weight: var(--we-weight-medium);
+}
+
+:root[data-theme="dice-table"] .we-think-block-body,
+:root[data-theme="dice-table"] .we-think-block-body :is(p, li) {
+  font-style: normal;
+}
+
 /* ── 本轮变化：从冲压板上按下来的黄色纸片 ── */
 :root[data-theme="dice-table"] .we-turn-changes {
   margin-top: var(--we-space-md);
@@ -202,9 +255,10 @@
   border-color: transparent;
 }
 
+/* 涨跌的颜色压进墨色里，印在黄纸片上读得清，仍分得出涨（绿）跌（红） */
 :root[data-theme="dice-table"] .we-turn-changes .we-change-tag {
   font-weight: var(--we-weight-strong);
-  color: var(--dice-card-ink);
+  color: color-mix(in oklab, var(--change-tone, var(--dice-card-ink)) var(--we-alpha-4), var(--dice-card-ink));
   background: var(--dice-card-line);
 }
 

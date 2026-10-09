@@ -3,14 +3,15 @@
  * 中栏条目列表是奶油色书页（卡纸作用域见 base.css），条目带「§」编号和分色的触发方式标签；
  * 右栏「下一轮会发给 AI 的内容」留在游戏垫上，每轮都发的顺序号落在六角格里。 */
 
-/* 四种触发方式各一色：页签、条目编号与标签共用；状态字段页签与未分类的取中性色 */
+/* 四种触发方式各一色：页签、条目编号与标签共用；状态字段页签与未分类的取中性色。
+ * 状态色取 base.css 算定的原色：书页在卡纸作用域里，那里的状态色压深过，取它会和导航页签对不上色 */
 :root[data-theme="dice-table"] .we-workshop {
   --dice-trigger: var(--we-color-text-tertiary);
 }
 
 :root[data-theme="dice-table"] .we-workshop [data-trigger="always"] { --dice-trigger: var(--we-color-accent); }
-:root[data-theme="dice-table"] .we-workshop [data-trigger="keyword"] { --dice-trigger: var(--we-color-status-info); }
-:root[data-theme="dice-table"] .we-workshop [data-trigger="llm"] { --dice-trigger: var(--we-color-status-success); }
+:root[data-theme="dice-table"] .we-workshop [data-trigger="keyword"] { --dice-trigger: var(--dice-info); }
+:root[data-theme="dice-table"] .we-workshop [data-trigger="llm"] { --dice-trigger: var(--dice-success); }
 :root[data-theme="dice-table"] .we-workshop [data-trigger="state"] { --dice-trigger: var(--dice-token); }
 
 :root[data-theme="dice-table"] .we-workshop-title {

@@ -281,6 +281,7 @@ export const SLOTS = [
     id: 'state-values', category: 'world', title: '状态数值变化', status: 'pack',
     hooks: ['we-change-tag', 'we-fx-burst', 'we-ink-warp'],
     api: ['fx'], usedIn: ['StatusValueChange', 'ChangeText', 'TurnChangeStrip'],
+    note: '掷：数值竖向翻滚到新值；涨（和不分涨跌的）标签像纸片从冲压板里按出来、带出厚度，跌是从上方被拍进板里、压出凹痕后贴平。',
   },
   {
     id: 'chapter', category: 'world', title: '章节开场', status: 'pack',

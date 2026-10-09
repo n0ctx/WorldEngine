@@ -189,12 +189,16 @@
 :where(:root[data-motion="dice"]) .we-fx-glyph--block {
   animation: we-roll-face var(--we-fx-decode) both;
 }
-/* 变化标签：一片从冲压板上按出来的厚纸片——先沉在板里，弹出来带出厚度，再落回 */
+/* 变化标签：一片冲压纸片。涨（和不分涨跌的）是从板里按出来——先沉在板里，弹出来带出厚度，再落回；
+   跌是反过来被拍进板里——从上方落下压出凹痕，回弹一下后贴平，不再带厚度 */
 :where(:root[data-motion="dice"]) .we-change-tag {
   border-radius: var(--we-radius-xs);
 }
 :where(:root[data-motion="dice"]) .we-change-tag--play {
   animation: we-roll-punch var(--we-fx-burst) both;
+}
+:where(:root[data-motion="dice"]) .we-change-tag--down.we-change-tag--play {
+  animation-name: we-roll-stamp-in;
 }
 @keyframes we-roll-punch {
   0%   { opacity: 0; translate: 0 6px; box-shadow: inset 0 2px 3px var(--roll-edge); animation-timing-function: var(--roll-rise); }
@@ -202,6 +206,13 @@
   40%  { translate: 0 -6px; box-shadow: var(--roll-thick-2); animation-timing-function: var(--roll-fall); }
   65%  { translate: 0 1px; box-shadow: var(--roll-thick-1); animation-timing-function: var(--roll-settle); }
   100% { opacity: 1; translate: 0 0; box-shadow: var(--roll-thick-1); }
+}
+@keyframes we-roll-stamp-in {
+  0%   { opacity: 0; translate: 0 -8px; box-shadow: var(--roll-thick-2); animation-timing-function: var(--roll-fall); }
+  15%  { opacity: 1; }
+  40%  { translate: 0 2px; box-shadow: inset 0 2px 3px var(--roll-edge); animation-timing-function: var(--roll-settle); }
+  65%  { translate: 0 -1px; box-shadow: inset 0 1px 2px var(--roll-edge); animation-timing-function: var(--roll-settle); }
+  100% { opacity: 1; translate: 0 0; box-shadow: var(--roll-thick-0); }
 }
 
 /* 提示条：整张卡已经滑上桌，标签和文字不再单独动；落定那一下内容行跳一下 */
