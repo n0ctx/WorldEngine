@@ -1,0 +1,72 @@
+/* 主题「骰界」的外观皮肤：只在 <html data-theme="dice-table"> 时生效，改写核心组件的外观，结构不变。
+ * 本文件放整套皮肤共用的材料与作用域；各页面的样式按领域分在同目录的其他文件里。
+ * 材料一律从主题 token 推导，私有变量用 --dice- 前缀：
+ *   卡纸 --dice-card 取正文色（奶油色），卡上的字 --dice-card-ink 取画布色略提亮一点；
+ *   纸板厚度 --dice-board 是卡纸压暗再带一点冲压纸片的黄；冲压纸片 --dice-token 取警示黄。
+ * 动作（掷骰、发牌、数值翻滚）归动效包「掷」，皮肤只写静态外观，过渡一律取动效角色。 */
+
+:root[data-theme="dice-table"] {
+  --dice-card: var(--we-color-text-primary);
+  --dice-card-ink: color-mix(in oklab, var(--we-color-text-primary) var(--we-alpha-2), var(--we-color-bg-canvas));
+  --dice-card-muted: color-mix(in oklab, var(--we-color-bg-canvas) var(--we-alpha-5), var(--we-color-text-primary));
+  --dice-card-line: color-mix(in srgb, var(--we-color-bg-canvas) var(--we-alpha-2), transparent);
+  --dice-card-wash: color-mix(in srgb, var(--we-color-bg-canvas) var(--we-alpha-1), transparent);
+  --dice-board: color-mix(
+    in oklab,
+    var(--we-color-bg-canvas) var(--we-alpha-4),
+    color-mix(in oklab, var(--we-color-status-warning) var(--we-alpha-3), var(--we-color-text-primary))
+  );
+  --dice-token: var(--we-color-status-warning);
+  --dice-token-edge: color-mix(in oklab, var(--we-color-bg-canvas) var(--we-alpha-4), var(--we-color-status-warning));
+
+  /* 厚度：卡纸压在垫子上露出一道纸板边，再落一片接地阴影；拿起时厚度变大 */
+  --dice-depth: 3px;
+  --dice-depth-lift: 10px;
+  --dice-drop: 0 var(--dice-depth) 0 var(--dice-board), 0 14px 26px -12px var(--we-color-shade-4);
+  --dice-drop-lift: 0 var(--dice-depth-lift) 0 var(--dice-board), 0 26px 30px -12px var(--we-color-shade-4);
+  --dice-dent: inset 0 8px 18px var(--we-color-shade-3);
+  --dice-hex: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%);
+}
+
+/* 战役盒侧边取主色压暗：主色在 .we-app-root 上被世界封面主色接管，所以和核心的主色作用域一样在这些节点上重算 */
+:root[data-theme="dice-table"],
+:root[data-theme="dice-table"] .we-app-root,
+:root[data-theme="dice-table"] .we-accent-scope {
+  --dice-side: color-mix(in oklab, var(--we-color-bg-canvas) var(--we-alpha-5), var(--we-color-accent));
+}
+
+/* 卡纸作用域：奶油卡纸上的现成控件（输入框、按钮、表单说明、下拉、保存胶囊）整套换成深墨色的字、边框、悬停与凹陷，
+ * 用法同核心的 .we-on-shell。各页面把自己的卡纸表面加进下面的选择器，不在页面文件里另写一份。 */
+:root[data-theme="dice-table"] :is(
+  .we-dice-paper,
+  /* 规则、设置页 */
+  .we-workshop-list, .we-workshop-list .we-on-shell, .we-settings-panel,
+  /* 书架、世界页 */
+  .we-character-card, .we-storyline-continue,
+  /* 对话、写作页 */
+  .we-message-bubble-assistant, .we-prose-message-list .we-chapter, .we-state-block--cast, .we-scene-place,
+  .we-session-list-panel .we-storyline-item--active,
+  /* 基础控件、编辑弹窗 */
+  .we-dialog, .we-menu
+) {
+  --we-color-text-primary: var(--dice-card-ink);
+  --we-color-text-secondary: color-mix(in oklab, var(--dice-card-muted) var(--we-alpha-4), var(--dice-card-ink));
+  --we-color-text-tertiary: var(--dice-card-muted);
+  --we-color-text-faint: color-mix(in oklab, var(--dice-card-muted) var(--we-alpha-5), var(--dice-card));
+  --we-color-border-subtle: color-mix(in srgb, var(--dice-card-ink) var(--we-alpha-2), transparent);
+  --we-color-border-default: color-mix(in srgb, var(--dice-card-ink) var(--we-alpha-3), transparent);
+  --we-color-border-strong: color-mix(in srgb, var(--dice-card-ink) var(--we-alpha-4), transparent);
+  --we-color-hover: var(--dice-card-wash);
+  --we-color-pressed: var(--dice-card-line);
+  --we-color-shade-1: var(--dice-card-wash);
+  --we-color-bg-canvas: color-mix(in oklab, var(--we-color-white) var(--we-alpha-1), var(--dice-card));
+  --we-color-bg-surface: var(--dice-card);
+  --we-color-bg-elevated: color-mix(in oklab, var(--we-color-white) var(--we-alpha-1), var(--dice-card));
+  --we-color-bg-sunken: color-mix(in oklab, var(--dice-card-ink) var(--we-alpha-1), var(--dice-card));
+  --we-color-bg-strong: color-mix(in oklab, var(--dice-board) var(--we-alpha-4), var(--dice-card));
+  /* 卡片底与边框在 :root 上就按垫子的深色算定了，卡纸上要跟着重算：比卡纸略亮一层、一道淡墨边 */
+  --we-card-bg: var(--we-color-bg-elevated);
+  --we-card-border: 1px solid var(--we-color-border-subtle);
+  --we-card-hover-bg: color-mix(in oklab, var(--dice-card-ink) var(--we-alpha-1), var(--we-color-bg-elevated));
+  color: var(--we-color-text-primary);
+}

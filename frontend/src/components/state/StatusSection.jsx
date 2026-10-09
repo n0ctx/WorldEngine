@@ -117,9 +117,15 @@ function StatusValueDisplay({ row, type, editKey, editable, onSetEditingKey, tem
     ? `${display} / ${max}${row.unit ? ' ' + row.unit : ''}`
     : `${display}${row.unit ? ' ' + row.unit : ''}`;
 
+  // 有上限的数值写出占比，主题皮肤可以据此画进度格（骰界的格子条）；默认外观不用它
+  const fill = isNumber && max > 0 && Number.isFinite(Number(display))
+    ? Math.min(1, Math.max(0, Number(display) / max))
+    : null;
+
   return (
     <span
       className={valueClassName}
+      style={fill == null ? undefined : { '--status-fill': fill }}
       onClick={editHandler}
       title={display != null && editable ? '点击编辑' : undefined}
     >

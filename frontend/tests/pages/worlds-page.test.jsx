@@ -202,6 +202,23 @@ describe('WorldsPage', () => {
     expect(container.querySelectorAll('.we-world-card-shell--feature')).toHaveLength(1);
   });
 
+  it('世界卡带上世界自己的颜色供主题皮肤取用：主色优先，无封面取场景画染色，有封面无主色不写', async () => {
+    mocks.getWorlds.mockResolvedValue([
+      { id: 'world-1', name: '群星海', cover_path: 'covers/a.png', accent_color: '#223344', updated_at: Date.now() },
+      { id: 'world-2', name: '空白页', cover_path: null, updated_at: Date.now() },
+      { id: 'world-3', name: '余烬城', cover_path: 'covers/b.png', updated_at: Date.now() },
+    ]);
+    mocks.getCharactersByWorld.mockResolvedValue([]);
+
+    render(<WorldsPage />);
+
+    const card = (name) => screen.getByText(name).closest('.we-world-card');
+    expect(await screen.findByText('群星海')).toBeInTheDocument();
+    expect(card('群星海').style.getPropertyValue('--world-tint')).toBe('#223344');
+    expect(card('空白页').style.getPropertyValue('--world-tint')).not.toBe('');
+    expect(card('余烬城').style.getPropertyValue('--world-tint')).toBe('');
+  });
+
   it('角色数量用头像表达，超出的折成 +N', async () => {
     mocks.getWorlds.mockResolvedValue([{ id: 'world-1', name: '群星海', updated_at: Date.now() }]);
     mocks.getCharactersByWorld.mockResolvedValue(

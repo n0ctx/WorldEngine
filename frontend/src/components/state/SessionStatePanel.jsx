@@ -1,14 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { AnimatePresence } from 'framer-motion';
-import { IconState, IconSummary } from '../ui/icons.jsx';
-
 import { Button, EmptyState, SectionTitle, Skeleton } from '../index.js';
-import MiddleSummaryModal from '../session/MiddleSummaryModal.jsx';
-import StateMemoryModal from '../session/StateMemoryModal.jsx';
+import AvatarCircle from '../ui/AvatarCircle.jsx';
 import SectionTabs from '../ui/SectionTabs.jsx';
 import EntityStateBlock from './EntityStateBlock.jsx';
 import StatusSection from './StatusSection.jsx';
-import WorldProfileGroup from './WorldProfileGroup.jsx';
+import ScenePlaceCard from './ScenePlaceCard.jsx';
 import {
   DiaryEntry,
   ResetAction,
@@ -23,7 +19,6 @@ import {
 import { getWorld } from '../../core/api/worlds.js';
 import { getConfig } from '../../core/api/config.js';
 import {
-  resetSessionWorldStateValues,
   resetSessionPersonaStateValues,
   patchSessionStateValue,
 } from '../../core/api/session-state-values.js';
@@ -154,75 +149,14 @@ function DiaryTab({
   );
 }
 
-/** 面板顶部的剧情摘要 / 状态记忆入口，各自打开当前会话的弹窗 */
-function SessionTools({ sessionId, worldId }) {
-  const [summaryOpen, setSummaryOpen] = useState(false);
-  const [stateMemoryOpen, setStateMemoryOpen] = useState(false);
-
-  return (
-    <div className="we-state-panel-tools">
-      <Button type="button" variant="secondary" size="sm" onClick={() => setSummaryOpen(true)}>
-        <IconSummary size={16} />
-        剧情摘要
-      </Button>
-      <Button type="button" variant="secondary" size="sm" onClick={() => setStateMemoryOpen(true)}>
-        <IconState size={16} />
-        状态记忆
-      </Button>
-      <AnimatePresence>
-        {summaryOpen && (
-          <MiddleSummaryModal key="middle-summary-modal" sessionId={sessionId} onClose={() => setSummaryOpen(false)} />
-        )}
-        {stateMemoryOpen && (
-          <StateMemoryModal key="state-memory-modal" sessionId={sessionId} worldId={worldId} onClose={() => setStateMemoryOpen(false)} />
-        )}
-      </AnimatePresence>
-    </div>
-  );
+/** 玩家页签上的头像 */
+function PersonaAvatar({ persona }) {
+  return <AvatarCircle id={persona?.id ?? 'player'} name={persona?.name || '玩家'} avatarPath={persona?.avatar_path} size="sm" />;
 }
 
 /** 本轮变化的会话状态值行 → field_key 集合，供「现状」高亮 */
 function changedFieldKeys(changes) {
   return new Set(changes.map((change) => change.row.field_key));
-}
-
-/** 世界区块：现状（时间 / 地点 / 世界用户字段） */
-function WorldTab({
-  worldName, worldResetting, handleResetWorld, stateError, renderLoadError,
-  sessionId, stateMemory, reloadStateMemory, worldRows, stateDiff, saveStateValue, templateCtx,
-}) {
-  return (
-    <section className="we-state-block we-state-block--world">
-      <SectionTitle
-        level="group"
-        rule="beside"
-        as="span"
-        actions={<ResetAction onClick={handleResetWorld} busy={worldResetting} />}
-      >
-        {worldName || '世界'}
-      </SectionTitle>
-      {stateError ? renderLoadError('世界状态加载失败') : (
-        <WorldProfileGroup
-          sessionId={sessionId}
-          world={stateMemory?.world}
-          entities={stateMemory?.entities}
-          reload={reloadStateMemory}
-        >
-          {worldRows?.length !== 0 && (
-            <StatusSection
-              headerless
-              gridLayout
-              className="we-status-world"
-              rows={worldRows}
-              changedKeys={changedFieldKeys(stateDiff.world)}
-              onSave={(fieldKey, valueJson) => saveStateValue('world', fieldKey, valueJson)}
-              templateCtx={templateCtx}
-            />
-          )}
-        </WorldProfileGroup>
-      )}
-    </section>
-  );
 }
 
 /** 玩家页签：与 NPC 同一套区块（本轮变化 + 现状 + 全部档案），用户字段来自人设状态值 */
@@ -270,9 +204,9 @@ function PlayerTab({
 }
 
 /**
- * 会话状态面板的公共壳：剧情摘要 / 状态记忆入口 + 世界区块 + 玩家区块 + 日记区块 + 整理中浮层。
+ * 会话状态面板的公共壳：当前地点卡 + 玩家区块 + 日记区块 + 整理中浮层（剧情摘要 / 状态记忆入口在侧栏顶行，见 SessionTools）。
  *
- * 两种模式的差异只剩三处，均由入参注入：
+ * 两种模式的差异由入参注入：
  * - `extraSections`：插在玩家与日记之间的区块（对话是角色，写作是附近角色）
  * - `classNames`：两套外观类名（对话 we-state-*，写作 we-cast-*）
  * - `belowTabs` / `globalActions`：写作侧的已保存角色列表与「从角色卡添加」
@@ -314,9 +248,6 @@ export default function SessionStatePanel({
   const panelRef = useRef(null);
   const focusTabs = useStateFocus(panelRef, stateData !== null && stateMemory != null);
 
-  const worldRows = stateData?.world ?? null;
-
-  const [worldResetting, setWorldResetting] = useState(false);
   const [personaResetting, setPersonaResetting] = useState(false);
   const [diaryExpanded, setDiaryExpanded] = useState(false);
   const worldName = useWorldName(worldId);
@@ -334,15 +265,6 @@ export default function SessionStatePanel({
     char: charName,
     world: worldName ?? '',
   }), [persona?.name, charName, worldName]);
-
-  async function handleResetWorld() {
-    if (!sessionId || worldResetting) return;
-    setWorldResetting(true);
-    try {
-      setStateData(await resetSessionWorldStateValues(sessionId));
-    } catch (e) { log.error('state.world.reset_failed', e, { toast: e.message || '重置世界状态失败' }); }
-    finally { setWorldResetting(false); }
-  }
 
   async function handleResetPersona() {
     if (!sessionId || personaResetting) return;
@@ -374,23 +296,6 @@ export default function SessionStatePanel({
 
   const renderLoadError = (message) => <StateLoadError message={message} onRetry={retryStateLoad} />;
 
-  const worldTab = (
-    <WorldTab
-      worldName={worldName}
-      worldResetting={worldResetting}
-      handleResetWorld={handleResetWorld}
-      stateError={stateError}
-      renderLoadError={renderLoadError}
-      sessionId={sessionId}
-      stateMemory={stateMemory}
-      reloadStateMemory={reloadStateMemory}
-      worldRows={worldRows}
-      stateDiff={stateDiff}
-      saveStateValue={saveStateValue}
-      templateCtx={templateCtx}
-    />
-  );
-
   const playerTab = (
     <PlayerTab
       stateError={stateError}
@@ -419,6 +324,7 @@ export default function SessionStatePanel({
     {
       key: 'player',
       label: persona?.name || '玩家',
+      icon: <PersonaAvatar persona={persona} />,
       content: playerTab,
       actions: <ResetAction onClick={handleResetPersona} busy={personaResetting} />,
     },
@@ -437,8 +343,12 @@ export default function SessionStatePanel({
   return (
     <div ref={panelRef} className={classNames.panel}>
       <div className={classNames.scroll}>
-        {sessionId && <SessionTools sessionId={sessionId} worldId={worldId} />}
-        {worldTab}
+        <ScenePlaceCard
+          sessionId={sessionId}
+          world={stateMemory?.world}
+          entities={stateMemory?.entities}
+          reload={reloadStateMemory}
+        />
         <section className="we-state-block we-state-block--cast">
           <SectionTabs key={focusTabs.key} sections={sections} defaultKey={focusTabs.defaultKey} globalActions={globalActions} />
         </section>

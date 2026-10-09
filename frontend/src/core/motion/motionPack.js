@@ -1,11 +1,12 @@
 /* 动效包注册表与当前包。
  * 当前包 id 写在 <html data-motion>，各包的 CSS（themes/motion/*.css）按它生效；
  * JS 侧经 useMotion() 订阅，切包时所有动效组件一起换。 */
+import dice from './packs/dice.js';
 import letterpress from './packs/letterpress.js';
 import liquid from './packs/liquid.js';
 import signal from './packs/signal.js';
 
-export const MOTION_PACKS = { [signal.id]: signal, [liquid.id]: liquid, [letterpress.id]: letterpress };
+export const MOTION_PACKS = { [signal.id]: signal, [liquid.id]: liquid, [letterpress.id]: letterpress, [dice.id]: dice };
 export const DEFAULT_MOTION_PACK_ID = liquid.id;
 
 let current = MOTION_PACKS[DEFAULT_MOTION_PACK_ID];

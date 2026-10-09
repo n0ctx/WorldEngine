@@ -151,6 +151,22 @@ describe('WorldEditPage', () => {
     mocks.updateWorldStateValue.mockResolvedValue({ success: true });
   });
 
+  it('左栏是书架世界卡的预览，改名字和简介时跟着变，预览不可点', async () => {
+    render(<WorldEditPage />);
+    const name = await screen.findByDisplayValue('群星海');
+
+    // 编辑页是挂到 body 上的 Dialog
+    const preview = document.querySelector('.we-edit-aside .we-edit-world-preview');
+    expect(preview.querySelector('.we-world-card-name')).toHaveTextContent('群星海');
+    expect(preview.querySelector('.we-world-card[role]')).toBeNull();
+
+    fireEvent.change(name, { target: { value: '霓虹码头' } });
+    fireEvent.change(screen.getByPlaceholderText('一句话介绍这个世界…'), { target: { value: '雨一直下' } });
+
+    expect(preview.querySelector('.we-world-card-name')).toHaveTextContent('霓虹码头');
+    expect(preview.querySelector('.we-world-card-desc')).toHaveTextContent('雨一直下');
+  });
+
   it('加载失败时显示错误而不是空表单，重试后恢复', async () => {
     mocks.getWorld.mockRejectedValueOnce(new Error('世界不存在'));
     render(<WorldEditPage />);

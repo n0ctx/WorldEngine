@@ -1,10 +1,12 @@
 import { useMemo, useState } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import { IconCharacterCard, IconPin, IconTrash } from '../ui/icons.jsx';
+import AvatarCircle from '../ui/AvatarCircle.jsx';
 import Button from '../ui/Button.jsx';
 import ConfirmModal from '../ui/ConfirmModal.jsx';
 import MakeCardModal from './MakeCardModal.jsx';
 import EntityStateBlock from './EntityStateBlock.jsx';
+import { useCardAvatars } from './useCardAvatars.js';
 import { deleteStateEntity, updateStateEntity } from '../../core/api/state-memory.js';
 import { log } from '../../core/utils/logger.js';
 
@@ -25,7 +27,8 @@ function sortNpcEntities(entities, presentIds) {
 
 /**
  * 「在场 + 置顶」的 NPC 实体页签，对话和写作两种模式共用。
- * 每个页签内容是 EntityStateBlock，操作栏含置顶/取消置顶、存为角色卡、删除。
+ * 每个页签内容是 EntityStateBlock，操作栏含置顶/取消置顶、存为角色卡、删除；
+ * 页签带头像：关联了角色卡的取卡上的头像，没有就是首字占位。
  *
  * 返回 { sections, modals }：sections 交给 SectionTabs，modals（制卡/删除确认弹窗）
  * 由调用方放进 belowTabs。
@@ -35,6 +38,7 @@ export default function useEntitySections({
 }) {
   const [makeCardEntity, setMakeCardEntity] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const cardAvatars = useCardAvatars(worldId);
 
   const entities = stateMemory?.entities ?? [];
   const relations = stateMemory?.relations ?? [];
@@ -102,6 +106,14 @@ export default function useEntitySections({
   const sections = npcEntities.map((entity) => ({
     key: entity.entity_id,
     label: entity.name || '未命名',
+    icon: (
+      <AvatarCircle
+        id={entity.card_id || entity.entity_id}
+        name={entity.name || '未命名'}
+        avatarPath={entity.card_id ? cardAvatars.get(entity.card_id) : null}
+        size="sm"
+      />
+    ),
     actions: toolbarFor(entity),
     content: (
       <div className="we-panel-tab-body">

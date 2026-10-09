@@ -29,8 +29,7 @@ export function EntryColsDemo() {
           location={null}
           loading={false}
           characters={characters}
-          setCharacters={setCharacters}
-          onReorderEnd={noop}
+          onReorderEnd={setCharacters}
           importingChar={false}
           charImportRef={importRef}
           onImportCharFile={noop}

@@ -35,7 +35,18 @@ function TypeOrb({ size = 24, className = '' }) {
   );
 }
 
-const ORBS = { matrix: MatrixOrb, ink: InkOrb, type: TypeOrb };
+// 掷：一颗骰子每拍跳起、翻一面、落地弹一下（样式见 themes/motion/dice.css）；小尺寸放不下点数，只留骰身
+const DIE_PIPS_MIN_SIZE = 20;
+
+function DieOrb({ size = 24, className = '' }) {
+  return (
+    <span aria-hidden="true" className={`we-die-orb${className ? ` ${className}` : ''}`} style={{ width: size, height: size }}>
+      <span className={`we-die-orb__die${size >= DIE_PIPS_MIN_SIZE ? ' we-die-orb__die--pips' : ''}`} />
+    </span>
+  );
+}
+
+const ORBS = { matrix: MatrixOrb, ink: InkOrb, type: TypeOrb, die: DieOrb };
 
 export default function MotionOrb(props) {
   const Orb = ORBS[useMotion().pack.traits.orb];

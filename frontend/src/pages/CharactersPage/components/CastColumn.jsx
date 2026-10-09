@@ -1,7 +1,7 @@
-import { SortableList } from '../../../components';
 import Button from '../../../components/ui/Button.jsx';
 import EmptyState from '../../../components/ui/EmptyState.jsx';
 import SectionTitle from '../../../components/ui/SectionTitle.jsx';
+import SortableGrid from '../../../components/ui/SortableGrid.jsx';
 import { CharacterCard } from './CharacterCard.jsx';
 
 // ── 中栏：角色 ──────────────────────────────────────────────────────────────
@@ -12,7 +12,6 @@ export function CastColumn({
   location,
   loading,
   characters,
-  setCharacters,
   onReorderEnd,
   importingChar,
   charImportRef,
@@ -60,31 +59,27 @@ export function CastColumn({
           角色
         </SectionTitle>
 
-        <div className="we-characters-col-list we-worldhub-char-list">
-          {characters.length === 0 ? (
-            loading ? null : (
-              <EmptyState size="sm" title="暂无角色" hint="点击上方「创建」添加第一个角色。" />
-            )
-          ) : (
-            <SortableList
-              items={characters}
-              onReorder={setCharacters}
-              onReorderEnd={onReorderEnd}
-              useHandle={true}
-              renderItem={(char, dragHandleProps) => (
-                <CharacterCard
-                  char={char}
-                  dragHandleProps={dragHandleProps}
-                  onCardClick={() => onCharacterClick(char)}
-                  onNewChat={() => onCharacterNewChat(char)}
-                  onEdit={() => navigate(`/characters/${char.id}/edit`, { state: { backgroundLocation: location } })}
-                  onDelete={() => setDeletingChar(char)}
-                />
-              )}
-              className="we-characters-list"
-            />
-          )}
-        </div>
+        {characters.length === 0 ? (
+          loading ? null : (
+            <EmptyState size="sm" title="暂无角色" hint="点击上方「创建」添加第一个角色。" />
+          )
+        ) : (
+          <SortableGrid
+            items={characters}
+            onReorderEnd={onReorderEnd}
+            className="we-character-grid"
+            renderItem={(char, sortableProps) => (
+              <CharacterCard
+                char={char}
+                {...sortableProps}
+                onCardClick={() => onCharacterClick(char)}
+                onNewChat={() => onCharacterNewChat(char)}
+                onEdit={() => navigate(`/characters/${char.id}/edit`, { state: { backgroundLocation: location } })}
+                onDelete={() => setDeletingChar(char)}
+              />
+            )}
+          />
+        )}
       </div>
 
     </div>

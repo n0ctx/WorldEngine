@@ -3,6 +3,7 @@ import EditPageShell from '../layout/EditPageShell';
 import useWorldAppearance from './useWorldAppearance.js';
 import useWorldEditPage from './useWorldEditPage.js';
 import WorldEditSections from './WorldEditSections.jsx';
+import WorldCardPreview from './WorldCardPreview.jsx';
 
 export default function WorldEditPage() {
   const { worldId } = useParams();
@@ -35,6 +36,14 @@ export default function WorldEditPage() {
         onSave: page.handleSave,
       }}
       title={isCreate ? '新建世界' : (page.name ? `编辑世界 · ${page.name}` : '编辑世界')}
+      aside={(
+        <WorldCardPreview
+          name={page.name}
+          description={page.description}
+          coverUrl={appearance.coverAvatarUrl}
+          accentColor={appearance.accentColor}
+        />
+      )}
     >
       <WorldEditSections
         isCreate={isCreate}

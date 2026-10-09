@@ -1,0 +1,612 @@
+/* 骰界皮肤 · 对话页（台前、台词卡、行动托盘、剧情选项、本轮变化）与左栏故事线。写作页共用这里的台前、托盘、选项与故事线。
+ * 角色台词是奶油卡纸，名字是卡角一枚骰红名牌；玩家的行动是靠右的深色卡；
+ * 台前的世界画像一张摊在桌上的地图，留白边，名字写在左下角贴着的标签卡上；
+ * 发送键是品牌标识里那颗二十面骰（遮罩画出，正对你的一面取冲压纸片的黄）。 */
+
+/* 二十面骰（品牌标识的图形）：外轮廓与棱线一层、正对你的那一面一层，发送键与本轮变化前的小骰子共用 */
+:root[data-theme="dice-table"] {
+  --dice-d20-edges: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32' fill='none' stroke='black' stroke-linejoin='round' stroke-linecap='round'%3E%3Cpolygon stroke-width='2.5' points='16,2.5 27.7,9.25 27.7,22.75 16,29.5 4.3,22.75 4.3,9.25'/%3E%3Cpolygon stroke-width='1.75' points='16,9 22.6,20.4 9.4,20.4'/%3E%3Cpath stroke-width='1.5' d='M16 2.5L16 9M27.7 9.25L16 9M4.3 9.25L16 9M27.7 9.25L22.6 20.4M27.7 22.75L22.6 20.4M16 29.5L22.6 20.4M4.3 9.25L9.4 20.4M4.3 22.75L9.4 20.4M16 29.5L9.4 20.4'/%3E%3C/svg%3E");
+  --dice-d20-face: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpolygon fill='black' points='16,9 22.6,20.4 9.4,20.4'/%3E%3C/svg%3E");
+}
+
+/* ── 左栏故事线：一摞索引卡，当前那张换成奶油卡纸；悬停的那张往右抽出一截。
+   位移写在 transform 上：入场发牌的动画占着 translate，写在 translate 上悬停会被它盖住 ── */
+:root[data-theme="dice-table"] .we-session-list-panel .we-storyline-list--timeline .we-storyline-item {
+  background: var(--we-color-bg-surface);
+  border-color: transparent;
+  border-radius: var(--we-radius-sm);
+  box-shadow: 0 2px 0 var(--we-color-shade-3);
+  transition: transform var(--we-motion-state-duration) var(--we-motion-state-easing),
+    background var(--we-motion-state-duration) var(--we-motion-state-easing);
+}
+
+:root[data-theme="dice-table"] .we-session-list-panel .we-storyline-list--timeline .we-storyline-item:hover {
+  transform: translateX(calc(var(--we-space-xs) * 1.5));
+}
+
+:root[data-theme="dice-table"] .we-session-list-panel .we-storyline-list--timeline .we-storyline-item:not(.we-storyline-item--active):hover {
+  background: var(--we-color-bg-elevated);
+  box-shadow: 0 2px 0 var(--we-color-shade-3);
+}
+
+/* 当前那张：奶油卡纸，左沿一道骰红，底边露出纸板厚度 */
+:root[data-theme="dice-table"] .we-session-list-panel .we-storyline-highlight {
+  background: var(--dice-card);
+  border-radius: var(--we-radius-sm);
+  box-shadow: inset 4px 0 0 var(--we-color-accent), var(--dice-drop);
+}
+
+/* ── 台前：摊开的地图。白边相框里铺满世界画，名字写在左下角的标签卡上 ── */
+:root[data-theme="dice-table"] .we-speaker-stage {
+  border-radius: 0;
+}
+
+:root[data-theme="dice-table"] .we-speaker-stage__hero {
+  inset: var(--we-space-md) max(var(--we-space-lg), calc((100% - var(--we-type-prose-measure)) / 2)) var(--we-space-lg);
+  overflow: hidden;
+  border: 6px solid var(--dice-card);
+  border-radius: var(--we-radius-md);
+  background: var(--dice-side);
+  box-shadow: var(--dice-drop);
+}
+
+:root[data-theme="dice-table"] .we-speaker-stage__art {
+  -webkit-mask-image: none;
+  mask-image: none;
+}
+
+:root[data-theme="dice-table"] .we-speaker-stage__portrait {
+  right: var(--we-space-lg);
+  height: calc(100% - var(--we-space-sm));
+  border-radius: var(--we-radius-sm) var(--we-radius-sm) 0 0;
+}
+
+:root[data-theme="dice-table"] .we-speaker-stage__title {
+  inset: auto auto var(--we-space-md) var(--we-space-md);
+  width: auto;
+  max-width: min(70%, 32em);
+  margin: 0;
+  padding: var(--we-space-sm) var(--we-space-lg) var(--we-space-md);
+  color: var(--dice-card-ink);
+  background: var(--dice-card);
+  border-radius: var(--we-radius-sm);
+  box-shadow: 0 var(--dice-depth) 0 var(--dice-board);
+  text-shadow: none;
+}
+
+:root[data-theme="dice-table"] .we-speaker-stage__headline {
+  font-size: var(--we-type-title-size);
+  line-height: var(--we-type-title-leading);
+  letter-spacing: var(--we-type-title-tracking);
+  font-weight: var(--we-weight-strong);
+  color: var(--dice-card-ink);
+}
+
+:root[data-theme="dice-table"] .we-speaker-stage__intro {
+  color: var(--dice-card-muted);
+}
+
+/* ── 台词卡 ── */
+:root[data-theme="dice-table"] .we-message-list {
+  padding-top: var(--we-space-md);
+}
+
+:root[data-theme="dice-table"] .we-message-assistant {
+  padding: var(--we-space-lg) 0 var(--we-space-xl);
+}
+
+:root[data-theme="dice-table"] .we-message-user {
+  padding: var(--we-space-lg) 0 var(--we-space-xl);
+}
+
+/* 名牌：骰红胶囊压在卡的左上角，下沿露出主色的深一档 */
+:root[data-theme="dice-table"] .we-message-label {
+  position: relative;
+  z-index: var(--we-z-card-content);
+  align-self: flex-start;
+  min-height: 28px;
+  margin: 0 0 -14px var(--we-space-lg);
+  padding: 0 var(--we-space-md);
+  font-family: var(--we-font-display);
+  font-size: var(--we-type-ui-size);
+  line-height: var(--we-type-ui-leading);
+  letter-spacing: var(--we-type-ui-tracking);
+  font-weight: var(--we-weight-strong);
+  border-radius: var(--we-radius-full);
+}
+
+:root[data-theme="dice-table"] .we-message-assistant .we-message-label {
+  color: var(--we-color-on-accent);
+  background: var(--we-color-accent);
+  box-shadow: 0 2px 0 var(--we-color-accent-deep);
+}
+
+:root[data-theme="dice-table"] .we-message-assistant .we-message-interrupted {
+  color: var(--we-color-on-accent);
+}
+
+:root[data-theme="dice-table"] .we-message-body--assistant {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+/* 角色台词：奶油卡纸（卡上的控件与正文由卡纸作用域换成深墨色） */
+:root[data-theme="dice-table"] .we-message-bubble-assistant {
+  padding: var(--we-space-xl) var(--we-space-xl) var(--we-space-lg);
+  background: var(--dice-card);
+  border-radius: var(--we-radius-md);
+  box-shadow: var(--dice-drop);
+}
+
+/* 玩家的行动：靠右的深色卡，细主色边，名牌在右上角 */
+:root[data-theme="dice-table"] .we-message-user .we-message-row-inner {
+  justify-content: flex-end;
+}
+
+:root[data-theme="dice-table"] .we-message-user .we-message-body {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  max-width: min(85%, 460px);
+}
+
+:root[data-theme="dice-table"] .we-message-user .we-message-label {
+  align-self: flex-end;
+  margin: 0 var(--we-space-lg) -14px 0;
+  color: var(--we-color-text-primary);
+  background: var(--we-color-bg-strong);
+  box-shadow: 0 2px 0 var(--we-color-shade-3);
+}
+
+:root[data-theme="dice-table"] .we-message-bubble-user {
+  max-width: 100%;
+  padding: var(--we-space-xl) var(--we-space-xl) var(--we-space-lg);
+  background: var(--we-color-bg-elevated);
+  border: 1.5px solid color-mix(in srgb, var(--we-color-accent) var(--we-alpha-4), transparent);
+  border-radius: var(--we-radius-md);
+  box-shadow: 0 var(--dice-depth) 0 var(--we-color-shade-4);
+}
+
+:root[data-theme="dice-table"] .we-message-bubble--editing {
+  box-shadow: var(--dice-drop),
+    inset 0 0 0 2px var(--we-color-accent);
+}
+
+/* ── 本轮变化：从冲压板上按下来的黄色纸片 ── */
+:root[data-theme="dice-table"] .we-turn-changes {
+  margin-top: var(--we-space-md);
+}
+
+:root[data-theme="dice-table"] .we-turn-changes::before {
+  content: '';
+  flex: none;
+  width: 18px;
+  height: 18px;
+  background: var(--we-color-text-tertiary);
+  -webkit-mask: var(--dice-d20-edges) center / contain no-repeat;
+  mask: var(--dice-d20-edges) center / contain no-repeat;
+}
+
+:root[data-theme="dice-table"] .we-turn-changes > button {
+  font-weight: var(--we-weight-strong);
+  color: var(--dice-card-ink);
+  background: var(--dice-token);
+  border-color: transparent;
+  box-shadow: 0 2px 0 var(--dice-token-edge);
+}
+
+:root[data-theme="dice-table"] .we-turn-changes > button:hover:not(:disabled) {
+  color: var(--dice-card-ink);
+  background: color-mix(in oklab, var(--we-color-white) var(--we-alpha-3), var(--dice-token));
+  border-color: transparent;
+}
+
+:root[data-theme="dice-table"] .we-turn-changes .we-change-tag {
+  font-weight: var(--we-weight-strong);
+  color: var(--dice-card-ink);
+  background: var(--dice-card-line);
+}
+
+/* ── 剧情选项：沿底边扇形展开的一手牌，悬停那张抽起摆正；左上角六角编号 ── */
+:root[data-theme="dice-table"] .we-chat-center-pane .we-option-list {
+  flex-direction: row;
+  align-items: flex-end;
+  justify-content: center;
+  gap: var(--we-space-sm);
+  padding: var(--we-space-lg) var(--we-space-md) var(--we-space-md);
+  counter-reset: dice-option;
+}
+
+:root[data-theme="dice-table"] .we-chat-center-pane .we-option-card--streaming .we-option-list {
+  min-height: 0;
+  max-height: none;
+  overflow: visible;
+}
+
+:root[data-theme="dice-table"] .we-chat-center-pane .we-option-btn {
+  color: var(--dice-card-ink);
+  background: var(--dice-card);
+  border: none;
+  border-radius: var(--we-radius-sm);
+  box-shadow: 0 var(--dice-depth) 0 var(--dice-board), 0 12px 20px -10px var(--we-color-shade-4);
+}
+
+/* 扇形：每张的角度按它在手里的位置取，首尾两张歪得最多，往里依次收小；卡与卡之间留缝，入场前后都不叠。
+   角度写在 transform 上，和动效包发牌用的 translate / rotate 各管各的，叠加生效 */
+:root[data-theme="dice-table"] .we-chat-center-pane .we-option-list > .we-option-btn {
+  --dice-fan: 0deg;
+  flex: 1 1 0;
+  max-width: 200px;
+  min-height: 96px;
+  padding: var(--we-space-2xl) var(--we-space-md) var(--we-space-md);
+  transform: rotate(var(--dice-fan));
+  transform-origin: 50% 160%;
+  transition: transform var(--we-motion-state-duration) var(--we-motion-state-easing),
+    translate var(--we-motion-state-duration) var(--we-motion-state-easing),
+    box-shadow var(--we-motion-state-duration) var(--we-motion-state-easing);
+}
+
+:root[data-theme="dice-table"] .we-chat-center-pane .we-option-list > .we-option-btn:first-child { --dice-fan: -5deg; }
+:root[data-theme="dice-table"] .we-chat-center-pane .we-option-list > .we-option-btn:last-child { --dice-fan: 5deg; }
+:root[data-theme="dice-table"] .we-chat-center-pane .we-option-list > .we-option-btn:nth-child(2):nth-last-child(n + 3) { --dice-fan: -2deg; }
+:root[data-theme="dice-table"] .we-chat-center-pane .we-option-list > .we-option-btn:nth-last-child(2):nth-child(n + 3) { --dice-fan: 2deg; }
+:root[data-theme="dice-table"] .we-chat-center-pane .we-option-list > .we-option-btn:only-child { --dice-fan: 0deg; }
+
+:root[data-theme="dice-table"] .we-chat-center-pane .we-option-list > .we-option-btn::before {
+  content: counter(dice-option);
+  counter-increment: dice-option;
+  position: absolute;
+  top: var(--we-space-sm);
+  left: var(--we-space-md);
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 22px;
+  font-family: var(--we-font-display);
+  font-size: var(--we-type-caption-size);
+  line-height: var(--we-type-caption-leading);
+  letter-spacing: var(--we-type-caption-tracking);
+  font-weight: var(--we-weight-strong);
+  color: var(--we-color-on-accent);
+  background: var(--we-color-accent);
+  clip-path: var(--dice-hex);
+}
+
+:root[data-theme="dice-table"] .we-chat-center-pane .we-option-list > .we-option-btn:hover:not(.we-option-btn--disabled),
+:root[data-theme="dice-table"] .we-chat-center-pane .we-option-list > .we-option-btn:focus-visible {
+  z-index: var(--we-z-card-content);
+  translate: 0 -14px;
+  background: var(--dice-card);
+  box-shadow: var(--dice-drop-lift);
+  transform: none;
+}
+
+:root[data-theme="dice-table"] .we-chat-center-pane .we-option-list > .we-option-btn:focus-visible {
+  outline: 2px solid var(--we-color-accent);
+  outline-offset: 3px;
+}
+
+:root[data-theme="dice-table"] .we-chat-center-pane .we-option-list > .we-option-btn:active:not(.we-option-btn--disabled) {
+  translate: 0 -4px;
+  transform: none;
+}
+
+:root[data-theme="dice-table"] .we-chat-center-pane .we-option-btn--selected {
+  color: var(--dice-card-ink);
+  background: var(--dice-card);
+  box-shadow: 0 0 0 3px var(--we-color-accent), 0 var(--dice-depth) 0 3px var(--we-color-accent-deep);
+}
+
+/* 选项区窄到放不下一手牌时，退回竖排的一叠卡 */
+@container (max-width: 560px) {
+  :root[data-theme="dice-table"] .we-chat-center-pane .we-option-list {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--we-space-sm);
+  }
+
+  :root[data-theme="dice-table"] .we-chat-center-pane .we-option-list > .we-option-btn {
+    flex: none;
+    max-width: none;
+    min-height: 0;
+    padding: var(--we-space-sm) var(--we-space-md) var(--we-space-sm) calc(var(--we-space-2xl) + var(--we-space-sm));
+    transform: none;
+  }
+
+  :root[data-theme="dice-table"] .we-chat-center-pane .we-option-list > .we-option-btn::before {
+    top: 50%;
+    margin-top: -11px;
+  }
+}
+
+/* ── 行动托盘：一块实底的托盘，底边露出厚度 ── */
+:root[data-theme="dice-table"] .we-chat-input__row {
+  align-items: center;
+  padding: var(--we-space-xs) var(--we-space-xs) var(--we-space-xs) var(--we-space-sm);
+  background: var(--we-color-bg-elevated);
+  border-radius: var(--we-radius-lg);
+  box-shadow: 0 0 0 1px var(--we-color-border-subtle),
+    0 4px 0 var(--we-color-shade-3),
+    0 18px 30px -14px var(--we-color-shade-4);
+  backdrop-filter: none;
+}
+
+/* 发送键换成按钮宽度一档的骰子格，快捷操作的右边距跟着让出 */
+:root[data-theme="dice-table"] .we-chat-quick-actions {
+  margin-right: calc(var(--we-control-h-lg) + var(--we-space-sm));
+}
+
+:root[data-theme="dice-table"] .we-chat-send-btn {
+  width: var(--we-control-h-lg);
+  height: var(--we-control-h-lg);
+  border-radius: var(--we-radius-md);
+  box-shadow: 0 4px 0 var(--we-color-accent-deep);
+  transition: box-shadow var(--we-motion-state-duration) var(--we-motion-state-easing);
+}
+
+:root[data-theme="dice-table"] .we-chat-send-btn:active:not(:disabled) {
+  box-shadow: 0 1px 0 var(--we-color-accent-deep);
+}
+
+/* 二十面骰：外轮廓与棱线一层取按钮文字色，正对你的那一面一层取冲压纸片的黄 */
+:root[data-theme="dice-table"] .we-chat-send-btn[aria-label="发送消息"] {
+  position: relative;
+}
+
+:root[data-theme="dice-table"] .we-chat-send-btn[aria-label="发送消息"] > svg {
+  visibility: hidden;
+}
+
+:root[data-theme="dice-table"] .we-chat-send-btn[aria-label="发送消息"]::before,
+:root[data-theme="dice-table"] .we-chat-send-btn[aria-label="发送消息"]::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  -webkit-mask: var(--dice-d20-edges) center / 28px 28px no-repeat;
+  mask: var(--dice-d20-edges) center / 28px 28px no-repeat;
+  background: currentColor;
+}
+
+:root[data-theme="dice-table"] .we-chat-send-btn[aria-label="发送消息"]::after {
+  -webkit-mask-image: var(--dice-d20-face);
+  mask-image: var(--dice-d20-face);
+  background: var(--dice-token);
+}
+
+:root[data-theme="dice-table"] .we-chat-send-btn[aria-label="发送消息"]:disabled::after {
+  background: currentColor;
+}
+
+/* ── 右栏状态面板（对话、写作共用）：主持人屏风 ──
+ * 顶上是当前地点牌；角色一块是奶油色角色卡，顶上一条主色画框；
+ * 数值落在展示字体里，有上限的下面画一排格子条（--status-fill 是数值占上限的比例，由状态字段写在元素上）。
+ * 角色页签是带头像的圆形纸板标记，选中的换骰红并拿起来；5 枚起一行四枚紧凑排。 */
+:root[data-theme="dice-table"] :is(.we-state-panel, .we-cast-panel) .we-state-block {
+  margin-bottom: var(--we-space-lg);
+  padding: var(--we-space-md);
+  border-radius: var(--we-radius-md);
+}
+
+
+:root[data-theme="dice-table"] :is(.we-state-panel, .we-cast-panel) .we-state-block--cast {
+  position: relative;
+  padding-top: calc(var(--we-space-md) + 40px);
+  background: var(--dice-card);
+  box-shadow: var(--dice-drop);
+}
+
+:root[data-theme="dice-table"] :is(.we-state-panel, .we-cast-panel) .we-state-block--cast::before {
+  content: '';
+  position: absolute;
+  inset: var(--we-space-sm) var(--we-space-sm) auto;
+  height: 32px;
+  border-radius: var(--we-radius-sm);
+  background:
+    var(--we-canvas-texture-image),
+    linear-gradient(135deg, var(--we-color-accent), color-mix(in oklab, var(--dice-card-ink) var(--we-alpha-5), var(--we-color-accent)));
+  pointer-events: none;
+}
+
+/* 数值：展示字体，有上限的下面一排十格 */
+:root[data-theme="dice-table"] :is(.we-state-panel, .we-cast-panel) .we-status-value--number {
+  font-family: var(--we-font-display);
+  font-size: var(--we-type-subheading-size);
+  line-height: var(--we-type-subheading-leading);
+  letter-spacing: var(--we-type-subheading-tracking);
+  font-weight: var(--we-weight-strong);
+  font-variant-numeric: tabular-nums;
+  color: var(--we-color-text-primary);
+}
+
+:root[data-theme="dice-table"] :is(.we-state-panel, .we-cast-panel) .we-status-value--number[style*="--status-fill"]::after {
+  content: '';
+  display: block;
+  height: 8px;
+  margin-top: var(--we-space-xs);
+  background: linear-gradient(90deg, var(--we-color-accent) calc(var(--status-fill) * 100%), var(--dice-card-line) 0);
+  -webkit-mask: repeating-linear-gradient(90deg, black 0 calc(10% - 3px), transparent 0 10%);
+  mask: repeating-linear-gradient(90deg, black 0 calc(10% - 3px), transparent 0 10%);
+  border-radius: var(--we-radius-xs);
+}
+
+/* 页签：带头像的是圆形纸板标记——头像套一圈奶油厚边、底下露出纸板厚度，名字写在下面；
+   选中的那枚换骰红边、拿起来。没有头像的（日记、附近）是一枚小圆角纸片。 */
+:root[data-theme="dice-table"] :is(.we-state-panel, .we-cast-panel) .we-state-block--cast .we-section-tabs-list {
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--we-space-md);
+  padding: var(--we-space-sm) var(--we-space-xs) var(--we-space-md);
+  overflow: visible;
+  background: none;
+  border-radius: 0;
+}
+
+:root[data-theme="dice-table"] :is(.we-state-panel, .we-cast-panel) .we-state-block--cast .we-section-tab-indicator {
+  display: none;
+}
+
+:root[data-theme="dice-table"] :is(.we-state-panel, .we-cast-panel) .we-state-block--cast .we-section-tab {
+  min-width: 0;
+  font-style: normal;
+  font-weight: var(--we-weight-strong);
+  transition: translate var(--we-motion-state-duration) var(--we-motion-state-easing),
+    color var(--we-motion-state-duration) var(--we-motion-state-easing),
+    background var(--we-motion-state-duration) var(--we-motion-state-easing),
+    box-shadow var(--we-motion-state-duration) var(--we-motion-state-easing);
+}
+
+:root[data-theme="dice-table"] :is(.we-state-panel, .we-cast-panel) .we-state-block--cast .we-section-tab:hover {
+  translate: 0 -2px;
+}
+
+/* 没有头像的页签：小纸片 */
+:root[data-theme="dice-table"] :is(.we-state-panel, .we-cast-panel) .we-state-block--cast .we-section-tab:not(.we-section-tab--icon) {
+  align-self: center;
+  overflow: hidden;
+  padding: var(--we-space-xs) var(--we-space-md);
+  text-overflow: ellipsis;
+  color: var(--dice-card-ink);
+  background: var(--we-color-bg-strong);
+  border-radius: var(--we-radius-sm);
+  box-shadow: 0 var(--dice-depth) 0 var(--dice-board);
+}
+
+:root[data-theme="dice-table"] :is(.we-state-panel, .we-cast-panel) .we-state-block--cast .we-section-tab:not(.we-section-tab--icon).active {
+  color: var(--we-color-on-accent);
+  background: var(--we-color-accent);
+  box-shadow: 0 var(--dice-depth) 0 var(--we-color-accent-deep);
+}
+
+/* 带头像的页签：纸板标记 */
+:root[data-theme="dice-table"] :is(.we-state-panel, .we-cast-panel) .we-state-block--cast .we-section-tab--icon {
+  --token-rim: var(--dice-card);
+  --token-edge: var(--dice-board);
+  --token-ring: 4px;
+  --token-depth: 4px;
+  flex-direction: column;
+  /* 名字和标记之间按选中时最厚的纸板留空：厚边 + 8px 厚度不压到名字，选中时名字也不跳 */
+  gap: calc(var(--token-ring) + var(--we-space-lg));
+  width: 64px;
+  padding: var(--we-space-xs) 0 0;
+  font-size: var(--we-type-caption-size);
+  line-height: var(--we-type-caption-leading);
+  letter-spacing: var(--we-type-caption-tracking);
+  color: var(--dice-card-muted);
+  background: none;
+  box-shadow: none;
+}
+
+:root[data-theme="dice-table"] :is(.we-state-panel, .we-cast-panel) .we-state-block--cast .we-section-tab--icon .we-section-tab-icon {
+  border-radius: var(--we-radius-full);
+  box-shadow:
+    0 0 0 var(--token-ring) var(--token-rim),
+    0 0 0 calc(var(--token-ring) + 1px) var(--dice-card-line),
+    0 var(--token-depth) 0 calc(var(--token-ring) + 1px) var(--token-edge),
+    0 calc(var(--token-depth) + 8px) 14px -2px var(--we-color-shade-4);
+  transition: box-shadow var(--we-motion-state-duration) var(--we-motion-state-easing);
+}
+
+:root[data-theme="dice-table"] :is(.we-state-panel, .we-cast-panel) .we-state-block--cast .we-section-tab--icon .we-avatar-circle--sm {
+  --avatar-size: 46px;
+}
+
+:root[data-theme="dice-table"] :is(.we-state-panel, .we-cast-panel) .we-state-block--cast .we-section-tab-label {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+:root[data-theme="dice-table"] :is(.we-state-panel, .we-cast-panel) .we-state-block--cast .we-section-tab--icon.active {
+  --token-rim: var(--we-color-accent);
+  --token-edge: var(--we-color-accent-deep);
+  --token-depth: 8px;
+  color: var(--dice-card-ink);
+  translate: 0 -5px;
+}
+
+/* 带头像的页签 5 枚起：一行四枚，标记缩小一号，厚边和厚度一起减薄 */
+:root[data-theme="dice-table"] :is(.we-state-panel, .we-cast-panel) .we-state-block--cast .we-section-tabs-list:has(> .we-section-tab--icon ~ .we-section-tab--icon ~ .we-section-tab--icon ~ .we-section-tab--icon ~ .we-section-tab--icon) {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--we-space-md) var(--we-space-xs);
+  justify-items: center;
+}
+
+:root[data-theme="dice-table"] :is(.we-state-panel, .we-cast-panel) .we-state-block--cast .we-section-tabs-list:has(> .we-section-tab--icon ~ .we-section-tab--icon ~ .we-section-tab--icon ~ .we-section-tab--icon ~ .we-section-tab--icon) > .we-section-tab--icon {
+  --token-ring: 3px;
+  --token-depth: 3px;
+  width: 100%;
+  gap: calc(var(--token-ring) + var(--we-space-md));
+}
+
+:root[data-theme="dice-table"] :is(.we-state-panel, .we-cast-panel) .we-state-block--cast .we-section-tabs-list:has(> .we-section-tab--icon ~ .we-section-tab--icon ~ .we-section-tab--icon ~ .we-section-tab--icon ~ .we-section-tab--icon) > .we-section-tab--icon .we-avatar-circle--sm {
+  --avatar-size: 36px;
+}
+
+:root[data-theme="dice-table"] :is(.we-state-panel, .we-cast-panel) .we-state-block--cast .we-section-tabs-list:has(> .we-section-tab--icon ~ .we-section-tab--icon ~ .we-section-tab--icon ~ .we-section-tab--icon ~ .we-section-tab--icon) > .we-section-tab--icon.active {
+  --token-depth: 6px;
+}
+
+/* 场景板的「当前地点」卡：桌游里的地点牌。左边一块骰红六角地块，里面一枚奶油定位针；
+   地点用展示字体压在牌面上，时间是一片冲压出来的黄纸片；右上角折起一个角，像刚从地点牌堆里翻出来 */
+:root[data-theme="dice-table"] .we-scene-place {
+  position: relative;
+  gap: var(--we-space-md);
+  padding: var(--we-space-md) var(--we-space-lg) var(--we-space-md) var(--we-space-md);
+  border: none;
+  border-radius: var(--we-radius-md);
+  background:
+    linear-gradient(225deg, var(--dice-board) 0 var(--we-space-md), transparent var(--we-space-md)) top right / var(--we-space-xl) var(--we-space-xl) no-repeat,
+    var(--dice-card);
+  box-shadow: var(--dice-drop);
+}
+
+:root[data-theme="dice-table"] .we-scene-place-mark {
+  width: 40px;
+  height: 46px;
+  border-radius: 0;
+  color: var(--dice-card);
+  background:
+    var(--we-canvas-texture-image),
+    var(--we-color-accent);
+  clip-path: var(--dice-hex);
+}
+
+/* 定位针在骰红地块上整枚取卡纸色，针心不再单走强调色 */
+:root[data-theme="dice-table"] .we-scene-place-mark .we-icon-accent {
+  color: var(--dice-card);
+}
+
+:root[data-theme="dice-table"] .we-scene-place-body > .we-status-field:first-child > .we-status-key {
+  color: var(--we-color-accent);
+  font-weight: var(--we-weight-strong);
+}
+
+:root[data-theme="dice-table"] .we-scene-place-body > .we-status-field:first-child > .we-status-value {
+  font-weight: var(--we-weight-strong);
+}
+
+/* 时间：一片冲压纸片，标签和值排成一行 */
+:root[data-theme="dice-table"] .we-scene-place-body > .we-status-field + .we-status-field:not(.we-status-field--editing) {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--we-space-xs) var(--we-space-sm);
+  margin-top: var(--we-space-xs);
+}
+
+:root[data-theme="dice-table"] .we-scene-place-body > .we-status-field + .we-status-field:not(.we-status-field--editing) > .we-status-value {
+  padding: var(--we-space-xxs) var(--we-space-sm);
+  font-size: var(--we-type-caption-size);
+  line-height: var(--we-type-caption-leading);
+  letter-spacing: var(--we-type-caption-tracking);
+  font-weight: var(--we-weight-strong);
+  font-variant-numeric: tabular-nums;
+  color: var(--dice-card-ink);
+  background: var(--dice-token);
+  border-radius: var(--we-radius-full);
+  box-shadow: 0 2px 0 var(--dice-token-edge);
+}
+

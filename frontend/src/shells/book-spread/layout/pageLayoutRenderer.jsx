@@ -19,8 +19,10 @@ import useSidePanelsStore from '../../../core/state/sidePanels.js';
 export default function RenderPageLayout({
   header = null,
   left = null,
+  leftActions = null,
   main = null,
   right = null,
+  rightActions = null,
   inspector = null,
   overlay = null,
   recall = null,
@@ -41,6 +43,7 @@ export default function RenderPageLayout({
             open={leftOpen}
             onToggle={toggleLeft}
             label={leftLabel}
+            actions={leftActions}
             footer={recall ? <MemoryRecallOverlay {...recall} /> : null}
           >
             <PageLeft>{left}</PageLeft>
@@ -51,7 +54,7 @@ export default function RenderPageLayout({
           <div id="we-main-content" tabIndex={-1} className="we-page-right__body">
             {main}
             {right != null ? (
-              <SideDrawer side="right" open={rightOpen} onToggle={toggleRight} label={rightLabel}>
+              <SideDrawer side="right" open={rightOpen} onToggle={toggleRight} label={rightLabel} actions={rightActions}>
                 {right}
               </SideDrawer>
             ) : null}

@@ -1,0 +1,12 @@
+{
+  "id": "dice-table",
+  "name": "骰界",
+  "version": "1.0.0",
+  "author": "WorldEngine",
+  "description": "主持人桌面：深色游戏垫印着六角格，世界是一盒盒战役，角色与台词是奶油色卡纸，强调色是骰红。配「掷」动效。",
+  "preview": {
+    "paper": "#16141c",
+    "accent": "#e46a4e",
+    "ink": "#e3d9c6"
+  }
+}

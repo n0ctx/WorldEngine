@@ -11,6 +11,7 @@ import './themes/rules.css'
 import './themes/settings.css'
 import './themes/assistant.css'
 import './themes/pages.css'
+import.meta.glob('./themes/skins/*/*.css', { eager: true })
 import.meta.glob('./themes/motion/*.css', { eager: true })
 import './index.css'
 import App from './App.jsx'

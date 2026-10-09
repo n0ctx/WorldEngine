@@ -456,7 +456,8 @@
 
 /* 触屏没有悬停：操作位常驻，但保持低调 */
 @media (hover: none) {
-  .we-world-card-actions {
+  .we-world-card-actions,
+  .we-character-card-actions {
     opacity: 1;
   }
 }
@@ -505,6 +506,60 @@
   scrollbar-width: thin;
   scrollbar-color: var(--we-color-shell-border-strong) transparent;
 }
+/* ── 世界封面横幅：封面铺满，底部压一层暗罩，名字和简介写在左下角的玻璃标题卡上；没有封面时用场景画 ── */
+.we-world-lid {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: var(--we-space-lg);
+  margin-bottom: var(--we-space-lg);
+}
+
+/* 封面按世界卡的完整比例缩成缩略图，不裁成窄条；简介只留一行，整条页头不抢下面三栏的高度 */
+.we-world-lid-art {
+  flex: none;
+  width: 104px; /* design exact: 世界卡 16:10 封面缩成一枚缩略图，页头只占一行标题条的高度 */
+  aspect-ratio: 16 / 10;
+  overflow: hidden;
+  border-radius: var(--we-radius-md);
+  background: var(--we-color-bg-sunken);
+  box-shadow: var(--we-material-shadow);
+}
+
+.we-world-lid-art > :is(img, svg) {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.we-world-lid-label {
+  min-width: 0;
+  max-width: 720px;
+}
+
+.we-world-lid-name {
+  margin: 0;
+  font-family: var(--we-font-display);
+  font-style: var(--we-font-display-style);
+  font-size: var(--we-type-heading-size);
+  line-height: var(--we-type-heading-leading);
+  letter-spacing: var(--we-type-heading-tracking);
+  font-weight: var(--we-weight-strong);
+  color: var(--we-color-shell-text-primary);
+}
+
+.we-world-lid-desc {
+  margin: var(--we-space-xxs) 0 0;
+  overflow: hidden;
+  font-size: var(--we-type-body-size);
+  line-height: var(--we-type-body-leading);
+  letter-spacing: var(--we-type-body-tracking);
+  color: var(--we-color-shell-text-tertiary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .we-characters-canvas::-webkit-scrollbar { width: 4px; }
 .we-characters-canvas::-webkit-scrollbar-track { background: transparent; }
 .we-characters-canvas::-webkit-scrollbar-thumb {
@@ -624,8 +679,8 @@
 }
 
 .we-worldhub-main {
-  flex: 0 1 340px;
-  min-width: 240px;
+  flex: 0 1 280px;
+  min-width: 220px;
   display: flex;
   flex-direction: column;
   min-height: 0;
@@ -646,15 +701,27 @@
   scrollbar-color: var(--we-color-shell-border-strong) transparent;
 }
 
-/* 角色栏保底宽度：窗口变窄时先让两侧栏收窄，而不是把角色挤成一条 */
+/* 角色栏保底宽度放得下两张角色卡：窗口变窄时先让两侧栏收窄 */
 .we-worldhub-cast {
   flex: 1 1 0%;
-  min-width: 320px;
+  min-width: 360px;
 }
 
 .we-worldhub-side {
-  flex: 0 1 320px;
-  min-width: 260px;
+  flex: 0 1 280px;
+  min-width: 240px;
+}
+
+/* 三栏都没有外框，滚动的内容在栏顶被一刀切齐会显出一个看不见的方框；上沿留一段渐隐，长度等于栏顶的留白，静止时不碰内容 */
+.we-worldhub-cast,
+.we-worldhub-side {
+  -webkit-mask-image: linear-gradient(to bottom, transparent, #000 var(--we-space-md));
+  mask-image: linear-gradient(to bottom, transparent, #000 var(--we-space-md));
+}
+
+.we-storyline-body {
+  -webkit-mask-image: linear-gradient(to bottom, transparent, #000 var(--we-space-lg));
+  mask-image: linear-gradient(to bottom, transparent, #000 var(--we-space-lg));
 }
 
 .we-worldhub-cast::-webkit-scrollbar,
@@ -731,10 +798,11 @@
   gap: var(--we-space-xs);
 }
 
-.we-characters-list {
-  display: flex;
-  flex-direction: column;
-  gap: var(--we-space-sm);
+/* ── 角色卡网格：竖版卡，上半立绘，下面名字和两行简介；整张卡可拖动排序 ── */
+.we-character-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(168px, 1fr));
+  gap: var(--we-space-lg);
 }
 
 .we-char-drag {
@@ -752,33 +820,49 @@
   cursor: grabbing;
 }
 
-.we-character-card:hover .we-char-drag {
-  color: var(--we-color-text-tertiary);
+.we-character-card-shell {
+  display: flex;
 }
 
 .we-character-card {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  padding: 0;
+  overflow: hidden;
   user-select: none;
 }
 
-.we-character-card:hover .we-character-card-actions {
+.we-character-card:is(:hover, :focus-within) .we-character-card-actions {
   opacity: 1;
 }
 
-/* 世界层侧栏用紧凑变体：单行简介，塞进窄列不抢主视觉 */
-.we-character-card--compact .we-character-card-name {
-  font-size: var(--we-type-ui-size);
-  line-height: var(--we-type-ui-leading);
-  letter-spacing: var(--we-type-ui-tracking);
+/* 立绘：有头像时铺满，没有头像时在主色淡底上放一枚头像圆 */
+.we-character-card-art {
+  display: grid;
+  flex: none;
+  place-items: center;
+  aspect-ratio: 6 / 5;
+  overflow: hidden;
+  background: linear-gradient(160deg, var(--we-color-accent-bg), var(--we-color-bg-sunken));
 }
 
-.we-character-card--compact .we-character-card-desc {
-  -webkit-line-clamp: 1;
-  margin-top: var(--we-space-xxs);
+.we-character-card-portrait {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 50% 20%;
 }
 
-.we-character-card--compact .we-character-card-actions {
-  top: 6px;
-  right: 6px;
+.we-character-card > .we-character-card-info {
+  padding: var(--we-space-sm) var(--we-space-md) var(--we-space-md);
+}
+
+.we-character-card > .we-character-card-actions {
+  top: var(--we-space-sm);
+  right: var(--we-space-sm);
+  z-index: var(--we-z-card-content);
 }
 
 .we-character-card-body {
@@ -1299,6 +1383,67 @@
   background-image: var(--we-canvas-texture-image);
 }
 
+/* 编辑弹层两栏（EditPageShell 的 aside）：左栏预览（世界卡、立绘框）滚动时停在顶上，右栏页签与表单；
+   按弹层正文自己的宽度判断，窄时回到单栏，左栏收窄放在上面 */
+.we-edit-body:has(> .we-edit-columns) {
+  container-type: inline-size;
+}
+
+.we-edit-columns {
+  display: grid;
+  grid-template-columns: 240px minmax(0, 1fr);
+  align-items: start;
+  column-gap: var(--we-space-2xl);
+}
+
+.we-edit-aside {
+  position: sticky;
+  top: 0;
+  padding-top: var(--we-space-sm);
+}
+
+.we-edit-main {
+  min-width: 0;
+}
+
+.we-edit-aside-note {
+  margin-top: var(--we-space-sm);
+  font-size: var(--we-type-caption-size);
+  line-height: var(--we-type-caption-leading);
+  letter-spacing: var(--we-type-caption-tracking);
+  color: var(--we-color-text-faint);
+  text-align: center;
+}
+
+/* 世界卡预览：书架小入口同样的 16:11 画面，只看不点 */
+.we-edit-world-preview {
+  margin: 0;
+}
+
+.we-edit-world-preview .we-world-card-shell {
+  height: auto;
+  aspect-ratio: 16 / 11;
+  touch-action: auto;
+}
+
+.we-edit-world-preview .we-world-card {
+  cursor: default;
+  pointer-events: none;
+}
+
+@container (max-width: 600px) {
+  .we-edit-columns {
+    grid-template-columns: minmax(0, 1fr);
+    row-gap: var(--we-space-lg);
+  }
+
+  .we-edit-aside {
+    position: static;
+    width: min(100%, 200px);
+    justify-self: center;
+  }
+}
+
 .we-edit-form-stack {
   display: flex;
   flex-direction: column;
@@ -1644,6 +1789,18 @@
 }
 
 @media (max-width: 640px) {
+  .we-world-lid {
+    gap: var(--we-space-md);
+  }
+
+  .we-world-lid-art {
+    width: 80px; /* design exact: 窄屏缩略图再缩一档 */
+  }
+
+  .we-character-grid {
+    grid-template-columns: repeat(auto-fill, minmax(136px, 1fr));
+  }
+
   .we-worlds-grid {
     --we-worlds-grid-cols: 1;
     grid-auto-rows: auto;
@@ -2027,15 +2184,6 @@
 /* — 会话列表 ─ */
   flex-direction: column;
   height: 100%;
-}
-
-.we-session-list-head {
-  padding: 14px 14px 10px;
-}
-
-/* 玻璃面板上的强调按钮：主色淡底 + 细描边，悬停加深一档 */
-.we-session-list-create {
-  width: 100%;
 }
 
 .we-session-list-scroll {

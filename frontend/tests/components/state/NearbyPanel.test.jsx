@@ -54,8 +54,8 @@ vi.mock('../../../src/core/hooks/useSessionState.js', () => {
   };
   return { useSessionState: () => sessionState };
 });
-vi.mock('../../../src/components/state/WorldProfileGroup.jsx', () => ({
-  default: () => <div />,
+vi.mock('../../../src/components/state/ScenePlaceCard.jsx', () => ({
+  default: ({ world }) => (world ? <section aria-label="当前地点">{world.location ?? '未设定'}</section> : null),
 }));
 // 面板自身的 NPC 页签装配是被测对象，SectionTabs 换成把每个 tab 的 label/actions/content
 // 都摊平渲染的轻量替身，方便按 tab 分区查询
@@ -65,6 +65,7 @@ vi.mock('../../../src/components/ui/SectionTabs.jsx', () => ({
       <div data-testid="global-actions">{globalActions}</div>
       {sections.map((s) => (
         <div key={s.key} data-testid="tab" data-key={s.key} data-label={s.label}>
+          <div data-testid="tab-icon">{s.icon}</div>
           <div data-testid="tab-actions">{s.actions}</div>
           <div data-testid="tab-content">{s.content}</div>
         </div>
@@ -81,6 +82,7 @@ vi.mock('../../../src/components/session/StateMemoryModal.jsx', () => ({
 }));
 
 import NearbyPanel from '../../../src/pages/WritingSpacePage/components/NearbyPanel.jsx';
+import SessionTools from '../../../src/components/state/SessionTools.jsx';
 
 function entity(overrides = {}) {
   return {
@@ -99,8 +101,8 @@ function entity(overrides = {}) {
   };
 }
 
-function stateMemory({ entities = [], presentIds = [] } = {}) {
-  return { entities, relations: [], world: {}, presentIds };
+function stateMemory({ entities = [], presentIds = [], world = {} } = {}) {
+  return { entities, relations: [], world, presentIds };
 }
 
 async function renderPanel(props = {}) {
@@ -146,6 +148,29 @@ describe('NearbyPanel 的在场 + 置顶实体页签', () => {
     await renderPanel();
 
     await waitFor(() => expect(tabLabels()).toEqual(['仅在场', '仅置顶']));
+  });
+
+  it('页签带头像：关联了角色卡的取卡上的头像，没有关联的是首字占位', async () => {
+    mocks.getCharactersByWorld.mockResolvedValue([{ id: 'card-1', name: '艾拉', avatar_path: 'avatars/aila.png' }]);
+    mocks.fetchStateMemory.mockResolvedValue(stateMemory({
+      entities: [
+        entity({ entity_id: 'e-card', name: '艾拉', card_id: 'card-1' }),
+        entity({ entity_id: 'e-free', name: '老K' }),
+      ],
+      presentIds: ['e-card', 'e-free'],
+    }));
+    await renderPanel();
+
+    await waitFor(() => expect(within(tabByKey('e-card')).getByTestId('tab-icon').querySelector('img')).not.toBeNull());
+    expect(within(tabByKey('e-card')).getByTestId('tab-icon').querySelector('img').getAttribute('src')).toBe('/api/uploads/avatars/aila.png');
+    expect(within(tabByKey('e-free')).getByTestId('tab-icon')).toHaveTextContent('老');
+    expect(mocks.getCharactersByWorld).toHaveBeenCalledWith('w1');
+  });
+
+  it('侧栏顶部是「当前地点」卡，取状态记忆里的世界现状', async () => {
+    mocks.fetchStateMemory.mockResolvedValue(stateMemory({ world: { location: '地下拳场', time: null } }));
+    await renderPanel();
+    expect(await screen.findByRole('region', { name: '当前地点' })).toHaveTextContent('地下拳场');
   });
 
   it('没有在场或置顶角色时回落到空态占位 tab', async () => {
@@ -228,10 +253,9 @@ describe('NearbyPanel 的在场 + 置顶实体页签', () => {
   });
 });
 
-describe('会话状态面板的剧情摘要 / 状态记忆入口', () => {
+describe('剧情摘要 / 状态记忆入口（侧栏顶行）', () => {
   it('点击入口打开对应会话的弹窗', async () => {
-    mocks.fetchStateMemory.mockResolvedValue(stateMemory());
-    await renderPanel();
+    render(<SessionTools sessionId="s1" worldId="w1" />);
 
     fireEvent.click(screen.getByRole('button', { name: '剧情摘要' }));
     expect(await screen.findByTestId('summary-modal')).toHaveTextContent('s1');
@@ -240,9 +264,8 @@ describe('会话状态面板的剧情摘要 / 状态记忆入口', () => {
     expect(await screen.findByTestId('state-memory-modal')).toHaveTextContent('s1');
   });
 
-  it('没有会话时不显示入口', async () => {
-    mocks.fetchStateMemory.mockResolvedValue(stateMemory());
-    render(<NearbyPanel worldId="w1" sessionId={null} persona={{ name: '玩家甲' }} />);
+  it('没有会话时不显示入口', () => {
+    render(<SessionTools sessionId={null} worldId="w1" />);
 
     expect(screen.queryByRole('button', { name: '剧情摘要' })).toBeNull();
     expect(screen.queryByRole('button', { name: '状态记忆' })).toBeNull();

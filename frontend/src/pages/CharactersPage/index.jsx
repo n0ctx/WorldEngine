@@ -16,6 +16,7 @@ import { DeleteConfirmModals } from './components/DeleteConfirmModals.jsx';
 import { StorylineColumn } from './components/StorylineColumn.jsx';
 import { CastColumn } from './components/CastColumn.jsx';
 import { SideColumn } from './components/SideColumn.jsx';
+import { WorldLid } from './components/WorldLid.jsx';
 
 // ── CharactersPage（世界层枢纽）──────────────────────────────────────────────
 
@@ -93,6 +94,7 @@ export default function CharactersPage() {
   return (
     <div className="we-characters-canvas" data-portal={portal && enteredViaPortal ? 'enter' : undefined}>
       {/* 返回导航已收口到顶栏面包屑（TopBar），此页不再自带返回按钮 */}
+      <WorldLid world={world} />
 
       {/* 新世界搭建引导：未完成且未被手动关闭时，取代下方整套空态 */}
       {showGuide && (
@@ -122,7 +124,6 @@ export default function CharactersPage() {
           location={location}
           loading={loading}
           characters={characters}
-          setCharacters={setCharacters}
           onReorderEnd={handleCharReorderEnd}
           importingChar={importingChar}
           charImportRef={charImportRef}

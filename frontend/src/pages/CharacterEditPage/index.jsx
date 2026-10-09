@@ -7,6 +7,7 @@ import {
   getCharacterProfileDefaults, updateCharacterProfileDefault,
 } from '../../core/api/character-state-values';
 import Button from '../../components/ui/Button';
+import CardPortrait from '../../components/card-edit/CardPortrait.jsx';
 import CardBasicForm from '../../components/card-edit/CardBasicForm.jsx';
 import CardEditTabs from '../../components/card-edit/CardEditTabs.jsx';
 import { useCardEditForm } from '../../components/card-edit/useCardEditForm.js';
@@ -119,9 +120,6 @@ export default function CharacterEditPage() {
     content: (
       <CardBasicForm
         form={form}
-        avatarSeed={characterId}
-        showAvatar={!isCreate}
-        onAvatarFile={handleAvatarFile}
         nameField={{ label: '名称', placeholder: '角色的名字', required: true, autoFocus: isCreate }}
         descriptionPlaceholder="一句话介绍这个角色…"
         prompts={PROMPTS}
@@ -154,6 +152,7 @@ export default function CharacterEditPage() {
         onClose={() => navigate(-1)}
         title={isCreate ? '新建角色' : (form.name ? `编辑角色 · ${form.name}` : '编辑角色')}
         headerActions={exportAction}
+        aside={isCreate ? null : <CardPortrait form={form} avatarSeed={characterId} onAvatarFile={handleAvatarFile} />}
         save={{
           creating: isCreate,
           saving,

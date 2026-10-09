@@ -1,5 +1,5 @@
 import React from 'react';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, renderHook, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
@@ -110,6 +110,7 @@ vi.mock('../../src/components', () => ({
 }));
 
 import CharactersPage from '../../src/pages/CharactersPage/index.jsx';
+import { useCharacterActions } from '../../src/pages/CharactersPage/hooks/useCharacterActions.js';
 
 describe('CharactersPage', () => {
   beforeEach(() => {
@@ -146,6 +147,46 @@ describe('CharactersPage', () => {
     // 数字是滚动计数器：读屏读到的是完整数值，滚轮本身对读屏隐藏；
     // 状态字段数是世界 2 + 角色 1 + 玩家 1 的合计，与规则页概览同口径
     expect(screen.getByRole('button', { name: /1\s*条设定条目 · 4\s*个状态字段/ })).toBeInTheDocument();
+  });
+
+  it('顶部有世界封面横幅：名字与简介，没有封面时用场景画', async () => {
+    mocks.getWorld.mockResolvedValue({ id: 'world-1', name: '雨夜拳场', description: '一个已经写好设定的世界', onboarding_dismissed: 0 });
+    const { container } = render(<CharactersPage />);
+
+    const lid = await screen.findByRole('heading', { level: 1, name: '雨夜拳场' });
+    expect(lid.closest('.we-world-lid')).toHaveTextContent('一个已经写好设定的世界');
+    expect(container.querySelector('.we-world-lid-art svg')).not.toBeNull();
+  });
+
+  it('角色排成竖版卡片网格：有头像时立绘铺满，没有头像时放一枚写首字的头像圆', async () => {
+    mocks.getCharactersByWorld.mockResolvedValue([
+      { id: 'char-1', name: '阿塔', description: '守夜人' },
+      { id: 'char-2', name: '白鸦', description: '', avatar_path: 'avatars/b.png' },
+    ]);
+    const { container } = render(<CharactersPage />);
+    await screen.findAllByText('阿塔');
+
+    const cards = container.querySelectorAll('.we-character-grid .we-character-card');
+    expect(cards).toHaveLength(2);
+    expect(cards[0].querySelector('.we-character-card-art .we-avatar-circle')).toHaveTextContent('阿');
+    expect(cards[1].querySelector('.we-character-card-portrait')).toHaveAttribute('src', '/api/uploads/avatars/b.png');
+    expect(cards[1]).toHaveTextContent('为 白鸦 写一句简介');
+  });
+
+  it('拖动排序松手后先排好本地列表再保存；保存失败按服务端顺序重读', async () => {
+    const setCharacters = vi.fn();
+    const chars = [{ id: 'char-2' }, { id: 'char-1' }];
+    const { result } = renderHook(() => useCharacterActions('world-1', setCharacters));
+
+    mocks.reorderCharacters.mockResolvedValue({});
+    await act(() => result.current.handleCharReorderEnd(chars));
+    expect(setCharacters).toHaveBeenCalledWith(chars);
+    expect(mocks.reorderCharacters).toHaveBeenCalledWith([{ id: 'char-2', sort_order: 0 }, { id: 'char-1', sort_order: 1 }]);
+
+    mocks.reorderCharacters.mockRejectedValue(new Error('offline'));
+    await act(() => result.current.handleCharReorderEnd(chars));
+    expect(mocks.logError).toHaveBeenCalledWith('character.sort.save_failed', expect.any(Error), expect.any(Object));
+    expect(setCharacters).toHaveBeenLastCalledWith([{ id: 'char-1', name: '阿塔', description: '守夜人' }]);
   });
 
   it('故事线为空时展示空态', async () => {

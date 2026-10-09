@@ -24,6 +24,7 @@ export function EntryPlainList({ entries, selectedId, onSelect, onToggle, onDele
           selected={entry.id === selectedId}
           role="button"
           tabIndex={0}
+          data-trigger={entry.trigger_type}
           className={`we-entry-section-row${entry.enabled === 0 ? ' we-entry-section-row--disabled' : ''}`}
           onClick={() => onSelect(entry)}
           onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelect(entry); } }}
@@ -70,7 +71,12 @@ export function EntryOrderList({ entries, onReorder, onReorderEnd, onToggle }) {
       useHandle
       style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}
       renderItem={(entry, dragHandleProps) => (
-        <Card variant="outlined" density="compact" className={`we-entry-section-row${entry.enabled === 0 ? ' we-entry-section-row--disabled' : ''}`}>
+        <Card
+          variant="outlined"
+          density="compact"
+          data-trigger={entry.trigger_type}
+          className={`we-entry-section-row${entry.enabled === 0 ? ' we-entry-section-row--disabled' : ''}`}
+        >
           <span className="we-entry-section-drag" {...dragHandleProps}><DragHandle /></span>
           <div className="we-entry-section-main">
             <div className="we-entry-section-title-line">

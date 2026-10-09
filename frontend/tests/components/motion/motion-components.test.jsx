@@ -97,6 +97,48 @@ describe('SectionTabs 切换标记', () => {
     fireEvent.click(screen.getByRole('tab', { name: '模型' }));
     expect(root).toHaveClass('we-section-tabs--switched');
   });
+
+  it('切换页签只横向滚动页签行，不调用 scrollIntoView 连带滚动外层侧栏', () => {
+    const scrollIntoView = vi.fn();
+    const scrollTo = vi.fn();
+    const originalScrollIntoView = Element.prototype.scrollIntoView;
+    const originalScrollTo = Element.prototype.scrollTo;
+    Element.prototype.scrollIntoView = scrollIntoView;
+    Element.prototype.scrollTo = scrollTo;
+    try {
+      render(<SectionTabs sections={sections} defaultKey="a" />);
+      const list = screen.getByRole('tablist');
+      Object.defineProperty(list, 'clientWidth', { configurable: true, value: 100 });
+      const tab = screen.getByRole('tab', { name: '模型' });
+      Object.defineProperty(tab, 'offsetLeft', { configurable: true, value: 120 });
+      Object.defineProperty(tab, 'offsetWidth', { configurable: true, value: 40 });
+
+      fireEvent.click(tab);
+
+      expect(scrollIntoView).not.toHaveBeenCalled();
+      expect(scrollTo).toHaveBeenCalledWith({ left: 60, behavior: 'smooth' });
+    } finally {
+      Element.prototype.scrollIntoView = originalScrollIntoView;
+      Element.prototype.scrollTo = originalScrollTo;
+    }
+  });
+});
+
+describe('SectionTabs 页签小图', () => {
+  it('传了 icon 的页签在名字前放小图，读屏只读名字；没传的页签只有名字', () => {
+    const sections = [
+      { key: 'a', label: '艾拉', icon: <span data-testid="avatar">艾</span>, content: <p>艾拉内容</p> },
+      { key: 'b', label: '日记', content: <p>日记内容</p> },
+    ];
+    render(<SectionTabs sections={sections} defaultKey="a" />);
+
+    const withIcon = screen.getByRole('tab', { name: '艾拉' });
+    expect(withIcon).toHaveClass('we-section-tab--icon');
+    expect(screen.getByTestId('avatar').closest('.we-section-tab-icon')).toHaveAttribute('aria-hidden', 'true');
+    const plain = screen.getByRole('tab', { name: '日记' });
+    expect(plain).not.toHaveClass('we-section-tab--icon');
+    expect(plain.innerHTML).toBe('日记');
+  });
 });
 
 describe('SectionTabs variant="gooey"', () => {
@@ -208,6 +250,23 @@ describe('MotionOrb 活字「检字」', () => {
       rerender(<MotionOrb size={16} />);
       expect(container.querySelector('.we-type-orb__slug')).toBeInTheDocument();
       expect(container.querySelector('.we-type-orb__reel')).toBeNull();
+    } finally {
+      setMotionPack(DEFAULT_MOTION_PACK_ID);
+    }
+  });
+});
+
+describe('MotionOrb 掷「骰子」', () => {
+  it('大尺寸的骰子画点数，小尺寸只留骰身；整颗对读屏隐藏', () => {
+    setMotionPack('dice');
+    try {
+      const { container, rerender } = render(<MotionOrb size={32} />);
+      const orb = container.querySelector('.we-die-orb');
+      expect(orb).toHaveAttribute('aria-hidden', 'true');
+      expect(orb.querySelector('.we-die-orb__die')).toHaveClass('we-die-orb__die--pips');
+
+      rerender(<MotionOrb size={16} />);
+      expect(container.querySelector('.we-die-orb__die')).not.toHaveClass('we-die-orb__die--pips');
     } finally {
       setMotionPack(DEFAULT_MOTION_PACK_ID);
     }

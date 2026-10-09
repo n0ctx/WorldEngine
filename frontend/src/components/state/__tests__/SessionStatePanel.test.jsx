@@ -34,7 +34,7 @@ vi.mock('../../../core/hooks/useSessionState.js', () => ({
 vi.mock('../../../core/hooks/useStateDiff.js', () => ({
   useStateDiff: () => ({ diff: { world: [], persona: [], character: [] }, ready: true }),
 }));
-vi.mock('../WorldProfileGroup.jsx', () => ({ default: ({ children }) => <div>{children}</div> }));
+vi.mock('../ScenePlaceCard.jsx', () => ({ default: ({ world }) => (world ? <section aria-label="当前地点" /> : null) }));
 vi.mock('../../ui/SectionTabs.jsx', () => {
   function MockSectionTabs({ sections, defaultKey }) {
     const [activeKey, setActiveKey] = useState(defaultKey ?? sections[0]?.key);
@@ -136,21 +136,12 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
-it('保留世界名称和状态值的内联保存行为', async () => {
+it('顶部是当前地点卡，世界字段暂不显示', async () => {
   render(<SessionStatePanel {...props()} />);
 
-  expect(await screen.findByText('森林')).toBeInTheDocument();
-  fireEvent.click(screen.getByRole('button', { name: 'we-status-world' }));
-
-  await waitFor(() => {
-    expect(harness.patchStateValue).toHaveBeenCalledWith('session-1', 'world', 'weather', '"clear"', undefined);
-  });
-  expect(harness.setStateData).toHaveBeenCalledTimes(1);
-  const updateState = harness.setStateData.mock.calls[0][0];
-  expect(updateState({ world: [{ field_key: 'weather' }], persona: [] }).world[0]).toMatchObject({
-    effective_value_json: '"clear"',
-    runtime_value_json: '"clear"',
-  });
+  expect(await screen.findByRole('region', { name: '当前地点' })).toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'we-status-world' })).toBeNull();
+  expect(screen.queryByText('森林')).toBeNull();
 });
 
 it('保留日记展开状态和更多条目的无障碍状态', async () => {
@@ -199,8 +190,8 @@ it('加载期间标记忙碌，状态错误仍可通过可访问按钮重试', (
   fireEvent.click(screen.getByRole('tab', { name: '日记' }));
 
   expect(screen.getByRole('status', { name: '加载中' })).toBeInTheDocument();
-  const retryButtons = screen.getAllByRole('button', { name: '重试' });
-  fireEvent.click(retryButtons[0]);
+  fireEvent.click(screen.getByRole('tab', { name: '玩家' }));
+  fireEvent.click(screen.getByRole('button', { name: '重试' }));
   expect(harness.retryStateLoad).toHaveBeenCalledTimes(1);
 });
 

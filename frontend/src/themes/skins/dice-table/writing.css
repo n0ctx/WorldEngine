@@ -1,0 +1,148 @@
+/* 骰界皮肤 · 写作页：正文排在摊开的冒险模组书页上。
+ * 每一章是一张奶油色书页（左边是书脊一侧的阴影），章节标题前一枚骰红六角、下面一道墨线；
+ * 你的行动是夹进书页的深色行动牌，从书页左边缘探出一截；剧情选项的一手牌摆在书页下方的垫子上（样式见 chat.css）。 */
+
+:root[data-theme="dice-table"] .we-prose-message-list {
+  max-width: calc(var(--we-type-prose-measure) + var(--we-space-2xl) * 3);
+  padding: var(--we-space-md) var(--we-space-lg) var(--we-space-xl);
+}
+
+/* 书页：卡上的控件、正文由卡纸作用域换成深墨色 */
+:root[data-theme="dice-table"] .we-prose-message-list .we-chapter {
+  margin-bottom: var(--we-space-2xl);
+  padding: calc(var(--we-space-2xl) + var(--we-space-xs)) calc(var(--we-space-2xl) + var(--we-space-md)) var(--we-space-2xl);
+  background:
+    linear-gradient(90deg, var(--dice-card-line), transparent var(--we-space-xl)),
+    var(--dice-card);
+  border-radius: var(--we-radius-xs) var(--we-radius-md) var(--we-radius-md) var(--we-radius-xs);
+  box-shadow: var(--dice-drop);
+}
+
+/* 章节标题：左对齐，一枚印着章号的骰红六角 +「第几章」+ 标题同一行同字号，下面一道墨线；不要花饰。
+ * 六角里的数字取章节标题上的 data-chapter */
+:root[data-theme="dice-table"] .we-prose-message-list .we-chapter-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--we-space-xs) var(--we-space-md);
+  margin-bottom: calc(var(--we-space-lg) + var(--we-space-xxs));
+  padding: 0 0 var(--we-space-md);
+  text-align: left;
+  border-bottom: 2px solid var(--dice-card-line);
+}
+
+:root[data-theme="dice-table"] .we-prose-message-list .we-chapter-header::before {
+  content: attr(data-chapter);
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 34px;
+  height: 38px;
+  font-family: var(--we-font-display);
+  font-size: var(--we-type-subheading-size);
+  line-height: var(--we-type-subheading-leading);
+  letter-spacing: var(--we-type-subheading-tracking);
+  font-weight: var(--we-weight-strong);
+  font-variant-numeric: tabular-nums;
+  color: var(--we-color-on-accent);
+  background: var(--we-color-accent);
+  clip-path: var(--dice-hex);
+}
+
+:root[data-theme="dice-table"] .we-prose-message-list :is(.we-chapter-num, .we-chapter-title) {
+  margin: 0;
+  font-family: var(--we-font-display);
+  font-style: normal;
+  font-size: var(--we-type-title-size);
+  line-height: var(--we-type-title-leading);
+  letter-spacing: var(--we-type-title-tracking);
+  font-weight: var(--we-weight-strong);
+  text-transform: none;
+}
+
+:root[data-theme="dice-table"] .we-prose-message-list .we-chapter-num {
+  color: var(--dice-card-muted);
+}
+
+:root[data-theme="dice-table"] .we-prose-message-list .we-chapter-title {
+  color: var(--dice-card-ink);
+}
+
+:root[data-theme="dice-table"] .we-prose-message-list .we-chapter-edit {
+  flex: 1;
+  flex-direction: row;
+  align-items: center;
+  padding: 0;
+}
+
+:root[data-theme="dice-table"] .we-prose-message-list .we-chapter-edit-input {
+  font-style: normal;
+  text-align: left;
+}
+
+:root[data-theme="dice-table"] .we-prose-message-list .we-chapter-actions {
+  top: 0;
+  right: 0;
+}
+
+:root[data-theme="dice-table"] .we-prose-message-list .we-chapter-fleuron {
+  display: none;
+}
+
+/* 正文：段首空两格 */
+:root[data-theme="dice-table"] .we-writing-prose p {
+  text-indent: 2em;
+}
+
+/* 行动牌：深色牌夹在书页里，从左边缘探出一截；牌上的字和按钮换回浅色 */
+:root[data-theme="dice-table"] .we-writing-annotation {
+  --we-color-text-primary: var(--dice-card);
+  --we-color-text-secondary: color-mix(in oklab, var(--dice-card-ink) var(--we-alpha-3), var(--dice-card));
+  --we-color-text-tertiary: color-mix(in oklab, var(--dice-card-ink) var(--we-alpha-4), var(--dice-card));
+  --we-color-text-faint: color-mix(in oklab, var(--dice-card-ink) var(--we-alpha-5), var(--dice-card));
+  --we-color-border-default: color-mix(in srgb, var(--dice-card) var(--we-alpha-3), transparent);
+  --we-color-hover: color-mix(in srgb, var(--dice-card) var(--we-alpha-1), transparent);
+  --we-color-pressed: color-mix(in srgb, var(--dice-card) var(--we-alpha-2), transparent);
+  --we-color-bg-surface: color-mix(in oklab, var(--dice-card) var(--we-alpha-1), var(--dice-card-ink));
+  --we-color-bg-canvas: var(--dice-card-ink);
+  max-width: min(440px, 100%);
+  margin: var(--we-space-lg) 0 var(--we-space-xl) calc((var(--we-space-2xl) + var(--we-space-md) + var(--we-space-lg)) * -1);
+  padding: var(--we-space-md) var(--we-space-lg) var(--we-space-md) var(--we-space-xl);
+  font-family: var(--we-font-ui);
+  font-style: normal;
+  font-size: var(--we-type-body-size);
+  line-height: var(--we-type-body-leading);
+  letter-spacing: var(--we-type-body-tracking);
+  text-align: left;
+  color: var(--we-color-text-primary);
+  background: color-mix(in oklab, var(--dice-card) var(--we-alpha-1), var(--dice-card-ink));
+  border-left: 4px solid var(--we-color-accent);
+  border-radius: var(--we-radius-xs) var(--we-radius-sm) var(--we-radius-sm) var(--we-radius-xs);
+  box-shadow: 0 var(--dice-depth) 0 var(--we-color-shade-4);
+}
+
+:root[data-theme="dice-table"] .we-writing-annotation::before {
+  content: '行动';
+  display: block;
+  margin-bottom: var(--we-space-xxs);
+  font-size: var(--we-type-eyebrow-size);
+  line-height: var(--we-type-eyebrow-leading);
+  letter-spacing: var(--we-type-eyebrow-tracking);
+  font-weight: var(--we-type-eyebrow-weight);
+  color: var(--we-color-accent);
+}
+
+:root[data-theme="dice-table"] .we-writing-annotation .we-message-actions {
+  justify-content: flex-start;
+}
+
+/* 书页窄（手机）时行动牌不再探出书页 */
+@container (max-width: 560px) {
+  :root[data-theme="dice-table"] .we-prose-message-list .we-chapter {
+    padding-inline: var(--we-space-lg);
+  }
+
+  :root[data-theme="dice-table"] .we-writing-annotation {
+    margin-left: 0;
+  }
+}

@@ -1,0 +1,671 @@
+/* 动效包「掷」的样式（JS 侧见 core/motion/packs/dice.js）。
+ * 只在 <html data-motion="dice"> 时生效；:where() 包住作用域，选择器权重与写在内核里一样。
+ * 签名动作「掷」：起跳（越升越慢）→ 翻滚 → 落地（越落越快）→ 过冲压下 → 回弹 → 停住。
+ * 卡牌：新内容从下方滑上桌，冲过一点再回到位；悬停把卡拿起来、侧边露出厚度，按下压回桌面。
+ * 厚度是一道不带模糊的硬边投影（--roll-edge），只在拿起、按出的时候变厚；不缩放带字的元素，不画扫描线、不晕染。 */
+
+:root[data-motion="dice"] {
+  /* guard-allow(literals): 掷的曲线：弹簧阶跃响应采样（阻尼比约 0.58 的发牌、约 0.5 的骰子落地）、起跳越升越慢、落下越落越快、落定长尾、翻面分格 */
+  --roll-spring: linear(0, 0.041, 0.145, 0.285, 0.438, 0.59, 0.728, 0.846, 0.941, 1.013, 1.062, 1.091, 1.105, 1.106, 1.099, 1.086, 1.07, 1.054, 1.038, 1.024, 1.012, 1.003, 0.996, 0.992, 0.99, 0.989, 0.989, 0.99, 0.991, 0.993, 0.995, 0.997, 0.998, 0.999, 1, 1.001, 1);
+  --roll-bounce: linear(0, 0.044, 0.155, 0.307, 0.476, 0.643, 0.795, 0.923, 1.023, 1.095, 1.139, 1.16, 1.162, 1.15, 1.129, 1.102, 1.075, 1.048, 1.025, 1.006, 0.991, 0.981, 0.976, 0.973, 0.974, 0.977, 0.981, 0.985, 0.99, 0.994, 0.997, 1, 1.002, 1.003, 1.004, 1.004, 1.004, 1.004, 1.003, 1.002, 1);
+  --roll-rise: cubic-bezier(0.2, 0.7, 0.4, 1);
+  --roll-fall: cubic-bezier(0.6, 0, 0.9, 0.5);
+  --roll-settle: cubic-bezier(0.2, 0.9, 0.3, 1);
+  --roll-faces: steps(4, jump-end);
+  /* guard-allow(literals): 掷的时间阶梯，本包所有材质时长与延迟都从这里取。一次完整的掷 = --roll-throw */
+  --roll-hit: 90ms;
+  --roll-snap: 180ms;
+  --roll-deal: 320ms;
+  --roll-land: 520ms;
+  --roll-throw: 820ms;
+  --roll-orb: 700ms;
+  /* guard-allow(literals): 全站节奏改写，与 packs/dice.js 的 rhythm 同值，由 check:motion 核对。骰子落定干脆，状态变化快一点 */
+  --we-motion-state-duration: 200ms;
+
+  /* 厚度：一道硬边的侧面，拿起时变厚；颜色取阴影色。主色一系不在这里取：:root 上算定的值跟不上世界主色，用的地方直接写 */
+  --roll-edge: color-mix(in srgb, var(--we-color-shade) var(--we-alpha-4), transparent);
+  --roll-thick-0: 0 0 0 var(--roll-edge);
+  --roll-thick-1: 0 2px 0 var(--roll-edge);
+  --roll-thick-2: 0 5px 0 var(--roll-edge);
+  /* 骰面的点：用在 radial-gradient 里 */
+  --roll-pip: var(--we-color-on-accent) 0 11%, transparent 12%;
+
+  --we-fx-enter: we-roll-deal var(--roll-land) var(--roll-spring) both;
+  --we-fx-skeleton: we-roll-shuffle var(--we-motion-loop-duration) var(--roll-settle) infinite;
+  --we-fx-nudge: we-roll-drop var(--we-motion-loop-duration) infinite;
+  --we-fx-spin: we-roll-spin var(--we-motion-loop-duration) infinite;
+  --we-fx-typing: we-roll-pip var(--we-motion-loop-duration) infinite;
+  /* 遮罩平稳压暗；大面板像一张大卡牌推上桌、冲过一截再回到位（与 packs/dice.js 的 overlayEnter 同一动作），不缩放、不模糊 */
+  --we-fx-scrim: we-roll-dim var(--roll-deal) var(--roll-settle) backwards;
+  --we-fx-panel: we-roll-deal-panel var(--roll-throw) var(--roll-spring) backwards;
+}
+@media (prefers-reduced-motion: reduce) {
+  :root[data-motion="dice"] {
+    --roll-hit: 0ms;
+    --roll-snap: 0ms;
+    --roll-deal: 0ms;
+    --roll-land: 0ms;
+    --roll-throw: 0ms;
+    --roll-orb: 0ms;
+    --we-motion-state-duration: 0ms;
+  }
+  :where(:root[data-motion="dice"]) :is(.we-card--raised.is-interactive, .we-character-card):hover {
+    translate: none;
+  }
+}
+
+/* ── 掷：本包的签名动作 ───────────────────────────────────────── */
+/* 一次掷的时间切分（占整段的比例）：0–40% 起跳翻滚 → 40–62% 下落 → 62–74% 落地压下、回弹 → 其余停稳。
+   --roll-from-x / --roll-from-y 是出手的位置，--roll-spin 是翻滚的角度，由用的地方设 */
+@keyframes we-roll-toss {
+  0%   { opacity: 0; translate: var(--roll-from-x, 0) var(--roll-from-y, 40px); rotate: calc(var(--roll-spin, 180deg) * -1); animation-timing-function: var(--roll-rise); }
+  10%  { opacity: 1; }
+  40%  { translate: 0 -18px; rotate: calc(var(--roll-spin, 180deg) * -0.25); animation-timing-function: var(--roll-fall); }
+  62%  { translate: 0 4px; rotate: 4deg; animation-timing-function: var(--roll-settle); }
+  74%  { translate: 0 -5px; rotate: -2deg; animation-timing-function: var(--roll-fall); }
+  86%  { translate: 0 1px; rotate: 0deg; animation-timing-function: var(--roll-settle); }
+  100% { opacity: 1; translate: 0 0; rotate: 0deg; }
+}
+/* 已经在桌上的东西跳一下：没有出手，直接起跳落地回弹 */
+@keyframes we-roll-hop {
+  0%   { translate: 0 0; animation-timing-function: var(--roll-rise); }
+  35%  { translate: 0 calc(var(--roll-hop, 6px) * -1); animation-timing-function: var(--roll-fall); }
+  62%  { translate: 0 1px; animation-timing-function: var(--roll-settle); }
+  78%  { translate: 0 calc(var(--roll-hop, 6px) * -0.3); animation-timing-function: var(--roll-fall); }
+  100% { translate: 0 0; }
+}
+/* 厚度：拿起时侧面变厚，落下时收回 */
+@keyframes we-roll-thick {
+  0%, 100% { box-shadow: var(--roll-thick-0); }
+  35%      { box-shadow: var(--roll-thick-2); }
+  62%      { box-shadow: var(--roll-thick-0); }
+}
+
+/* ── 卡牌：发牌 ───────────────────────────────────────── */
+/* 带字的块只平移、不翻转：从下方滑上桌，冲过一点再回到位（对应 packs/dice.js 的 enter / overlayEnter） */
+@keyframes we-roll-deal {
+  from { opacity: 0; translate: 0 22px; }
+  30%  { opacity: 1; }
+}
+@keyframes we-roll-deal-panel {
+  from { opacity: 0; translate: 0 30px; }
+  25%  { opacity: 1; }
+}
+/* 单张卡牌（选项、气泡、徽标）发上桌时带一点歪，落到位时摆正 */
+@keyframes we-roll-card {
+  from { opacity: 0; translate: 0 var(--roll-deal-from, 26px); rotate: var(--roll-tilt, -2.5deg); }
+  30%  { opacity: 1; }
+  to   { opacity: 1; translate: 0 0; rotate: 0deg; }
+}
+@keyframes we-roll-dim {
+  from { opacity: 0; }
+}
+
+/* ── 流式输出：一字一掷 ───────────────────────────────────────── */
+/* 每个字从基线下方弹上来，冲过基线一点再落定。
+   字保持行内元素（用相对定位的 top 位移，不用 transform），断行与最终排版完全一致。
+   时刻由 StreamingMarkdown 写进 --we-stream-char-delay，排在后面的字在轮到之前保持不可见 */
+:where(:root[data-motion="dice"]) .we-stream-char {
+  position: relative;
+}
+:where(:root[data-motion="dice"]) .we-stream-char > .we-fx-glyph__face {
+  position: relative;
+  animation: we-roll-char var(--we-stream-char-duration) var(--roll-bounce) var(--we-stream-char-delay) both;
+}
+@keyframes we-roll-char {
+  from { opacity: 0; top: 0.5em; }
+  20%  { opacity: 1; }
+  to   { opacity: 1; top: 0; }
+}
+
+/* 前沿的骰子：只在这个字轮到的一拍挂在它后面，连起来就是一颗跟着字往前滚的骰子 */
+:where(:root[data-motion="dice"]) .we-stream-char--caret::after {
+  content: '';
+  position: absolute;
+  left: 100%;
+  bottom: 0.16em;
+  width: 0.5em;
+  height: 0.5em;
+  margin-left: 0.12em;
+  border-radius: var(--we-radius-xs);
+  background: var(--we-color-accent);
+  rotate: 18deg;
+  opacity: 0;
+  pointer-events: none;
+  /* guard-allow(literals): 光标只挂这一个字的一拍，匀速走完，不带缓动 */
+  animation: we-stream-char-caret var(--we-stream-char-step) linear var(--we-stream-char-delay);
+}
+
+/* 常驻骰子：每拍跳起翻四分之一圈、落地弹一下；净宽为 0，出现、消失都不推动正文换行 */
+:where(:root[data-motion="dice"]) :is(.we-stream-caret, .we-chat-empty-state__cursor, .we-asst-stream-cursor) {
+  display: inline-block;
+  width: 0.5em;
+  height: 0.5em;
+  vertical-align: 0;
+  border-radius: var(--we-radius-xs);
+  background: var(--we-color-accent);
+  pointer-events: none;
+}
+:where(:root[data-motion="dice"]) .we-stream-caret {
+  margin: 0 calc(-0.5em - var(--we-space-xs)) 0 var(--we-space-xs);
+  animation: we-roll-tumble var(--we-stream-caret-duration) infinite;
+}
+:where(:root[data-motion="dice"]) :is(.we-chat-empty-state__cursor, .we-asst-stream-cursor) {
+  margin-left: var(--we-space-xs);
+  animation: we-roll-tumble var(--we-motion-loop-duration) infinite;
+}
+@keyframes we-roll-tumble {
+  0%   { translate: 0 0; rotate: 0deg; animation-timing-function: var(--roll-rise); }
+  40%  { translate: 0 -0.4em; rotate: 60deg; animation-timing-function: var(--roll-fall); }
+  68%  { translate: 0 0.04em; rotate: 96deg; animation-timing-function: var(--roll-settle); }
+  82%  { translate: 0 -0.08em; rotate: 88deg; animation-timing-function: var(--roll-fall); }
+  100% { translate: 0 0; rotate: 90deg; }
+}
+/* 生成结束：骰子被掷出画面 */
+:where(:root[data-motion="dice"]) .we-stream-caret--fading {
+  animation: we-roll-away var(--we-stream-caret-out-duration) var(--roll-fall) forwards;
+}
+@keyframes we-roll-away {
+  to { opacity: 0; translate: 1.2em -0.8em; rotate: 200deg; }
+}
+
+/* ── 世界改写：翻到新的一面 ───────────────────────────────────────── */
+/* 数值换新：新值像骰面一样从下方竖向翻滚上来，冲过一点再落定。
+   裁切框跟着位移反向收放，露出来的部分始终停在原来的格子里 */
+@keyframes we-roll-face {
+  0%   { translate: 0 100%; clip-path: inset(0 0 100% 0); animation-timing-function: var(--roll-fall); }
+  45%  { translate: 0 -16%; clip-path: inset(0); animation-timing-function: var(--roll-settle); }
+  70%  { translate: 0 6%; clip-path: inset(0 0 6% 0); animation-timing-function: var(--roll-settle); }
+  100% { translate: 0 0; clip-path: inset(0); }
+}
+:where(:root[data-motion="dice"]) :is(.we-fx-burst, .we-fx-glyph--block) {
+  display: inline-block;
+  max-width: 100%;
+}
+:where(:root[data-motion="dice"]) .we-fx-burst {
+  animation: we-roll-face var(--we-fx-burst) both;
+}
+/* 整段文字（ChangeText decode）：整段翻上来一次 */
+:where(:root[data-motion="dice"]) .we-fx-glyph--block {
+  animation: we-roll-face var(--we-fx-decode) both;
+}
+/* 变化标签：一片从冲压板上按出来的厚纸片——先沉在板里，弹出来带出厚度，再落回 */
+:where(:root[data-motion="dice"]) .we-change-tag {
+  border-radius: var(--we-radius-xs);
+}
+:where(:root[data-motion="dice"]) .we-change-tag--play {
+  animation: we-roll-punch var(--we-fx-burst) both;
+}
+@keyframes we-roll-punch {
+  0%   { opacity: 0; translate: 0 6px; box-shadow: inset 0 2px 3px var(--roll-edge); animation-timing-function: var(--roll-rise); }
+  15%  { opacity: 1; }
+  40%  { translate: 0 -6px; box-shadow: var(--roll-thick-2); animation-timing-function: var(--roll-fall); }
+  65%  { translate: 0 1px; box-shadow: var(--roll-thick-1); animation-timing-function: var(--roll-settle); }
+  100% { opacity: 1; translate: 0 0; box-shadow: var(--roll-thick-1); }
+}
+
+/* 提示条：整张卡已经滑上桌，标签和文字不再单独动；落定那一下内容行跳一下 */
+:where(:root[data-motion="dice"]) .we-toast-card :is(.we-change-tag--play, .we-fx-glyph--block) {
+  animation: none;
+}
+:where(:root[data-motion="dice"]) .we-toast-card--fx .we-toast-card__row {
+  --roll-hop: 4px;
+  animation: we-roll-hop var(--roll-land) var(--roll-deal);
+}
+
+/* ── 章节开场：开新的一局 ───────────────────────────────────────── */
+/* 题签像一张大卡牌推上桌；分隔线中间的花饰换成一颗小骰子，晚一拍被掷上来、翻滚落定 */
+:where(:root[data-motion="dice"]) .we-chapter-header--visible {
+  animation: we-roll-deal var(--roll-throw) var(--roll-spring) both;
+}
+:where(:root[data-motion="dice"]) .we-chapter-header .we-fx-glyph--block {
+  animation: none;
+}
+:where(:root[data-motion="dice"]) .we-chapter-fleuron-line {
+  transition-delay: var(--roll-deal);
+}
+:where(:root[data-motion="dice"]) .we-chapter-fleuron-mark {
+  width: 8px;
+  height: 8px;
+  border-radius: var(--we-radius-xs);
+  background: var(--we-color-accent);
+  opacity: 0;
+}
+:where(:root[data-motion="dice"]) .we-chapter-header--visible .we-chapter-fleuron-mark {
+  --roll-from-y: 24px;
+  --roll-spin: 270deg;
+  animation: we-roll-toss var(--roll-throw) var(--roll-deal) both;
+}
+
+/* ── 完成确认：掷出 ───────────────────────────────────────── */
+/* 一块大字像骰子一样从右下方被掷上桌：翻滚着跳起、落地压下、弹一下停住，落地时露出厚度；
+   停留后滑下桌面收走 */
+:where(:root[data-motion="dice"]) .we-done-confirm {
+  border-radius: var(--we-radius-sm);
+  box-shadow: 0 4px 0 var(--we-color-accent-deep);
+}
+:where(:root[data-motion="dice"]) .we-done-confirm--play {
+  --roll-from-x: 48px;
+  --roll-from-y: 56px;
+  --roll-spin: 24deg;
+  animation:
+    we-roll-toss var(--we-fx-burst) both,
+    we-roll-off var(--we-fx-off) var(--roll-fall) calc(var(--we-fx-stamp) - var(--we-fx-off)) forwards;
+}
+:where(:root[data-motion="dice"]) .we-done-confirm .we-fx-glyph--block {
+  animation: none;
+}
+@keyframes we-roll-off {
+  to { opacity: 0; translate: 0 28px; }
+}
+
+/* ── 状态整理遮罩：桌面压暗一层，不翻涌、不模糊 ─── */
+:where(:root[data-motion="dice"]) :is(.we-state-change-overlay, .we-cast-state-overlay) {
+  background: color-mix(in srgb, var(--we-color-bg-canvas) var(--we-alpha-4), transparent);
+}
+
+/* ── 进入世界：开盒 ─── */
+/* 点下的战役盒被拿起来、侧面露出厚度；页头和其余的盒子由近及远滑下桌面，在 packs/dice.js 的 portal.navigate 之前走完 */
+:where(:root[data-motion="dice"]) .we-worlds-canvas[data-portal='leave'] [data-portal-source] {
+  animation: we-roll-pickup var(--roll-deal) var(--roll-settle) forwards;
+}
+@keyframes we-roll-pickup {
+  to { translate: 0 -22px; filter: drop-shadow(0 18px 0 var(--roll-edge)); }
+}
+:where(:root[data-motion="dice"]) .we-worlds-canvas[data-portal='leave'] :is(.we-worlds-header, .we-world-card-shell:not([data-portal-source])) {
+  animation: we-roll-sweep var(--roll-deal) var(--roll-fall) calc(var(--roll-hit) * var(--d, 0) / 2) forwards;
+}
+:where(:root[data-motion="dice"]) .we-worlds-canvas[data-portal='leave'] .we-world-card-shell:nth-child(3n + 1) { --d: 1; --tilt: 4deg; }
+:where(:root[data-motion="dice"]) .we-worlds-canvas[data-portal='leave'] .we-world-card-shell:nth-child(3n + 2) { --d: 2; --tilt: -3deg; }
+@keyframes we-roll-sweep {
+  to { opacity: 0; translate: 0 60px; rotate: var(--tilt, 2deg); }
+}
+
+/* 枢纽页：三栏像发牌一样一栏栏滑上桌（--col 见 pages.css），栏标题晚一拍被掷上来、落地弹一下 */
+:where(:root[data-motion="dice"]) .we-characters-canvas[data-portal='enter'] .we-worldhub-layout > * {
+  animation: we-roll-deal var(--roll-throw) var(--roll-spring) calc(var(--roll-hit) * (1 + var(--col, 0))) both;
+}
+:where(:root[data-motion="dice"]) .we-characters-canvas[data-portal='enter'] .we-worldhub-section-header .we-section-title__text {
+  --roll-from-y: 36px;
+  --roll-spin: 12deg;
+  display: inline-block;
+  animation: we-roll-toss var(--roll-throw) calc(var(--roll-hit) * (2 + var(--col, 0))) both;
+}
+
+/* ── 剧情选项：出牌 ─── */
+/* 选项一张张发上桌（本包的 --we-fx-enter）；选中的那张被拿起来打出去、拍在桌上弹一下，侧面露出厚度；
+   其余项由近及远收回、退到三级文字色 */
+:where(:root[data-motion="dice"]) .we-option-list > .we-option-btn--selected {
+  --roll-hop: 10px;
+  animation: we-roll-hop var(--roll-land), we-roll-thick var(--roll-land);
+}
+:where(:root[data-motion="dice"]) .we-option-list > .we-option-btn--dismissed {
+  color: var(--we-color-text-tertiary);
+  transition: color var(--roll-deal) var(--roll-settle) calc(var(--d) * var(--roll-hit));
+  animation: we-roll-fold var(--roll-deal) var(--roll-fall) calc(var(--d) * var(--roll-hit)) both;
+}
+@keyframes we-roll-fold {
+  50% { translate: 0 4px; }
+  to  { translate: 0 0; }
+}
+
+/* 剧情选项卡入场：像一张张牌发上桌，带一点歪再摆正（覆盖 --we-fx-enter 的平移入场，错拍沿用内核的 --i） */
+:where(:root[data-motion="dice"]) .we-option-list > .we-option-btn:not(.we-option-btn--selected, .we-option-btn--dismissed) {
+  --roll-deal-from: 20px;
+  --roll-tilt: -1.5deg;
+  animation-name: we-roll-card;
+  animation-duration: var(--roll-throw);
+  animation-timing-function: var(--roll-spring);
+}
+
+/* ── 按压、卡片、输入控件：拿起与压回 ───────────────────────────────────────── */
+/* 带字的东西一律不缩放。framer 负责按钮、顶栏、发送、入口卡片的拿起与压下；
+   这里是拿起时侧面露出的厚度、压回桌面时厚度收没，以及松手后带过冲的回弹 */
+:where(:root[data-motion="dice"]) :is(.we-section-tab, .we-menu__item, .we-list-item) {
+  transition: translate var(--roll-land) var(--roll-spring),
+    color var(--we-motion-state-duration) var(--we-motion-state-easing),
+    background-color var(--we-motion-state-duration) var(--we-motion-state-easing),
+    border-color var(--we-motion-state-duration) var(--we-motion-state-easing),
+    box-shadow var(--we-motion-state-duration) var(--we-motion-state-easing),
+    opacity var(--we-motion-state-duration) var(--we-motion-state-easing);
+
+  &:active {
+    translate: 0 1px;
+    transition-duration: var(--roll-hit);
+    transition-timing-function: var(--roll-fall);
+  }
+}
+
+/* 按钮（Button）：静置时一道薄侧面，悬停拿起变厚，按下压回桌面收没；强调色、危险色实底的侧面取主色的深色。
+   厚度在按钮上重新声明，侧面颜色才能按按钮的色调换 */
+:where(:root[data-motion="dice"]) .we-btn:where(:not(.we-btn-text)) {
+  --roll-thick-0: 0 0 0 var(--roll-edge);
+  --roll-thick-1: 0 2px 0 var(--roll-edge);
+  --roll-thick-2: 0 5px 0 var(--roll-edge);
+  box-shadow: var(--roll-thick-1);
+  transition: background var(--we-motion-state-duration) var(--we-motion-state-easing),
+    border-color var(--we-motion-state-duration) var(--we-motion-state-easing),
+    color var(--we-motion-state-duration) var(--we-motion-state-easing),
+    box-shadow var(--roll-land) var(--roll-spring);
+}
+:where(:root[data-motion="dice"]) .we-btn:where(.we-btn-primary, .we-btn-danger) {
+  --roll-edge: var(--we-color-accent-deep);
+}
+:where(:root[data-motion="dice"]) .we-btn:where(.we-btn-icon) {
+  box-shadow: var(--roll-thick-0);
+}
+:where(:root[data-motion="dice"]) .we-btn:where(:not(.we-btn-text):hover:not(:disabled)) {
+  box-shadow: var(--roll-thick-2);
+}
+:where(:root[data-motion="dice"]) .we-btn:where(:not(.we-btn-text):active:not(:disabled)) {
+  box-shadow: var(--roll-thick-0);
+  transition-duration: var(--we-motion-state-duration), var(--we-motion-state-duration), var(--we-motion-state-duration), var(--roll-hit);
+}
+
+/* 发送键：出手。按下压下并拧一下（framer），侧面收没；松手弹回时侧面跟着弹出 */
+:where(:root[data-motion="dice"]) .we-btn.we-chat-send-btn:where(:not(:disabled)) {
+  box-shadow: var(--roll-thick-2);
+}
+:where(:root[data-motion="dice"]) .we-btn.we-chat-send-btn:where(:active:not(:disabled)) {
+  box-shadow: var(--roll-thick-0);
+}
+
+/* 卡片（Card、角色卡）：悬停拿起 4px、侧面变厚，按下压回桌面，松手带过冲回弹 */
+:where(:root[data-motion="dice"]) :is(.we-card--raised.is-interactive, .we-character-card) {
+  position: relative;
+  transition: translate var(--roll-land) var(--roll-spring),
+    border-color var(--we-motion-state-duration) var(--we-motion-state-easing),
+    box-shadow var(--roll-land) var(--roll-spring);
+}
+:where(:root[data-motion="dice"]) :is(.we-card--raised.is-interactive, .we-character-card):hover {
+  translate: 0 -4px;
+  box-shadow: var(--roll-thick-2), var(--we-elevation-3);
+}
+:where(:root[data-motion="dice"]) :is(.we-card--raised.is-interactive, .we-character-card):active {
+  translate: 0 1px;
+  box-shadow: var(--roll-thick-0), var(--we-elevation-1);
+  transition-duration: var(--roll-hit);
+  transition-timing-function: var(--roll-fall);
+}
+:where(:root[data-motion="dice"]) :is(.we-card--raised.is-interactive, .we-character-card) .we-touch-fx__ripple {
+  display: none;
+}
+
+/* 世界卡（入口卡片）：拿起的高度走 framer 的 portal 手势，这里给盒子的侧面——拿得越高侧面越厚 */
+:where(:root[data-motion="dice"]) .we-world-card {
+  transition: box-shadow var(--roll-land) var(--roll-spring);
+}
+:where(:root[data-motion="dice"]) .we-world-card:is(:hover, :focus-visible) {
+  box-shadow: 0 8px 0 var(--roll-edge), var(--we-elevation-3);
+}
+:where(:root[data-motion="dice"]) .we-world-card:active {
+  box-shadow: var(--roll-thick-1), var(--we-elevation-1);
+  transition-duration: var(--roll-hit);
+}
+
+/* 输入框聚焦：描边整圈亮成强调色，底边先弹出一道厚侧面再收成常态的聚焦环 */
+:where(:root[data-motion="dice"]) :is(.we-input, .we-textarea):not(.we-status-inline-surface *) {
+  caret-color: var(--we-color-accent);
+}
+:where(:root[data-motion="dice"]) :is(.we-input, .we-textarea):focus:not(.we-status-inline-surface *) {
+  animation: we-roll-field var(--roll-land) var(--roll-spring) both;
+}
+@keyframes we-roll-field {
+  from { border-color: var(--we-color-accent); box-shadow: 0 4px 0 var(--we-color-accent-border), var(--we-focus-ring); }
+  to   { border-color: var(--we-color-border-focus); box-shadow: 0 0 0 transparent, var(--we-focus-ring); }
+}
+
+/* 开关：圆钮像骰子一样滚过去、冲过一点再回到位，落位那一下跳一下；轨道颜色在落位时一次换好。
+   data-touched 由 ToggleSwitch 在用户拨过之后打上，页面刚加载时不播；开、关各用一个关键帧名，换向时才会重播 */
+:where(:root[data-motion="dice"]) .we-toggle-track {
+  transition: background 0s var(--roll-snap);
+}
+:where(:root[data-motion="dice"]) .we-toggle-thumb {
+  transition: transform var(--roll-land) var(--roll-bounce);
+}
+:where(:root[data-motion="dice"]) [data-touched] > .we-toggle-thumb--enabled {
+  animation: we-roll-knob-on var(--roll-land);
+}
+:where(:root[data-motion="dice"]) [data-touched] > .we-toggle-thumb:not(.we-toggle-thumb--enabled) {
+  animation: we-roll-knob-off var(--roll-land);
+}
+@keyframes we-roll-knob-on {
+  0%   { translate: 0 0; animation-timing-function: var(--roll-rise); }
+  30%  { translate: 0 -3px; animation-timing-function: var(--roll-fall); }
+  55%, 100% { translate: 0 0; }
+}
+@keyframes we-roll-knob-off {
+  0%   { translate: 0 0; animation-timing-function: var(--roll-rise); }
+  30%  { translate: 0 -3px; animation-timing-function: var(--roll-fall); }
+  55%, 100% { translate: 0 0; }
+}
+
+/* 滑块：按住时圆钮被拿起、底下露出厚度，不放大；松手带过冲落回 */
+:where(:root[data-motion="dice"]) .we-range::-webkit-slider-thumb {
+  transition: transform var(--roll-land) var(--roll-spring), box-shadow var(--roll-land) var(--roll-spring);
+}
+:where(:root[data-motion="dice"]) .we-range:active::-webkit-slider-thumb {
+  transform: translateY(-3px);
+  box-shadow: var(--we-shadow-range-thumb-active), 0 3px 0 var(--we-color-accent-deep);
+  transition-duration: var(--roll-hit);
+}
+:where(:root[data-motion="dice"]) .we-range::-moz-range-thumb {
+  transition: transform var(--roll-land) var(--roll-spring), box-shadow var(--roll-land) var(--roll-spring);
+}
+:where(:root[data-motion="dice"]) .we-range:active::-moz-range-thumb {
+  transform: translateY(-3px);
+  box-shadow: var(--we-shadow-range-thumb-active), 0 3px 0 var(--we-color-accent-deep);
+  transition-duration: var(--roll-hit);
+}
+
+/* 删除确认按钮：确认删除时整颗按钮被掷出去翻一整圈、落回原位露出对勾；取消只空跳一下 */
+:where(:root[data-motion="dice"]) .we-delete-btn[data-status="deleted"] {
+  --roll-from-y: 0px;
+  --roll-spin: 360deg;
+  animation: we-roll-toss var(--roll-throw) both;
+}
+:where(:root[data-motion="dice"]) .we-delete-btn[data-status="kept"] .we-delete-btn__trigger {
+  --roll-hop: 4px;
+  animation: we-roll-hop var(--roll-land);
+}
+
+/* ── 拖拽排序：拿起的卡露出厚度，原来的位置留一个虚线空位；放下时拍在桌上弹一下 ─── */
+/* 列表条目（SortableList）的状态在 data-sort 上；网格（SortableGrid）只有跟手副本 .we-sortable-overlay。
+   跟手的副本像拿在手里的牌，歪一点；列表里的条目不歪 */
+:where(:root[data-motion="dice"]) .we-sortable-item {
+  transition: translate var(--roll-land) var(--roll-spring);
+}
+:where(:root[data-motion="dice"]) .we-sortable-item[data-sort="drag"] {
+  translate: 0 -6px;
+  transition-duration: var(--we-motion-state-duration);
+}
+:where(:root[data-motion="dice"]) :is(.we-sortable-item[data-sort="drag"], .we-sortable-overlay) > :first-child {
+  box-shadow: var(--roll-thick-2), var(--we-elevation-3);
+}
+:where(:root[data-motion="dice"]) .we-sortable-overlay > :first-child {
+  translate: 0 -6px;
+  rotate: -2deg;
+}
+:where(:root[data-motion="dice"]) .we-sortable-item__slot {
+  display: block;
+  border: 2px dashed var(--we-color-border-default);
+  border-radius: var(--we-radius-md);
+  opacity: 0;
+  transition: opacity var(--we-motion-state-duration) var(--we-motion-state-easing);
+}
+:where(:root[data-motion="dice"]) .we-sortable-item[data-sort="drag"] .we-sortable-item__slot {
+  opacity: 1;
+}
+:where(:root[data-motion="dice"]) .we-sortable-item[data-sort="drop"] > :first-child {
+  --roll-hop: 4px;
+  animation: we-roll-hop var(--roll-land);
+}
+
+/* ── 徽标与空状态入场 ─── */
+/* 徽标像纸片从冲压板上一片片按出来；空状态标题被掷上桌、落地弹一下，说明与按钮随后发上桌（本包的 --we-fx-enter） */
+:where(:root[data-motion="dice"]) .we-badge {
+  --badge-delay: 0s;
+  animation: we-roll-punch var(--roll-land) var(--badge-delay) both;
+}
+:where(:root[data-motion="dice"]) .we-badge:nth-child(2) { --badge-delay: var(--roll-hit); }
+:where(:root[data-motion="dice"]) .we-badge:nth-child(n + 3) { --badge-delay: calc(var(--roll-hit) * 2); }
+:where(:root[data-motion="dice"]) .we-empty-state:not(.we-empty-state--sm) > .we-empty-state__title {
+  --roll-from-y: 40px;
+  --roll-spin: 10deg;
+  animation: we-roll-toss var(--roll-throw) both;
+}
+:where(:root[data-motion="dice"]) .we-empty-state:not(.we-empty-state--sm) > :is(.we-empty-state__hint, .we-empty-state__actions) {
+  animation: var(--we-fx-enter);
+  animation-delay: var(--roll-land);
+}
+:where(:root[data-motion="dice"]) .we-empty-state__actions { animation-delay: calc(var(--roll-land) + var(--roll-hit)); }
+
+/* ── 循环：骨架、打字三点、转圈、箭头 ─── */
+/* 骨架：空行像一叠牌被依次拨起又放下，侧面跟着变厚 */
+:where(:root[data-motion="dice"]) .we-skel:nth-child(2) { animation-delay: calc(var(--we-motion-loop-duration) * 0.15); }
+:where(:root[data-motion="dice"]) .we-skel:nth-child(3) { animation-delay: calc(var(--we-motion-loop-duration) * 0.3); }
+:where(:root[data-motion="dice"]) .we-skel:nth-child(n + 4) { animation-delay: calc(var(--we-motion-loop-duration) * 0.45); }
+@keyframes we-roll-shuffle {
+  0%, 40%, 100% { translate: 0 0; box-shadow: var(--roll-thick-0); }
+  14%           { translate: 0 -3px; box-shadow: var(--roll-thick-1); }
+}
+
+/* 打字三点 → 三颗骰点：依次跳起、落地弹一下（错拍沿用内核的 nth-child） */
+@keyframes we-roll-pip {
+  0%       { translate: 0 0; animation-timing-function: var(--roll-rise); }
+  15%      { translate: 0 -7px; animation-timing-function: var(--roll-fall); }
+  28%      { translate: 0 1px; animation-timing-function: var(--roll-settle); }
+  36%      { translate: 0 -2px; animation-timing-function: var(--roll-fall); }
+  44%, 100% { translate: 0 0; }
+}
+
+/* 工具运行转圈：像骰子在桌上翻滚——每 90° 一翻，翻过头一点再回正 */
+@keyframes we-roll-spin {
+  0%   { transform: rotate(0deg); animation-timing-function: var(--roll-fall); }
+  18%  { transform: rotate(100deg); animation-timing-function: var(--roll-settle); }
+  25%  { transform: rotate(90deg); animation-timing-function: var(--roll-fall); }
+  43%  { transform: rotate(190deg); animation-timing-function: var(--roll-settle); }
+  50%  { transform: rotate(180deg); animation-timing-function: var(--roll-fall); }
+  68%  { transform: rotate(280deg); animation-timing-function: var(--roll-settle); }
+  75%  { transform: rotate(270deg); animation-timing-function: var(--roll-fall); }
+  93%  { transform: rotate(370deg); animation-timing-function: var(--roll-settle); }
+  100% { transform: rotate(360deg); }
+}
+
+/* 新消息箭头：像掉在桌上的骰子，落下、弹两下停住，再升回去 */
+@keyframes we-roll-drop {
+  0%   { translate: 0 0; animation-timing-function: var(--roll-fall); }
+  25%  { translate: 0 6px; animation-timing-function: var(--roll-rise); }
+  37%  { translate: 0 2px; animation-timing-function: var(--roll-fall); }
+  47%  { translate: 0 6px; animation-timing-function: var(--roll-rise); }
+  53%  { translate: 0 5px; animation-timing-function: var(--roll-fall); }
+  58%  { translate: 0 6px; animation-timing-function: var(--roll-settle); }
+  100% { translate: 0 0; }
+}
+
+/* 思考指示（MotionOrb 的 DieOrb）：一颗骰子每拍跳起、翻四分之一圈、在最高处换一面、落地弹一下。
+   点数画成 radial-gradient；小尺寸只留骰身 */
+.we-die-orb {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  vertical-align: middle;
+}
+.we-die-orb__die {
+  display: block;
+  width: 58%;
+  height: 58%;
+  border-radius: var(--we-radius-xs);
+  background-color: var(--we-color-accent);
+  box-shadow: 0 2px 0 var(--we-color-accent-deep);
+  animation: we-die-orb-hop var(--roll-orb) infinite;
+}
+.we-die-orb__die--pips {
+  animation: we-die-orb-hop var(--roll-orb) infinite, we-die-orb-faces calc(var(--roll-orb) * 4) infinite;
+}
+@keyframes we-die-orb-hop {
+  0%   { translate: 0 0; rotate: 0deg; animation-timing-function: var(--roll-rise); }
+  40%  { translate: 0 -30%; rotate: 60deg; animation-timing-function: var(--roll-fall); }
+  68%  { translate: 0 2%; rotate: 96deg; animation-timing-function: var(--roll-settle); }
+  82%  { translate: 0 -6%; rotate: 88deg; animation-timing-function: var(--roll-fall); }
+  100% { translate: 0 0; rotate: 90deg; }
+}
+/* 一拍换一面（1 → 3 → 5 → 6），换在最高处、背对着看的那一刻 */
+@keyframes we-die-orb-faces {
+  0%, 9.9% {
+    background-image: radial-gradient(circle at 50% 50%, var(--roll-pip));
+  }
+  10%, 34.9% {
+    background-image:
+      radial-gradient(circle at 26% 26%, var(--roll-pip)),
+      radial-gradient(circle at 50% 50%, var(--roll-pip)),
+      radial-gradient(circle at 74% 74%, var(--roll-pip));
+  }
+  35%, 59.9% {
+    background-image:
+      radial-gradient(circle at 26% 26%, var(--roll-pip)),
+      radial-gradient(circle at 74% 26%, var(--roll-pip)),
+      radial-gradient(circle at 50% 50%, var(--roll-pip)),
+      radial-gradient(circle at 26% 74%, var(--roll-pip)),
+      radial-gradient(circle at 74% 74%, var(--roll-pip));
+  }
+  60%, 84.9% {
+    background-image:
+      radial-gradient(circle at 26% 24%, var(--roll-pip)),
+      radial-gradient(circle at 74% 24%, var(--roll-pip)),
+      radial-gradient(circle at 26% 50%, var(--roll-pip)),
+      radial-gradient(circle at 74% 50%, var(--roll-pip)),
+      radial-gradient(circle at 26% 76%, var(--roll-pip)),
+      radial-gradient(circle at 74% 76%, var(--roll-pip));
+  }
+  85%, 100% {
+    background-image: radial-gradient(circle at 50% 50%, var(--roll-pip));
+  }
+}
+
+/* ── 台前上台：发牌与掷 ─── */
+/* 换人时整块大台前重新上台：世界画像一张大卡推上桌；立绘晚一拍被拿起放下、落地弹一下；
+   名字竖向翻滚上来；世界名和简介随后发上桌 */
+:where(:root[data-motion="dice"]) .we-speaker-stage__art {
+  animation: we-roll-deal var(--roll-throw) var(--roll-spring) both;
+}
+:where(:root[data-motion="dice"]) .we-speaker-stage__portrait {
+  --roll-from-y: 48px;
+  --roll-spin: 0deg;
+  animation: we-roll-toss var(--roll-throw) var(--roll-hit) both;
+}
+:where(:root[data-motion="dice"]) .we-speaker-stage__headline {
+  animation: we-roll-face var(--roll-land) var(--roll-deal) both;
+}
+:where(:root[data-motion="dice"]) :is(.we-speaker-stage__world, .we-speaker-stage__intro) {
+  animation: we-roll-deal var(--roll-land) var(--roll-spring) var(--roll-land) both;
+}
+
+/* ── 回复的开始与收尾：发牌与落定 ─── */
+/* 对话：一轮是一只有说话人的气泡，像一张台词卡。
+   开始（等首字时，排在玩家消息入场之后）：气泡像发牌一样从下方带一点歪滑上桌、摆正，名字随后翻上来；
+   收尾（屏幕上的字打完时）：整张卡被拿起一下再拍在桌上、弹一下，侧面闪出厚度 */
+:where(:root[data-motion="dice"]) .we-message-assistant[data-moment="start"] .we-message-bubble-assistant {
+  animation: we-roll-card var(--roll-throw) var(--roll-spring) var(--we-motion-enter-duration) both;
+}
+:where(:root[data-motion="dice"]) .we-message-assistant[data-moment="start"] .we-message-label {
+  animation: we-roll-face var(--roll-land) var(--we-motion-enter-duration) both;
+}
+:where(:root[data-motion="dice"]) .we-message-assistant[data-moment="end"] .we-message-bubble-assistant {
+  --roll-hop: 5px;
+  animation: we-roll-hop var(--roll-land), we-roll-thick var(--roll-land);
+}
+:where(:root[data-motion="dice"]) .we-message-assistant[data-moment="end"] .we-message-label {
+  animation: we-roll-face var(--roll-land);
+}
+/* 写作：连续的书页，没有气泡和名字，一段可能好几屏，续写接在已有的一段后面；前面的段落都不动。
+   开始（第一段正文随第一批字出现时）：第一段从下方滑上桌、冲过一点再回到位，不歪（大段正文歪一下整屏都晃）；
+   收尾（屏幕上的字打完时）：只把最后一段拿起一下再落下、弹一下；续写时同样只动新写到的最后一段 */
+:where(:root[data-motion="dice"]) .we-writing-prose[data-moment="start"] .we-message-content > :nth-child(1 of div:not(.we-think-block)) > :first-child:not(.we-stream-caret) {
+  animation: we-roll-deal var(--roll-land) var(--roll-spring) both;
+}
+:where(:root[data-motion="dice"]) .we-writing-prose[data-moment="end"] .we-message-content > :nth-last-child(1 of div:not(.we-think-block)) > :last-child {
+  --roll-hop: 4px;
+  animation: we-roll-hop var(--roll-land);
+}

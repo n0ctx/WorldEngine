@@ -184,6 +184,9 @@ describe('RulesPage', () => {
     expect(list.getByText('常驻规则')).toBeInTheDocument();
     expect(list.queryByText('战斗触发')).not.toBeInTheDocument();
     expect(list.queryByText('好感条件')).not.toBeInTheDocument();
+    // 触发方式写在导航项和条目行上，主题皮肤按它给页签、编号与标签分色
+    expect(screen.getByTestId('nav-entries-always')).toHaveAttribute('data-trigger', 'always');
+    expect(list.getByText('世界观设定').closest('[data-trigger]')).toHaveAttribute('data-trigger', 'always');
   });
 
   it('点击状态条件后中栏只显示对应条目', async () => {

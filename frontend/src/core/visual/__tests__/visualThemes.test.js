@@ -13,7 +13,7 @@ describe('visualThemes', () => {
 
   it('收录内置主题包，不收模板，元信息里不带 CSS', () => {
     const ids = VISUAL_THEMES.map((theme) => theme.id);
-    expect(ids).toEqual(expect.arrayContaining(['nocturne', 'classic-parchment']));
+    expect(ids).toEqual(expect.arrayContaining(['nocturne', 'classic-parchment', 'dice-table']));
     expect(ids.some((id) => id.startsWith('_'))).toBe(false);
     expect(VISUAL_THEMES.every((theme) => !('css' in theme))).toBe(true);
   });
@@ -31,6 +31,7 @@ describe('visualThemes', () => {
     applyVisualTheme('classic-parchment');
 
     expect(document.getElementById('we-theme-css')).not.toBeNull();
+    expect(document.documentElement.dataset.theme).toBe('classic-parchment');
     expect(listener.mock.calls[0][0].detail).toEqual({ id: 'classic-parchment' });
     window.removeEventListener('we:theme-updated', listener);
   });

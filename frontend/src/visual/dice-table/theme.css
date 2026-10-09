@@ -1,0 +1,59 @@
+:root {
+  /*
+   * 骰界 dice-table —— 主持人桌面
+   * 整个界面是跑团主持人的桌子：深色橡胶游戏垫上印着六角格，世界是一盒盒战役，
+   * 角色、消息是浅色卡牌，状态是冲压板上按下来的厚纸片，强调色是品牌标识里那颗骰子的骰红。
+   * 卡牌、战役盒、屏风这些组件外观在外观皮肤 themes/skins/dice-table/ 里，只在本主题下生效；卡纸色取正文色，卡上的字取画布色（略提亮一点）。
+   */
+
+  /* § 1 基础色板：游戏垫是带紫的黑，正文色同时是卡纸色。两头都往中间收：垫子不压到纯黑、卡纸不到亮白，骰红与状态色降一点饱和，长时间看不刺眼 */
+  --we-base-canvas:  #16141c;
+  --we-base-surface: #252230;
+  --we-base-ink:     #e3d9c6;
+  --we-base-accent:  #e46a4e;   /* 骰红 */
+  --we-base-success: #6cbf8f;
+  --we-base-warning: #e2b858;   /* 冲压纸片的黄 */
+  --we-base-info:    #74a6dc;
+  --we-base-danger:  #e05e70;
+  --we-base-shade:   #0a0910;
+  --we-shadow-strength: 100%;
+  --we-color-scheme: dark;
+
+  /* § 2 字体：标题用方圆体，方中带圆，像桌游盒子上的字；正文保持系统黑体好读 */
+  --we-font-ui: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  --we-font-prose: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  --we-font-display: 'Alimama FangYuanTi VF', -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  --we-font-mono: ui-monospace, SFMono-Regular, 'SF Mono', Consolas, monospace;
+  --we-font-display-style: normal;
+
+  /* § 3 形状：卡牌的圆角 */
+  --we-radius-xs:   4px;
+  --we-radius-sm:   8px;
+  --we-radius-md:   12px;
+  --we-radius-lg:   16px;
+  --we-radius-xl:   22px;
+  --we-radius-full: 9999px;
+
+  /* 背景氛围：游戏垫不动，光尘压到很淡 */
+  --we-atmosphere-kind: dust;
+  --we-atmosphere-shade: rgba(90, 60, 160, 0.2);
+  --we-atmosphere-opacity: 0.35;
+  --we-atmosphere-opacity-quiet: 0.2;
+  --we-atmosphere-glow-strength: 10%;
+  --we-atmosphere-grain: 0.05;
+
+  --we-material-sheen: rgba(255, 255, 255, 0.08);
+  --we-material-grain: 0.04;
+
+  --we-glass-opacity: 94%;
+  --we-glass-blur: 10px;
+  --we-pane-center-bg: transparent;
+  --we-pane-side-bg: transparent;
+  --we-pane-glow: transparent;
+
+  --we-card-border: 1px solid rgba(255, 255, 255, 0.06);
+  --we-card-overlay-bg: linear-gradient(180deg, rgba(17, 15, 23, 0) 45%, rgba(17, 15, 23, 0.85) 100%);
+
+  /* 游戏垫上印的六角格 */
+  --we-canvas-texture-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='100'%3E%3Cpath d='M28 66L0 50V16L28 0l28 16v34L28 66zm0 0v34' fill='none' stroke='%23ffffff' stroke-opacity='0.035' stroke-width='1.5'/%3E%3C/svg%3E");
+}

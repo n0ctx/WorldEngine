@@ -19,8 +19,15 @@ export function useCharacterActions(worldId, setCharacters) {
     }
   }
 
+  // 网格拖动只在松手时交出最终顺序：先排好本地列表，保存失败再按服务端顺序重读
   async function handleCharReorderEnd(finalChars) {
-    await saveItemOrder(finalChars, reorderCharacters);
+    setCharacters(finalChars);
+    try {
+      await saveItemOrder(finalChars, reorderCharacters);
+    } catch (err) {
+      log.error('character.sort.save_failed', err, { toast: `排序保存失败：${err.message}` });
+      setCharacters(await getCharactersByWorld(worldId));
+    }
   }
 
   return { deletingChar, setDeletingChar, handleDeleteChar, handleCharReorderEnd };

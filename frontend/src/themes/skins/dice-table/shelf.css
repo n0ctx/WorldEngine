@@ -1,0 +1,179 @@
+/* 骰界 · 书架：游戏垫上一盒盒战役。
+ * 盒盖是封面，下面一条奶油色标签写着世界名、简介和角色头像，标签上沿是这个世界的颜色（--world-tint，由世界卡写入）；
+ * 盒子侧边露出这个颜色压暗的厚度，悬停时厚度变大、按下压回（抬起本身由动效包的手势负责）。 */
+
+:root[data-theme="dice-table"] .we-worlds-title {
+  font-weight: var(--we-type-display-weight);
+}
+
+/* 页头：标题后面跟一枚骰红计数牌（两头切角的六角条），不再压在标题上方 */
+:root[data-theme="dice-table"] .we-worlds-heading {
+  flex-direction: row-reverse;
+  justify-content: flex-end;
+  align-items: center;
+  gap: var(--we-space-md);
+}
+
+:root[data-theme="dice-table"] .we-worlds-eyebrow {
+  padding: var(--we-space-xs) var(--we-space-lg);
+  font-family: var(--we-font-display);
+  font-weight: var(--we-weight-strong);
+  color: var(--we-color-on-accent);
+  background: var(--we-color-accent);
+  clip-path: polygon(10px 0, calc(100% - 10px) 0, 100% 50%, calc(100% - 10px) 100%, 10px 100%, 0 50%);
+}
+
+/* 页头「创建世界」是这一页唯一的主动作：骰红实底、底边一道深色厚度 */
+:root[data-theme="dice-table"] .we-worlds-header-btn--create.we-btn,
+:root[data-theme="dice-table"] .we-worlds-header-btn--create.we-btn:hover:not(:disabled) {
+  color: var(--we-color-on-accent);
+  background: var(--we-color-accent);
+  box-shadow: 0 var(--dice-depth) 0 var(--we-color-accent-deep);
+}
+
+:root[data-theme="dice-table"] .we-worlds-grid {
+  --we-worlds-grid-gap-x: var(--we-space-xl);
+  --we-worlds-grid-gap-y: var(--we-space-2xl);
+}
+
+:root[data-theme="dice-table"] .we-world-card-shell .we-skel--block {
+  border-radius: var(--we-radius-md);
+}
+
+/* 战役盒 */
+:root[data-theme="dice-table"] .we-world-card {
+  --box-tint: var(--world-tint, var(--we-color-accent));
+  --box-side: color-mix(in oklab, var(--we-color-bg-canvas) var(--we-alpha-5), var(--box-tint));
+  padding: 0;
+  border-radius: var(--we-radius-md);
+  background: var(--dice-card);
+  box-shadow: 0 8px 0 var(--box-side), 0 20px 18px -6px var(--we-color-shade-4);
+}
+
+:root[data-theme="dice-table"] .we-world-card--feature {
+  padding: 0;
+  border-radius: var(--we-radius-md);
+}
+
+/* 拿起：侧面露出的厚度变大、落影离地更远；按下：压回桌面只剩一道薄边 */
+:root[data-theme="dice-table"] .we-world-card:hover,
+:root[data-theme="dice-table"] .we-world-card[data-dragging] {
+  box-shadow: 0 16px 0 var(--box-side), 0 38px 38px -6px var(--we-color-shade-4);
+}
+
+:root[data-theme="dice-table"] .we-world-card:active {
+  box-shadow: 0 var(--dice-depth) 0 var(--box-side), 0 15px 18px -6px var(--we-color-shade-4);
+}
+
+:root[data-theme="dice-table"] .we-world-card:focus-visible {
+  outline: 2px solid var(--we-color-accent);
+  outline-offset: 6px;
+  box-shadow: 0 8px 0 var(--box-side), 0 20px 18px -6px var(--we-color-shade-4);
+}
+
+/* 盒盖：封面占标签以上的整块，四周印一道内框 */
+:root[data-theme="dice-table"] .we-world-card-bg {
+  position: relative;
+  inset: auto;
+  flex: 1 1 0;
+  min-height: 0;
+  height: auto;
+  background: var(--box-side);
+  outline: 1px solid color-mix(in srgb, var(--we-color-white) var(--we-alpha-3), transparent);
+  outline-offset: -8px;
+}
+
+/* 盒盖印刷得干净：不压渐变暗罩，字都写在下面的标签上 */
+:root[data-theme="dice-table"] .we-world-card-overlay {
+  display: none;
+}
+
+/* 标签：盖住封面下沿的一条奶油色卡纸 */
+:root[data-theme="dice-table"] .we-world-card-foot {
+  gap: var(--we-space-xs);
+  padding: var(--we-space-sm) var(--we-space-md) var(--we-space-md);
+  flex: none;
+  color: var(--dice-card-ink);
+  background: var(--dice-card);
+  border-top: 4px solid var(--box-tint);
+}
+
+:root[data-theme="dice-table"] .we-world-card--feature .we-world-card-foot {
+  gap: var(--we-space-sm);
+  padding: var(--we-space-md) var(--we-space-xl) var(--we-space-lg);
+}
+
+:root[data-theme="dice-table"] .we-world-card-name {
+  overflow: hidden;
+  font-size: var(--we-type-subheading-size);
+  line-height: var(--we-type-subheading-leading);
+  letter-spacing: var(--we-type-subheading-tracking);
+  font-weight: var(--we-type-display-weight);
+  color: var(--dice-card-ink);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-shadow: none;
+}
+
+:root[data-theme="dice-table"] .we-world-card--feature .we-world-card-name {
+  font-size: var(--we-type-title-size);
+  line-height: var(--we-type-title-leading);
+  letter-spacing: var(--we-type-title-tracking);
+}
+
+/* 小盒子标签窄，简介不浮到封面上；大盒子的简介常驻在名字下 */
+:root[data-theme="dice-table"] .we-world-card:not(.we-world-card--feature) .we-world-card-desc {
+  display: none;
+}
+
+:root[data-theme="dice-table"] .we-world-card--feature .we-world-card-desc {
+  font-size: var(--we-type-body-size);
+  line-height: var(--we-type-body-leading);
+  letter-spacing: var(--we-type-body-tracking);
+  color: var(--dice-card-muted);
+  text-shadow: none;
+}
+
+:root[data-theme="dice-table"] .we-world-card-meta {
+  justify-content: space-between;
+  min-height: 26px;
+  color: var(--dice-card-muted);
+  text-shadow: none;
+}
+
+:root[data-theme="dice-table"] :is(.we-world-card-cast-empty, .we-world-card-time) {
+  color: var(--dice-card-muted);
+}
+
+/* 角色头像是一排压在标签上的纸板标记：奶油厚边下露出纸板厚度 */
+:root[data-theme="dice-table"] .we-world-card-cast .we-avatar-circle,
+:root[data-theme="dice-table"] .we-world-card-cast-more {
+  box-shadow: 0 0 0 2px var(--dice-card), 0 2px 0 2px var(--dice-board);
+}
+
+:root[data-theme="dice-table"] .we-world-card-cast .we-avatar-circle--placeholder {
+  color: var(--we-color-avatar-text);
+  background: var(--box-side);
+  backdrop-filter: none;
+}
+
+:root[data-theme="dice-table"] .we-world-card-cast-more {
+  margin-left: var(--we-space-sm);
+  font-weight: var(--we-weight-strong);
+  color: var(--dice-card-muted);
+  background: none;
+  box-shadow: none;
+  backdrop-filter: none;
+}
+
+/* 世界一个都没有时：游戏垫上冲掉一块的空凹槽 */
+:root[data-theme="dice-table"] .we-worlds-door {
+  background: var(--dice-card-wash);
+  border: 2px dashed var(--we-color-shell-border-strong);
+  border-radius: var(--we-radius-md);
+  box-shadow: var(--dice-dent);
+}
+
+:root[data-theme="dice-table"] .we-worlds-door__seam {
+  display: none;
+}

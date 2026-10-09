@@ -12,8 +12,8 @@ vi.mock('../../../src/core/api/session-state-values.js', () => ({
 vi.mock('../../../src/core/hooks/useSessionState.js', () => {
   const sessionState = {
     stateData: {
-      world: [{ field_key: 'place', label: '地点', type: 'text', effective_value_json: '"拳场"' }],
-      persona: [],
+      world: [],
+      persona: [{ field_key: 'mood', label: '心情', type: 'text', effective_value_json: '"紧张"' }],
       character: [],
     },
     setStateData: vi.fn(),
@@ -26,12 +26,14 @@ vi.mock('../../../src/core/hooks/useSessionState.js', () => {
   };
   return { useSessionState: () => sessionState };
 });
-vi.mock('../../../src/components/state/WorldProfileGroup.jsx', () => ({
-  default: ({ children }) => <div>{children}</div>,
-}));
-// 只关心面板切到了哪个页签
+vi.mock('../../../src/components/state/ScenePlaceCard.jsx', () => ({ default: () => null }));
+// 只关心面板切到了哪个页签；当前页签的内容照常渲染，定位才找得到行
 vi.mock('../../../src/components/ui/SectionTabs.jsx', () => ({
-  default: ({ defaultKey }) => <div data-testid="tabs" data-active={defaultKey} />,
+  default: ({ sections, defaultKey }) => (
+    <div data-testid="tabs" data-active={defaultKey}>
+      {sections.find((section) => section.key === defaultKey)?.content}
+    </div>
+  ),
 }));
 
 const { default: SessionStatePanel } = await import('../../../src/components/state/SessionStatePanel.jsx');
@@ -67,10 +69,10 @@ describe('状态面板响应正文的定位请求', () => {
     const { container } = renderPanel();
     expect(screen.getByTestId('tabs').dataset.active).toBe('player');
 
-    act(() => useSidePanelsStore.getState().revealStateField({ tab: 'character', fieldKeys: ['place'] }));
+    act(() => useSidePanelsStore.getState().revealStateField({ tab: 'player', fieldKeys: ['mood'] }));
 
-    expect(screen.getByTestId('tabs').dataset.active).toBe('character');
-    const row = container.querySelector('[data-field-key="place"]');
+    expect(screen.getByTestId('tabs').dataset.active).toBe('player');
+    const row = container.querySelector('[data-field-key="mood"]');
     expect(row.classList.contains('we-status-field--located')).toBe(true);
     expect(row.scrollIntoView).toHaveBeenCalled();
     expect(useSidePanelsStore.getState().stateFocus).toBeNull();

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import Input from '../ui/Input.jsx';
-import SectionTitle from '../ui/SectionTitle.jsx';
+import { IconMapPin } from '../ui/icons.jsx';
 import DatetimeSplitInput from './DatetimeSplitInput.jsx';
 import { formatDatetimeChinese } from '../../core/utils/state-value-format.js';
 import { isImeComposing } from '../../core/utils/ime.js';
@@ -88,9 +88,9 @@ function WorldLocationField({ location, locationOptions, onCommit }) {
   );
 }
 
-/** 世界现状：当前时间 / 当前地点（状态记忆的 world）+ 世界用户字段。 */
-export default function WorldProfileGroup({ sessionId, world, entities, reload, children }) {
-  async function handleTimeCommit(time) {
+/** 当前时间、当前地点的写回：世界现状和地点卡共用 */
+function useWorldProfileCommits(sessionId, reload) {
+  async function commitTime(time) {
     try {
       await updateStateWorld(sessionId, { time });
       reload();
@@ -99,7 +99,7 @@ export default function WorldProfileGroup({ sessionId, world, entities, reload, 
     }
   }
 
-  async function handleLocationCommit(location) {
+  async function commitLocation(location) {
     try {
       await updateStateWorld(sessionId, { location });
       reload();
@@ -108,20 +108,27 @@ export default function WorldProfileGroup({ sessionId, world, entities, reload, 
     }
   }
 
-  const locationOptions = (entities ?? []).filter((e) => e.type === 'location' && e.status === 'active');
+  return { commitTime, commitLocation };
+}
 
+function activeLocations(entities) {
+  return (entities ?? []).filter((e) => e.type === 'location' && e.status === 'active');
+}
+
+/**
+ * 状态面板顶部的「当前地点」卡，对话、写作两页共用：左边一枚定位标记，右边地点放大、时间在下，都能点开改。
+ * 地点、时间来自状态记忆的世界现状；没设的显示「未设定」，点开填写。
+ */
+export default function ScenePlaceCard({ sessionId, world, entities, reload }) {
+  const { commitTime, commitLocation } = useWorldProfileCommits(sessionId, reload);
+  if (!sessionId || !world) return null;
   return (
-    <div className="we-state-section we-world-profile-group">
-      <SectionTitle level="eyebrow" rule="beside">现状</SectionTitle>
-      <div className="we-fields-list">
-        <WorldTimeField time={world?.time ?? null} onCommit={handleTimeCommit} />
-        <WorldLocationField
-          location={world?.location ?? null}
-          locationOptions={locationOptions}
-          onCommit={handleLocationCommit}
-        />
+    <section className="we-scene-place" aria-label="当前地点">
+      <span className="we-scene-place-mark" aria-hidden="true"><IconMapPin size={20} /></span>
+      <div className="we-scene-place-body we-fields-list">
+        <WorldLocationField location={world.location ?? null} locationOptions={activeLocations(entities)} onCommit={commitLocation} />
+        <WorldTimeField time={world.time ?? null} onCommit={commitTime} />
       </div>
-      {children}
-    </div>
+    </section>
   );
 }

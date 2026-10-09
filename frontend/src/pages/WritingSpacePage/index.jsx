@@ -1,5 +1,6 @@
 import { useParams } from 'react-router-dom';
 import PageLayout from '../layout/PageLayout.jsx';
+import SessionTools from '../../components/state/SessionTools.jsx';
 import NearbyPanel from './components/NearbyPanel.jsx';
 import WorldTimelinePanel from '../../components/session/WorldTimelinePanel.jsx';
 import { IconPlus } from '../../components/ui/icons.jsx';
@@ -45,14 +46,15 @@ export default function WritingSpacePage() {
           currentSessionId={pendingSessionId ?? currentSession?.id}
           onActiveSessionDeleted={lifecycle.handleActiveWritingSessionDeleted}
           onActiveSessionRenamed={(title) => setCurrentSession((prev) => (prev ? { ...prev, title } : prev))}
-          headerRight={(
-            <Button size="sm" variant="secondary" className="we-session-list-create" onClick={lifecycle.handleCreateWritingSession} aria-label="新建故事线">
-              <IconPlus size={16} />
-              新建故事线
-            </Button>
-          )}
         />
       )}
+      leftActions={(
+        <Button size="sm" variant="secondary" onClick={lifecycle.handleCreateWritingSession}>
+          <IconPlus size={16} />
+          新建故事线
+        </Button>
+      )}
+      rightActions={<SessionTools sessionId={currentSession?.id} worldId={worldId} />}
       recall={{ memoryRecalling, memoryWriting, recallSummary }}
       main={(
         <WritingSpaceConversationPane

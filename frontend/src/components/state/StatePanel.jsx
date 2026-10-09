@@ -7,6 +7,7 @@ import SessionStatePanel from './SessionStatePanel.jsx';
 import EntityStateBlock from './EntityStateBlock.jsx';
 import StateMemoryDynamicState from './StateMemoryDynamicState.jsx';
 import useEntitySections from './useEntitySections.jsx';
+import AvatarCircle from '../ui/AvatarCircle.jsx';
 import EmptyState from '../ui/EmptyState.jsx';
 import { ResetAction } from './panel-parts.jsx';
 import { log } from '../../core/utils/logger.js';
@@ -85,6 +86,7 @@ export default function StatePanel({ sessionId, character, worldId, persona, onD
     return [{
       key: 'character',
       label: character?.name || '角色',
+      icon: <AvatarCircle id={character?.id ?? 'character'} name={character?.name || '角色'} avatarPath={character?.avatar_path} size="sm" />,
       actions: <ResetAction onClick={handleResetChar} busy={charResetting} />,
       content: (
         <div className="we-panel-tab-body">

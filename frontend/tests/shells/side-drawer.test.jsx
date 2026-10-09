@@ -62,3 +62,23 @@ describe('SideDrawer', () => {
     expect(content.parentElement.parentElement).toBe(drawer());
   });
 });
+
+describe('SideDrawer 顶行操作', () => {
+  it('展开时这一侧的操作和收起按钮在同一行，收起成窄轨时只剩按钮', () => {
+    function ActionsHarness() {
+      const [open, setOpen] = useState(true);
+      return (
+        <SideDrawer side="left" open={open} onToggle={() => setOpen((v) => !v)} label="故事线列表" actions={<button type="button">新建故事线</button>}>
+          <p>列表</p>
+        </SideDrawer>
+      );
+    }
+    render(<ActionsHarness />);
+    const bar = document.querySelector('.we-side-drawer-bar');
+    expect(bar).toContainElement(screen.getByRole('button', { name: '收起故事线列表' }));
+    expect(bar).toContainElement(screen.getByRole('button', { name: '新建故事线' }));
+
+    fireEvent.click(screen.getByRole('button', { name: '收起故事线列表' }));
+    expect(screen.queryByRole('button', { name: '新建故事线' })).not.toBeInTheDocument();
+  });
+});

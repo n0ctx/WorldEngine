@@ -19,6 +19,7 @@ import {
 } from '../../core/api/persona-state-values';
 import { downloadPersonaCard } from '../../core/api/import-export';
 import Button from '../../components/ui/Button';
+import CardPortrait from '../../components/card-edit/CardPortrait.jsx';
 import CardBasicForm from '../../components/card-edit/CardBasicForm.jsx';
 import CardEditTabs from '../../components/card-edit/CardEditTabs.jsx';
 import { useCardEditForm } from '../../components/card-edit/useCardEditForm.js';
@@ -124,8 +125,6 @@ export default function PersonaEditPage() {
     content: (
       <CardBasicForm
         form={form}
-        avatarSeed={resolvedPersonaId || personaIdParam || worldId}
-        onAvatarFile={handleAvatarFile}
         nameField={{ label: '玩家名', placeholder: '你在这个世界里的名字' }}
         descriptionPlaceholder="一句话介绍这个玩家…"
         prompts={PROMPTS}
@@ -155,6 +154,9 @@ export default function PersonaEditPage() {
       onClose={() => navigate(-1)}
       title={isNew ? '创建玩家' : '编辑玩家卡'}
       headerActions={exportAction}
+      aside={(
+        <CardPortrait form={form} avatarSeed={resolvedPersonaId || personaIdParam || worldId} onAvatarFile={handleAvatarFile} />
+      )}
       save={{
         creating: isNew,
         saving,

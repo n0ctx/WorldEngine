@@ -3,9 +3,7 @@
 /* ── 会话右栏顶部：剧情摘要 / 状态记忆入口 ── */
 .we-state-panel-tools {
   display: flex;
-  flex-wrap: wrap;
   gap: var(--we-space-sm);
-  margin-bottom: var(--we-space-md);
 }
 
 /* ── State Extract Preview（AI 提取状态字段建议值弹窗）── */
@@ -136,6 +134,41 @@
 
 
 
+
+/* 场景板顶部的「当前地点」卡：左边一枚定位标记，右边地点（放大）与时间，都能点开改 */
+.we-scene-place {
+  display: grid;
+  flex-shrink: 0;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: var(--we-space-md);
+  align-items: start;
+  margin-bottom: var(--we-space-md);
+  padding: var(--we-space-md);
+  border: 1px solid var(--we-color-border-subtle);
+  border-radius: var(--we-radius-md);
+  background: var(--we-color-bg-surface);
+  box-shadow: inset 3px 0 0 var(--we-color-accent), var(--we-elevation-1);
+}
+.we-scene-place-mark {
+  display: grid;
+  place-items: center;
+  width: var(--we-control-h-lg);
+  height: var(--we-control-h-lg);
+  border-radius: var(--we-radius-sm);
+  color: var(--we-color-accent);
+  background: var(--we-color-accent-bg);
+}
+.we-scene-place-body {
+  min-width: 0;
+}
+.we-scene-place-body > .we-status-field:first-child > .we-status-value {
+  font-family: var(--we-font-display);
+  font-size: var(--we-type-subheading-size);
+  line-height: var(--we-type-subheading-leading);
+  letter-spacing: var(--we-type-subheading-tracking);
+  font-weight: var(--we-type-subheading-weight);
+  color: var(--we-color-text-primary);
+}
 
 /* 字段行：竖排，标签在上，值在下，完整显示 */
 .we-status-field {

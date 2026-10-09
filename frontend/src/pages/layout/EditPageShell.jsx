@@ -11,6 +11,7 @@ import SaveCapsule from '../../components/ui/SaveCapsule.jsx';
  * loadError 非空时只显示错误与重试，不渲染表单：加载失败时表单是空值，误点保存会把空值写回。
  * dirty 为 true 时，关闭键、Esc 与点空白处先确认再关闭。
  * save 是保存栏的参数（见 SaveCapsule）：弹层里需要手动保存的字段共用正文底部这一个按钮。
+ * aside 给了就分左右两栏：左栏是跟着正文滚动时停在顶上的预览（世界卡、立绘框），右栏是页签与表单；窄时回到单栏，左栏在上。
  */
 export default function EditPageShell({
   loading = false,
@@ -21,6 +22,7 @@ export default function EditPageShell({
   title,
   headerActions,
   save,
+  aside,
   children,
 }) {
   const [confirmingClose, setConfirmingClose] = useState(false);
@@ -31,7 +33,13 @@ export default function EditPageShell({
     else onClose();
   }
 
-  let body = <>{children}<SaveCapsule dirty={dirty} {...save} /></>;
+  const main = <>{children}<SaveCapsule dirty={dirty} {...save} /></>;
+  let body = aside ? (
+    <div className="we-edit-columns">
+      <aside className="we-edit-aside">{aside}</aside>
+      <div className="we-edit-main">{main}</div>
+    </div>
+  ) : main;
   if (loadError) body = <p className="we-edit-empty-text">{loadError}</p>;
   else if (loading) body = <Skeleton className="w-64" />;
 

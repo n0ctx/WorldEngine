@@ -45,8 +45,8 @@ function EmptyNearbyTab({ loading, error, onRetry }) {
 }
 
 /**
- * 写作模式侧栏：状态栏公共壳 + 「在场 + 置顶」的角色实体页签（useEntitySections，
- * 与对话模式的 NPC 页签共用同一套渲染），外加写作模式独有的「从角色卡添加」全局操作。
+ * 写作模式侧栏（场景板）：顶部「当前地点」卡 + 状态栏公共壳 + 「在场 + 置顶」的角色实体页签
+ * （useEntitySections，与对话模式的 NPC 页签共用同一套渲染，带头像），外加写作模式独有的「从角色卡添加」全局操作。
  */
 export default function NearbyPanel({
   worldId,

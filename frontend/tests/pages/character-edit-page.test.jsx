@@ -163,6 +163,20 @@ describe('CharacterEditPage', () => {
     ));
   });
 
+  it('编辑时头像是左栏的立绘框；新建时还没有 id，不分栏也不显示立绘框', async () => {
+    // 编辑页是挂到 body 上的 Dialog
+    const { unmount } = render(<CharacterEditPage />);
+    await screen.findByDisplayValue('阿塔');
+    expect(document.querySelector('.we-edit-aside .we-avatar-upload--portrait')).not.toBeNull();
+    expect(document.querySelector('.we-edit-main .we-avatar-upload')).toBeNull();
+    unmount();
+
+    mocks.useParams.mockReturnValue({ worldId: 'world-1' });
+    render(<CharacterEditPage />);
+    expect(document.querySelector('.we-edit-columns')).toBeNull();
+    expect(document.querySelector('.we-avatar-upload')).toBeNull();
+  });
+
   it('overlay 创建成功后会关闭角色创建页', async () => {
     mocks.useParams.mockReturnValue({ worldId: 'world-1' });
     mocks.useLocation.mockReturnValue({

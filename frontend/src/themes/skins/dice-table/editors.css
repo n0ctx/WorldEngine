@@ -1,0 +1,114 @@
+/* 骰界皮肤 · 编辑弹窗（世界 / 角色 / 玩家编辑，EditPageShell 的 .we-edit-body）。
+ * 弹窗本身已是奶油卡纸（controls.css）；两栏结构归核心（EditPageShell 的 aside），这里只管卡纸上的造型：
+ *   两栏之间一道竖虚线，像卡纸上折出的分栏线；
+ *   角色、玩家：左栏的立绘框是骰红底、六角格纹、白边、露出纸板厚度；世界：左栏的预览就是书架上的战役盒（shelf.css）；
+ *   长字段（简介、人设、后置提示词、开场白）写在卡纸横线上；
+ *   世界：封面图是一张带白边、露出厚度的盒盖印刷纸，主色色块是一枚纸板圆片。 */
+
+/* ── 字段标签：印在卡纸上的小标题，不再全大写 ── */
+:root[data-theme="dice-table"] .we-edit-body .we-edit-label {
+  text-transform: none;
+  color: var(--we-color-text-secondary);
+}
+
+/* ── 两栏：中间一道竖虚线（画在背景上，不占布局） ── */
+:root[data-theme="dice-table"] .we-edit-columns {
+  background: repeating-linear-gradient(var(--we-color-border-default) 0 6px, transparent 6px 12px)
+    calc(240px + var(--we-space-lg) - 1px) 0 / 2px 100% no-repeat;
+}
+
+/* ── 立绘框：3:4 的骰红底，六角格纹，白边，底边露出纸板厚度；悬停拿起、微微歪一下 ── */
+:root[data-theme="dice-table"] .we-avatar-upload--portrait .we-avatar-wrap {
+  overflow: hidden;
+  background:
+    var(--we-canvas-texture-image),
+    linear-gradient(160deg, var(--we-color-accent), var(--dice-side));
+  border: 6px solid var(--we-color-bg-elevated);
+  border-radius: var(--we-radius-md);
+  box-shadow: 0 4px 0 var(--dice-board), 0 16px 24px -12px var(--we-color-shade-3);
+  transition: translate var(--we-motion-state-duration) var(--we-motion-state-easing),
+    rotate var(--we-motion-state-duration) var(--we-motion-state-easing),
+    box-shadow var(--we-motion-state-duration) var(--we-motion-state-easing);
+}
+
+:root[data-theme="dice-table"] .we-avatar-upload--portrait .we-avatar-wrap:hover {
+  translate: 0 -4px;
+  rotate: -1deg;
+  box-shadow: 0 8px 0 var(--dice-board), 0 22px 28px -12px var(--we-color-shade-3);
+}
+
+:root[data-theme="dice-table"] .we-avatar-upload--portrait .we-avatar-wrap:focus-visible {
+  outline: 2px solid var(--we-color-accent);
+  outline-offset: 4px;
+}
+
+/* 框里的图和占位都在白边里面，圆角收一档；没有立绘时透出骰红底，首字用奶油色印在正中 */
+:root[data-theme="dice-table"] :is(.we-avatar-img--portrait, .we-avatar-placeholder--portrait, .we-avatar-mask--portrait, .we-avatar-uploading--portrait) {
+  border-radius: var(--we-radius-sm);
+}
+
+:root[data-theme="dice-table"] .we-avatar-placeholder--portrait {
+  font-family: var(--we-font-display);
+  color: var(--dice-card);
+  background: transparent;
+}
+
+/* ── 横线：长字段写在卡纸横线上，线距等于行高，随内容一起滚 ── */
+:root[data-theme="dice-table"] .we-edit-body .we-textarea {
+  --dice-rule: calc(var(--we-type-body-size) * var(--we-type-body-leading));
+  background:
+    repeating-linear-gradient(transparent 0 calc(var(--dice-rule) - 1px), var(--we-color-border-subtle) calc(var(--dice-rule) - 1px) var(--dice-rule))
+    0 var(--we-space-sm) / 100% var(--dice-rule) local,
+    var(--we-color-shade-1);
+}
+
+:root[data-theme="dice-table"] .we-edit-body .we-md-editor {
+  background: var(--we-color-shade-1);
+  border-color: var(--we-color-border-subtle);
+  box-shadow: inset 0 var(--dice-control-press) 0 var(--we-color-border-subtle);
+}
+
+:root[data-theme="dice-table"] .we-edit-body .we-md-toolbar {
+  background: transparent;
+  border-bottom-color: var(--we-color-border-subtle);
+}
+
+:root[data-theme="dice-table"] .we-edit-body .we-md-toolbar button {
+  font-style: normal;
+}
+
+:root[data-theme="dice-table"] .we-edit-body .we-md-content {
+  background: transparent;
+}
+
+:root[data-theme="dice-table"] .we-edit-body .we-md-content .cm-scroller {
+  --dice-rule: calc(var(--we-type-prose-size) * var(--we-type-prose-leading));
+  background:
+    repeating-linear-gradient(transparent 0 calc(var(--dice-rule) - 1px), var(--we-color-border-subtle) calc(var(--dice-rule) - 1px) var(--dice-rule))
+    0 10px / 100% var(--dice-rule) local;
+}
+
+/* ── 世界：封面是盒盖印刷纸，白边、露出厚度 ── */
+:root[data-theme="dice-table"] .we-edit-body :is(.we-avatar-img--rect, .we-avatar-placeholder--rect) {
+  border: 5px solid var(--we-color-bg-elevated);
+  border-radius: var(--we-radius-md);
+  box-shadow: 0 6px 0 var(--dice-side), 0 18px 24px -12px var(--we-color-shade-3);
+}
+
+:root[data-theme="dice-table"] .we-edit-body .we-avatar-mask--rect,
+:root[data-theme="dice-table"] .we-edit-body .we-avatar-uploading--rect {
+  border-radius: var(--we-radius-md);
+}
+
+/* 主色色块：一枚纸板圆片，奶油厚边下露出厚度 */
+:root[data-theme="dice-table"] .we-edit-body .we-edit-accent-swatch {
+  border: none;
+  box-shadow: 0 0 0 3px var(--we-color-bg-elevated), 0 3px 0 3px var(--dice-board);
+}
+
+/* 弹层窄到单栏时没有分栏线 */
+@container (max-width: 600px) {
+  :root[data-theme="dice-table"] .we-edit-columns {
+    background: none;
+  }
+}

@@ -15,6 +15,7 @@ frontend/src/themes/
   - ui.css: components/ui 的基础组件样式；shell / state / rules / settings / assistant / chat.css 按领域放组件样式；
     pages.css 放页面布局。都只消费 token；新增样式放进所属领域的文件，main.jsx 按这个顺序引入
   - motion/<pack-id>.css: 动效包样式，只声明 --we-fx-* 接口与 --we-motion-* 节奏变量
+  - skins/<theme-id>/*.css: 可选的外观皮肤，只在 <html data-theme="<theme-id>"> 时生效，改写组件外观
 
 frontend/src/visual/<theme-id>/
   - theme.json: 视觉主题元信息
@@ -25,6 +26,16 @@ frontend/src/shells/
 ```
 
 核心层负责“默认可用”，视觉主题负责“视觉取值”，动效包负责“动效风格”，shell 负责“结构与布局”。主题不能替代 shell，也不应该把组件选择器写回主题目录。
+
+## 外观皮肤
+
+只换 token 做不出的整套造型（例如骰界的卡纸、战役盒、主持人屏风），写成外观皮肤：`frontend/src/themes/skins/<theme-id>/`，目录名与主题 id 相同，`main.jsx` 自动引入。
+
+- 套用主题时 `core/visual/visualThemes.js` 会在 `<html>` 上写 `data-theme`；皮肤的每条选择器都以 `:root[data-theme="<theme-id>"]` 开头，其他主题下完全不生效。
+- 皮肤只改外观，不改结构与行为；需要的 DOM 钩子（如 `data-trigger`、`--world-tint`）加在组件上时，核心样式不读它们，其他主题外观不变。只给皮肤用的新元素在核心样式里默认 `display: none`。
+- 皮肤只写静态外观，动作归动效包；过渡取成对的动效角色。颜色从主题 token 推导，私有变量用主题自己的前缀（骰界是 `--dice-`）。
+- 皮肤 CSS 在 `check:literals` 的扫描范围里，规则与核心组件样式相同。
+- 骰界的皮肤见 `skins/dice-table/base.css` 头部：共用材料，以及让现成控件在奶油卡纸上可读的「卡纸作用域」。
 
 ## 对齐检查
 
@@ -136,7 +147,7 @@ cp -R frontend/src/visual/_template frontend/src/visual/my-theme
 
 ## 内置主题
 
-`nocturne/` 是默认内置主题（暗色）。`classic-parchment/`（亮色，保留羊皮纸色板、书脊阴影、印章/纸张阴影、卡片边框与旧化质感，背景氛围是字模墙）是另一个内置主题。`phosphor/`（磷光，暗色，配「信号」动效：磷光绿系统色、酸性黄绿主色、全方角、得意黑标题，背景氛围是代码雨）是第三个。
+`nocturne/` 是默认内置主题（暗色）。`classic-parchment/`（亮色，保留羊皮纸色板、书脊阴影、印章/纸张阴影、卡片边框与旧化质感，背景氛围是字模墙）是另一个内置主题。`phosphor/`（磷光，暗色，配「信号」动效：磷光绿系统色、酸性黄绿主色、全方角、得意黑标题，背景氛围是代码雨）是第三个。`dice-table/`（骰界，暗色，配「掷」动效：深紫黑游戏垫印六角格、骰红主色、奶油色卡纸）是第四个。
 
 内置主题都只能覆盖 token，不能直接改结构。
 

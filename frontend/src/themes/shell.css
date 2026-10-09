@@ -390,8 +390,8 @@
 }
 
 /* ==========================================================
-   SideDrawer — 两侧「窄轨 / 展开」抽屉（第 10 步：正文常驻主角，
-   两侧只在需要时唤出）。轨宽固定 52px，只放一个切换图标按钮；
+   SideDrawer — 两侧「窄轨 / 展开」抽屉。宽屏三栏常驻：两侧默认展开（默认态见 core/state/sidePanels.js），
+   可手动收成 52px 窄轨，轨里只放一个切换图标按钮；
    展开时让出 flex-basis，正文（.we-page-right 里的 flex:1）随之收窄——
    「推开正文」而非浮层：两侧本来就是 book-spread 里的行内 flex 兄弟节点，
    展开收起复用已有的 flex 布局最省事，也不会在 1024px 窄屏下叠住正文。
@@ -434,9 +434,9 @@
 }
 
 .we-side-drawer--left.we-side-drawer--open {
-  flex: 0 0 16%;
-  min-width: 216px;
-  max-width: 280px;
+  flex: 0 0 15%;
+  min-width: 210px;
+  max-width: 260px;
 }
 
 .we-side-drawer--right {
@@ -445,18 +445,18 @@
 }
 
 .we-side-drawer--right.we-side-drawer--open {
-  flex: 0 0 28%;
-  min-width: 360px;
-  max-width: 520px;
+  flex: 0 0 24%;
+  min-width: 320px;
+  max-width: 440px;
 }
 
 /* 内容始终按展开态的下限排版，宽度过渡途中由 .we-side-drawer-content 裁切，不被挤窄 */
 .we-side-drawer--left .we-side-drawer-content > * {
-  min-width: 216px;
+  min-width: 210px;
 }
 
 .we-side-drawer--right .we-side-drawer-content > * {
-  min-width: 360px;
+  min-width: 320px;
 }
 
 /* 窄屏（≤1180px）：推开正文会把正文挤得太窄，抽屉改为浮在正文之上。
@@ -546,9 +546,31 @@
   }
 }
 
-/* 抽屉开关：中号图标按钮四周各让一格，悬停的圆底不碰抽屉边框；在 52px 窄轨里正好居中，展开后仍留在原位 */
+/* 顶行：收起按钮在前，这一侧自己的操作跟在同一行；右抽屉的操作靠右 */
+.we-side-drawer-bar {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  min-width: 0;
+}
+
+/* 抽屉开关：小号图标按钮，左右各让一格半正好落在 52px 窄轨正中，上下只让一小格，顶行压得矮；展开后仍留在原位 */
 .we-side-drawer-toggle {
-  margin: var(--we-space-sm);
+  flex-shrink: 0;
+  margin: var(--we-space-xs) var(--we-space-md);
+}
+
+.we-side-drawer-actions {
+  display: flex;
+  flex: 1;
+  justify-content: flex-end;
+  min-width: 0;
+  padding-right: var(--we-space-sm);
+}
+
+/* 左侧的新建按钮占满收起按钮右边的空间 */
+.we-side-drawer--left .we-side-drawer-actions > :only-child {
+  flex: 1;
 }
 
 /* 裁切层：自己不动，滑入的内容被它挡在抽屉边框之内 */

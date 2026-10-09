@@ -18,8 +18,10 @@ export function resolveThemeId(id) {
   return cssById.has(id) ? id : DEFAULT_THEME_ID;
 }
 
-// 把一份 theme.css 套到页面上。设计实验室的草稿主题也走这里，草稿不会成为「当前主题」
+// 把一份 theme.css 套到页面上，并把主题 id 写在 <html data-theme>：主题自带的外观皮肤（themes/skins/<id>/）按它生效。
+// 设计实验室的草稿主题也走这里，草稿不会成为「当前主题」
 export function applyThemeCss(css, id) {
+  document.documentElement.dataset.theme = id;
   let el = document.getElementById('we-theme-css');
   if (!el) {
     el = document.createElement('style');

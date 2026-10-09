@@ -1,0 +1,200 @@
+/* 骰界皮肤 · 规则页：一本规则书。
+ * 左栏导航是从书页左侧探出来的分隔页签，设定条目按四种触发方式各一色，选中的那张拉长、贴到书页上；
+ * 中栏条目列表是奶油色书页（卡纸作用域见 base.css），条目带「§」编号和分色的触发方式标签；
+ * 右栏「下一轮会发给 AI 的内容」留在游戏垫上，每轮都发的顺序号落在六角格里。 */
+
+/* 四种触发方式各一色：页签、条目编号与标签共用；状态字段页签与未分类的取中性色 */
+:root[data-theme="dice-table"] .we-workshop {
+  --dice-trigger: var(--we-color-text-tertiary);
+}
+
+:root[data-theme="dice-table"] .we-workshop [data-trigger="always"] { --dice-trigger: var(--we-color-accent); }
+:root[data-theme="dice-table"] .we-workshop [data-trigger="keyword"] { --dice-trigger: var(--we-color-status-info); }
+:root[data-theme="dice-table"] .we-workshop [data-trigger="llm"] { --dice-trigger: var(--we-color-status-success); }
+:root[data-theme="dice-table"] .we-workshop [data-trigger="state"] { --dice-trigger: var(--dice-token); }
+
+:root[data-theme="dice-table"] .we-workshop-title {
+  font-weight: var(--we-weight-strong);
+}
+
+/* ── 分隔页签 ── */
+
+:root[data-theme="dice-table"] .we-workshop-nav {
+  /* 导航栏右缘伸过栏间距、贴到书页左缘，选中的页签拉满就和书页接上；导航自带纵向滚动，页签不能靠负外边距伸出去 */
+  margin-right: calc(var(--we-space-lg) * -1);
+  padding-right: 0;
+  padding-left: var(--we-space-xs);
+}
+
+/* 页签自己用色条和拉出长度标当前项，不再要左侧的弹跳圆点，也不给它留位置 */
+:root[data-theme="dice-table"] .we-workshop-nav > .we-bounce-rail {
+  display: none;
+}
+
+:root[data-theme="dice-table"] .we-workshop-nav-group-title {
+  padding: 0 var(--we-space-xs);
+}
+
+:root[data-theme="dice-table"] .we-workshop-nav-item {
+  margin-right: var(--we-space-xl);
+  padding: 0 var(--we-space-md);
+  border-left: 5px solid var(--dice-trigger);
+  border-radius: var(--we-radius-sm) 0 0 var(--we-radius-sm);
+  background: var(--we-color-bg-surface);
+  box-shadow: 0 2px 0 var(--we-color-shade-3);
+  transition:
+    margin var(--we-motion-state-duration) var(--we-motion-state-easing),
+    background-color var(--we-motion-state-duration) var(--we-motion-state-easing),
+    color var(--we-motion-state-duration) var(--we-motion-state-easing);
+}
+
+:root[data-theme="dice-table"] .we-workshop-nav-item:hover {
+  margin-right: var(--we-space-md);
+  background: var(--we-color-bg-elevated);
+}
+
+:root[data-theme="dice-table"] .we-workshop-nav-item.is-selected {
+  margin-right: 0;
+  background: var(--dice-card);
+  color: var(--dice-card-ink);
+  font-weight: var(--we-weight-strong);
+  box-shadow: 0 var(--dice-depth) 0 var(--dice-board);
+}
+
+/* 页签上的数量：不用徽标底，直接印一个粗数字 */
+:root[data-theme="dice-table"] .we-workshop-nav-item .we-badge {
+  padding: 0;
+  background: none;
+  color: inherit;
+  font-family: var(--we-font-display);
+  font-weight: var(--we-weight-strong);
+}
+
+/* ── 书页 ── */
+
+:root[data-theme="dice-table"] .we-workshop-list {
+  padding: var(--we-space-xl) var(--we-space-xl) var(--we-space-lg);
+  border-radius: var(--we-radius-xs) var(--we-radius-md) var(--we-radius-md) var(--we-radius-xs);
+  background:
+    linear-gradient(90deg, var(--dice-card-line), transparent var(--we-space-xl)),
+    var(--dice-card);
+  box-shadow: var(--dice-drop);
+}
+
+/* 书页页眉：分类名用展示字体压成标题，下面一道粗线 */
+:root[data-theme="dice-table"] .we-workshop-list > .we-section-title {
+  margin-bottom: var(--we-space-sm);
+  padding-bottom: var(--we-space-md);
+  border-bottom: 2px solid var(--dice-card-line);
+}
+
+:root[data-theme="dice-table"] .we-workshop-list > .we-section-title .we-section-title__text {
+  font-family: var(--we-font-display);
+  font-size: var(--we-type-title-size);
+  line-height: var(--we-type-title-leading);
+  letter-spacing: var(--we-type-title-tracking);
+  font-weight: var(--we-weight-strong);
+  text-transform: none;
+  color: var(--dice-card-ink);
+}
+
+/* 条目：书页上逐条排开，不再是一张张描边卡；前面是「§」编号 */
+:root[data-theme="dice-table"] .we-workshop-list .we-entry-section-list {
+  gap: 0;
+  counter-reset: dice-rule;
+}
+
+:root[data-theme="dice-table"] .we-workshop-list .we-entry-section-row {
+  gap: var(--we-space-md);
+  padding: var(--we-space-md) var(--we-space-sm);
+  border: none;
+  border-bottom: 1px dashed var(--we-color-border-default);
+  border-radius: var(--we-radius-xs);
+  background: transparent;
+}
+
+:root[data-theme="dice-table"] .we-workshop-list .we-entry-section-row[data-trigger]::before {
+  counter-increment: dice-rule;
+  content: '§' counter(dice-rule);
+  flex-shrink: 0;
+  min-width: 2.2em;
+  /* 分色压深一档：冲压黄、浅蓝印在奶油书页上要读得清 */
+  color: color-mix(in oklab, var(--dice-card-ink) var(--we-alpha-4), var(--dice-trigger));
+  font-family: var(--we-font-display);
+  font-size: var(--we-type-ui-size);
+  line-height: var(--we-type-ui-leading);
+  letter-spacing: var(--we-type-ui-tracking);
+  font-weight: var(--we-weight-strong);
+}
+
+:root[data-theme="dice-table"] .we-workshop-list .we-entry-section-row.is-interactive:hover {
+  background: var(--dice-card-wash);
+}
+
+:root[data-theme="dice-table"] .we-workshop-list .we-entry-section-name {
+  font-weight: var(--we-weight-strong);
+}
+
+/* 触发方式标签：分色的左边条加同色淡底 */
+:root[data-theme="dice-table"] .we-workshop-list [data-trigger] .we-entry-section-title-line > .we-badge:first-of-type {
+  padding: var(--we-space-xxs) var(--we-space-sm);
+  box-shadow: none;
+  border-left: 3px solid var(--dice-trigger);
+  border-radius: var(--we-radius-xs);
+  background: color-mix(in srgb, var(--dice-trigger) var(--we-alpha-3), transparent);
+  color: var(--dice-card-ink);
+  font-weight: var(--we-weight-strong);
+}
+
+/* 停用：整条压灰之外再划掉标题 */
+:root[data-theme="dice-table"] .we-workshop-list .we-entry-section-row--disabled .we-entry-section-name {
+  text-decoration: line-through;
+  text-decoration-color: var(--we-color-border-strong);
+}
+
+/* ── 右栏：下一轮会发给 AI 的内容 ── */
+
+/* 屏风面板：比游戏垫亮一层，一道浅色边框，底下露出深色厚度，和垫子分得开 */
+:root[data-theme="dice-table"] .we-rules-overview > .we-workshop-section {
+  padding: var(--we-space-lg);
+  border: 1px solid var(--we-color-border-subtle);
+  border-radius: var(--we-radius-md);
+  background: color-mix(in oklab, var(--we-color-text-primary) var(--we-alpha-1), var(--we-color-bg-surface));
+  box-shadow: 0 var(--dice-depth) 0 var(--we-color-shade-4), 0 14px 26px -12px var(--we-color-shade-4);
+}
+
+:root[data-theme="dice-table"] .we-rules-overview-order {
+  gap: var(--we-space-sm);
+}
+
+/* 每轮都发的顺序号落在骰红六角格里 */
+:root[data-theme="dice-table"] .we-rules-overview-order li::before {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 26px;
+  clip-path: var(--dice-hex);
+  background: var(--we-color-accent);
+  color: var(--we-color-on-accent);
+  font-family: var(--we-font-display);
+  font-size: var(--we-type-caption-size);
+  line-height: var(--we-type-caption-leading);
+  letter-spacing: var(--we-type-caption-tracking);
+  font-weight: var(--we-weight-strong);
+  text-align: center;
+}
+
+/* 窄屏导航退成横向一排：页签不再往右拉 */
+@media (max-width: 860px) {
+  :root[data-theme="dice-table"] .we-workshop-nav {
+    margin-right: 0;
+  }
+
+  :root[data-theme="dice-table"] .we-workshop-nav-item,
+  :root[data-theme="dice-table"] .we-workshop-nav-item:hover,
+  :root[data-theme="dice-table"] .we-workshop-nav-item.is-selected {
+    width: auto;
+    margin-right: 0;
+    border-radius: var(--we-radius-sm);
+  }
+}

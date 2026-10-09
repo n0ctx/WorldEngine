@@ -3,12 +3,10 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { motion, useMotionTemplate, useMotionValue } from 'framer-motion';
 import { IconDownload, IconEllipsis, IconPencil, IconTrash } from '../../components/ui/icons.jsx';
 import SortableGrid from '../../components/ui/SortableGrid';
-import AvatarCircle from '../../components/ui/AvatarCircle.jsx';
 import IconButton from '../../components/ui/IconButton.jsx';
-import SlugText from '../../components/motion/SlugText.jsx';
-import WorldSceneArt from '../../components/ui/WorldSceneArt.jsx';
 import { getAvatarUrl } from '../../core/utils/avatar';
-import { relativeTime } from '../../core/utils/time';
+import WorldCardFace from '../../components/world/WorldCardFace.jsx';
+import { worldCardClassName, worldCardTintStyle } from '../../components/world/worldCard.js';
 import { useMotion } from '../../core/hooks/useMotion.js';
 import { useTouchFx } from '../../components/motion/useTouchFx.jsx';
 import { STAGGER } from '../../core/utils/motion.js';
@@ -80,7 +78,6 @@ function WorldCard({
 }) {
   // 首位取 SortableGrid 的实时 index，拖动时大门随卡片一起移动。
   const isFeature = index === 0;
-  const hiddenCast = world.character_count - world.cast.length;
   const touch = useTouchFx();
 
   return (
@@ -94,7 +91,8 @@ function WorldCard({
     >
       <motion.div
         data-dragging={isDragging || undefined}
-        className={`we-world-card we-material${world.cover_path ? ' we-world-card--has-cover' : ' we-world-card--tinted'}${isFeature ? ' we-world-card--feature' : ''}`}
+        className={worldCardClassName({ hasCover: !!world.cover_path, feature: isFeature })}
+        style={worldCardTintStyle({ name: world.name, accentColor: world.accent_color, hasCover: !!world.cover_path })}
         role="link"
         tabIndex={0}
         aria-label={world.name}
@@ -124,38 +122,10 @@ function WorldCard({
         {...motionConfig.gesture('portal', { disabled: isDragging })}
         {...touch.handlers}
       >
-        {world.cover_path ? (
-          <img src={`${getAvatarUrl(world.cover_path)}?t=${reloadKey}`} alt="" className="we-world-card-bg" />
-        ) : (
-          <WorldSceneArt name={world.name} className="we-world-card-bg we-world-card-scene" />
-        )}
-        <div className="we-world-card-overlay" />
-        {touch.fx}
-        {showGlow && !isDragging ? <PortalGlow /> : null}
-
-        <div className="we-world-card-foot">
-          <h3 className="we-world-card-name"><SlugText text={world.name} /></h3>
-          {world.description ? <p className="we-world-card-desc">{world.description}</p> : null}
-          <div className="we-world-card-meta">
-            {world.character_count > 0 ? (
-              <span className="we-world-card-cast" role="img" aria-label={`${world.character_count} 个角色`}>
-                {world.cast.map((character) => (
-                  <AvatarCircle
-                    key={character.id}
-                    id={character.id}
-                    name={character.name}
-                    avatarPath={character.avatar_path}
-                    size="sm"
-                  />
-                ))}
-                {hiddenCast > 0 ? <span className="we-world-card-cast-more">+{hiddenCast}</span> : null}
-              </span>
-            ) : (
-              <span className="we-world-card-cast-empty">还没有角色</span>
-            )}
-            <span className="we-world-card-time">{relativeTime(world.updated_at)}</span>
-          </div>
-        </div>
+        <WorldCardFace world={world} coverSrc={world.cover_path ? `${getAvatarUrl(world.cover_path)}?t=${reloadKey}` : null}>
+          {touch.fx}
+          {showGlow && !isDragging ? <PortalGlow /> : null}
+        </WorldCardFace>
 
         <div
           className={`we-world-card-actions${actionsOpen ? ' we-world-card-actions--open' : ''}`}

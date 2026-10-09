@@ -1,0 +1,301 @@
+/* 骰界皮肤 · 设置：主持人屏风。
+ * 整个面板是一面奶油色屏风（卡纸作用域见 base.css），左右两扇之间是一道带铆钉的合页；
+ * 左扇是目录：编号落在六角格里，点线引到行尾；右扇是速查表：每组一条骰红表头，下面「名称 | 控件」两列，说明小字压在名称下；
+ * 对话 / 写作切换挂在屏风顶上，做成两张文件夹页签。 */
+
+:root[data-theme="dice-table"] .we-settings-panel {
+  /* 屏风顶上挂页签：留出一个页签的高度 */
+  margin-top: calc(var(--we-space-xl) + var(--we-control-h-sm));
+  overflow: visible;
+  border: none;
+  border-radius: var(--we-radius-xs) var(--we-radius-lg) var(--we-radius-lg);
+  background: var(--dice-card);
+  backdrop-filter: none;
+  box-shadow: 0 var(--dice-depth-lift) 0 var(--dice-board), var(--we-elevation-3);
+}
+
+/* ── 合页：左扇右边缘一道纸板色的轴，铆钉一路排下去 ── */
+
+:root[data-theme="dice-table"] .we-settings-nav {
+  position: relative;
+  width: 220px;
+  border-right: none;
+}
+
+:root[data-theme="dice-table"] .we-settings-nav::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: -8px;
+  bottom: 0;
+  width: 16px;
+  background:
+    radial-gradient(circle, var(--dice-card) 0 2.5px, transparent 3px) 50% 22px / 100% 120px repeat-y,
+    linear-gradient(90deg, var(--we-color-shade-2), transparent 30%, transparent 70%, var(--we-color-shade-2)),
+    var(--dice-board);
+  pointer-events: none;
+}
+
+:root[data-theme="dice-table"] .we-settings-nav-title {
+  font-weight: var(--we-weight-strong);
+}
+
+/* ── 左扇目录 ── */
+
+:root[data-theme="dice-table"] .we-settings-nav-items {
+  gap: var(--we-space-xxs);
+  padding-left: 0;
+  counter-reset: dice-settings;
+}
+
+/* 目录用六角编号标当前项，不再要左侧的弹跳圆点，也不给它留位置 */
+:root[data-theme="dice-table"] .we-settings-nav-items > .we-bounce-rail {
+  display: none;
+}
+
+:root[data-theme="dice-table"] .we-settings-nav-items .we-list-item {
+  counter-increment: dice-settings;
+  gap: var(--we-space-sm);
+  padding: 0 var(--we-space-sm) 0 var(--we-space-xs);
+  color: var(--dice-card-ink);
+  transition:
+    background-color var(--we-motion-state-duration) var(--we-motion-state-easing),
+    transform var(--we-motion-state-duration) var(--we-motion-state-easing);
+}
+
+:root[data-theme="dice-table"] .we-settings-nav-items .we-list-item::before {
+  content: counter(dice-settings);
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 24px;
+  height: 26px;
+  clip-path: var(--dice-hex);
+  background: var(--dice-card-line);
+  color: var(--dice-card-muted);
+  font-family: var(--we-font-display);
+  font-size: var(--we-type-caption-size);
+  line-height: var(--we-type-caption-leading);
+  letter-spacing: var(--we-type-caption-tracking);
+  font-weight: var(--we-weight-strong);
+}
+
+/* 点线引到行尾 */
+:root[data-theme="dice-table"] .we-settings-nav-items .we-list-item::after {
+  content: '';
+  flex: 1;
+  min-width: var(--we-space-md);
+  height: 0;
+  border-bottom: 2px dotted var(--we-color-border-default);
+  transform: translateY(4px);
+}
+
+:root[data-theme="dice-table"] .we-settings-nav-items .we-list-item.is-selected {
+  background: transparent;
+  font-weight: var(--we-weight-strong);
+  transform: translateX(6px);
+}
+
+:root[data-theme="dice-table"] .we-settings-nav-items .we-list-item.is-selected::before {
+  background: var(--we-color-accent);
+  color: var(--we-color-on-accent);
+}
+
+:root[data-theme="dice-table"] .we-settings-nav-items .we-list-item.is-selected::after {
+  border-bottom-color: var(--we-color-accent);
+}
+
+/* ── 屏风顶上的对话 / 写作页签 ── */
+
+:root[data-theme="dice-table"] .we-settings-nav-footer {
+  position: absolute;
+  bottom: 100%;
+  left: var(--we-space-xl);
+  margin: 0;
+  padding: 0;
+}
+
+:root[data-theme="dice-table"] .we-settings-nav-footer .we-segmented {
+  gap: var(--we-space-xs);
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+}
+
+:root[data-theme="dice-table"] .we-settings-nav-footer .we-segmented__item {
+  min-height: var(--we-control-h-sm);
+  padding: 0 var(--we-space-lg);
+  border: none;
+  border-radius: var(--we-radius-sm) var(--we-radius-sm) 0 0;
+  background: color-mix(in oklab, var(--dice-board) var(--we-alpha-4), var(--dice-card));
+  color: var(--dice-card-ink);
+  font-weight: var(--we-weight-strong);
+  box-shadow: none;
+  transform: translateY(4px);
+  transition:
+    background-color var(--we-motion-state-duration) var(--we-motion-state-easing),
+    transform var(--we-motion-state-duration) var(--we-motion-state-easing);
+}
+
+:root[data-theme="dice-table"] .we-settings-nav-footer .we-segmented__item:hover:not(:disabled) {
+  transform: translateY(1px);
+}
+
+:root[data-theme="dice-table"] .we-settings-nav-footer .we-segmented__item[aria-checked="true"] {
+  background: var(--dice-card);
+  color: var(--dice-card-ink);
+  transform: none;
+}
+
+/* ── 右扇速查表 ── */
+
+:root[data-theme="dice-table"] .we-settings-body .we-section-title--section {
+  border-bottom-width: 2px;
+}
+
+:root[data-theme="dice-table"] .we-settings-body .we-section-title--section .we-section-title__text {
+  font-weight: var(--we-weight-strong);
+}
+
+/* 每组是一张速查表：骰红细框圈住，表头一条骰红实底，下面的行之间一道虚线 */
+:root[data-theme="dice-table"] .we-settings-body .we-settings-field-group:has(> .we-section-title--group) {
+  gap: 0;
+  overflow: hidden;
+  border: 2px solid var(--we-color-accent);
+  border-radius: var(--we-radius-md);
+}
+
+:root[data-theme="dice-table"] .we-settings-body .we-settings-field-group:has(> .we-section-title--group) > :not(.we-section-title--group) {
+  margin: 0;
+  padding: var(--we-space-md) var(--we-space-md);
+  border-bottom: none;
+}
+
+:root[data-theme="dice-table"] .we-settings-body .we-settings-field-group:has(> .we-section-title--group) > :not(.we-section-title--group) + :not(.we-section-title--group) {
+  border-top: 1px dashed var(--we-color-border-default);
+}
+
+:root[data-theme="dice-table"] .we-settings-body .we-section-title--group {
+  gap: var(--we-space-sm);
+  margin-bottom: 0;
+  padding: var(--we-space-xs) var(--we-space-md);
+  background: var(--we-color-accent);
+  color: var(--we-color-on-accent);
+  font-size: var(--we-type-ui-size);
+  line-height: var(--we-type-ui-leading);
+  letter-spacing: var(--we-type-ui-tracking);
+}
+
+/* 不在速查表里的单独表头（没有外框圈住时）保留上两角的圆 */
+:root[data-theme="dice-table"] .we-settings-body :not(.we-settings-field-group) > .we-section-title--group {
+  border-radius: var(--we-radius-sm) var(--we-radius-sm) 0 0;
+}
+
+:root[data-theme="dice-table"] .we-settings-body .we-section-title--group .we-section-title__text {
+  display: flex;
+  align-items: center;
+  gap: var(--we-space-sm);
+  font-weight: var(--we-weight-strong);
+  color: var(--we-color-on-accent);
+}
+
+:root[data-theme="dice-table"] .we-settings-body .we-section-title--group .we-section-title__text::before {
+  content: '';
+  width: 10px;
+  height: 11px;
+  clip-path: var(--dice-hex);
+  background: currentColor;
+}
+
+/* 一行一项：左列名称和说明，右列控件；行与行之间一道虚线。名称列按字数定宽，不按面板比例，控件多拿宽度 */
+:root[data-theme="dice-table"] .we-settings-body .we-edit-form-group-settings,
+:root[data-theme="dice-table"] .we-settings-body .we-settings-inline-control-block {
+  display: grid;
+  grid-template-columns: minmax(7em, 11em) minmax(0, 1fr);
+  column-gap: var(--we-space-lg);
+  align-items: center;
+  margin: 0;
+  padding: var(--we-space-md);
+  border-bottom: 1px dashed var(--we-color-border-default);
+}
+
+:root[data-theme="dice-table"] .we-settings-body .we-edit-form-group-settings > *,
+:root[data-theme="dice-table"] .we-settings-body .we-settings-inline-control-block > * {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  min-width: 0;
+}
+
+:root[data-theme="dice-table"] .we-settings-body .we-edit-form-group-settings > .we-edit-label,
+:root[data-theme="dice-table"] .we-settings-body .we-settings-inline-control-block > .we-settings-range-head {
+  grid-column: 1;
+  grid-row: 1;
+  margin: 0;
+  font-weight: var(--we-weight-strong);
+}
+
+:root[data-theme="dice-table"] .we-settings-body .we-edit-form-group-settings > .we-edit-hint {
+  grid-column: 1;
+  grid-row: 2;
+  align-self: start;
+  margin-top: var(--we-space-xxs);
+  font-size: var(--we-type-caption-size);
+  line-height: var(--we-type-caption-leading);
+  letter-spacing: var(--we-type-caption-tracking);
+}
+
+:root[data-theme="dice-table"] .we-settings-body .we-settings-inline-control-block > .we-settings-range-head {
+  flex-wrap: wrap;
+}
+
+:root[data-theme="dice-table"] .we-settings-body .we-settings-toggle-row {
+  margin: 0;
+  padding: var(--we-space-md);
+  border-bottom: 1px dashed var(--we-color-border-default);
+}
+
+/* 大块编辑区（提示词、长文本）占满整行：名称和说明在上，编辑区在下，不在左边空出一列 */
+:root[data-theme="dice-table"] .we-settings-body .we-edit-form-group-settings:has(.we-md-editor, textarea) {
+  grid-template-columns: minmax(0, 1fr);
+  row-gap: var(--we-space-sm);
+}
+
+:root[data-theme="dice-table"] .we-settings-body .we-edit-form-group-settings:has(.we-md-editor, textarea) > :is(*, .we-edit-label, .we-edit-hint) {
+  grid-column: 1;
+  grid-row: auto;
+}
+
+/* 隔行浅底：只按表里的行数，不算表头，第一行不染 */
+:root[data-theme="dice-table"] .we-settings-body .we-settings-field-group > :nth-child(even of :not(.we-section-title--group)) {
+  background: var(--dice-card-wash);
+}
+
+/* 面板竖排时两扇上下叠，没有合页 */
+@media (max-width: 960px) {
+  :root[data-theme="dice-table"] .we-settings-nav {
+    width: 100%;
+  }
+
+  :root[data-theme="dice-table"] .we-settings-nav::after {
+    content: none;
+  }
+}
+
+/* 窄时一行一项改回上下排 */
+@media (max-width: 767px) {
+  :root[data-theme="dice-table"] .we-settings-body .we-edit-form-group-settings,
+  :root[data-theme="dice-table"] .we-settings-body .we-settings-inline-control-block {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  :root[data-theme="dice-table"] .we-settings-body .we-edit-form-group-settings > *,
+  :root[data-theme="dice-table"] .we-settings-body .we-settings-inline-control-block > *,
+  :root[data-theme="dice-table"] .we-settings-body .we-edit-form-group-settings > .we-edit-label,
+  :root[data-theme="dice-table"] .we-settings-body .we-edit-form-group-settings > .we-edit-hint,
+  :root[data-theme="dice-table"] .we-settings-body .we-settings-inline-control-block > .we-settings-range-head {
+    grid-column: 1;
+    grid-row: auto;
+  }
+}

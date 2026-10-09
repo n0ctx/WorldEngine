@@ -25,7 +25,7 @@ const DEFAULT_ASSISTANT = {
 };
 
 // 前端内置的动效包（frontend/src/core/motion/packs/），配置里只认这几个 id
-const MOTION_PACK_IDS = ['liquid', 'signal', 'letterpress'];
+const MOTION_PACK_IDS = ['liquid', 'signal', 'letterpress', 'dice'];
 
 const DEFAULT_UI = {
   theme: 'nocturne',

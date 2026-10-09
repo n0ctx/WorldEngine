@@ -3,6 +3,7 @@ import Button from '../../../components/ui/Button.jsx';
 import WorldTimelinePanel from '../../../components/session/WorldTimelinePanel.jsx';
 import PageLayout from '../../layout/PageLayout.jsx';
 import StatePanel from '../../../components/state/StatePanel.jsx';
+import SessionTools from '../../../components/state/SessionTools.jsx';
 
 export default function ChatPageShell({
   character,
@@ -26,14 +27,15 @@ export default function ChatPageShell({
           currentSessionId={currentSessionId}
           onActiveSessionDeleted={clearActiveSession}
           onActiveSessionRenamed={(title) => setCurrentSession((prev) => (prev ? { ...prev, title } : prev))}
-          headerRight={(
-            <Button size="sm" variant="secondary" className="we-session-list-create" onClick={onCreateSession}>
-              <IconPlus size={16} />
-              新建故事线
-            </Button>
-          )}
         />
       )}
+      leftActions={(
+        <Button size="sm" variant="secondary" onClick={onCreateSession}>
+          <IconPlus size={16} />
+          新建故事线
+        </Button>
+      )}
+      rightActions={<SessionTools sessionId={currentSessionId} worldId={character?.world_id ?? null} />}
       recall={memoryRecall}
       main={main}
       right={(

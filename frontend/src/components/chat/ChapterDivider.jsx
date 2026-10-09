@@ -84,6 +84,7 @@ export default function ChapterDivider({ chapterIndex, title, onEdit, onRegenera
       ref={ref}
       className={`we-chapter-header${visible ? ' we-chapter-header--visible' : ''}`}
       style={fxVars ?? undefined}
+      data-chapter={chapterIndex}
     >
       <div className="we-chapter-num">
         <ChangeText text={`第 ${toChapterNum(chapterIndex)} 章`} playKey={visible ? chapterIndex : null} decode />

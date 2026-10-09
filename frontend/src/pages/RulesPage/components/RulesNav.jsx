@@ -36,6 +36,7 @@ export default function RulesNav({
           <ListItem
             key={key}
             data-testid={`nav-entries-${key}`}
+            data-trigger={key}
             {...navItemProps(navMode === 'entries' && entryFilter === key)}
             onClick={() => onSelectEntryGroup(key)}
           >

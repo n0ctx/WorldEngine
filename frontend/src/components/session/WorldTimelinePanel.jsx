@@ -7,7 +7,7 @@
  *
  * 「新建」不在这个组件里：对话页新建的是「与当前角色的新对话」，写作页新建的是「新写作会话」，
  * 语义各自绑定当前页面上下文，跟世界层「+ 新建」（只能新建写作，因为没有角色上下文）不是一回事。
- * 所以头部的新建按钮由调用方通过 headerRight 传入，组件只负责渲染时间线本身。
+ * 所以新建按钮由页面放进侧栏顶行（PageLayout 的 leftActions），组件只负责渲染时间线本身。
  *
  * 编辑标题 / 删除故事线：只对「与当前页面同模式」的条目提供内联操作——删除经 deleteStoryline
  * 按 item.mode 选对应接口，重命名两种模式共用同一个通用接口（renameSession，按 session id 不分
@@ -170,7 +170,6 @@ function TimelineItem({ item, title, index, isActive, editable, onClick, onRenam
  * @param {'chat'|'writing'} currentMode 当前页面所在模式，用于给命中项打选中态，也决定订阅哪个
  *   session-list-bridge（chatSessionListBridge / writingSessionListBridge）
  * @param {string|null} currentSessionId 当前活跃会话 id
- * @param {React.ReactNode} [headerRight] 头部右侧（各页自己的「新建」按钮）
  * @param {() => void} [onActiveSessionDeleted] 内联删除的正是当前打开的会话时回调，让页面清空/重置当前会话
  * @param {(title: string|null) => void} [onActiveSessionRenamed] 内联重命名的正是当前打开的会话时回调，让页面同步 currentSession.title
  */
@@ -178,7 +177,6 @@ export default function WorldTimelinePanel({
   worldId,
   currentMode,
   currentSessionId,
-  headerRight = null,
   onActiveSessionDeleted = null,
   onActiveSessionRenamed = null,
 }) {
@@ -264,10 +262,6 @@ export default function WorldTimelinePanel({
 
   return (
     <div className="we-session-list-panel">
-      <div className="we-session-list-head">
-        {headerRight}
-      </div>
-
       <MotionDiv layoutScroll className="we-session-list-scroll">
         {loadError ? (
           <div className="flex flex-col items-center gap-3 px-4 py-6 text-center">

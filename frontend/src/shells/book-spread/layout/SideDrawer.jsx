@@ -1,7 +1,7 @@
-/* 两侧抽屉：窄轨 + 唤出内容。
+/* 两侧抽屉：宽屏默认展开常驻，可收成窄轨；窄屏默认收起、展开时盖在正文上。
  *
- * 结构性的收起/展开属于 shell 的职责：本组件只负责「窄轨图标按钮 + 宽度过渡 +
- * 记忆展开态」的机制本身，不关心轨里装的是什么（会话列表、状态面板…）——那部分
+ * 结构性的收起/展开属于 shell 的职责：本组件只负责「窄轨图标按钮 + 宽度过渡」的机制本身
+ * （开合态与默认值在 core/state/sidePanels.js），不关心轨里装的是什么（会话列表、状态面板…）——那部分
  * 内容仍由页面通过 PageLayout 的 left/right 插槽提供，本组件只是把它包起来。
  *
  * 采用「推开正文」而非浮层：left/right 抽屉本来就是 book-spread 行内的 flex 兄弟节点
@@ -39,7 +39,7 @@ const EDGE_OFFSET = { left: -12, right: 12 };
 /* 进入会话页时两侧面板在正文之后依次浮现：左侧先，右侧后 */
 const ENTER_DELAY = { left: STAGGER * 2, right: STAGGER * 4 };
 
-export default function SideDrawer({ side, open, onToggle, label, footer = null, children }) {
+export default function SideDrawer({ side, open, onToggle, label, actions = null, footer = null, children }) {
   const m = useMotion();
   const toggleLabel = open ? `收起${label}` : `展开${label}`;
   // 收起时内容先淡出、卸载完再收回宽度：内容还在离场时，抽屉保持展开宽度
@@ -83,19 +83,24 @@ export default function SideDrawer({ side, open, onToggle, label, footer = null,
         animate="visible"
         transition={m.transition('enter', { delay: ENTER_DELAY[side] })}
       >
-        <IconButton
-          label={toggleLabel}
-          className="we-side-drawer-toggle"
-          onClick={onToggle}
-          aria-expanded={open}
-        >
-          {open ? (
-            <IconChevronDown
-              size={16}
-              style={{ transform: `rotate(${CHEVRON_ROTATION[side]}deg)` }}
-            />
-          ) : COLLAPSED_GLYPH[side]}
-        </IconButton>
+        {/* 顶行：收起按钮和这一侧自己的操作（新建故事线、剧情摘要等）排在同一行；收起成窄轨时只剩按钮 */}
+        <div className="we-side-drawer-bar">
+          <IconButton
+            size="sm"
+            label={toggleLabel}
+            className="we-side-drawer-toggle"
+            onClick={onToggle}
+            aria-expanded={open}
+          >
+            {open ? (
+              <IconChevronDown
+                size={16}
+                style={{ transform: `rotate(${CHEVRON_ROTATION[side]}deg)` }}
+              />
+            ) : COLLAPSED_GLYPH[side]}
+          </IconButton>
+          {open && actions ? <div className="we-side-drawer-actions">{actions}</div> : null}
+        </div>
         {/* 展开时宽度先让出来（CSS 过渡 base 时长），走过大半后内容从外侧边缘带着轻微模糊浮进来；
             收起时先退回外侧、卸载后再收宽度。减少动效时只剩瞬间的透明度切换。
             裁切由外层 .we-side-drawer-clip 负责（它不动）：内容自己在位移，裁切框若挂在它身上会一起滑出抽屉边框。

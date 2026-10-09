@@ -31,6 +31,25 @@ function Indicator({ target, staticMotion }) {
   return <MotionSpan className="we-section-tab-indicator" style={{ x: left, width }} />;
 }
 
+// 只在页签行里横向滚到 tab 露全；不用 scrollIntoView，它会连带把外层侧栏纵向滚走
+function scrollTabIntoRow(list, tab) {
+  if (!list || !tab || typeof list.scrollTo !== 'function') return;
+  const left = tab.offsetLeft;
+  const right = left + tab.offsetWidth;
+  if (left < list.scrollLeft) list.scrollTo({ left, behavior: 'smooth' });
+  else if (right > list.scrollLeft + list.clientWidth) list.scrollTo({ left: right - list.clientWidth, behavior: 'smooth' });
+}
+
+function TabLabel({ icon, label }) {
+  if (!icon) return label;
+  return (
+    <>
+      <span className="we-section-tab-icon" aria-hidden="true">{icon}</span>
+      <span className="we-section-tab-label">{label}</span>
+    </>
+  );
+}
+
 // 键盘切换：按键 → 目标 tab 下标
 const KEY_TARGET = {
   ArrowRight: (i) => i + 1,
@@ -42,12 +61,13 @@ const KEY_TARGET = {
 /**
  * SectionTabs
  *
- * sections: Array<{ key, label, content, actions? }>
+ * sections: Array<{ key, label, content, actions?, icon? }>
  *   - actions: 当此 tab 激活时,渲染在 tab 行下方的 ReactNode(承载该 tab 的快捷操作,例如"重置")
+ *   - icon: 放在名字前的小图（如角色头像），只作装饰，读屏只读名字；不传时页签只有名字
  * variant: 'gooey' 时 tab 行是一整条分段，选中段与相邻段分格跳开（不画下划线指示器）
  *
  * 交互:
- *   - active tab 变化时自动 scrollIntoView,让横向滚动条跟随当前 tab
+ *   - active tab 变化时页签行横向滚到当前 tab，不滚动外层容器
  *   - tab 列表获焦时支持 ← / → 键盘切换(home/end 跳到首尾)
  */
 export default function SectionTabs({ sections, defaultKey, variant, globalActions, staticMotion = false }) {
@@ -81,12 +101,9 @@ export default function SectionTabs({ sections, defaultKey, variant, globalActio
     return () => observer.disconnect();
   }, [active, sections.length, gooey]);
 
-  // active 变化时，把当前 tab 按钮滚到可视区
+  // active 变化时，页签行横向滚到当前 tab
   useEffect(() => {
-    const el = tabRefs.current[active];
-    if (el && typeof el.scrollIntoView === 'function') {
-      el.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
-    }
+    scrollTabIntoRow(listRef.current, tabRefs.current[active]);
   }, [active]);
 
   const selectByIndex = (nextIdx) => {
@@ -113,10 +130,10 @@ export default function SectionTabs({ sections, defaultKey, variant, globalActio
       type="button"
       aria-selected={active === s.key}
       tabIndex={active === s.key ? 0 : -1}
-      className={`we-section-tab${active === s.key ? ' active' : ''}`}
+      className={`we-section-tab${active === s.key ? ' active' : ''}${s.icon ? ' we-section-tab--icon' : ''}`}
       onClick={() => setActive(s.key)}
     >
-      {s.label}
+      <TabLabel icon={s.icon} label={s.label} />
     </button>
   ));
 

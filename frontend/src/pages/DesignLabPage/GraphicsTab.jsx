@@ -34,7 +34,7 @@ const ICON_GROUPS = [
   {
     label: '产品概念',
     items: {
-      IconAssistant: '写卡助手', IconState: '状态记忆', IconSummary: '剧情摘要', IconCharacterCard: '角色卡',
+      IconAssistant: '写卡助手', IconState: '状态记忆', IconSummary: '剧情摘要', IconCharacterCard: '角色卡', IconMapPin: '当前地点',
       IconBookOpen: '读取', IconWrench: '工具',
     },
   },

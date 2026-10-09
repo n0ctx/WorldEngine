@@ -106,6 +106,24 @@ describe('StatusSection', () => {
     await waitFor(() => expect(onSave).toHaveBeenCalledWith('health', JSON.stringify(8.5), undefined));
   });
 
+  it('有上限的数值写出占比供主题画进度格，没有上限的不写', () => {
+    const { container } = render(
+      <StatusSection
+        headerless
+        rows={[
+          { field_key: 'hp', label: '生命', type: 'number', max_value: 100, effective_value_json: JSON.stringify(62) },
+          { field_key: 'over', label: '溢出', type: 'number', max_value: 10, effective_value_json: JSON.stringify(15) },
+          { field_key: 'gold', label: '金钱', type: 'number', effective_value_json: JSON.stringify(1200) },
+        ]}
+      />
+    );
+
+    const values = container.querySelectorAll('.we-status-value--number');
+    expect(values[0].style.getPropertyValue('--status-fill')).toBe('0.62');
+    expect(values[1].style.getPropertyValue('--status-fill')).toBe('1');
+    expect(values[2].style.getPropertyValue('--status-fill')).toBe('');
+  });
+
   it('保存失败时保留编辑器并显示错误', async () => {
     const onSave = vi.fn().mockRejectedValue(new Error('网络中断'));
     render(

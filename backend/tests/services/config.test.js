@@ -31,6 +31,7 @@ test('动效包默认墨流；保存与读取时未知的动效包都回落默�
 
   assert.equal(updateConfig({ ui: { motion: 'signal' } }).ui.motion, 'signal');
   assert.equal(getConfig().ui.motion, 'signal');
+  assert.equal(updateConfig({ ui: { motion: 'dice' } }).ui.motion, 'dice');
 
   assert.equal(updateConfig({ ui: { motion: 'no-such-pack' } }).ui.motion, 'liquid');
 

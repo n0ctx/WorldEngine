@@ -1,0 +1,96 @@
+/* 骰界皮肤 · 布局外壳：顶栏、面包屑、三栏面板。
+ * 桌面就是游戏垫：两侧抽屉是垫子上印的虚线区域框，中栏不再是一张纸，台词卡、模组书页直接摆在垫子上；
+ * 窄屏抽屉浮起来盖住正文时，才换成一块实底的板子。 */
+
+/* ── 顶栏：贴边一行，下沿一道垫子的缝 ── */
+:root[data-theme="dice-table"] .we-topbar {
+  border-bottom-color: var(--we-color-shell-border);
+}
+
+:root[data-theme="dice-table"] .we-topbar-brand {
+  font-family: var(--we-font-display);
+  font-weight: var(--we-weight-strong);
+}
+
+:root[data-theme="dice-table"] .we-topbar-crumb-current {
+  color: var(--we-color-accent);
+}
+
+:root[data-theme="dice-table"] .we-topbar-item--active {
+  color: var(--we-color-on-accent);
+  background: var(--we-color-accent);
+  box-shadow: 0 2px 0 var(--we-color-accent-deep);
+}
+
+/* ── 桌面：六角格游戏垫只铺一层，画在固定铺满视口的背景氛围上。
+   各页面的画布、书页底一律不再各画一份：几层各自从不同原点起铺，格线对不齐，滚动时会露出一块块方框 ── */
+:root[data-theme="dice-table"] .we-atmosphere {
+  background:
+    var(--we-canvas-texture-image),
+    radial-gradient(
+      70% 60% at 14% -6%,
+      color-mix(in srgb, var(--we-atmosphere-color) var(--we-atmosphere-glow-strength), transparent) 0%,
+      transparent 72%
+    ),
+    radial-gradient(60% 70% at 104% 108%, var(--we-atmosphere-shade) 0%, transparent 70%);
+}
+
+:root[data-theme="dice-table"] :is(.we-book-spread-inner, .we-worlds-canvas, .we-characters-canvas, .we-edit-canvas) {
+  background-image: none;
+}
+
+/* 中栏：去掉纸面的描边、高光和纸边，卡牌直接摆在垫子上 */
+:root[data-theme="dice-table"] .we-chat-center-pane {
+  box-shadow: none;
+}
+
+:root[data-theme="dice-table"] .we-chat-center-pane::after,
+:root[data-theme="dice-table"] .we-chat-center-pane:has(.we-chat-textarea:focus)::after {
+  background: none;
+  box-shadow: none;
+}
+
+/* ── 两侧栏：常驻时直接摆在垫子上，不套框，卡片和屏风自己就是边界 ── */
+:root[data-theme="dice-table"] .we-side-drawer {
+  background: transparent;
+  backdrop-filter: none;
+  border: none;
+  border-radius: var(--we-radius-lg);
+  box-shadow: none;
+}
+
+:root[data-theme="dice-table"] .we-side-drawer::after {
+  content: none;
+}
+
+:root[data-theme="dice-table"] .we-side-drawer-clip {
+  border-radius: 0 0 var(--we-radius-lg) var(--we-radius-lg);
+}
+
+/* 侧栏没有外框，滚动的内容在收起按钮下沿被一刀切齐，会显出一个看不见的长方框；上沿改成渐隐，内容像滑进桌面下面 */
+:root[data-theme="dice-table"] .we-side-drawer--open .we-side-drawer-clip {
+  -webkit-mask-image: linear-gradient(to bottom, transparent, #000 var(--we-space-md));
+  mask-image: linear-gradient(to bottom, transparent, #000 var(--we-space-md));
+}
+
+/* 浮层模式（窄屏展开、手机）：盖在正文上，换成实底板子并露出纸板厚度 */
+@media (max-width: 1180px) {
+  :root[data-theme="dice-table"] .we-side-drawer--open {
+    background: var(--we-color-bg-surface);
+    border: 1px solid var(--we-color-border-subtle);
+    box-shadow: var(--dice-drop-lift);
+  }
+}
+
+@media (max-width: 767px) {
+  :root[data-theme="dice-table"] .we-side-drawer {
+    background: var(--we-color-bg-surface);
+    border: 1px solid var(--we-color-border-subtle);
+    border-radius: var(--we-radius-full);
+    box-shadow: var(--dice-drop);
+  }
+
+  :root[data-theme="dice-table"] .we-side-drawer--open {
+    border-radius: var(--we-radius-lg);
+  }
+}

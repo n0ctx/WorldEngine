@@ -8,8 +8,8 @@
 
 ## 样式归属
 
-- 核心 token、通用组件样式及动效包 CSS 在 `src/themes/`；主题取值在 `src/visual/<id>/`，只能覆盖允许的 `--we-*` token，不能放组件选择器或 `@font-face`。主题结构、草稿和白名单见 `src/visual/README.md`。
+- 核心 token、通用组件样式及动效包 CSS 在 `src/themes/`；主题取值在 `src/visual/<id>/`，只能覆盖允许的 `--we-*` token，不能放组件选择器或 `@font-face`。token 做不出的整套造型写成外观皮肤 `src/themes/skins/<主题 id>/`，选择器以 `:root[data-theme="<主题 id>"]` 开头。主题结构、皮肤、草稿和白名单见 `src/visual/README.md`。
 - 组件优先使用 `src/components/ui/` 的现有基础件；组件样式消费 token，不在使用处重写按钮、弹窗等基础件的外观。字体、颜色、透明度、阴影和普通交互节奏优先使用现有 token 与动效角色。
-- 视觉方向保持年轻、有游戏感；既有动效包各有签名动作：墨流「洇」、信号「锁」、活字「印」。新增动效先匹配所在包的动作语言，避免所有包共用同一种缩放或淡入效果；不要缩放含文字的元素。
+- 视觉方向保持年轻、有游戏感；既有动效包各有签名动作：墨流「洇」、信号「锁」、活字「印」、掷「掷」。新增动效先匹配所在包的动作语言，避免所有包共用同一种缩放或淡入效果；不要缩放含文字的元素。
 - 动效逻辑在 `src/core/motion/`，包样式在 `src/themes/motion/`。新动效位登记到 `src/pages/DesignLabPage/slots.js`；新主题控制的视觉位登记到同目录的 `visualSlots.js`，并补可查看的演示。动效包的 JS `rhythm` 与 CSS 节奏值保持一致；尊重 `useMotion` 的减少动态效果设置。
 - 新增动效包时，同时登记包逻辑与同名 CSS，并更新 `backend/services/config.js` 的 `MOTION_PACK_IDS`，否则用户选择可能被恢复为默认包。修改通用样式、动效接口或主题 token 后，运行相关前端测试及 `npm run check:guards`。

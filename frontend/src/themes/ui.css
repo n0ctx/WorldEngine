@@ -1121,6 +1121,41 @@
   font-weight: var(--we-type-display-weight);
 }
 
+/* 立绘框（portrait）：3:4，宽度铺满所在栏，用在编辑弹层左栏 */
+.we-avatar-upload--portrait {
+  align-items: stretch;
+  margin-bottom: 0;
+}
+
+.we-avatar-upload--portrait .we-avatar-wrap {
+  display: block;
+  width: 100%;
+}
+
+.we-avatar-img--portrait,
+.we-avatar-placeholder--portrait {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 3 / 4;
+  border-radius: var(--we-radius-md);
+}
+
+.we-avatar-placeholder--portrait {
+  font-size: var(--we-type-display-size);
+  line-height: var(--we-type-display-leading);
+  letter-spacing: var(--we-type-display-tracking);
+  font-weight: var(--we-type-display-weight);
+}
+
+.we-avatar-uploading--portrait,
+.we-avatar-mask--portrait {
+  border-radius: var(--we-radius-md);
+}
+
+.we-avatar-upload--portrait .we-avatar-hint {
+  text-align: center;
+}
+
 .we-avatar-uploading {
   position: absolute;
   inset: 0;
@@ -2197,6 +2232,22 @@
   outline: none;
   box-shadow: var(--we-focus-ring);
   border-radius: var(--we-radius-sm);
+}
+
+/* 带小图的页签（如角色头像）：小图在名字前，未选中时跟着文字一起淡 */
+.we-section-tab--icon {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--we-space-xs);
+}
+
+.we-section-tab-icon {
+  display: inline-flex;
+  flex-shrink: 0;
+}
+
+.we-section-tab-icon .we-avatar-circle--sm {
+  --avatar-size: 22px;
 }
 
 /* 列表里常驻的一条线，位置与宽度由 SectionTabs 按当前 tab 设置；两端各收进 14px 与文字对齐 */

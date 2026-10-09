@@ -20,9 +20,15 @@
  *     right={<StatePanel />}
  *     inspector={<DetailsPanel />}
  *     overlay={<Toast />}
+ *     leftActions={<NewButton />}
+ *     rightActions={<PanelTools />}
  *     leftLabel="会话列表"
  *     rightLabel="状态面板"
  *   />
+ *
+ * leftActions / rightActions are the side panes' own top-row actions; shells that
+ * render left/right as collapsible rails put them in the same row as the rail toggle
+ * and hide them while collapsed.
  *
  * leftLabel / rightLabel are plain accessibility strings, not shell vocabulary —
  * shells that render left/right as collapsible rails (e.g. book-spread) use them
@@ -46,14 +52,14 @@ export function PageLayoutRendererProvider({ render, children }) {
   );
 }
 
-function DefaultRenderer({ header, left, main, right, inspector, overlay }) {
+function DefaultRenderer({ header, left, leftActions, main, right, rightActions, inspector, overlay }) {
   return (
     <div className="we-page-layout we-page-layout--default">
       {header ? <div className="we-page-layout__header">{header}</div> : null}
       <div className="we-page-layout__body">
-        {left ? <aside className="we-page-layout__left">{left}</aside> : null}
+        {left ? <aside className="we-page-layout__left">{leftActions}{left}</aside> : null}
         <section className="we-page-layout__main">{main}</section>
-        {right ? <aside className="we-page-layout__right">{right}</aside> : null}
+        {right ? <aside className="we-page-layout__right">{rightActions}{right}</aside> : null}
         {inspector ? <aside className="we-page-layout__inspector">{inspector}</aside> : null}
       </div>
       {overlay ? <div className="we-page-layout__overlay">{overlay}</div> : null}

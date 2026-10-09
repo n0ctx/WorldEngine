@@ -1,0 +1,270 @@
+/* 骰界皮肤 · 基础控件（components/ui）：按钮、输入、下拉、开关、分段、勾选、徽标、弹窗、页签、保存栏、滑条。
+ * 能按的东西是一块冲压纸板：底边一道纸板厚度，按下时压回桌面（只动独立的 translate，transform 留给动效包的弹簧）；
+ * 能填的东西是压进纸里的凹槽；弹窗、下拉菜单是一张奶油卡纸（已加进 base.css 的卡纸作用域）。
+ * 控件既会摆在深色游戏垫上，也会摆在卡纸上：厚度一律从控件自己的底色朝阴影色压暗，两种表面都成立。 */
+
+:root[data-theme="dice-table"] {
+  --dice-control-depth: 3px;
+  --dice-control-press: 2px;
+}
+
+/* ── 按钮：主要 / 次要 / 危险是纸板，幽灵、文字、压图、图标按钮保持平的 ── */
+:root[data-theme="dice-table"] .we-btn {
+  --dice-btn-edge: transparent;
+  transition: background var(--we-motion-state-duration) var(--we-motion-state-easing),
+    border-color var(--we-motion-state-duration) var(--we-motion-state-easing),
+    color var(--we-motion-state-duration) var(--we-motion-state-easing),
+    box-shadow var(--we-motion-state-duration) var(--we-motion-state-easing),
+    translate var(--we-motion-state-duration) var(--we-motion-state-easing);
+}
+
+:root[data-theme="dice-table"] :is(.we-btn-primary, .we-btn-secondary, .we-btn-danger):not(.we-btn-icon) {
+  box-shadow: 0 var(--dice-control-depth) 0 var(--dice-btn-edge);
+}
+
+:root[data-theme="dice-table"] .we-btn-primary {
+  --dice-btn-edge: color-mix(in oklab, var(--we-color-shade) var(--we-alpha-4), var(--we-color-accent));
+}
+
+:root[data-theme="dice-table"] .we-btn-danger:not(.we-btn-icon) {
+  --dice-btn-edge: color-mix(in oklab, var(--we-color-shade) var(--we-alpha-4), var(--we-color-status-danger));
+}
+
+:root[data-theme="dice-table"] .we-btn-secondary {
+  --dice-btn-edge: color-mix(in oklab, var(--we-color-shade) var(--we-alpha-4), var(--we-color-bg-elevated));
+  border-color: var(--we-color-border-subtle);
+  color: var(--we-color-text-primary);
+}
+
+:root[data-theme="dice-table"] .we-btn-secondary:hover:not(:disabled) {
+  background: color-mix(in oklab, var(--we-color-text-primary) var(--we-alpha-1), var(--we-color-bg-elevated));
+}
+
+/* 按下：厚度收进去，整块往下沉同样的距离，看上去是压回了桌面 */
+:root[data-theme="dice-table"] :is(.we-btn-primary, .we-btn-secondary, .we-btn-danger):not(.we-btn-icon):active:not(:disabled) {
+  box-shadow: 0 calc(var(--dice-control-depth) - var(--dice-control-press)) 0 var(--dice-btn-edge);
+  translate: 0 var(--dice-control-press);
+}
+
+:root[data-theme="dice-table"] :is(.we-btn-primary, .we-btn-secondary, .we-btn-danger):not(.we-btn-icon):focus-visible {
+  box-shadow: 0 var(--dice-control-depth) 0 var(--dice-btn-edge), var(--we-focus-ring);
+}
+
+/* 主按钮与主色图标按钮（发送、停止）：骰红纸板，标签用展示字体 */
+:root[data-theme="dice-table"] .we-btn-primary:not(.we-btn-icon) {
+  font-family: var(--we-font-display);
+}
+
+:root[data-theme="dice-table"] .we-btn-icon.we-btn-primary {
+  border-radius: var(--we-radius-sm);
+  box-shadow: 0 var(--dice-control-depth) 0 var(--dice-btn-edge);
+}
+
+:root[data-theme="dice-table"] .we-btn-icon.we-btn-primary:active:not(:disabled) {
+  box-shadow: 0 calc(var(--dice-control-depth) - var(--dice-control-press)) 0 var(--dice-btn-edge);
+  translate: 0 var(--dice-control-press);
+}
+
+/* 开关式按下（aria-pressed）：骰红描边加淡底，压低一档 */
+:root[data-theme="dice-table"] .we-btn[aria-pressed="true"] {
+  box-shadow: inset 0 var(--dice-control-press) 0 var(--we-color-accent-border);
+}
+
+/* ── 输入：压进纸里的凹槽，上沿一道暗边 ── */
+:root[data-theme="dice-table"] :is(.we-input, .we-textarea, .we-select-trigger, .we-tag-input) {
+  background: var(--we-color-shade-1);
+  border-color: var(--we-color-border-subtle);
+  box-shadow: inset 0 var(--dice-control-press) 0 var(--we-color-border-subtle);
+}
+
+:root[data-theme="dice-table"] :is(.we-input, .we-textarea):focus,
+:root[data-theme="dice-table"] .we-select-trigger:focus-visible,
+:root[data-theme="dice-table"] .we-select-trigger.open,
+:root[data-theme="dice-table"] .we-tag-input:focus-within {
+  border-color: var(--we-color-accent);
+  box-shadow: inset 0 var(--dice-control-press) 0 var(--we-color-border-subtle), var(--we-focus-ring);
+}
+
+/* ── 下拉菜单：一张奶油卡纸，底边露出纸板厚度；悬停行是一道淡墨，选中行左边一条骰红 ── */
+:root[data-theme="dice-table"] .we-menu {
+  border: none;
+  border-radius: var(--we-radius-md);
+  box-shadow: var(--dice-drop);
+}
+
+:root[data-theme="dice-table"] .we-menu__item {
+  border-radius: var(--we-radius-xs);
+}
+
+:root[data-theme="dice-table"] .we-menu__item[aria-selected="true"],
+:root[data-theme="dice-table"] .we-menu__item[aria-current="true"] {
+  box-shadow: inset var(--dice-control-depth) 0 0 var(--we-color-accent);
+  font-weight: var(--we-weight-strong);
+}
+
+/* ── 开关：凹槽里一枚奶油纸板圆片 ── */
+:root[data-theme="dice-table"] .we-toggle-track {
+  background: var(--we-color-shade-1);
+  box-shadow: inset 0 0 0 1px var(--we-color-border-default), inset 0 var(--dice-control-press) 0 var(--we-color-border-subtle);
+}
+
+:root[data-theme="dice-table"] .we-toggle-track--enabled {
+  background: var(--we-color-accent);
+  box-shadow: inset 0 var(--dice-control-press) 0 color-mix(in oklab, var(--we-color-shade) var(--we-alpha-4), var(--we-color-accent));
+}
+
+:root[data-theme="dice-table"] .we-toggle-thumb {
+  background: var(--dice-card);
+  box-shadow: 0 var(--dice-control-press) 0 var(--dice-board);
+}
+
+/* ── 分段切换：凹槽里一块拿起来的卡纸 ── */
+:root[data-theme="dice-table"] .we-segmented {
+  box-shadow: inset 0 var(--dice-control-press) 0 var(--we-color-border-subtle);
+}
+
+:root[data-theme="dice-table"] .we-segmented__item[aria-checked="true"] {
+  border-color: transparent;
+  background: var(--dice-card);
+  color: var(--dice-card-ink);
+  font-weight: var(--we-weight-strong);
+  box-shadow: 0 var(--dice-control-press) 0 var(--dice-board);
+}
+
+:root[data-theme="dice-table"] .we-segmented__item[aria-checked="true"]:focus-visible {
+  box-shadow: 0 var(--dice-control-press) 0 var(--dice-board), var(--we-focus-ring);
+}
+
+/* ── 勾选：小纸板方块，勾上是骰红 ── */
+:root[data-theme="dice-table"] .we-checkbox__box {
+  border-color: var(--we-color-border-default);
+  box-shadow: inset 0 var(--dice-control-press) 0 var(--we-color-border-subtle);
+}
+
+:root[data-theme="dice-table"] .we-checkbox > input:checked + .we-checkbox__box {
+  box-shadow: 0 var(--dice-control-press) 0 color-mix(in oklab, var(--we-color-shade) var(--we-alpha-4), var(--we-color-accent));
+}
+
+/* ── 徽标：印在纸上的小色块，左边一道色调实条 ── */
+:root[data-theme="dice-table"] .we-badge {
+  border-radius: var(--we-radius-xs);
+  box-shadow: inset var(--dice-control-press) 0 0 var(--badge-tone);
+  padding-left: calc(var(--we-space-xs) + var(--dice-control-press));
+  font-weight: var(--we-weight-medium);
+}
+
+/* ── 弹窗：压暗的桌面上摆一张奶油卡纸，底边露出纸板厚度；页头下一道淡线 ── */
+:root[data-theme="dice-table"] .we-dialog {
+  background: var(--dice-card);
+  backdrop-filter: none;
+  border-radius: var(--we-radius-lg);
+  box-shadow: 0 6px 0 var(--dice-board), 0 30px 50px -16px var(--we-color-shade-4);
+}
+
+:root[data-theme="dice-table"] .we-dialog:not(.we-dialog--alert) .we-dialog__header {
+  margin: 0 var(--we-space-xl);
+  padding-inline: 0;
+  border-bottom: 2px solid var(--we-color-border-subtle);
+}
+
+:root[data-theme="dice-table"] .we-dialog__title {
+  font-family: var(--we-font-display);
+  font-weight: var(--we-weight-strong);
+}
+
+/* ── 页签（默认版式）：指示条加粗成一道骰红实条 ── */
+:root[data-theme="dice-table"] .we-section-tab {
+  font-style: normal;
+}
+
+:root[data-theme="dice-table"] .we-section-tab.active {
+  font-weight: var(--we-weight-strong);
+}
+
+:root[data-theme="dice-table"] .we-section-tab-indicator {
+  height: var(--dice-control-depth);
+}
+
+/* ── 分段页签（gooey）：一排文件夹页签，当前页签与卡纸同色、压住下面那条线，其余页签压暗 ──
+ * 段的圆角由 GooeyNav 写在行内并做动画；这里要固定成「只圆上两角」的页签形，只能用 !important 压过行内样式。
+ * 段间距走 --we-gooey-gap，直接改 margin 即可 */
+:root[data-theme="dice-table"] .we-section-tabs.we-section-tabs--gooey .we-section-tabs-list {
+  align-items: flex-end;
+  gap: var(--we-space-xs);
+  padding-block: 0;
+  border-bottom: 2px solid var(--we-color-border-subtle);
+}
+
+:root[data-theme="dice-table"] .we-gooey-nav__segment {
+  margin-left: 0;
+  margin-bottom: -2px;
+  /* 没选中的页签是压在后面的一层纸板色，比卡纸暗一档 */
+  background-color: color-mix(in oklab, var(--dice-board) var(--we-alpha-4), var(--dice-card));
+  border: 2px solid transparent;
+  border-bottom: none;
+  border-radius: var(--we-radius-sm) var(--we-radius-sm) 0 0 !important;
+  translate: 0 var(--we-space-xs);
+  transition: translate var(--we-motion-state-duration) var(--we-motion-state-easing),
+    background-color var(--we-motion-state-duration) var(--we-motion-state-easing);
+}
+
+:root[data-theme="dice-table"] .we-gooey-nav__segment:hover {
+  translate: 0 1px;
+}
+
+:root[data-theme="dice-table"] .we-gooey-nav__segment.is-active {
+  background-color: var(--we-color-bg-surface);
+  border-color: var(--we-color-border-subtle);
+  translate: 0 0;
+}
+
+:root[data-theme="dice-table"] .we-gooey-nav__neck {
+  display: none;
+}
+
+:root[data-theme="dice-table"] .we-section-tabs.we-section-tabs--gooey .we-section-tab {
+  color: var(--we-color-text-secondary);
+  font-weight: var(--we-weight-strong);
+}
+
+:root[data-theme="dice-table"] .we-section-tabs.we-section-tabs--gooey .we-section-tab.active {
+  color: var(--we-color-text-primary);
+}
+
+/* ── 保存栏：一条冲压纸板，底边露出厚度 ── */
+:root[data-theme="dice-table"] .we-save-capsule {
+  border-color: var(--we-color-border-subtle);
+  box-shadow: 0 var(--dice-control-depth) 0 var(--dice-board), var(--we-elevation-2);
+}
+
+/* ── 滑条：拖动钮是一颗骰红六角骰，轨道是一道凹槽 ── */
+:root[data-theme="dice-table"] .we-range {
+  height: 6px;
+  border-radius: var(--we-radius-full);
+  box-shadow: inset 0 1px 0 var(--we-color-shade-2);
+}
+
+:root[data-theme="dice-table"] .we-range::-webkit-slider-thumb {
+  width: 20px;
+  height: 22px;
+  border: none;
+  border-radius: 0;
+  background: var(--we-color-accent);
+  box-shadow: none;
+  clip-path: var(--dice-hex);
+}
+
+:root[data-theme="dice-table"] .we-range::-moz-range-thumb {
+  width: 20px;
+  height: 22px;
+  border: none;
+  border-radius: 0;
+  background: var(--we-color-accent);
+  box-shadow: none;
+  clip-path: var(--dice-hex);
+}
+
+:root[data-theme="dice-table"] .we-range::-moz-range-track {
+  height: 6px;
+  border-radius: var(--we-radius-full);
+}

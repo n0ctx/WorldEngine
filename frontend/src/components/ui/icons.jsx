@@ -188,3 +188,9 @@ export const IconCharacterCard = makeIcon([
   { d: 'M12 6.5 15 9.5 12 12.5 9 9.5Z', accent: true, fill: true },
   { d: 'M8.5 18v-1.5L10.5 15h3l2 1.5V18' },
 ]);
+
+// 当前地点：切角的定位针，针心一块方点
+export const IconMapPin = makeIcon([
+  { d: 'M12 21.5 5 13.5V7l3-3.5h8L19 7v6.5Z' },
+  { d: 'M10.5 8.5h3v3h-3Z', accent: true, fill: true },
+]);
