@@ -59,7 +59,7 @@ export default function OptionCard({ options, streaming, onSelect, initialCollap
       initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
       transition={m.role('state')}
-      className="px-4 pb-2 shrink-0"
+      className="pb-2 shrink-0"
     >
       <div className="max-w-[800px] mx-auto">
         {collapsed ? (

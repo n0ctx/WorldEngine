@@ -10,7 +10,7 @@ function FrozenOptionCard({ options, selectedIndex, initialCollapsed }) {
   const [collapsed, setCollapsed] = useState(!!initialCollapsed);
   if (!options?.length) return null;
   return (
-    <div className="px-4 pb-2 shrink-0">
+    <div className="pb-2 shrink-0">
       <div className="max-w-[800px] mx-auto">
         {collapsed ? (
           <div className="we-option-card we-option-card--collapsed we-option-card--history">

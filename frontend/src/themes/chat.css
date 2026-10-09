@@ -1066,12 +1066,17 @@ svg.we-chat-atmosphere__art {
 
 /* ── InputBox ── */
 
-/* 输入区：不再是一张操作台卡片，只剩正文下方一条半透明输入胶囊，工具按钮轻轻浮在它上沿 */
+/* 输入区：不再是一张操作台卡片，只剩正文下方一条半透明输入胶囊，工具按钮轻轻浮在它上沿；
+   与正文列同宽同边线（列宽同 .we-message-list，左右留白同 .we-chat-area） */
 .we-chat-input {
-  width: calc(100% - var(--we-space-lg) * 2);
-  max-width: calc(var(--we-type-prose-measure) + 160px);
+  width: calc(100% - var(--we-space-md) * 2);
+  max-width: var(--we-type-prose-measure);
   margin: 0 auto var(--we-space-lg);
-  padding: 0 var(--we-space-md);
+}
+
+/* 写作页正文列左右各有一段内边距（.we-prose-message-list），输入区跟着收进正文边线 */
+.we-chat-center-pane:has(.we-prose-message-list) .we-chat-input {
+  max-width: calc(var(--we-type-prose-measure) - var(--we-space-xl) * 2);
 }
 
 /* 窄屏：舞台两侧已有抽屉轨，操作台贴近边缘，把宽度留给输入框 */
