@@ -3,6 +3,7 @@ import { apiError, parseSSE } from '../_shared/fetch-utils.js';
 import { resolveThinkingBudget, resolveThinkingEffort } from '../_shared/thinking-budget.js';
 import { isThinkingLevelSupported } from '../../../utils/constants.js';
 import { convertToGeminiContents } from '../_shared/converters.js';
+import { resolveSamplingFields } from '../_shared/sampling.js';
 import { cacheUsageLogFields, recordTokenUsage } from '../_shared/cache-usage.js';
 import { getOrCreateCache } from './cache.js';
 import { logRawRequest } from '../../raw-logger.js';
@@ -131,6 +132,9 @@ function buildGenerationConfig(config, thinking) {
   const generationConfig = {};
   if (config.temperature != null) generationConfig.temperature = config.temperature;
   if (config.max_tokens != null) generationConfig.maxOutputTokens = config.max_tokens;
+  const { top_p: topP, top_k: topK } = resolveSamplingFields(config);
+  if (topP != null) generationConfig.topP = topP;
+  if (topK != null) generationConfig.topK = topK;
   const thinkingConfig = thinking ? resolveThinkingConfig(config) : null;
   if (thinkingConfig) {
     generationConfig.thinkingConfig = thinking === 'thoughts' ? { ...thinkingConfig, includeThoughts: true } : thinkingConfig;

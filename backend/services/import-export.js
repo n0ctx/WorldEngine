@@ -555,6 +555,7 @@ export function exportGlobalSettings(mode = 'chat') {
           temperature: writingLlm.temperature ?? null,
           max_tokens: writingLlm.max_tokens ?? null,
           thinking_level: writingLlm.thinking_level ?? null,
+          sampling: writingLlm.sampling ?? null,
         },
       },
     };
@@ -632,6 +633,8 @@ function buildWritingConfigPatch(writing) {
     if (writing.llm.temperature === null || typeof writing.llm.temperature === 'number') llmPatch.temperature = writing.llm.temperature;
     if (writing.llm.max_tokens === null || typeof writing.llm.max_tokens === 'number') llmPatch.max_tokens = writing.llm.max_tokens;
     if (writing.llm.thinking_level === null || typeof writing.llm.thinking_level === 'string') llmPatch.thinking_level = writing.llm.thinking_level;
+    // 取值由配置层按 shared/sampling-params.mjs 规整；文件里没有这一组（旧版导出）时回到不发送
+    llmPatch.sampling = writing.llm.sampling;
     patch.llm = llmPatch;
   }
   return patch;

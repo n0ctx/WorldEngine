@@ -878,12 +878,13 @@
   margin-top: var(--we-space-xs);
 }
 
-/* CSS reference collapsible block */
+/* CSS reference collapsible block；高级采样沿用同一套折叠样式 */
 .we-css-reference {
   margin-bottom: var(--we-space-xl);
 }
 
-.we-css-reference details > summary {
+.we-css-reference details > summary,
+.we-settings-sampling > summary {
   font-family: var(--we-font-display);
   font-size: var(--we-type-eyebrow-size);
   line-height: var(--we-type-eyebrow-leading);
@@ -904,16 +905,19 @@
   transition: color var(--we-motion-state-duration) var(--we-motion-state-easing);
 }
 
-.we-css-reference details > summary:hover {
+.we-css-reference details > summary:hover,
+.we-settings-sampling > summary:hover {
   color: var(--we-color-text-secondary);
 }
 
-.we-css-reference details[open] > summary {
+.we-css-reference details[open] > summary,
+.we-settings-sampling[open] > summary {
   border-bottom: none;
   border-radius: var(--we-radius-xs) var(--we-radius-xs) 0 0;
 }
 
-.we-css-reference-body {
+.we-css-reference-body,
+.we-settings-sampling-body {
   border: 1px solid var(--we-color-border-default);
   padding: var(--we-space-lg);
   background: var(--we-color-bg-surface);

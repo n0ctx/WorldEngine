@@ -16,3 +16,8 @@ export {
 } from '../../../../shared/runtime-constants.mjs';
 
 export { PROVIDER_THINKING_LEVELS } from '../../../../shared/thinking-levels.mjs';
+export {
+  SAMPLING_PARAMS,
+  getSupportedSamplingParams,
+  normalizeSamplingValue,
+} from '../../../../shared/sampling-params.mjs';

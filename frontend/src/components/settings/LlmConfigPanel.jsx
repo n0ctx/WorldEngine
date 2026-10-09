@@ -38,6 +38,7 @@ export default function LlmConfigPanel({
           onThinkingLevelChange={(v) => onWritingLlmChange('thinking_level', v)}
           onTemperatureChange={(v) => onWritingLlmChange('temperature', v)}
           onMaxTokensChange={(v) => onWritingLlmChange('max_tokens', v)}
+          onSamplingChange={(v) => onWritingLlmChange('sampling', v)}
           onApiKeySave={onWritingApiKeySave}
           onApiKeySaved={() => onWritingLlmChange('has_key', true)}
           testConnection={testWritingConnection}
@@ -55,6 +56,7 @@ export default function LlmConfigPanel({
           onThinkingLevelChange={(v) => onLlmChange('thinking_level', v)}
           onTemperatureChange={(v) => onLlmChange('temperature', v)}
           onMaxTokensChange={(v) => onLlmChange('max_tokens', v)}
+          onSamplingChange={(v) => onLlmChange('sampling', v)}
           onApiKeySave={updateProviderKey}
           onApiKeySaved={() => onLlmChange('has_key', true)}
           testConnection={testConnection}

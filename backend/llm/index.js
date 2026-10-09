@@ -50,7 +50,7 @@ function getProvider(providerName) {
 // 配置合并
 // ============================================================
 
-/** 副模型不暴露 temperature / max_tokens，沿用主模型的值；thinking_level 独立配置 */
+/** 副模型不暴露 temperature / max_tokens，沿用主模型的值；不带采样参数；thinking_level 独立配置 */
 function auxCallLlm(auxConfig, mainLlm) {
   return {
     provider: auxConfig.provider,
@@ -102,6 +102,8 @@ function buildLLMConfig(options = {}) {
       temperature: writingLlm.temperature ?? config.llm.temperature,
       max_tokens: writingLlm.max_tokens ?? config.llm.max_tokens,
       thinking_level: writingLlm.thinking_level ?? null,
+      // 采样参数与思考档位同理：写作选了独立 provider 时用写作自己的设置
+      sampling: writingLlm.sampling,
     };
     api_key = writingConfig.api_key;
   } else {
@@ -116,6 +118,8 @@ function buildLLMConfig(options = {}) {
     model: options.model || llm.model,
     temperature: options.temperature ?? llm.temperature,
     max_tokens: options.maxTokens ?? llm.max_tokens,
+    // 仅对话 / 写作主模型带采样参数（shared/sampling-params.mjs），各 provider 只写自己支持的项
+    sampling: llm.sampling,
     // 调用方可传 thinking_level 覆盖配置；传 null 表示不下发思考字段（= 模型默认，
     // 本地 Qwen 等模型默认会思考，并不等于关闭）。未传时沿用配置，用 hasOwnProperty 区分。
     thinking_level: Object.prototype.hasOwnProperty.call(options, 'thinking_level')

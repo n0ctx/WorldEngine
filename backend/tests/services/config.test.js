@@ -114,6 +114,25 @@ test('updateConfig：非法预算值规范到默认值/null，合法值按范围
   assert.equal(inherited.writing.short_term_token_budget, null);
 });
 
+test('采样参数：对话与写作主模型保存时规整取值，副模型不带这一组', () => {
+  fs.rmSync(sandbox.configPath, { force: true });
+  assert.equal(getConfig().llm.sampling.top_p, null);
+
+  const config = updateConfig({
+    llm: { sampling: { top_p: 1.5, top_k: '40.4', min_p: 'abc', unknown: 1 } },
+    writing: { llm: { sampling: { repetition_penalty: 1.1 } } },
+  });
+  assert.deepEqual(config.llm.sampling, {
+    top_p: 1, top_k: 40, min_p: null, repetition_penalty: null, presence_penalty: null, frequency_penalty: null,
+  });
+  assert.equal(config.writing.llm.sampling.repetition_penalty, 1.1);
+  assert.equal('sampling' in config.aux_llm, false);
+
+  const cleared = updateConfig({ llm: { sampling: { top_p: null } } });
+  assert.equal(cleared.llm.sampling.top_p, null);
+  assert.equal(cleared.llm.sampling.top_k, 40);
+});
+
 test('写作还没有自己的显示设置时继承顶层的思考 / token 消耗开关', () => {
   sandbox.writeConfig({
     ui: { theme: 'dark', show_token_usage: true, show_thinking: false },

@@ -149,7 +149,7 @@ test('连接失败：记为 error 并照常抛出', async () => {
 });
 
 test('本地模型：请求与返回都落盘', async () => {
-  mockFetch([jsonResp({ choices: [{ message: { content: '本地回答' }, finish_reason: 'stop' }] })]);
+  mockFetch([jsonResp({ message: { role: 'assistant', content: '本地回答' }, done: true, done_reason: 'stop' })]);
 
   const text = await ollama.complete([{ role: 'user', content: 'hi' }], {
     provider: 'ollama',
@@ -165,5 +165,6 @@ test('本地模型：请求与返回都落盘', async () => {
   assert.equal(dump._meta.provider, 'ollama');
   assert.equal(dump._meta.callType, 'entry_match');
   assert.equal(dump.rawBody.model, 'qwen');
-  assert.equal(dump.response.body.choices[0].message.content, '本地回答');
+  assert.equal(dump.rawBody.options.temperature, 0.3);
+  assert.equal(dump.response.body.message.content, '本地回答');
 });

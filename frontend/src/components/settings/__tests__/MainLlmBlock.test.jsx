@@ -16,6 +16,7 @@ const callbacks = {
   onThinkingLevelChange: vi.fn(),
   onTemperatureChange: vi.fn(),
   onMaxTokensChange: vi.fn(),
+  onSamplingChange: vi.fn(),
   onApiKeySave: vi.fn(),
   onApiKeySaved: vi.fn(),
   testConnection: vi.fn(),
@@ -117,5 +118,31 @@ describe('MainLlmBlock', () => {
 
     expect(container.querySelector('input[type="range"]')).toHaveValue('0.8');
     expect(screen.getByDisplayValue('4096')).toBeInTheDocument();
+  });
+
+  it('高级采样只列出当前服务商支持的参数，Kimi 不显示', () => {
+    const { container, rerender } = renderMainLlmBlock({ provider: 'ollama', sampling: { top_k: 40 } });
+
+    expect(screen.getByText('高级采样（已设置 1 项）')).toBeInTheDocument();
+    expect(['Top P', 'Top K', 'Min P', '重复惩罚', '存在惩罚', '频率惩罚'].every((label) => screen.queryByText(label))).toBe(true);
+    expect(screen.getByDisplayValue('40')).toBeInTheDocument();
+
+    rerender(<MainLlmBlock providers={providers} config={{ provider: 'openai' }} {...callbacks} />);
+    expect(screen.queryByText('Top K')).not.toBeInTheDocument();
+    expect(screen.getByText('Top P')).toBeInTheDocument();
+
+    rerender(<MainLlmBlock providers={providers} config={{ provider: 'kimi' }} {...callbacks} />);
+    expect(container.querySelector('.we-settings-sampling')).toBeNull();
+  });
+
+  it('改采样参数时存规整后的数字，清空存 null', () => {
+    renderMainLlmBlock({ provider: 'openai', sampling: { top_p: 0.9 } });
+    const input = screen.getByDisplayValue('0.9');
+
+    fireEvent.change(input, { target: { value: '1.5' } });
+    expect(callbacks.onSamplingChange).toHaveBeenLastCalledWith({ top_p: 1 });
+
+    fireEvent.change(input, { target: { value: '' } });
+    expect(callbacks.onSamplingChange).toHaveBeenLastCalledWith({ top_p: null });
   });
 });

@@ -1,7 +1,8 @@
 /**
  * 本地 LLM Provider 适配 — Ollama / LM Studio / llama.cpp
  *
- * 三者均使用 OpenAI-compatible /v1/chat/completions 接口
+ * LM Studio、llama.cpp 走 OpenAI 兼容接口 /v1/chat/completions；Ollama 走原生接口 /api/chat（见 native.js）。
+ * 两种接口共用这里的请求、流式输出、工具循环与错误处理，只在请求体与响应解析上分开。
  */
 
 import {
@@ -10,6 +11,8 @@ import {
   LLAMACPP_DEFAULT_BASE_URL,
 } from '../../../utils/constants.js';
 import { applyThinkingToOpenAICompatibleBody } from '../openai-compatible/thinking.js';
+import { resolveSamplingFields } from '../_shared/sampling.js';
+import { OLLAMA_NATIVE_PROTOCOL } from './native.js';
 import { runToolLoop } from '../../tool-loop-control.js';
 import { appendOpenAIToolTurn, normalizeOpenAIToolCalls } from '../_shared/converters.js';
 import { emitProviderSignal, buildContextFromConfig, hashText } from '../_shared/provider-safety-signals.js';
@@ -38,18 +41,18 @@ const DEFAULT_BASE_URLS = {
   llamacpp: LLAMACPP_DEFAULT_BASE_URL,
 };
 
-// 统一拼 /v1/chat/completions 请求体，并按 provider 注入 thinking/effort 字段。
-// ollama / llamacpp 的思考档位按 thinking.js 写入（按请求覆盖 server 默认值）；
+// /v1/chat/completions 请求体：llamacpp 的思考档位按 thinking.js 写入（按请求覆盖 server 默认值）；
 // lmstudio 的兼容接口不认思考参数，走 default 分支不写任何字段。
-function buildLocalChatBody({ messages, stream, extra = {} }, config) {
+function buildOpenAIChatBody({ messages, stream, tools }, config) {
   const body = {
     model: config.model,
     messages,
     temperature: config.temperature,
     max_tokens: config.max_tokens,
+    ...resolveSamplingFields(config),
     stream,
-    ...extra,
   };
+  if (tools) Object.assign(body, { tools, tool_choice: 'auto' });
   applyThinkingToOpenAICompatibleBody(body, config);
   return body;
 }
@@ -84,6 +87,47 @@ async function* parseSSE(body) {
   }
 }
 
+// llama.cpp（--jinja）/ LM Studio 将推理内容放在 reasoning_content / reasoning 字段
+async function* readOpenAIDeltas(resp) {
+  for await (const data of parseSSE(resp.body)) {
+    let parsed;
+    try {
+      parsed = JSON.parse(data);
+    } catch {
+      continue;
+    }
+    const choice = parsed.choices?.[0];
+    const delta = choice?.delta;
+    yield {
+      reasoning: delta?.reasoning_content || delta?.reasoning,
+      content: delta?.content,
+      finishReason: choice?.finish_reason,
+      usage: parsed.usage,
+    };
+  }
+}
+
+function readOpenAIResult(data) {
+  const choice = data.choices?.[0];
+  const message = choice?.message && {
+    content: choice.message.content,
+    reasoning: choice.message.reasoning_content || choice.message.reasoning,
+    tool_calls: choice.message.tool_calls,
+  };
+  return { message, finishReason: choice?.finish_reason };
+}
+
+const OPENAI_PROTOCOL = {
+  path: '/v1/chat/completions',
+  buildBody: buildOpenAIChatBody,
+  readDeltas: readOpenAIDeltas,
+  readResult: readOpenAIResult,
+};
+
+function protocolOf(config) {
+  return config.provider === 'ollama' ? OLLAMA_NATIVE_PROTOCOL : OPENAI_PROTOCOL;
+}
+
 async function throwLocalHttpError(resp, config, raw) {
   const body = await resp.text().catch(() => '');
   raw?.error({ status: resp.status, text: body });
@@ -92,10 +136,11 @@ async function throwLocalHttpError(resp, config, raw) {
 }
 
 /** 拼请求体、落原始日志并发出请求；返回响应与原始日志记录器 */
-async function postLocalChat(config, { messages, stream, extra }, callType) {
-  const body = buildLocalChatBody({ messages, stream, extra }, config);
+async function postLocalChat(config, { messages, stream, tools }, callType) {
+  const protocol = protocolOf(config);
+  const body = protocol.buildBody({ messages, stream, tools }, config);
   const raw = logRawRequest(body, config, callType);
-  const resp = await fetchAndRecord(`${getBaseUrl(config)}/v1/chat/completions`, {
+  const resp = await fetchAndRecord(`${getBaseUrl(config)}${protocol.path}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
@@ -113,39 +158,30 @@ export async function* streamChat(messages, config) {
 
 async function* readLocalStream(resp, config, meta) {
   let inThinking = false;
-  for await (const data of parseSSE(resp.body)) {
-    try {
-      const parsed = JSON.parse(data);
-      if (parsed.usage) {
-        meta.usage = parsed.usage;
-        if (config.usageRef) {
-          const u = parsed.usage;
-          if (u.prompt_tokens != null) config.usageRef.prompt_tokens = u.prompt_tokens;
-          if (u.completion_tokens != null) config.usageRef.completion_tokens = u.completion_tokens;
-        }
+  for await (const { reasoning, content, finishReason, usage } of protocolOf(config).readDeltas(resp)) {
+    if (usage) {
+      meta.usage = usage;
+      if (config.usageRef) {
+        if (usage.prompt_tokens != null) config.usageRef.prompt_tokens = usage.prompt_tokens;
+        if (usage.completion_tokens != null) config.usageRef.completion_tokens = usage.completion_tokens;
       }
-      if (parsed.choices?.[0]?.finish_reason) meta.finishReason = parsed.choices[0].finish_reason;
-      const delta = parsed.choices?.[0]?.delta;
-      if (!delta) continue;
-      // llama.cpp（--jinja）/ LM Studio 将推理内容放在 reasoning_content / reasoning 字段，与 openai-compatible 同样包成 <think>
-      const reasoning = delta.reasoning_content || delta.reasoning;
-      if (reasoning) {
-        if (!inThinking) { yield '<think>'; inThinking = true; }
-        yield reasoning;
-      }
-      if (delta.content) {
-        if (inThinking) { yield '</think>\n'; inThinking = false; }
-        yield delta.content;
-      }
-    } catch {
-      // skip
+    }
+    if (finishReason) meta.finishReason = finishReason;
+    // 推理内容与 openai-compatible 同样包成 <think>
+    if (reasoning) {
+      if (!inThinking) { yield '<think>'; inThinking = true; }
+      yield reasoning;
+    }
+    if (content) {
+      if (inThinking) { yield '</think>\n'; inThinking = false; }
+      yield content;
     }
   }
   if (inThinking) yield '</think>\n';
 }
 
 function withReasoning(message) {
-  const reasoning = message?.reasoning_content || message?.reasoning;
+  const reasoning = message?.reasoning;
   const content = message?.content || '';
   return reasoning ? `<think>${reasoning}</think>\n${content}` : content;
 }
@@ -155,11 +191,11 @@ export async function complete(messages, config) {
   if (!resp.ok) await throwLocalHttpError(resp, config, raw);
 
   const data = await readJsonAndRecord(resp, raw);
-  return withReasoning(data.choices?.[0]?.message);
+  return withReasoning(protocolOf(config).readResult(data).message);
 }
 
 // ============================================================
-// Tool-use（OpenAI-compatible 格式，支持工具调用的本地模型）
+// Tool-use（工具定义与工具调用沿用 OpenAI 格式，Ollama 原生接口同构）
 // ============================================================
 
 // 这些状态码表示接口不认工具调用请求（旧版本服务、模型模板不支持等），降级为无工具补全
@@ -178,7 +214,7 @@ async function callWithTools(messages, toolDefs, config) {
   const { resp, raw } = await postLocalChat(config, {
     messages,
     stream: false,
-    extra: { tools: toolDefs, tool_choice: 'auto' },
+    tools: toolDefs,
   }, config.callType ? `${config.callType}:tools` : 'complete-tools');
   if (!resp.ok) {
     const text = await resp.text().catch(() => '');
@@ -186,7 +222,7 @@ async function callWithTools(messages, toolDefs, config) {
     if (isToolUnsupportedResponse(resp.status, text)) return null;
     throw apiError(`${config.provider} API error: ${resp.status} ${text}`, resp.status);
   }
-  return readJsonAndRecord(resp, raw);
+  return protocolOf(config).readResult(await readJsonAndRecord(resp, raw));
 }
 
 // runToolLoop 4 原语 provider 适配
@@ -196,10 +232,10 @@ const ollamaToolLoopProvider = {
   },
 
   async oneTurn(state, toolDefs, iter, config) {
-    const data = await callWithTools(state.messages, toolDefs, config);
-    if (!data) return { kind: 'fallback' };
+    const result = await callWithTools(state.messages, toolDefs, config);
+    if (!result) return { kind: 'fallback' };
 
-    const message = data.choices?.[0]?.message;
+    const { message, finishReason } = result;
     if (!message) return { kind: 'text', text: '' };
 
     if (!message.tool_calls?.length) {
@@ -215,7 +251,7 @@ const ollamaToolLoopProvider = {
       tool_calls: assistantToolCalls,
     };
 
-    return { kind: 'tools', toolCalls, assistantBlock, truncated: data.choices[0].finish_reason === 'length' };
+    return { kind: 'tools', toolCalls, assistantBlock, truncated: finishReason === 'length' };
   },
 
   appendToolTurn: appendOpenAIToolTurn,

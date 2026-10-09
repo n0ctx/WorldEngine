@@ -6,7 +6,8 @@ import { applyThinkingToOpenAICompatibleBody } from '../../llm/providers/openai-
 import { OPENAI_COMPATIBLE, getBaseUrl } from '../../llm/providers/_shared/base-urls.js';
 import { PROVIDER_THINKING_LEVELS, THINKING_BUDGET_HIGH } from '../../../shared/thinking-levels.mjs';
 
-const LOCAL_PROVIDERS = ['ollama', 'lmstudio', 'llamacpp'];
+// ollama 走原生接口，思考字段由 ollama-native.test.js 覆盖
+const LOCAL_PROVIDERS = ['lmstudio', 'llamacpp'];
 // 这两家在 OPENAI_COMPATIBLE 集合里，但请求走 Anthropic 适配器（见 cloud-router.js），由 anthropic 的测试覆盖
 const NAMED_ADAPTER_PROVIDERS = ['kimi-coding', 'minimax-coding'];
 
@@ -148,11 +149,6 @@ test('applyThinking: siliconflow thinking_disabled → enable_thinking=false', (
   assert.deepEqual(applyThinking('siliconflow', 'thinking_disabled'), { body: { enable_thinking: false }, state: 'disabled' });
 });
 
-test('applyThinking: ollama 强度档写 reasoning_effort，关闭发 none', () => {
-  assert.deepEqual(applyThinking('ollama', 'effort_low'), { body: { reasoning_effort: 'low' }, state: 'enabled' });
-  assert.deepEqual(applyThinking('ollama', 'thinking_disabled'), { body: { reasoning_effort: 'none' }, state: 'disabled' });
-});
-
 test('applyThinking: llamacpp effort_* → reasoning_effort（Qwen3 模板按请求覆盖）', () => {
   const cases = [
     ['effort_low', 'low'],
@@ -204,6 +200,6 @@ test('applyThinking: openai-compatible 族档位表里的每个档位都写出�
       assert.ok(Object.keys(body).length > 0, `${provider} ${value}`);
     }
   }
-  // 其余走 Anthropic / Gemini 适配器，由 thinking-request-body.test.js 逐档覆盖
-  assert.deepEqual(otherAdapters.sort(), ['anthropic', 'gemini', 'kimi-coding', 'minimax-coding']);
+  // 其余走 Anthropic / Gemini 适配器或 Ollama 原生接口，由 thinking-request-body.test.js、ollama-native.test.js 逐档覆盖
+  assert.deepEqual(otherAdapters.sort(), ['anthropic', 'gemini', 'kimi-coding', 'minimax-coding', 'ollama']);
 });

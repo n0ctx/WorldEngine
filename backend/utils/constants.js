@@ -144,6 +144,15 @@ export {
 } from '../../shared/thinking-levels.mjs';
 
 // ============================
+// 采样参数（前后端共享单一来源）
+// ============================
+export {
+  SAMPLING_PARAM_KEYS,
+  getSupportedSamplingParams,
+  normalizeSamplingValue,
+} from '../../shared/sampling-params.mjs';
+
+// ============================
 // 章节分组与翻页（前后端共享单一来源，互相解耦）
 // ============================
 /** 每 N 条消息触发新章节（= CHAPTER_TURN_SIZE * 2，含 user+assistant） */

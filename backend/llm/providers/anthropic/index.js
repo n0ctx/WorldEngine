@@ -3,6 +3,7 @@ import { apiError, parseSSE } from '../_shared/fetch-utils.js';
 import { resolveThinkingBudget, resolveThinkingEffort } from '../_shared/thinking-budget.js';
 import { isThinkingLevelSupported } from '../../../utils/constants.js';
 import { convertToAnthropicMessages } from '../_shared/converters.js';
+import { resolveSamplingFields } from '../_shared/sampling.js';
 import { cacheUsageLogFields, recordTokenUsage } from '../_shared/cache-usage.js';
 import { ANTHROPIC_API_VERSION, ANTHROPIC_PROMPT_CACHING_BETA } from './constants.js';
 import { logRawRequest } from '../../raw-logger.js';
@@ -191,6 +192,7 @@ function buildMessagesRequest(messages, config, { stream }) {
   if (stream) body.stream = true;
   const temperature = resolveTemperature(config, thinkingOn);
   if (temperature !== undefined) body.temperature = temperature;
+  Object.assign(body, resolveSamplingFields(config));
   if (system) body.system = withCacheControl(system, config);
 
   const betas = [ANTHROPIC_PROMPT_CACHING_BETA];
@@ -324,6 +326,7 @@ const anthropicToolLoopProvider = {
     };
     const temperature = resolveTemperature(config, false);
     if (temperature !== undefined) body.temperature = temperature;
+    Object.assign(body, resolveSamplingFields(config));
     if (system) body.system = withCacheControl(system, config);
 
     const raw = logRawRequest(body, config, config.callType ? `${config.callType}:tools` : 'complete-tools');

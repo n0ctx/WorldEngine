@@ -1,6 +1,7 @@
 import { getBaseUrl } from '../_shared/base-urls.js';
 import { apiError, parseSSE, extractProviderError } from '../_shared/fetch-utils.js';
-import { acceptsTemperature, applyThinkingToOpenAICompatibleBody } from './thinking.js';
+import { acceptsSamplingParams, applyThinkingToOpenAICompatibleBody } from './thinking.js';
+import { resolveSamplingFields } from '../_shared/sampling.js';
 import { cacheUsageLogFields, recordTokenUsage } from '../_shared/cache-usage.js';
 import { logRawRequest } from '../../raw-logger.js';
 import { fetchAndRecord, readErrorAndRecord, readJsonAndRecord, recordStream } from '../../raw-recorder.js';
@@ -117,12 +118,15 @@ function applyOpenAIPromptCacheKey(body, config) {
   }
 }
 
-// 三条请求路径共用：按 provider 补兼容字段、缓存键、思考字段和 temperature
+// 三条请求路径共用：按 provider 补兼容字段、缓存键、思考字段和采样参数
 function applyProviderOptions(body, config) {
   applyGlmCompatibilityOptions(body, config);
   applyOpenAIPromptCacheKey(body, config);
   const thinkingState = applyThinkingToOpenAICompatibleBody(body, config);
-  if (acceptsTemperature(config, thinkingState)) body.temperature = config.temperature;
+  if (acceptsSamplingParams(config, thinkingState)) {
+    body.temperature = config.temperature;
+    Object.assign(body, resolveSamplingFields(config));
+  }
 }
 
 function postOpenAICompatible(url, body, config, raw) {

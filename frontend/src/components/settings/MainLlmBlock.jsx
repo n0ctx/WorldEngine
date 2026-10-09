@@ -9,6 +9,7 @@ import SectionTitle from '../ui/SectionTitle';
 import FieldLabel from '../ui/FieldLabel';
 import LlmConnectionTest from './LlmConnectionTest';
 import { DEFAULT_BASE_URLS, getProviderDisplaySettings } from '../../core/constants/settings';
+import { SAMPLING_PARAMS, getSupportedSamplingParams, normalizeSamplingValue } from '../../core/utils/constants';
 import { log } from '../../core/utils/logger.js';
 
 function MainLlmProviderSettings({
@@ -215,6 +216,51 @@ function MainLlmGenerationSettings({ config, inheritFrom, onTemperatureChange, o
   );
 }
 
+// 输入框显示用户敲的原文（如「0.」），存的是规整后的数字；失焦后显示存下的值
+function SamplingField({ paramKey, value, onChange }) {
+  const spec = SAMPLING_PARAMS[paramKey];
+  const [draft, setDraft] = useState(value == null ? '' : String(value));
+  return (
+    <FormGroup label={spec.label} hint={spec.hint} variant="settings">
+      <Input
+        type="number"
+        min={spec.min} max={spec.max} step={spec.step}
+        value={draft}
+        placeholder="留空则不发送，用服务商默认值"
+        onChange={(e) => {
+          setDraft(e.target.value);
+          onChange(normalizeSamplingValue(paramKey, e.target.value));
+        }}
+        onBlur={() => setDraft(value == null ? '' : String(value))}
+      />
+    </FormGroup>
+  );
+}
+
+// 只列出当前服务商支持的采样参数（shared/sampling-params.mjs）；未选服务商或都不支持时不显示
+function MainLlmSamplingSettings({ provider, sampling, onSamplingChange }) {
+  const keys = getSupportedSamplingParams(provider);
+  if (!onSamplingChange || keys.length === 0) return null;
+  const current = sampling || {};
+  const setCount = keys.filter((key) => current[key] != null).length;
+
+  return (
+    <details className="we-settings-sampling">
+      <summary>高级采样{setCount > 0 ? `（已设置 ${setCount} 项）` : ''}</summary>
+      <div className="we-settings-sampling-body">
+        {keys.map((key) => (
+          <SamplingField
+            key={key}
+            paramKey={key}
+            value={current[key]}
+            onChange={(value) => onSamplingChange({ ...current, [key]: value })}
+          />
+        ))}
+      </div>
+    </details>
+  );
+}
+
 /**
  * 主模型(LLM)配置区块 —— 对话/写作模式共用
  *
@@ -232,6 +278,7 @@ export default function MainLlmBlock({
   onThinkingLevelChange,
   onTemperatureChange,
   onMaxTokensChange,
+  onSamplingChange,
   onApiKeySave,
   onApiKeySaved,
   testConnection,
@@ -261,6 +308,12 @@ export default function MainLlmBlock({
         inheritFrom={inheritFrom}
         onTemperatureChange={onTemperatureChange}
         onMaxTokensChange={onMaxTokensChange}
+      />
+      <MainLlmSamplingSettings
+        key={currentConfig.provider}
+        provider={currentConfig.provider}
+        sampling={currentConfig.sampling}
+        onSamplingChange={onSamplingChange}
       />
     </div>
   );

@@ -46,8 +46,8 @@ function chatResp({ content, toolCalls, finishReason } = {}) {
 }
 
 const baseConfig = () => ({
-  provider: 'ollama',
-  base_url: 'http://localhost:11434',
+  provider: 'llamacpp',
+  base_url: 'http://localhost:8080',
   model: 'llama3',
   max_tokens: 4096,
   temperature: 0.7,

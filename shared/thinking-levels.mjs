@@ -1,6 +1,6 @@
 // 各服务商「思考强度」可选档位的单一来源：前端设置页的选项、后端的配置校验与请求体拼装都以此为准。
 // 档位依据 2026-10 各家官方接口文档；档位如何写进请求体见
-// backend/llm/providers/openai-compatible/thinking.js、anthropic/index.js、gemini/index.js。
+// backend/llm/providers/openai-compatible/thinking.js、anthropic/index.js、gemini/index.js、ollama/native.js。
 // 标签括号里写的是只对部分模型有效的档位的适用范围。
 
 export const THINKING_BUDGET_LOW = 1024;

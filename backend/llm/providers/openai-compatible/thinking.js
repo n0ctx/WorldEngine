@@ -18,12 +18,12 @@ const QWEN_BUDGETS = {
 const LLAMACPP_EFFORTS = { effort_low: 'low', effort_medium: 'medium', effort_high: 'xhigh' };
 
 /**
- * 按 applyThinkingToOpenAICompatibleBody 的返回值判断请求体能否带 temperature。
+ * 按 applyThinkingToOpenAICompatibleBody 的返回值判断请求体能否带 temperature 等采样参数。
  * - kimi：各模型都把 temperature 固定（K3 为 1.0，K2.6 思考 1.0 / 非思考 0.6），传其他值即 400
- * - openai：推理模型思考开启时不支持 temperature
- * 其余 provider 思考时照常接受 temperature（或自行忽略），保留用户设置。
+ * - openai：推理模型思考开启时不支持 temperature、top_p 与惩罚参数
+ * 其余 provider 思考时照常接受（或自行忽略），保留用户设置。
  */
-export function acceptsTemperature(config, thinkingState) {
+export function acceptsSamplingParams(config, thinkingState) {
   if (config?.provider === 'kimi') return false;
   return thinkingState !== 'enabled' || config?.provider !== 'openai';
 }
@@ -33,7 +33,7 @@ export function acceptsTemperature(config, thinkingState) {
  * 只接受 shared/thinking-levels.mjs 里该 provider 列出的档位，其余一律不下发。
  *
  * 各 provider 实际语法（2026-10 官方文档）：
- * - openai / ollama：reasoning_effort: none（关闭）/ low / medium / high / xhigh / max
+ * - openai：reasoning_effort: none（关闭）/ low / medium / high / xhigh / max
  * - grok：reasoning_effort: low / medium / high / xhigh
  * - openrouter：reasoning: { effort } 或 reasoning: { enabled }
  * - xiaomi / xiaomi-coding：thinking: { type: enabled | disabled }
@@ -56,7 +56,6 @@ export function applyThinkingToOpenAICompatibleBody(body, config) {
 
   switch (provider) {
     case 'openai':
-    case 'ollama':
       body.reasoning_effort = disabled ? 'none' : effort;
       return state;
     case 'grok':

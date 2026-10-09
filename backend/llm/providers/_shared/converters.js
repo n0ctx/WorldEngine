@@ -160,6 +160,36 @@ function convertContentToGemini(content) {
   });
 }
 
+/**
+ * 内部格式 → Ollama 原生 /api/chat 格式
+ * content 数组拆成文本 + images（base64），工具调用参数转回对象，工具结果补 tool_name
+ */
+export function convertToOllamaMessages(messages) {
+  const toolNames = new Map();
+  return messages.map((msg) => {
+    const converted = { role: msg.role, content: msg.role === 'tool' ? String(msg.content ?? '') : contentText(msg.content) };
+    if (Array.isArray(msg.content)) {
+      const images = msg.content
+        .filter((part) => part.type === 'image_url')
+        .map((part) => parseDataUrl(part.image_url.url)?.data)
+        .filter(Boolean);
+      if (images.length) converted.images = images;
+    }
+    if (Array.isArray(msg.tool_calls) && msg.tool_calls.length > 0) {
+      converted.tool_calls = msg.tool_calls.map((tc) => {
+        toolNames.set(tc.id, tc.function?.name);
+        return { id: tc.id, function: { name: tc.function?.name || '', arguments: safeParseJson(tc.function?.arguments || '{}') } };
+      });
+    }
+    if (msg.role === 'tool') {
+      converted.tool_call_id = msg.tool_call_id;
+      const name = toolNames.get(msg.tool_call_id);
+      if (name) converted.tool_name = name;
+    }
+    return converted;
+  });
+}
+
 const ARGUMENTS_ERROR_PREVIEW_CHARS = 200;
 
 /**

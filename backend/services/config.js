@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createLogger, formatMeta } from '../utils/logger.js';
-import { isThinkingLevelSupported } from '../utils/constants.js';
+import { isThinkingLevelSupported, normalizeSamplingValue, SAMPLING_PARAM_KEYS } from '../utils/constants.js';
 
 const log = createLogger('svc', 'green');
 
@@ -11,6 +11,9 @@ const CONFIG_PATH = process.env.WE_CONFIG_PATH
   || (process.env.WE_DATA_DIR
     ? path.resolve(process.env.WE_DATA_DIR, 'config.json')
     : path.resolve(__dirname, '..', '..', 'data', 'config.json'));
+
+// 采样参数（shared/sampling-params.mjs）：null 表示不发送，由服务商用默认值
+const DEFAULT_SAMPLING = Object.fromEntries(SAMPLING_PARAM_KEYS.map((key) => [key, null]));
 
 const DEFAULT_AUX_LLM = {
   provider: null,
@@ -50,6 +53,7 @@ const DEFAULT_CONFIG = {
     max_tokens: 4096,
     temperature: 0.8,
     thinking_level: null,
+    sampling: structuredClone(DEFAULT_SAMPLING),
   },
   ui: structuredClone(DEFAULT_UI),
   chapter_turn_size: 20,
@@ -92,6 +96,7 @@ const DEFAULT_CONFIG = {
       temperature: null,
       max_tokens: null,
       thinking_level: null,
+      sampling: structuredClone(DEFAULT_SAMPLING),
     },
     aux_llm: structuredClone(DEFAULT_AUX_LLM),
   },
@@ -125,6 +130,7 @@ const DEFAULT_WRITING = {
     temperature: null,
     max_tokens: null,
     thinking_level: null,
+    sampling: structuredClone(DEFAULT_SAMPLING),
   },
   aux_llm: structuredClone(DEFAULT_AUX_LLM),
 };
@@ -195,6 +201,11 @@ function normalizeTemperature(value, fallback) {
   return Math.min(2, Math.max(0, number));
 }
 
+function normalizeSampling(value) {
+  const src = ensurePlainObject(value);
+  return Object.fromEntries(SAMPLING_PARAM_KEYS.map((key) => [key, normalizeSamplingValue(key, src[key])]));
+}
+
 // 当前服务商不支持的思考档位（换了服务商、档位表更新）回到「自动」；返回是否改动过
 function clearUnsupportedThinkingLevel(section) {
   if (section?.thinking_level == null) return false;
@@ -218,6 +229,7 @@ function normalizeLlmSection(section, defaults) {
     ...(Object.hasOwn(defaults, 'temperature')
       ? { temperature: normalizeTemperature(src.temperature, defaults.temperature) }
       : {}),
+    ...(Object.hasOwn(defaults, 'sampling') ? { sampling: normalizeSampling(src.sampling) } : {}),
   };
   clearUnsupportedThinkingLevel(normalized);
   return normalized;
