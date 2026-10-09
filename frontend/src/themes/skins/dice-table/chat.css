@@ -298,6 +298,12 @@
   box-shadow: 0 0 0 3px var(--we-color-accent), 0 var(--dice-depth) 0 3px var(--we-color-accent-deep);
 }
 
+/* 历史选项还是同一手牌：没选的不整张变灰，只把字退到次级色 */
+:root[data-theme="dice-table"] .we-chat-center-pane .we-option-card--history .we-option-btn--disabled:not(.we-option-btn--selected) {
+  opacity: 1;
+  color: var(--dice-card-muted);
+}
+
 /* 选项区窄到放不下一手牌时，退回竖排的一叠卡 */
 @container (max-width: 560px) {
   :root[data-theme="dice-table"] .we-chat-center-pane .we-option-list {
@@ -380,33 +386,19 @@
 }
 
 /* ── 右栏状态面板（对话、写作共用）：主持人屏风 ──
- * 顶上是当前地点牌；角色一块是奶油色角色卡，顶上一条主色画框；
+ * 顶上是当前地点牌；角色一块是奶油色角色卡；
  * 数值落在展示字体里，有上限的下面画一排格子条（--status-fill 是数值占上限的比例，由状态字段写在元素上）。
- * 角色页签是带头像的圆形纸板标记，选中的换骰红并拿起来；5 枚起一行四枚紧凑排。 */
+ * 角色页签是一排圆头纸片：带头像的头像嵌在左端，选中的换骰红。 */
 :root[data-theme="dice-table"] :is(.we-state-panel, .we-cast-panel) .we-state-block {
   margin-bottom: var(--we-space-lg);
   padding: var(--we-space-md);
   border-radius: var(--we-radius-md);
 }
 
-
 :root[data-theme="dice-table"] :is(.we-state-panel, .we-cast-panel) .we-state-block--cast {
   position: relative;
-  padding-top: calc(var(--we-space-md) + 40px);
   background: var(--dice-card);
   box-shadow: var(--dice-drop);
-}
-
-:root[data-theme="dice-table"] :is(.we-state-panel, .we-cast-panel) .we-state-block--cast::before {
-  content: '';
-  position: absolute;
-  inset: var(--we-space-sm) var(--we-space-sm) auto;
-  height: 32px;
-  border-radius: var(--we-radius-sm);
-  background:
-    var(--we-canvas-texture-image),
-    linear-gradient(135deg, var(--we-color-accent), color-mix(in oklab, var(--dice-card-ink) var(--we-alpha-5), var(--we-color-accent)));
-  pointer-events: none;
 }
 
 /* 数值：展示字体，有上限的下面一排十格 */
@@ -431,13 +423,12 @@
   border-radius: var(--we-radius-xs);
 }
 
-/* 页签：带头像的是圆形纸板标记——头像套一圈奶油厚边、底下露出纸板厚度，名字写在下面；
-   选中的那枚换骰红边、拿起来。没有头像的（日记、附近）是一枚小圆角纸片。 */
+/* 页签：一排圆头纸片，底下露一道纸板厚度，选中的换骰红；带头像的把头像嵌在纸片左端。人多时自动换行 */
 :root[data-theme="dice-table"] :is(.we-state-panel, .we-cast-panel) .we-state-block--cast .we-section-tabs-list {
   flex-wrap: wrap;
-  align-items: flex-end;
-  gap: var(--we-space-md);
-  padding: var(--we-space-sm) var(--we-space-xs) var(--we-space-md);
+  align-items: center;
+  gap: var(--we-space-sm);
+  padding: var(--we-space-xxs) 0 var(--we-space-md);
   overflow: visible;
   background: none;
   border-radius: 0;
@@ -448,9 +439,19 @@
 }
 
 :root[data-theme="dice-table"] :is(.we-state-panel, .we-cast-panel) .we-state-block--cast .we-section-tab {
+  display: inline-flex;
+  align-items: center;
   min-width: 0;
+  max-width: 100%;
+  min-height: 32px;
+  overflow: hidden;
+  padding: 0 var(--we-space-md);
   font-style: normal;
   font-weight: var(--we-weight-strong);
+  color: var(--dice-card-ink);
+  background: var(--we-color-bg-strong);
+  border-radius: var(--we-radius-full);
+  box-shadow: 0 var(--dice-depth) 0 var(--dice-board);
   transition: translate var(--we-motion-state-duration) var(--we-motion-state-easing),
     color var(--we-motion-state-duration) var(--we-motion-state-easing),
     background var(--we-motion-state-duration) var(--we-motion-state-easing),
@@ -461,95 +462,34 @@
   translate: 0 -2px;
 }
 
-/* 没有头像的页签：小纸片 */
-:root[data-theme="dice-table"] :is(.we-state-panel, .we-cast-panel) .we-state-block--cast .we-section-tab:not(.we-section-tab--icon) {
-  align-self: center;
-  overflow: hidden;
-  padding: var(--we-space-xs) var(--we-space-md);
-  text-overflow: ellipsis;
-  color: var(--dice-card-ink);
-  background: var(--we-color-bg-strong);
-  border-radius: var(--we-radius-sm);
-  box-shadow: 0 var(--dice-depth) 0 var(--dice-board);
-}
-
-:root[data-theme="dice-table"] :is(.we-state-panel, .we-cast-panel) .we-state-block--cast .we-section-tab:not(.we-section-tab--icon).active {
+:root[data-theme="dice-table"] :is(.we-state-panel, .we-cast-panel) .we-state-block--cast .we-section-tab.active {
   color: var(--we-color-on-accent);
   background: var(--we-color-accent);
   box-shadow: 0 var(--dice-depth) 0 var(--we-color-accent-deep);
 }
 
-/* 带头像的页签：纸板标记 */
 :root[data-theme="dice-table"] :is(.we-state-panel, .we-cast-panel) .we-state-block--cast .we-section-tab--icon {
-  --token-rim: var(--dice-card);
-  --token-edge: var(--dice-board);
-  --token-ring: 4px;
-  --token-depth: 4px;
-  flex-direction: column;
-  /* 名字和标记之间按选中时最厚的纸板留空：厚边 + 8px 厚度不压到名字，选中时名字也不跳 */
-  gap: calc(var(--token-ring) + var(--we-space-lg));
-  width: 64px;
-  padding: var(--we-space-xs) 0 0;
-  font-size: var(--we-type-caption-size);
-  line-height: var(--we-type-caption-leading);
-  letter-spacing: var(--we-type-caption-tracking);
-  color: var(--dice-card-muted);
-  background: none;
-  box-shadow: none;
+  gap: var(--we-space-xs);
+  padding: 3px var(--we-space-md) 3px 3px;
 }
 
 :root[data-theme="dice-table"] :is(.we-state-panel, .we-cast-panel) .we-state-block--cast .we-section-tab--icon .we-section-tab-icon {
   border-radius: var(--we-radius-full);
-  box-shadow:
-    0 0 0 var(--token-ring) var(--token-rim),
-    0 0 0 calc(var(--token-ring) + 1px) var(--dice-card-line),
-    0 var(--token-depth) 0 calc(var(--token-ring) + 1px) var(--token-edge),
-    0 calc(var(--token-depth) + 8px) 14px -2px var(--we-color-shade-4);
-  transition: box-shadow var(--we-motion-state-duration) var(--we-motion-state-easing);
+  box-shadow: 0 0 0 2px var(--dice-card);
 }
 
 :root[data-theme="dice-table"] :is(.we-state-panel, .we-cast-panel) .we-state-block--cast .we-section-tab--icon .we-avatar-circle--sm {
-  --avatar-size: 46px;
+  --avatar-size: 26px;
 }
 
 :root[data-theme="dice-table"] :is(.we-state-panel, .we-cast-panel) .we-state-block--cast .we-section-tab-label {
-  max-width: 100%;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-:root[data-theme="dice-table"] :is(.we-state-panel, .we-cast-panel) .we-state-block--cast .we-section-tab--icon.active {
-  --token-rim: var(--we-color-accent);
-  --token-edge: var(--we-color-accent-deep);
-  --token-depth: 8px;
-  color: var(--dice-card-ink);
-  translate: 0 -5px;
-}
-
-/* 带头像的页签 5 枚起：一行四枚，标记缩小一号，厚边和厚度一起减薄 */
-:root[data-theme="dice-table"] :is(.we-state-panel, .we-cast-panel) .we-state-block--cast .we-section-tabs-list:has(> .we-section-tab--icon ~ .we-section-tab--icon ~ .we-section-tab--icon ~ .we-section-tab--icon ~ .we-section-tab--icon) {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: var(--we-space-md) var(--we-space-xs);
-  justify-items: center;
-}
-
-:root[data-theme="dice-table"] :is(.we-state-panel, .we-cast-panel) .we-state-block--cast .we-section-tabs-list:has(> .we-section-tab--icon ~ .we-section-tab--icon ~ .we-section-tab--icon ~ .we-section-tab--icon ~ .we-section-tab--icon) > .we-section-tab--icon {
-  --token-ring: 3px;
-  --token-depth: 3px;
-  width: 100%;
-  gap: calc(var(--token-ring) + var(--we-space-md));
-}
-
-:root[data-theme="dice-table"] :is(.we-state-panel, .we-cast-panel) .we-state-block--cast .we-section-tabs-list:has(> .we-section-tab--icon ~ .we-section-tab--icon ~ .we-section-tab--icon ~ .we-section-tab--icon ~ .we-section-tab--icon) > .we-section-tab--icon .we-avatar-circle--sm {
-  --avatar-size: 36px;
-}
-
-:root[data-theme="dice-table"] :is(.we-state-panel, .we-cast-panel) .we-state-block--cast .we-section-tabs-list:has(> .we-section-tab--icon ~ .we-section-tab--icon ~ .we-section-tab--icon ~ .we-section-tab--icon ~ .we-section-tab--icon) > .we-section-tab--icon.active {
-  --token-depth: 6px;
-}
-
-/* 场景板的「当前地点」卡：桌游里的地点牌。左边一块骰红六角地块，里面一枚奶油定位针；
+/* 场景板的「当前地点」卡：桌游里的地点牌。左边一枚骰红棋子站在一格六角地块上——「你们现在在这儿」；
    地点用展示字体压在牌面上，时间是一片冲压出来的黄纸片；右上角折起一个角，像刚从地点牌堆里翻出来 */
 :root[data-theme="dice-table"] .we-scene-place {
   position: relative;
@@ -563,20 +503,49 @@
   box-shadow: var(--dice-drop);
 }
 
+/* 棋子：剪影用遮罩画，亮面、本色、背光面三段平涂，像一枚塑料棋子；脚下一格压扁的六角地块。悬停地点牌时棋子跳一下 */
 :root[data-theme="dice-table"] .we-scene-place-mark {
-  width: 40px;
-  height: 46px;
+  position: relative;
+  width: 44px;
+  height: 52px;
   border-radius: 0;
-  color: var(--dice-card);
-  background:
-    var(--we-canvas-texture-image),
-    var(--we-color-accent);
-  clip-path: var(--dice-hex);
+  background: none;
 }
 
-/* 定位针在骰红地块上整枚取卡纸色，针心不再单走强调色 */
-:root[data-theme="dice-table"] .we-scene-place-mark .we-icon-accent {
-  color: var(--dice-card);
+:root[data-theme="dice-table"] .we-scene-place-mark > svg {
+  display: none;
+}
+
+:root[data-theme="dice-table"] .we-scene-place-mark::before {
+  content: '';
+  position: absolute;
+  inset: auto 0 0;
+  height: 14px;
+  background: var(--we-color-bg-strong);
+  clip-path: polygon(25% 0, 75% 0, 100% 50%, 75% 100%, 25% 100%, 0 50%);
+}
+
+:root[data-theme="dice-table"] .we-scene-place-mark::after {
+  content: '';
+  position: absolute;
+  bottom: 6px;
+  left: 50%;
+  width: 28px;
+  height: 36px;
+  margin-left: -14px;
+  background: linear-gradient(
+    100deg,
+    color-mix(in oklab, var(--dice-card) var(--we-alpha-4), var(--we-color-accent)) 0 32%,
+    var(--we-color-accent) 32% 68%,
+    var(--we-color-accent-deep) 68%
+  );
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 28 36'%3E%3Ccircle cx='14' cy='7' r='6.5'/%3E%3Crect x='7' y='13.5' width='14' height='3.5' rx='1.75'/%3E%3Cpath d='M9.5 17h9c0 6 2.5 10 5.5 14H4c3-4 5.5-8 5.5-14Z'/%3E%3Crect x='2' y='30.5' width='24' height='5.5' rx='2.75'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 28 36'%3E%3Ccircle cx='14' cy='7' r='6.5'/%3E%3Crect x='7' y='13.5' width='14' height='3.5' rx='1.75'/%3E%3Cpath d='M9.5 17h9c0 6 2.5 10 5.5 14H4c3-4 5.5-8 5.5-14Z'/%3E%3Crect x='2' y='30.5' width='24' height='5.5' rx='2.75'/%3E%3C/svg%3E") center / contain no-repeat;
+  transition: translate var(--we-motion-state-duration) var(--we-motion-state-easing);
+}
+
+:root[data-theme="dice-table"] .we-scene-place:hover .we-scene-place-mark::after {
+  translate: 0 -3px;
 }
 
 :root[data-theme="dice-table"] .we-scene-place-body > .we-status-field:first-child > .we-status-key {

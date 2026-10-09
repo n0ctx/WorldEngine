@@ -19,7 +19,7 @@ function FrozenOptionCard({ options, selectedIndex, initialCollapsed }) {
           </div>
         ) : (
           <div className="we-option-card we-option-card--history">
-            <div className="flex flex-col gap-1">
+            <div className="we-option-list">
               {options.map((opt, i) => (
                 <div
                   key={i}

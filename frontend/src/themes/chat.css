@@ -1614,6 +1614,10 @@ svg.we-chat-atmosphere__art {
   animation-fill-mode: backwards;
   animation-delay: calc(var(--i) * var(--we-motion-state-duration) / 2);
 }
+/* 历史选项是同一组选项冻结后的样子，接替时不重放入场和选中动作 */
+.we-option-card--history .we-option-list > .we-option-btn.we-option-btn--disabled {
+  animation: none;
+}
 .we-option-btn:hover:not(.we-option-btn--disabled) {
   background: var(--we-color-accent-bg);
   border-color: var(--we-color-accent);

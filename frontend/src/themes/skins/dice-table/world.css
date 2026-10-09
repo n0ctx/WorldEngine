@@ -147,15 +147,56 @@
   color: color-mix(in srgb, var(--dice-card) var(--we-alpha-5), transparent);
 }
 
-/* 页头（结构与默认样式在 pages.css）：缩略图是战役盒盖，奶油白边、底下露出世界色的盒子侧面；比默认多留一点底距给侧面让位 */
+/* 页头（结构与默认样式在 pages.css）：整条页头是战役盒的盒盖——一块深色厚纸板拉满整行，底下露出盒子侧面；
+   缩略图是印在盒盖上的一张奶油白边卡牌，略歪着；世界名放大一号写在盒盖上。
+   下面的故事线、角色都是摆上桌的奶油卡片，盒盖用深色纸板和更大的字压住整页，不和它们混成一层 */
 :root[data-theme="dice-table"] .we-world-lid {
   margin-bottom: var(--we-space-xl);
+  padding: var(--we-space-md) var(--we-space-xl) var(--we-space-md) var(--we-space-lg);
+  background:
+    radial-gradient(60% 140% at 0% 50%, color-mix(in srgb, var(--we-color-accent) var(--we-alpha-2), transparent), transparent 70%),
+    var(--we-color-bg-surface);
+  border-radius: var(--we-radius-lg);
+  box-shadow:
+    inset 0 1px 0 var(--we-material-sheen),
+    0 0 0 1px var(--we-color-border-subtle),
+    0 6px 0 var(--we-color-shade-3),
+    0 20px 26px -14px var(--we-color-shade-4);
 }
 
 :root[data-theme="dice-table"] .we-world-lid-art {
+  width: 120px; /* design exact: 盒盖上的卡牌比默认缩略图大一档，和放大的世界名配重 */
   border: 3px solid var(--dice-card);
   border-radius: var(--we-radius-sm);
-  box-shadow: 0 6px 0 var(--dice-side), 0 14px 18px -10px var(--we-color-shade-4);
+  box-shadow: 0 var(--dice-depth) 0 var(--dice-board), 0 12px 16px -8px var(--we-color-shade-4);
+  transform: rotate(-2deg);
+}
+
+:root[data-theme="dice-table"] .we-world-lid-name {
+  font-size: var(--we-type-title-size);
+  line-height: var(--we-type-title-leading);
+  letter-spacing: var(--we-type-title-tracking);
+  color: var(--dice-card);
+}
+
+:root[data-theme="dice-table"] .we-world-lid-desc {
+  color: var(--we-color-shell-text-secondary);
+}
+
+@media (max-width: 640px) {
+  :root[data-theme="dice-table"] .we-world-lid {
+    padding: var(--we-space-sm) var(--we-space-md);
+  }
+
+  :root[data-theme="dice-table"] .we-world-lid-art {
+    width: 80px; /* design exact: 窄屏和默认一样缩一档 */
+  }
+
+  :root[data-theme="dice-table"] .we-world-lid-name {
+    font-size: var(--we-type-heading-size);
+    line-height: var(--we-type-heading-leading);
+    letter-spacing: var(--we-type-heading-tracking);
+  }
 }
 
 /* 世界名后面跟一枚骰红六角，像盒子侧面印的战役标记 */
