@@ -1147,11 +1147,6 @@
   font-weight: var(--we-type-display-weight);
 }
 
-.we-avatar-uploading--portrait,
-.we-avatar-mask--portrait {
-  border-radius: var(--we-radius-md);
-}
-
 .we-avatar-upload--portrait .we-avatar-hint {
   text-align: center;
 }
@@ -1170,8 +1165,12 @@
   border-radius: var(--we-radius-sm);
 }
 
+.we-avatar-uploading--portrait {
+  border-radius: var(--we-radius-md);
+}
+
 .we-avatar-uploading span {
-  color: var(--we-color-on-accent);
+  color: var(--we-color-on-cover);
   font-size: var(--we-type-caption-size);
   line-height: var(--we-type-caption-leading);
   letter-spacing: var(--we-type-caption-tracking);
@@ -1192,12 +1191,19 @@
   border-radius: var(--we-radius-sm);
 }
 
+/* 立绘框正中是首字或立牌，「更换图片」落在框底，不压字 */
+.we-avatar-mask--portrait {
+  align-items: flex-end;
+  padding-bottom: var(--we-space-lg);
+  border-radius: var(--we-radius-md);
+}
+
 .we-avatar-wrap:hover .we-avatar-mask {
   background: color-mix(in srgb, var(--we-color-cover-scrim) var(--we-alpha-4), transparent);
 }
 
 .we-avatar-mask span {
-  color: var(--we-color-on-accent);
+  color: var(--we-color-on-cover);
   font-size: var(--we-type-caption-size);
   line-height: var(--we-type-caption-leading);
   letter-spacing: var(--we-type-caption-tracking);
