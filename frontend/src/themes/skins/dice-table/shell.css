@@ -56,6 +56,27 @@
     inset 0 0 80px var(--we-color-shade-3);
 }
 
+/* 缝线以内才是能摆东西的地方：页面滚动区收进缝线内侧，滚动的内容在缝线处被裁掉，不会盖过缝线和包边；
+   世界页、角色页的画布原本按视口写死高度，这里改成填满收窄后的滚动区，不再多出一层滚动 */
+:root[data-theme="dice-table"] .we-page-body {
+  margin: calc(var(--dice-rim-width) + 2px);
+  border-radius: calc(var(--we-radius-lg) - 2px);
+}
+
+:root[data-theme="dice-table"] :is(.we-worlds-canvas, .we-characters-canvas) {
+  flex: 1;
+  height: auto;
+  min-height: 0;
+}
+
+/* 指针点亮的六角格同样只亮在缝线以内，不压到缝线和包边上 */
+:root[data-theme="dice-table"] .we-atmosphere-canvas {
+  clip-path: inset(
+    calc(var(--we-topbar-height) + var(--dice-rim-width) + 2px) calc(var(--dice-rim-width) + 2px) calc(var(--dice-rim-width) + 2px)
+    round calc(var(--we-radius-lg) - 2px)
+  );
+}
+
 :root[data-theme="dice-table"] :is(.we-book-spread-inner, .we-worlds-canvas, .we-characters-canvas, .we-edit-canvas) {
   background-image: none;
 }
