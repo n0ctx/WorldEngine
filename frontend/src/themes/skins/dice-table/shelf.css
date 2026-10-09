@@ -71,7 +71,7 @@
   box-shadow: 0 8px 0 var(--box-side), 0 20px 18px -6px var(--we-color-shade-4);
 }
 
-/* 盒盖：封面占标签以上的整块，四周印一道内框 */
+/* 盒盖：封面占标签以上的整块 */
 :root[data-theme="dice-table"] .we-world-card-bg {
   position: relative;
   inset: auto;
@@ -79,8 +79,6 @@
   min-height: 0;
   height: auto;
   background: var(--box-side);
-  outline: 1px solid color-mix(in srgb, var(--we-color-white) var(--we-alpha-3), transparent);
-  outline-offset: -8px;
 }
 
 /* 盒盖印刷得干净：不压渐变暗罩，字都写在下面的标签上 */
