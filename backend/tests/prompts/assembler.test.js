@@ -109,6 +109,7 @@ test('buildPrompt 组装系统段、历史消息，本轮上下文 + 当前用�
     temperature: 0.2,
     max_tokens: 120,
   });
+  sandbox.db.prepare('UPDATE worlds SET sampling_json = ? WHERE id = ?').run('{"top_p":0.85}', world.id);
   insertPersona(sandbox.db, world.id, { name: '旅者', system_prompt: '玩家身份：{{user}}' });
   const character = insertCharacter(sandbox.db, world.id, {
     name: '阿塔',
@@ -131,6 +132,7 @@ test('buildPrompt 组装系统段、历史消息，本轮上下文 + 当前用�
 
   assert.equal(result.temperature, 0.2);
   assert.equal(result.maxTokens, 120);
+  assert.deepEqual(result.sampling, { top_p: 0.85 });
   assert.equal(result.recallHitCount, 0);
   assert.equal(result.messages.length, 4);
   assert.match(result.messages[0].content, /全局系统：群星海/);

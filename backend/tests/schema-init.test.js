@@ -290,7 +290,7 @@ test('initSchema 在新建的空库上记录结构版本，且不生成备份', 
     try {
       // guard-allow(tests): initSchema 是被测对象，每个用例要从各自不同的库状态起步
       initSchema(db);
-      assert.equal(db.pragma('user_version', { simple: true }), 4);
+      assert.equal(db.pragma('user_version', { simple: true }), 5);
       assert.deepEqual(backupFiles(dir), []);
     } finally {
       db.close();
@@ -316,7 +316,7 @@ test('initSchema 升级已有数据的旧库前留下一份升级前的备份，
       initSchema(db);
       initSchema(db);
 
-      assert.equal(db.pragma('user_version', { simple: true }), 4);
+      assert.equal(db.pragma('user_version', { simple: true }), 5);
       const worldColumns = db.pragma('table_info(worlds)').map((column) => column.name);
       assert.ok(!worldColumns.includes('post_prompt'));
 
@@ -381,7 +381,7 @@ test('initSchema 把外貌档案旧字段改成新字段：显著特征 → 外�
     db.pragma('user_version = 1');
     initSchema(db);
 
-    assert.equal(db.pragma('user_version', { simple: true }), 4);
+    assert.equal(db.pragma('user_version', { simple: true }), 5);
     assert.deepEqual(
       db.prepare('SELECT row_id, field_key, value_json FROM state_profile_fields ORDER BY row_id').all(),
       [
@@ -413,7 +413,7 @@ test('initSchema 给已升级到上一版、缺少事项期限列的库补上 st
     db.pragma('user_version = 2');
     initSchema(db);
 
-    assert.equal(db.pragma('user_version', { simple: true }), 4);
+    assert.equal(db.pragma('user_version', { simple: true }), 5);
     assert.ok(db.pragma('table_info(state_threads)').some((column) => column.name === 'deadline'));
   } finally {
     db.close();
@@ -429,8 +429,24 @@ test('initSchema 给已升级到上一版、缺少上下文占用列的库补上
     db.pragma('user_version = 3');
     initSchema(db);
 
-    assert.equal(db.pragma('user_version', { simple: true }), 4);
+    assert.equal(db.pragma('user_version', { simple: true }), 5);
     assert.ok(db.pragma('table_info(assistant_tasks)').some((column) => column.name === 'context_usage_json'));
+  } finally {
+    db.close();
+  }
+});
+
+test('initSchema 给已升级到上一版、缺少采样参数列的库补上 worlds.sampling_json', () => {
+  const db = new Database(':memory:');
+  try {
+    // guard-allow(tests): 先建到上一版结构删掉采样参数列，再退回版本号让本步升级执行
+    initSchema(db);
+    db.exec('ALTER TABLE worlds DROP COLUMN sampling_json');
+    db.pragma('user_version = 4');
+    initSchema(db);
+
+    assert.equal(db.pragma('user_version', { simple: true }), 5);
+    assert.ok(db.pragma('table_info(worlds)').some((column) => column.name === 'sampling_json'));
   } finally {
     db.close();
   }

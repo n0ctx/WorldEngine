@@ -120,7 +120,7 @@ describe('MainLlmBlock', () => {
     expect(screen.getByDisplayValue('4096')).toBeInTheDocument();
   });
 
-  it('高级采样只列出当前服务商支持的参数，Kimi 不显示', () => {
+  it('高级采样只列出当前服务商支持的参数，Kimi 只给出说明', () => {
     const { container, rerender } = renderMainLlmBlock({ provider: 'ollama', sampling: { top_k: 40 } });
 
     expect(screen.getByText('高级采样（已设置 1 项）')).toBeInTheDocument();
@@ -132,6 +132,11 @@ describe('MainLlmBlock', () => {
     expect(screen.getByText('Top P')).toBeInTheDocument();
 
     rerender(<MainLlmBlock providers={providers} config={{ provider: 'kimi' }} {...callbacks} />);
+    expect(container.querySelector('.we-settings-sampling')).not.toBeNull();
+    expect(screen.queryByText('Top P')).not.toBeInTheDocument();
+    expect(screen.getByText('当前服务商固定了采样参数或会拒收这些参数，这里没有可调项。')).toBeInTheDocument();
+
+    rerender(<MainLlmBlock providers={providers} config={{ provider: '' }} {...callbacks} />);
     expect(container.querySelector('.we-settings-sampling')).toBeNull();
   });
 

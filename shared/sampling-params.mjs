@@ -71,3 +71,23 @@ export function normalizeSamplingValue(key, value) {
   const clamped = Math.min(spec.max, Math.max(spec.min, number));
   return spec.integer ? Math.round(clamped) : clamped;
 }
+
+/** 只留下已设置的项并规整取值；世界卡这类只覆盖部分项的设置按此存取，未列出的项沿用全局设置 */
+export function pickSamplingOverrides(value) {
+  if (!value || typeof value !== 'object') return {};
+  const picked = {};
+  for (const key of SAMPLING_PARAM_KEYS) {
+    const normalized = normalizeSamplingValue(key, value[key]);
+    if (normalized != null) picked[key] = normalized;
+  }
+  return picked;
+}
+
+/** 读世界卡存下的 sampling_json；内容损坏时当作没有覆盖 */
+export function parseSamplingOverrides(json) {
+  try {
+    return pickSamplingOverrides(JSON.parse(json || '{}'));
+  } catch {
+    return {};
+  }
+}

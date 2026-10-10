@@ -237,10 +237,10 @@ function SamplingField({ paramKey, value, onChange }) {
   );
 }
 
-// 只列出当前服务商支持的采样参数（shared/sampling-params.mjs）；未选服务商或都不支持时不显示
+// 只列出当前服务商支持的采样参数（shared/sampling-params.mjs）；未选服务商时不显示，都不支持时说明原因
 function MainLlmSamplingSettings({ provider, sampling, onSamplingChange }) {
+  if (!onSamplingChange || !provider) return null;
   const keys = getSupportedSamplingParams(provider);
-  if (!onSamplingChange || keys.length === 0) return null;
   const current = sampling || {};
   const setCount = keys.filter((key) => current[key] != null).length;
 
@@ -248,7 +248,9 @@ function MainLlmSamplingSettings({ provider, sampling, onSamplingChange }) {
     <details className="we-settings-sampling">
       <summary>高级采样{setCount > 0 ? `（已设置 ${setCount} 项）` : ''}</summary>
       <div className="we-settings-sampling-body">
-        {keys.map((key) => (
+        {keys.length === 0 ? (
+          <p className="we-settings-inline-hint">当前服务商固定了采样参数或会拒收这些参数，这里没有可调项。</p>
+        ) : keys.map((key) => (
           <SamplingField
             key={key}
             paramKey={key}

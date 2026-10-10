@@ -18,6 +18,10 @@ const mocks = vi.hoisted(() => ({
   loadedWorld: {},
 }));
 
+const NO_SAMPLING = {
+  top_p: null, top_k: null, min_p: null, repetition_penalty: null, presence_penalty: null, frequency_penalty: null,
+};
+
 vi.mock('react-router-dom', () => ({
   useParams: () => mocks.useParams(),
   useNavigate: () => mocks.useNavigate,
@@ -209,6 +213,7 @@ describe('WorldEditPage', () => {
       description: '',
       temperature: 0.7,
       max_tokens: 1024,
+      sampling: NO_SAMPLING,
     }));
     expect(mocks.useNavigate).not.toHaveBeenCalled();
     await waitFor(() => expect(screen.queryByText('有未保存的修改')).toBeNull());
@@ -256,7 +261,31 @@ describe('WorldEditPage', () => {
       description: '',
       temperature: 1.25,
       max_tokens: 2048,
+      sampling: NO_SAMPLING,
     }));
+  });
+
+  it('采样参数读出世界卡已设置的项，保存时提交规整后的数字，存下的值回填输入框', async () => {
+    mocks.loadedWorld = { ...mocks.loadedWorld, sampling_json: '{"top_p":0.9}' };
+    mocks.updateWorld.mockImplementationOnce(async (_id, { sampling, ...patch }) => {
+      const stored = Object.fromEntries(Object.entries(sampling).filter(([, value]) => value != null));
+      mocks.loadedWorld = { ...mocks.loadedWorld, ...patch, sampling_json: JSON.stringify(stored) };
+      return { id: 'world-1' };
+    });
+    render(<WorldEditPage />);
+
+    await screen.findByDisplayValue('群星海');
+    expect(screen.getByDisplayValue('0.9')).toBeInTheDocument();
+    const [, , , topKInput] = screen.getAllByLabelText('留空则使用全局配置');
+    fireEvent.change(topKInput, { target: { value: '40.4' } });
+    expect(screen.getByText('有未保存的修改')).toBeInTheDocument();
+    fireEvent.click(screen.getByText('保存'));
+
+    await waitFor(() => expect(mocks.updateWorld).toHaveBeenCalledWith('world-1', expect.objectContaining({
+      sampling: { ...NO_SAMPLING, top_p: 0.9, top_k: 40 },
+    })));
+    await waitFor(() => expect(topKInput).toHaveValue(40));
+    expect(screen.queryByText('有未保存的修改')).toBeNull();
   });
 
   it('新建状态模板不挂载；编辑页上传封面并保留主色切换逻辑', async () => {

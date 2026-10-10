@@ -1,5 +1,3 @@
-import StateFieldList from '../../components/rules/StateFieldList';
-import WorldProfileDefaultsFields from '../../components/rules/WorldProfileDefaultsFields.jsx';
 import DatetimeSplitInput from '../../components/state/DatetimeSplitInput.jsx';
 import AvatarUpload from '../../components/ui/AvatarUpload';
 import Divider from '../../components/ui/Divider.jsx';
@@ -8,18 +6,8 @@ import Input from '../../components/ui/Input';
 import Textarea from '../../components/ui/Textarea';
 import SectionTabs from '../../components/ui/SectionTabs.jsx';
 import ToggleSwitch from '../../components/ui/ToggleSwitch';
-import {
-  listWorldStateFields, createWorldStateField,
-  updateWorldStateField, deleteWorldStateField, reorderWorldStateFields,
-} from '../../core/api/world-state-fields';
-import {
-  listCharacterStateFields, createCharacterStateField,
-  updateCharacterStateField, deleteCharacterStateField, reorderCharacterStateFields,
-} from '../../core/api/character-state-fields';
-import {
-  listPersonaStateFields, createPersonaStateField,
-  updatePersonaStateField, deletePersonaStateField, reorderPersonaStateFields,
-} from '../../core/api/persona-state-fields';
+import { SAMPLING_PARAMS, SAMPLING_PARAM_KEYS } from '../../core/utils/constants';
+import WorldStateTemplatesSection from './WorldStateTemplatesSection.jsx';
 
 export default function WorldEditSections({ isCreate, worldId, navigate, diaryChatDateMode, appearance, page }) {
   const sections = [
@@ -48,6 +36,8 @@ export default function WorldEditSections({ isCreate, worldId, navigate, diaryCh
           setTemperature={page.setTemperature}
           maxTokens={page.maxTokens}
           setMaxTokens={page.setMaxTokens}
+          sampling={page.sampling}
+          setSamplingField={page.setSamplingField}
         />
       ),
     },
@@ -57,7 +47,7 @@ export default function WorldEditSections({ isCreate, worldId, navigate, diaryCh
     sections.push({
       key: 'state_templates',
       label: '状态模板',
-      content: <StateTemplatesSection worldId={worldId} navigate={navigate} diaryChatDateMode={diaryChatDateMode} />,
+      content: <WorldStateTemplatesSection worldId={worldId} navigate={navigate} diaryChatDateMode={diaryChatDateMode} />,
     });
   }
 
@@ -149,7 +139,7 @@ function BasicSettingsSection({ isCreate, name, setName, description, setDescrip
   );
 }
 
-function LlmSettingsSection({ temperature, setTemperature, maxTokens, setMaxTokens }) {
+function LlmSettingsSection({ temperature, setTemperature, maxTokens, setMaxTokens, sampling, setSamplingField }) {
   return (
     <div className="we-edit-form-stack">
       <FormGroup label="随机度" hint="即 Temperature。只对这个世界生效，留空则用全局设置">
@@ -173,55 +163,24 @@ function LlmSettingsSection({ temperature, setTemperature, maxTokens, setMaxToke
           placeholder="留空则使用全局配置"
         />
       </FormGroup>
-    </div>
-  );
-}
-
-function StateTemplatesSection({ worldId, navigate, diaryChatDateMode }) {
-  return (
-    <div>
-      <p className="we-edit-hint">这一页的修改即时生效，不用点保存。</p>
-      <p className="we-config-workshop-hint">
-        想以字段为中心、一站式设置各角色/玩家默认值与设定条目？
-        <button
-          type="button"
-          className="we-workshop-entry-link"
-          onClick={() => navigate(`/worlds/${worldId}/rules?tab=state`)}
-        >
-          前往这个世界的规则 →
-        </button>
-      </p>
-      <WorldProfileDefaultsFields worldId={worldId} />
-      <StateFieldList
-        scope="world"
-        worldId={worldId}
-        diaryDateMode={diaryChatDateMode}
-        listFn={listWorldStateFields}
-        createFn={createWorldStateField}
-        updateFn={updateWorldStateField}
-        deleteFn={deleteWorldStateField}
-        reorderFn={reorderWorldStateFields}
-      />
-      <Divider size="lg" />
-      <StateFieldList
-        scope="character"
-        worldId={worldId}
-        listFn={listCharacterStateFields}
-        createFn={createCharacterStateField}
-        updateFn={updateCharacterStateField}
-        deleteFn={deleteCharacterStateField}
-        reorderFn={reorderCharacterStateFields}
-      />
-      <Divider size="lg" />
-      <StateFieldList
-        scope="persona"
-        worldId={worldId}
-        listFn={listPersonaStateFields}
-        createFn={createPersonaStateField}
-        updateFn={updatePersonaStateField}
-        deleteFn={deletePersonaStateField}
-        reorderFn={reorderPersonaStateFields}
-      />
+      <Divider />
+      <p className="we-edit-hint">以下采样参数只对这个世界生效，留空则用全局设置；当前服务商不支持的项不会发送。</p>
+      {SAMPLING_PARAM_KEYS.map((key) => {
+        const spec = SAMPLING_PARAMS[key];
+        return (
+          <FormGroup key={key} label={spec.label} hint={spec.hint}>
+            <Input
+              type="number"
+              step={spec.step}
+              min={spec.min}
+              max={spec.max}
+              value={sampling[key]}
+              onChange={e => setSamplingField(key, e.target.value)}
+              placeholder="留空则使用全局配置"
+            />
+          </FormGroup>
+        );
+      })}
     </div>
   );
 }

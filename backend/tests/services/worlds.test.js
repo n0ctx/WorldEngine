@@ -75,6 +75,18 @@ test('createWorld 只种世界层默认状态字段并初始化状态值；玩�
   assert.ok(persona.id);
 });
 
+test('世界卡的采样参数只存设置过的项，取值按范围规整，不接受直接写 sampling_json', async () => {
+  const { createWorld, updateWorld } = await freshImport('backend/services/worlds.js');
+  const world = createWorld({ name: '世界-采样', sampling: { top_p: 0.9, top_k: null } });
+  assert.deepEqual(JSON.parse(world.sampling_json), { top_p: 0.9 });
+
+  const updated = updateWorld(world.id, { sampling: { top_k: 40.4, min_p: '', repetition_penalty: 9 } });
+  assert.deepEqual(JSON.parse(updated.sampling_json), { top_k: 40, repetition_penalty: 2 });
+
+  const untouched = updateWorld(world.id, { name: '世界-采样2', sampling_json: 'not json' });
+  assert.equal(untouched.sampling_json, updated.sampling_json);
+});
+
 test('clearAllDiaryData 会删除所有聊天会话的日记记录与磁盘目录', async () => {
   const world = insertWorld(sandbox.db, { name: '世界-清理日记' });
   const character = insertCharacter(sandbox.db, world.id, { name: '砂舟' });

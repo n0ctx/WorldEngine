@@ -18,15 +18,21 @@ import { deleteDailyEntriesBySessionIds } from '../db/queries/daily-entries.js';
 import { deleteDiaryDir } from '../memory/diary-generator.js';
 import { createLogger, formatMeta } from '../utils/logger.js';
 import { DEFAULT_WORLD_STATE_FIELDS } from '../utils/default-state-fields.js';
+import { pickSamplingOverrides } from '../utils/constants.js';
 
 const log = createLogger('svc', 'green');
+
+// 接口收 sampling 对象，落库前规整成只含已设置项的 sampling_json；不接受直接写 sampling_json
+function withSamplingJson({ sampling, sampling_json: _raw, ...rest }) {
+  return sampling === undefined ? rest : { ...rest, sampling_json: JSON.stringify(pickSamplingOverrides(sampling)) };
+}
 
 function getInitialValueJson(field) {
   return field.default_value ?? null;
 }
 
 export function createWorld(data) {
-  const world = dbCreateWorld(data);
+  const world = dbCreateWorld(withSamplingJson(data));
 
   // 新建世界种下默认世界层状态字段，让用户不必每个世界重设。玩家层/角色层不预设，由用户按需创建。
   // 落库后就是普通字段，用户可改可删。只在 createWorld 里种，不影响已存在的世界。
@@ -59,7 +65,7 @@ export function getAllWorlds() {
 }
 
 export function updateWorld(id, patch) {
-  const updated = dbUpdateWorld(id, patch);
+  const updated = dbUpdateWorld(id, withSamplingJson(patch));
   if (updated) {
     log.info(`world.update  ${formatMeta({ worldId: id, fields: Object.keys(patch) })}`);
   }

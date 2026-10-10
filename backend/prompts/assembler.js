@@ -59,6 +59,7 @@ import { createLogger } from '../utils/logger.js';
 import { loadBackendPrompt } from './prompt-loader.js';
 import { splitRounds, roundTokens } from '../utils/session-rounds.js';
 import { toPromptMessage } from '../utils/turn-dialogue.js';
+import { parseSamplingOverrides } from '../utils/constants.js';
 import {
   CONTEXT_GUIDES,
   composeSystemContent,
@@ -408,7 +409,7 @@ async function buildChatSystemPrompt(sessionId, character, world, config, option
  * @param {string} sessionId
  * @param {object} [options]
  * @param {Function} [options.onRecallEvent]  (name: string, payload: object) => void
- * @returns {Promise<{ messages: Array, temperature: number, maxTokens: number, recallHitCount: number, turnContext: string }>}
+ * @returns {Promise<{ messages: Array, temperature: number, maxTokens: number, sampling: object, recallHitCount: number, turnContext: string }>}
  */
 export async function buildPrompt(sessionId, options = {}) {
   const { continuation = false } = options;
@@ -459,10 +460,11 @@ export async function buildPrompt(sessionId, options = {}) {
   const temperature = world.temperature ?? config.llm.temperature;
   const baseMaxTokens = world.max_tokens ?? config.llm.max_tokens;
   const maxTokens = resolveMaxTokens(baseMaxTokens, config.suggestion_enabled);
-
+  // 世界卡只覆盖设置过的采样参数，与全局设置逐项合并见 llm/index.js 的 buildLLMConfig
+  const sampling = parseSamplingOverrides(world.sampling_json);
 
   log.info(`└─ buildPrompt DONE  session=${sid}  msgs=${messages.length}  cached=${fmtK(cachedContent.length)}  +${Date.now() - t0}ms  temp=${temperature}  max=${maxTokens}`);
-  return { messages, temperature, maxTokens, recallHitCount, cacheableSystem: cachedContent, turnContext, suggestionText, activatedEntries };
+  return { messages, temperature, maxTokens, sampling, recallHitCount, cacheableSystem: cachedContent, turnContext, suggestionText, activatedEntries };
 }
 
 async function buildWritingCoreSystemParts(sessionId, world, writing, persona, options) {
@@ -560,7 +562,7 @@ async function buildWritingSystemPrompt(sessionId, world, writing, persona, opti
  * @param {string} sessionId
  * @param {object} [options]
  * @param {Function} [options.onRecallEvent]  (name: string, payload: object) => void
- * @returns {Promise<{ messages: Array, temperature: number, maxTokens: number, model: string|null, recallHitCount: number }>}
+ * @returns {Promise<{ messages: Array, temperature: number, maxTokens: number, sampling: object, model: string|null, recallHitCount: number }>}
  */
 export async function buildWritingPrompt(sessionId, options = {}) {
   const { skipWritingInstructions, continuation = false } = options;
@@ -627,8 +629,9 @@ export async function buildWritingPrompt(sessionId, options = {}) {
   const temperature = world.temperature ?? writing.temperature ?? config.llm.temperature;
   const baseMaxTokens = world.max_tokens ?? writing.max_tokens ?? config.llm.max_tokens;
   const maxTokens = resolveMaxTokens(baseMaxTokens, writing.suggestion_enabled);
+  const sampling = parseSamplingOverrides(world.sampling_json);
   const model = writing.model || null;
 
   log.info(`└─ buildWritingPrompt DONE  session=${sid}  msgs=${messages.length}  cached=${fmtK(cachedContent.length)}  +${Date.now() - t0}ms  temp=${temperature}  max=${maxTokens}`);
-  return { messages, temperature, maxTokens, model, recallHitCount, cacheableSystem: cachedContent, turnContext, suggestionText, activatedEntries };
+  return { messages, temperature, maxTokens, sampling, model, recallHitCount, cacheableSystem: cachedContent, turnContext, suggestionText, activatedEntries };
 }

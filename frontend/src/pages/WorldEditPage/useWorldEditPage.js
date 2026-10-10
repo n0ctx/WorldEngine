@@ -4,6 +4,7 @@ import { getConfig } from '../../core/api/config';
 import { useCreateDraftIdentity } from '../../core/hooks/useCreateDraftIdentity.js';
 import { useWorldUpdateReload } from '../../core/hooks/useWorldUpdateReload.js';
 import { keepEdited, useFormBaseline } from '../../core/hooks/useFormBaseline.js';
+import { SAMPLING_PARAM_KEYS, normalizeSamplingValue, parseSamplingOverrides } from '../../core/utils/constants';
 import { log } from '../../core/utils/logger.js';
 
 function readCreateDraft() {
@@ -14,6 +15,15 @@ function readCreateDraft() {
   }
 }
 
+// 采样参数每项存成输入框里的字符串（未设置为空串），与其他字段一样逐项比对未保存修改
+function toSamplingForm(values) {
+  return Object.fromEntries(SAMPLING_PARAM_KEYS.map((key) => [key, values[key] != null ? String(values[key]) : '']));
+}
+
+function keepEditedSampling(base, next) {
+  return (current) => Object.fromEntries(SAMPLING_PARAM_KEYS.map((key) => [key, keepEdited(base, key, next)(current[key])]));
+}
+
 export default function useWorldEditPage({ worldId, isCreate, isOverlay, navigate, onWorldLoaded }) {
   const [loading, setLoading] = useState(!isCreate);
   const [loadError, setLoadError] = useState('');
@@ -22,11 +32,12 @@ export default function useWorldEditPage({ worldId, isCreate, isOverlay, navigat
   const [savedKey, setSavedKey] = useState(0);
   const [temperature, setTemperature] = useState('');
   const [maxTokens, setMaxTokens] = useState('');
+  const [sampling, setSampling] = useState(() => toSamplingForm({}));
   const [openingTime, setOpeningTime] = useState('');
   const [reloadKey, setReloadKey] = useState(0);
   const [diaryChatDateMode, setDiaryChatDateMode] = useState('virtual');
   const { name, setName, description, setDescription } = useCreateDraftIdentity(isCreate, readCreateDraft);
-  const { dirty, baselineRef, setBaseline } = useFormBaseline({ name, description, temperature, maxTokens });
+  const { dirty, baselineRef, setBaseline } = useFormBaseline({ name, description, temperature, maxTokens, ...sampling });
 
   useEffect(() => {
     if (isCreate || !worldId) return;
@@ -46,6 +57,7 @@ export default function useWorldEditPage({ worldId, isCreate, isOverlay, navigat
         description: world.description ?? '',
         temperature: world.temperature != null ? String(world.temperature) : '',
         maxTokens: world.max_tokens != null ? String(world.max_tokens) : '',
+        ...toSamplingForm(parseSamplingOverrides(world.sampling_json)),
       };
       // 重新取数（世界更新事件、上传封面、改主色后）不冲掉未保存的输入：只替换基准之后没改过的字段
       const base = baselineRef.current;
@@ -53,6 +65,7 @@ export default function useWorldEditPage({ worldId, isCreate, isOverlay, navigat
       setDescription(keepEdited(base, 'description', loaded));
       setTemperature(keepEdited(base, 'temperature', loaded));
       setMaxTokens(keepEdited(base, 'maxTokens', loaded));
+      setSampling(keepEditedSampling(base, loaded));
       setBaseline(loaded);
       onWorldLoaded(world);
       setLoading(false);
@@ -92,17 +105,22 @@ export default function useWorldEditPage({ worldId, isCreate, isOverlay, navigat
         setSaving(false);
         navigate(`/worlds/${world.id}/edit`, { replace: true });
       } else {
-        const sent = { name, description, temperature, maxTokens };
-        const stored = { ...sent, name: name.trim(), description: description.trim() };
+        const sent = { name, description, temperature, maxTokens, ...sampling };
+        const samplingValues = Object.fromEntries(
+          SAMPLING_PARAM_KEYS.map((key) => [key, normalizeSamplingValue(key, sampling[key])]),
+        );
+        const stored = { ...sent, name: name.trim(), description: description.trim(), ...toSamplingForm(samplingValues) };
         await updateWorld(worldId, {
           name: stored.name,
           description: stored.description,
           temperature: temperature === '' ? null : Number(temperature),
           max_tokens: maxTokens === '' ? null : parseInt(maxTokens, 10),
+          sampling: samplingValues,
         });
         // 提交后又改过的字段保留输入，没改过的换成写进服务端的值
         setName(keepEdited(sent, 'name', stored));
         setDescription(keepEdited(sent, 'description', stored));
+        setSampling(keepEditedSampling(sent, stored));
         setBaseline(stored);
         setSaving(false);
         setSavedKey((key) => key + 1);
@@ -132,6 +150,8 @@ export default function useWorldEditPage({ worldId, isCreate, isOverlay, navigat
     setTemperature,
     maxTokens,
     setMaxTokens,
+    sampling,
+    setSamplingField: (key, value) => setSampling((current) => ({ ...current, [key]: value })),
     openingTime,
     setOpeningTime,
     diaryChatDateMode,

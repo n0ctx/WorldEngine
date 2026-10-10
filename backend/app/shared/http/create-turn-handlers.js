@@ -103,6 +103,7 @@ export function createTurnHandlers({ mode, resolveSession, emitSse, logNs, guard
         const raw = await llm.complete(prompt, {
           temperature: overrides.temperature,
           maxTokens: mode.impersonate.maxTokens(overrides),
+          sampling: overrides.sampling,
           model: overrides.model,
           cacheableSystem: overrides.cacheableSystem,
           configScope: mode.llm.configScope,

@@ -11,8 +11,8 @@ export function createWorld(data) {
   const maxRow = db.prepare('SELECT MAX(sort_order) AS max_sort FROM worlds').get();
   const sortOrder = (maxRow?.max_sort ?? -1) + 1;
   const stmt = db.prepare(`
-    INSERT INTO worlds (id, name, description, temperature, max_tokens, profile_defaults_json, sort_order, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO worlds (id, name, description, temperature, max_tokens, sampling_json, profile_defaults_json, sort_order, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
   stmt.run(
     id,
@@ -20,6 +20,7 @@ export function createWorld(data) {
     data.description ?? '',
     data.temperature ?? null,
     data.max_tokens ?? null,
+    data.sampling_json ?? '{}',
     data.profile_defaults_json ?? '{}',
     sortOrder,
     now,
@@ -53,7 +54,7 @@ export function reorderWorlds(items) {
  * 部分更新世界字段，返回更新后的记录
  */
 export function updateWorld(id, patch) {
-  return updateRowFields('worlds', id, patch, ['name', 'description', 'temperature', 'max_tokens', 'cover_path', 'accent_color', 'accent_source', 'onboarding_dismissed']);
+  return updateRowFields('worlds', id, patch, ['name', 'description', 'temperature', 'max_tokens', 'sampling_json', 'cover_path', 'accent_color', 'accent_source', 'onboarding_dismissed']);
 }
 
 /** 写入世界卡的档案默认值（已校验的 { time?, location? } JSON）。 */

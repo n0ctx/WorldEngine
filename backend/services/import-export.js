@@ -36,6 +36,7 @@ import {
   runImportTransaction,
 } from '../db/queries/import-export.js';
 import { createLogger, formatMeta } from '../utils/logger.js';
+import { parseSamplingOverrides, pickSamplingOverrides } from '../utils/constants.js';
 import {
   EXPORT_FORMAT_CHARACTER,
   EXPORT_FORMAT_PERSONA,
@@ -234,6 +235,7 @@ function insertImportedWorldBase(data, worldId, now) {
     description: data.world.description ?? '',
     temperature: data.world.temperature ?? null,
     max_tokens: data.world.max_tokens ?? null,
+    sampling_json: JSON.stringify(pickSamplingOverrides(data.world.sampling)),
     cover_path: coverPath,
     accent_color: data.world.accent_color ?? null,
     accent_source: data.world.accent_source ?? null,
@@ -491,6 +493,7 @@ export function exportWorld(worldId) {
       cover_path: world.cover_path ?? null,
       temperature: world.temperature ?? null,
       max_tokens: world.max_tokens ?? null,
+      sampling: parseSamplingOverrides(world.sampling_json),
       accent_color: world.accent_color ?? null,
       accent_source: world.accent_source ?? null,
       profile_defaults: sanitizeWorldProfileDefaults(parseProfileDefaults(world.profile_defaults_json)),

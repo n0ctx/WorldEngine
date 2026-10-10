@@ -18,6 +18,8 @@ export {
 export { PROVIDER_THINKING_LEVELS } from '../../../../shared/thinking-levels.mjs';
 export {
   SAMPLING_PARAMS,
+  SAMPLING_PARAM_KEYS,
   getSupportedSamplingParams,
   normalizeSamplingValue,
+  parseSamplingOverrides,
 } from '../../../../shared/sampling-params.mjs';

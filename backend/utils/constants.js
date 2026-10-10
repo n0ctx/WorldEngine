@@ -150,6 +150,8 @@ export {
   SAMPLING_PARAM_KEYS,
   getSupportedSamplingParams,
   normalizeSamplingValue,
+  pickSamplingOverrides,
+  parseSamplingOverrides,
 } from '../../shared/sampling-params.mjs';
 
 // ============================

@@ -118,8 +118,9 @@ function buildLLMConfig(options = {}) {
     model: options.model || llm.model,
     temperature: options.temperature ?? llm.temperature,
     max_tokens: options.maxTokens ?? llm.max_tokens,
-    // 仅对话 / 写作主模型带采样参数（shared/sampling-params.mjs），各 provider 只写自己支持的项
-    sampling: llm.sampling,
+    // 仅对话 / 写作主模型带采样参数（shared/sampling-params.mjs），各 provider 只写自己支持的项；
+    // 调用方传的 sampling 只含世界卡设置过的项，逐项盖过配置
+    sampling: { ...llm.sampling, ...options.sampling },
     // 调用方可传 thinking_level 覆盖配置；传 null 表示不下发思考字段（= 模型默认，
     // 本地 Qwen 等模型默认会思考，并不等于关闭）。未传时沿用配置，用 hasOwnProperty 区分。
     thinking_level: Object.prototype.hasOwnProperty.call(options, 'thinking_level')

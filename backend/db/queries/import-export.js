@@ -144,7 +144,7 @@ export function getNextPersonaSortOrder(worldId) {
 
 export function insertWorldRow(row) {
   insertRows('worlds', [
-    'id', 'name', 'description', 'temperature', 'max_tokens', 'cover_path', 'accent_color', 'accent_source',
+    'id', 'name', 'description', 'temperature', 'max_tokens', 'sampling_json', 'cover_path', 'accent_color', 'accent_source',
     'profile_defaults_json', 'created_at', 'updated_at',
   ], [row]);
 }

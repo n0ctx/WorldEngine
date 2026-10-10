@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { createTestSandbox, freshImport, resetMockEnv } from '../helpers/test-env.js';
 
 // 独立成文件：services/config.js 的 CONFIG_PATH 在模块加载时固化，与其它用例同文件会读到已清理沙箱的路径。
-test('buildLLMConfig：采样参数只给对话 / 写作主模型，写作选了独立服务商时用自己的设置', { concurrency: false }, async (t) => {
+test('buildLLMConfig：采样参数只给对话 / 写作主模型，写作选了独立服务商时用自己的设置，世界卡覆盖逐项生效', { concurrency: false }, async (t) => {
   const sandbox = createTestSandbox('llm-config-sampling', {
     provider_keys: { mock: 'secret' },
     llm: { provider: 'mock', model: 'chat', sampling: { top_p: 0.9 } },
@@ -20,9 +20,13 @@ test('buildLLMConfig：采样参数只给对话 / 写作主模型，写作选了
   const { __testables } = await freshImport('backend/llm/index.js');
   const { updateConfig } = await freshImport('backend/services/config.js');
   assert.equal(__testables.buildLLMConfig({}).sampling.top_p, 0.9);
-  assert.equal(__testables.buildLLMConfig({ configScope: 'aux' }).sampling, undefined);
-  assert.equal(__testables.buildLLMConfig({ configScope: 'writing-aux' }).sampling, undefined);
+  assert.deepEqual(__testables.buildLLMConfig({ configScope: 'aux' }).sampling, {});
+  assert.deepEqual(__testables.buildLLMConfig({ configScope: 'writing-aux' }).sampling, {});
   assert.equal(__testables.buildLLMConfig({ configScope: 'writing' }).sampling.top_p, 0.9);
+  // 世界卡传来的覆盖逐项盖过配置，未覆盖的项沿用配置
+  const merged = __testables.buildLLMConfig({ sampling: { top_k: 20 } }).sampling;
+  assert.equal(merged.top_p, 0.9);
+  assert.equal(merged.top_k, 20);
 
   updateConfig({ writing: { llm: { provider: 'mock', model: 'w', sampling: { top_p: 0.5 } } } });
   assert.equal(__testables.buildLLMConfig({ configScope: 'writing' }).sampling.top_p, 0.5);

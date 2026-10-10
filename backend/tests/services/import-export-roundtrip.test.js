@@ -85,6 +85,7 @@ test('世界卡 round-trip 保持世界/状态/角色结构等价', async () => 
     max_tokens: 333,
     cover_path: 'avatars/world-cover.png',
   });
+  sandbox.db.prepare('UPDATE worlds SET sampling_json = ? WHERE id = ?').run('{"top_p":0.9,"top_k":40}', world.id);
   writeUploadFile(sandbox, 'avatars/world-cover.png', 'world-cover');
 
   insertPersona(sandbox.db, world.id, {
@@ -164,6 +165,7 @@ test('世界卡 round-trip 保持世界/状态/角色结构等价', async () => 
   const imported = importWorld(exported);
   const reExported = exportWorld(imported.id);
 
+  assert.deepEqual(exported.world.sampling, { top_p: 0.9, top_k: 40 });
   assert.deepEqual(normalizeWorldPackage(reExported), normalizeWorldPackage(exported));
 });
 

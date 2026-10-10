@@ -491,6 +491,8 @@ const MIGRATIONS = [
   (db) => addColumn(db, 'state_threads', 'deadline', 'TEXT'),
   // 写卡助手的上下文占用随任务落库，重启后面板顶栏仍能显示百分比。
   (db) => addColumn(db, 'assistant_tasks', 'context_usage_json', 'TEXT'),
+  // 世界卡的采样参数覆盖：只存设置过的项，其余沿用全局设置。
+  (db) => addColumn(db, 'worlds', 'sampling_json', "TEXT NOT NULL DEFAULT '{}'"),
 ];
 
 export function initSchema(db) {

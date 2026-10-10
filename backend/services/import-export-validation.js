@@ -184,6 +184,7 @@ export function validateWorldImportPayload(data) {
   assertOptionalString(data.world.description, 'world.description');
   assertOptionalNumber(data.world.temperature, 'world.temperature');
   assertOptionalNumber(data.world.max_tokens, 'world.max_tokens');
+  if (data.world.sampling != null) assertPlainObject(data.world.sampling, 'world.sampling');
   assertOptionalString(data.world.cover_path, 'world.cover_path', MAX_TEXT_FIELD_LENGTH);
   assertAvatarPayload(data.world.cover_base64, data.world.cover_mime, 'world');
   assertOptionalString(data.world.accent_color, 'world.accent_color', 32);

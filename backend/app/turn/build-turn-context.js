@@ -3,7 +3,7 @@
  *
  * chat 与 writing 的 assembler 返回形状本来不一致（一个嵌套 overrides、一个扁平且多一个 model），
  * 这里抹平成同一个形状，让回合 runner 不必为模式分叉：
- *   { messages, overrides: { temperature, maxTokens, model, cacheableSystem },
+ *   { messages, overrides: { temperature, maxTokens, sampling, model, cacheableSystem },
  *     turnContext, recallHitCount, suggestionText, activatedEntries }
  *
  * model 恒存在，chat 恒为 null —— llm/index.js 的 `options.model || llm.model`
@@ -28,6 +28,7 @@ export async function buildTurnContext(modeId, sessionId, options = {}) {
     messages,
     temperature,
     maxTokens,
+    sampling,
     model = null,
     cacheableSystem,
     recallHitCount,
@@ -40,7 +41,7 @@ export async function buildTurnContext(modeId, sessionId, options = {}) {
 
   return {
     messages,
-    overrides: { temperature, maxTokens, model, cacheableSystem },
+    overrides: { temperature, maxTokens, sampling, model, cacheableSystem },
     turnContext: turnContext ?? '',
     recallHitCount: recallHitCount ?? 0,
     suggestionText: suggestionText ?? null,
