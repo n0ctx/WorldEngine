@@ -67,7 +67,7 @@ export default function StatePanel({ sessionId, character, worldId, persona, onD
     function renderCharacterBody() {
       if (stateError) return renderLoadError('角色状态加载失败');
       if (!mainCharacterEntity) {
-        return <StateMemoryDynamicState {...userProps} gridLayout />;
+        return <StateMemoryDynamicState {...userProps} sheetLayout />;
       }
       return (
         <EntityStateBlock

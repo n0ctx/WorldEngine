@@ -59,7 +59,7 @@ export default function EntityStateBlock({
   const { orgs, items } = deriveOrgsAndItems(entity, relations, entitiesById);
   const locationKey = schema?.dynamicLocationKey ?? '位置';
   const orderedDynamicEntity = { ...entity, dynamic: reorderDynamicLocationFirst(entity.dynamic, locationKey) };
-  const profileProps = { sessionId, entity, diffKeys, reload, templateCtx };
+  const profileProps = { sessionId, entity, diffKeys, reload, templateCtx, sheetLayout: true };
 
   return (
     <div className="we-entity-state-block">
@@ -76,7 +76,7 @@ export default function EntityStateBlock({
           userChangedKeys={userChangedKeys}
           onSaveUserRow={onSaveUserRow}
           templateCtx={templateCtx}
-          gridLayout
+          sheetLayout
         />
       </div>
 

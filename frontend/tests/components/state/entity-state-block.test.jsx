@@ -86,9 +86,11 @@ describe('EntityStateBlock', () => {
     expandProfile();
     expect(screen.getByText('身份')).toBeInTheDocument();
     expect(screen.getByText('职业')).toBeInTheDocument();
+    expect(screen.getByText('前海军军官').closest('.we-status-field')).toHaveTextContent('职业');
+    // 每组里没填的档案字段按角色面板排法收成一行，点开后逐项可填
+    fireEvent.click(screen.getByRole('button', { name: '未填写 1 项：核心性格' }));
     expect(screen.getByText('人格')).toBeInTheDocument();
     expect(screen.getByText('核心性格')).toBeInTheDocument();
-    expect(screen.getByText('前海军军官').closest('.we-status-field')).toHaveTextContent('职业');
   });
 
   it('本轮变化的档案字段单列在「本轮变化」并高亮，现状里变化的行高亮', () => {
@@ -110,9 +112,10 @@ describe('EntityStateBlock', () => {
     renderBlock({ entity: baseEntity({ card_id: 'char-1', profile: { outfit: { value: ['黑色风衣'], evidence: '', round: 1 } } }) });
     expect(screen.getByRole('button', { name: '查看全部档案（4 项）' })).toBeInTheDocument();
     expandProfile();
+    // 有值的列表折成档案条，收起时露出预览
+    expect(screen.getByRole('button', { name: /穿着/ })).toHaveTextContent('黑色风衣');
+    fireEvent.click(screen.getByRole('button', { name: '未填写 2 项：性别、职业' }));
     expect(screen.getByText('职业')).toBeInTheDocument();
-    expect(screen.getByText('穿着')).toBeInTheDocument();
-    expect(screen.getByText('黑色风衣')).toBeInTheDocument();
   });
 
   it('现状小节「位置」总排第一，可编辑与删除（清空即删除）', async () => {

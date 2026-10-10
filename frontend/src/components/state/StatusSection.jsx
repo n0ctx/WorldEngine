@@ -37,8 +37,7 @@ function Chevron({ open }) {
   );
 }
 
-/** 判断字段是否短值（适合放进 2 列网格） */
-// 文本值不超过这个字数时按短字段排进两列网格，再长就独占一行
+// 文本值不超过这个字数时算短值，排进规格表；再长就折成档案条
 const SHORT_TEXT_MAX = 12;
 
 function isShortField(row) {
@@ -49,6 +48,20 @@ function isShortField(row) {
     return String(value).length <= SHORT_TEXT_MAX;
   }
   return true;
+}
+
+function isBlankRow(row, type) {
+  if (type === 'table') return Object.keys(parseTableValue(row.effective_value_json)).length === 0;
+  const raw = parseRawValue(row.effective_value_json, type);
+  return raw === '' || (Array.isArray(raw) && raw.length === 0);
+}
+
+// 角色面板的四堆：数值读数、短值规格、长值档案、未填写；本轮变化过的字段不收进未填写
+function sheetPile(row, changed) {
+  const type = row.field_type ?? row.type;
+  if (!changed && isBlankRow(row, type)) return 'blanks';
+  if (type === 'number') return 'readouts';
+  return isShortField(row) ? 'specs' : 'dossiers';
 }
 
 function getStatusEditKey(row) {
@@ -139,10 +152,31 @@ function StatusValueDisplay({ row, type, editKey, editable, onSetEditingKey, tem
   );
 }
 
+function dossierPreview(row, type, templateCtx) {
+  if (type === 'list') {
+    return parseRawValue(row.effective_value_json, 'list').map((item) => applyTemplateVars(item, templateCtx)).join('、');
+  }
+  const display = parseValue(row.effective_value_json, type, row.prefix);
+  return display == null ? EMPTY_STATUS_DISPLAY : applyTemplateVars(display, templateCtx);
+}
+
+// 档案条的标题行：收起时字段名后跟一行预览，列表再标出条数
+function DossierToggle({ row, type, open, templateCtx, onToggle }) {
+  const count = type === 'list' ? parseRawValue(row.effective_value_json, 'list').length : 0;
+  return (
+    <button type="button" className="we-status-dossier-toggle" aria-expanded={open} onClick={onToggle}>
+      <span className="we-status-key">{row.label}</span>
+      {!open && <span className="we-status-dossier-preview">{dossierPreview(row, type, templateCtx)}</span>}
+      {count > 0 && <Badge>{count}</Badge>}
+      <Chevron open={open} />
+    </button>
+  );
+}
+
 function StatusField({
   row,
   index,
-  gridLayout,
+  variant,
   editKey,
   editingKey,
   saving,
@@ -154,16 +188,20 @@ function StatusField({
   onSetEditingKey,
   changed,
 }) {
+  const [userOpen, setUserOpen] = useState(null);
   const type = row.field_type ?? row.type;
   const editable = canEditRow(row, onSave);
-  const short = gridLayout && isShortField(row);
-  const fieldExtra = `${gridLayout ? (short ? ' we-status-field--short' : ' we-status-field--long') : ''}${changed ? ' we-status-field--changed' : ''}`;
+  const metered = variant === 'readout' && (row.max_value ?? row.max) > 0;
+  const fieldExtra = `${variant ? ` we-status-field--${variant}` : ''}${metered ? ' we-status-field--metered' : ''}${changed ? ' we-status-field--changed' : ''}`;
 
   if (type === 'table') {
     return <StatusTableField row={row} index={index} fieldExtra={fieldExtra} editable={editable} onSave={onSave} />;
   }
 
   const isEditing = editingKey === editKey;
+  // 档案条默认收起，本轮变化过的自动展开；编辑时总是展开
+  const dossier = variant === 'dossier';
+  const open = !dossier || isEditing || (userOpen ?? changed);
 
   return (
     <div
@@ -171,8 +209,10 @@ function StatusField({
       className={`we-status-field${fieldExtra}${isEditing ? ' we-status-field--editing' : ''}`}
       style={{ animationDelay: `${index * STAGGER}s` }}
     >
-      <span className="we-status-key">{row.label}</span>
-      {isEditing ? (
+      {dossier
+        ? <DossierToggle row={row} type={type} open={open} templateCtx={templateCtx} onToggle={() => setUserOpen(!open)} />
+        : <span className="we-status-key">{row.label}</span>}
+      {open && (isEditing ? (
         <InlineEditor
           row={row}
           templateCtx={templateCtx}
@@ -191,6 +231,49 @@ function StatusField({
           templateCtx={templateCtx}
           changed={changed}
         />
+      ))}
+    </div>
+  );
+}
+
+/**
+ * 角色面板排法：数值做读数格（有上限的带进度条），短值收成规格表，长文本、列表、表格折成档案条，
+ * 没填的字段压成最底下一行，点开后按规格表逐项显示、可以填写。
+ */
+function StatusSheet({ rows, changedKeys, renderField }) {
+  const [showBlanks, setShowBlanks] = useState(false);
+  const piles = { readouts: [], specs: [], dossiers: [], blanks: [] };
+  rows.forEach((row, index) => {
+    piles[sheetPile(row, changedKeys?.has(row.field_key) ?? false)].push({ row, index });
+  });
+  const group = (key, variant) => piles[key].length > 0 && (
+    <div className={`we-status-sheet-${key}`}>
+      {piles[key].map(({ row, index }) => renderField(row, index, variant))}
+    </div>
+  );
+  const blanks = piles.blanks;
+
+  return (
+    <div className="we-fields-list we-fields-list--sheet">
+      {group('readouts', 'readout')}
+      {group('specs', 'spec')}
+      {group('dossiers', 'dossier')}
+      {blanks.length > 0 && (
+        <button
+          type="button"
+          className="we-status-blanks-toggle"
+          aria-expanded={showBlanks}
+          onClick={() => setShowBlanks((v) => !v)}
+        >
+          {showBlanks
+            ? `收起未填写的 ${blanks.length} 项`
+            : `未填写 ${blanks.length} 项：${blanks.map(({ row }) => row.label).join('、')}`}
+        </button>
+      )}
+      {showBlanks && blanks.length > 0 && (
+        <div className="we-status-sheet-specs">
+          {blanks.map(({ row, index }) => renderField(row, index, 'spec'))}
+        </div>
       )}
     </div>
   );
@@ -207,7 +290,7 @@ export default function StatusSection({
   defaultOpen = true,
   templateCtx,
   headerless = false,
-  gridLayout = false,
+  sheetLayout = false,
   emptyContent = null,
   changedKeys = null,
 }) {
@@ -241,35 +324,35 @@ export default function StatusSection({
     }
   }
 
+  function renderField(row, index, variant) {
+    const editKey = getStatusEditKey(row);
+    return (
+      <StatusField
+        key={editKey}
+        row={row}
+        index={index}
+        variant={variant}
+        editKey={editKey}
+        editingKey={editingKey}
+        saving={saving}
+        saveError={saveError}
+        templateCtx={templateCtx}
+        onSave={onSave}
+        onCommit={handleCommit}
+        onCancel={closeEditor}
+        onSetEditingKey={setEditingKey}
+        changed={changedKeys?.has(row.field_key) ?? false}
+      />
+    );
+  }
+
   const body = (
     <>
       {isLoading && <Skeleton lines={[60, 80, 45]} />}
       {isEmpty && (emptyContent ?? <EmptyState size="sm" title="暂无数据" />)}
-      {!isLoading && !isEmpty && (
-        <div className={`we-fields-list${gridLayout ? ' we-fields-list--grid' : ''}`}>
-          {rows?.map((row, index) => {
-            const editKey = getStatusEditKey(row);
-            return (
-              <StatusField
-                key={editKey}
-                row={row}
-                index={index}
-                gridLayout={gridLayout}
-                editKey={editKey}
-                editingKey={editingKey}
-                saving={saving}
-                saveError={saveError}
-                templateCtx={templateCtx}
-                onSave={onSave}
-                onCommit={handleCommit}
-                onCancel={closeEditor}
-                onSetEditingKey={setEditingKey}
-                changed={changedKeys?.has(row.field_key) ?? false}
-              />
-            );
-          })}
-        </div>
-      )}
+      {!isLoading && !isEmpty && (sheetLayout
+        ? <StatusSheet rows={rows} changedKeys={changedKeys} renderField={renderField} />
+        : <div className="we-fields-list">{rows.map((row, index) => renderField(row, index))}</div>)}
     </>
   );
 

@@ -194,7 +194,7 @@ function PlayerTab({
               changedKeys={userChangedKeys}
               onSave={onSaveUserRow}
               templateCtx={templateCtx}
-              gridLayout
+              sheetLayout
             />
           )
         )}

@@ -16,7 +16,7 @@ export function StateValuesDemo() {
       stageClassName="we-state-panel"
       actions={<Button variant="secondary" size="sm" onClick={() => setTurn((t) => t + 1)}>推进一轮</Button>}
     >
-      <StatusSection headerless gridLayout rows={toRows(current)} changedKeys={changedKeysBetween(previous, current)} />
+      <StatusSection headerless sheetLayout rows={toRows(current)} changedKeys={changedKeysBetween(previous, current)} />
     </SlotSection>
   );
 }

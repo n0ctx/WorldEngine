@@ -25,7 +25,7 @@ function entityChangedKeys(entity, diffKeys) {
 export default function StateMemoryDynamicState({
   sessionId, entity, diffKeys, reload,
   includeUserFields = false, userRows, userChangedKeys, onSaveUserRow,
-  templateCtx, gridLayout = false,
+  templateCtx, sheetLayout = false,
 }) {
   const stateRows = Object.entries(entity?.dynamic ?? {}).map(([key, value]) => ({
     field_key: `${STATE_PREFIX}${key}`,
@@ -78,7 +78,7 @@ export default function StateMemoryDynamicState({
         onSave={handleSave}
         changedKeys={changedKeys}
         templateCtx={templateCtx}
-        gridLayout={gridLayout}
+        sheetLayout={sheetLayout}
       />
     </div>
   );

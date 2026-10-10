@@ -37,8 +37,9 @@ function profileRow(def, entity) {
 /**
  * 档案字段分组（身份 / 外貌 / 人格；地点等无分组的类型归到「档案」），与「现状」同一套行组件：
  * 点击值就地编辑，本轮变化的行高亮。title 传入时不分组，整组用这个标题（如「本轮变化」）。
+ * sheetLayout：右栏状态面板里按角色面板排法；实体详情弹窗不传，保持「标签 | 值」属性表。
  */
-export default function StateMemoryProfileGroups({ sessionId, entity, defs, diffKeys, reload, templateCtx, title }) {
+export default function StateMemoryProfileGroups({ sessionId, entity, defs, diffKeys, reload, templateCtx, title, sheetLayout = false }) {
   const changedKeys = changedProfileKeys(entity, diffKeys);
   const groups = title ? [{ group: title, defs }] : groupProfileDefs(defs);
 
@@ -62,7 +63,7 @@ export default function StateMemoryProfileGroups({ sessionId, entity, defs, diff
       onSave={handleSave}
       changedKeys={changedKeys}
       templateCtx={templateCtx}
-      gridLayout
+      sheetLayout={sheetLayout}
     />
   ));
 }

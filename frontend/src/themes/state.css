@@ -340,7 +340,7 @@
   display: none;
 }
 
-/* 数值就是数值：不再用填充进度条暗示占比，数字本身用等宽数字对齐即可 */
+/* 数值用等宽数字对齐；有上限的读数在角色面板里另画进度条（见下方角色面板排法） */
 .we-status-value--number {
   font-variant-numeric: tabular-nums;
 }
@@ -584,23 +584,8 @@
   padding-right: var(--we-space-xxs);
 }
 
-/* 2 列短值网格 */
-.we-fields-list--grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  column-gap: var(--we-space-lg);
-  row-gap: var(--we-space-md);
-}
-.we-fields-list--grid .we-status-field--long {
-  grid-column: 1 / -1;
-}
-
-/* 实时状态面板（聊天 StatePanel + 写作 NearbyPanel）：字段是两列信息块——小标签在上、值在下，
-   左对齐，不画分隔线；长字段（list / text / datetime / table）独占一行 */
-:is(.we-state-panel, .we-cast-panel) .we-fields-list--grid {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  row-gap: var(--we-space-lg);
-}
+/* 实时状态面板（聊天 StatePanel + 写作 NearbyPanel）：小标签在上、值在下，左对齐；
+   字段怎么分堆排见下方角色面板排法 */
 :is(.we-state-panel, .we-cast-panel) .we-status-field:not(.we-status-field--editing) {
   gap: var(--we-space-xs);
 }
@@ -614,6 +599,137 @@
 }
 :is(.we-state-panel, .we-cast-panel) .we-status-field .we-status-tags {
   margin-top: 0;
+}
+
+/* 角色面板排法（StatusSection sheetLayout，对话、写作右栏）：
+   数值是读数格（有上限的占满一行、下面一道进度条），短值是名字靠左、值靠右的规格表，
+   长文本、列表、表格是档案条（一行预览，点开看全），没填的收成最底下一行灰字 */
+.we-fields-list--sheet {
+  gap: var(--we-space-lg);
+}
+
+.we-status-sheet-readouts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-auto-flow: dense;
+  gap: var(--we-space-sm);
+}
+.we-fields-list--sheet .we-status-field--readout {
+  padding: var(--we-space-sm) var(--we-space-sm) var(--we-space-md);
+  border-radius: var(--we-radius-sm);
+  background: var(--we-color-bg-sunken);
+}
+.we-fields-list--sheet .we-status-field--metered {
+  grid-column: 1 / -1;
+}
+.we-fields-list--sheet .we-status-field--readout > .we-status-value {
+  font-family: var(--we-font-display);
+  font-size: var(--we-type-title-size);
+  line-height: var(--we-leading-flush);
+  letter-spacing: var(--we-type-title-tracking);
+}
+.we-fields-list--sheet .we-status-field--metered .we-status-value--number::after {
+  content: '';
+  display: block;
+  height: 4px;
+  margin-top: var(--we-space-sm);
+  border-radius: var(--we-radius-full);
+  background: linear-gradient(
+    90deg,
+    var(--we-color-accent) calc(var(--status-fill, 0) * 100%),
+    color-mix(in srgb, var(--we-color-text-primary) var(--we-alpha-2), transparent) 0
+  );
+}
+
+.we-status-sheet-specs {
+  display: grid;
+}
+.we-fields-list--sheet .we-status-field--spec:not(.we-status-field--editing) {
+  flex-direction: row;
+  align-items: baseline;
+  gap: var(--we-space-md);
+  padding-block: var(--we-space-xxs);
+  border-bottom: 1px solid var(--we-color-border-subtle);
+}
+.we-fields-list--sheet .we-status-field--spec:not(.we-status-field--editing) > .we-status-key {
+  flex-shrink: 0;
+}
+.we-fields-list--sheet .we-status-field--spec:not(.we-status-field--editing) > :not(.we-status-key) {
+  flex: 1;
+  min-width: 0;
+}
+.we-fields-list--sheet .we-status-field--spec .we-status-value {
+  text-align: right;
+}
+.we-fields-list--sheet .we-status-field--spec .we-status-tags {
+  justify-content: flex-end;
+}
+
+.we-status-sheet-dossiers {
+  display: grid;
+  gap: var(--we-space-xs);
+}
+.we-fields-list--sheet .we-status-field--dossier {
+  padding: var(--we-space-sm);
+  border-radius: var(--we-radius-sm);
+  background: var(--we-color-bg-sunken);
+}
+.we-status-dossier-toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--we-space-sm);
+  width: 100%;
+  min-width: 0;
+  padding: 0 calc(var(--we-space-xs) + 1px);
+  border: 0;
+  background: none;
+  font: inherit;
+  text-align: left;
+  color: inherit;
+  cursor: pointer;
+}
+.we-status-dossier-toggle:focus-visible {
+  outline: 2px solid var(--we-color-border-focus);
+  outline-offset: 2px;
+  border-radius: var(--we-radius-xs);
+}
+.we-status-dossier-toggle > .we-status-key {
+  flex-shrink: 0;
+}
+.we-status-dossier-preview {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font-family: var(--we-font-prose);
+  font-size: var(--we-type-ui-size);
+  line-height: var(--we-type-ui-leading);
+  letter-spacing: var(--we-type-ui-tracking);
+  color: var(--we-color-text-secondary);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.we-status-dossier-toggle > .we-status-chevron {
+  flex-shrink: 0;
+  margin-left: auto;
+  color: var(--we-color-text-tertiary);
+}
+
+.we-status-blanks-toggle {
+  padding: var(--we-space-sm) calc(var(--we-space-xs) + 1px) 0;
+  border: 0;
+  border-top: 1px solid var(--we-color-border-subtle);
+  background: none;
+  font-family: var(--we-font-prose);
+  font-size: var(--we-type-caption-size);
+  line-height: var(--we-type-caption-leading);
+  letter-spacing: var(--we-type-caption-tracking);
+  text-align: left;
+  color: var(--we-color-text-faint);
+  cursor: pointer;
+  transition: color var(--we-motion-state-duration) var(--we-motion-state-easing);
+}
+.we-status-blanks-toggle:hover {
+  color: var(--we-color-accent);
 }
 
 /* — Timeline 原语补缺（diary-more / timeline-dot / timeline-text / entry-old）─ */
