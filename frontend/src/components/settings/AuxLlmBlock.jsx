@@ -6,15 +6,17 @@ import ModelSelector from './ModelSelector';
 import FormGroup from '../ui/FormGroup';
 import SectionTitle from '../ui/SectionTitle';
 import LlmConnectionTest from './LlmConnectionTest';
+import LlmGenerationSettings from './LlmGenerationSettings';
+import SamplingSettings from './SamplingSettings';
 import { DEFAULT_BASE_URLS, getProviderDisplaySettings } from '../../core/constants/settings';
 import { log } from '../../core/utils/logger.js';
 
 /**
  * 副模型(LLM)配置区块
- * 显示 provider / API Key / base_url / model / thinking_level / 测试连接按钮
- * 不显示 temperature / max_tokens
+ * 显示 provider / API Key / base_url / model / thinking_level / 测试连接按钮 / 温度 / 单次回复上限 / 高级采样
+ * temperature / max_tokens / sampling 为 null 或留空 = 继承对话主模型
  */
-export default function AuxLlmBlock({ providers, config, onProviderChange, onBaseUrlChange, onModelChange, onThinkingLevelChange, onApiKeySave, onApiKeySaved, testConnection, loadModels, fallbackHint = '未配置则回退主模型' }) {
+export default function AuxLlmBlock({ providers, config, onProviderChange, onBaseUrlChange, onModelChange, onThinkingLevelChange, onTemperatureChange, onMaxTokensChange, onSamplingChange, onApiKeySave, onApiKeySaved, testConnection, loadModels, fallbackHint = '未配置则回退主模型' }) {
   const [apiKey, setApiKey] = useState('');
   const [apiKeySaved, setApiKeySaved] = useState(false);
 
@@ -120,6 +122,18 @@ export default function AuxLlmBlock({ providers, config, onProviderChange, onBas
       )}
 
       <LlmConnectionTest provider={config.provider} testConnection={testConnection} />
+      <LlmGenerationSettings
+        config={config}
+        inherit
+        temperatureLabel="随机度"
+        temperatureHint="即 Temperature。拉到最左侧（0）则继承主模型"
+        maxTokensLabel="单次回复上限"
+        maxTokensHint="即 Max Tokens，一次回复最多生成多少 Token；留空则继承主模型"
+        inheritPlaceholder="留空继承主模型"
+        onTemperatureChange={onTemperatureChange}
+        onMaxTokensChange={onMaxTokensChange}
+      />
+      <SamplingSettings key={config.provider} provider={config.provider} sampling={config.sampling} onSamplingChange={onSamplingChange} />
     </div>
   );
 }

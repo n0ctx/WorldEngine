@@ -21,6 +21,9 @@ const DEFAULT_AUX_LLM = {
   base_url: null,
   model: null,
   thinking_level: null,
+  temperature: null,
+  max_tokens: null,
+  sampling: structuredClone(DEFAULT_SAMPLING),
 };
 
 const DEFAULT_ASSISTANT = {
@@ -190,12 +193,14 @@ function ensurePlainObject(value, fallback = {}) {
 }
 
 function normalizePositiveInteger(value, fallback, { min = 1, max = 100000 } = {}) {
+  if (value == null) return fallback;
   const number = Number(value);
   if (!Number.isFinite(number)) return fallback;
   return Math.min(max, Math.max(min, Math.trunc(number)));
 }
 
 function normalizeTemperature(value, fallback) {
+  if (value == null) return fallback;
   const number = Number(value);
   if (!Number.isFinite(number)) return fallback;
   return Math.min(2, Math.max(0, number));
@@ -577,13 +582,16 @@ export function updateProviderKey(provider, key) {
   return current;
 }
 
-/** 把一个模型配置段转成调用用的 { provider, api_key, base_url, model[, thinking_level] } */
+/** 把一个模型配置段转成调用用的 { provider, api_key, base_url, model, temperature, max_tokens, sampling[, thinking_level] } */
 function toEffectiveLlm(config, section, { withThinking = true } = {}) {
   const effective = {
     provider: section.provider,
     api_key: config.provider_keys?.[section.provider] || '',
     base_url: section.base_url,
     model: section.model,
+    temperature: section.temperature ?? null,
+    max_tokens: section.max_tokens ?? null,
+    sampling: section.sampling ?? null,
   };
   if (withThinking) effective.thinking_level = section.thinking_level ?? null;
   return effective;

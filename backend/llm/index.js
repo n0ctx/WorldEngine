@@ -15,6 +15,7 @@ import {
   LLM_LOCAL_BACKGROUND_TASK_TIMEOUT_MS,
   LLM_TOOL_TURN_TIMEOUT_MS,
   LLM_LOCAL_TOOL_TURN_TIMEOUT_MS,
+  pickSamplingOverrides,
 } from '../utils/constants.js';
 import * as cloudProvider from './providers/cloud-router.js';
 import * as localProvider from './providers/ollama/index.js';
@@ -50,15 +51,16 @@ function getProvider(providerName) {
 // 配置合并
 // ============================================================
 
-/** 副模型不暴露 temperature / max_tokens，沿用主模型的值；不带采样参数；thinking_level 独立配置 */
 function auxCallLlm(auxConfig, mainLlm) {
   return {
     provider: auxConfig.provider,
     base_url: auxConfig.base_url,
     model: auxConfig.model,
-    temperature: mainLlm.temperature,
-    max_tokens: mainLlm.max_tokens,
+    temperature: auxConfig.temperature ?? mainLlm.temperature,
+    max_tokens: auxConfig.max_tokens ?? mainLlm.max_tokens,
     thinking_level: auxConfig.thinking_level,
+    // 副模型采样以主模型为底，只覆盖副模型设置过的项（null = 继承）
+    sampling: { ...(mainLlm.sampling || {}), ...pickSamplingOverrides(auxConfig.sampling) },
   };
 }
 

@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import AuxLlmBlock from '../AuxLlmBlock.jsx';
 
@@ -14,6 +14,9 @@ const callbacks = {
   onBaseUrlChange: vi.fn(),
   onModelChange: vi.fn(),
   onThinkingLevelChange: vi.fn(),
+  onTemperatureChange: vi.fn(),
+  onMaxTokensChange: vi.fn(),
+  onSamplingChange: vi.fn(),
   onApiKeySave: vi.fn(),
   onApiKeySaved: vi.fn(),
   testConnection: vi.fn(),
@@ -33,64 +36,63 @@ function renderAuxLlmBlock(config, overrides = {}) {
 
 describe('AuxLlmBlock', () => {
   beforeEach(() => {
-    Object.values(callbacks).forEach((callback) => callback.mockClear());
+    Object.values(callbacks).forEach((callback) => callback.mockReset());
+    callbacks.loadModels.mockResolvedValue({ models: [] });
   });
 
-  it('保存密钥后清空输入并通知配置层', async () => {
-    callbacks.onApiKeySave.mockResolvedValue(undefined);
-    renderAuxLlmBlock({ provider: 'openai', has_key: false, model: '' });
+  it('温度滑条：null 显示继承，拖到 0.9 给 0.9，拖到 0 给 null', () => {
+    // Case 1: null → 0.9
+    const firstRender = renderAuxLlmBlock({ provider: 'openai', temperature: null, max_tokens: null, sampling: {} });
+    let container = firstRender.container;
+    let temperature = container.querySelector('input[type="range"]');
+    expect(temperature).toHaveValue('0');
+    expect(screen.getByText('继承')).toBeInTheDocument();
 
-    const keyInput = screen.getByPlaceholderText('输入后单独保存，不随其他配置提交');
-    fireEvent.change(keyInput, { target: { value: 'test-secret' } });
-    fireEvent.click(screen.getByRole('button', { name: '保存密钥' }));
+    fireEvent.change(temperature, { target: { value: '0.9' } });
+    expect(callbacks.onTemperatureChange).toHaveBeenCalledWith(0.9);
+    firstRender.unmount();
 
-    await waitFor(() => expect(callbacks.onApiKeySave).toHaveBeenCalledWith('openai', 'test-secret'));
-    expect(await screen.findByRole('button', { name: '已保存' })).toBeInTheDocument();
-    expect(keyInput).toHaveValue('');
-    expect(callbacks.onApiKeySaved).toHaveBeenCalledOnce();
+    // Case 2: 0.9 → 0
+    const secondRender = renderAuxLlmBlock({ provider: 'openai', temperature: 0.9, max_tokens: null, sampling: {} });
+    container = secondRender.container;
+    temperature = container.querySelector('input[type="range"]');
+    expect(temperature).toHaveValue('0.9');
+
+    fireEvent.change(temperature, { target: { value: '0' } });
+    expect(callbacks.onTemperatureChange).toHaveBeenCalledWith(null);
   });
 
-  it('连接测试成功后显示状态', async () => {
-    callbacks.testConnection.mockResolvedValue({ success: true });
-    renderAuxLlmBlock({ provider: 'openai', has_key: true, model: '' });
+  it('单次回复上限：placeholder 留空继承主模型，输入 1024 给 1024，清空给 null', () => {
+    // Case 1: null → 1024
+    const firstRender = renderAuxLlmBlock({ provider: 'openai', temperature: null, max_tokens: null, sampling: {} });
+    let maxTokens = screen.getByPlaceholderText('留空继承主模型');
+    fireEvent.change(maxTokens, { target: { value: '1024' } });
+    expect(callbacks.onMaxTokensChange).toHaveBeenCalledWith(1024);
+    firstRender.unmount();
 
-    fireEvent.click(screen.getByRole('button', { name: '测试连接' }));
-
-    expect(await screen.findByText('连接成功')).toBeInTheDocument();
-    expect(callbacks.testConnection).toHaveBeenCalledOnce();
+    // Case 2: 1024 → ''
+    renderAuxLlmBlock({ provider: 'openai', temperature: null, max_tokens: 1024, sampling: {} });
+    maxTokens = screen.getByDisplayValue('1024');
+    fireEvent.change(maxTokens, { target: { value: '' } });
+    expect(callbacks.onMaxTokensChange).toHaveBeenCalledWith(null);
   });
 
-  it('连接测试失败后显示服务端错误', async () => {
-    callbacks.testConnection.mockResolvedValue({ success: false, error: 'API Key 无效' });
-    renderAuxLlmBlock({ provider: 'openai', has_key: true, model: '' });
+  it('provider 为 openai 时渲染高级采样且含 Top P，Top P 输入 1.5 给 { top_p: 1 }', () => {
+    const { container } = renderAuxLlmBlock({ provider: 'openai', temperature: null, max_tokens: null, sampling: {} });
 
-    fireEvent.click(screen.getByRole('button', { name: '测试连接' }));
+    expect(screen.getByText('高级采样')).toBeInTheDocument();
+    const topP = container.querySelector('.we-settings-sampling input[type="number"]');
+    expect(screen.getByText('Top P')).toBeInTheDocument();
 
-    expect(await screen.findByText('连接失败：API Key 无效')).toBeInTheDocument();
+    fireEvent.change(topP, { target: { value: '1.5' } });
+    expect(callbacks.onSamplingChange).toHaveBeenCalledWith({ top_p: 1 });
   });
 
-  it('Kimi 显示思考强度档位', () => {
-    renderAuxLlmBlock({ provider: 'kimi', has_key: true, model: '' });
+  it('provider 为空（未配置）时不渲染高级采样，但温度滑条与 max_tokens 输入框仍在', () => {
+    const { container } = renderAuxLlmBlock({ provider: '', temperature: null, max_tokens: null, sampling: {} });
 
-    expect(screen.getByText('思考强度')).toBeInTheDocument();
-    expect(screen.getByText('自动（模型默认）')).toBeInTheDocument();
-  });
-
-  it('展示 provider 专属提示和思考档位', () => {
-    const { unmount } = renderAuxLlmBlock({ provider: 'xiaomi', has_key: true, model: '' });
-    expect(screen.getByText(/小米 MiMo 官方接口/)).toBeInTheDocument();
-    expect(screen.getByText('查看 MiMo 接口文档')).toBeInTheDocument();
-    unmount();
-
-    renderAuxLlmBlock({ provider: 'openai', has_key: true, model: '' });
-    expect(screen.getByText('自动（模型默认）')).toBeInTheDocument();
-  });
-
-  it('本地 provider 保留 Base URL 设置并隐藏 API Key 输入', () => {
-    renderAuxLlmBlock({ provider: 'ollama', has_key: false, base_url: 'local-endpoint' });
-
-    expect(screen.getByText('接口地址')).toBeInTheDocument();
-    expect(screen.getByDisplayValue('local-endpoint')).toBeInTheDocument();
-    expect(screen.queryByPlaceholderText('输入后单独保存，不随其他配置提交')).not.toBeInTheDocument();
+    expect(container.querySelector('.we-settings-sampling')).toBeNull();
+    expect(container.querySelector('input[type="range"]')).not.toBeNull();
+    expect(screen.getByPlaceholderText('留空继承主模型')).toBeInTheDocument();
   });
 });

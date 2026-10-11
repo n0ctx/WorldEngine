@@ -75,6 +75,9 @@ export default function LlmConfigPanel({
           onBaseUrlChange={(v) => onWritingAuxLlmChange('base_url', v)}
           onModelChange={(v) => onWritingAuxLlmChange('model', v)}
           onThinkingLevelChange={(v) => onWritingAuxLlmChange('thinking_level', v)}
+          onTemperatureChange={(v) => onWritingAuxLlmChange('temperature', v)}
+          onMaxTokensChange={(v) => onWritingAuxLlmChange('max_tokens', v)}
+          onSamplingChange={(v) => onWritingAuxLlmChange('sampling', v)}
           onApiKeySave={onWritingAuxApiKeySave}
           onApiKeySaved={() => onWritingAuxLlmChange('has_key', true)}
           testConnection={testWritingAuxConnection}
@@ -89,6 +92,9 @@ export default function LlmConfigPanel({
           onBaseUrlChange={(v) => onAuxLlmChange('base_url', v)}
           onModelChange={(v) => onAuxLlmChange('model', v)}
           onThinkingLevelChange={(v) => onAuxLlmChange('thinking_level', v)}
+          onTemperatureChange={(v) => onAuxLlmChange('temperature', v)}
+          onMaxTokensChange={(v) => onAuxLlmChange('max_tokens', v)}
+          onSamplingChange={(v) => onAuxLlmChange('sampling', v)}
           onApiKeySave={onAuxApiKeySave}
           onApiKeySaved={() => onAuxLlmChange('has_key', true)}
           testConnection={testAuxConnection}

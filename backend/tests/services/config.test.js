@@ -114,23 +114,41 @@ test('updateConfig：非法预算值规范到默认值/null，合法值按范围
   assert.equal(inherited.writing.short_term_token_budget, null);
 });
 
-test('采样参数：对话与写作主模型保存时规整取值，副模型不带这一组', () => {
+test('采样参数：对话与写作主模型保存时规整取值，副模型带这一组', () => {
   fs.rmSync(sandbox.configPath, { force: true });
-  assert.equal(getConfig().llm.sampling.top_p, null);
+
+  // 默认值：aux_llm 的 temperature / max_tokens 为 null，sampling 六个键全 null
+  const defaults = getConfig();
+  assert.equal(defaults.aux_llm.temperature, null);
+  assert.equal(defaults.aux_llm.max_tokens, null);
+  assert.deepEqual(defaults.aux_llm.sampling, {
+    top_p: null, top_k: null, min_p: null, repetition_penalty: null, presence_penalty: null, frequency_penalty: null,
+  });
 
   const config = updateConfig({
-    llm: { sampling: { top_p: 1.5, top_k: '40.4', min_p: 'abc', unknown: 1 } },
-    writing: { llm: { sampling: { repetition_penalty: 1.1 } } },
+    aux_llm: { provider: 'openai', temperature: 1.5, max_tokens: 2048, sampling: { top_p: 1.5, top_k: '40.4', min_p: 'abc', unknown: 1 } },
+    writing: { aux_llm: { sampling: { repetition_penalty: 1.1 } } },
   });
-  assert.deepEqual(config.llm.sampling, {
+  assert.deepEqual(config.aux_llm.sampling, {
     top_p: 1, top_k: 40, min_p: null, repetition_penalty: null, presence_penalty: null, frequency_penalty: null,
   });
-  assert.equal(config.writing.llm.sampling.repetition_penalty, 1.1);
-  assert.equal('sampling' in config.aux_llm, false);
+  assert.equal('unknown' in config.aux_llm.sampling, false);
+  assert.equal(config.aux_llm.temperature, 1.5);
+  assert.equal(config.aux_llm.max_tokens, 2048);
+  assert.equal(config.writing.aux_llm.sampling.repetition_penalty, 1.1);
 
-  const cleared = updateConfig({ llm: { sampling: { top_p: null } } });
-  assert.equal(cleared.llm.sampling.top_p, null);
-  assert.equal(cleared.llm.sampling.top_k, 40);
+  // 钳制与 null 保留
+  const clamped = updateConfig({ aux_llm: { temperature: 3, max_tokens: 999999999 } });
+  assert.equal(clamped.aux_llm.temperature, 2);
+  assert.equal(clamped.aux_llm.max_tokens, 200000);
+
+  updateConfig({ aux_llm: { temperature: 0.9, max_tokens: 2048 } });
+  const cleared = updateConfig({ aux_llm: { temperature: null, max_tokens: null } });
+  assert.equal(cleared.aux_llm.temperature, null);
+  assert.equal(cleared.aux_llm.max_tokens, null);
+
+  const invalid = updateConfig({ aux_llm: { max_tokens: 'abc' } });
+  assert.equal(invalid.aux_llm.max_tokens, null);
 });
 
 test('写作还没有自己的显示设置时继承顶层的思考 / token 消耗开关', () => {

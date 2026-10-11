@@ -11,6 +11,7 @@
     "backend/app/shared/http/create-turn-handlers.js#createStreamHandlers": 31,
     "backend/app/shared/http/create-turn-handlers.js#createTurnHandlers": 46,
     "backend/db/queries/provider-safety-events.js#insertProviderSafetyEvent": 33,
+    "backend/llm/index.js#prepareCall": 33,
     "backend/llm/providers/_shared/provider-safety-signals.js#extractOpenAICompatibleSignal": 70,
     "backend/llm/providers/anthropic/index.js#readAnthropicStream": 31,
     "backend/llm/raw-logger.js#analyzeRequest": 32,

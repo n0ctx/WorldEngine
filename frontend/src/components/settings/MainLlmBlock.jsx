@@ -2,14 +2,13 @@ import { useState } from 'react';
 import Input from '../ui/Input';
 import Select from '../ui/Select';
 import Button from '../ui/Button';
-import Range from '../ui/Range';
 import ModelSelector from './ModelSelector';
 import FormGroup from '../ui/FormGroup';
 import SectionTitle from '../ui/SectionTitle';
-import FieldLabel from '../ui/FieldLabel';
 import LlmConnectionTest from './LlmConnectionTest';
+import LlmGenerationSettings from './LlmGenerationSettings';
+import SamplingSettings from './SamplingSettings';
 import { DEFAULT_BASE_URLS, getProviderDisplaySettings } from '../../core/constants/settings';
-import { SAMPLING_PARAMS, getSupportedSamplingParams, normalizeSamplingValue } from '../../core/utils/constants';
 import { log } from '../../core/utils/logger.js';
 
 function MainLlmProviderSettings({
@@ -145,124 +144,6 @@ function MainLlmProviderSettings({
   );
 }
 
-function MainLlmGenerationSettings({ config, inheritFrom, onTemperatureChange, onMaxTokensChange }) {
-  const inherit = !!inheritFrom;
-  const tempMin = inherit ? 0 : 0.1;
-  const tempDefault = inherit ? 0 : 0.8;
-  const tempValue = inherit
-    ? (config.temperature ?? 0)
-    : (config.temperature ?? tempDefault);
-  const tempDisplay = inherit
-    ? (config.temperature != null && config.temperature > 0 ? config.temperature.toFixed(1) : '继承')
-    : (config.temperature ?? tempDefault).toFixed(1);
-
-  return (
-    <>
-      {onTemperatureChange && (
-        <div className="we-settings-inline-control-block">
-          <div className="we-settings-range-head">
-            <FieldLabel
-              hint={inherit
-                ? '即 Temperature。拉到最左侧（0）则继承对话设置'
-                : '即 Temperature。越高越天马行空，越低越稳定'}
-              variant="settings"
-            >
-              {inherit ? '写作随机度' : '随机度'}
-            </FieldLabel>
-            <span className="we-settings-range-value">{tempDisplay}</span>
-          </div>
-          <Range
-            min={tempMin}
-            max="2.0"
-            step="0.1"
-            value={tempValue}
-            onChange={(e) => {
-              const value = parseFloat(e.target.value);
-              if (inherit) {
-                onTemperatureChange(value === 0 ? null : value);
-              } else {
-                onTemperatureChange(value);
-              }
-            }}
-          />
-        </div>
-      )}
-
-      {onMaxTokensChange && (
-        <FormGroup
-          label={inherit ? '写作单次回复上限' : '单次回复上限'}
-          hint={inherit
-            ? '即 Max Tokens。留空则继承对话设置'
-            : '即 Max Tokens，一次回复最多生成多少 Token'}
-          variant="settings"
-        >
-          <Input
-            type="number"
-            min="64" max="32000" step="64"
-            value={inherit ? (config.max_tokens ?? '') : (config.max_tokens ?? 4096)}
-            placeholder={inherit ? '留空继承对话配置' : undefined}
-            onChange={(e) => {
-              const raw = e.target.value;
-              if (inherit) {
-                onMaxTokensChange(raw ? parseInt(raw, 10) : null);
-              } else {
-                onMaxTokensChange(parseInt(raw, 10));
-              }
-            }}
-          />
-        </FormGroup>
-      )}
-    </>
-  );
-}
-
-// 输入框显示用户敲的原文（如「0.」），存的是规整后的数字；失焦后显示存下的值
-function SamplingField({ paramKey, value, onChange }) {
-  const spec = SAMPLING_PARAMS[paramKey];
-  const [draft, setDraft] = useState(value == null ? '' : String(value));
-  return (
-    <FormGroup label={spec.label} hint={spec.hint} variant="settings">
-      <Input
-        type="number"
-        min={spec.min} max={spec.max} step={spec.step}
-        value={draft}
-        placeholder="留空则不发送，用服务商默认值"
-        onChange={(e) => {
-          setDraft(e.target.value);
-          onChange(normalizeSamplingValue(paramKey, e.target.value));
-        }}
-        onBlur={() => setDraft(value == null ? '' : String(value))}
-      />
-    </FormGroup>
-  );
-}
-
-// 只列出当前服务商支持的采样参数（shared/sampling-params.mjs）；未选服务商时不显示，都不支持时说明原因
-function MainLlmSamplingSettings({ provider, sampling, onSamplingChange }) {
-  if (!onSamplingChange || !provider) return null;
-  const keys = getSupportedSamplingParams(provider);
-  const current = sampling || {};
-  const setCount = keys.filter((key) => current[key] != null).length;
-
-  return (
-    <details className="we-settings-sampling">
-      <summary>高级采样{setCount > 0 ? `（已设置 ${setCount} 项）` : ''}</summary>
-      <div className="we-settings-sampling-body">
-        {keys.length === 0 ? (
-          <p className="we-settings-inline-hint">当前服务商固定了采样参数或会拒收这些参数，这里没有可调项。</p>
-        ) : keys.map((key) => (
-          <SamplingField
-            key={key}
-            paramKey={key}
-            value={current[key]}
-            onChange={(value) => onSamplingChange({ ...current, [key]: value })}
-          />
-        ))}
-      </div>
-    </details>
-  );
-}
-
 /**
  * 主模型(LLM)配置区块 —— 对话/写作模式共用
  *
@@ -305,13 +186,18 @@ export default function MainLlmBlock({
         inheritFrom={inheritFrom}
       />
       <LlmConnectionTest provider={currentConfig.provider} testConnection={testConnection} />
-      <MainLlmGenerationSettings
+      <LlmGenerationSettings
         config={currentConfig}
-        inheritFrom={inheritFrom}
+        inherit={!!inheritFrom}
+        temperatureLabel="写作随机度"
+        temperatureHint="即 Temperature。拉到最左侧（0）则继承对话设置"
+        maxTokensLabel="写作单次回复上限"
+        maxTokensHint="即 Max Tokens。留空则继承对话设置"
+        inheritPlaceholder="留空继承对话配置"
         onTemperatureChange={onTemperatureChange}
         onMaxTokensChange={onMaxTokensChange}
       />
-      <MainLlmSamplingSettings
+      <SamplingSettings
         key={currentConfig.provider}
         provider={currentConfig.provider}
         sampling={currentConfig.sampling}
