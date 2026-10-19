@@ -2,8 +2,9 @@
  * 会话状态值路由（会话级隔离）
  *
  *   GET    /api/sessions/:sessionId/state-values
- *     — 返回 { world: [...], persona: [...], character: [...] }
- *       每项结构与 getWorldStateValuesWithFields 兼容，effective_value_json 已合并会话 runtime
+ *     — 返回 { world: [...], persona: [...], character: [...], rejections }
+ *       每项结构与 getWorldStateValuesWithFields 兼容，effective_value_json 已合并会话 runtime；
+ *       rejections 为最近一次状态整理没写入的改动 { round_index, items: [{ summary, reason }] }，无记录时为 null
  *
  *   DELETE /api/sessions/:sessionId/world-state-values
  *   DELETE /api/sessions/:sessionId/persona-state-values
@@ -19,6 +20,7 @@ import { Router } from 'express';
 import { getSessionById } from '../db/queries/sessions.js';
 import { assertExists } from '../utils/route-helpers.js';
 import { getCharacterById } from '../db/queries/characters.js';
+import { getLatestStateUpdateRejections } from '../db/queries/state-memory.js';
 import {
   getSessionWorldStateValues,
   getSessionPersonaStateValues,
@@ -79,7 +81,7 @@ router.get('/:sessionId/state-values', (req, res) => {
   if (!assertExists(res, session, '会话不存在')) return;
 
   const worldId = resolveSessionWorldId(session);
-  if (!worldId) return res.json({ world: [], persona: [], character: [] });
+  if (!worldId) return res.json({ world: [], persona: [], character: [], rejections: null });
 
   // 写作模式没有固定角色身份（角色由状态记忆实体单独管理），返回空 character 段；
   // 对话模式取绑定角色
@@ -89,7 +91,9 @@ router.get('/:sessionId/state-values', (req, res) => {
   const persona = getSessionPersonaStateValues(sessionId, worldId);
   const character = getSessionCharacterStateValues(sessionId, worldId, characterIds);
 
-  res.json({ world, persona, character });
+  const rejections = getLatestStateUpdateRejections(sessionId);
+
+  res.json({ world, persona, character, rejections });
 });
 
 // ── PATCH /api/sessions/:sessionId/world-state-values/:fieldKey ───

@@ -9,9 +9,6 @@ import * as llm from '../llm/index.js';
 import { getMessagesBySessionId } from '../services/sessions.js';
 import { getWorldById } from '../db/queries/worlds.js';
 
-import { upsertSessionWorldStateValues } from '../db/queries/session-world-state-values.js';
-import { upsertSessionCharacterStateValues } from '../db/queries/session-character-state-values.js';
-import { upsertSessionPersonaStateValues } from '../db/queries/session-persona-state-values.js';
 
 import { ALL_MESSAGES_LIMIT, LLM_TASK_TEMPERATURE, LLM_STATE_UPDATE_MAX_TOKENS, STATE_UPDATE_JSON_RETRY_MAX, LLM_BACKGROUND_TASK_TIMEOUT_MS, STATE_TEXT_COMPRESS_TARGET, LOG_WARN_PREVIEW_CHARS } from '../utils/constants.js';
 import { getSessionById } from '../db/queries/sessions.js';
@@ -21,10 +18,8 @@ import { renderTriggeredEntriesSection } from '../prompts/segments.js';
 import { getAllWorldEntries } from '../db/queries/prompt-entries.js';
 import { applyTemplateVars } from '../utils/template-vars.js';
 import { resolveAuxScope } from '../utils/aux-scope.js';
-import { validateValue, resolveListPatch } from '../utils/state-field-validate.js';
 import { toPromptMessage } from '../utils/turn-dialogue.js';
 import { extractJsonPatch } from './state-update-json.js';
-import { compressOverLimitFields } from './state-update-compress.js';
 import {
   loadStateUpdateTargets, buildEntityStateSections,
   buildStateMemoryProfileFieldsSchema, buildNpcApplicableFieldsSchema,
@@ -32,70 +27,10 @@ import {
   resolveRelevantEntityIds, buildRuntimeUserPrompt,
   resolvePersona,
 } from './state-update-context.js';
-import { applyStateMemoryOps, applyPresence, applyEntityFields, writeRealDateWorldTime } from './state-memory-apply.js';
+import { writeRealDateWorldTime } from './state-memory-apply.js';
+import { writeStatePatch } from './state-update-write.js';
 
 const log = createLogger('all-state');
-
-// ── 辅助函数（模块级） ──────────────────────────────────────────────────────
-
-/**
- * 将 LLM 返回的 patch 对象写入会话状态（校验 + upsert）。
- * @param {object[]} activeFields  本次活跃字段列表（用于 fieldMap 构建和校验）
- * @param {*}        patchData     patch 对象中对应此实体的子对象；非 object 时直接跳过
- * @param {Function} upsertFn      (key: string, valueJson: string|null) => void
- * @param {string}   logLabel      日志前缀（如 `world="xxx"`）
- */
-/**
- * 取某 table 字段的旧「有效值」（运行时值优先，回退默认值）并解析为对象。
- * 用于列级 merge：返回 null 表示无可用旧值（首次写入，照常整体写）。
- */
-function parseOldTableValue(cur, field) {
-  if (!cur) return null;
-  const json = cur.runtimeValueJson ?? cur.defaultValueJson;
-  if (json == null) return null;
-  let obj = json;
-  if (typeof obj === 'string') {
-    try { obj = JSON.parse(obj); } catch { return null; }
-  }
-  if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return null;
-  // 只保留 schema 仍定义的数值列，避免把已删除列或脏值带回
-  const cols = Array.isArray(field.table_columns) ? field.table_columns : [];
-  const out = {};
-  for (const col of cols) {
-    if (!col || typeof col.key !== 'string' || !(col.key in obj)) continue;
-    const num = typeof obj[col.key] === 'number' ? obj[col.key] : Number(obj[col.key]);
-    if (isFinite(num)) out[col.key] = num;
-  }
-  return Object.keys(out).length ? out : null;
-}
-
-function applyStatePatch(activeFields, patchData, upsertFn, logLabel, valueMap = null) {
-  if (!patchData || typeof patchData !== 'object') return;
-  const fieldMap = Object.fromEntries(activeFields.map((f) => [f.field_key, f]));
-  const updated = [];
-  for (const [key, rawValue] of Object.entries(patchData)) {
-    const field = fieldMap[key];
-    if (!field) continue;
-    // list 字段的 {add, remove} 按旧有效值合成完整列表，新增后超过上限时由校验保留最新的条目
-    const cur = valueMap?.[key] ?? { defaultValueJson: field.default_value };
-    let validated = validateValue(resolveListPatch(rawValue, field, cur.runtimeValueJson ?? cur.defaultValueJson), field);
-    if (validated === undefined) {
-      // 诊断：LLM 输出了该字段但校验失败被丢弃（table/格式问题排查用）
-      log.warn(`DROP  ${logLabel}  ${formatMeta({ key, type: field.type, raw: previewText(JSON.stringify(rawValue)) })}`);
-      continue;
-    }
-    // table 字段做列级 merge：模型只回了变化的列时，未提及的列保留旧有效值，
-    // 避免「抄错/漏写一列」把整张表冲回默认或残缺。
-    if (field.type === 'table' && validated && typeof validated === 'object') {
-      const old = parseOldTableValue(valueMap?.[key], field);
-      if (old) validated = { ...old, ...validated };
-    }
-    const valueJson = validated === null ? null : JSON.stringify(validated);
-    upsertFn(key, valueJson);
-    updated.push(`${key}=${valueJson}`);
-  }
-  if (updated.length) log.info(`${logLabel}  updates: ${updated.join('  ')}`);
-}
 
 // ── 主函数 ──────────────────────────────────────────────────────────────────
 
@@ -219,77 +154,6 @@ async function requestStatePatch(prompt, cacheableSystem, sid, sessionId) {
 }
 
 /**
- * 把 LLM 返回的 patch（含超限压缩）写入世界 / 角色 / 玩家 / nearby 各类会话状态。
- */
-function writeWorldState(patch, { sessionId, worldId, world, worldActiveFields, worldValueMap }) {
-  if (worldActiveFields.length === 0) return;
-  const values = [];
-  applyStatePatch(worldActiveFields, patch.world,
-    (fieldKey, runtimeValueJson) => values.push({ fieldKey, runtimeValueJson }),
-    `world="${world.name}"`, worldValueMap
-  );
-  upsertSessionWorldStateValues(sessionId, worldId, values);
-}
-
-function writeCharacterStates(patch, { sessionId, charSchemaFields, charactersWithFields, charValueMaps }) {
-  const characterValues = [];
-  for (let i = 0; i < charactersWithFields.length; i++) {
-    const char = charactersWithFields[i];
-    applyStatePatch(charSchemaFields, patch[`char_${i}`],
-      (fieldKey, runtimeValueJson) => characterValues.push({ characterId: char.id, fieldKey, runtimeValueJson }),
-      `char="${char.name}"`, charValueMaps[i]
-    );
-  }
-  upsertSessionCharacterStateValues(sessionId, characterValues);
-}
-
-function writePersonaState(patch, { sessionId, worldId, world, personaActiveFields, personaValueMap }) {
-  if (personaActiveFields.length === 0) return;
-  const values = [];
-  applyStatePatch(personaActiveFields, patch.persona,
-    (fieldKey, runtimeValueJson) => values.push({ fieldKey, runtimeValueJson }),
-    `persona  world="${world?.name}"`, personaValueMap
-  );
-  upsertSessionPersonaStateValues(sessionId, worldId, values);
-}
-
-async function writeStatePatch(patch, { sid, sessionId, worldId, world, targets, valueMaps, round, turnText, realDate, mainCharacterEntityId }) {
-  const { worldActiveFields, charSchemaFields, charactersWithFields, personaActiveFields } = targets;
-  const { worldValueMap, charValueMaps, personaValueMap } = valueMaps;
-
-  // ── 字数/列表检查：超限时压缩后再写入 ──
-  await compressOverLimitFields(patch, [
-    ...(worldActiveFields.length > 0 ? [{ entityKey: 'world', fields: worldActiveFields, patchData: patch.world, valueMap: worldValueMap }] : []),
-    ...charactersWithFields.map((_, i) => ({ entityKey: `char_${i}`, fields: charSchemaFields, patchData: patch[`char_${i}`], valueMap: charValueMaps[i] })),
-    ...(personaActiveFields.length > 0 ? [{ entityKey: 'persona', fields: personaActiveFields, patchData: patch.persona, valueMap: personaValueMap }] : []),
-  ], sid, sessionId);
-
-  // ── 写入各类状态（会话级） ──
-  writeWorldState(patch, { sessionId, worldId, world, worldActiveFields, worldValueMap });
-  writeCharacterStates(patch, { sessionId, charSchemaFields, charactersWithFields, charValueMaps });
-  writePersonaState(patch, { sessionId, worldId, world, personaActiveFields, personaValueMap });
-
-  // ── 状态记忆：实体档案/动态状态/关系/事项（memory）+ 在场名单（present）+ NPC 用户字段补丁（entity_fields） ──
-  const memoryResult = applyStateMemoryOps({
-    sessionId, worldId, round, ops: patch.memory, turnText, realDate, mainCharacterEntityId,
-  });
-  const presenceResult = applyPresence({
-    sessionId, round, present: patch.present, createdCharacterIds: memoryResult.createdCharacterIds,
-  });
-  const entityFieldsResult = applyEntityFields({
-    sessionId, worldId, entityFields: patch.entity_fields, mainCharacterEntityId,
-  });
-  log.info(`STATE MEMORY  ${formatMeta({
-    session: sid,
-    memoryApplied: memoryResult.applied,
-    memoryRejected: memoryResult.rejected.length,
-    presentWritten: presenceResult.written,
-    entityFieldsApplied: entityFieldsResult.applied,
-    entityFieldsRejected: entityFieldsResult.rejected.length,
-  })}`);
-}
-
-/**
  * 单次 LLM 调用同时更新世界/角色（可多个）/玩家状态。
  *
  * @param {string|null} worldId
@@ -380,11 +244,6 @@ export async function updateAllStates(worldId, characterIds, sessionId) {
   });
 }
 
-// 值校验（validateValue）已提取至 backend/utils/state-field-validate.js，供本文件与
-// backend/services/state-extract.js 共用，避免同一套类型规则出现两份实现。
-
 export const __testables = {
-  applyStatePatch,
-  validateValue,
   buildCacheableSystemPrompt,
 };

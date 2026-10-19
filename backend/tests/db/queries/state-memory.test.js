@@ -20,6 +20,7 @@ const {
   upsertWorldProfile,
   closeProfileField,
   upsertPresence,
+  upsertStateUpdateRejections,
   nextEntitySeq,
   nextThreadSeq,
   nextRelationSeq,
@@ -30,6 +31,7 @@ const {
   listThreads,
   getCurrentWorldProfile,
   getLatestPresence,
+  getLatestStateUpdateRejections,
   getWorldProfileAtRound,
   rollbackStateMemory,
 } = await freshImport('backend/db/queries/state-memory.js');
@@ -217,6 +219,22 @@ test('在场名单：同一轮覆盖写入，getLatestPresence 取最近一轮',
 test('getLatestPresence 无记录时返回 null', () => {
   const sessionId = setupSession();
   assert.equal(getLatestPresence(sessionId), null);
+});
+
+test('状态整理被拒记录：同一轮覆盖写入，取最近一轮，回滚删掉保留轮次之后的记录', () => {
+  const sessionId = setupSession();
+  assert.equal(getLatestStateUpdateRejections(sessionId), null);
+
+  upsertStateUpdateRejections(sessionId, 1, [{ summary: '旧', reason: '旧原因' }]);
+  upsertStateUpdateRejections(sessionId, 1, [{ summary: '设置世界档案 · 时间', reason: '时间不得回退' }]);
+  upsertStateUpdateRejections(sessionId, 2, []);
+  assert.deepEqual(getLatestStateUpdateRejections(sessionId), { round_index: 2, items: [] });
+
+  rollbackStateMemory(sessionId, 1);
+  assert.deepEqual(getLatestStateUpdateRejections(sessionId), {
+    round_index: 1,
+    items: [{ summary: '设置世界档案 · 时间', reason: '时间不得回退' }],
+  });
 });
 
 test('rollbackStateMemory 回滚到第 K 轮后，当前视图与第 K 轮时一致，实体 ID 保持不变', () => {

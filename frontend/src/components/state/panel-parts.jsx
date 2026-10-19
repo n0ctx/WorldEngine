@@ -89,3 +89,22 @@ export function StateBusyOverlay({
     </AnimatePresence>
   );
 }
+
+/** 最近一次状态整理里没写入的改动：折叠成一行提示，展开逐条列出改动与被拒原因 */
+export function StateUpdateRejections({ rejections }) {
+  const items = rejections?.items ?? [];
+  if (items.length === 0) return null;
+  return (
+    <details className="we-state-rejections">
+      <summary>{`第 ${rejections.round_index} 轮状态整理有 ${items.length} 条改动没写入`}</summary>
+      <ul className="we-state-rejections-list">
+        {items.map((item, index) => (
+          <li key={index} className="we-state-rejections-item">
+            <span className="we-state-rejections-summary">{item.summary}</span>
+            <span className="we-state-rejections-reason">{item.reason}</span>
+          </li>
+        ))}
+      </ul>
+    </details>
+  );
+}

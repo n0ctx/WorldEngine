@@ -74,6 +74,9 @@ vi.mock('../panel-parts.jsx', () => ({
   ),
   ResetAction: () => <button type="button">重置</button>,
   StateBusyOverlay: () => null,
+  StateUpdateRejections: ({ rejections }) => (
+    rejections ? <aside aria-label="没写入的改动">{rejections.items.length}</aside> : null
+  ),
 }));
 
 const SessionStatePanel = (await import('../SessionStatePanel.jsx')).default;
@@ -142,6 +145,18 @@ it('顶部是当前地点卡，世界字段暂不显示', async () => {
   expect(await screen.findByRole('region', { name: '当前地点' })).toBeInTheDocument();
   expect(screen.queryByRole('button', { name: 'we-status-world' })).toBeNull();
   expect(screen.queryByText('森林')).toBeNull();
+});
+
+it('把状态数据里最近一次被拒的改动交给提示条', async () => {
+  harness.state = state({
+    stateData: {
+      world: [], persona: [],
+      rejections: { round_index: 4, items: [{ summary: '设置世界档案 · 时间', reason: '时间不得回退' }] },
+    },
+  });
+  render(<SessionStatePanel {...props()} />);
+
+  expect(await screen.findByRole('complementary', { name: '没写入的改动' })).toHaveTextContent('1');
 });
 
 it('保留日记展开状态和更多条目的无障碍状态', async () => {

@@ -9,6 +9,7 @@ import {
   DiaryEntry,
   ResetAction,
   StateBusyOverlay,
+  StateUpdateRejections,
 } from './panel-parts.jsx';
 import {
   DIARY_RECENT_LIMIT,
@@ -204,7 +205,7 @@ function PlayerTab({
 }
 
 /**
- * 会话状态面板的公共壳：当前地点卡 + 玩家区块 + 日记区块 + 整理中浮层（剧情摘要 / 状态记忆入口在侧栏顶行，见 SessionTools）。
+ * 会话状态面板的公共壳：最近一次状态整理没写入的改动 + 当前地点卡 + 玩家区块 + 日记区块 + 整理中浮层（剧情摘要 / 状态记忆入口在侧栏顶行，见 SessionTools）。
  *
  * 两种模式的差异由入参注入：
  * - `extraSections`：插在玩家与日记之间的区块（对话是角色，写作是附近角色）
@@ -343,6 +344,7 @@ export default function SessionStatePanel({
   return (
     <div ref={panelRef} className={classNames.panel}>
       <div className={classNames.scroll}>
+        <StateUpdateRejections rejections={stateData?.rejections} />
         <ScenePlaceCard
           sessionId={sessionId}
           world={stateMemory?.world}

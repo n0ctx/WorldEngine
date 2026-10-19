@@ -1,7 +1,7 @@
 export async function fetchSessionStateValues(sessionId) {
   const res = await fetch(`/api/sessions/${sessionId}/state-values`);
   if (!res.ok) throw new Error('获取状态值失败');
-  return res.json(); // { world, persona, character }
+  return res.json(); // { world, persona, character, rejections }
 }
 
 export async function resetSessionWorldStateValues(sessionId) {

@@ -34,13 +34,13 @@ test('filterActive 返回 update_mode=llm_auto 的字段', async () => {
 });
 
 test('validateValue 覆盖 text/number/boolean/enum/list', async () => {
-  const { __testables } = await freshImport('backend/memory/combined-state-updater.js');
-  assert.equal(__testables.validateValue('文本', { type: 'text', allow_empty: 1 }), '文本');
-  assert.equal(__testables.validateValue('12', { type: 'number', min_value: 1, max_value: 20, allow_empty: 1 }), 12);
-  assert.equal(__testables.validateValue('false', { type: 'boolean', allow_empty: 1 }), false);
-  assert.equal(__testables.validateValue('happy', { type: 'enum', enum_options: ['happy'], allow_empty: 1 }), 'happy');
-  assert.deepEqual(__testables.validateValue('剑,盾', { type: 'list', allow_empty: 1 }), ['剑', '盾']);
-  assert.equal(__testables.validateValue('', { type: 'text', allow_empty: 0 }), undefined);
+  const { validateValue } = await freshImport('backend/utils/state-field-validate.js');
+  assert.equal(validateValue('文本', { type: 'text', allow_empty: 1 }), '文本');
+  assert.equal(validateValue('12', { type: 'number', min_value: 1, max_value: 20, allow_empty: 1 }), 12);
+  assert.equal(validateValue('false', { type: 'boolean', allow_empty: 1 }), false);
+  assert.equal(validateValue('happy', { type: 'enum', enum_options: ['happy'], allow_empty: 1 }), 'happy');
+  assert.deepEqual(validateValue('剑,盾', { type: 'list', allow_empty: 1 }), ['剑', '盾']);
+  assert.equal(validateValue('', { type: 'text', allow_empty: 0 }), undefined);
 });
 
 test('updateAllStates 在 LLM 失败时不写入任何会话状态', async () => {
@@ -170,4 +170,73 @@ test('updateAllStates 压缩响应无效时保留文本并裁剪列表尾部', a
   const values = Object.fromEntries(rows.map((row) => [row.field_key, row.runtime_value_json]));
   assert.equal(values.note, JSON.stringify(longText));
   assert.equal(values.history, JSON.stringify(longList.slice(-STATE_LIST_TRIM_TARGET)));
+});
+
+test('updateAllStates 记下本轮没写入的改动：字段校验失败、状态记忆操作被拒、NPC 字段被拒、在场名单解析不到', async () => {
+  resetMockEnv();
+  const world = insertWorld(sandbox.db, { name: '阿尔卡' });
+  const character = insertCharacter(sandbox.db, world.id, { name: '诺亚' });
+  const session = insertSession(sandbox.db, { character_id: character.id });
+  insertMessage(sandbox.db, session.id, { role: 'user', content: '我受伤了', created_at: 1 });
+  insertMessage(sandbox.db, session.id, { role: 'assistant', content: '你包扎了伤口。', created_at: 2 });
+  insertWorldStateField(sandbox.db, world.id, { field_key: 'weather', label: '天气', update_mode: 'llm_auto' });
+  insertCharacterStateField(sandbox.db, world.id, { field_key: 'hp', label: '生命', type: 'number', update_mode: 'llm_auto' });
+  process.env.MOCK_LLM_COMPLETE = JSON.stringify({
+    world: { weather: '晴朗' },
+    char_0: { hp: '满血' },
+    memory: [
+      { op: 'set_world', key: 'time', value: '某个下午' },
+      { op: 'teleport', entity: '诺亚' },
+    ],
+    entity_fields: { 诺亚: { hp: 50 } },
+    present: ['路人甲'],
+  });
+
+  const { updateAllStates } = await freshImport('backend/memory/combined-state-updater.js');
+  await updateAllStates(world.id, [character.id], session.id);
+
+  const { getLatestStateUpdateRejections } = await freshImport('backend/db/queries/state-memory.js');
+  assert.deepEqual(getLatestStateUpdateRejections(session.id), {
+    round_index: 1,
+    items: [
+      { summary: '更新状态 · 诺亚 · 生命', reason: '值不符合字段要求' },
+      { summary: '设置世界档案 · 时间', reason: '时间格式无效' },
+      { summary: '未知操作 teleport · 诺亚', reason: '未知操作: teleport' },
+      { summary: '更新 NPC 状态 · 诺亚', reason: '目标不是可写的 NPC 实体' },
+      { summary: '在场名单 · 路人甲', reason: '找不到这个实体' },
+    ],
+  });
+  const worldValue = sandbox.db.prepare('SELECT runtime_value_json FROM session_world_state_values WHERE session_id = ? AND field_key = ?').get(session.id, 'weather');
+  assert.equal(worldValue?.runtime_value_json, '"晴朗"');
+});
+
+test('updateAllStates 写入途中出错时整轮状态都不落库', async () => {
+  resetMockEnv();
+  const world = insertWorld(sandbox.db, { name: '阿尔卡' });
+  const character = insertCharacter(sandbox.db, world.id, { name: '诺亚' });
+  const session = insertSession(sandbox.db, { character_id: character.id });
+  insertMessage(sandbox.db, session.id, { role: 'user', content: '天气转晴', created_at: 1 });
+  insertMessage(sandbox.db, session.id, { role: 'assistant', content: '云散了。', created_at: 2 });
+  insertWorldStateField(sandbox.db, world.id, { field_key: 'weather', label: '天气', update_mode: 'llm_auto' });
+  process.env.MOCK_LLM_COMPLETE = JSON.stringify({
+    world: { weather: '晴朗' },
+    memory: [{ op: 'set_world', key: 'location', value: '港口' }],
+    present: [],
+  });
+
+  // 让本轮最后一步（记录被拒改动）失败，前面已执行的写入应随事务一起撤销
+  sandbox.db.exec('ALTER TABLE state_update_rejections RENAME TO state_update_rejections_hidden');
+  try {
+    const { updateAllStates } = await freshImport('backend/memory/combined-state-updater.js');
+    await assert.rejects(updateAllStates(world.id, [character.id], session.id), /state_update_rejections/);
+  } finally {
+    sandbox.db.exec('ALTER TABLE state_update_rejections_hidden RENAME TO state_update_rejections');
+  }
+
+  const worldRows = sandbox.db.prepare('SELECT COUNT(*) AS c FROM session_world_state_values WHERE session_id = ?').get(session.id);
+  const locationRows = sandbox.db.prepare(`SELECT COUNT(*) AS c FROM state_world_profile WHERE session_id = ? AND key = 'location'`).get(session.id);
+  const presenceRows = sandbox.db.prepare('SELECT COUNT(*) AS c FROM state_presence WHERE session_id = ?').get(session.id);
+  assert.equal(worldRows.c, 0);
+  assert.equal(locationRows.c, 0);
+  assert.equal(presenceRows.c, 0);
 });

@@ -34,6 +34,15 @@ test('GET /api/sessions/:sessionId/state-values 返回三层值；会话不存�
   assert.equal(data.world[0].enum_options, JSON.stringify(['晴', '雨']));
   assert.equal(data.persona[0].enum_options, JSON.stringify(['平静', '紧张']));
   assert.equal(data.character[0].enum_options, JSON.stringify(['进攻', '防御']));
+  assert.equal(data.rejections, null);
+
+  ctx.sandbox.db.prepare(`INSERT INTO state_update_rejections (session_id, round_index, items_json) VALUES (?, ?, ?)`)
+    .run(session.id, 3, JSON.stringify([{ summary: '设置世界档案 · 时间', reason: '时间不得回退' }]));
+  const withRejections = await (await ctx.request(`/api/sessions/${session.id}/state-values`)).json();
+  assert.deepEqual(withRejections.rejections, {
+    round_index: 3,
+    items: [{ summary: '设置世界档案 · 时间', reason: '时间不得回退' }],
+  });
 
   const notFound = await ctx.request('/api/sessions/no-such/state-values');
   assert.equal(notFound.status, 404);
@@ -44,7 +53,7 @@ test('GET state-values 在无 worldId 时返回空集合', async () => {
   const res = await ctx.request(`/api/sessions/${session.id}/state-values`);
   assert.equal(res.status, 200);
   const data = await res.json();
-  assert.deepEqual(data, { world: [], persona: [], character: [] });
+  assert.deepEqual(data, { world: [], persona: [], character: [], rejections: null });
 });
 
 test('PATCH world/persona/character state-value 写入 session 层值', async () => {

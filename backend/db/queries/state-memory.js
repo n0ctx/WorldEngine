@@ -251,6 +251,19 @@ export function upsertPresence(sessionId, round, entityIds) {
 }
 
 // ============================
+// 写入：state_update_rejections
+// ============================
+
+/** 覆盖写入某轮状态整理中没写入的改动，没有被拒的改动时写空数组。 */
+export function upsertStateUpdateRejections(sessionId, round, items) {
+  db.prepare(`
+    INSERT INTO state_update_rejections (session_id, round_index, items_json)
+    VALUES (?, ?, ?)
+    ON CONFLICT(session_id, round_index) DO UPDATE SET items_json = excluded.items_json
+  `).run(sessionId, round, JSON.stringify(items ?? []));
+}
+
+// ============================
 // 取号
 // ============================
 
@@ -372,6 +385,16 @@ export function getLatestPresence(sessionId) {
   return { round_index: row.round_index, entity_ids: JSON.parse(row.entity_ids_json || '[]') };
 }
 
+/** 最近一次状态整理中没写入的改动；没有记录时返回 null。 */
+export function getLatestStateUpdateRejections(sessionId) {
+  const row = db.prepare(`
+    SELECT round_index, items_json FROM state_update_rejections
+    WHERE session_id = ? ORDER BY round_index DESC LIMIT 1
+  `).get(sessionId);
+  if (!row) return null;
+  return { round_index: row.round_index, items: JSON.parse(row.items_json || '[]') };
+}
+
 /** 第 R 轮时某个世界档案键的值（用于日记按轮取历史时间等场景）。 */
 export function getWorldProfileAtRound(sessionId, key, round) {
   const row = db.prepare(`
@@ -389,7 +412,7 @@ export function getWorldProfileAtRound(sessionId, key, round) {
 /**
  * 回滚状态记忆到第 keptRounds 轮之后的状态：
  * - 各多版本表：删除 valid_from_round > K 的行，再把 valid_to_round > K 的行恢复为当前有效；
- * - state_presence：删除 round_index > K 的行；
+ * - state_presence / state_update_rejections：删除 round_index > K 的行；
  * - session_entity_state_values：删除已不在 state_entities 中的实体的值。
  * 整体包在一个事务里。
  */
@@ -402,6 +425,7 @@ export function rollbackStateMemory(sessionId, keptRounds) {
         .run(sessionId, keptRounds);
     }
     db.prepare(`DELETE FROM state_presence WHERE session_id = ? AND round_index > ?`).run(sessionId, keptRounds);
+    db.prepare(`DELETE FROM state_update_rejections WHERE session_id = ? AND round_index > ?`).run(sessionId, keptRounds);
 
     const remainingEntityIds = db.prepare(`SELECT DISTINCT entity_id FROM state_entities WHERE session_id = ?`)
       .all(sessionId).map((row) => row.entity_id);

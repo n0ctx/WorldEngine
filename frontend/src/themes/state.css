@@ -170,6 +170,48 @@
   color: var(--we-color-text-primary);
 }
 
+/* 场景板顶部的「没写入的改动」提示：默认折叠成一行，展开逐条列出改动与原因 */
+.we-state-rejections {
+  flex-shrink: 0;
+  margin-bottom: var(--we-space-md);
+  border: 1px solid color-mix(in srgb, var(--we-color-status-warning) var(--we-alpha-4), var(--we-color-border-default));
+  border-radius: var(--we-radius-md);
+  background: color-mix(in srgb, var(--we-color-status-warning) var(--we-alpha-1), var(--we-color-bg-surface));
+}
+.we-state-rejections > summary {
+  padding: var(--we-space-sm) var(--we-space-md);
+  font-size: var(--we-type-caption-size);
+  line-height: var(--we-type-caption-leading);
+  letter-spacing: var(--we-type-caption-tracking);
+  color: var(--we-color-status-warning);
+  cursor: pointer;
+  user-select: none;
+}
+.we-state-rejections-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--we-space-sm);
+  margin: 0;
+  padding: 0 var(--we-space-md) var(--we-space-md);
+  list-style: none;
+}
+.we-state-rejections-item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--we-space-xxs);
+  min-width: 0;
+  font-size: var(--we-type-caption-size);
+  line-height: var(--we-type-caption-leading);
+  letter-spacing: var(--we-type-caption-tracking);
+  overflow-wrap: anywhere;
+}
+.we-state-rejections-summary {
+  color: var(--we-color-text-primary);
+}
+.we-state-rejections-reason {
+  color: var(--we-color-text-tertiary);
+}
+
 /* 字段行：竖排，标签在上，值在下，完整显示 */
 .we-status-field {
   display: flex;

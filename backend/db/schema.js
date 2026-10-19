@@ -435,6 +435,13 @@ CREATE TABLE IF NOT EXISTS state_presence (
   PRIMARY KEY (session_id, round_index)
 );
 
+CREATE TABLE IF NOT EXISTS state_update_rejections (
+  session_id   TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+  round_index  INTEGER NOT NULL,
+  items_json   TEXT NOT NULL DEFAULT '[]',
+  PRIMARY KEY (session_id, round_index)
+);
+
 CREATE TABLE IF NOT EXISTS session_entity_state_values (
   id                 TEXT PRIMARY KEY,
   session_id         TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
