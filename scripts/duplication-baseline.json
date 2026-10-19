@@ -9,13 +9,6 @@
         "frontend/src/shells/book-spread/atmosphere/lightDust.js:61-65"
       ]
     },
-    "2a4b98e5e9ab8e01": {
-      "tokens": 57,
-      "locations": [
-        "backend/services/model-pricing-parsers.js:104-110",
-        "backend/services/model-pricing-parsers.js:141-147"
-      ]
-    },
     "48700827ca3d34bb": {
       "tokens": 43,
       "locations": [

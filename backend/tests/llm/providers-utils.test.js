@@ -96,8 +96,9 @@ test('applyThinking: openrouter 强度档用 reasoning.effort，开关用 reason
   assert.deepEqual(applyThinking('openrouter', 'thinking_disabled'), { body: { reasoning: { enabled: false } }, state: 'disabled' });
 });
 
-test('applyThinking: grok 强度原样下发', () => {
+test('applyThinking: grok 强度原样下发，关闭发 none', () => {
   assert.deepEqual(applyThinking('grok', 'effort_medium'), { body: { reasoning_effort: 'medium' }, state: 'enabled' });
+  assert.deepEqual(applyThinking('grok', 'thinking_disabled'), { body: { reasoning_effort: 'none' }, state: 'disabled' });
 });
 
 test('xiaomi 未填接口地址时用 MiMo 官方地址，填了则用填写的', () => {
@@ -133,9 +134,10 @@ test('applyThinking: kimi 关闭写 thinking.type（K2.6），强度档写 reaso
   assert.deepEqual(applyThinking('kimi', 'effort_low'), { body: { reasoning_effort: 'low' }, state: 'enabled' });
 });
 
-test('applyThinking: minimax 开启发 adaptive，关闭发 disabled', () => {
+test('applyThinking: minimax 开启发 adaptive，关闭发 disabled，强度档另加 reasoning_effort', () => {
   assert.deepEqual(applyThinking('minimax', 'thinking_enabled').body, { thinking: { type: 'adaptive' } });
   assert.deepEqual(applyThinking('minimax', 'thinking_disabled'), { body: { thinking: { type: 'disabled' } }, state: 'disabled' });
+  assert.deepEqual(applyThinking('minimax', 'effort_xhigh').body, { thinking: { type: 'adaptive' }, reasoning_effort: 'xhigh' });
 });
 
 test('applyThinking: qwen 预算档 → enable_thinking + thinking_budget', () => {
@@ -143,6 +145,11 @@ test('applyThinking: qwen 预算档 → enable_thinking + thinking_budget', () =
     body: { enable_thinking: true, thinking_budget: THINKING_BUDGET_HIGH },
     state: 'enabled',
   });
+});
+
+test('applyThinking: qwen / siliconflow 强度档 → enable_thinking + reasoning_effort，不带 thinking_budget', () => {
+  assert.deepEqual(applyThinking('qwen', 'effort_xhigh').body, { enable_thinking: true, reasoning_effort: 'xhigh' });
+  assert.deepEqual(applyThinking('siliconflow', 'effort_max').body, { enable_thinking: true, reasoning_effort: 'max' });
 });
 
 test('applyThinking: siliconflow thinking_disabled → enable_thinking=false', () => {

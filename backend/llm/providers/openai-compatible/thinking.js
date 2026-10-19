@@ -34,13 +34,13 @@ export function acceptsSamplingParams(config, thinkingState) {
  *
  * 各 provider 实际语法（2026-10 官方文档）：
  * - openai：reasoning_effort: none（关闭）/ low / medium / high / xhigh / max
- * - grok：reasoning_effort: low / medium / high / xhigh
+ * - grok：reasoning_effort: none（关闭，仅 grok-4.3）/ low / medium / high / xhigh
  * - openrouter：reasoning: { effort } 或 reasoning: { enabled }
  * - xiaomi / xiaomi-coding：thinking: { type: enabled | disabled }
- * - minimax：thinking: { type: adaptive | disabled }（disabled 仅 M3 生效，M2.x 忽略）
+ * - minimax：thinking: { type: adaptive | disabled }（disabled 仅 M3 生效，M2.x 忽略，M3.1 Flash 报错）；强度档另加 reasoning_effort（M3.1 Flash）
  * - deepseek / glm / glm-coding：thinking: { type }，强度档另加 reasoning_effort（GLM 仅 5.2 及以上）
  * - kimi：关闭发 thinking: { type: disabled }（K2.6）；强度档发 reasoning_effort（K3）
- * - qwen / siliconflow：enable_thinking + thinking_budget
+ * - qwen / siliconflow：enable_thinking + thinking_budget；强度档另加 reasoning_effort（Qwen3.8；硅基流动仅 DeepSeek-V4、GLM-5.2）
  * - llamacpp：关闭用 chat_template_kwargs.enable_thinking=false；强度档用 reasoning_effort（按请求覆盖 server 默认值）
  *
  * 返回值：'enabled'（思考开启）| 'disabled'（显式关闭）| null（未应用任何字段：自动 / 不支持）
@@ -59,7 +59,7 @@ export function applyThinkingToOpenAICompatibleBody(body, config) {
       body.reasoning_effort = disabled ? 'none' : effort;
       return state;
     case 'grok':
-      body.reasoning_effort = effort;
+      body.reasoning_effort = disabled ? 'none' : effort;
       return state;
     case 'openrouter':
       body.reasoning = effort ? { effort } : { enabled: !disabled };
@@ -70,6 +70,7 @@ export function applyThinkingToOpenAICompatibleBody(body, config) {
       return state;
     case 'minimax':
       body.thinking = { type: disabled ? 'disabled' : 'adaptive' };
+      if (effort) body.reasoning_effort = effort;
       return state;
     case 'deepseek':
     case 'glm':
@@ -85,6 +86,7 @@ export function applyThinkingToOpenAICompatibleBody(body, config) {
     case 'siliconflow':
       body.enable_thinking = !disabled;
       if (QWEN_BUDGETS[lvl]) body.thinking_budget = QWEN_BUDGETS[lvl];
+      if (effort) body.reasoning_effort = effort;
       return state;
     case 'llamacpp':
       // Qwen3 模板认 chat_template_kwargs.enable_thinking 关闭思考

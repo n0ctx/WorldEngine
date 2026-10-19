@@ -40,7 +40,7 @@ function normalizeModel(model) {
 }
 
 async function createCachedContent({ model, systemText, baseUrl, apiKey, signal }) {
-  const url = `${baseUrl}/v1beta/cachedContents?key=${apiKey}`;
+  const url = `${baseUrl}/v1beta/cachedContents`;
   const body = {
     model: normalizeModel(model),
     systemInstruction: { parts: [{ text: systemText }] },
@@ -53,7 +53,7 @@ async function createCachedContent({ model, systemText, baseUrl, apiKey, signal 
   };
   const resp = await fetch(url, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
     body: JSON.stringify(body),
     signal,
   });
@@ -67,10 +67,10 @@ async function createCachedContent({ model, systemText, baseUrl, apiKey, signal 
 }
 
 async function refreshCachedContent({ name, baseUrl, apiKey, signal }) {
-  const url = `${baseUrl}/v1beta/${name}?key=${apiKey}`;
+  const url = `${baseUrl}/v1beta/${name}`;
   const resp = await fetch(url, {
     method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
     body: JSON.stringify({ ttl: `${TTL_SECONDS}s` }),
     signal,
   });

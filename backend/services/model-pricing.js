@@ -9,8 +9,7 @@ import {
   parseGeminiPricingPage,
   parseGrokPricingPage,
   parseDeepSeekPricingPage,
-  parseDeepSeekLegacyPricingPage,
-  parseKimiHomepagePricing,
+  parseKimiPricingMarkdown,
   parseQwenPricingPage,
   parseAnthropicPricingMarkdown,
   parseOpenAIPricingMarkdown,
@@ -43,8 +42,7 @@ const MODEL_PRICE_ALIASES = [
   ['gemini-3.1-pro', 'gemini-3.1-pro-preview'],
   ['gemini-3-pro-preview', 'gemini-3.1-pro-preview'],
   ['gemini-3-pro', 'gemini-3.1-pro-preview'],
-  ['gemini-3.1-flash-lite-preview', 'gemini-3.1-flash-lite-preview'],
-  ['gemini-3.1-flash-lite', 'gemini-3.1-flash-lite-preview'],
+  ['gemini-3.1-flash-lite', 'gemini-3.1-flash-lite'],
   ['gemini-3-flash-preview', 'gemini-3-flash-preview'],
   ['gemini-3.1-flash', 'gemini-3-flash-preview'],
   ['gemini-3-flash', 'gemini-3-flash-preview'],
@@ -56,7 +54,7 @@ const MODEL_PRICE_ALIASES = [
   ['gemini-2.5-pro', 'gemini-2.5-pro'],
   ['gemini-2.0-flash-lite', 'gemini-2.0-flash-lite'],
   ['gemini-2.0-flash', 'gemini-2.0-flash'],
-  ['deepseek-v4-flash', 'deepseek-v4-flash'],
+  ['deepseek-v4-flash', 'deepseek-flash'],
   ['deepseek-v4-pro', 'deepseek-v4-pro'],
   ['grok-4.20-multi-agent', 'grok-4.20-multi-agent-0309'],
   ['grok-4.20-0309-reasoning', 'grok-4.20-0309-reasoning'],
@@ -131,7 +129,7 @@ export function getFallbackPricing(modelId) {
 
 async function fetchDynamicPricingMap(provider) {
   if (provider === 'gemini') {
-    const resp = await fetch('https://ai.google.dev/gemini-api/docs/pricing');
+    const resp = await fetch('https://ai.google.dev/gemini-api/docs/pricing?hl=en');
     if (!resp.ok) throw new Error(`Gemini pricing ${resp.status}`);
     return parseGeminiPricingPage(await resp.text());
   }
@@ -141,39 +139,32 @@ async function fetchDynamicPricingMap(provider) {
     return parseGrokPricingPage(await resp.text());
   }
   if (provider === 'deepseek') {
-    const [currentResp, legacyResp] = await Promise.all([
-      fetch('https://api-docs.deepseek.com/quick_start/pricing'),
-      fetch('https://api-docs.deepseek.com/quick_start/pricing-details-usd'),
-    ]);
-    if (!currentResp.ok) throw new Error(`DeepSeek pricing ${currentResp.status}`);
-    if (!legacyResp.ok) throw new Error(`DeepSeek legacy pricing ${legacyResp.status}`);
-    const merged = parseDeepSeekPricingPage(await currentResp.text());
-    const legacy = parseDeepSeekLegacyPricingPage(await legacyResp.text());
-    for (const [modelId, value] of legacy.entries()) merged.set(modelId, value);
-    return merged;
+    const resp = await fetch('https://api-docs.deepseek.com/quick_start/pricing/');
+    if (!resp.ok) throw new Error(`DeepSeek pricing ${resp.status}`);
+    return parseDeepSeekPricingPage(await resp.text());
   }
   if (provider === 'kimi') {
-    const resp = await fetch('https://platform.kimi.com/');
+    const resp = await fetch('https://platform.kimi.com/docs/pricing/chat.md');
     if (!resp.ok) throw new Error(`Kimi pricing ${resp.status}`);
-    return parseKimiHomepagePricing(await resp.text());
+    return parseKimiPricingMarkdown(await resp.text());
   }
   if (provider === 'qwen') {
-    const resp = await fetch('https://help.aliyun.com/zh/model-studio/billing-for-model-studio');
+    const resp = await fetch('https://help.aliyun.com/zh/model-studio/model-pricing');
     if (!resp.ok) throw new Error(`Qwen pricing ${resp.status}`);
     return parseQwenPricingPage(await resp.text());
   }
   if (provider === 'siliconflow') {
-    const resp = await fetch('https://docs.siliconflow.cn/cn/userguide/guides/batch');
+    const resp = await fetch('https://www.siliconflow.cn/pricing');
     if (!resp.ok) throw new Error(`SiliconFlow pricing ${resp.status}`);
     return parseSiliconFlowPricingPage(await resp.text());
   }
   if (provider === 'anthropic') {
-    const resp = await fetch('https://docs.anthropic.com/en/docs/about-claude/pricing.md');
+    const resp = await fetch('https://platform.claude.com/docs/en/about-claude/pricing.md');
     if (!resp.ok) throw new Error(`Anthropic pricing ${resp.status}`);
     return parseAnthropicPricingMarkdown(await resp.text());
   }
   if (provider === 'openai') {
-    const resp = await fetch('https://platform.openai.com/docs/pricing.md');
+    const resp = await fetch('https://developers.openai.com/api/docs/pricing.md');
     if (!resp.ok) throw new Error(`OpenAI pricing ${resp.status}`);
     return parseOpenAIPricingMarkdown(await resp.text());
   }
@@ -183,7 +174,7 @@ async function fetchDynamicPricingMap(provider) {
     return parseGlmPricingMarkdown(await resp.text());
   }
   if (provider === 'minimax') {
-    const resp = await fetch('https://platform.minimaxi.com/docs/guides/pricing-paygo.md');
+    const resp = await fetch('https://platform.minimax.cn/docs/guides/pricing-paygo.md');
     if (!resp.ok) throw new Error(`MiniMax pricing ${resp.status}`);
     return parseMiniMaxPricingMarkdown(await resp.text());
   }
@@ -231,52 +222,103 @@ export async function resolveModelPricing(provider, modelId) {
   return toPricingPayload(getFallbackPricing(modelId));
 }
 
-// 静态价格表，用于无 API 价格返回的 provider（单位 $/1M tokens，来源：各官网公开定价）
+// 静态价格表，用于无 API 价格返回的 provider（每 1M tokens，来源：各官网公开定价，2026-10 核对）
+// 币种与该 provider 动态抓取的官网价同口径：Kimi、Qwen、SiliconFlow 为人民币，其余为美元
 export const KNOWN_PRICES = new Map([
   // Anthropic
-  ['claude-opus-4-5',   { inputPrice: 15,  outputPrice: 75, cacheWritePrice: 18.75, cacheReadPrice: 1.5  }],
+  ['claude-fable-5-1',  { inputPrice: 10,  outputPrice: 50, cacheWritePrice: 12.5,  cacheReadPrice: 0.25 }],
+  ['claude-fable-5',    { inputPrice: 10,  outputPrice: 50, cacheWritePrice: 12.5,  cacheReadPrice: 1    }],
+  ['claude-opus-5-5',   { inputPrice: 4,   outputPrice: 20, cacheWritePrice: 5,     cacheReadPrice: 0.2  }],
+  ['claude-opus-5',     { inputPrice: 5,   outputPrice: 25, cacheWritePrice: 6.25,  cacheReadPrice: 0.5  }],
+  ['claude-opus-4-8',   { inputPrice: 5,   outputPrice: 25, cacheWritePrice: 6.25,  cacheReadPrice: 0.5  }],
+  ['claude-opus-4-7',   { inputPrice: 5,   outputPrice: 25, cacheWritePrice: 6.25,  cacheReadPrice: 0.5  }],
+  ['claude-opus-4-6',   { inputPrice: 5,   outputPrice: 25, cacheWritePrice: 6.25,  cacheReadPrice: 0.5  }],
+  ['claude-opus-4-5',   { inputPrice: 5,   outputPrice: 25, cacheWritePrice: 6.25,  cacheReadPrice: 0.5  }],
+  ['claude-sonnet-5-5', { inputPrice: 2,   outputPrice: 10, cacheWritePrice: 2.5,   cacheReadPrice: 0.1  }],
+  ['claude-sonnet-5',   { inputPrice: 2,   outputPrice: 10, cacheWritePrice: 2.5,   cacheReadPrice: 0.2  }],
+  ['claude-sonnet-4-6', { inputPrice: 3,   outputPrice: 15, cacheWritePrice: 3.75,  cacheReadPrice: 0.3  }],
   ['claude-sonnet-4-5', { inputPrice: 3,   outputPrice: 15, cacheWritePrice: 3.75,  cacheReadPrice: 0.3  }],
-  ['claude-haiku-4-5',  { inputPrice: 0.8, outputPrice: 4,  cacheWritePrice: 1,     cacheReadPrice: 0.08 }],
-  ['claude-opus-4',     { inputPrice: 15,  outputPrice: 75, cacheWritePrice: 18.75, cacheReadPrice: 1.5  }],
-  ['claude-sonnet-4',   { inputPrice: 3,   outputPrice: 15, cacheWritePrice: 3.75,  cacheReadPrice: 0.3  }],
-  // OpenAI
-  ['gpt-4o',                { inputPrice: 2.5,   outputPrice: 10    }],
-  ['gpt-4o-mini',           { inputPrice: 0.15,  outputPrice: 0.6   }],
-  ['gpt-4-turbo',           { inputPrice: 10,    outputPrice: 30    }],
-  ['o1',                    { inputPrice: 15,    outputPrice: 60    }],
-  ['o1-mini',               { inputPrice: 3,     outputPrice: 12    }],
-  ['o3-mini',               { inputPrice: 1.1,   outputPrice: 4.4   }],
-  ['o4-mini',               { inputPrice: 1.1,   outputPrice: 4.4   }],
-  // DeepSeek
-  ['deepseek-chat',         { inputPrice: 0.27,  outputPrice: 1.1   }],
-  ['deepseek-reasoner',     { inputPrice: 0.55,  outputPrice: 2.19  }],
-  // Gemini 3.x（以 ≤200k tier 为基准；>200k 的更高单价由 API 实测覆盖）
-  ['gemini-3.1-pro-preview',        { inputPrice: 2,     outputPrice: 12,  cacheReadPrice: 0.2  }],
-  ['gemini-3.1-flash-lite-preview', { inputPrice: 0.25,  outputPrice: 1.5, cacheReadPrice: 0.025 }],
-  ['gemini-3-flash-preview',        { inputPrice: 0.5,   outputPrice: 3,   cacheReadPrice: 0.05  }],
-  // Gemini
-  ['gemini-2.5-pro-preview',        { inputPrice: 1.25,  outputPrice: 10   }],
-  ['gemini-2.5-flash-preview',      { inputPrice: 0.15,  outputPrice: 0.6  }],
-  ['gemini-2.0-flash',              { inputPrice: 0.1,   outputPrice: 0.4  }],
-  ['gemini-2.0-flash-lite',         { inputPrice: 0.075, outputPrice: 0.3  }],
-  ['gemini-1.5-pro',                { inputPrice: 1.25,  outputPrice: 5    }],
-  ['gemini-1.5-flash',              { inputPrice: 0.075, outputPrice: 0.3  }],
-  // Kimi / Moonshot
-  ['moonshot-v1-8k',        { inputPrice: 1.6,   outputPrice: 1.6   }],
-  ['moonshot-v1-32k',       { inputPrice: 3.2,   outputPrice: 3.2   }],
-  ['moonshot-v1-128k',      { inputPrice: 8,     outputPrice: 8     }],
+  // Haiku 5.5 取 ≤100k 提示档；更长的提示由动态价格覆盖
+  ['claude-haiku-5-5',  { inputPrice: 0.1, outputPrice: 0.5, cacheWritePrice: 0.125, cacheReadPrice: 0.01 }],
+  ['claude-haiku-4-5',  { inputPrice: 1,   outputPrice: 5,  cacheWritePrice: 1.25,  cacheReadPrice: 0.1  }],
+  // OpenAI（≤272K 档）
+  ['gpt-6-astra',           { inputPrice: 10,    outputPrice: 50,   cacheWritePrice: 12.5,  cacheReadPrice: 1     }],
+  ['gpt-6.1-sol',           { inputPrice: 2,     outputPrice: 10,   cacheWritePrice: 2.5,   cacheReadPrice: 0.1   }],
+  ['gpt-6-sol',             { inputPrice: 2,     outputPrice: 10,   cacheWritePrice: 2.5,   cacheReadPrice: 0.2   }],
+  ['gpt-6-luna',            { inputPrice: 0.1,   outputPrice: 0.5,  cacheWritePrice: 0.125, cacheReadPrice: 0.01  }],
+  // gpt-5.6-sol 为限时价，至少到 2026-11-21
+  ['gpt-5.6-sol',           { inputPrice: 4,     outputPrice: 20,   cacheWritePrice: 5,     cacheReadPrice: 0.4   }],
+  ['gpt-5.6-terra',         { inputPrice: 2,     outputPrice: 12,   cacheWritePrice: 2.5,   cacheReadPrice: 0.2   }],
+  ['gpt-5.6-luna',          { inputPrice: 0.2,   outputPrice: 1.2,  cacheWritePrice: 0.25,  cacheReadPrice: 0.02  }],
+  ['gpt-5.5',               { inputPrice: 5,     outputPrice: 30,   cacheReadPrice: 0.5   }],
+  ['gpt-5.5-pro',           { inputPrice: 30,    outputPrice: 180  }],
+  ['gpt-5.4',               { inputPrice: 2.5,   outputPrice: 15,   cacheReadPrice: 0.25  }],
+  ['gpt-5.4-mini',          { inputPrice: 0.75,  outputPrice: 4.5,  cacheReadPrice: 0.075 }],
+  ['gpt-5.4-nano',          { inputPrice: 0.2,   outputPrice: 1.25, cacheReadPrice: 0.02  }],
+  ['gpt-5.4-pro',           { inputPrice: 30,    outputPrice: 180  }],
+  ['gpt-5.2',               { inputPrice: 1.75,  outputPrice: 14,   cacheReadPrice: 0.175 }],
+  ['gpt-5.1',               { inputPrice: 1.25,  outputPrice: 10,   cacheReadPrice: 0.125 }],
+  ['gpt-5',                 { inputPrice: 1.25,  outputPrice: 10,   cacheReadPrice: 0.125 }],
+  ['gpt-5-mini',            { inputPrice: 0.25,  outputPrice: 2,    cacheReadPrice: 0.025 }],
+  ['gpt-5-nano',            { inputPrice: 0.05,  outputPrice: 0.4,  cacheReadPrice: 0.005 }],
+  ['gpt-5-pro',             { inputPrice: 15,    outputPrice: 120  }],
+  ['gpt-4.1',               { inputPrice: 2,     outputPrice: 8,    cacheReadPrice: 0.5   }],
+  ['gpt-4.1-mini',          { inputPrice: 0.4,   outputPrice: 1.6,  cacheReadPrice: 0.1   }],
+  ['gpt-4.1-nano',          { inputPrice: 0.1,   outputPrice: 0.4,  cacheReadPrice: 0.025 }],
+  ['gpt-4o',                { inputPrice: 2.5,   outputPrice: 10,   cacheReadPrice: 1.25  }],
+  ['gpt-4o-mini',           { inputPrice: 0.15,  outputPrice: 0.6,  cacheReadPrice: 0.075 }],
+  ['o1',                    { inputPrice: 15,    outputPrice: 60,   cacheReadPrice: 7.5   }],
+  ['o1-pro',                { inputPrice: 150,   outputPrice: 600  }],
+  ['o3',                    { inputPrice: 2,     outputPrice: 8,    cacheReadPrice: 0.5   }],
+  ['o3-pro',                { inputPrice: 20,    outputPrice: 80   }],
+  ['o3-mini',               { inputPrice: 1.1,   outputPrice: 4.4,  cacheReadPrice: 0.55  }],
+  ['o4-mini',               { inputPrice: 1.1,   outputPrice: 4.4,  cacheReadPrice: 0.275 }],
+  // xAI（<200k 档）
+  ['grok-4.7',                     { inputPrice: 2,    outputPrice: 6,   cacheReadPrice: 0.5 }],
+  ['grok-4.6',                     { inputPrice: 2,    outputPrice: 6,   cacheReadPrice: 0.5 }],
+  ['grok-4.5',                     { inputPrice: 2,    outputPrice: 6,   cacheReadPrice: 0.3 }],
+  ['grok-build-0.1',               { inputPrice: 1,    outputPrice: 2,   cacheReadPrice: 0.2 }],
+  ['grok-4.3',                     { inputPrice: 1.25, outputPrice: 2.5, cacheReadPrice: 0.2 }],
+  ['grok-4.20-0309-reasoning',     { inputPrice: 1.25, outputPrice: 2.5, cacheReadPrice: 0.2 }],
+  ['grok-4.20-0309-non-reasoning', { inputPrice: 1.25, outputPrice: 2.5, cacheReadPrice: 0.2 }],
+  ['grok-4.20-multi-agent-0309',   { inputPrice: 1.25, outputPrice: 2.5, cacheReadPrice: 0.2 }],
+  // DeepSeek（闲时价；工作日高峰时段翻倍）
+  ['deepseek-flash',        { inputPrice: 0.15,  outputPrice: 0.6,  cacheReadPrice: 0.003 }],
+  ['deepseek-v4-pro',       { inputPrice: 0.66,  outputPrice: 1.98, cacheReadPrice: 0.022 }],
+  // Gemini（≤200k 档；>200k 的更高单价由 API 实测覆盖）
+  // gemini-4-argon 限时价至 2026-11-30，3.8 / 3.6 Flash 限时价至 2026-12-31
+  ['gemini-4-argon',         { inputPrice: 2,    outputPrice: 10,   cacheReadPrice: 0.1   }],
+  ['gemini-3.8-flash',       { inputPrice: 0.75, outputPrice: 3.75, cacheReadPrice: 0.075 }],
+  ['gemini-3.6-flash',       { inputPrice: 0.75, outputPrice: 3.75, cacheReadPrice: 0.075 }],
+  ['gemini-3.5-flash-lite',  { inputPrice: 0.3,  outputPrice: 2.5,  cacheReadPrice: 0.03  }],
+  ['gemini-3.1-flash-lite',  { inputPrice: 0.25, outputPrice: 1.5,  cacheReadPrice: 0.025 }],
+  ['gemini-3.1-pro-preview', { inputPrice: 2,    outputPrice: 12,   cacheReadPrice: 0.2   }],
+  ['gemini-3-flash-preview', { inputPrice: 0.5,  outputPrice: 3,    cacheReadPrice: 0.05  }],
+  ['gemini-2.5-pro',         { inputPrice: 1.25, outputPrice: 10,   cacheReadPrice: 0.125 }],
+  ['gemini-2.5-flash',       { inputPrice: 0.3,  outputPrice: 2.5,  cacheReadPrice: 0.03  }],
+  ['gemini-2.5-flash-lite',  { inputPrice: 0.1,  outputPrice: 0.4,  cacheReadPrice: 0.01  }],
+  // Kimi / Moonshot（人民币）
+  ['kimi-k3',                  { inputPrice: 20,  outputPrice: 100 }],
+  ['kimi-k2.7-code',           { inputPrice: 6.5, outputPrice: 27  }],
+  ['kimi-k2.7-code-highspeed', { inputPrice: 13,  outputPrice: 54  }],
+  ['kimi-k2.6',                { inputPrice: 6.5, outputPrice: 27  }],
   // GLM
-  ['glm-4',                 { inputPrice: 7,     outputPrice: 7     }],
-  ['glm-4-flash',           { inputPrice: 0,     outputPrice: 0     }],
-  // GLM Coding Plan（按周额度计费，无 token 单价）
-  ['GLM-5.1',               { inputPrice: 0,     outputPrice: 0     }],
-  ['GLM-5',                 { inputPrice: 0,     outputPrice: 0     }],
-  ['GLM-5-Turbo',           { inputPrice: 0,     outputPrice: 0     }],
-  ['GLM-4.7',               { inputPrice: 0,     outputPrice: 0     }],
-  ['GLM-4.5-Air',           { inputPrice: 0,     outputPrice: 0     }],
+  ['GLM-5.3',               { inputPrice: 1.4,   outputPrice: 4.4   }],
+  ['GLM-5.3-FlashX',        { inputPrice: 0.37,  outputPrice: 1.25  }],
+  ['GLM-5.3-Flash',         { inputPrice: 0.15,  outputPrice: 0.5   }],
+  ['GLM-5.2',               { inputPrice: 1.4,   outputPrice: 4.4   }],
+  ['GLM-5.1',               { inputPrice: 1.4,   outputPrice: 4.4   }],
+  ['GLM-5',                 { inputPrice: 1,     outputPrice: 3.2   }],
+  ['GLM-4.7',               { inputPrice: 0.6,   outputPrice: 2.2   }],
+  ['GLM-4.7-Flash',         { inputPrice: 0,     outputPrice: 0     }],
+  ['GLM-4.5-Air',           { inputPrice: 0.2,   outputPrice: 1.1   }],
   // Kimi Coding Plan（按会员配额计费，无 token 单价）
-  ['kimi-for-coding',       { inputPrice: 0,     outputPrice: 0     }],
-  // MiniMax Coding Plan（按 Token Plan 配额计费，无 token 单价）
+  ['k3',                        { inputPrice: 0, outputPrice: 0 }],
+  ['k3-256k',                   { inputPrice: 0, outputPrice: 0 }],
+  ['kimi-for-coding',           { inputPrice: 0, outputPrice: 0 }],
+  ['kimi-for-coding-highspeed', { inputPrice: 0, outputPrice: 0 }],
+  // MiniMax Coding Plan（按 M Plan / Token Plan 配额计费，无 token 单价）
+  ['MiniMax-M3.1-Flash',    { inputPrice: 0,     outputPrice: 0     }],
   ['MiniMax-M3',            { inputPrice: 0,     outputPrice: 0     }],
   ['MiniMax-M2.7',          { inputPrice: 0,     outputPrice: 0     }],
   ['MiniMax-M2.7-highspeed',{ inputPrice: 0,     outputPrice: 0     }],
@@ -285,15 +327,23 @@ export const KNOWN_PRICES = new Map([
   ['MiniMax-M2.1',          { inputPrice: 0,     outputPrice: 0     }],
   ['MiniMax-M2.1-highspeed',{ inputPrice: 0,     outputPrice: 0     }],
   ['MiniMax-M2',            { inputPrice: 0,     outputPrice: 0     }],
-  // SiliconFlow（部分主力模型）
-  ['Qwen/Qwen3-235B-A22B',  { inputPrice: 1.26,  outputPrice: 1.26  }],
-  ['Qwen/Qwen3-30B-A3B',    { inputPrice: 0.21,  outputPrice: 0.21  }],
-  ['deepseek-ai/DeepSeek-V3', { inputPrice: 0.27, outputPrice: 1.1  }],
-  // Qwen / Alibaba Cloud Model Studio（价格可能随地区和模型版本变化；未知模型由 API 列表返回但不显示价格）
-  ['qwen-turbo',             { inputPrice: 0.05,  outputPrice: 0.2   }],
-  ['qwen-plus',              { inputPrice: 0.4,   outputPrice: 1.2   }],
+  // SiliconFlow（人民币，部分主力模型；Qwen3.5 取 ≤128k 档）
+  ['deepseek-ai/DeepSeek-V3.2',          { inputPrice: 4,   outputPrice: 6,    cacheReadPrice: 0.4 }],
+  ['deepseek-ai/DeepSeek-V3.1-Terminus', { inputPrice: 4,   outputPrice: 12,   cacheReadPrice: 0.4 }],
+  ['Qwen/Qwen3.6-35B-A3B',               { inputPrice: 1.8, outputPrice: 10.8 }],
+  ['Qwen/Qwen3.6-27B',                   { inputPrice: 3,   outputPrice: 18   }],
+  ['Qwen/Qwen3.5-122B-A10B',             { inputPrice: 0.8, outputPrice: 6.4  }],
+  ['Qwen/Qwen3.5-35B-A3B',               { inputPrice: 0.4, outputPrice: 3.2  }],
+  ['Qwen/Qwen3.5-27B',                   { inputPrice: 0.6, outputPrice: 4.8  }],
+  // Qwen / 阿里云百炼（人民币，北京地域；阶梯计价取最低档，未知模型由 API 列表返回但不显示价格）
+  ['qwen3.8-max',            { inputPrice: 12,    outputPrice: 36    }],
+  ['qwen3.7-max',            { inputPrice: 12,    outputPrice: 36    }],
+  ['qwen3.7-plus',           { inputPrice: 2,     outputPrice: 8     }],
+  ['qwen3.8-flash',          { inputPrice: 0.8,   outputPrice: 2.7   }],
+  ['qwen3.7-flash',          { inputPrice: 0.2,   outputPrice: 0.8   }],
   ['qwen-max',               { inputPrice: 2.4,   outputPrice: 9.6   }],
-  ['qwen3-coder-plus',       { inputPrice: 0.6,   outputPrice: 2.4   }],
+  ['qwen-plus',              { inputPrice: 0.8,   outputPrice: 2     }],
+  ['qwen-flash',             { inputPrice: 0.15,  outputPrice: 1.5   }],
 ]);
 
 export function toPrice1M(perToken) {

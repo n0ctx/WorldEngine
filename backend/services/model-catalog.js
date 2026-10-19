@@ -29,8 +29,7 @@ const OPENAI_COMPATIBLE_BASE_URLS = {
   glm: 'https://api.z.ai/api/paas/v4',
   'glm-coding': 'https://api.z.ai/api/coding/paas/v4',
   kimi: 'https://api.moonshot.cn/v1',
-  'kimi-coding': 'https://api.kimi.com/coding/v1',
-  minimax: 'https://api.minimax.chat/v1',
+  minimax: 'https://api.minimax.cn/v1',
   deepseek: 'https://api.deepseek.com',
   grok: 'https://api.x.ai/v1',
   siliconflow: 'https://api.siliconflow.cn/v1',
@@ -38,6 +37,14 @@ const OPENAI_COMPATIBLE_BASE_URLS = {
   lmstudio: LMSTUDIO_DEFAULT_BASE_URL,
   llamacpp: LLAMACPP_DEFAULT_BASE_URL,
 };
+
+// 本地 OpenAI 兼容服务的接口地址填到端口为止，对话与模型列表都在 /v1 下
+const LOCAL_V1_PROVIDERS = new Set(['lmstudio', 'llamacpp']);
+
+/** 填写的接口地址（留空用默认）校验后返回，供模型列表拉取 */
+function resolveFetchBaseUrl(provider, baseUrl) {
+  return validateModelFetchBaseUrl(provider, baseUrl || DEFAULT_BASE_URLS[provider]);
+}
 
 /** 模型列表条目里的上下文上限：正整数才带上，供 model-context-limit.js 读取 */
 function withContextLimit(entry, value) {
@@ -101,9 +108,15 @@ async function fetchAnthropicModels(base, apiKey, provider) {
 function getStaticCodingPlanModels(provider) {
   switch (provider) {
     case 'kimi-coding':
-      return [{ id: 'kimi-for-coding', ...KNOWN_PRICES.get('kimi-for-coding') }];
+      return [
+        'k3',
+        'k3-256k',
+        'kimi-for-coding',
+        'kimi-for-coding-highspeed',
+      ].map((id) => ({ id, ...KNOWN_PRICES.get(id) }));
     case 'minimax-coding':
       return [
+        'MiniMax-M3.1-Flash',
         'MiniMax-M3',
         'MiniMax-M2.7',
         'MiniMax-M2.7-highspeed',
@@ -113,29 +126,23 @@ function getStaticCodingPlanModels(provider) {
         'MiniMax-M2.1-highspeed',
         'MiniMax-M2',
       ].map((id) => ({ id, ...KNOWN_PRICES.get(id) }));
+    // Coding Plan 只开放这两个模型（旧名由服务端改道），按周额度计费
     case 'glm-coding':
       return [
-        'GLM-5.1',
-        'GLM-5',
-        'GLM-5-Turbo',
-        'GLM-4.7',
-        'GLM-4.5-Air',
-      ].map((id) => ({ id, ...KNOWN_PRICES.get(id) }));
+        'GLM-5.3',
+        'GLM-5.3-Flash',
+      ].map((id) => ({ id, inputPrice: 0, outputPrice: 0 }));
     case 'xiaomi':
       return [
         'mimo-v2.6-pro',
         'mimo-v2.6-pro-ultraspeed',
         'mimo-v2.6-flash',
-        'mimo-v2.5-pro',
-        'mimo-v2.5',
       ].map((id) => ({ id }));
     // Token Plan 按套餐额度计费，没有 ultraspeed
     case 'xiaomi-coding':
       return [
         'mimo-v2.6-pro',
         'mimo-v2.6-flash',
-        'mimo-v2.5-pro',
-        'mimo-v2.5',
       ].map((id) => ({ id, inputPrice: 0, outputPrice: 0 }));
     default:
       return null;
@@ -144,7 +151,7 @@ function getStaticCodingPlanModels(provider) {
 
 /**
  * 有静态表的 provider 中，有模型列表端点的动态拉取；无端点或无 Key 时返回空数组
- * kimi-coding 走 OpenAI 兼容协议（/coding/v1/models，与 chat 的 /coding 不同源）；
+ * kimi-coding 走 OpenAI 兼容协议（chat 地址 /coding 下的 /v1/models）；
  * minimax-coding 走 Anthropic 兼容协议（与 chat 同源的 /anthropic/v1/models）；
  * xiaomi / xiaomi-coding 走 OpenAI 兼容协议（与 chat 同源的 /v1/models，Token Plan 按订阅地区换地址）
  */
@@ -152,12 +159,12 @@ async function fetchListedModels(provider, apiKey, baseUrl) {
   if (!apiKey) return [];
   switch (provider) {
     case 'kimi-coding':
-      return fetchOpenAICompatibleModels(OPENAI_COMPATIBLE_BASE_URLS['kimi-coding'], apiKey, provider);
+      return fetchOpenAICompatibleModels(`${resolveFetchBaseUrl(provider, baseUrl)}/v1`, apiKey, provider);
     case 'minimax-coding':
-      return fetchAnthropicModels(validateModelFetchBaseUrl(provider, baseUrl || DEFAULT_BASE_URLS[provider]), apiKey, provider);
+      return fetchAnthropicModels(resolveFetchBaseUrl(provider, baseUrl), apiKey, provider);
     case 'xiaomi':
     case 'xiaomi-coding':
-      return fetchOpenAICompatibleModels(validateModelFetchBaseUrl(provider, baseUrl || DEFAULT_BASE_URLS[provider]), apiKey, provider);
+      return fetchOpenAICompatibleModels(resolveFetchBaseUrl(provider, baseUrl), apiKey, provider);
     default:
       return [];
   }
@@ -182,12 +189,12 @@ export async function fetchModels(provider, apiKey, baseUrl) {
     return fetchAnthropicModels(baseUrl || DEFAULT_BASE_URLS.anthropic, apiKey, provider);
   }
 
-  // Gemini — 原生接口（暂无价格）
+  // Gemini — 原生接口
   if (provider === 'gemini') {
+    if (!apiKey) throw new Error('Gemini 需要 API Key 才能拉取模型列表');
+    const base = resolveFetchBaseUrl(provider, baseUrl);
     const dynamicPrices = await getDynamicPricingOrEmpty(provider);
-    const resp = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`,
-    );
+    const resp = await fetch(`${base}/v1beta/models`, { headers: { 'x-goog-api-key': apiKey } });
     if (!resp.ok) throw new Error(`Gemini API ${resp.status}`);
     const data = await resp.json();
     return (data.models || []).map((m) => {
@@ -206,12 +213,11 @@ export async function fetchModels(provider, apiKey, baseUrl) {
     return (data.models || []).map((m) => ({ id: m.name }));
   }
 
-  // OpenAI-compatible 一族（含无默认 URL 的 openai_compatible）
+  // OpenAI-compatible 一族
   const defaultBase = OPENAI_COMPATIBLE_BASE_URLS[provider];
-  if (defaultBase !== undefined || provider === 'openai_compatible') {
+  if (defaultBase !== undefined) {
     const base = validateModelFetchBaseUrl(provider, baseUrl || defaultBase);
-    if (!base) throw new Error('openai_compatible provider 需要指定 Base URL');
-    return fetchOpenAICompatibleModels(base, apiKey, provider);
+    return fetchOpenAICompatibleModels(LOCAL_V1_PROVIDERS.has(provider) ? `${base}/v1` : base, apiKey, provider);
   }
 
   throw new Error(`不支持的 provider: ${provider}`);

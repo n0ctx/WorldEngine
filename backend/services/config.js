@@ -3,6 +3,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createLogger, formatMeta } from '../utils/logger.js';
 import { isThinkingLevelSupported, normalizeSamplingValue, SAMPLING_PARAM_KEYS } from '../utils/constants.js';
+import { isSupportedProvider } from '../llm/providers/supported.js';
 
 const log = createLogger('svc', 'green');
 
@@ -219,6 +220,23 @@ function clearUnsupportedThinkingLevel(section) {
   return true;
 }
 
+function isUnknownProvider(provider) {
+  return !!provider && !isSupportedProvider(provider);
+}
+
+// 已不支持的服务商（如早已下线的 openai_compatible）回到该组默认，设置页可正常打开，不留到对话时才报错
+function resetUnsupportedProvider(section, defaults) {
+  if (!isUnknownProvider(section?.provider)) return false;
+  Object.assign(section, { provider: defaults.provider, base_url: defaults.base_url, model: defaults.model, thinking_level: null });
+  return true;
+}
+
+function assertSupportedProviders(patch) {
+  for (const section of [patch.llm, patch.aux_llm, patch.writing?.llm, patch.writing?.aux_llm]) {
+    if (isUnknownProvider(section?.provider)) throw new Error(`不支持的 provider: ${section.provider}`);
+  }
+}
+
 function normalizeLlmSection(section, defaults) {
   const src = ensurePlainObject(section);
   const normalized = {
@@ -353,26 +371,34 @@ function migrateConfig(config) {
   if (config.provider_keys !== priorProviderKeys) dirty = true;
 
   const writingSection = ensurePlainObject(config.writing);
-  const usesOpenaiCompatible = [config.llm?.provider, config.aux_llm?.provider, writingSection.llm?.provider, writingSection.aux_llm?.provider]
-    .includes('openai_compatible');
 
   // 删除已废弃的旧配置键（短期记忆改用 token 预算、长期记忆/向量检索已下线），
-  // 以及不再被任何 scope 使用的 openai_compatible 共享 key
+  // 以及已下线的 openai_compatible 共享 key（用到它的 section 在下方回到默认服务商）
   const deletions = [
-    ...LEGACY_CONFIG_KEYS.map((key) => [config, key, true]),
-    ...LEGACY_WRITING_KEYS.map((key) => [writingSection, key, true]),
-    [config.provider_keys, 'openai_compatible', !usesOpenaiCompatible],
+    ...LEGACY_CONFIG_KEYS.map((key) => [config, key]),
+    ...LEGACY_WRITING_KEYS.map((key) => [writingSection, key]),
+    [config.provider_keys, 'openai_compatible'],
   ];
-  for (const [obj, key, shouldDelete] of deletions) {
-    if (shouldDelete && key in obj) {
+  for (const [obj, key] of deletions) {
+    if (key in obj) {
       delete obj[key];
       dirty = true;
     }
   }
 
-  // 把旧版各 section 的 key 收拢到顶层共享池，并清掉服务商不支持的思考档位
-  for (const section of [config.llm, config.aux_llm, config.writing?.llm, config.writing?.aux_llm]) {
-    const changed = [mergeSectionKeys(section, config.provider_keys), clearUnsupportedThinkingLevel(section)];
+  // 把旧版各 section 的 key 收拢到顶层共享池，未知服务商回到默认，并清掉服务商不支持的思考档位
+  const sections = [
+    [config.llm, DEFAULT_CONFIG.llm],
+    [config.aux_llm, DEFAULT_AUX_LLM],
+    [config.writing?.llm, DEFAULT_WRITING.llm],
+    [config.writing?.aux_llm, DEFAULT_WRITING.aux_llm],
+  ];
+  for (const [section, defaults] of sections) {
+    const changed = [
+      mergeSectionKeys(section, config.provider_keys),
+      resetUnsupportedProvider(section, defaults),
+      clearUnsupportedThinkingLevel(section),
+    ];
     dirty = changed.includes(true) || dirty;
   }
 
@@ -540,6 +566,7 @@ export function updateConfig(patch) {
  if (!patch || typeof patch !== 'object' || Array.isArray(patch)) {
  throw new Error('配置更新必须是对象');
  }
+  assertSupportedProviders(patch);
  const merged = normalizeConfigForPersist(deepMerge(current, patch));
  writeConfigFile(merged);
   log.info(`config.update  ${formatMeta({ keys: Object.keys(patch ?? {}) })}`);

@@ -97,8 +97,8 @@ function toGeminiTools(toolDefs) {
 }
 
 function modelUrl(config, method) {
-  const model = (config.model || 'gemini-pro').replace(/^models\//, '');
-  return `${getBaseUrl(config)}/v1beta/models/${model}:${method}?key=${config.api_key}`;
+  const model = (config.model || 'gemini-3.8-flash').replace(/^models\//, '');
+  return `${getBaseUrl(config)}/v1beta/models/${model}:${method}`;
 }
 
 /** 请求体的 contents 部分：可用时走显式缓存，失败或不适用时按普通格式转换 */
@@ -145,7 +145,7 @@ function buildGenerationConfig(config, thinking) {
 function postGemini(url, body, config, raw) {
   return fetchAndRecord(url, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': config.api_key },
     body: JSON.stringify(body),
     signal: config.signal,
   }, raw);
@@ -175,7 +175,7 @@ export async function* streamGemini(messages, config) {
   body.generationConfig = buildGenerationConfig(config, 'thoughts');
   body.safetySettings = SAFETY_SETTINGS_OFF;
   const raw = logRawRequest(body, config, config.callType || 'stream');
-  const resp = await postGemini(`${modelUrl(config, 'streamGenerateContent')}&alt=sse`, body, config, raw);
+  const resp = await postGemini(`${modelUrl(config, 'streamGenerateContent')}?alt=sse`, body, config, raw);
   if (!resp.ok) await throwGeminiHttpError(resp, config, raw);
 
   yield* recordStream(raw, readGeminiStream, resp, config);

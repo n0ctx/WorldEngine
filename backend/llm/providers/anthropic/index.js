@@ -35,7 +35,7 @@ function logUsage(config, usage) {
  * 走 Anthropic 适配器的各 provider 的思考字段（只接受 shared/thinking-levels.mjs 里该 provider 列出的档位）：
  * - anthropic：强度档用 thinking.type=adaptive + output_config.effort（4.6 及以上；4.7 起不再接受 budget_tokens），
  *   预算档用 thinking.budget_tokens（4.5 及更早）
- * - minimax-coding：只认 thinking.type adaptive / disabled，不认 budget_tokens
+ * - minimax-coding：thinking.type adaptive / disabled，不认 budget_tokens；强度档另加 output_config.effort（M3.1 Flash）
  * - kimi-coding（K3 / K2.8 Preview）：强度档用 output_config.effort low/high/max（与 Claude Code 接入 Kimi 时一致），
  *   关闭用 thinking.type=disabled
  */
@@ -45,7 +45,7 @@ function resolveThinkingFields(config) {
   const effort = resolveThinkingEffort(level);
   if (level === 'thinking_disabled') return { thinking: { type: 'disabled' } };
   if (provider === 'kimi-coding') return { output_config: { effort } };
-  if (provider === 'minimax-coding') return { thinking: { type: 'adaptive' } };
+  if (provider === 'minimax-coding') return { thinking: { type: 'adaptive' }, ...(effort && { output_config: { effort } }) };
   if (effort) return { thinking: { type: 'adaptive' }, output_config: { effort } };
   return { thinking: { type: 'enabled', budget_tokens: resolveThinkingBudget(level) } };
 }
@@ -53,7 +53,7 @@ function resolveThinkingFields(config) {
 const CLAUDE_MODEL_VERSION = /claude-(opus|sonnet|haiku|fable|mythos)-(\d+)(?:-(\d)(?!\d))?/;
 
 /**
- * Claude 的新模型（Opus 4.7 起、Sonnet 5 起、Fable / Mythos）不接受自定义 temperature，发了即 400；
+ * Claude 的新模型（Opus 4.7 起、Sonnet 5 起、Haiku 5.5 起、Fable / Mythos）不接受自定义 temperature，发了即 400；
  * 只按 anthropic 的官方模型名判断，认不出的模型名和其他走本适配器的 provider 照常发送。
  */
 function acceptsTemperature(config) {
@@ -65,6 +65,7 @@ function acceptsTemperature(config) {
   if (family === 'fable' || family === 'mythos') return false;
   if (family === 'opus') return version < 4.7;
   if (family === 'sonnet') return version < 5;
+  if (family === 'haiku') return version < 5.5;
   return true;
 }
 

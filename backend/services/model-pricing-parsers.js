@@ -20,17 +20,6 @@ function stripHtmlToText(html) {
     .trim();
 }
 
-function extractSection(text, startMarker, endMarkers = []) {
-  const start = text.indexOf(startMarker);
-  if (start < 0) return '';
-  let end = text.length;
-  for (const marker of endMarkers) {
-    const idx = text.indexOf(marker, start + startMarker.length);
-    if (idx >= 0 && idx < end) end = idx;
-  }
-  return text.slice(start, end);
-}
-
 function extractFirstUsdAfter(text, label, window = 500) {
   const start = text.indexOf(label);
   if (start < 0) return undefined;
@@ -49,81 +38,69 @@ function extractUsdListAfter(text, label, count, window = 300) {
     .map((match) => parseFloat(match[1]));
 }
 
-function extractNumberAfter(text, label, window = 240) {
-  const start = text.indexOf(label);
-  if (start < 0) return undefined;
-  const snippet = text.slice(start, start + window);
-  const match = snippet.match(/([0-9]+(?:\.[0-9]+)?)/);
-  if (!match) return undefined;
-  return parseFloat(match[1]);
+// 逐行匹配价格表(match[1] 为模型 id),同一模型只取首行即标准档
+function collectFirstRows(text, rowRe, toEntry) {
+  const pricing = new Map();
+  for (const match of text.matchAll(rowRe)) {
+    if (!pricing.has(match[1])) pricing.set(match[1], toEntry(match));
+  }
+  return pricing;
 }
+
+// match[2..4] 依次为 输入 / 缓存命中 / 输出
+const inputCachedOutput = (match) => ({
+  inputPrice: parseFloat(match[2]),
+  cacheReadPrice: parseFloat(match[3]),
+  outputPrice: parseFloat(match[4]),
+});
+
+const GEMINI_MODEL_ID = 'gemini-[a-z0-9]+(?:[.-][a-z0-9]+)*';
 
 export function parseGeminiPricingPage(html) {
   const text = stripHtmlToText(html);
-  const sections = [
-    // Gemini 3.x preview 系列在页面中位于 2.5 之前；end markers 指向下一个出现的小节标题。
-    ['gemini-3.1-pro-preview', ['gemini-3.1-flash-lite-preview', 'gemini-3-flash-preview', 'gemini-2.5-pro']],
-    ['gemini-3.1-flash-lite-preview', ['gemini-3.1-flash-live-preview', 'gemini-3.1-flash-image-preview', 'gemini-3-flash-preview', 'gemini-2.5-pro']],
-    ['gemini-3-flash-preview', ['gemini-3-pro-image-preview', 'gemini-2.5-pro']],
-    ['gemini-2.5-pro', ['gemini-2.5-flash']],
-    ['gemini-2.5-flash', ['gemini-2.5-flash-lite']],
-    ['gemini-2.5-flash-lite', ['gemini-2.5-flash-lite-preview-09-2025', 'gemini-2.5-flash-native-audio-preview-12-2025', 'gemini-2.0-flash']],
-    ['gemini-2.5-flash-lite-preview-09-2025', ['gemini-2.5-flash-native-audio-preview-12-2025', 'gemini-2.0-flash']],
-    ['gemini-2.0-flash', ['gemini-2.0-flash-lite']],
-    ['gemini-2.0-flash-lite', ['Imagen 4']],
-  ];
+  // 每个模型小节从 id 起(标题可写成 "A and B"),到下一个 id 为止;
+  // 只收文本模型(输出价带 thinking 标注),小节内首个价格即 Standard 档 ≤200k 的当前价
+  const headerRe = new RegExp(`(${GEMINI_MODEL_ID})((?:\\s+and\\s+${GEMINI_MODEL_ID})*)`, 'g');
+  const headers = [...text.matchAll(headerRe)];
   const pricing = new Map();
-  for (const [modelId, endMarkers] of sections) {
-    const section = extractSection(text, modelId, endMarkers);
-    if (!section) continue;
+  headers.forEach((header, i) => {
+    const section = text.slice(header.index, headers[i + 1]?.index);
     const entry = {
       inputPrice: extractFirstUsdAfter(section, 'Input price'),
-      outputPrice: extractFirstUsdAfter(section, 'Output price'),
+      outputPrice: extractFirstUsdAfter(section, 'Output price (including thinking tokens)'),
       cacheReadPrice: extractFirstUsdAfter(section, 'Context caching price'),
     };
-    if (Number.isFinite(entry.inputPrice) && Number.isFinite(entry.outputPrice)) {
-      pricing.set(modelId, entry);
-    }
-  }
+    if (!Number.isFinite(entry.inputPrice) || !Number.isFinite(entry.outputPrice)) return;
+    const ids = [header[1], ...header[2].matchAll(new RegExp(GEMINI_MODEL_ID, 'g')).map((m) => m[0])];
+    for (const id of ids) if (!pricing.has(id)) pricing.set(id, entry);
+  });
   return pricing;
 }
 
 export function parseGrokPricingPage(html) {
   const text = stripHtmlToText(html);
-  const rows = [
-    'grok-4.3',
-    'grok-4.20-multi-agent-0309',
-    'grok-4.20-0309-reasoning',
-    'grok-4.20-0309-non-reasoning',
-    'grok-4-1-fast-reasoning',
-    'grok-4-1-fast-non-reasoning',
-  ];
-  const pricing = new Map();
-  for (const modelId of rows) {
-    const pattern = new RegExp(`${modelId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s+\\d+M\\s+\\$([0-9]+(?:\\.[0-9]+)?)\\s+\\$([0-9]+(?:\\.[0-9]+)?)\\s+\\$([0-9]+(?:\\.[0-9]+)?)`);
-    const match = text.match(pattern);
-    if (!match) continue;
-    pricing.set(modelId, {
-      inputPrice: parseFloat(match[1]),
-      cacheReadPrice: parseFloat(match[2]),
-      outputPrice: parseFloat(match[3]),
-    });
-  }
-  return pricing;
+  // 行: grok-4.3 Long context ≥ 200k tokens 1M $1.25 $0.20 $2.50 …(后三列为长上下文价,忽略)
+  // 列序为 输入 / 缓存 / 输出
+  const rowRe = /\b(grok-[a-z0-9.-]+)\s+(?:Long context[^$]*?\s)?\d+[kM]\s+\$([0-9.]+)\s+\$([0-9.]+)\s+\$([0-9.]+)/g;
+  return collectFirstRows(text, rowRe, inputCachedOutput);
 }
 
 export function parseDeepSeekPricingPage(html) {
   const text = stripHtmlToText(html);
   const pricing = new Map();
+  // 每行先 OFF-PEAK 后 PEAK(各 flash、pro 两列),取各行前两个数即 OFF-PEAK 标准价
   const cacheHits = extractUsdListAfter(text, '1M INPUT TOKENS (CACHE HIT)', 2);
   const cacheMisses = extractUsdListAfter(text, '1M INPUT TOKENS (CACHE MISS)', 2);
   const outputs = extractUsdListAfter(text, '1M OUTPUT TOKENS', 2);
   if (cacheHits.length >= 2 && cacheMisses.length >= 2 && outputs.length >= 2) {
-    pricing.set('deepseek-v4-flash', {
+    const flash = {
       inputPrice: cacheMisses[0],
       outputPrice: outputs[0],
       cacheReadPrice: cacheHits[0],
-    });
+    };
+    // deepseek-flash 为现行 id,旧 id deepseek-v4-flash 仍被接受并按 Flash 计费
+    pricing.set('deepseek-flash', flash);
+    pricing.set('deepseek-v4-flash', { ...flash });
     pricing.set('deepseek-v4-pro', {
       inputPrice: cacheMisses[1],
       outputPrice: outputs[1],
@@ -133,40 +110,21 @@ export function parseDeepSeekPricingPage(html) {
   return pricing;
 }
 
-export function parseDeepSeekLegacyPricingPage(html) {
-  const text = stripHtmlToText(html);
+export function parseKimiPricingMarkdown(text) {
+  // 表行(JSX 数组,CNY): ["kimi-k3", "1M tokens", "¥20.00", "¥40.00", "¥2.00", "¥20.00", "¥100.00", "1,048,576 tokens"]
+  // 价格列从末尾倒数: 输出、缓存未命中(输入)、缓存命中;K3 另在最前有 5m/1h 缓存写入,取 5m
   const pricing = new Map();
-  for (const modelId of ['deepseek-chat', 'deepseek-reasoner']) {
-    const pattern = new RegExp(`${modelId}\\s+.*?\\$([0-9]+(?:\\.[0-9]+)?)\\s+\\$([0-9]+(?:\\.[0-9]+)?)\\s+\\$([0-9]+(?:\\.[0-9]+)?)`);
-    const match = text.match(pattern);
-    if (!match) continue;
-    pricing.set(modelId, {
-      cacheReadPrice: parseFloat(match[1]),
-      inputPrice: parseFloat(match[2]),
-      outputPrice: parseFloat(match[3]),
-    });
-  }
-  return pricing;
-}
-
-export function parseKimiHomepagePricing(html) {
-  const text = stripHtmlToText(html);
-  const rows = [
-    ['kimi-k2.6', 'kimi-k2.6'],
-    ['kimi-k2.5', 'kimi-k2.5'],
-    ['kimi-k2 是一款具备超强代码和 Agent 能力的 MoE 架构基础模型', 'kimi-k2'],
-  ];
-  const pricing = new Map();
-  for (const [needle, modelId] of rows) {
-    const start = text.indexOf(needle);
-    if (start < 0) continue;
-    const snippet = text.slice(start, start + 500);
-    const cacheReadPrice = extractNumberAfter(snippet, '缓存命中');
-    const inputPrice = extractNumberAfter(snippet, '输入');
-    const outputPrice = extractNumberAfter(snippet, '输出');
-    if (Number.isFinite(inputPrice) && Number.isFinite(outputPrice)) {
-      pricing.set(modelId, { inputPrice, outputPrice, cacheReadPrice });
-    }
+  const rowRe = /\[\s*"(kimi-[a-z0-9.-]+)"\s*,\s*"[^"]*"\s*,\s*((?:"¥[0-9.]+"\s*,\s*)+)"[^"]*"\s*\]/g;
+  for (const match of text.matchAll(rowRe)) {
+    const prices = [...match[2].matchAll(/¥([0-9.]+)/g)].map((m) => parseFloat(m[1]));
+    if (prices.length < 3) continue;
+    const entry = {
+      inputPrice: prices.at(-2),
+      outputPrice: prices.at(-1),
+      cacheReadPrice: prices.at(-3),
+    };
+    if (prices.length > 3) entry.cacheWritePrice = prices[0];
+    pricing.set(match[1], entry);
   }
   return pricing;
 }
@@ -196,47 +154,61 @@ export function parseQwenPricingPage(html) {
 }
 
 export function parseAnthropicPricingMarkdown(text) {
-  // 表行示例:
-  // | Claude Opus 4.5   | $5 / MTok | $6.25 / MTok | $10 / MTok | $0.50 / MTok | $25 / MTok |
+  // 表行示例(价格后可带脚注 <sup>1</sup>,模型名后可带括号说明):
+  // | Claude Opus 4.5   | $5 / MTok | $6.25 / MTok | $10 / MTok | $0.50 / MTok<sup>1</sup> | $25 / MTok |
   const pricing = new Map();
-  const rowRe = /\|\s*(Claude\s+[A-Za-z0-9.\- ]+?)(?:\s*\(\[?[^\]\n]*\]?[^)]*\))?\s*\|\s*\$([0-9.]+)\s*\/\s*MTok\s*\|\s*\$([0-9.]+)\s*\/\s*MTok\s*\|\s*\$([0-9.]+)\s*\/\s*MTok\s*\|\s*\$([0-9.]+)\s*\/\s*MTok\s*\|\s*\$([0-9.]+)\s*\/\s*MTok\s*\|/g;
+  const rowRe = /\|\s*(Claude\s+[^|\n]+?)\s*\|((?:\s*\$[0-9.]+\s*\/\s*MTok\s*(?:<sup>[^<]*<\/sup>\s*)?\|){5})/g;
   const nameToId = (name) => {
-    const m = name.trim().match(/^Claude\s+(Opus|Sonnet|Haiku)\s+([0-9]+(?:\.[0-9]+)?)$/i);
+    const m = name.replace(/\s*\(.*$/, '').match(/^Claude\s+(Opus|Sonnet|Haiku|Fable|Mythos)\s+([0-9]+(?:\.[0-9]+)?)$/i);
     if (!m) return null;
     const family = m[1].toLowerCase();
     // 整数版本(如 Claude Sonnet 4)对应 API id `claude-sonnet-4-<date>`,不加 `-0`
     const ver = m[2].includes('.') ? m[2].replace('.', '-') : m[2];
     return `claude-${family}-${ver}`;
   };
-  let match;
-  while ((match = rowRe.exec(text)) !== null) {
+  for (const match of text.matchAll(rowRe)) {
     const modelId = nameToId(match[1]);
-    if (!modelId) continue;
+    // 按提示长度分档的模型(Haiku 5.5)有多行同名,首行为标准档(≤100k)
+    if (!modelId || pricing.has(modelId)) continue;
+    const [input, cacheWrite5m, , cacheRead, output] = [...match[2].matchAll(/\$([0-9.]+)/g)].map((m) => parseFloat(m[1]));
     // 取 5m Cache Writes 作为 cacheWritePrice(Anthropic 默认/最常用的 5 分钟缓存)
     pricing.set(modelId, {
-      inputPrice: parseFloat(match[2]),
-      cacheWritePrice: parseFloat(match[3]),
-      cacheReadPrice: parseFloat(match[5]),
-      outputPrice: parseFloat(match[6]),
+      inputPrice: input,
+      cacheWritePrice: cacheWrite5m,
+      cacheReadPrice: cacheRead,
+      outputPrice: output,
     });
   }
   return pricing;
 }
 
 export function parseOpenAIPricingMarkdown(text) {
-  // OpenAI docs.md 内含 JS 数组字面量:["model_id", input, cachedInput, output]
-  // 第一组表是 Standard 定价,后续表为 Batch/Flex,以 Standard 为准(取第一次出现)。
+  // 定价页是多张同形 Markdown 表(Standard/Batch/Flex…),首张为 Standard,只解析它;列按表头定位:
+  // | Model | Short context input | Short context cached input | Short context cache writes | Short context output | Long context … |
   const pricing = new Map();
-  const rowRe = /\[\s*"([a-z0-9._-]+)(?:\s*\([^)]*\))?"\s*,\s*([0-9.]+)\s*,\s*(?:null|"-"|""|([0-9.]+))\s*,\s*([0-9.]+)\s*\]/g;
-  let match;
-  while ((match = rowRe.exec(text)) !== null) {
-    const id = match[1];
-    if (pricing.has(id)) continue;
-    const entry = {
-      inputPrice: parseFloat(match[2]),
-      outputPrice: parseFloat(match[4]),
-    };
-    if (match[3] != null) entry.cacheReadPrice = parseFloat(match[3]);
+  const lines = text.split('\n');
+  const start = lines.findIndex((line) => /^\|\s*Model\s*\|/.test(line));
+  if (start < 0) return pricing;
+  const cells = (line) => line.split('|').slice(1, -1).map((cell) => cell.trim());
+  const header = cells(lines[start]);
+  const col = (re) => header.findIndex((name) => re.test(name));
+  const cols = {
+    input: col(/^(?!Long)(?!.*cached).*input/i),
+    cacheRead: col(/^(?!Long).*cached input/i),
+    cacheWrite: col(/^(?!Long).*cache writes/i),
+    output: col(/^(?!Long).*output/i),
+  };
+  const price = (row, i) => parseFloat(String(row[i] ?? '').replace(/[$,]/g, ''));
+  for (let i = start + 2; i < lines.length && lines[i].startsWith('|'); i++) {
+    const row = cells(lines[i]);
+    const id = row[0].replace(/\s*\(.*$/, '');
+    const entry = { inputPrice: price(row, cols.input), outputPrice: price(row, cols.output) };
+    if (!/^[a-z0-9._-]+$/i.test(id) || pricing.has(id)) continue;
+    if (!Number.isFinite(entry.inputPrice) || !Number.isFinite(entry.outputPrice)) continue;
+    const cacheRead = price(row, cols.cacheRead);
+    const cacheWrite = price(row, cols.cacheWrite);
+    if (Number.isFinite(cacheRead)) entry.cacheReadPrice = cacheRead;
+    if (Number.isFinite(cacheWrite)) entry.cacheWritePrice = cacheWrite;
     pricing.set(id, entry);
   }
   return pricing;
@@ -244,25 +216,17 @@ export function parseOpenAIPricingMarkdown(text) {
 
 export function parseGlmPricingMarkdown(text) {
   // | GLM-5.1 | \$1.4 | \$0.26 | Limited-time Free | \$4.4 |
-  const pricing = new Map();
   const rowRe = /\|\s*(GLM-[A-Za-z0-9.-]+)\s*\|\s*\\?\$([0-9.]+)\s*\|\s*\\?\$([0-9.]+)\s*\|[^|]*\|\s*\\?\$([0-9.]+)\s*\|/g;
-  let match;
-  while ((match = rowRe.exec(text)) !== null) {
-    pricing.set(match[1], {
-      inputPrice: parseFloat(match[2]),
-      cacheReadPrice: parseFloat(match[3]),
-      outputPrice: parseFloat(match[4]),
-    });
-  }
-  return pricing;
+  return collectFirstRows(text, rowRe, inputCachedOutput);
 }
 
 export function parseMiniMaxPricingMarkdown(text) {
   // | **MiniMax-M2.7** | 2.1 | 8.4 | 0.42 | 2.625 |  (CNY/M tokens — 与现有 qwen 解析器同口径,原值直存)
-  const pricing = new Map();
-  const rowRe = /\|\s*\*?\*?\s*(MiniMax-[A-Za-z0-9.-]+)\s*\*?\*?\s*\|\s*([0-9.]+)\s*\|\s*([0-9.]+)\s*\|\s*([0-9.—-]+)\s*\|\s*([0-9.—-]+)\s*\|/g;
-  let match;
-  while ((match = rowRe.exec(text)) !== null) {
+  // M3 无缓存写入列,价格带删除线原价: | **MiniMax-M3**<br />≤ 512k 输入 tokens … | ~~4.20~~ 2.10 | ~~16.80~~ 8.40 | ~~0.84~~ 0.42 |
+  // 取删除线后的现价;M3 按输入长度与标准/优先分多行,首行为标准档 ≤512k
+  const cell = '(?:~~[0-9.]+~~\\s*)?([0-9.—-]+)';
+  const rowRe = new RegExp(`\\|\\s*\\*{0,2}\\s*(MiniMax-[A-Za-z0-9.-]+)\\s*\\*{0,2}[^|\\n]*\\|\\s*${cell}\\s*\\|\\s*${cell}\\s*\\|\\s*${cell}\\s*\\|(?:\\s*${cell}\\s*\\|)?`, 'g');
+  return collectFirstRows(text, rowRe, (match) => {
     const entry = {
       inputPrice: parseFloat(match[2]),
       outputPrice: parseFloat(match[3]),
@@ -271,33 +235,22 @@ export function parseMiniMaxPricingMarkdown(text) {
     const cacheWrite = parseFloat(match[5]);
     if (Number.isFinite(cacheRead)) entry.cacheReadPrice = cacheRead;
     if (Number.isFinite(cacheWrite)) entry.cacheWritePrice = cacheWrite;
-    pricing.set(match[1], entry);
-  }
-  return pricing;
+    return entry;
+  });
 }
 
 export function parseSiliconFlowPricingPage(html) {
   const text = stripHtmlToText(html);
-  const start = text.indexOf('SiliconFlow 平台推理模型价格表');
-  if (start < 0) return new Map();
-  const section = text.slice(start, start + 1500);
-  const rows = [
-    ['deepseek-ai/DeepSeek-V3.1-Terminus', 'deepseek-ai/DeepSeek-V3.1-Terminus'],
-    ['moonshotai/Kimi-K2-Instruct-0905', 'moonshotai/Kimi-K2-Instruct-0905'],
-    ['MiniMaxAI/MiniMax-M2', 'MiniMaxAI/MiniMax-M2'],
-    ['Qwen/Qwen3-235B-A22B-Thinking-2507', 'Qwen/Qwen3-235B-A22B-Thinking-2507'],
-    ['Qwen/QwQ-32B', 'Qwen/QwQ-32B'],
-    ['DeepSeek-V3', 'deepseek-ai/DeepSeek-V3'],
-  ];
-  const pricing = new Map();
-  for (const [needle, modelId] of rows) {
-    const pattern = new RegExp(`${needle.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&')}\\s+¥?([0-9]+(?:\\.[0-9]+)?)\\s+¥?([0-9]+(?:\\.[0-9]+)?)`);
-    const match = section.match(pattern);
-    if (!match) continue;
-    pricing.set(modelId, {
-      inputPrice: parseFloat(match[1]),
-      outputPrice: parseFloat(match[2]),
-    });
-  }
-  return pricing;
+  // 行(CNY): DeepSeek-V3.2 deepseek-ai/DeepSeek-V3.2 ¥ 4.00 ¥ 6.00 ¥ 0.40(缓存列可为 "-")
+  // 分档计价取首档 [0, Nk);按时段计价的行没有统一价,不收录;页面只渲染各厂商折叠前的部分模型
+  const price = String.raw`(?:输入 \[0, [0-9]+k\)\s*)?¥\s*([0-9]+(?:\.[0-9]+)?)`;
+  const rowRe = new RegExp(String.raw`([A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)+)\s+${price}\s+${price}(?:\s+${price})?`, 'g');
+  return collectFirstRows(text, rowRe, (match) => {
+    const entry = {
+      inputPrice: parseFloat(match[2]),
+      outputPrice: parseFloat(match[3]),
+    };
+    if (match[4] != null) entry.cacheReadPrice = parseFloat(match[4]);
+    return entry;
+  });
 }

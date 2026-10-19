@@ -61,6 +61,10 @@ function getAdapter(provider) {
   return null;
 }
 
+export function isCloudProvider(provider) {
+  return getAdapter(provider) !== null;
+}
+
 export async function* streamChat(messages, config) {
   const adapter = getAdapter(config.provider);
   if (!adapter) throw apiError(`不支持的 provider: ${config.provider}`, 400);

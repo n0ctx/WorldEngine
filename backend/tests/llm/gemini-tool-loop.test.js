@@ -9,7 +9,7 @@ function mockFetchSequence(responses) {
   const origFetch = globalThis.fetch;
   globalThis.fetch = async (url, opts) => {
     const body = JSON.parse(opts.body);
-    calls.push({ url, body });
+    calls.push({ url, body, headers: opts.headers });
     const next = responses.shift();
     if (!next) throw new Error('mock fetch exhausted');
     if (next.status && next.status >= 400) {
@@ -65,6 +65,8 @@ test('completeGeminiWithTools: 单轮直接文本 → 返回该文本', async ()
     );
     assert.equal(out, 'hello');
     assert.equal(calls.length, 1);
+    assert.doesNotMatch(calls[0].url, /key=/);
+    assert.equal(calls[0].headers['x-goog-api-key'], 'test-key');
   } finally { restore(); }
 });
 

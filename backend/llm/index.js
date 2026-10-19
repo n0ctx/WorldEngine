@@ -20,6 +20,7 @@ import {
 import * as cloudProvider from './providers/cloud-router.js';
 import * as localProvider from './providers/ollama/index.js';
 import * as mockProvider from './providers/mock/index.js';
+import { isLocalProvider } from './providers/supported.js';
 import { getPromptCacheStrategy } from './providers/_shared/cache-usage.js';
 import { createLogger, formatMeta, summarizeMessages, spinnerAdd, spinnerRemove } from '../utils/logger.js';
 import { isToolLoopCancelledError, isToolLoopControlSignal } from './tool-loop-control.js';
@@ -30,8 +31,6 @@ const log = createLogger('llm');
 // ============================================================
 // Provider 路由
 // ============================================================
-
-const LOCAL_PROVIDERS = new Set(['ollama', 'lmstudio', 'llamacpp']);
 
 function getRetryPolicy() {
   const max = Number(process.env.WE_LLM_RETRY_MAX);
@@ -44,7 +43,7 @@ function getRetryPolicy() {
 
 function getProvider(providerName) {
   if (providerName === 'mock') return mockProvider;
-  return LOCAL_PROVIDERS.has(providerName) ? localProvider : cloudProvider;
+  return isLocalProvider(providerName) ? localProvider : cloudProvider;
 }
 
 // ============================================================
@@ -174,14 +173,14 @@ function wrapError(err, provider) {
 function resolveTimeoutMs(timeoutMs, provider) {
   const parsed = Number(timeoutMs);
   if (!Number.isFinite(parsed) || parsed <= 0) return timeoutMs;
-  return LOCAL_PROVIDERS.has(provider) ? Math.max(parsed, LLM_LOCAL_BACKGROUND_TASK_TIMEOUT_MS) : parsed;
+  return isLocalProvider(provider) ? Math.max(parsed, LLM_LOCAL_BACKGROUND_TASK_TIMEOUT_MS) : parsed;
 }
 
 // 工具循环里每次模型请求的超时窗口：调用方传了就按 resolveTimeoutMs 处理，没传用默认值（本地模型更长）
 function resolveToolTurnTimeoutMs(timeoutMs, provider) {
   const parsed = Number(timeoutMs);
   if (Number.isFinite(parsed) && parsed > 0) return resolveTimeoutMs(parsed, provider);
-  return LOCAL_PROVIDERS.has(provider) ? LLM_LOCAL_TOOL_TURN_TIMEOUT_MS : LLM_TOOL_TURN_TIMEOUT_MS;
+  return isLocalProvider(provider) ? LLM_LOCAL_TOOL_TURN_TIMEOUT_MS : LLM_TOOL_TURN_TIMEOUT_MS;
 }
 
 // ============================================================

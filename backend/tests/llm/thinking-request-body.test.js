@@ -64,12 +64,13 @@ test('kimi-coding 遗留 budget_* 不下发思考字段，保留 temperature', a
   assert.equal(body.temperature, 0.5);
 });
 
-test('anthropic：Opus 4.7 起、Sonnet 5 起、Fable 不发 temperature，更早的模型照常发', async () => {
+test('anthropic：Opus 4.7 起、Sonnet 5 起、Haiku 5.5 起、Fable 不发 temperature，更早的模型照常发', async () => {
   const cases = [
     ['claude-opus-4-7', undefined],
     ['claude-opus-5', undefined],
     ['claude-sonnet-5-5', undefined],
     ['claude-fable-5-1', undefined],
+    ['claude-haiku-5-5', undefined],
     ['claude-opus-4-6', 0.5],
     ['claude-sonnet-4-6', 0.5],
     ['claude-sonnet-4-5-20250929', 0.5],
@@ -131,6 +132,12 @@ test('minimax-coding 开启发 adaptive，关闭发 disabled 并保留 temperatu
   assert.equal(off.temperature, 0.5);
 });
 
+test('minimax-coding 强度档 → adaptive + output_config.effort（M3.1 Flash）', async () => {
+  const body = await captureBody({ ...minimaxConfig, model: 'MiniMax-M3.1-Flash', thinking_level: 'effort_high' });
+  assert.deepEqual(body.thinking, { type: 'adaptive' });
+  assert.deepEqual(body.output_config, { effort: 'high' });
+});
+
 test('minimax-coding 遗留 budget_* 不再下发 budget_tokens', async () => {
   const body = await captureBody({ ...minimaxConfig, thinking_level: 'budget_high' });
   assert.equal(body.thinking, undefined);
@@ -139,6 +146,9 @@ test('minimax-coding 遗留 budget_* 不再下发 budget_tokens', async () => {
 test('gemini 强度档 → thinkingLevel，预算档 → thinkingBudget，二者不同时出现', async () => {
   const level = await captureBody({ ...geminiConfig, thinking_level: 'effort_medium' });
   assert.deepEqual(level.generationConfig.thinkingConfig, { thinkingLevel: 'medium', includeThoughts: true });
+
+  const minimal = await captureBody({ ...geminiConfig, thinking_level: 'effort_minimal' });
+  assert.deepEqual(minimal.generationConfig.thinkingConfig, { thinkingLevel: 'minimal', includeThoughts: true });
 
   const budget = await captureBody({ ...geminiConfig, model: 'gemini-2.5-flash', thinking_level: 'budget_high' });
   assert.deepEqual(budget.generationConfig.thinkingConfig, { thinkingBudget: 16384, includeThoughts: true });

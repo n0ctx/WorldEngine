@@ -266,20 +266,30 @@ test('不含废弃键的配置在再次读取时不会被重写', () => {
   assert.equal(mtimeAfter, mtimeBefore);
 });
 
-test('openai_compatible 的 provider key：仍被使用时保留，无 scope 使用时删除', () => {
+test('已下线的 openai_compatible：section 回到该组默认服务商，共享 key 删除', () => {
   sandbox.writeConfig({
-    provider_keys: { openai_compatible: 'compat-key' },
-    llm: { provider: 'openai_compatible', model: 'compat-model' },
+    provider_keys: { openai_compatible: 'compat-key', openai: 'openai-key' },
+    llm: { provider: 'openai_compatible', base_url: 'https://compat.example/v1', model: 'compat-model', thinking_level: 'high' },
+    aux_llm: { provider: 'openai_compatible', model: 'compat-aux' },
   });
-  const kept = getConfig();
-  assert.equal(kept.provider_keys.openai_compatible, 'compat-key');
+  const config = getConfig();
+  assert.equal('openai_compatible' in config.provider_keys, false);
+  assert.equal(config.provider_keys.openai, 'openai-key');
+  assert.deepEqual(
+    [config.llm.provider, config.llm.base_url, config.llm.model, config.llm.thinking_level],
+    ['openai', '', '', null],
+  );
+  assert.deepEqual([config.aux_llm.provider, config.aux_llm.model], [null, null]);
+  assert.deepEqual(sandbox.readConfig(), config);
+});
 
-  sandbox.writeConfig({
-    provider_keys: { openai_compatible: 'compat-key' },
-    llm: { provider: 'mock', model: 'mock-model' },
-  });
-  const removed = getConfig();
-  assert.equal('openai_compatible' in removed.provider_keys, false);
+test('updateConfig 拒绝未知服务商，配置保持不变', () => {
+  fs.rmSync(sandbox.configPath, { force: true });
+  const before = getConfig();
+  assert.throws(() => updateConfig({ writing: { aux_llm: { provider: 'nope' } } }), /不支持的 provider: nope/);
+  assert.deepEqual(getConfig(), before);
+  updateConfig({ aux_llm: { provider: null }, writing: { llm: { provider: 'lmstudio' } } });
+  assert.equal(getConfig().writing.llm.provider, 'lmstudio');
 });
 
 test('配置文件未变时直接复用已解析的配置，文件被外部改动后重新读取', () => {

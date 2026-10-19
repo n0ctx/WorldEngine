@@ -1,5 +1,5 @@
 // Provider 默认 base URL 与归类（chat/completions 请求路径用）。
-// 注意：config.js 的模型列表拉取另有一份 OPENAI_COMPATIBLE_BASE_URLS（部分 provider 的 /models 端点路径与 /chat 不同，如 kimi-coding 的 /coding vs /coding/v1），二者各自独立。
+// 注意：model-catalog.js 的模型列表拉取另有一份 OPENAI_COMPATIBLE_BASE_URLS，改地址时两边同步。
 export const DEFAULT_BASE_URLS = {
   openai:          'https://api.openai.com/v1',
   openrouter:      'https://openrouter.ai/api/v1',
@@ -7,7 +7,7 @@ export const DEFAULT_BASE_URLS = {
   'glm-coding':    'https://api.z.ai/api/coding/paas/v4',
   kimi:            'https://api.moonshot.cn/v1',
   'kimi-coding':   'https://api.kimi.com/coding',
-  minimax:         'https://api.minimax.chat/v1',
+  minimax:         'https://api.minimax.cn/v1',
   'minimax-coding':'https://api.minimax.io/anthropic',
   deepseek:        'https://api.deepseek.com',
   grok:            'https://api.x.ai/v1',
@@ -20,7 +20,7 @@ export const DEFAULT_BASE_URLS = {
 };
 
 export const OPENAI_COMPATIBLE = new Set([
-  'openai', 'openrouter', 'glm', 'glm-coding', 'kimi', 'kimi-coding', 'minimax', 'deepseek', 'grok', 'siliconflow', 'qwen', 'xiaomi', 'xiaomi-coding',
+  'openai', 'openrouter', 'glm', 'glm-coding', 'kimi', 'minimax', 'deepseek', 'grok', 'siliconflow', 'qwen', 'xiaomi', 'xiaomi-coding',
 ]);
 
 export function getBaseUrl(config) {

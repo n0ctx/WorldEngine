@@ -31,21 +31,21 @@ const PROVIDER_HINTS = {
   'kimi-coding': {
     links: [
       { label: '打开 Kimi Code 控制台', url: 'https://www.kimi.com/code/console' },
-      { label: '查看 Kimi 接入文档', url: 'https://www.kimi.com/code/docs/en/third-party-tools/other-coding-agents.html' },
+      { label: '查看 Kimi 接入文档', url: 'https://www.kimi.com/code/docs/en/kimi-code/models.html' },
       { label: '打开 Kimi 登录页', url: 'https://www.kimi.com/code/en' },
     ],
   },
   'minimax-coding': {
     links: [
-      { label: '打开 Token Plan 文档', url: 'https://platform.minimax.io/docs/coding-plan/intro' },
+      { label: '打开 M Plan 文档', url: 'https://platform.minimax.io/docs/m-plan/intro' },
       { label: '查看 Anthropic 兼容文档', url: 'https://platform.minimax.io/docs/api-reference/text-anthropic-api' },
       { label: '打开 MiniMax 控制台', url: 'https://platform.minimax.io/' },
     ],
   },
   'glm-coding': {
     links: [
-      { label: '打开 Z.AI 控制台', url: 'https://platform.z.ai/' },
-      { label: '查看 GLM Coding 文档', url: 'https://docs.z.ai/devpack/tool/others' },
+      { label: '打开 Z.AI 控制台', url: 'https://z.ai/manage-apikey/apikey-list' },
+      { label: '查看 GLM Coding 文档', url: 'https://docs.z.ai/devpack/quick-start' },
       { label: '查看配置说明', url: 'https://zcode.z.ai/docs/configuration' },
     ],
   },
@@ -95,7 +95,7 @@ export const NAV_SECTIONS = [
 ];
 
 export const LOCAL_PROVIDERS = ['ollama', 'lmstudio', 'llamacpp'];
-const NEEDS_BASE_URL_PROVIDERS = new Set([...LOCAL_PROVIDERS, 'openai_compatible', 'xiaomi', 'xiaomi-coding']);
+const NEEDS_BASE_URL_PROVIDERS = new Set([...LOCAL_PROVIDERS, 'xiaomi', 'xiaomi-coding']);
 
 export const DEFAULT_BASE_URLS = {
   ollama: OLLAMA_DEFAULT_BASE_URL,
