@@ -179,5 +179,5 @@ WorldEngine 仍在快速迭代，数据结构、配置和交互可能继续变�
 
 ## 社区与许可
 
-- QQ 群：**964968606**
+- Email：**5045625@qq.com**
 - License：[MIT](LICENSE)
