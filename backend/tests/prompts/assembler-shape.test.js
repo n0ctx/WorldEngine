@@ -9,6 +9,7 @@ import {
   insertCharacter,
   insertCharacterStateField,
   insertCharacterStateValue,
+  insertContextBlock,
   insertMessage,
   insertPersona,
   insertPersonaStateField,
@@ -155,8 +156,8 @@ test('buildPrompt / buildWritingPrompt 的结构锚点顺序保持稳定', async
     sort_order: 1,
   });
 
-  // 每个会话铺：可召回的第 1 轮（原文进 <expanded_dialogues>）+ 中期摘要覆盖到第 1 轮、
-  // 进入短期窗口的第 2 轮（最新 turn record，携带 middle_summary）+ 当前用户消息。
+  // 每个会话铺：被压缩块覆盖、可召回的第 1 轮（原文进 <expanded_dialogues>，摘要进 <story_summary>）
+  // + 以原文进历史的第 2 轮（最新 turn record）+ 当前用户消息。
   const chatSession = insertSession(sandbox.db, {
     character_id: alpha.id,
     title: '聊天会话',
@@ -195,10 +196,9 @@ test('buildPrompt / buildWritingPrompt 的结构锚点顺序保持稳定', async
     summary: '最近聊天摘要',
     user_message_id: historyUser.id,
     asst_message_id: historyAssistant.id,
-    middle_summary: 'ANCHOR_[8.5]_STORY_CHAT',
-    middle_covered_to: 1,
     created_at: 6,
   });
+  insertContextBlock(sandbox.db, chatSession.id, { from_round: 1, to_round: 1, summary: 'ANCHOR_[8.5]_STORY_CHAT' });
   insertMessage(sandbox.db, chatSession.id, {
     role: 'user',
     content: 'ANCHOR_QUERY 当前聊天消息',
@@ -245,10 +245,9 @@ test('buildPrompt / buildWritingPrompt 的结构锚点顺序保持稳定', async
     summary: '最近写作摘要',
     user_message_id: writingHistoryUser.id,
     asst_message_id: writingHistoryAssistant.id,
-    middle_summary: 'ANCHOR_[8.5]_STORY_WRITING',
-    middle_covered_to: 1,
     created_at: 15,
   });
+  insertContextBlock(sandbox.db, writingSession.id, { from_round: 1, to_round: 1, summary: 'ANCHOR_[8.5]_STORY_WRITING' });
   insertMessage(sandbox.db, writingSession.id, {
     role: 'user',
     content: 'ANCHOR_QUERY 当前写作消息',

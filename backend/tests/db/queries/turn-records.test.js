@@ -9,40 +9,17 @@ sandbox.setEnv();
 
 after(() => sandbox.cleanup());
 
-test('upsertTurnRecord：middle_summary / middle_covered_to 在插入与更新时都能往返读写', async () => {
+test('upsertTurnRecord：同一轮再次写入时原地更新并刷新索引与快照字段', async () => {
   const session = insertSession(sandbox.db);
   const { upsertTurnRecord, getTurnRecordById } = await freshImport('backend/db/queries/turn-records.js');
 
-  const inserted = upsertTurnRecord({
-    session_id: session.id,
-    round_index: 1,
-    summary: '摘要1',
-    middle_summary: '中期摘要A',
-    middle_covered_to: 1,
-  });
-  assert.equal(inserted.middle_summary, '中期摘要A');
-  assert.equal(inserted.middle_covered_to, 1);
-
-  const updated = upsertTurnRecord({
-    session_id: session.id,
-    round_index: 1,
-    summary: '摘要1-更新',
-    middle_summary: '中期摘要B',
-    middle_covered_to: 2,
-  });
+  const inserted = upsertTurnRecord({ session_id: session.id, round_index: 1, summary: '摘要1', state_snapshot: '{"a":1}' });
+  const updated = upsertTurnRecord({ session_id: session.id, round_index: 1, summary: '摘要1-更新', scene: '码头', state_snapshot: '{"a":2}' });
   assert.equal(updated.id, inserted.id);
-  assert.equal(updated.middle_summary, '中期摘要B');
-  assert.equal(updated.middle_covered_to, 2);
+  assert.equal(updated.summary, '摘要1-更新');
+  assert.equal(updated.scene, '码头');
+  assert.equal(updated.state_snapshot, '{"a":2}');
   assert.deepEqual(getTurnRecordById(inserted.id), updated);
-});
-
-test('upsertTurnRecord：不传 middle 字段时落库为 NULL（旧数据语义）', async () => {
-  const session = insertSession(sandbox.db);
-  const { upsertTurnRecord } = await freshImport('backend/db/queries/turn-records.js');
-
-  const rec = upsertTurnRecord({ session_id: session.id, round_index: 1, summary: '摘要' });
-  assert.equal(rec.middle_summary, null);
-  assert.equal(rec.middle_covered_to, null);
 });
 
 test('updateTurnRecordIndex：回填 summary/scene/cast_json 并返回变更行数', async () => {
@@ -61,18 +38,17 @@ test('updateTurnRecordIndex：回填 summary/scene/cast_json 并返回变更行�
   assert.equal(updateTurnRecordIndex('missing-id', { summary: 'x' }), 0);
 });
 
-test('getRecallIndexCandidates：只返回 round_index <= coveredTo 且 summary 非空的行，按 round 升序', async () => {
+test('getTurnIndexRows：只返回 summary 非空的行，按 round 升序，带场景与人物', async () => {
   const session = insertSession(sandbox.db);
-  const { upsertTurnRecord, getRecallIndexCandidates } = await freshImport('backend/db/queries/turn-records.js');
+  const { upsertTurnRecord, getTurnIndexRows } = await freshImport('backend/db/queries/turn-records.js');
 
+  upsertTurnRecord({ session_id: session.id, round_index: 3, summary: '摘要3', scene: '城门', cast_json: '["甲"]' });
   upsertTurnRecord({ session_id: session.id, round_index: 1, summary: '摘要1' });
   upsertTurnRecord({ session_id: session.id, round_index: 2, summary: '' });
-  upsertTurnRecord({ session_id: session.id, round_index: 3, summary: '摘要3' });
-  upsertTurnRecord({ session_id: session.id, round_index: 4, summary: '摘要4' });
 
-  const candidates = getRecallIndexCandidates(session.id, 3);
-  assert.deepEqual(candidates.map((c) => c.round_index), [1, 3]);
-  assert.equal(candidates[0].summary, '摘要1');
+  const rows = getTurnIndexRows(session.id);
+  assert.deepEqual(rows.map((row) => row.round_index), [1, 3]);
+  assert.deepEqual(rows[1], { round_index: 3, summary: '摘要3', scene: '城门', cast_json: '["甲"]' });
 });
 
 test('getUnindexedTurnRecords：只返回 summary 为空的行，按 round 升序并受 limit 约束', async () => {

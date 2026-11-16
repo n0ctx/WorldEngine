@@ -6,6 +6,7 @@ import {
   insertCharacter,
   insertCharacterStateField,
   insertCharacterStateValue,
+  insertContextBlock,
   insertMessage,
   insertPersona,
   insertPersonaStateField,
@@ -44,47 +45,20 @@ test('omitLatestUserMessage 在没有 user 消息时保持原数组', async () =
   assert.deepEqual(__testables.omitLatestUserMessage(input), input);
 });
 
-test('sliceHistoryAfterRound keepLatestUser 控制是否摘除最后一条 user，coveredTo 有值时严格保留其后完整轮次', async () => {
-  const { __testables } = await freshImport('backend/prompts/assembler.js');
+test('visibleHistory 只保留可见轮次，不连续的可见轮次各自保留原序', async () => {
+  const { visibleHistory } = await freshImport('backend/memory/context/assembly.js');
   const msgs = [
+    { role: 'assistant', content: 'greet' },
     { role: 'user', content: 'u1' },
     { role: 'assistant', content: 'a1' },
     { role: 'user', content: 'u2' },
     { role: 'assistant', content: 'a2' },
     { role: 'user', content: 'u3' },
   ];
-  // 默认（生成模式）：先摘掉最后一条 user（本轮新输入），round_index > 1 的完整轮次只剩第 2 轮
-  assert.deepEqual(
-    __testables.sliceHistoryAfterRound(msgs, 1).map((m) => m.content),
-    ['u2', 'a2'],
-  );
-  // 续写模式 keepLatestUser=true：不摘除最后一条 user，第 3 轮（仅 u3）本身也 > coveredTo
-  assert.deepEqual(
-    __testables.sliceHistoryAfterRound(msgs, 1, { keepLatestUser: true }).map((m) => m.content),
-    ['u2', 'a2', 'u3'],
-  );
-});
-
-test('sliceHistoryAfterRound coveredTo 缺失（旧会话过渡）时按 token 预算从最新往最旧取完整轮次，至少保留最近一轮', async () => {
-  const { __testables } = await freshImport('backend/prompts/assembler.js');
-  const msgs = [
-    { role: 'user', content: '甲'.repeat(400) },
-    { role: 'assistant', content: '乙'.repeat(400) },
-    { role: 'user', content: '第二轮短消息' },
-    { role: 'assistant', content: '第二轮短回复' },
-    { role: 'user', content: '当前输入' },
-  ];
-  const recentRoundBudget = countMessages([msgs[2], msgs[3]]);
-  // 预算刚好放下最近一轮，放不下更早的第一轮
-  assert.deepEqual(
-    __testables.sliceHistoryAfterRound(msgs, null, { budget: recentRoundBudget }).map((m) => m.content),
-    ['第二轮短消息', '第二轮短回复'],
-  );
-  // 预算小于最近一轮本身的 token 数时，仍至少保留最近一轮，不因超预算而清空历史
-  assert.deepEqual(
-    __testables.sliceHistoryAfterRound(msgs, null, { budget: 1 }).map((m) => m.content),
-    ['第二轮短消息', '第二轮短回复'],
-  );
+  assert.deepEqual(visibleHistory(msgs, new Set([2, 3])).map((m) => m.content), ['u2', 'a2', 'u3']);
+  // 开场白并入第 1 轮，跟着第 1 轮一起进出
+  assert.deepEqual(visibleHistory(msgs, new Set([1, 3])).map((m) => m.content), ['greet', 'u1', 'a1', 'u3']);
+  assert.deepEqual(visibleHistory([{ role: 'assistant', content: 'only' }], new Set()).map((m) => m.content), ['only']);
 });
 
 test('buildPrompt 组装系统段、历史消息，本轮上下文 + 当前用户消息 + 后置提示词合为末尾 user', async () => {
@@ -383,7 +357,7 @@ test('buildWritingPrompt 写作模式不注入 [4] 角色 system_prompt 与 [7] 
   assert.match(result.messages.at(-1).content, /next_prompt/i);
 });
 
-test('buildPrompt coveredTo 有值时：历史只保留其后完整轮次，剧情摘要注入 <story_summary>，历史轮次目录不泄漏进主 prompt', async () => {
+test('buildPrompt 有在用压缩块时：被覆盖的轮次只以剧情摘要出现，可被召回原文，历史轮次目录不泄漏进主 prompt', async () => {
   sandbox.writeConfig({
     ...sandbox.readConfig(),
     global_system_prompt: '',
@@ -396,30 +370,15 @@ test('buildPrompt coveredTo 有值时：历史只保留其后完整轮次，剧�
   const character = insertCharacter(sandbox.db, world.id, { name: '覆盖角色' });
   const session = insertSession(sandbox.db, { character_id: character.id });
 
-  const oldUser = insertMessage(sandbox.db, session.id, { role: 'user', content: '第一轮旧提问', created_at: 1 });
-  const oldAsst = insertMessage(sandbox.db, session.id, { role: 'assistant', content: '第一轮旧回答', created_at: 2 });
+  insertMessage(sandbox.db, session.id, { role: 'user', content: '第一轮旧提问', created_at: 1 });
+  insertMessage(sandbox.db, session.id, { role: 'assistant', content: '第一轮旧回答', created_at: 2 });
   insertTurnRecord(sandbox.db, session.id, {
-    id: 'turn-covered-1',
-    round_index: 1,
-    summary: '旧轮摘要正文',
-    scene: '旧场景',
-    cast_json: JSON.stringify(['旧角色']),
-    user_message_id: oldUser.id,
-    asst_message_id: oldAsst.id,
-    created_at: 3,
+    round_index: 1, summary: '旧轮摘要正文', scene: '旧场景', cast_json: JSON.stringify(['旧角色']), created_at: 3,
   });
   insertMessage(sandbox.db, session.id, { role: 'user', content: '第二轮新提问', created_at: 4 });
-  const newAsst = insertMessage(sandbox.db, session.id, { role: 'assistant', content: '第二轮新回答', created_at: 5 });
-  insertTurnRecord(sandbox.db, session.id, {
-    id: 'turn-latest',
-    round_index: 2,
-    summary: '最近一轮摘要',
-    user_message_id: null,
-    asst_message_id: newAsst.id,
-    middle_summary: '这是更早剧情的中期摘要正文',
-    middle_covered_to: 1,
-    created_at: 6,
-  });
+  insertMessage(sandbox.db, session.id, { role: 'assistant', content: '第二轮新回答', created_at: 5 });
+  insertTurnRecord(sandbox.db, session.id, { round_index: 2, summary: '最近一轮摘要', created_at: 6 });
+  insertContextBlock(sandbox.db, session.id, { from_round: 1, to_round: 1, topic: '初见', summary: '这是更早剧情的压缩摘要正文' });
   insertMessage(sandbox.db, session.id, { role: 'user', content: '第三轮当前提问', created_at: 7 });
 
   process.env.MOCK_LLM_COMPLETE_QUEUE = JSON.stringify([JSON.stringify({ turns: [1] })]);
@@ -427,31 +386,35 @@ test('buildPrompt coveredTo 有值时：历史只保留其后完整轮次，剧�
   const result = await buildPrompt(session.id, { onRecallEvent() {} });
   resetMockEnv();
 
-  // [8.5] 剧情摘要留在 system
+  // [8.5] 剧情摘要留在 system，标出覆盖的轮次与小标题，不带块号等维护信息
   assert.equal(result.messages[0].role, 'system');
-  assert.match(result.messages[0].content, /<story_summary>[\s\S]*这是更早剧情的中期摘要正文[\s\S]*<\/story_summary>/);
+  assert.match(result.messages[0].content, /<story_summary>[\s\S]*【第1轮｜初见】\n这是更早剧情的压缩摘要正文[\s\S]*<\/story_summary>/);
+  assert.doesNotMatch(result.messages[0].content, /b1|一级|compress/);
   // [10] 长期召回原文命中第一轮原文，进本轮 user
   assert.doesNotMatch(result.messages[0].content, /<expanded_dialogues>/);
   assert.match(result.messages.at(-1).content, /<expanded_dialogues>[\s\S]*第一轮旧提问[\s\S]*第一轮旧回答[\s\S]*<\/expanded_dialogues>[\s\S]*第三轮当前提问/);
   assert.equal(result.recallHitCount, 1);
-  // 只发给 aux 召回模型的「历史轮次目录」索引行不应出现在主 prompt 里
+  // 只发给召回模型的目录索引行不应出现在主 prompt 里
   for (const message of result.messages) {
     assert.doesNotMatch(message.content, /旧轮摘要正文/);
     assert.doesNotMatch(message.content, /旧场景/);
-    assert.doesNotMatch(message.content, /历史轮次目录/);
   }
-  // [12] 历史只含 round_index > coveredTo(1) 的完整轮次，不含第一轮
+  // [12] 历史只含没被块覆盖的完整轮次
   assert.equal(result.messages[1].content, '第二轮新提问');
   assert.equal(result.messages[2].content, '第二轮新回答');
-  assert.doesNotMatch(result.messages[1].content, /第一轮/);
+  // 记下这次提示词的占用，供下一轮的压力判断
+  const state = sandbox.db.prepare('SELECT last_prompt_tokens, context_limit FROM context_state WHERE session_id = ?').get(session.id);
+  assert.ok(state.last_prompt_tokens > 0);
+  assert.ok(state.context_limit > 0);
 });
 
-test('buildPrompt 旧会话过渡（coveredTo 不可用）时按 short_term_token_budget 截断历史，只保留最近完整轮次', async () => {
+test('buildPrompt 没有压缩块且原文超过短期预算两倍时兜底移出最老的未保护原文，摘要段注明、可被召回', async () => {
   sandbox.writeConfig({
     ...sandbox.readConfig(),
     global_system_prompt: '',
     global_post_prompt: '',
     suggestion_enabled: false,
+    memory_expansion_enabled: false,
     short_term_token_budget: 1000,
   });
 
@@ -461,17 +424,24 @@ test('buildPrompt 旧会话过渡（coveredTo 不可用）时按 short_term_toke
 
   insertMessage(sandbox.db, session.id, { role: 'user', content: '甲'.repeat(3000), created_at: 1 });
   insertMessage(sandbox.db, session.id, { role: 'assistant', content: '乙'.repeat(3000), created_at: 2 });
-  insertMessage(sandbox.db, session.id, { role: 'user', content: '第二轮短提问', created_at: 3 });
-  insertMessage(sandbox.db, session.id, { role: 'assistant', content: '第二轮短回答', created_at: 4 });
-  insertMessage(sandbox.db, session.id, { role: 'user', content: '当前提问', created_at: 5 });
+  for (let round = 2; round <= 4; round++) {
+    insertMessage(sandbox.db, session.id, { role: 'user', content: `第${round}轮短提问`, created_at: round * 10 });
+    insertMessage(sandbox.db, session.id, { role: 'assistant', content: `第${round}轮短回答`, created_at: round * 10 + 1 });
+  }
+  insertMessage(sandbox.db, session.id, { role: 'user', content: '当前提问', created_at: 100 });
 
   const { buildPrompt } = await freshImport('backend/prompts/assembler.js');
   const result = await buildPrompt(session.id);
 
-  assert.equal(result.recallHitCount, 0);
-  assert.equal(result.messages.length, 4);
   assert.equal(result.messages[0].role, 'system');
-  assert.equal(result.messages[1].content, '第二轮短提问');
-  assert.equal(result.messages[2].content, '第二轮短回答');
+  assert.match(result.messages[0].content, /（第1轮的原文暂时不在上下文里，需要时会作为召回原文提供。）/);
+  assert.deepEqual(result.messages.slice(1, 7).map((m) => m.content), [
+    '第2轮短提问', '第2轮短回答', '第3轮短提问', '第3轮短回答', '第4轮短提问', '第4轮短回答',
+  ]);
   assert.ok(result.messages.every((m) => !String(m.content).includes('甲')));
+
+  // 被移出的轮次有索引行时，摘要段附上它（压缩一直失败时，剧情要点不随原文一起消失）
+  insertTurnRecord(sandbox.db, session.id, { round_index: 1, summary: '林遥在渡口拿到了铁钥匙' });
+  const withIndex = await buildPrompt(session.id);
+  assert.match(withIndex.messages[0].content, /（第1轮的原文暂时不在上下文里，需要时会作为召回原文提供；下面是其中几轮的索引。）\n第1轮：林遥在渡口拿到了铁钥匙/);
 });

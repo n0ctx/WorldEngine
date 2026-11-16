@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 
 import { migrateAppearanceProfileKeys } from './migrations/appearance-profile-keys.js';
+import { migrateMiddleSummaryToContextBlocks } from './migrations/context-blocks.js';
 
 const TABLES = `
 CREATE TABLE IF NOT EXISTS worlds (
@@ -217,6 +218,44 @@ CREATE TABLE IF NOT EXISTS turn_records (
   asst_message_id   TEXT,
   created_at        INTEGER NOT NULL,
   UNIQUE(session_id, round_index)
+);
+
+-- 上下文压缩块（backend/memory/context/）：模型把一段原文轮次或若干相邻的块写成摘要，原文消息不改动。
+-- 在用的块 consumed_by 为 NULL；被上一级块吸收后指向吸收它的块，上级块删除时子块重新在用。
+CREATE TABLE IF NOT EXISTS context_blocks (
+  id             TEXT PRIMARY KEY,
+  session_id     TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+  block_no       INTEGER NOT NULL,              -- 会话内单调递增，显示为 bN，不复用
+  tier           INTEGER NOT NULL,              -- 1 压缩原文 / 2 提炼一级块 / 3 浓缩
+  topic          TEXT NOT NULL DEFAULT '',
+  summary        TEXT NOT NULL,
+  from_round     INTEGER NOT NULL,
+  to_round       INTEGER NOT NULL,
+  source_digest  TEXT NOT NULL,                 -- 覆盖轮次原文的合并指纹，对不上即失效
+  source_tokens  INTEGER NOT NULL DEFAULT 0,    -- 被替换内容的 token：一级是原文，更高级是子块摘要
+  raw_tokens     INTEGER NOT NULL DEFAULT 0,    -- 覆盖范围的原文 token
+  consumed_by    TEXT,
+  created_round  INTEGER NOT NULL,              -- 建块时会话的最新轮次；回退到这一轮之前时块作废
+  run_id         TEXT NOT NULL,                 -- 同一次压缩写入的块共用，重复提交时据此跳过
+  origin         TEXT NOT NULL DEFAULT 'model', -- model / legacy（由旧版剧情摘要迁移）
+  edited_at      INTEGER,
+  created_at     INTEGER NOT NULL,
+  UNIQUE(session_id, block_no)
+);
+
+-- 每条故事线一行的压缩运行状态：增长门槛基线、最近一次提示词占用与压缩结果
+CREATE TABLE IF NOT EXISTS context_state (
+  session_id          TEXT PRIMARY KEY REFERENCES sessions(id) ON DELETE CASCADE,
+  next_block_no       INTEGER NOT NULL DEFAULT 1,
+  baseline_tokens     INTEGER NOT NULL DEFAULT 0,  -- 原文量参考值：成功压缩后的原文量，或上次放弃/失败时的原文量
+  last_prompt_tokens  INTEGER,
+  context_limit       INTEGER,
+  compress_count      INTEGER NOT NULL DEFAULT 0,
+  tokens_saved        INTEGER NOT NULL DEFAULT 0,
+  last_outcome        TEXT,                        -- compressed / declined / rejected / stale / failed
+  last_error          TEXT,
+  last_run_round      INTEGER,
+  updated_at          INTEGER NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS daily_entries (
@@ -478,6 +517,7 @@ CREATE INDEX IF NOT EXISTS idx_session_stream_tasks_status_updated_at ON session
 CREATE INDEX IF NOT EXISTS idx_sessions_world_id ON sessions(world_id);
 CREATE INDEX IF NOT EXISTS idx_sessions_character_id ON sessions(character_id);
 CREATE INDEX IF NOT EXISTS idx_messages_session_id_created_at ON messages(session_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_context_blocks_session ON context_blocks(session_id, consumed_by, from_round);
 CREATE INDEX IF NOT EXISTS idx_state_entities_session_valid ON state_entities(session_id, valid_to_round);
 CREATE INDEX IF NOT EXISTS idx_state_entities_session_entity ON state_entities(session_id, entity_id);
 CREATE INDEX IF NOT EXISTS idx_state_profile_fields_session_valid ON state_profile_fields(session_id, valid_to_round);
@@ -500,6 +540,8 @@ const MIGRATIONS = [
   (db) => addColumn(db, 'assistant_tasks', 'context_usage_json', 'TEXT'),
   // 世界卡的采样参数覆盖：只存设置过的项，其余沿用全局设置。
   (db) => addColumn(db, 'worlds', 'sampling_json', "TEXT NOT NULL DEFAULT '{}'"),
+  // 剧情摘要改为可逆的分级压缩块：最新一轮的旧剧情摘要转成一级块，随后删去 turn_records 的两列。
+  migrateMiddleSummaryToContextBlocks,
 ];
 
 export function initSchema(db) {
@@ -664,7 +706,7 @@ function migrateTurnRecordsAndDiary(db) {
   //   user_message_id / asst_message_id — 指针模式，替代已移除的复制内容字段
   //   state_snapshot — 该轮结束时的三层状态，用于 regenerate/删除/编辑后的状态回滚
   //   scene / cast_json — 摘要锚点：场景与在场角色，只用于召回时定位
-  //   middle_summary / middle_covered_to — 该轮结束时的滚动中期摘要及其覆盖到的轮次，NULL 表示旧数据未生成
+  //   middle_summary / middle_covered_to — 旧版滚动摘要；后续迁移 migrateMiddleSummaryToContextBlocks 转成压缩块后删除
   for (const [name, type] of [
     ['user_message_id', 'TEXT'],
     ['asst_message_id', 'TEXT'],

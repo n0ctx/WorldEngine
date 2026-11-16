@@ -1,0 +1,22 @@
+/** 剧情摘要弹窗的文案：轮次区间、层级名、统计说明 */
+
+export const TIER_LABEL = { 1: '摘要', 2: '提炼', 3: '浓缩' };
+
+export function roundRange(from, to) {
+  return from === to ? `第 ${from} 轮` : `第 ${from}–${to} 轮`;
+}
+
+const OUTCOME_HINT = { failed: '上次整理失败', stale: '上次整理期间剧情有变动，结果没有写入' };
+
+export function statsHint(stats) {
+  if (!stats || stats.latestRound === 0) return '还没有剧情';
+  const parts = [`共 ${stats.latestRound} 轮`];
+  if (stats.coveredRounds > 0) {
+    const ratio = stats.compressionRatio ? `，约为原文的 1/${Math.round(stats.compressionRatio)}` : '';
+    parts.push(`${stats.coveredRounds} 轮已整理成 ${stats.activeBlocks} 段摘要${ratio}`);
+  }
+  parts.push(`${stats.rawRounds} 轮保留原文`);
+  if (stats.usage != null) parts.push(`上一轮上下文占用 ${Math.round(stats.usage * 100)}%`);
+  const outcome = OUTCOME_HINT[stats.lastOutcome];
+  return `${parts.join('，')}。${outcome ? `${outcome}${stats.lastError ? `：${stats.lastError}` : ''}。` : ''}`;
+}

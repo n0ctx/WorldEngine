@@ -98,7 +98,7 @@ function MemorySettings({
               placeholder={isChat ? '' : '继承对话'}
             />
             <span className="we-settings-inline-hint">
-              {isChat ? '按 token 预算保留最近轮次原文，超出部分转入中期摘要' : '留空继承对话配置'}
+              {isChat ? '最近轮次原文的 token 预算，超出后较早剧情由副模型整理成摘要' : '留空继承对话配置'}
             </span>
           </div>
         </FormGroup>

@@ -5,6 +5,7 @@
 这里不再按子目录分组，直接平铺 `.md` 文件。
 通过文件名前缀区分用途：
 - `memory-*`
+- `context-*`
 - `entry-*`
 - `state-*`
 - `chat-*`
@@ -14,8 +15,10 @@
 文件说明：
 - `memory-turn-summary.md`
   生成轮次目录索引行（scene / cast / summary）的模板。
-- `memory-middle-summary.md`
-  中期剧情摘要整理模板：已整理的事件 + 进行中事件的逐轮记录 → 已经结束的事件，或「未完」。
+- `context-compress-system.md`
+  上下文维护员（副模型）的 system 模板：压缩准则、分级提炼与提交协议。
+- `context-compress-user.md`
+  上下文维护员的 user 模板：状态、在用块、合并候选、可压缩原文与受保护的最近轮次。
 - `memory-title-generation.md`
   生成会话标题的模板。
 - `memory-retitle-generation.md`

@@ -2,9 +2,11 @@
  * turn-summarizer.js — per-turn 建行与索引：每轮对话结束后（状态更新完毕后）创建 turn record，
  * 再异步为记录回填「历史轮次目录」索引
  *
+ * 剧情摘要不在这里：较早原文的压缩由 memory/context/compressor.js 作为独立的后台任务完成。
+ *
  * 对外暴露：
  *   createTurnRecord(sessionId)
- *     为最后一轮（round = splitRounds 的最后一轮）建行：写中期摘要指针与状态快照，
+ *     为最后一轮（round = splitRounds 的最后一轮）建行：写消息指针与状态快照，
  *     summary 留空，交给长期记忆索引回填（generateTurnIndex）另行生成。
  *   generateTurnIndex(sessionId)
  *     为最新一轮（若尚未生成索引）与最多 TURN_INDEX_BACKFILL_MAX 条更早未索引记录
@@ -34,7 +36,7 @@ import {
 import { renderBackendPrompt } from '../prompts/prompt-loader.js';
 import { captureFullSnapshot } from './state-rollback.js';
 import { splitRounds } from '../utils/session-rounds.js';
-import { computeMiddleSummary, resolveSpeakers } from './middle-summary.js';
+import { resolveSpeakers } from './speakers.js';
 import { resolveAuxScope } from '../utils/aux-scope.js';
 import { countTokens } from '../utils/token-counter.js';
 import { stripThinkBlocksFromText, toPromptMessage } from '../utils/turn-dialogue.js';
@@ -125,18 +127,6 @@ export async function createTurnRecord(sessionId) {
   const character = session.character_id ? getCharacterById(session.character_id) : null;
   const worldId = character?.world_id ?? session.world_id;
 
-  const middle = await computeMiddleSummary(sessionId, round_index);
-  log.info(`MIDDLE  ${formatMeta({
-    session: sid,
-    round: round_index,
-    windowTokens: middle.windowTokens,
-    windowRounds: middle.windowRounds,
-    evicted: middle.evicted ? middle.evicted.join('-') : null,
-    middleTokens: middle.middleTokens,
-    coveredTo: middle.coveredTo,
-    failed: middle.failed,
-  })}`);
-
   const snapshot = captureTurnSnapshot(sessionId, worldId, session.character_id);
 
   const record = upsertTurnRecord({
@@ -148,15 +138,9 @@ export async function createTurnRecord(sessionId) {
     user_message_id: userMsg.id,
     asst_message_id: asstMsg.id,
     state_snapshot: snapshot ? JSON.stringify(snapshot) : null,
-    middle_summary: middle.text,
-    middle_covered_to: middle.coveredTo,
   });
 
   log.info(`DONE  ${formatMeta({ session: sid, round: round_index, recordId: record?.id ?? null })}`);
-
-  if (middle.failed) {
-    throw new Error(middle.error || '中期摘要生成失败');
-  }
 }
 
 function renderTurnIndexPrompt(speakers, userContent, assistantContent) {

@@ -79,10 +79,10 @@ export function renderTriggeredEntriesSection(triggeredEntries, tv) {
   return `<world_entries>\n${entryTexts.join('\n\n')}\n</world_entries>`;
 }
 
-/** [8.5] 剧情摘要（已结束的事件加进行中事件的逐轮记录，见 memory/middle-summary.js#renderStorySummary）；为空时返回 null */
+/** [8.5] 剧情摘要：在用的压缩块按轮次先后排列（见 memory/context/assembly.js）；为空时返回 null */
 export function renderStorySummarySection(text, tv) {
   if (!text) return null;
-  return `<story_summary>\n以下是更早的剧情：先是按事件整理的摘要，最后的【进行中的事件】逐轮列出眼下这件事已滑出原文的部分，后续接着下方原文；细节以原文为准。\n${tv(text)}\n</story_summary>`;
+  return `<story_summary>\n以下是更早剧情的摘要，按轮次先后排列，每段标出覆盖的轮次；没被摘要覆盖的轮次以原文出现在后面的对话里，细节以原文为准。\n${tv(text)}\n</story_summary>`;
 }
 
 /** [7.5] 状态记忆：对话模式在 char_state 之后注入；写作模式没有单一主角色，直接注入该段 */
@@ -91,11 +91,11 @@ export function renderStoryStateSection(sessionId, opts, tv) {
   return text ? tv(text) : null;
 }
 
-/** [10] 长期召回原文；recordIds 为长期召回选中的 turn_records.id 列表 */
-export function renderExpandedSection(recordIds, tv) {
-  const { text: expandedText, hitIds } = renderRecalledTurns(recordIds, MEMORY_EXPAND_MAX_TOKENS);
+/** [10] 长期召回原文；rounds 为长期召回选中的轮号，units 为本轮的轮次单元 */
+export function renderExpandedSection(rounds, units, tv) {
+  const { text: expandedText, hitRounds } = renderRecalledTurns(rounds, units, MEMORY_EXPAND_MAX_TOKENS);
   return {
-    hitIds,
+    hitRounds,
     text: expandedText ? `<expanded_dialogues>\n${tv(expandedText)}\n</expanded_dialogues>` : null,
   };
 }

@@ -1,4 +1,5 @@
 import crypto from 'node:crypto';
+import { splitRounds, roundDigest, rangeDigest } from '../../utils/session-rounds.js';
 
 function nowTs(ts) {
   return ts ?? Date.now();
@@ -245,8 +246,8 @@ export function insertTurnRecord(db, sessionId, patch = {}) {
   const id = patch.id ?? crypto.randomUUID();
   const now = nowTs(patch.created_at);
   db.prepare(`
-    INSERT INTO turn_records (id, session_id, round_index, summary, scene, cast_json, user_message_id, asst_message_id, state_snapshot, middle_summary, middle_covered_to, created_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO turn_records (id, session_id, round_index, summary, scene, cast_json, user_message_id, asst_message_id, state_snapshot, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     id,
     sessionId,
@@ -257,11 +258,37 @@ export function insertTurnRecord(db, sessionId, patch = {}) {
     patch.user_message_id ?? null,
     patch.asst_message_id ?? null,
     patch.state_snapshot ?? null,
-    patch.middle_summary ?? null,
-    patch.middle_covered_to ?? null,
     now,
   );
   return { id, session_id: sessionId, ...patch, created_at: now };
+}
+
+/**
+ * 直接写一个上下文压缩块。source_digest 默认按当前库里第 from–to 轮的原文计算（与运行时同一算法），
+ * 传 source_digest 可造出失效块。
+ */
+export function insertContextBlock(db, sessionId, patch = {}) {
+  const id = patch.id ?? crypto.randomUUID();
+  const from = patch.from_round ?? 1;
+  const to = patch.to_round ?? from;
+  const messages = db.prepare('SELECT id, role, content FROM messages WHERE session_id = ? ORDER BY created_at ASC, rowid ASC').all(sessionId);
+  const rounds = splitRounds(messages);
+  const digest = patch.source_digest ?? rangeDigest(rounds.slice(from - 1, to).map(roundDigest));
+  const no = patch.block_no ?? (db.prepare('SELECT COALESCE(MAX(block_no), 0) + 1 AS n FROM context_blocks WHERE session_id = ?').get(sessionId).n);
+  db.prepare(`
+    INSERT INTO context_blocks (id, session_id, block_no, tier, topic, summary, from_round, to_round, source_digest,
+      source_tokens, raw_tokens, consumed_by, created_round, run_id, origin, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(
+    id, sessionId, no, patch.tier ?? 1, patch.topic ?? '', patch.summary ?? '压缩摘要', from, to, digest,
+    patch.source_tokens ?? 100, patch.raw_tokens ?? 100, patch.consumed_by ?? null, patch.created_round ?? to,
+    patch.run_id ?? `run-${id}`, patch.origin ?? 'model', nowTs(patch.created_at),
+  );
+  db.prepare(`
+    INSERT INTO context_state (session_id, next_block_no, updated_at) VALUES (?, ?, ?)
+    ON CONFLICT(session_id) DO UPDATE SET next_block_no = MAX(next_block_no, excluded.next_block_no)
+  `).run(sessionId, no + 1, Date.now());
+  return { id, block_no: no, from_round: from, to_round: to, source_digest: digest };
 }
 
 export function insertDailyEntry(db, sessionId, patch = {}) {

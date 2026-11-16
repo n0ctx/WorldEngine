@@ -95,78 +95,23 @@ test('createTurnRecord：末尾是 user 消息（缺 assistant）时跳过，不
   assert.equal(getAllTurnRecordsBySessionId(session.id).length, 0);
 });
 
-const MERGED_PHASE = '【第1–1轮｜不详｜庭院｜甲】\n起因：无\n经过：无\n结果：无\n变化：无';
-
-test('createTurnRecord：中期摘要整理失败时仍建行并抛错，覆盖范围照常推进；下一次滑出时连同之前的轮次重新整理', async () => {
+test('createTurnRecord：只建行与状态快照，不调用模型（剧情压缩是独立的 context-compress 任务）', async () => {
   resetMockEnv();
   sandbox.writeConfig(createTestConfig({ short_term_token_budget: 10 }));
-  process.env.MOCK_LLM_COMPLETE_ERROR = '连接超时';
+  process.env.MOCK_LLM_COMPLETE_ERROR = '不应调用模型';
 
   const session = seedSession();
-  for (const roundIndex of [1, 2]) {
-    seedRound(session.id, roundIndex, { userText: '测'.repeat(50) });
-    insertTurnRecord(sandbox.db, session.id, { round_index: roundIndex, summary: `庭院里的事${roundIndex}` });
-  }
-  seedRound(session.id, 3, { userText: '测'.repeat(50) });
+  for (const roundIndex of [1, 2, 3]) seedRound(session.id, roundIndex, { userText: '测'.repeat(50) });
 
   const { createTurnRecord } = await freshImport('backend/memory/turn-summarizer.js');
-  const { getAllTurnRecordsBySessionId, updateTurnRecordIndex } = await freshImport('backend/db/queries/turn-records.js');
-
-  await assert.rejects(() => createTurnRecord(session.id), /连接超时/);
-
-  let records = getAllTurnRecordsBySessionId(session.id);
-  assert.equal(records.length, 3);
-  assert.equal(records[2].round_index, 3);
-  assert.equal(records[2].middle_covered_to, 2);
-  assert.equal(records[2].middle_summary, '');
-
-  // 下一次滑出：第 1、2 轮仍在进行中的事件里，这次整理成功
-  resetMockEnv();
-  process.env.MOCK_LLM_COMPLETE = MERGED_PHASE;
-  updateTurnRecordIndex(records[2].id, { summary: '庭院后来的事', scene: '', cast_json: null });
-  seedRound(session.id, 4, { userText: '短' });
-
+  const { getAllTurnRecordsBySessionId } = await freshImport('backend/db/queries/turn-records.js');
   await createTurnRecord(session.id);
 
-  records = getAllTurnRecordsBySessionId(session.id);
-  const latest = records[records.length - 1];
-  assert.equal(latest.round_index, 4);
-  assert.equal(latest.middle_covered_to, 3);
-  assert.equal(latest.middle_summary, MERGED_PHASE);
-});
-
-test('createTurnRecord：多轮增长后 buildPrompt 的主模型历史 token 保持在短期预算附近', async () => {
-  resetMockEnv();
-  sandbox.writeConfig(createTestConfig({
-    short_term_token_budget: 150,
-    suggestion_enabled: false,
-    memory_expansion_enabled: false,
-  }));
-  process.env.MOCK_LLM_COMPLETE = '未完';
-
-  const session = seedSession();
-
-  const { createTurnRecord } = await freshImport('backend/memory/turn-summarizer.js');
-  for (let r = 1; r <= 5; r++) {
-    seedRound(session.id, r, { userText: '测'.repeat(100), asstText: '测'.repeat(100) });
-    await createTurnRecord(session.id);
-  }
-  insertMessage(sandbox.db, session.id, { role: 'user', content: '当前提问', created_at: 60 });
-
-  const { buildPrompt } = await freshImport('backend/prompts/assembler.js');
-  const { countMessages } = await freshImport('backend/utils/token-counter.js');
-  const result = await buildPrompt(session.id);
-
-  const historyMessages = result.messages.slice(1, -1);
-  const historyTokens = countMessages(historyMessages);
-  const allRoundsTokens = countMessages(
-    Array.from({ length: 5 }, () => [{ content: '测'.repeat(100) }, { content: '测'.repeat(100) }]).flat(),
-  );
-
-  // 历史随轮次增长被滚动压缩，未随全部 5 轮原文线性增长
-  assert.ok(historyTokens < allRoundsTokens);
-  // 大致维持在短期预算附近（保留至多一整轮的超出余量）
-  assert.ok(historyTokens <= 150 + 60, `historyTokens=${historyTokens} 超出预算过多`);
+  const records = getAllTurnRecordsBySessionId(session.id);
+  assert.deepEqual(records.map((record) => record.round_index), [3]);
+  assert.equal(records[0].summary, '');
+  assert.ok(!('middle_summary' in records[0]));
+  assert.equal(sandbox.db.prepare('SELECT COUNT(*) AS n FROM context_blocks').get().n, 0);
 });
 
 // ============================================================

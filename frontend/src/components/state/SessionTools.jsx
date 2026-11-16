@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import { IconState, IconSummary } from '../ui/icons.jsx';
 import Button from '../ui/Button.jsx';
-import MiddleSummaryModal from '../session/MiddleSummaryModal.jsx';
+import ContextSummaryModal from '../session/ContextSummaryModal.jsx';
 import StateMemoryModal from '../session/StateMemoryModal.jsx';
 
 /** 剧情摘要 / 状态记忆入口，各自打开当前会话的弹窗；放在状态面板侧栏的顶行（和收起按钮同一行） */
@@ -23,7 +23,7 @@ export default function SessionTools({ sessionId, worldId }) {
       </Button>
       <AnimatePresence>
         {summaryOpen && (
-          <MiddleSummaryModal key="middle-summary-modal" sessionId={sessionId} onClose={() => setSummaryOpen(false)} />
+          <ContextSummaryModal key="context-summary-modal" sessionId={sessionId} onClose={() => setSummaryOpen(false)} />
         )}
         {stateMemoryOpen && (
           <StateMemoryModal key="state-memory-modal" sessionId={sessionId} worldId={worldId} onClose={() => setStateMemoryOpen(false)} />

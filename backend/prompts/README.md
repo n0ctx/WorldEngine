@@ -37,13 +37,16 @@
 ### 记忆与摘要
 
 - `templates/memory-turn-summary.md`
-  为轮次目录索引行生成 `{scene, cast, summary}` 的 prompt（不是 `turn_records.summary`，该列已废弃）。
+  为轮次目录索引行生成 `{scene, cast, summary}` 的 prompt，结果写入 `turn_records` 的 `summary / scene / cast_json`，供召回目录与压缩时的场景切分使用。
   调用方：`backend/memory/turn-summarizer.js`（`generateTurnIndex`）
-- `templates/memory-middle-summary.md`
-  中期剧情摘要整理 prompt：判断进行中事件的逐轮记录里有没有已经结束的事件，有就整理成「时间｜地点｜人物 + 起因、经过、结果、变化」，没有只回「未完」；已整理的事件只作参考。
-  调用方：`backend/memory/middle-summary.js`
+- `templates/context-compress-system.md`
+  上下文维护员（副模型）的 system prompt：何时压缩、一级摘要保留什么与丢掉什么、未了事项的延续、二三级块的提炼、安全规则，以及 `compress` 工具和纯文本 JSON 两种提交方式。
+  调用方：`backend/memory/context/doctrine.js`（被 `backend/memory/context/compressor.js` 使用）
+- `templates/context-compress-user.md`
+  上下文维护员的 user prompt：状态、在用块、待合并候选、可压缩的原文轮次与受保护的最近轮次预览。
+  调用方：`backend/memory/context/doctrine.js`
 - `templates/memory-recall-system.md`
-  长期记忆召回判定的 system prompt，喂给模型历史轮次目录索引，要求只返回命中的轮次编号 JSON。
+  长期记忆召回判定的 system prompt，喂给模型不在上下文里的历史轮次目录（按所属摘要块分组），要求只返回命中的轮次编号 JSON。
   调用方：`backend/memory/long-term-recall.js`（`recallTurns`）
 - `templates/memory-recall-user.md`
   长期记忆召回判定的 user prompt，喂给模型近期对话原文。

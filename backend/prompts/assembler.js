@@ -7,9 +7,9 @@
  *   [3]  玩家 System Prompt           │ （cacheableSystem）
  *   [4]  角色 System Prompt           │
  *   [4.5] 标签说明（context-guide-*.md）┘
- *   [8.5] 剧情摘要（中期摘要非空时；只在短期窗口滑动时变化）
+ *   [8.5] 剧情摘要（在用的压缩块；只在压缩、块失效或兜底移出时变化）
  *
- *   [12] 历史消息（role:user/assistant 交替，短期窗口）
+ *   [12] 历史消息（role:user/assistant 交替，没被压缩的原文轮次）
  *
  *   [本轮 user message：每轮变化的上下文 + 用户消息 + 后置提示词]
  *   [8]  世界 State 条目              ┐
@@ -41,8 +41,6 @@ import { fileURLToPath } from 'node:url';
 import { getSessionById } from '../db/queries/sessions.js';
 import { getCharacterById } from '../db/queries/characters.js';
 import { getWorldById } from '../db/queries/worlds.js';
-import { getMessagesBySessionId } from '../db/queries/messages.js';
-import { getLatestTurnRecord } from '../db/queries/turn-records.js';
 import {
   getAllWorldEntries,
 } from '../db/queries/prompt-entries.js';
@@ -50,15 +48,13 @@ import { getConfig } from '../services/config.js';
 import { matchEntries } from './entry-matcher.js';
 import { renderCharacterState } from '../memory/recall.js';
 import { recallTurns } from '../memory/long-term-recall.js';
-import { renderStorySummary } from '../memory/middle-summary.js';
+import { loadHistoryBase, recordPromptUsage, visibleHistory } from '../memory/context/assembly.js';
 
 import { getOrCreatePersona } from '../services/personas.js';
 import { applyRules } from '../utils/regex-runner.js';
 import { applyTemplateVars } from '../utils/template-vars.js';
 import { createLogger } from '../utils/logger.js';
 import { loadBackendPrompt } from './prompt-loader.js';
-import { splitRounds, roundTokens } from '../utils/session-rounds.js';
-import { toPromptMessage } from '../utils/turn-dialogue.js';
 import { parseSamplingOverrides } from '../utils/constants.js';
 import {
   CONTEXT_GUIDES,
@@ -107,17 +103,6 @@ function readAttachmentAsDataUrl(relativePath) {
   return `data:${mime};base64,${buf.toString('base64')}`;
 }
 
-/** 两种模式共用的历史起点：最新一轮记录给出的剧情摘要及其覆盖到的轮次，加上给模型看的全部消息。 */
-function loadHistoryBase(sessionId) {
-  const latestRecord = getLatestTurnRecord(sessionId);
-  const coveredTo = latestRecord?.middle_covered_to ?? null;
-  return {
-    coveredTo,
-    storySummary: renderStorySummary(sessionId, latestRecord?.middle_summary ?? '', coveredTo ?? 0),
-    uncompressedMessages: getMessagesBySessionId(sessionId, null, 0).map(toPromptMessage),
-  };
-}
-
 /**
  * 将 DB 消息行转换为 LLM messages 数组格式。
  * 含附件的消息 content 转换为 vision 数组格式。
@@ -155,42 +140,11 @@ function resolveRecentTurnContext(uncompressedMessages) {
   };
 }
 
-// keepLatestUser：续写模式不摘除最后一条 user。普通生成时最后一条 user 是"本轮新输入"，
-// 由 getCurrentUserMessage 单独重贴到末尾，故历史里要先摘掉它；续写没有新输入，最后一条是
-// assistant，强行摘除其前的 user 会破坏轮次交替并让待续写 assistant 错位，故保留全窗口原序。
-//
-// 短期窗口边界由中期覆盖范围决定：
-// - coveredTo 有值：严格保留 round_index > coveredTo 的完整轮次，窗口大小随会话推进自然
-//   收窄/扩张，不在这里重算「滑出」（滑出计算在轮后任务里做）。
-// - coveredTo 缺失（旧会话过渡期：会话尚无 turn record，或最新记录的 middle_covered_to
-//   为 null）：从最新往最旧取完整轮次，累计 token 不超过 budget，但至少保留最近一个完整
-//   轮次；更早的轮次本轮不进短期窗口。
-function sliceHistoryAfterRound(messages, coveredTo, { keepLatestUser = false, budget = Infinity } = {}) {
-  const history = keepLatestUser ? messages : omitLatestUserMessage(messages);
-  const rounds = splitRounds(history);
-  if (rounds.length === 0) return history;
-
-  if (Number.isInteger(coveredTo)) {
-    return rounds.filter((round) => round.roundIndex > coveredTo).flatMap((round) => round.messages);
-  }
-
-  const keptRounds = [];
-  let usedTokens = 0;
-  for (let i = rounds.length - 1; i >= 0; i--) {
-    const tokens = roundTokens(rounds[i]);
-    if (keptRounds.length > 0 && usedTokens + tokens > budget) break;
-    keptRounds.unshift(rounds[i]);
-    usedTokens += tokens;
-  }
-  return keptRounds.flatMap((round) => round.messages);
-}
-
 export const __testables = {
   readAttachmentAsDataUrl,
   formatMessageForLLM,
   omitLatestUserMessage,
   getCurrentUserMessage,
-  sliceHistoryAfterRound,
 };
 
 // ─── 核心函数 ─────────────────────────────────────────────────────
@@ -241,19 +195,18 @@ function buildSummarySystemParts(storySummary, tv) {
 }
 
 /**
- * [10] 渲染长期召回选中的原文并通知前端召回结束。
- * recall 为 recallTurns() 的结果（chat、writing 均直接 await 得到）。
+ * [10] 长期召回：从不在历史里的轮次挑选并渲染原文，通知前端召回结束。
  * 返回本轮实际注入原文的轮数（SSE `hit` 字段，也是外部返回的 recallHitCount）。
  */
-function renderLongTermRecallSection(recall, tv, turnContextParts, onRecallEvent) {
-  const { recordIds, candidateCount, skippedBeforeRound } = recall;
-  const expanded = renderExpandedSection(recordIds, tv);
+async function pushLongTermRecall(sessionId, mode, recallScope, tv, turnContextParts, onRecallEvent) {
+  const { rounds, candidateCount, droppedCount } = await recallTurns({ sessionId, mode, scope: recallScope });
+  const expanded = renderExpandedSection(rounds, recallScope.units, tv);
   if (expanded.text) {
     turnContextParts.push(expanded.text);
-    log.debug(`│  [10] recall  hits=${expanded.hitIds.length}/${candidateCount}`);
+    log.debug(`│  [10] recall  hits=${expanded.hitRounds.length}/${candidateCount}`);
   }
-  onRecallEvent?.('memory_recall_done', { hit: expanded.hitIds.length, candidates: candidateCount, skippedBeforeRound });
-  return expanded.hitIds.length;
+  onRecallEvent?.('memory_recall_done', { hit: expanded.hitRounds.length, candidates: candidateCount, dropped: droppedCount });
+  return expanded.hitRounds.length;
 }
 
 /**
@@ -281,6 +234,19 @@ function pushHistoryMessages(messages, history, allMessages, { continuation, ...
     const content = renderHistoryContent(msg, allMessages, { ...ctx, withOptions });
     messages.push(formatMessageForLLM({ ...msg, content }));
   });
+}
+
+/**
+ * [SYSTEM] 单条 system message，后接 [12] 历史：没被压缩块覆盖、也没被兜底移出的原文轮次。
+ * 续写模式不摘除最后一条 user：普通生成时最后一条 user 是"本轮新输入"，由 getCurrentUserMessage 单独重贴到末尾，
+ * 故历史里要先摘掉它；续写没有新输入，最后一条是 assistant，强行摘除其前的 user 会破坏轮次交替并让待续写 assistant 错位。
+ */
+function buildBaseMessages(systemContent, uncompressedMessages, visibleRounds, historyCtx, continuation) {
+  const messages = [];
+  if (systemContent) messages.push({ role: 'system', content: systemContent });
+  const history = visibleHistory(continuation ? uncompressedMessages : omitLatestUserMessage(uncompressedMessages), visibleRounds);
+  pushHistoryMessages(messages, history, uncompressedMessages, { ...historyCtx, continuation });
+  return { messages, history };
 }
 
 /** [13+14] 当前用户消息 + 后置提示词合并为一条 user message；没有当前用户消息时单独发后置提示词 */
@@ -322,7 +288,7 @@ function prependTurnContext(messages, turnContext) {
 }
 
 async function buildChatSystemPrompt(sessionId, character, world, config, options) {
-  const { diaryInjection, onRecallEvent, continuation, coveredTo, storySummary, uncompressedMessages } = options;
+  const { diaryInjection, onRecallEvent, continuation, recallScope, storySummary, uncompressedMessages } = options;
   const persona = getOrCreatePersona(world.id);
   const personaName = persona?.name || '';
   const personaPrompt = persona?.system_prompt || '';
@@ -373,8 +339,7 @@ async function buildChatSystemPrompt(sessionId, character, world, config, option
   const triggeredEntries = await pushTriggeredEntries(sessionId, world.id, allWorldEntries, tv, materialParts);
 
   // [10] 长期召回（AI 从历史轮次目录里挑选需要回看原文的轮次）
-  const recall = await recallTurns({ sessionId, coveredTo, mode: 'chat' });
-  const recallHitCount = renderLongTermRecallSection(recall, tv, materialParts, onRecallEvent);
+  const recallHitCount = await pushLongTermRecall(sessionId, 'chat', recallScope, tv, materialParts, onRecallEvent);
 
   // [11] 日记注入（一次性，仅本轮生效）
   const diarySection = renderDiarySection(diaryInjection);
@@ -427,25 +392,18 @@ export async function buildPrompt(sessionId, options = {}) {
   log.info(`┌─ buildPrompt  session=${sid}  char="${character.name}"  world="${world.name}"`);
 
   const config = getConfig();
-  const { coveredTo, storySummary, uncompressedMessages } = loadHistoryBase(sessionId);
+  const { promptContext, recallScope, storySummary, uncompressedMessages } = await loadHistoryBase(sessionId);
 
   const {
     cachedContent, systemContent, turnContext, recallHitCount, activatedEntries, suggestionText, postParts,
   } = await buildChatSystemPrompt(
-    sessionId, character, world, config, { ...options, coveredTo, storySummary, uncompressedMessages },
+    sessionId, character, world, config, { ...options, recallScope, storySummary, uncompressedMessages },
   );
 
   // ─── CONSTRUCT MESSAGES ───
-  const messages = [];
-
-  // [1-4] + [8.5] 合并为单条 system message
-  if (systemContent) messages.push({ role: 'system', content: systemContent });
-
-  // [12] 历史消息：短期窗口边界由中期覆盖范围决定。
-  const shortTermBudget = config.short_term_token_budget ?? 8000;
-  const history = sliceHistoryAfterRound(uncompressedMessages, coveredTo, { keepLatestUser: continuation, budget: shortTermBudget });
+  // [1-4] + [8.5] 合并为单条 system message，[12] 历史消息
   const historyCtx = { withOptions: !!config.suggestion_enabled, worldId: world.id, mode: 'chat' };
-  pushHistoryMessages(messages, history, uncompressedMessages, { ...historyCtx, continuation });
+  const { messages, history } = buildBaseMessages(systemContent, uncompressedMessages, promptContext.visibleRounds, historyCtx, continuation);
   log.debug(`│  [12] history  raw_messages=${history.length}`);
 
   // [13+14] 后置提示词 + 当前用户消息：合并为一条 user message，后置提示词追加在用户消息之后。
@@ -456,6 +414,7 @@ export async function buildPrompt(sessionId, options = {}) {
   }
   // [5-11] 本轮上下文
   prependTurnContext(messages, turnContext);
+  recordPromptUsage(sessionId, messages, promptContext.contextLimit);
 
   const temperature = world.temperature ?? config.llm.temperature;
   const baseMaxTokens = world.max_tokens ?? config.llm.max_tokens;
@@ -514,12 +473,11 @@ async function buildWritingCoreSystemParts(sessionId, world, writing, persona, o
 }
 
 async function buildWritingMemorySections(sessionId, world, persona, options) {
-  const { diaryInjection, onRecallEvent, coveredTo } = options;
+  const { diaryInjection, onRecallEvent, recallScope } = options;
   const tv = writingTemplateVars(world, persona);
   const memorySections = [];
   // [10] 长期召回
-  const recall = await recallTurns({ sessionId, coveredTo, mode: 'writing' });
-  const recallHitCount = renderLongTermRecallSection(recall, tv, memorySections, onRecallEvent);
+  const recallHitCount = await pushLongTermRecall(sessionId, 'writing', recallScope, tv, memorySections, onRecallEvent);
 
   // [11] 日记注入（一次性，仅本轮生效）
   const diarySection = renderDiarySection(diaryInjection);
@@ -535,7 +493,7 @@ async function buildWritingSystemPrompt(sessionId, world, writing, persona, opti
   const { memorySections, recallHitCount } = await buildWritingMemorySections(sessionId, world, persona, {
     diaryInjection: options.diaryInjection,
     onRecallEvent: options.onRecallEvent,
-    coveredTo: options.coveredTo,
+    recallScope: options.recallScope,
   });
   const { cachedContent, systemContent } = composeSystemContent(core.cachedSystemParts, core.summarySystemParts);
   return {
@@ -581,31 +539,19 @@ export async function buildWritingPrompt(sessionId, options = {}) {
   const personaName = persona?.name || '';
   const tv = writingTemplateVars(world, persona);
 
-  const { coveredTo, storySummary, uncompressedMessages } = loadHistoryBase(sessionId);
+  const { promptContext, recallScope, storySummary, uncompressedMessages } = await loadHistoryBase(sessionId);
 
   log.info(`┌─ buildWritingPrompt  session=${sid}  world="${world.name}"`);
 
   const { cachedContent, systemContent, turnContext, recallHitCount, activatedEntries, suggestionText } = await buildWritingSystemPrompt(
     sessionId, world, writing, persona,
-    { ...options, coveredTo, storySummary, uncompressedMessages, stateInjectionBudget: config.state_injection_token_budget },
+    { ...options, recallScope, storySummary, uncompressedMessages, stateInjectionBudget: config.state_injection_token_budget },
   );
 
   // ─── CONSTRUCT MESSAGES ───
-  const messages = [];
-
-  // [1-3] + [8.5] 合并为单条 system message
-  if (systemContent) messages.push({ role: 'system', content: systemContent });
-
-  // [12] 历史消息：短期窗口边界由中期覆盖范围决定；turn records 仅用于摘要/时间线。
-  const shortTermBudget = writing.short_term_token_budget ?? config.short_term_token_budget ?? 8000;
-  const history = sliceHistoryAfterRound(
-    uncompressedMessages,
-    coveredTo,
-    { keepLatestUser: continuation, budget: shortTermBudget },
-  );
-  // 代拟不带写作指令也不要选项，历史里同样不接选项
+  // [1-3] + [8.5] 合并为单条 system message，[12] 历史消息；代拟不带写作指令也不要选项，历史里同样不接选项
   const historyCtx = { withOptions: !!writing.suggestion_enabled && !skipWritingInstructions, worldId: world.id, mode: 'writing' };
-  pushHistoryMessages(messages, history, uncompressedMessages, { ...historyCtx, continuation });
+  const { messages } = buildBaseMessages(systemContent, uncompressedMessages, promptContext.visibleRounds, historyCtx, continuation);
 
   // [13+14] 后置提示词 + 当前用户消息：合并为一条 user message，后置提示词追加在用户消息之后。
   // 续写模式无"本轮新输入"，后置提示词/suggestion 由 buildContinuationMessages 在续写指令里统一拼一次，
@@ -625,6 +571,7 @@ export async function buildWritingPrompt(sessionId, options = {}) {
   }
   // [5-11] 本轮上下文
   prependTurnContext(messages, turnContext);
+  recordPromptUsage(sessionId, messages, promptContext.contextLimit);
 
   const temperature = world.temperature ?? writing.temperature ?? config.llm.temperature;
   const baseMaxTokens = world.max_tokens ?? writing.max_tokens ?? config.llm.max_tokens;

@@ -7,6 +7,7 @@ import { createRouteTestContext } from '../helpers/http.js';
 import { freshImport } from '../helpers/test-env.js';
 import {
   insertCharacter,
+  insertContextBlock,
   insertDailyEntry,
   insertMessage,
   insertSession,
@@ -150,8 +151,6 @@ test('rollbackSession redoLatestRound=true：末尾是 AI 回复也把最后一�
     user_message_id: firstUser.id,
     asst_message_id: firstAsst.id,
     state_snapshot: worldSnapshot({ mood: '"平静"' }),
-    middle_summary: '第一轮中期摘要',
-    middle_covered_to: 1,
   });
   insertTurnRecord(ctx.sandbox.db, session.id, {
     round_index: 2,
@@ -159,9 +158,11 @@ test('rollbackSession redoLatestRound=true：末尾是 AI 回复也把最后一�
     user_message_id: secondUser.id,
     asst_message_id: secondAsst.id,
     state_snapshot: worldSnapshot({ mood: '"暴怒"' }),
-    middle_summary: '第一轮中期摘要 + 第二轮内容',
-    middle_covered_to: 2,
   });
+  // 第 1 轮结束时建的块保留；第 2 轮结束时才建的块（含吸收了 b1 的二级块）随第 2 轮一起作废，b1 重新在用
+  const early = insertContextBlock(ctx.sandbox.db, session.id, { from_round: 1, to_round: 1, created_round: 1, summary: '第一轮摘要' });
+  const late = insertContextBlock(ctx.sandbox.db, session.id, { from_round: 1, to_round: 2, tier: 2, created_round: 2, summary: '含第二轮的提炼' });
+  ctx.sandbox.db.prepare('UPDATE context_blocks SET consumed_by = ? WHERE id = ?').run(late.id, early.id);
 
   const { stateRolledBack } = await rollbackSession(
     getModeForSession(session.id),
@@ -176,19 +177,19 @@ test('rollbackSession redoLatestRound=true：末尾是 AI 回复也把最后一�
   const messages = ctx.sandbox.db.prepare('SELECT id, role FROM messages WHERE session_id = ? ORDER BY created_at').all(session.id);
   assert.deepEqual(messages.map((m) => m.role), ['user', 'assistant', 'user', 'assistant']);
 
-  const rounds = ctx.sandbox.db.prepare('SELECT round_index, user_message_id, asst_message_id, middle_summary, middle_covered_to FROM turn_records WHERE session_id = ? ORDER BY round_index').all(session.id);
+  const rounds = ctx.sandbox.db.prepare('SELECT round_index, user_message_id, asst_message_id FROM turn_records WHERE session_id = ? ORDER BY round_index').all(session.id);
   assert.deepEqual(rounds.map((r) => r.round_index), [1]);
   assert.equal(rounds[0].user_message_id, firstUser.id);
   assert.equal(rounds[0].asst_message_id, firstAsst.id);
-  assert.equal(rounds[0].middle_summary, '第一轮中期摘要');
-  assert.equal(rounds[0].middle_covered_to, 1);
+  const blocks = ctx.sandbox.db.prepare('SELECT id, summary, consumed_by FROM context_blocks WHERE session_id = ?').all(session.id);
+  assert.deepEqual(blocks, [{ id: early.id, summary: '第一轮摘要', consumed_by: null }]);
   assert.deepEqual(sessionWorldValues(session.id), { mood: '"平静"' });
 });
 
 test('rollbackSession redoLatestRound=true：被删轮次不再是召回候选（AC-12/13）', async () => {
   const { rollbackSession } = await freshImport('backend/app/shared/rollback/rollback-session.js');
   const { getModeForSession } = await freshImport('backend/app/modes/index.js');
-  const { getRecallIndexCandidates } = await freshImport('backend/db/queries/turn-records.js');
+  const { getTurnIndexRows } = await freshImport('backend/db/queries/turn-records.js');
 
   const world = insertWorld(ctx.sandbox.db, { name: 'redo-recall-世界' });
   const character = insertCharacter(ctx.sandbox.db, world.id, { name: 'redo-recall-角色' });
@@ -197,8 +198,8 @@ test('rollbackSession redoLatestRound=true：被删轮次不再是召回候选�
   insertMessage(ctx.sandbox.db, session.id, { role: 'assistant', content: 'a1', created_at: 2 });
   insertMessage(ctx.sandbox.db, session.id, { role: 'user', content: 'u2', created_at: 3 });
   insertMessage(ctx.sandbox.db, session.id, { role: 'assistant', content: 'a2', created_at: 4 });
-  insertTurnRecord(ctx.sandbox.db, session.id, { round_index: 1, summary: 'round1 摘要', middle_covered_to: 1 });
-  insertTurnRecord(ctx.sandbox.db, session.id, { round_index: 2, summary: 'round2 摘要', middle_covered_to: 2 });
+  insertTurnRecord(ctx.sandbox.db, session.id, { round_index: 1, summary: 'round1 摘要' });
+  insertTurnRecord(ctx.sandbox.db, session.id, { round_index: 2, summary: 'round2 摘要' });
 
   await rollbackSession(
     getModeForSession(session.id),
@@ -207,7 +208,6 @@ test('rollbackSession redoLatestRound=true：被删轮次不再是召回候选�
     { redoLatestRound: true },
   );
 
-  // 被删掉的第二轮不再作为召回候选出现，即使拿一个足够大的 coveredTo 去查
-  const candidates = getRecallIndexCandidates(session.id, 999);
-  assert.deepEqual(candidates.map((c) => c.round_index), [1]);
+  // 被删掉的第二轮不再出现在召回目录的索引里
+  assert.deepEqual(getTurnIndexRows(session.id).map((c) => c.round_index), [1]);
 });

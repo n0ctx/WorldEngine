@@ -74,7 +74,7 @@ vi.mock('../../../src/components/ui/SectionTabs.jsx', () => ({
   ),
 }));
 
-vi.mock('../../../src/components/session/MiddleSummaryModal.jsx', () => ({
+vi.mock('../../../src/components/session/ContextSummaryModal.jsx', () => ({
   default: ({ sessionId }) => <div data-testid="summary-modal">{sessionId}</div>,
 }));
 vi.mock('../../../src/components/session/StateMemoryModal.jsx', () => ({

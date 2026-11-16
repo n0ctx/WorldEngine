@@ -90,14 +90,17 @@ test('initSchema upgrades legacy sessions and recreates their indexes', () => {
   }
 });
 
-test('initSchema 为新建的空库创建含 middle_summary / middle_covered_to 列的 turn_records、状态记忆表，且不创建旧上下文压缩结构', () => {
+test('initSchema 为新建的空库创建 turn_records、上下文压缩块与状态记忆表，turn_records 不再带旧剧情摘要列', () => {
   const db = new Database(':memory:');
   try {
     initSchema(db);
     const columns = db.pragma('table_info(turn_records)').map((column) => column.name);
-    assert.ok(columns.includes('middle_summary'));
-    assert.ok(columns.includes('middle_covered_to'));
+    assert.ok(!columns.includes('middle_summary'));
+    assert.ok(!columns.includes('middle_covered_to'));
     assert.ok(!columns.includes('table_memory_snapshot'));
+    const blockColumns = db.pragma('table_info(context_blocks)').map((column) => column.name);
+    assert.ok(['source_digest', 'consumed_by', 'created_round', 'tier'].every((name) => blockColumns.includes(name)));
+    assert.ok(db.pragma('table_info(context_state)').some((column) => column.name === 'baseline_tokens'));
 
     assert.equal(
       db.prepare(`SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'session_nearby_characters'`).get(),
@@ -222,7 +225,7 @@ test('initSchema 迁移后清除旧库中残留的上下文压缩结构，并保
   }
 });
 
-test('initSchema 为缺少 middle_summary / middle_covered_to 的旧 turn_records 表补齐两列且保留旧数据', () => {
+test('initSchema 升级只有旧列的 turn_records 表：保留旧数据，旧剧情摘要列补上后由压缩块迁移删去', () => {
   const db = new Database(':memory:');
   db.exec(`
     PRAGMA foreign_keys = ON;
@@ -258,14 +261,13 @@ test('initSchema 为缺少 middle_summary / middle_covered_to 的旧 turn_record
     initSchema(db);
 
     const columns = db.pragma('table_info(turn_records)').map((column) => column.name);
-    assert.ok(columns.includes('middle_summary'));
-    assert.ok(columns.includes('middle_covered_to'));
+    assert.ok(!columns.includes('middle_summary'));
+    assert.ok(!columns.includes('middle_covered_to'));
     assert.ok(!columns.includes('long_term_memory_snapshot'));
 
-    const row = db.prepare(
-      'SELECT summary, middle_summary, middle_covered_to FROM turn_records WHERE id = ?',
-    ).get('turn-1');
-    assert.deepEqual(row, { summary: '旧摘要', middle_summary: null, middle_covered_to: null });
+    const row = db.prepare('SELECT summary FROM turn_records WHERE id = ?').get('turn-1');
+    assert.deepEqual(row, { summary: '旧摘要' });
+    assert.equal(db.prepare('SELECT COUNT(*) AS n FROM context_blocks').get().n, 0);
     assert.deepEqual(db.pragma('foreign_key_check'), []);
     assert.equal(db.inTransaction, false);
   } finally {
@@ -290,7 +292,7 @@ test('initSchema 在新建的空库上记录结构版本，且不生成备份', 
     try {
       // guard-allow(tests): initSchema 是被测对象，每个用例要从各自不同的库状态起步
       initSchema(db);
-      assert.equal(db.pragma('user_version', { simple: true }), 5);
+      assert.equal(db.pragma('user_version', { simple: true }), 6);
       assert.deepEqual(backupFiles(dir), []);
     } finally {
       db.close();
@@ -316,7 +318,7 @@ test('initSchema 升级已有数据的旧库前留下一份升级前的备份，
       initSchema(db);
       initSchema(db);
 
-      assert.equal(db.pragma('user_version', { simple: true }), 5);
+      assert.equal(db.pragma('user_version', { simple: true }), 6);
       const worldColumns = db.pragma('table_info(worlds)').map((column) => column.name);
       assert.ok(!worldColumns.includes('post_prompt'));
 
@@ -381,7 +383,7 @@ test('initSchema 把外貌档案旧字段改成新字段：显著特征 → 外�
     db.pragma('user_version = 1');
     initSchema(db);
 
-    assert.equal(db.pragma('user_version', { simple: true }), 5);
+    assert.equal(db.pragma('user_version', { simple: true }), 6);
     assert.deepEqual(
       db.prepare('SELECT row_id, field_key, value_json FROM state_profile_fields ORDER BY row_id').all(),
       [
@@ -413,7 +415,7 @@ test('initSchema 给已升级到上一版、缺少事项期限列的库补上 st
     db.pragma('user_version = 2');
     initSchema(db);
 
-    assert.equal(db.pragma('user_version', { simple: true }), 5);
+    assert.equal(db.pragma('user_version', { simple: true }), 6);
     assert.ok(db.pragma('table_info(state_threads)').some((column) => column.name === 'deadline'));
   } finally {
     db.close();
@@ -429,7 +431,7 @@ test('initSchema 给已升级到上一版、缺少上下文占用列的库补上
     db.pragma('user_version = 3');
     initSchema(db);
 
-    assert.equal(db.pragma('user_version', { simple: true }), 5);
+    assert.equal(db.pragma('user_version', { simple: true }), 6);
     assert.ok(db.pragma('table_info(assistant_tasks)').some((column) => column.name === 'context_usage_json'));
   } finally {
     db.close();
@@ -445,7 +447,7 @@ test('initSchema 给已升级到上一版、缺少采样参数列的库补上 wo
     db.pragma('user_version = 4');
     initSchema(db);
 
-    assert.equal(db.pragma('user_version', { simple: true }), 5);
+    assert.equal(db.pragma('user_version', { simple: true }), 6);
     assert.ok(db.pragma('table_info(worlds)').some((column) => column.name === 'sampling_json'));
   } finally {
     db.close();

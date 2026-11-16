@@ -4,6 +4,7 @@ import { checkAndGenerateDiary } from '../../../memory/diary-generator.js';
 import { generateDanmaku } from '../../../memory/danmaku-generator.js';
 import { generateTitle } from '../../../memory/summarizer.js';
 import { createTurnRecord, generateTurnIndex } from '../../../memory/turn-summarizer.js';
+import { maintainContext } from '../../../memory/context/compressor.js';
 import { getConfig } from '../../../services/config.js';
 
 /**
@@ -11,8 +12,10 @@ import { getConfig } from '../../../services/config.js';
  *
  * 槽位顺序即执行顺序（同优先级下按 enqueue 先后），不可随意调整：
  * title(p2) → chapterTasks(p2) → all-state(p2)
- * → turn-record(p2，blocksNextTurn) → danmaku(p2) → turn-index(p3) → diary(p4)。
- * blocksNextTurn 让下一轮开始前等它完成（见 backend/utils/memory-commit-tracker.js）。
+ * → turn-record(p2，blocksNextTurn) → context-compress(p2，blocksNextTurn) → danmaku(p2)
+ * → turn-index(p3) → diary(p4)。
+ * blocksNextTurn 让下一轮开始前等它完成（见 backend/utils/memory-commit-tracker.js）：下一轮组装提示词时
+ * 读到的是本轮写入的状态快照与压缩块。context-compress 多数轮次只做门槛判断、不调用模型。
  *
  * label 是对外契约（hooks/README.md 的「内置任务 label 参考」），不可改名。
  */
@@ -54,6 +57,13 @@ export function buildTurnPostgenTasks({
       label: 'turn-record',
       priority: 2,
       fn: () => createTurnRecord(sessionId),
+      blocksNextTurn: true,
+      keepSseAlive: true,
+    },
+    {
+      label: 'context-compress',
+      priority: 2,
+      fn: () => maintainContext(sessionId),
       blocksNextTurn: true,
       keepSseAlive: true,
     },

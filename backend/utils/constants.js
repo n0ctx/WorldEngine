@@ -42,14 +42,49 @@ export const SUGGESTION_TOKEN_RESERVE = 200;     // 选项生成预留输出空�
 export const TURN_SUMMARY_CAST_MAX = 4;
 
 // ============================
-// 记忆分层（memory-v2）
+// 上下文压缩（memory/context/）
 // ============================
-/** 中期摘要单条最大 token 数 */
-export const MIDDLE_SUMMARY_MAX_TOKENS = 1200;
-/** 进行中的事件超过这么多轮时，要求模型至少整理出一个事件 */
-export const MIDDLE_OPEN_EVENT_MAX_ROUNDS = 25;
-/** 短期窗口超预算时一次滑到预算的这个比例以内，之后几轮窗口开头不动，历史前缀可跨轮复用 prompt cache */
-export const SHORT_TERM_EVICT_TARGET_RATIO = 0.7;
+/** 最近这么多轮始终保留原文，不进入压缩 */
+export const CONTEXT_PRESERVE_RECENT_ROUNDS = 3;
+/** 从最新一轮往前累计，原文至少保留到短期预算的这个比例（不足 CONTEXT_PRESERVE_RECENT_ROUNDS 轮时以轮数为准） */
+export const CONTEXT_PROTECT_TOKEN_RATIO = 0.4;
+/** 当前场景（与最新一轮同场景的连续轮次）最多保护到短期预算的这个比例 */
+export const CONTEXT_SCENE_PROTECT_RATIO = 0.7;
+/** 上次尝试压缩之后，原文至少再增长短期预算的这个比例才再次尝试（成功后以压缩后的原文量为基线） */
+export const CONTEXT_GROWTH_STEP_RATIO = 0.25;
+/** 单个一级压缩范围的原文下限（token），太短的范围压缩不划算 */
+export const CONTEXT_MIN_FOLD_TOKENS = 300;
+/** 可压缩的原文合计不足这么多 token 时，即使超预算也不调用模型 */
+export const CONTEXT_MIN_BENEFIT_TOKENS = 600;
+/** 上一轮提示词占模型上下文上限的比例达到这个值时，忽略增长门槛直接尝试压缩 */
+export const CONTEXT_PRESSURE_RATIO = 0.75;
+/** 提示词占上下文上限的比例超过这个值、或原文超过短期预算的 CONTEXT_RAW_HARD_CAP_RATIO 倍时，
+ *  组装时把最老的未保护原文移出视野（原文仍在库里、可被长期召回），作为压缩失败时的兜底 */
+export const CONTEXT_EMERGENCY_RATIO = 0.9;
+export const CONTEXT_RAW_HARD_CAP_RATIO = 2;
+/** 压缩块摘要的总量上限：短期预算的这个比例。超出时从最老的块起提炼，直到回落到上限的 CONTEXT_SUMMARY_LOW_WATER_RATIO */
+export const CONTEXT_SUMMARY_BUDGET_RATIO = 0.6;
+export const CONTEXT_SUMMARY_LOW_WATER_RATIO = 0.75;
+/** 块建成后又过了这么多轮才算「老块」，只有老块参与提炼 */
+export const CONTEXT_PROMOTION_ROUNDS = 6;
+/** 一次提炼合并的相邻老块个数范围：至少 2 个才算合并，至多 4 个，免得一步压掉太多细节 */
+export const CONTEXT_TIER_MIN_BLOCKS = 2;
+export const CONTEXT_TIER_MAX_BLOCKS = 4;
+/** 各级摘要的字数上下限 */
+export const CONTEXT_SUMMARY_MIN_CHARS = 20;
+export const CONTEXT_SUMMARY_MAX_CHARS = Object.freeze({ 1: 800, 2: 1000, 3: 1200 });
+/** 摘要 token 不得超过来源 token 的这个比例，否则不算压缩 */
+export const CONTEXT_SUMMARY_MAX_SOURCE_RATIO = 0.8;
+/** 一次压缩调用（含工具循环里的每次请求）的超时：输入可达 CONTEXT_COMPRESS_INPUT_MAX_TOKENS，比一般后台任务放宽 */
+export const CONTEXT_COMPRESS_TIMEOUT_MS = 60000;
+/** 压缩调用的工具循环轮数上限（含按报错重提交） */
+export const CONTEXT_COMPRESS_MAX_ITERATIONS = 3;
+/** 一次压缩调用最多交给模型的可压缩原文 token：短期预算的 CONTEXT_COMPRESS_INPUT_BUDGET_RATIO 倍，且不超过
+ * CONTEXT_COMPRESS_INPUT_MAX_TOKENS；更晚的可压原文留到下一次（积压时不等增长，接着压） */
+export const CONTEXT_COMPRESS_INPUT_BUDGET_RATIO = 2;
+export const CONTEXT_COMPRESS_INPUT_MAX_TOKENS = 24000;
+/** 压缩提示里每条近期保护原文的最大字数（只供判断剧情走向，不在压缩范围内） */
+export const CONTEXT_RECENT_PREVIEW_CHARS = 400;
 /** 长期记忆索引条目单条最大 token 数 */
 export const LONG_TERM_INDEX_MAX_TOKENS = 100;
 /** 每次回填长期记忆索引的 turn record 条数上限 */

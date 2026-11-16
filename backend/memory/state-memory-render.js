@@ -685,7 +685,6 @@ function renderEntityDetailBlock(entity, ctx) {
 export function renderEntityDetailsForUpdate(sessionId, entityIds, { worldId, mainCharacterEntityId } = {}) {
   if (!entityIds || entityIds.length === 0) return '';
   const { byId, nameOf } = buildEntityIndex(sessionId);
-  // guard-allow(duplication): 与 long-term-recall.js 的按 id 取值排序是不同领域的巧合同形，不是业务重复
   const targets = entityIds.map((id) => byId.get(id)).filter(Boolean).sort((a, b) => a.seq - b.seq);
   if (targets.length === 0) return '';
   const ids = targets.map((e) => e.entity_id);

@@ -1,10 +1,11 @@
 /**
  * memory-commit-tracker.js
  *
- * 跟踪每个 session 正在进行中的「记忆提交」Promise（turn-record 任务：
- * 中期摘要 + 状态/表格快照 + 建行）。
+ * 跟踪每个 session 正在进行中的「记忆提交」Promise（turn-record：状态/表格快照 + 建行；
+ * context-compress：剧情摘要块的压缩与修复）。
  * 下一轮 chat/writing 请求在组装 prompt 前调用 awaitMemoryCommit，
- * 确保读到本轮写入的最新中期摘要、状态与表格快照，避免 stale-state 导致上下文偏差。
+ * 确保读到本轮写入的最新剧情摘要块、状态与表格快照，避免 stale-state 导致上下文偏差。
+ * 同一轮登记多个提交时合并等待，不依赖队列的执行顺序。
  */
 
 // sessionId → Promise<void>（resolve 表示提交完成或失败后已静默处理）
@@ -15,9 +16,11 @@ const pending = new Map();
  * 完成（无论成功/失败）后自动从 Map 删除。
  */
 export function trackMemoryCommit(sessionId, promise) {
-  pending.set(sessionId, promise);
-  promise.finally(() => {
-    if (pending.get(sessionId) === promise) {
+  const previous = pending.get(sessionId);
+  const combined = previous ? Promise.all([previous, promise]).then(() => {}) : promise;
+  pending.set(sessionId, combined);
+  combined.finally(() => {
+    if (pending.get(sessionId) === combined) {
       pending.delete(sessionId);
     }
   });

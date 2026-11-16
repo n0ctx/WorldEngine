@@ -1,14 +1,19 @@
 /**
- * long-term-recall.js — 长期记忆召回（memory-v2）
+ * long-term-recall.js — 长期召回：从不在历史里的轮次（被压缩块覆盖、或被兜底移出）中按需取回原文
+ *
+ * 候选目录每轮一行：#<轮次>｜<场景>｜<人物>｜<索引摘要>（轮次索引由 turn-summarizer.js 生成；
+ * 还没有索引的轮次取原文开头一段代替），按所属的压缩块分组，组标题标出块覆盖的轮次与小标题。
+ * 目录超过 long_term_index_budget 时，按与近期对话的词法相关度（search.js）挑选放得下的候选，
+ * 而不是只留最近的几轮；相关度相同时偏向较近的轮次。
+ * 副模型从目录里挑轮次，原文从库里的消息读取，因此没有轮次索引的轮次也能召回。
  *
  * 对外暴露：
- *   recallTurns({ sessionId, coveredTo, mode, recentMessages })
- *     → Promise<{ recordIds: string[], candidateCount: number, skippedBeforeRound: number|null }>
- *   renderRecalledTurns(recordIds, budget = MEMORY_EXPAND_MAX_TOKENS)
- *     → { text: string, hitIds: string[] }
+ *   recallTurns({ sessionId, mode, scope, recentMessages? })
+ *     → Promise<{ rounds:number[], candidateCount:number, droppedCount:number }>
+ *   renderRecalledTurns(rounds, units, budget = MEMORY_EXPAND_MAX_TOKENS)
+ *     → { text:string, hitRounds:number[] }
  */
 
-import { getRecallIndexCandidates, getTurnRecordsWithContentByIds } from '../db/queries/turn-records.js';
 import { getLastTurnMessages } from '../db/queries/messages.js';
 import * as llm from '../llm/index.js';
 import { countTokens } from '../utils/token-counter.js';
@@ -22,9 +27,11 @@ import { createLogger, formatMeta } from '../utils/logger.js';
 import { renderBackendPrompt } from '../prompts/prompt-loader.js';
 import { resolveAuxScope } from '../utils/aux-scope.js';
 import { parseFencedJson } from '../utils/llm-json.js';
-import { stripThinkBlocksFromText, toPromptMessage } from '../utils/turn-dialogue.js';
+import { toPromptMessage } from '../utils/turn-dialogue.js';
+import { rankDocuments } from './context/search.js';
 
 const log = createLogger('long-term-recall');
+const SNIPPET_CHARS = 60;
 
 /** 将 cast_json 解析为人物名数组，非法或缺失时返回空数组。 */
 function parseCastNames(castJson) {
@@ -37,43 +44,73 @@ function parseCastNames(castJson) {
   }
 }
 
+/** 没有轮次索引时用这一轮回复的开头一段代替摘要 */
+function snippetOf(unit) {
+  const reply = unit?.prompt.findLast((msg) => msg.role === 'assistant')?.content ?? unit?.prompt[0]?.content ?? '';
+  const chars = [...reply.replace(/\s+/g, ' ').trim()];
+  return chars.length > SNIPPET_CHARS ? `${chars.slice(0, SNIPPET_CHARS).join('')}……` : chars.join('');
+}
+
 /** 单条候选渲染为索引行：#<轮次>｜<场景>｜<人物>｜<摘要>，空字段省略。 */
 function renderIndexLine(candidate) {
-  const parts = [
-    `#${candidate.round_index}`,
+  return [
+    `#${candidate.round}`,
     candidate.scene || '',
     parseCastNames(candidate.cast_json).join('、'),
     candidate.summary || '',
-  ].filter(Boolean);
-  return parts.join('｜');
+  ].filter(Boolean).join('｜');
+}
+
+/** 候选：不在历史里的轮次，带索引行与参与相关度打分的全文 */
+function buildCandidates(scope) {
+  const indexByRound = new Map(scope.indexRows.map((row) => [row.round_index, row]));
+  return [...scope.outOfViewRounds].sort((a, b) => a - b).map((round) => {
+    const unit = scope.units[round - 1];
+    const index = indexByRound.get(round);
+    const candidate = {
+      round,
+      scene: index?.scene || '',
+      cast_json: index?.cast_json || null,
+      summary: index?.summary || snippetOf(unit),
+    };
+    candidate.line = renderIndexLine(candidate);
+    candidate.tokens = countTokens(candidate.line);
+    candidate.searchText = `${candidate.line}\n${unit?.prompt.map((msg) => msg.content).join('\n') ?? ''}`;
+    return candidate;
+  });
 }
 
 /**
- * 按 token 预算从候选（round_index 升序）里挑出本轮可交给召回模型的部分：
- * 从最新往最旧累加索引行 token，直到放满 budget 为止；更早的、放不下的候选本轮不可召回。
- *
- * @returns {{ selected: Array, skippedBeforeRound: number|null, indexTokens: number }}
- *   skippedBeforeRound：round_index 小于此值的候选本轮不可召回；全部候选都放得下时为 null。
+ * 目录放不下时按相关度挑：先放得分高的，再按从新到旧补满预算；返回按轮次升序的入选候选。
  */
-function selectWithinBudget(candidatesAsc, budget) {
-  let usedTokens = 0;
-  let firstIncludedIndex = candidatesAsc.length;
-  for (let i = candidatesAsc.length - 1; i >= 0; i--) {
-    const lineTokens = countTokens(renderIndexLine(candidatesAsc[i]));
-    if (usedTokens + lineTokens > budget) break;
-    usedTokens += lineTokens;
-    firstIncludedIndex = i;
+function selectWithinBudget(candidates, budget, queryText) {
+  const total = candidates.reduce((sum, c) => sum + c.tokens, 0);
+  if (total <= budget) return { selected: candidates, indexTokens: total };
+  const ranked = rankDocuments(queryText, candidates.map((c) => ({ id: c.round, text: c.searchText })));
+  const byRound = new Map(candidates.map((c) => [c.round, c]));
+  const order = [...ranked.map((hit) => byRound.get(hit.id)), ...[...candidates].reverse()];
+  const picked = new Set();
+  let used = 0;
+  for (const candidate of order) {
+    if (picked.has(candidate.round) || used + candidate.tokens > budget) continue;
+    picked.add(candidate.round);
+    used += candidate.tokens;
   }
-  const selected = candidatesAsc.slice(firstIncludedIndex);
+  return { selected: candidates.filter((c) => picked.has(c.round)), indexTokens: used };
+}
 
-  let skippedBeforeRound = null;
-  if (selected.length === 0 && candidatesAsc.length > 0) {
-    // 连最新一条都放不下预算：全部候选本轮不可召回。
-    skippedBeforeRound = candidatesAsc[candidatesAsc.length - 1].round_index + 1;
-  } else if (selected.length < candidatesAsc.length) {
-    skippedBeforeRound = selected[0].round_index;
+/** 目录按所属块分组：组标题是块覆盖的轮次与小标题；被兜底移出的轮次单独成组 */
+function renderCatalog(selected, activeBlocks) {
+  const groups = [];
+  for (const candidate of selected) {
+    const block = activeBlocks.find((b) => candidate.round >= b.fromRound && candidate.round <= b.toRound);
+    const title = block
+      ? `【第${block.fromRound}–${block.toRound}轮${block.topic ? `·${block.topic}` : ''}】`
+      : '【暂不在上下文的原文】';
+    if (groups.at(-1)?.title !== title) groups.push({ title, lines: [] });
+    groups.at(-1).lines.push(candidate.line);
   }
-  return { selected, skippedBeforeRound, indexTokens: usedTokens };
+  return groups.map((group) => `${group.title}\n${group.lines.join('\n')}`).join('\n');
 }
 
 /** 默认取「上一条 AI 回复 + 当前用户消息」拼接文本；调用方可用 recentMessages 覆盖。 */
@@ -87,9 +124,7 @@ function buildRecentMessagesText(sessionId) {
   ].filter(Boolean).join('\n');
 }
 
-/**
- * 从模型返回的轮次编号列表里，只保留候选中存在的整数，去重并保持模型给出的顺序。
- */
+/** 从模型返回的轮次编号列表里，只保留候选中存在的整数，去重并保持模型给出的顺序。 */
 function pickKnownRounds(rounds, knownRoundSet) {
   if (!Array.isArray(rounds)) return [];
   const seen = new Set();
@@ -108,57 +143,48 @@ export const __testables = {
   renderIndexLine,
   selectWithinBudget,
   pickKnownRounds,
+  buildCandidates,
+  renderCatalog,
 };
 
 /**
- * 长期记忆召回：从「历史轮次目录」里挑选与当前对话相关的轮次，映射回 turn_records.id。
- *
  * 行为：
- * - 按 mode 读取开关（chat 读 memory_expansion_enabled，writing 读 writing.memory_expansion_enabled），
- *   为 false 时不查询、不调用模型，直接返回空结果。
- * - coveredTo 缺失（旧会话过渡期，尚无中期摘要覆盖范围）时视为无候选，直接返回空结果。
- * - 候选为空时不调用模型。
- * - 候选目录按 long_term_index_budget 从最新往最旧裁剪；超预算的更早轮次本轮不可召回，
- *   记在 skippedBeforeRound（未裁剪时为 null）。
- * - 模型输出 `{"turns":[<轮次编号>,...]}`：编号需在候选中出现，去重、保持模型给出的顺序。
+ * - 按 mode 读取开关（chat 读 memory_expansion_enabled，writing 读 writing.memory_expansion_enabled），为 false 时直接返回空结果。
+ * - scope 缺失或没有不在历史里的轮次时，不调用模型。
+ * - 模型输出 `{"turns":[<轮次编号>,...]}`：编号需在入选目录中出现，去重、保持模型给出的顺序。
  * - 模型调用异常、超时或输出解析失败时静默返回空结果，只记日志，不影响本轮生成。
  *
- * @param {{ sessionId: string, coveredTo: number|null, mode: 'chat'|'writing', recentMessages?: string }} options
- * @returns {Promise<{ recordIds: string[], candidateCount: number, skippedBeforeRound: number|null }>}
+ * @param {{ sessionId:string, mode:'chat'|'writing', recentMessages?:string,
+ *   scope: { units:Array, outOfViewRounds:Set<number>, activeBlocks:Array, indexRows:Array } | null }} options
  */
-export async function recallTurns({ sessionId, coveredTo, mode, recentMessages }) {
-  const empty = { recordIds: [], candidateCount: 0, skippedBeforeRound: null };
-  if (!Number.isInteger(coveredTo)) return empty;
+export async function recallTurns({ sessionId, mode, recentMessages, scope }) {
+  const empty = { rounds: [], candidateCount: 0, droppedCount: 0 };
+  if (!scope || scope.outOfViewRounds.size === 0) return empty;
 
   const config = getConfig();
   const recallConfig = mode === 'writing' ? config.writing : config;
   if (recallConfig.memory_expansion_enabled === false) return empty;
 
-  const candidatesAsc = getRecallIndexCandidates(sessionId, coveredTo);
-  if (candidatesAsc.length === 0) return empty;
-
+  const contextText = recentMessages ?? buildRecentMessagesText(sessionId);
+  const candidates = buildCandidates(scope);
   const indexBudget = recallConfig.long_term_index_budget ?? 20000;
-  const { selected, skippedBeforeRound, indexTokens } = selectWithinBudget(candidatesAsc, indexBudget);
+  const { selected, indexTokens } = selectWithinBudget(candidates, indexBudget, contextText);
+  const droppedCount = candidates.length - selected.length;
   if (selected.length === 0) {
-    log.warn(`索引超预算，本轮无可用候选  ${formatMeta({ session: sessionId.slice(0, 8), candidates: candidatesAsc.length, budget: indexBudget })}`);
-    return { recordIds: [], candidateCount: candidatesAsc.length, skippedBeforeRound };
+    log.warn(`索引超预算，本轮无可用候选  ${formatMeta({ session: sessionId.slice(0, 8), candidates: candidates.length, budget: indexBudget })}`);
+    return { rounds: [], candidateCount: candidates.length, droppedCount };
   }
 
   const systemContent = renderBackendPrompt('memory-recall-system.md', {
-    INDEX_LINES: selected.map(renderIndexLine).join('\n'),
+    INDEX_LINES: renderCatalog(selected, scope.activeBlocks),
   });
   const messages = [
     { role: 'system', content: systemContent },
-    {
-      role: 'user',
-      content: renderBackendPrompt('memory-recall-user.md', {
-        CONTEXT_TEXT: recentMessages ?? buildRecentMessagesText(sessionId),
-      }),
-    },
+    { role: 'user', content: renderBackendPrompt('memory-recall-user.md', { CONTEXT_TEXT: contextText }) },
   ];
 
   const t0 = Date.now();
-  let selectedRounds;
+  let rounds;
   try {
     const raw = await llm.complete(messages, {
       temperature: 0,
@@ -169,69 +195,51 @@ export async function recallTurns({ sessionId, coveredTo, mode, recentMessages }
       timeoutMs: LONG_TERM_RECALL_TIMEOUT_MS,
       cacheableSystem: systemContent,
     });
-    const parsed = parseFencedJson(raw);
-    const knownRounds = new Set(selected.map((c) => c.round_index));
-    selectedRounds = pickKnownRounds(parsed?.turns, knownRounds);
+    rounds = pickKnownRounds(parseFencedJson(raw)?.turns, new Set(selected.map((c) => c.round)));
   } catch (err) {
     log.warn(`召回判定失败，降级为不召回  ${formatMeta({ session: sessionId.slice(0, 8), error: err.message })}`);
-    return { recordIds: [], candidateCount: candidatesAsc.length, skippedBeforeRound };
+    return { rounds: [], candidateCount: candidates.length, droppedCount };
   }
-
-  const idByRound = new Map(selected.map((c) => [c.round_index, c.id]));
-  const recordIds = selectedRounds.map((r) => idByRound.get(r)).filter(Boolean);
 
   log.info(`DONE  ${formatMeta({
     session: sessionId.slice(0, 8),
-    candidates: candidatesAsc.length,
+    candidates: candidates.length,
     indexTokens,
-    skippedBeforeRound,
-    selectedRounds,
+    dropped: droppedCount,
+    selectedRounds: rounds,
     ms: Date.now() - t0,
   })}`);
-
-  return { recordIds, candidateCount: candidatesAsc.length, skippedBeforeRound };
+  return { rounds, candidateCount: candidates.length, droppedCount };
 }
 
 /**
- * 将选中的 turn record 原文渲染为可读文本块，按轮次编号升序排列。
- * 单条超出 budget 时跳过该条，继续尝试渲染后面的（不因某一条超预算而丢弃后面全部）。
+ * 将选中轮次的原文渲染为可读文本块，按轮次编号升序排列。
+ * 单条超出 budget 时跳过该条，继续尝试渲染后面的。
  *
- * @param {string[]} recordIds  turn_records.id 列表（顺序任意，内部按 round_index 排序）
- * @param {number} [budget]     token 预算，默认 MEMORY_EXPAND_MAX_TOKENS
- * @returns {{ text: string, hitIds: string[] }}  hitIds 为实际渲染进 text 的 recordId（按渲染顺序）
+ * @param {number[]} rounds  轮号（顺序任意）
+ * @param {Array} units      轮次单元（memory/context/view.js#buildRoundUnits）
+ * @param {number} [budget]
+ * @returns {{ text:string, hitRounds:number[] }}
  */
-export function renderRecalledTurns(recordIds, budget = MEMORY_EXPAND_MAX_TOKENS) {
-  if (!recordIds || recordIds.length === 0) return { text: '', hitIds: [] };
-
-  const records = getTurnRecordsWithContentByIds(recordIds);
-  const ordered = recordIds
-    .map((id) => records.get(id))
-    .filter(Boolean)
-    .sort((a, b) => a.round_index - b.round_index);
-
+export function renderRecalledTurns(rounds, units, budget = MEMORY_EXPAND_MAX_TOKENS) {
+  if (!rounds || rounds.length === 0) return { text: '', hitRounds: [] };
   const sections = [];
-  const hitIds = [];
+  const hitRounds = [];
   let usedTokens = 0;
-
-  for (const record of ordered) {
-    const dateStr = new Date(record.created_at).toISOString().slice(0, 10);
-    const titleStr = record.session_title || '未命名会话';
-
-    const userContent = record.user_content ?? '';
-    const asstContent = stripThinkBlocksFromText(record.asst_content ?? '').trimStart();
-    const originalText = [
-      userContent ? `{{user}}：${userContent}` : '',
-      asstContent ? `{{char}}：${asstContent}` : '',
-    ].filter(Boolean).join('\n\n');
-    const sectionText = `【历史对话原文 · ${dateStr} · ${titleStr} · 第${record.round_index}轮】\n${originalText}`;
+  for (const round of [...rounds].sort((a, b) => a - b)) {
+    const unit = units[round - 1];
+    if (!unit) continue;
+    const dateStr = new Date(unit.messages[0].created_at).toISOString().slice(0, 10);
+    const originalText = unit.prompt
+      .filter((msg) => msg.content)
+      .map((msg) => `${msg.role === 'user' ? '{{user}}' : '{{char}}'}：${msg.content.trimStart()}`)
+      .join('\n\n');
+    const sectionText = `【历史对话原文 · ${dateStr} · 第${round}轮】\n${originalText}`;
     const sectionTokens = countTokens(sectionText);
-
     if (usedTokens + sectionTokens > budget) continue;
-
     sections.push(sectionText);
-    hitIds.push(record.id);
+    hitRounds.push(round);
     usedTokens += sectionTokens;
   }
-
-  return { text: sections.join('\n\n'), hitIds };
+  return { text: sections.join('\n\n'), hitRounds };
 }

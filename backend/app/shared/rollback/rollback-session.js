@@ -3,6 +3,7 @@ import {
   deleteTurnRecordsAfterRound,
   getLatestTurnRecordWithSnapshot,
 } from '../../../db/queries/turn-records.js';
+import { rollbackContextBlocks } from '../../../db/queries/context-blocks.js';
 import { withSessionStateTransaction } from '../../../db/queries/session-state-batch.js';
 import { getSessionStateBaseline } from '../../../db/queries/sessions.js';
 import { rollbackStateMemory } from '../../../db/queries/state-memory.js';
@@ -13,8 +14,10 @@ import { restoreStateFromSnapshot } from '../../../memory/state-rollback.js';
 import { deleteDiaryFile } from '../../../memory/diary-generator.js';
 
 /**
- * 回滚一个会话：等队列空闲后截断消息，再按剩余轮次截断轮次记录，
+ * 回滚一个会话：等队列空闲后截断消息，再按剩余轮次截断轮次记录与压缩块，
  * 还原状态记忆（多版本表 + 实体字段值）/ 日记 / 状态快照。重生成、编辑消息、删除消息只在截断方式上不同。
+ * 压缩块按建块轮次回退：在被撤销的轮次之后才建的块（哪怕只覆盖更早的原文）一律删除、被它吸收的子块重新在用，
+ * 压缩视图因此与「只剩这些轮次时」完全一致，被撤销的剧情不会经由摘要留在上下文里。
  *
  * 截断消息与各项回滚在同一事务里，任何一步出错都整体撤销，消息与状态不会停在半途；
  * 附件这类外部资源在事务前由 cleanup 清理，日记文件在事务提交后再删。
@@ -45,6 +48,7 @@ export async function rollbackSession(mode, sessionId, { cleanup, truncate }, { 
       : Math.max(0, roundCount - 1);
 
     deleteTurnRecordsAfterRound(sessionId, keptRounds);
+    rollbackContextBlocks(sessionId, keptRounds);
     log.info(`TURN-RECORD TRUNCATE  ${formatMeta({ session: sid, keepUntilRound: keptRounds })}`);
 
     rollbackStateMemory(sessionId, keptRounds);

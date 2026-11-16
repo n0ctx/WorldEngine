@@ -18,6 +18,7 @@ import {
   insertCharacter,
   insertCharacterStateField,
   insertCharacterStateValue,
+  insertContextBlock,
   insertMessage,
   insertPersona,
   insertPersonaStateField,
@@ -109,8 +110,8 @@ function buildWorld(slug) {
 }
 
 /**
- * 给会话铺：可召回的第 1 轮（旧）+ 中期摘要覆盖到第 1 轮、进入短期窗口的第 2 轮（最新 turn
- * record）+ 当前用户消息（第 3 轮，尚未生成 turn record）。
+ * 给会话铺：被压缩块覆盖、可召回的第 1 轮（旧）+ 以原文进历史的第 2 轮（最新 turn record）
+ * + 当前用户消息（第 3 轮，尚未生成 turn record）。
  */
 function seedHistory(sessionId, slug, baseTs) {
   const recallUser = insertMessage(sandbox.db, sessionId, { role: 'user', content: '召回轮用户消息', created_at: baseTs + 1 });
@@ -133,9 +134,10 @@ function seedHistory(sessionId, slug, baseTs) {
     summary: '最近一轮摘要',
     user_message_id: histUser.id,
     asst_message_id: histAsst.id,
-    middle_summary: '这是更早剧情的中期摘要正文',
-    middle_covered_to: 1,
     created_at: baseTs + 6,
+  });
+  insertContextBlock(sandbox.db, sessionId, {
+    id: `block-${slug}`, from_round: 1, to_round: 1, topic: '旧事', summary: '这是更早剧情的压缩摘要正文', created_at: baseTs + 6,
   });
   insertMessage(sandbox.db, sessionId, { role: 'user', content: '金标关键词 当前用户消息', created_at: baseTs + 7 });
 }
