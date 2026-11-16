@@ -15,7 +15,7 @@
  * 对外暴露：
  *   loadHistoryBase(sessionId) → Promise<{ promptContext, storySummary, recallScope, uncompressedMessages }>
  *   visibleHistory(history, visibleRounds) → messages
- *   recordPromptUsage(sessionId, messages, contextLimit)
+ *   recordPromptUsage(sessionId, messages, promptContext)
  */
 
 import { saveContextState } from '../../db/queries/context-blocks.js';
@@ -94,9 +94,9 @@ function renderSummaryText(active, hidden, indexLines) {
   return items.sort((a, b) => a.from - b.from).map((item) => item.text).join('\n\n');
 }
 
-/** 本轮的上下文视图：剧情摘要正文、以原文进历史的轮次、不在历史里（可召回）的轮次、被兜底移出的轮次 */
+/** 本轮的上下文视图：剧情摘要正文、以原文进历史的轮次、不在历史里（可召回）的轮次、被兜底移出的原文 token */
 async function loadPromptContext(ctx) {
-  const contextLimit = await resolveContextLimit('main');
+  const contextLimit = await resolveContextLimit(ctx.session.mode === 'writing' ? 'writing' : 'main');
   const rawTokens = ctx.view.raw.reduce((sum, unit) => sum + unit.tokens, 0);
   const hiddenRounds = planEmergencyHide(ctx.view.raw, ctx.protectedSet, {
     overflowTokens: overflowTokens(ctx, rawTokens, contextLimit),
@@ -109,11 +109,10 @@ async function loadPromptContext(ctx) {
     summaryText: renderSummaryText(ctx.view.active, hiddenRounds, hiddenIndexLines(ctx, hiddenRounds)),
     visibleRounds,
     outOfViewRounds,
-    hiddenRounds,
+    hiddenTokens: ctx.view.raw.filter((unit) => hiddenRounds.has(unit.round)).reduce((sum, unit) => sum + unit.tokens, 0),
   };
 }
 
-/** 记下这次组装的提示词估算 token 与上下文上限，供下一次的压力判断与兜底移出使用 */
 /**
  * 两种模式共用的历史起点：上下文视图、长期召回的候选范围，以及给模型看的全部消息（去掉思考过程）。
  * @returns {Promise<{ promptContext:object, storySummary:string, recallScope:object, uncompressedMessages:Array }>}
@@ -144,6 +143,14 @@ export function visibleHistory(history, visibleRounds) {
   return rounds.filter((round) => visibleRounds.has(round.roundIndex)).flatMap((round) => round.messages);
 }
 
-export function recordPromptUsage(sessionId, messages, contextLimit) {
-  saveContextState(sessionId, { lastPromptTokens: countContextTokens(messages), contextLimit });
+/**
+ * 记下这次组装的提示词估算 token 与上下文上限，供下一次的压力判断与兜底移出使用。
+ * 记的是「不移出时」的量（实际提示词 + 被兜底移出的原文）：否则移出后记下的量回落到阈值以下，
+ * 下一轮移出取消、提示词又涨回去，隔轮来回振荡。压缩真正腾出空间后这个量才会下降。
+ */
+export function recordPromptUsage(sessionId, messages, promptContext) {
+  saveContextState(sessionId, {
+    lastPromptTokens: countContextTokens(messages) + promptContext.hiddenTokens,
+    contextLimit: promptContext.contextLimit,
+  });
 }

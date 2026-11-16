@@ -54,6 +54,7 @@ export default function ContextBlockCard({ sessionId, block, draft, onDraftChang
   async function toggleSource() {
     if (sourceOpen) { setSourceOpen(false); return; }
     setSourceOpen(true);
+    setSourceError('');
     if (source) return;
     try {
       setSource(await getContextBlockSource(sessionId, block.id));

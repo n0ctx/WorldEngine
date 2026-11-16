@@ -83,3 +83,10 @@ test('副模型按副模型配置解析', async () => {
   stubFetch(() => ({ data: [{ id: 'vendor/aux', context_length: 64000 }] }));
   assert.equal(await resolveContextLimit('aux'), 64000);
 });
+
+test('写作模式按写作主模型配置解析，没配置时回退对话主模型', async () => {
+  useLlm({ provider: 'ollama', model: 'qwen', base_url: '' });
+  updateConfig({ writing: { llm: { provider: 'openrouter', model: 'vendor/writer', base_url: '' } }, provider_keys: { openrouter: 'k' } });
+  stubFetch(() => ({ data: [{ id: 'vendor/writer', context_length: 48000 }] }));
+  assert.equal(await resolveContextLimit('writing'), 48000);
+});

@@ -194,6 +194,19 @@ test('decideCompression：摘要没超上限时不建议提炼，即使有相邻
   assert.deepEqual(result.merges, []);
 });
 
+test('decideCompression：压力下模型放弃或失败后冷却几轮，期间只按增长门槛判断', () => {
+  const units = unitsOf(makeMessages(12, { chars: () => 200 }));
+  const view = resolveView([], units);
+  const visible = view.raw.reduce((sum, u) => sum + u.tokens, 0);
+  const budget = Math.floor(visible / 2);
+  const pressured = { baselineTokens: visible, lastPromptTokens: 80, contextLimit: 100 };
+  assert.equal(decide(units, view, pressured, budget).run, true, '压力下不看增长');
+  const cooling = decide(units, view, { ...pressured, lastOutcome: 'failed', lastRunRound: 11 }, budget);
+  assert.deepEqual([cooling.pressure, cooling.run], [false, false]);
+  const retried = decide(units, view, { ...pressured, lastOutcome: 'declined', lastRunRound: 9 }, budget);
+  assert.deepEqual([retried.pressure, retried.run], [true, true]);
+});
+
 // ─── plan ───
 
 test('parseRef：认「第N轮」「N」「RN」「#N」与「bN」，其余返回 null', () => {
@@ -212,12 +225,17 @@ function planCtx(units, blocks = [], protectedList = [], shown = null) {
 
 const GOOD = '甲乙二人在码头立下约定，三日后于旧灯塔交接青铜罗盘。未了：交接罗盘（第2轮）';
 
-test('planCompression：原文范围写成一级块，伸进保护区时截到保护区之前并提示', () => {
+test('planCompression：原文范围写成一级块；伸进保护区时拒绝并告诉模型能压到第几轮', () => {
   const units = unitsOf(makeMessages(8, { chars: () => 400 }));
-  const result = planCompression([{ start: '第1轮', end: '第7轮', topic: '码头', summary: GOOD }], planCtx(units, [], [6, 7, 8]));
-    assert.deepEqual(result.planned.map((b) => [b.tier, b.fromRound, b.toRound, b.topic]), [[1, 1, 5, '码头']]);
-  assert.match(result.warnings[0], /第6–7轮在保护区内/);
-  assert.equal(result.planned[0].rawTokens, units.slice(0, 5).reduce((sum, u) => sum + u.tokens, 0));
+  const ok = planCompression([{ start: '第1轮', end: '第5轮', topic: '码头', summary: GOOD }], planCtx(units, [], [6, 7, 8]));
+  assert.deepEqual(ok.planned.map((b) => [b.tier, b.fromRound, b.toRound, b.topic]), [[1, 1, 5, '码头']]);
+  assert.equal(ok.planned[0].rawTokens, units.slice(0, 5).reduce((sum, u) => sum + u.tokens, 0));
+
+  const intrudes = planCompression([{ start: '第1轮', end: '第7轮', summary: GOOD }], planCtx(units, [], [6, 7, 8]));
+  assert.deepEqual(intrudes.planned, [], '摘要按第1–7轮写的，不能截短后当成第1–5轮的摘要');
+  assert.match(intrudes.errors[0], /从第6轮起是保护区.*改到第5轮为止/);
+  const inside = planCompression([{ start: '第6轮', end: '第7轮', summary: GOOD }], planCtx(units, [], [6, 7, 8]));
+  assert.match(inside.errors[0], /在保护区内/);
 });
 
 test('planCompression：包含已压缩轮次、没提供原文、范围太短的单条报错，不影响同批其他范围', () => {
@@ -229,7 +247,7 @@ test('planCompression：包含已压缩轮次、没提供原文、范围太短�
     { start: '第6轮', end: '第6轮', summary: GOOD },
     { start: '第9轮', end: '第9轮', summary: GOOD },
   ], planCtx(units, [covered], [], [3, 4, 5, 7, 8, 9, 10]));
-    assert.deepEqual(result.planned.map((b) => [b.fromRound, b.toRound]), [[4, 5]]);
+  assert.deepEqual(result.planned.map((b) => [b.fromRound, b.toRound]), [[4, 5]]);
   assert.equal(result.errors.length, 3);
   assert.match(result.errors[0], /第2轮已在块 b4 里/);
   assert.match(result.errors[1], /第6轮这次没有提供原文/);

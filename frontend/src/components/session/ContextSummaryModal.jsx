@@ -30,7 +30,7 @@ function SearchResults({ hits }) {
 /** 剧情摘要：较早剧情被整理成的各段摘要。可改写、查看原文、恢复原文，也可以检索摘要与原文 */
 export default function ContextSummaryModal({ sessionId, onClose }) {
   const [overview, setOverview] = useState(null);
-  const [drafts, setDrafts] = useState({});
+  const [edits, setEdits] = useState({});
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [query, setQuery] = useState('');
@@ -38,9 +38,11 @@ export default function ContextSummaryModal({ sessionId, onClose }) {
   const [confirmDiscard, setConfirmDiscard] = useState(false);
   const [restoreTarget, setRestoreTarget] = useState(null);
 
+  /** 换成服务器的新列表；edits 只存用户改过的块，仍在的块保留没保存的改动 */
   function applyOverview(next) {
     setOverview(next);
-    setDrafts(Object.fromEntries(next.blocks.map((block) => [block.id, block.summary])));
+    const ids = new Set(next.blocks.map((block) => block.id));
+    setEdits((prev) => Object.fromEntries(Object.entries(prev).filter(([id]) => ids.has(id))));
   }
 
   useEffect(() => {
@@ -51,7 +53,8 @@ export default function ContextSummaryModal({ sessionId, onClose }) {
     return () => { cancelled = true; };
   }, [sessionId]);
 
-  const dirty = overview?.blocks.some((block) => drafts[block.id] !== block.summary) ?? false;
+  const draftOf = (block) => edits[block.id] ?? block.summary;
+  const dirty = overview?.blocks.some((block) => draftOf(block) !== block.summary) ?? false;
 
   function requestClose() {
     if (busy) return;
@@ -59,28 +62,31 @@ export default function ContextSummaryModal({ sessionId, onClose }) {
     onClose();
   }
 
-  async function run(action) {
+  /** 执行一次操作；失败时显示原因，并重新拉取列表（块可能刚被后台整理吸收或撤掉） */
+  async function run(action, { refreshOnError = false } = {}) {
     setBusy(true);
     setError('');
     try {
       await action();
     } catch (err) {
       setError(err.message || '操作失败');
+      if (refreshOnError) await getContextOverview(sessionId).then(applyOverview).catch(() => {});
     } finally {
       setBusy(false);
     }
   }
 
   const saveBlock = (block) => run(async () => {
-    const { block: saved } = await updateContextBlock(sessionId, block.id, { summary: drafts[block.id], topic: block.topic });
+    const { block: saved } = await updateContextBlock(sessionId, block.id, { summary: draftOf(block), topic: block.topic });
     setOverview((prev) => ({ ...prev, blocks: prev.blocks.map((b) => (b.id === saved.id ? saved : b)) }));
-    setDrafts((prev) => ({ ...prev, [saved.id]: saved.summary }));
-  });
+    setEdits(({ [saved.id]: _saved, ...rest }) => rest);
+  }, { refreshOnError: true });
 
-  const restoreBlock = () => run(async () => {
-    applyOverview(await restoreContextBlock(sessionId, restoreTarget.id));
+  const restoreBlock = () => {
+    const target = restoreTarget;
     setRestoreTarget(null);
-  });
+    return run(async () => applyOverview(await restoreContextBlock(sessionId, target.id)), { refreshOnError: true });
+  };
 
   const runSearch = (event) => {
     event.preventDefault();
@@ -96,7 +102,7 @@ export default function ContextSummaryModal({ sessionId, onClose }) {
       onClose={requestClose}
       footer={<Button variant="ghost" onClick={requestClose} disabled={busy}>关闭</Button>}
     >
-      <p className="we-settings-toggle-hint mb-2">{overview ? statsHint(overview.stats) : '加载中…'}</p>
+      {(overview || !error) && <p className="we-settings-toggle-hint mb-2">{overview ? statsHint(overview.stats) : '加载中…'}</p>}
       <form className="mb-3 flex gap-2" onSubmit={runSearch}>
         <Input size="sm" value={query} placeholder="在摘要与原文里查找人物、地点、物品…" onChange={(e) => setQuery(e.target.value)} />
         <Button type="submit" variant="secondary" size="sm" disabled={busy}>查找</Button>
@@ -112,8 +118,8 @@ export default function ContextSummaryModal({ sessionId, onClose }) {
             key={block.id}
             sessionId={sessionId}
             block={block}
-            draft={drafts[block.id] ?? block.summary}
-            onDraftChange={(id, value) => setDrafts((prev) => ({ ...prev, [id]: value }))}
+            draft={draftOf(block)}
+            onDraftChange={(id, value) => setEdits((prev) => ({ ...prev, [id]: value }))}
             onSave={saveBlock}
             onRestore={setRestoreTarget}
             busy={busy}

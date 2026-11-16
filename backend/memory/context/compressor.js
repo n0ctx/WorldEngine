@@ -113,15 +113,26 @@ function finish(sessionId, decision, outcome, error = null) {
   });
 }
 
+/** 提炼动作要吸收的块在模型调用期间被用户改过（模型据旧文写的上级摘要会盖掉手改的内容） */
+function absorbsEditedBlock(block, ctx, seenSummaries) {
+  if (!seenSummaries) return false;
+  return block.consumes.some((id) => ctx.blocks.find((other) => other.id === id)?.summary !== seenSummaries.get(id));
+}
+
 /**
  * 写入：同步重读视图、按同一套规则重新校验，通过的范围在一个事务里写入。
  * 本函数内没有 await，读到的视图与写入之间不会插入别的请求。
+ * seenSummaries：调用模型时各在用块的摘要；吸收的块在这之后被手改过的提炼动作丢弃。
+ * 故事线已被删除时返回 { gone: true }。
  */
-function commitAccepted(sessionId, accepted, shownRounds, runId) {
-  const ctx = repairStaleBlocks(loadSessionContext(sessionId));
+function commitAccepted(sessionId, accepted, shownRounds, runId, seenSummaries = null) {
+  const loaded = loadSessionContext(sessionId);
+  if (!loaded) return { gone: true, blocks: [], dropped: accepted.length };
+  const ctx = repairStaleBlocks(loaded);
   const result = planCompression(accepted.map((item) => item.action), planContext(ctx, shownRounds));
-  if (result.planned.length === 0) return { ctx, blocks: [], dropped: accepted.length };
-  const blocks = result.planned.map((block) => ({
+  const planned = result.planned.filter((block) => !absorbsEditedBlock(block, ctx, seenSummaries));
+  if (planned.length === 0) return { ctx, blocks: [], dropped: accepted.length };
+  const blocks = planned.map((block) => ({
     ...block,
     sourceDigest: digestOfRange(ctx.units, block.fromRound, block.toRound),
   }));
@@ -176,7 +187,12 @@ export async function maintainContext(sessionId) {
     return { outcome: 'declined', decision };
   }
 
-  const { blocks, dropped } = commitAccepted(sessionId, requested.accepted, shownRounds, runId);
+  const seenSummaries = new Map(ctx.view.active.map((block) => [block.id, block.summary]));
+  const { gone, blocks, dropped } = commitAccepted(sessionId, requested.accepted, shownRounds, runId, seenSummaries);
+  if (gone) {
+    log.info(`GONE  ${formatMeta({ session: sid })}`);
+    return { outcome: 'skip', decision };
+  }
   if (blocks.length === 0) {
     finish(sessionId, decision, 'stale', '提交期间上下文已变化，本次压缩未写入');
     log.warn(`STALE  ${formatMeta({ session: sid, dropped })}`);

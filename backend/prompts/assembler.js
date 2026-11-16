@@ -414,7 +414,7 @@ export async function buildPrompt(sessionId, options = {}) {
   }
   // [5-11] 本轮上下文
   prependTurnContext(messages, turnContext);
-  recordPromptUsage(sessionId, messages, promptContext.contextLimit);
+  recordPromptUsage(sessionId, messages, promptContext);
 
   const temperature = world.temperature ?? config.llm.temperature;
   const baseMaxTokens = world.max_tokens ?? config.llm.max_tokens;
@@ -571,7 +571,7 @@ export async function buildWritingPrompt(sessionId, options = {}) {
   }
   // [5-11] 本轮上下文
   prependTurnContext(messages, turnContext);
-  recordPromptUsage(sessionId, messages, promptContext.contextLimit);
+  recordPromptUsage(sessionId, messages, promptContext);
 
   const temperature = world.temperature ?? writing.temperature ?? config.llm.temperature;
   const baseMaxTokens = world.max_tokens ?? writing.max_tokens ?? config.llm.max_tokens;

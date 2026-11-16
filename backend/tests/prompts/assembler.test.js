@@ -439,6 +439,10 @@ test('buildPrompt 没有压缩块且原文超过短期预算两倍时兜底移�
     '第2轮短提问', '第2轮短回答', '第3轮短提问', '第3轮短回答', '第4轮短提问', '第4轮短回答',
   ]);
   assert.ok(result.messages.every((m) => !String(m.content).includes('甲')));
+  // 记下的是不移出时的量：否则下一轮读到回落后的量就会取消移出，提示词隔轮来回振荡
+  const { countContextTokens } = await freshImport('backend/utils/token-counter.js');
+  const recorded = sandbox.db.prepare('SELECT last_prompt_tokens FROM context_state WHERE session_id = ?').get(session.id).last_prompt_tokens;
+  assert.ok(recorded > countContextTokens(result.messages) + 3000, `记录 ${recorded}`);
 
   // 被移出的轮次有索引行时，摘要段附上它（压缩一直失败时，剧情要点不随原文一起消失）
   insertTurnRecord(sandbox.db, session.id, { round_index: 1, summary: '林遥在渡口拿到了铁钥匙' });

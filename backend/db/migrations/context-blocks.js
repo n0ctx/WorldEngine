@@ -9,6 +9,20 @@ function splitLegacyEvents(text) {
   return text.split(/\n(?=[ \t]*【)/).map((part) => part.trim()).filter(Boolean);
 }
 
+const TOPIC_MAX_CHARS = 40;
+
+/**
+ * 旧事件 → 块的小标题与正文。注入时会另加「【第a–b轮｜小标题】」，所以正文去掉原标题里的轮次，
+ * 只把「时间｜地点｜人物」留作首行；小标题取地点（没有地点栏时取第一栏）。
+ */
+function legacyEventText(part, match) {
+  const fields = (match[3] || '').split('｜').map((field) => field.trim()).filter(Boolean);
+  const body = part.slice(match[0].length).trim();
+  const topic = [...(fields[1] ?? fields[0] ?? '')].slice(0, TOPIC_MAX_CHARS).join('');
+  const summary = [fields.join('｜'), body].filter(Boolean).join('\n');
+  return { topic, summary: summary || part };
+}
+
 /**
  * 把旧摘要切成一级块的覆盖范围。事件标题给出轮次范围，范围依次递增、互不重叠且落在
  * [1, coveredTo] 内时逐事件成块；没有标题的开头一段覆盖到第一个事件之前。
@@ -29,7 +43,7 @@ export function planLegacyBlocks(text, coveredTo) {
     const from = Number(match[1]);
     const to = match[2] ? Number(match[2]) : from;
     if (from <= last || to < from || to > coveredTo) { valid = false; break; }
-    planned.push({ from, to, topic: (match[3] || '').trim(), summary: part });
+    planned.push({ from, to, ...legacyEventText(part, match) });
     last = to;
   }
   const lead = planned[0]?.to === null ? planned[0] : null;

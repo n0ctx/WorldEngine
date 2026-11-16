@@ -85,16 +85,19 @@ const STATE_COLUMNS = {
   lastRunRound: 'last_run_round',
 };
 
-/** 合并写入压缩运行状态；只写 patch 里出现的字段 */
+/**
+ * 合并写入压缩运行状态；只写 patch 里出现的字段。
+ * 故事线已被删除（后台任务进行中用户删了会话）时什么都不写，不因外键报错。
+ */
 export function saveContextState(sessionId, patch) {
   const merged = { ...getContextState(sessionId), ...patch };
   const columns = Object.values(STATE_COLUMNS);
   const values = Object.keys(STATE_COLUMNS).map((key) => merged[key] ?? DEFAULT_STATE[key]);
   db.prepare(`
     INSERT INTO context_state (session_id, ${columns.join(', ')}, updated_at)
-    VALUES (?, ${columns.map(() => '?').join(', ')}, ?)
+    SELECT ?, ${columns.map(() => '?').join(', ')}, ? WHERE EXISTS (SELECT 1 FROM sessions WHERE id = ?)
     ON CONFLICT(session_id) DO UPDATE SET ${columns.map((c) => `${c} = excluded.${c}`).join(', ')}, updated_at = excluded.updated_at
-  `).run(sessionId, ...values, Date.now());
+  `).run(sessionId, ...values, Date.now(), sessionId);
 }
 
 /**

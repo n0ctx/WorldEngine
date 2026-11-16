@@ -5,7 +5,7 @@
  * 取不到（接口不返回、请求失败或超时）一律用 DEFAULT_CONTEXT_LIMIT。
  */
 
-import { getConfig, getAuxLlmConfig } from './config.js';
+import { getConfig, getAuxLlmConfig, getWritingLlmConfig } from './config.js';
 import { fetchModels } from './model-catalog.js';
 import { DEFAULT_BASE_URLS } from '../llm/providers/_shared/base-urls.js';
 import { validateModelFetchBaseUrl } from '../utils/network-safety.js';
@@ -66,13 +66,14 @@ const LOCAL_FETCHERS = {
 };
 
 /**
- * @param {'main'|'aux'} configScope
+ * @param {'main'|'aux'|'writing'} configScope  writing：写作模式的主模型（writing.llm，未配置时回退对话主模型）
  * @returns {Promise<number>}
  */
 export async function resolveContextLimit(configScope) {
   const config = getConfig();
-  const llm = configScope === 'aux'
-    ? getAuxLlmConfig()
+  const scoped = { aux: getAuxLlmConfig, writing: getWritingLlmConfig }[configScope];
+  const llm = scoped
+    ? scoped()
     : { ...config.llm, api_key: config.provider_keys?.[config.llm.provider] || '' };
   const key = `${llm.provider}|${llm.base_url || ''}|${llm.model || ''}`;
   const cached = cache.get(key);

@@ -90,6 +90,45 @@ describe('ContextSummaryModal', () => {
     expect(api.restoreContextBlock).toHaveBeenCalledWith('s1', 'b1');
   });
 
+  it('恢复一段原文时，其他块没保存的改动保留', async () => {
+    const second = block({ id: 'b2', no: 2, fromRound: 7, toRound: 12, topic: '灯塔', summary: '陆沉舟守着灯塔。' });
+    api.getContextOverview.mockResolvedValue({ blocks: [block(), second], stats: stats({ activeBlocks: 2 }) });
+    api.restoreContextBlock.mockResolvedValue({ blocks: [second], stats: stats({ activeBlocks: 1 }) });
+    render(<ContextSummaryModal sessionId="s1" onClose={vi.fn()} />);
+    fireEvent.change(await screen.findByDisplayValue('陆沉舟守着灯塔。'), { target: { value: '陆沉舟下了塔。' } });
+
+    fireEvent.click(screen.getAllByRole('button', { name: '恢复原文' })[0]);
+    const buttons = screen.getAllByRole('button', { name: '恢复原文' });
+    fireEvent.click(buttons.at(-1));
+    await vi.waitFor(() => expect(screen.queryByDisplayValue('林岚在码头截下了走私船。')).not.toBeInTheDocument());
+    expect(screen.getByDisplayValue('陆沉舟下了塔。')).toBeInTheDocument();
+  });
+
+  it('块已被后台整理吸收（保存返回不存在）时显示原因并刷新列表', async () => {
+    api.updateContextBlock.mockRejectedValueOnce(new Error('剧情摘要块不存在'));
+    render(<ContextSummaryModal sessionId="s1" onClose={vi.fn()} />);
+    fireEvent.change(await screen.findByDisplayValue('林岚在码头截下了走私船。'), { target: { value: '改过的摘要' } });
+    api.getContextOverview.mockResolvedValueOnce({ blocks: [block({ id: 'b9', no: 9, tier: 2, summary: '二级摘要' })], stats: stats() });
+    fireEvent.click(screen.getByText('保存这段'));
+
+    expect(await screen.findByText('剧情摘要块不存在')).toBeInTheDocument();
+    expect(await screen.findByDisplayValue('二级摘要')).toBeInTheDocument();
+    expect(screen.queryByDisplayValue('改过的摘要')).not.toBeInTheDocument();
+  });
+
+  it('原文加载失败后再次展开会重试', async () => {
+    api.getContextBlockSource
+      .mockRejectedValueOnce(new Error('读取原文失败：500'))
+      .mockResolvedValueOnce({ block: block(), children: [], rounds: [{ round: 1, messages: [{ id: 'm1', role: 'user', content: '上船' }] }] });
+    render(<ContextSummaryModal sessionId="s1" onClose={vi.fn()} />);
+    fireEvent.click(await screen.findByText('查看原文'));
+    expect(await screen.findByText('读取原文失败：500')).toBeInTheDocument();
+    fireEvent.click(screen.getByText('收起原文'));
+    fireEvent.click(screen.getByText('查看原文'));
+    expect(await screen.findByText('玩家：上船')).toBeInTheDocument();
+    expect(screen.queryByText('读取原文失败：500')).not.toBeInTheDocument();
+  });
+
   it('检索摘要与原文，并标出原文是否还在正文里', async () => {
     api.searchContext.mockResolvedValue({
       hits: [

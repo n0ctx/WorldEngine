@@ -60,11 +60,12 @@ test('旧剧情摘要按事件迁移为一级块：范围、小标题、来源�
     const blocks = db.prepare('SELECT * FROM context_blocks WHERE session_id = ? ORDER BY block_no').all('s1');
     assert.deepEqual(blocks.map((b) => [b.block_no, b.tier, b.from_round, b.to_round, b.topic, b.created_round, b.origin, b.consumed_by]), [
       [1, 1, 1, 1, '前情', 1, 'legacy', null],
-      [2, 1, 2, 3, '三月初七｜渡口｜林遥、老魏', 3, 'legacy', null],
-      [3, 1, 4, 4, '三月初八｜北岸｜林遥', 4, 'legacy', null],
+      [2, 1, 2, 3, '渡口', 3, 'legacy', null],
+      [3, 1, 4, 4, '北岸', 4, 'legacy', null],
     ]);
     for (const block of blocks) assert.equal(block.source_digest, digestFor(db, 's1', block.from_round, block.to_round));
-    assert.match(blocks[1].summary, /^【第2–3轮/);
+    // 注入时另加「【第a–b轮｜小标题】」，正文不再重复轮次标题，时间、地点、人物留作首行
+    assert.equal(blocks[1].summary, '三月初七｜渡口｜林遥、老魏\n起因：借钱\n结果：约定开春还');
     assert.equal(db.prepare('SELECT next_block_no FROM context_state WHERE session_id = ?').get('s1').next_block_no, 4);
     // 第 5 轮是旧版里「进行中的事件」，迁移后回到原文，由新的压缩流程接手
     assert.ok(blocks.every((b) => b.to_round < 5));

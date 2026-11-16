@@ -7,7 +7,8 @@
  *   - 一级：原文超过短期预算、可见量比基线至少多出一个增长步长、未保护的原文够一次压缩的收益下限。
  *   - 提炼：在用块的摘要总量超过摘要上限（短期预算 × CONTEXT_SUMMARY_BUDGET_RATIO）时，从最老的块组起建议合并，
  *     够回落到上限的 CONTEXT_SUMMARY_LOW_WATER_RATIO 为止；越老的内容被提炼的次数越多，总量因此有界。同样受增长步长约束。
- *   - 压力：上一轮提示词占上下文上限达到 CONTEXT_PRESSURE_RATIO 时忽略增长步长。
+ *   - 压力：上一轮提示词占上下文上限达到 CONTEXT_PRESSURE_RATIO 时忽略增长步长；压力下模型放弃或失败后
+ *     冷却 CONTEXT_PRESSURE_RETRY_ROUNDS 轮再按压力重试。
  *   - 积压：上次压缩成功但原文仍超预算、或摘要仍超上限（一次没处理完）时继续压，不等增长。
  * 建议范围只是给模型的参考，最终压哪里、写多细由模型决定，系统只校验（见 plan.js）。
  *
@@ -23,6 +24,7 @@ import {
   CONTEXT_MIN_BENEFIT_TOKENS,
   CONTEXT_MIN_FOLD_TOKENS,
   CONTEXT_PRESSURE_RATIO,
+  CONTEXT_PRESSURE_RETRY_ROUNDS,
   CONTEXT_PROMOTION_ROUNDS,
   CONTEXT_SUMMARY_BUDGET_RATIO,
   CONTEXT_SUMMARY_LOW_WATER_RATIO,
@@ -159,7 +161,9 @@ export function decideCompression({ units, view, protectedSet, state, budget }) 
   const visibleTokens = rawTokens + summaryTokens;
   const reference = Math.min(state.baselineTokens ?? 0, visibleTokens);
   const usage = state.lastPromptTokens && state.contextLimit ? state.lastPromptTokens / state.contextLimit : null;
-  const pressure = usage != null && usage >= CONTEXT_PRESSURE_RATIO;
+  const coolingDown = ['declined', 'failed'].includes(state.lastOutcome)
+    && latestRound - (state.lastRunRound ?? 0) < CONTEXT_PRESSURE_RETRY_ROUNDS;
+  const pressure = usage != null && usage >= CONTEXT_PRESSURE_RATIO && !coolingDown;
   const grown = visibleTokens - reference >= budget * CONTEXT_GROWTH_STEP_RATIO;
   const summaryBudget = budget * CONTEXT_SUMMARY_BUDGET_RATIO;
   const backlog = state.lastOutcome === 'compressed' && (rawTokens > budget || summaryTokens > summaryBudget);

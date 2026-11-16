@@ -3,7 +3,7 @@
  *
  * 模型每个动作给出 { start, end, topic, summary }：
  *   - 两端都是轮次（「第12轮」「12」「R12」）：把这段原文写成一级块。每一轮都必须仍是原文、存在、
- *     不在保护区；范围伸进保护区时截到保护区之前（截完一轮不剩就跳过并提示）。范围不足
+ *     不在保护区（伸进保护区就拒绝，由模型按新范围重写）。范围不足
  *     CONTEXT_MIN_FOLD_TOKENS 时拒绝，除非它两边已是块或保护区、只能这样整段压。
  *   - 两端都是块（「b3」）：把 bN 到 bM 之间首尾相接的在用块提炼成上一级块（三级再合成三级），
  *     中间不能夹原文轮次，至少两个块。
@@ -54,11 +54,13 @@ function planRounds(from, to, ctx) {
       return { error: `第${round}轮已在块 b${owner?.no} 里，原文轮次范围不能包含已压缩的轮次` };
     }
   }
-  let end = to;
+  // 伸进保护区的范围直接拒绝而不是截短：摘要是按整段写的，截短后被截掉的几轮会同时以摘要和原文出现
   for (let round = from; round <= to; round++) {
-    if (protectedSet.has(round)) { end = round - 1; break; }
+    if (!protectedSet.has(round)) continue;
+    if (round === from) return { error: `第${from}–${to}轮在保护区内（最近的剧情），不能压缩` };
+    return { error: `第${from}–${to}轮从第${round}轮起是保护区（最近的剧情），请把范围改到第${round - 1}轮为止，并按新范围重写摘要` };
   }
-  if (end < from) return { warning: `第${from}–${to}轮在保护区内（最近的剧情），已跳过` };
+  const end = to;
   const slice = units.slice(from - 1, end);
   const rawTokens = slice.reduce((sum, unit) => sum + unit.tokens, 0);
   const boundedBefore = from === 1 || view.covered.has(from - 1);
@@ -66,8 +68,7 @@ function planRounds(from, to, ctx) {
   if (rawTokens < CONTEXT_MIN_FOLD_TOKENS && !(boundedBefore && boundedAfter)) {
     return { error: `第${from}–${end}轮只有约 ${rawTokens} token，太短，请和相邻轮次合成一段` };
   }
-  const warning = end < to ? `第${end + 1}–${to}轮在保护区内，范围已截到第${end}轮` : null;
-  return { block: { tier: 1, fromRound: from, toRound: end, consumes: [], sourceTokens: rawTokens, rawTokens }, warning };
+  return { block: { tier: 1, fromRound: from, toRound: end, consumes: [], sourceTokens: rawTokens, rawTokens } };
 }
 
 /** bN 到 bM 的在用块 → 上一级块的计划 */

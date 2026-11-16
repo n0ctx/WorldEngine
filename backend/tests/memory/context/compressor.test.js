@@ -169,6 +169,40 @@ test('同一批提交重复写入时全部落空：已被块覆盖的轮次不�
   assert.equal(blocksOf(session.id).length, 1);
 });
 
+test('写入前重新校验：模型调用期间被吸收的块被用户手改过时，丢弃这次提炼，手改内容保持在用', async () => {
+  const session = seedSession(30, { chars: 120 });
+  const children = [1, 2].map((i) => insertContextBlock(sandbox.db, session.id, {
+    from_round: i * 4 - 3, to_round: i * 4, created_round: i * 4, summary: `第${i}段：${'要'.repeat(380)}`,
+  }));
+  const { loadSessionContext } = await freshImport('backend/memory/context/session-context.js');
+  const { __testables } = await freshImport('backend/memory/context/compressor.js');
+  const ctx = loadSessionContext(session.id);
+  const seen = new Map(ctx.view.active.map((block) => [block.id, block.summary]));
+  const accepted = [];
+  __testables.acceptActions([{ start: `b${children[0].block_no}`, end: `b${children[1].block_no}`, summary: SUMMARY }], { units: ctx.units, view: ctx.view, protectedSet: ctx.protectedSet }, accepted);
+  assert.equal(accepted.length, 1);
+
+  const { editContextBlock } = await freshImport('backend/services/context-blocks.js');
+  editContextBlock(session.id, children[0].id, { summary: '用户手改：林遥其实没借钱。' });
+  const result = __testables.commitAccepted(session.id, accepted, null, 'run-edit', seen);
+  assert.deepEqual([result.blocks.length, result.dropped], [0, 1]);
+  assert.deepEqual(blocksOf(session.id).map((b) => [b.tier, b.consumed_by]), [[1, null], [1, null]]);
+});
+
+test('写入前故事线已被删除时什么都不写，也不报错', async () => {
+  const session = seedSession(10);
+  const { loadSessionContext } = await freshImport('backend/memory/context/session-context.js');
+  const { __testables } = await freshImport('backend/memory/context/compressor.js');
+  const { saveContextState } = await freshImport('backend/db/queries/context-blocks.js');
+  const ctx = loadSessionContext(session.id);
+  const accepted = [];
+  __testables.acceptActions([{ start: '1', end: '3', summary: SUMMARY }], { units: ctx.units, view: ctx.view, protectedSet: ctx.protectedSet }, accepted);
+  sandbox.db.prepare('DELETE FROM sessions WHERE id = ?').run(session.id);
+  assert.equal(__testables.commitAccepted(session.id, accepted, null, 'run-gone').gone, true);
+  saveContextState(session.id, { lastOutcome: 'declined' });
+  assert.equal(stateOf(session.id), undefined);
+});
+
 test('提炼：相邻的老一级块合成二级块，子块指向上级块；删除上级块（恢复原文）时子块重新在用', async () => {
   const session = seedSession(30, { chars: 120 });
   const children = [1, 2, 3].map((i) => insertContextBlock(sandbox.db, session.id, {

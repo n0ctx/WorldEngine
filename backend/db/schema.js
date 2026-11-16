@@ -252,7 +252,7 @@ CREATE TABLE IF NOT EXISTS context_state (
   context_limit       INTEGER,
   compress_count      INTEGER NOT NULL DEFAULT 0,
   tokens_saved        INTEGER NOT NULL DEFAULT 0,
-  last_outcome        TEXT,                        -- compressed / declined / rejected / stale / failed
+  last_outcome        TEXT,                        -- compressed / declined / stale / failed / restored
   last_error          TEXT,
   last_run_round      INTEGER,
   updated_at          INTEGER NOT NULL
