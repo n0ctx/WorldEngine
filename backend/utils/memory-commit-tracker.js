@@ -1,10 +1,10 @@
 /**
  * memory-commit-tracker.js
  *
- * 跟踪每个 session 正在进行中的「记忆提交」Promise（turn-record：状态/表格快照 + 建行；
- * context-compress：剧情摘要块的压缩与修复）。
+ * 跟踪每个 session 正在进行中的「记忆提交」Promise（turn-record：状态/表格快照 + 建行）。
  * 下一轮 chat/writing 请求在组装 prompt 前调用 awaitMemoryCommit，
- * 确保读到本轮写入的最新剧情摘要块、状态与表格快照，避免 stale-state 导致上下文偏差。
+ * 确保读到本轮写入的最新状态与表格快照，避免 stale-state 导致上下文偏差。
+ * 剧情摘要块的压缩不在此列：它耗时长，下一轮不等它，压缩完成前用当前视图（见 memory/context/compressor.js）。
  * 同一轮登记多个提交时合并等待，不依赖队列的执行顺序。
  */
 

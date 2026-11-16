@@ -44,7 +44,7 @@ function classifyLlmError(err) {
  * @property {(result: any) => object} [ssePayload] — SSE payload 构造器（默认使用 { type: sseEvent }）
  * @property {boolean}              [keepSseAlive] — 是否将此任务加入 ssePromises 控制连接关闭时机
  * @property {boolean}              [tracksState]  — 失败时是否发 state_update_failed（state 任务专用）
- * @property {boolean}              [blocksNextTurn] — 是否登记记忆提交等待点（trackMemoryCommit：turn-record、context-compress）
+ * @property {boolean}              [blocksNextTurn] — 是否登记记忆提交等待点（trackMemoryCommit：turn-record）
  *
  * @returns {{ hasSseWaits: boolean }}
  *   hasSseWaits=true 时调用方应立即 return（连接由 Promise.allSettled 关闭）

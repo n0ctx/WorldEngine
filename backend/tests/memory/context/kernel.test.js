@@ -207,6 +207,38 @@ test('decideCompression：压力下模型放弃或失败后冷却几轮，期间
   assert.deepEqual([retried.pressure, retried.run], [true, true]);
 });
 
+test('decideCompression：连续没写入 n 次后增长步长乘以 2^min(n, 3)，封顶 8 倍', () => {
+  const units = unitsOf(makeMessages(12, { chars: () => 200 }));
+  const view = resolveView([], units);
+  const visible = view.raw.reduce((sum, u) => sum + u.tokens, 0);
+  const budget = Math.floor(visible / 4);
+  const step = budget * 0.25;
+  // 可见量比基线多出 gap 个步长：streak 为 n 时要多出 2^min(n,3) 个步长才放行
+  const runs = (gap, streak) => decide(units, view, { baselineTokens: visible - gap * step, lastOutcome: 'declined', noWriteStreak: streak }, budget).run;
+  assert.deepEqual([runs(1.5, 0), runs(1.5, 1)], [true, false]);
+  assert.deepEqual([runs(2.5, 1), runs(2.5, 2)], [true, false]);
+  assert.deepEqual([runs(4.5, 2), runs(4.5, 3)], [true, false]);
+  assert.deepEqual([runs(8.5, 3), runs(8.5, 4), runs(8.5, 50)], [true, true, true]);
+  assert.deepEqual([runs(7.5, 3), runs(7.5, 50)], [false, false], '封顶 8 倍，不会无限拉长');
+  assert.equal(decide(units, view, { baselineTokens: visible - 8.5 * step, lastOutcome: 'compressed', noWriteStreak: 0 }, budget).backoff, 1);
+});
+
+test('decideCompression：压力冷却轮数同样乘以退避倍数', () => {
+  const units = unitsOf(makeMessages(12, { chars: () => 200 }));
+  const view = resolveView([], units);
+  const visible = view.raw.reduce((sum, u) => sum + u.tokens, 0);
+  const budget = Math.floor(visible / 2);
+  const state = (lastRunRound, noWriteStreak) => ({
+    baselineTokens: visible, lastPromptTokens: 80, contextLimit: 100, lastOutcome: 'failed', lastRunRound, noWriteStreak,
+  });
+  // 最新一轮是 12：streak 0 冷却 3 轮，streak 1 冷却 6 轮，streak 3 及以上冷却 24 轮
+  assert.equal(decide(units, view, state(9, 0), budget).pressure, true);
+  assert.equal(decide(units, view, state(9, 1), budget).pressure, false);
+  assert.equal(decide(units, view, state(6, 1), budget).pressure, true);
+  assert.equal(decide(units, view, state(-11, 3), budget).pressure, false);
+  assert.equal(decide(units, view, state(-12, 9), budget).pressure, true);
+});
+
 // ─── plan ───
 
 test('parseRef：认「第N轮」「N」「RN」「#N」与「bN」，其余返回 null', () => {

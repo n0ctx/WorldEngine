@@ -101,5 +101,6 @@ export function viewStats(ctx) {
     lastOutcome: state.lastOutcome,
     lastError: state.lastError,
     lastRunRound: state.lastRunRound,
+    noWriteStreak: state.noWriteStreak,
   };
 }

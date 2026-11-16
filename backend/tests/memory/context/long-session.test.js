@@ -8,6 +8,7 @@ import assert from 'node:assert/strict';
 
 import { createTestConfig, createTestSandbox, freshImport, resetMockEnv } from '../../helpers/test-env.js';
 import { insertCharacter, insertMessage, insertSession, insertTurnRecord, insertWorld } from '../../helpers/fixtures.js';
+import { settleMaintenance } from '../../helpers/settle-maintenance.js';
 import { buildStoryCorpus, scriptedLimit, scriptedSummary } from '../../helpers/story-corpus.js';
 
 const BUDGET = 2000;
@@ -59,7 +60,7 @@ async function maintain() {
   } else {
     process.env.MOCK_LLM_COMPLETE_ERROR = '门槛没到时不应调用模型';
   }
-  const result = await mod.maintainContext(session.id);
+  const result = await settleMaintenance(mod.maintainContext(session.id));
   resetMockEnv();
   return result;
 }

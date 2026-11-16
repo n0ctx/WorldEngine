@@ -9,17 +9,21 @@
  *     够回落到上限的 CONTEXT_SUMMARY_LOW_WATER_RATIO 为止；越老的内容被提炼的次数越多，总量因此有界。同样受增长步长约束。
  *   - 压力：上一轮提示词占上下文上限达到 CONTEXT_PRESSURE_RATIO 时忽略增长步长；压力下模型放弃或失败后
  *     冷却 CONTEXT_PRESSURE_RETRY_ROUNDS 轮再按压力重试。
+ *   - 退避：连续 n 次没有写入块（放弃、失败、过期）后，增长步长与冷却轮数都乘以 2^min(n, CONTEXT_BACKOFF_MAX_EXPONENT)，
+ *     模型一直不行时不会每个步长都再调用一次；一次成功写入后清零。
  *   - 积压：上次压缩成功但原文仍超预算、或摘要仍超上限（一次没处理完）时继续压，不等增长。
  * 建议范围只是给模型的参考，最终压哪里、写多细由模型决定，系统只校验（见 plan.js）。
  *
  * 对外暴露：
  *   compressibleSegments(raw, protectedSet) → [{ from, to, tokens }]
  *   tierGroups(active, latestRound) → [{ tier, targetTier, blockIds, from, to, tokens }]
+ *   evaluateGate(input) → { usage, backoff, pressure, grown, backlog, gateOpen }  增长门槛（含退避）
  *   decideCompression(input) → decision
  */
 
 import { blockTokens } from './view.js';
 import {
+  CONTEXT_BACKOFF_MAX_EXPONENT,
   CONTEXT_GROWTH_STEP_RATIO,
   CONTEXT_MIN_BENEFIT_TOKENS,
   CONTEXT_MIN_FOLD_TOKENS,
@@ -142,6 +146,21 @@ function dueMerges(groups, summaryTokens, summaryBudget, pressure) {
 }
 
 /**
+ * 增长门槛：压力、增长步长、积压三者有一个成立就放行。退避倍数让「模型一直不行」时步长与压力冷却都拉长。
+ * growth：可见量比低水位基线多出的量。
+ */
+export function evaluateGate({ state, latestRound, budget, rawTokens, summaryTokens, summaryBudget, growth }) {
+  const usage = state.lastPromptTokens && state.contextLimit ? state.lastPromptTokens / state.contextLimit : null;
+  const backoff = 2 ** Math.min(state.noWriteStreak ?? 0, CONTEXT_BACKOFF_MAX_EXPONENT);
+  const coolingDown = ['declined', 'failed'].includes(state.lastOutcome)
+    && latestRound - (state.lastRunRound ?? 0) < CONTEXT_PRESSURE_RETRY_ROUNDS * backoff;
+  const pressure = usage != null && usage >= CONTEXT_PRESSURE_RATIO && !coolingDown;
+  const grown = growth >= budget * CONTEXT_GROWTH_STEP_RATIO * backoff;
+  const backlog = state.lastOutcome === 'compressed' && (rawTokens > budget || summaryTokens > summaryBudget);
+  return { usage, backoff, pressure, grown, backlog, gateOpen: pressure || grown || backlog };
+}
+
+/**
  * 判断本轮要不要调用模型维护上下文。
  *
  * @param {object} input
@@ -151,7 +170,7 @@ function dueMerges(groups, summaryTokens, summaryBudget, pressure) {
  * @param {object} input.state       getContextState 的结果
  * @param {number} input.budget      短期预算（原文轮次的目标上限）
  * @returns {object} decision：run / reasons / pressure / usage / rawTokens / summaryTokens / visibleTokens /
- *   reference（低水位后的基线）/ segments（一级建议范围）/ merges（提炼建议）
+ *   reference（低水位后的基线）/ backoff（退避倍数）/ segments（一级建议范围）/ merges（提炼建议）
  */
 export function decideCompression({ units, view, protectedSet, state, budget }) {
   const latestRound = units.at(-1)?.round ?? 0;
@@ -160,14 +179,9 @@ export function decideCompression({ units, view, protectedSet, state, budget }) 
   const summaryTokens = byTier[1] + byTier[2] + byTier[3];
   const visibleTokens = rawTokens + summaryTokens;
   const reference = Math.min(state.baselineTokens ?? 0, visibleTokens);
-  const usage = state.lastPromptTokens && state.contextLimit ? state.lastPromptTokens / state.contextLimit : null;
-  const coolingDown = ['declined', 'failed'].includes(state.lastOutcome)
-    && latestRound - (state.lastRunRound ?? 0) < CONTEXT_PRESSURE_RETRY_ROUNDS;
-  const pressure = usage != null && usage >= CONTEXT_PRESSURE_RATIO && !coolingDown;
-  const grown = visibleTokens - reference >= budget * CONTEXT_GROWTH_STEP_RATIO;
   const summaryBudget = budget * CONTEXT_SUMMARY_BUDGET_RATIO;
-  const backlog = state.lastOutcome === 'compressed' && (rawTokens > budget || summaryTokens > summaryBudget);
-  const gateOpen = pressure || grown || backlog;
+  const gate = evaluateGate({ state, latestRound, budget, rawTokens, summaryTokens, summaryBudget, growth: visibleTokens - reference });
+  const { pressure, grown, backlog, gateOpen } = gate;
 
   const segments = compressibleSegments(view.raw, protectedSet);
   const foldable = segments.reduce((sum, segment) => sum + segment.tokens, 0);
@@ -183,13 +197,14 @@ export function decideCompression({ units, view, protectedSet, state, budget }) 
     run: reasons.length > 0 && gateOpen,
     reasons,
     pressure,
-    usage,
+    usage: gate.usage,
     latestRound,
     rawTokens,
     summaryTokens,
     tierTokens: byTier,
     visibleTokens,
     reference,
+    backoff: gate.backoff,
     foldableTokens: foldable,
     segments: t1Due ? segments : [],
     merges,

@@ -52,6 +52,7 @@ const DEFAULT_STATE = Object.freeze({
   lastOutcome: null,
   lastError: null,
   lastRunRound: null,
+  noWriteStreak: 0,
   updatedAt: null,
 });
 
@@ -69,6 +70,7 @@ export function getContextState(sessionId) {
     lastOutcome: row.last_outcome,
     lastError: row.last_error,
     lastRunRound: row.last_run_round,
+    noWriteStreak: row.no_write_streak,
     updatedAt: row.updated_at,
   };
 }
@@ -83,6 +85,7 @@ const STATE_COLUMNS = {
   lastOutcome: 'last_outcome',
   lastError: 'last_error',
   lastRunRound: 'last_run_round',
+  noWriteStreak: 'no_write_streak',
 };
 
 /**

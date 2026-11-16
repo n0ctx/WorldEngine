@@ -60,6 +60,8 @@ export const CONTEXT_MIN_BENEFIT_TOKENS = 600;
 export const CONTEXT_PRESSURE_RATIO = 0.75;
 /** 压力下模型放弃或失败后，隔这么多轮才再试（期间仍按增长门槛判断），免得每轮都调用一次副模型 */
 export const CONTEXT_PRESSURE_RETRY_ROUNDS = 3;
+/** 连续 n 次没有写入块（放弃、失败、过期）后，增长步长与压力冷却轮数都乘以 2^min(n, 这个值)；一次成功写入后清零 */
+export const CONTEXT_BACKOFF_MAX_EXPONENT = 3;
 /** 提示词占上下文上限的比例超过这个值、或原文超过短期预算的 CONTEXT_RAW_HARD_CAP_RATIO 倍时，
  *  组装时把最老的未保护原文移出视野（原文仍在库里、可被长期召回），作为压缩失败时的兜底 */
 export const CONTEXT_EMERGENCY_RATIO = 0.9;

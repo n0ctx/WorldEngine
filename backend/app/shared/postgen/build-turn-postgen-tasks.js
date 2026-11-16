@@ -12,10 +12,13 @@ import { getConfig } from '../../../services/config.js';
  *
  * 槽位顺序即执行顺序（同优先级下按 enqueue 先后），不可随意调整：
  * title(p2) → chapterTasks(p2) → all-state(p2)
- * → turn-record(p2，blocksNextTurn) → context-compress(p2，blocksNextTurn) → danmaku(p2)
+ * → turn-record(p2，blocksNextTurn) → context-compress(p2) → danmaku(p2)
  * → turn-index(p3) → diary(p4)。
  * blocksNextTurn 让下一轮开始前等它完成（见 backend/utils/memory-commit-tracker.js）：下一轮组装提示词时
- * 读到的是本轮写入的状态快照与压缩块。context-compress 多数轮次只做门槛判断、不调用模型。
+ * 读到的是本轮写入的状态快照。
+ * context-compress 在队列里只做门槛判断，需要压缩时在队列外后台启动模型调用并立即返回：既不阻塞下一轮
+ * （组装提示词时压缩未完成就用当前视图），也不占着同会话的队列拖慢下一轮的 turn-record。
+ * 所以它不设 blocksNextTurn、也不设 keepSseAlive（SSE 连接不等它；失败原因落在 context_state，不走 postprocess_failed）。
  *
  * label 是对外契约（hooks/README.md 的「内置任务 label 参考」），不可改名。
  */
@@ -64,8 +67,6 @@ export function buildTurnPostgenTasks({
       label: 'context-compress',
       priority: 2,
       fn: () => maintainContext(sessionId),
-      blocksNextTurn: true,
-      keepSseAlive: true,
     },
     {
       label: 'danmaku',

@@ -9,6 +9,7 @@
  *
  * 对外暴露：
  *   buildRoundUnits(rawMessages, { scenes, chapterMessageSize, toPromptMessage }) → units
+ *   unitDigests(units) / roundsChangedSince(units, digests) → 调用模型前留底各轮指纹，写入时核对有没有被改
  *   resolveView(blocks, units) → { active, stale, covered, raw }
  *   protectedRounds(raw, { budget }) → Set<round>
  *   planEmergencyHide(raw, protectedSet, { overflowTokens }) → Set<round>
@@ -51,6 +52,16 @@ export function buildRoundUnits(rawMessages, { scenes = new Map(), chapterMessag
 export function digestOfRange(units, from, to) {
   if (from < 1 || to > units.length || from > to) return null;
   return rangeDigest(units.slice(from - 1, to).map((unit) => unit.digest));
+}
+
+/** 各轮指纹，下标 = 轮号 - 1；调用模型前留底，写入时用 roundsChangedSince 核对 */
+export function unitDigests(units) {
+  return units.map((unit) => unit.digest);
+}
+
+/** 留底之后有没有轮次被改、被删（后面新增的轮次不算） */
+export function roundsChangedSince(units, digests) {
+  return digests.some((digest, index) => units[index]?.digest !== digest);
 }
 
 /** 摘要 token：一律按渲染进提示词的正文估算 */

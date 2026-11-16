@@ -53,6 +53,8 @@ registerHook('generation:post', async ({ sessionId, taskSpecs, mode }) => {
 
 内置任务 label 参考（按执行顺序）：`title` / `session-title` / `chapter-title` / `all-state` / `turn-record` / `context-compress` / `danmaku` / `turn-index` / `diary`
 
+`context-compress` 任务在队列里只做门槛判断，需要压缩时在后台另起模型调用并立即完成，所以它的 `queue:task:done` 不代表压缩已写入。
+
 ## 访问内部模块
 
 在 hook 文件中可直接 `import` 项目内部模块：

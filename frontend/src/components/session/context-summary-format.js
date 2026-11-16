@@ -6,6 +6,9 @@ export function roundRange(from, to) {
   return from === to ? `第 ${from} 轮` : `第 ${from}–${to} 轮`;
 }
 
+/** 连续没整理成功达到这个次数就提示「暂缓重试」（后端按次数指数拉长重试间隔） */
+const BACKOFF_HINT_MIN_STREAK = 2;
+
 const OUTCOME_HINT = { failed: '上次整理失败', stale: '上次整理期间剧情有变动，结果没有写入' };
 
 export function statsHint(stats) {
@@ -18,5 +21,7 @@ export function statsHint(stats) {
   parts.push(`${stats.rawRounds} 轮保留原文`);
   if (stats.usage != null) parts.push(`上一轮上下文占用 ${Math.round(stats.usage * 100)}%`);
   const outcome = OUTCOME_HINT[stats.lastOutcome];
-  return `${parts.join('，')}。${outcome ? `${outcome}${stats.lastError ? `：${stats.lastError}` : ''}。` : ''}`;
+  const streak = stats.noWriteStreak ?? 0;
+  const backoff = streak >= BACKOFF_HINT_MIN_STREAK ? `已连续 ${streak} 次没整理成功，暂缓重试。` : '';
+  return `${parts.join('，')}。${outcome ? `${outcome}${stats.lastError ? `：${stats.lastError}` : ''}。` : ''}${backoff}`;
 }

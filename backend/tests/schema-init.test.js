@@ -292,7 +292,7 @@ test('initSchema 在新建的空库上记录结构版本，且不生成备份', 
     try {
       // guard-allow(tests): initSchema 是被测对象，每个用例要从各自不同的库状态起步
       initSchema(db);
-      assert.equal(db.pragma('user_version', { simple: true }), 6);
+      assert.equal(db.pragma('user_version', { simple: true }), 7);
       assert.deepEqual(backupFiles(dir), []);
     } finally {
       db.close();
@@ -318,7 +318,7 @@ test('initSchema 升级已有数据的旧库前留下一份升级前的备份，
       initSchema(db);
       initSchema(db);
 
-      assert.equal(db.pragma('user_version', { simple: true }), 6);
+      assert.equal(db.pragma('user_version', { simple: true }), 7);
       const worldColumns = db.pragma('table_info(worlds)').map((column) => column.name);
       assert.ok(!worldColumns.includes('post_prompt'));
 
@@ -383,7 +383,7 @@ test('initSchema 把外貌档案旧字段改成新字段：显著特征 → 外�
     db.pragma('user_version = 1');
     initSchema(db);
 
-    assert.equal(db.pragma('user_version', { simple: true }), 6);
+    assert.equal(db.pragma('user_version', { simple: true }), 7);
     assert.deepEqual(
       db.prepare('SELECT row_id, field_key, value_json FROM state_profile_fields ORDER BY row_id').all(),
       [
@@ -415,7 +415,7 @@ test('initSchema 给已升级到上一版、缺少事项期限列的库补上 st
     db.pragma('user_version = 2');
     initSchema(db);
 
-    assert.equal(db.pragma('user_version', { simple: true }), 6);
+    assert.equal(db.pragma('user_version', { simple: true }), 7);
     assert.ok(db.pragma('table_info(state_threads)').some((column) => column.name === 'deadline'));
   } finally {
     db.close();
@@ -431,7 +431,7 @@ test('initSchema 给已升级到上一版、缺少上下文占用列的库补上
     db.pragma('user_version = 3');
     initSchema(db);
 
-    assert.equal(db.pragma('user_version', { simple: true }), 6);
+    assert.equal(db.pragma('user_version', { simple: true }), 7);
     assert.ok(db.pragma('table_info(assistant_tasks)').some((column) => column.name === 'context_usage_json'));
   } finally {
     db.close();
@@ -447,8 +447,26 @@ test('initSchema 给已升级到上一版、缺少采样参数列的库补上 wo
     db.pragma('user_version = 4');
     initSchema(db);
 
-    assert.equal(db.pragma('user_version', { simple: true }), 6);
+    assert.equal(db.pragma('user_version', { simple: true }), 7);
     assert.ok(db.pragma('table_info(worlds)').some((column) => column.name === 'sampling_json'));
+  } finally {
+    db.close();
+  }
+});
+
+test('initSchema 给已升级到上一版、缺少连续未写入次数列的库补上 context_state.no_write_streak，已有行记为 0', () => {
+  const db = new Database(':memory:');
+  try {
+    // guard-allow(tests): 先建到当前结构，删掉本步新增的列并放进一行旧状态，再退回版本号让本步升级执行
+    initSchema(db);
+    db.prepare("INSERT INTO sessions (id, mode, created_at, updated_at) VALUES ('s1', 'chat', 1, 1)").run();
+    db.exec('ALTER TABLE context_state DROP COLUMN no_write_streak');
+    db.prepare("INSERT INTO context_state (session_id, updated_at) VALUES ('s1', 1)").run();
+    db.pragma('user_version = 6');
+    initSchema(db);
+
+    assert.equal(db.pragma('user_version', { simple: true }), 7);
+    assert.equal(db.prepare("SELECT no_write_streak FROM context_state WHERE session_id = 's1'").get().no_write_streak, 0);
   } finally {
     db.close();
   }

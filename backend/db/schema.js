@@ -255,6 +255,7 @@ CREATE TABLE IF NOT EXISTS context_state (
   last_outcome        TEXT,                        -- compressed / declined / stale / failed / restored
   last_error          TEXT,
   last_run_round      INTEGER,
+  no_write_streak     INTEGER NOT NULL DEFAULT 0,  -- 连续没有写入块的次数（declined / failed / stale）；成功写入后清零
   updated_at          INTEGER NOT NULL
 );
 
@@ -542,6 +543,8 @@ const MIGRATIONS = [
   (db) => addColumn(db, 'worlds', 'sampling_json', "TEXT NOT NULL DEFAULT '{}'"),
   // 剧情摘要改为可逆的分级压缩块：最新一轮的旧剧情摘要转成一级块，随后删去 turn_records 的两列。
   migrateMiddleSummaryToContextBlocks,
+  // 维护模型连续没有写入的次数，压缩重试的增长步长与冷却轮数据此指数退避；重启后保留。
+  (db) => addColumn(db, 'context_state', 'no_write_streak', 'INTEGER NOT NULL DEFAULT 0'),
 ];
 
 export function initSchema(db) {
