@@ -211,7 +211,7 @@ async function pushLongTermRecall(sessionId, mode, recallScope, tv, turnContextP
 
 /**
  * 消息给模型看的正文（msg 须是 allMessages 里的同一对象）。选项功能开启时 assistant 末尾接回当轮选项：
- * 每轮都以选项收尾，模型才会稳定在本轮末尾输出选项。玩家已回应的那轮，每条选项标上已选或未选，
+ * 历史选项用独立标签，避免模型把它当成本轮 <next_prompt> 的输出示例。玩家已回应的那轮标记已选或未选，
  * 玩家自行输入时 4 条都是未选，未选的选项没有发生，不被当成既成剧情。
  */
 function renderHistoryContent(msg, allMessages, { withOptions, worldId, mode }) {
@@ -224,7 +224,7 @@ function renderHistoryContent(msg, allMessages, { withOptions, worldId, mode }) 
     ? msg.next_options
     : msg.next_options.map((option) => `${option === chosen ? '（已选）' : '（未选）'}${option}`);
   const optionsText = applyRules(lines.join('\n'), 'prompt_only', worldId, mode);
-  return `${content}\n\n<next_prompt>\n${optionsText}\n</next_prompt>`;
+  return `${content}\n\n<past_options>\n${optionsText}\n</past_options>`;
 }
 
 /** [12] 历史消息；续写时被续写的那条不接旧选项，它的选项在续写完成后重新生成 */

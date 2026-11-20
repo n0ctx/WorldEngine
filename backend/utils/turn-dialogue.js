@@ -196,7 +196,7 @@ export function classifyNextPromptBoundary(visibleContent) {
   return closeIdx === -1 ? 'truncated' : 'closed';
 }
 
-// 历史里的选项带「（已选）」「（未选）」标注（见 prompts/assembler.js），模型会照着格式抄进新选项
+// 模型偶尔会把 <past_options> 中的「（已选）」「（未选）」标注带进新选项，提取时去掉。
 const OPTION_CHOICE_TAG_RE = /^[（(]\s*[已未]选\s*[)）]\s*/;
 
 /**

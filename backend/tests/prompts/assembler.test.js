@@ -210,10 +210,10 @@ test('buildPrompt 开启选项时历史回复带回当轮选项，并按玩家�
   const { messages } = await buildPrompt(session.id);
   const history = messages.filter((msg) => msg.role !== 'system');
 
-  assert.equal(history[1].content, '公会大厅\n\n<next_prompt>\n（未选）接讨伐任务\n（已选）接探索任务\n</next_prompt>');
+  assert.equal(history[1].content, '公会大厅\n\n<past_options>\n（未选）接讨伐任务\n（已选）接探索任务\n</past_options>');
   assert.equal(history[2].content, '接探索任务');
   // 玩家自行输入：选项全部未选
-  assert.equal(history[3].content, '接待员交代路线\n\n<next_prompt>\n（未选）出北门\n（未选）问编号\n</next_prompt>');
+  assert.equal(history[3].content, '接待员交代路线\n\n<past_options>\n（未选）出北门\n（未选）问编号\n</past_options>');
   assert.match(history.at(-1).content, /^<user_input>\n先去买火把/);
 });
 
@@ -245,7 +245,7 @@ test('buildPrompt 续写时被续写的回复不接旧选项', async () => {
   const { messages } = await buildPrompt(session.id, { continuation: true });
 
   assert.equal(messages.at(-1).content, '杂货铺');
-  assert.match(messages.at(-3).content, /<next_prompt>\n（未选）出北门\n（未选）问编号\n<\/next_prompt>$/);
+  assert.match(messages.at(-3).content, /<past_options>\n（未选）出北门\n（未选）问编号\n<\/past_options>$/);
 });
 
 test('buildPrompt always 条目注入本轮上下文', async () => {
