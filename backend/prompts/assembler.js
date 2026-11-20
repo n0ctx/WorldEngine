@@ -49,6 +49,8 @@ import { matchEntries } from './entry-matcher.js';
 import { renderCharacterState } from '../memory/recall.js';
 import { recallTurns } from '../memory/long-term-recall.js';
 import { loadHistoryBase, recordPromptUsage, visibleHistory } from '../memory/context/assembly.js';
+import { resolveContextLimit } from '../services/model-context-limit.js';
+import { enforcePromptBudget } from '../utils/prompt-budget.js';
 
 import { getOrCreatePersona } from '../services/personas.js';
 import { applyRules } from '../utils/regex-runner.js';
@@ -273,6 +275,18 @@ function pushCurrentUserTurn(messages, uncompressedMessages, postParts, ctx) {
  * [5-11] 本轮上下文加在最后一条 user 消息开头：普通生成时是本轮用户消息，续写时是被续写那轮的 user。
  * 没有任何 user 消息时紧跟 system 单独成条。
  */
+function budgetTurn(messages, { turnContext, cachedContent, maxTokens, contextLimit, mode }) {
+  const base = messages.map((msg) => ({ ...msg, content: Array.isArray(msg.content) ? [...msg.content] : msg.content }));
+  prependTurnContext(messages, turnContext);
+  return enforcePromptBudget(messages, { contextLimit, maxTokens, mode, withoutOptional: () => {
+    if (base[0]?.role === 'system') {
+      if (cachedContent) base[0].content = cachedContent;
+      else base.shift();
+    }
+    return base;
+  } });
+}
+
 function prependTurnContext(messages, turnContext) {
   if (!turnContext) return;
   const target = messages.findLast((msg) => msg.role === 'user');
@@ -412,13 +426,13 @@ export async function buildPrompt(sessionId, options = {}) {
   if (!continuation) {
     pushCurrentUserTurn(messages, uncompressedMessages, postParts, historyCtx);
   }
-  // [5-11] 本轮上下文
-  prependTurnContext(messages, turnContext);
-  recordPromptUsage(sessionId, messages, promptContext);
-
   const temperature = world.temperature ?? config.llm.temperature;
   const baseMaxTokens = world.max_tokens ?? config.llm.max_tokens;
   const maxTokens = resolveMaxTokens(baseMaxTokens, config.suggestion_enabled);
+  const contextLimit = await resolveContextLimit('main');
+  const budget = budgetTurn(messages, { turnContext, cachedContent, contextLimit, maxTokens, mode: 'chat' });
+  messages.splice(0, messages.length, ...budget.messages);
+  recordPromptUsage(sessionId, messages, promptContext);
   // 世界卡只覆盖设置过的采样参数，与全局设置逐项合并见 llm/index.js 的 buildLLMConfig
   const sampling = parseSamplingOverrides(world.sampling_json);
 
@@ -569,13 +583,13 @@ export async function buildWritingPrompt(sessionId, options = {}) {
 
     pushCurrentUserTurn(messages, uncompressedMessages, postParts, historyCtx);
   }
-  // [5-11] 本轮上下文
-  prependTurnContext(messages, turnContext);
-  recordPromptUsage(sessionId, messages, promptContext);
-
   const temperature = world.temperature ?? writing.temperature ?? config.llm.temperature;
   const baseMaxTokens = world.max_tokens ?? writing.max_tokens ?? config.llm.max_tokens;
   const maxTokens = resolveMaxTokens(baseMaxTokens, writing.suggestion_enabled);
+  const contextLimit = await resolveContextLimit('writing');
+  const budget = budgetTurn(messages, { turnContext, cachedContent, contextLimit, maxTokens, mode: 'writing' });
+  messages.splice(0, messages.length, ...budget.messages);
+  recordPromptUsage(sessionId, messages, promptContext);
   const sampling = parseSamplingOverrides(world.sampling_json);
   const model = writing.model || null;
 

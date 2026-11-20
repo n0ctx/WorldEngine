@@ -8,6 +8,7 @@ import { finalizeStreamOutput } from '../shared/stream/finalize-stream-output.js
 import { processStreamOutput, makeSuggestionFallbackCallbacks } from '../../services/chat.js';
 import { updateMessageContent, updateMessageNextOptions } from '../../db/queries/messages.js';
 import { buildContinuationMessages, supportsPrefill } from './continuation-messages.js';
+import { enforcePromptBudget } from '../../utils/prompt-budget.js';
 import { buildTurnContext } from './build-turn-context.js';
 import { makeStreamErrorHandler, resolveContinuationBase } from './turn-helpers.js';
 import { ALL_MESSAGES_LIMIT } from '../../utils/constants.js';
@@ -56,18 +57,24 @@ export async function runTurnContinue({ mode, sessionId, emitSse: rawEmitSse, at
         suggestionText,
         usePrefill,
       });
+      const budget = enforcePromptBudget(continuationMessages, {
+        contextLimit: overrides.contextLimit,
+        maxTokens: overrides.maxTokens,
+        mode: `${mode.id} continuation`,
+      });
+      const finalMessages = budget.messages;
 
       log.info(
         `CONTINUE PROMPT READY  ${formatMeta({
           session: sid,
-          msgs: continuationMessages.length,
+          msgs: finalMessages.length,
           model: overrides.model || '',
           temperature: overrides.temperature,
           maxTokens: overrides.maxTokens,
         })}`
       );
 
-      return { continuationMessages, overrides, usageRef };
+      return { continuationMessages: finalMessages, overrides, usageRef };
     },
 
     createStream: ({ controller, setup }) =>

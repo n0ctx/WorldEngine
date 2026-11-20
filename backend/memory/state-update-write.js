@@ -122,7 +122,7 @@ function writePersonaState(patch, { sessionId, worldId, world, personaActiveFiel
   return dropped.map((field) => ({ target: '玩家', field }));
 }
 
-export async function writeStatePatch(patch, { sid, sessionId, worldId, world, targets, valueMaps, round, turnText, realDate, mainCharacterEntityId }) {
+export async function writeStatePatch(patch, { sid, sessionId, worldId, world, targets, valueMaps, round, turnText, evidenceMessageIds, realDate, mainCharacterEntityId }) {
   const { worldActiveFields, charSchemaFields, charactersWithFields, personaActiveFields } = targets;
   const { worldValueMap, charValueMaps, personaValueMap } = valueMaps;
 
@@ -144,7 +144,7 @@ export async function writeStatePatch(patch, { sid, sessionId, worldId, world, t
 
     // ── 状态记忆：实体档案/动态状态/关系/事项（memory）+ 在场名单（present）+ NPC 用户字段补丁（entity_fields） ──
     const memoryResult = applyStateMemoryOps({
-      sessionId, worldId, round, ops: patch.memory, turnText, realDate, mainCharacterEntityId,
+      sessionId, worldId, round, ops: patch.memory, turnText, evidenceMessageIds, realDate, mainCharacterEntityId,
     });
     const presenceResult = applyPresence({
       sessionId, round, present: patch.present, createdCharacterIds: memoryResult.createdCharacterIds,

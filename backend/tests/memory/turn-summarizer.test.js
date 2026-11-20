@@ -110,7 +110,7 @@ test('createTurnRecord：只建行与状态快照，不调用模型（剧情压�
   const records = getAllTurnRecordsBySessionId(session.id);
   assert.deepEqual(records.map((record) => record.round_index), [3]);
   assert.equal(records[0].summary, '');
-  assert.ok(!('middle_summary' in records[0]));
+  assert.equal(records[0].middle_summary, null, 'legacy 回滚列保持空值，不由每轮 turn-record 写入');
   assert.equal(sandbox.db.prepare('SELECT COUNT(*) AS n FROM context_blocks').get().n, 0);
 });
 

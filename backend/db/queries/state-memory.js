@@ -87,7 +87,8 @@ export function replaceThreadRows(sessionId, threads, round) {
   `).run(round, sessionId, ...ids);
   const columns = [
     'row_id', 'thread_id', 'session_id', 'seq', 'kind', 'participants_json', 'content',
-    'status', 'opened_round', 'last_touched_round', 'deadline', 'valid_from_round', 'valid_to_round',
+    'status', 'opened_round', 'last_touched_round', 'deadline', 'evidence_message_id',
+    'evidence_content_hash', 'evidence_start', 'evidence_end', 'evidence_quote', 'valid_from_round', 'valid_to_round',
   ];
   const rowPlaceholder = `(${columns.map(() => '?').join(', ')})`;
   db.prepare(`
@@ -95,7 +96,9 @@ export function replaceThreadRows(sessionId, threads, round) {
   `).run(...threads.flatMap((thread) => [
     crypto.randomUUID(), thread.thread_id, sessionId, thread.seq, thread.kind,
     thread.participants_json, thread.content, thread.status, thread.opened_round,
-    thread.last_touched_round ?? thread.opened_round, thread.deadline ?? null, round, null,
+    thread.last_touched_round ?? thread.opened_round, thread.deadline ?? null,
+    thread.evidence_message_id ?? null, thread.evidence_content_hash ?? null,
+    thread.evidence_start ?? null, thread.evidence_end ?? null, thread.evidence_quote ?? null, round, null,
   ]));
 }
 
@@ -205,7 +208,7 @@ export function closeRelation(sessionId, relationId, round) {
 export function upsertThread(sessionId, thread, round) {
   return closeAndInsertRow(
     'state_threads',
-    ['thread_id', 'session_id', 'seq', 'kind', 'participants_json', 'content', 'status', 'opened_round', 'last_touched_round', 'deadline'],
+    ['thread_id', 'session_id', 'seq', 'kind', 'participants_json', 'content', 'status', 'opened_round', 'last_touched_round', 'deadline', 'evidence_message_id', 'evidence_content_hash', 'evidence_start', 'evidence_end', 'evidence_quote'],
     ['session_id', 'thread_id'],
     {
       thread_id: thread.threadId,
@@ -218,6 +221,11 @@ export function upsertThread(sessionId, thread, round) {
       opened_round: thread.openedRound,
       last_touched_round: thread.lastTouchedRound ?? thread.openedRound,
       deadline: thread.deadline ?? null,
+      evidence_message_id: thread.evidenceMessageId ?? null,
+      evidence_content_hash: thread.evidenceContentHash ?? null,
+      evidence_start: thread.evidenceStart ?? null,
+      evidence_end: thread.evidenceEnd ?? null,
+      evidence_quote: thread.evidenceQuote ?? null,
     },
     round,
   );
@@ -356,6 +364,51 @@ export function listActiveThreads(sessionId, entityIds) {
 /** 当前有效的全部事项（含已结束）。 */
 export function listThreads(sessionId) {
   return currentThreadsByStatus(sessionId, null);
+}
+
+/** 仅接受同会话、调用方明确允许的消息及其唯一原文引句；哈希与字符区间共同绑定内容版本。 */
+export function resolveThreadEvidence(sessionId, messageId, quote, allowedMessageIds) {
+  if (typeof messageId !== 'string' || typeof quote !== 'string' || !quote.trim()) return null;
+  if (!allowedMessageIds?.includes(messageId)) return null;
+  const message = db.prepare('SELECT content FROM messages WHERE id = ? AND session_id = ?').get(messageId, sessionId);
+  if (!message || typeof message.content !== 'string') return null;
+  const normalizedQuote = quote.trim();
+  const start = message.content.indexOf(normalizedQuote);
+  if (start < 0 || message.content.indexOf(normalizedQuote, start + 1) >= 0) return null;
+  return {
+    evidenceMessageId: messageId,
+    evidenceContentHash: crypto.createHash('sha256').update(message.content).digest('hex'),
+    evidenceStart: start,
+    evidenceEnd: start + normalizedQuote.length,
+    evidenceQuote: normalizedQuote,
+  };
+}
+
+/** 批量核验事项来源，查询次数不随事项数增长；编辑或删除来源消息后返回 false。 */
+export function getCurrentThreadEvidenceStatus(sessionId, threads) {
+  const citedThreads = threads.filter((thread) => thread.evidence_message_id && thread.evidence_content_hash);
+  const messageIds = [...new Set(citedThreads.map((thread) => thread.evidence_message_id))];
+  const status = new Map();
+  if (!messageIds.length) return status;
+  const placeholders = messageIds.map(() => '?').join(', ');
+  const messages = db.prepare(`SELECT id, content FROM messages WHERE session_id = ? AND id IN (${placeholders})`)
+    .all(sessionId, ...messageIds);
+  const contentById = new Map(messages.map((message) => [message.id, message.content]));
+  for (const thread of citedThreads) {
+    const content = contentById.get(thread.evidence_message_id);
+    if (typeof content !== 'string') continue;
+    const hash = crypto.createHash('sha256').update(content).digest('hex');
+    if (hash === thread.evidence_content_hash
+      && content.slice(thread.evidence_start, thread.evidence_end) === thread.evidence_quote) {
+      status.set(thread.thread_id, true);
+    }
+  }
+  return status;
+}
+
+/** 单条事项的来源有效性，供非批量调用与测试使用。 */
+export function isThreadEvidenceCurrent(sessionId, thread) {
+  return getCurrentThreadEvidenceStatus(sessionId, [thread]).get(thread.thread_id) === true;
 }
 
 /** 当前世界档案（时间、地点）。 */

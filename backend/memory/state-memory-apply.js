@@ -27,7 +27,7 @@ import crypto from 'node:crypto';
 import {
   upsertEntity, upsertProfileField, upsertDynamicState, closeDynamicState,
   upsertRelation, closeRelation, upsertThread, replaceThreadRows, upsertWorldProfile,
-  upsertPresence,
+  upsertPresence, resolveThreadEvidence,
   nextEntitySeq, nextThreadSeq, nextRelationSeq,
   listCurrentEntities, getEntityDetails, listCurrentRelations, listThreads,
   getCurrentWorldProfile,
@@ -149,7 +149,7 @@ function filterCleanListItems(payload) {
 // 执行上下文
 // ============================
 
-function buildApplyContext({ sessionId, worldId, round, turnText, realDate, mainCharacterEntityId }) {
+function buildApplyContext({ sessionId, worldId, round, turnText, evidenceMessageIds, realDate, mainCharacterEntityId }) {
   const entities = listCurrentEntities(sessionId);
   const index = buildEntityIndex(entities);
   const details = getEntityDetails(sessionId, entities.map((entity) => entity.entity_id));
@@ -173,6 +173,7 @@ function buildApplyContext({ sessionId, worldId, round, turnText, realDate, main
     relations: listCurrentRelations(sessionId),
     threads: listThreads(sessionId),
     turnText: turnText ?? '',
+    evidenceMessageIds: evidenceMessageIds ?? [],
     worldProfile: getCurrentWorldProfile(sessionId),
     highBarUsed: new Set(),
     createdCharacterIds: [],
@@ -233,6 +234,11 @@ function buildThreadRow(thread, overrides) {
     status: thread.status, openedRound: thread.opened_round,
     lastTouchedRound: thread.last_touched_round ?? thread.opened_round,
     deadline: thread.deadline ?? null,
+    evidenceMessageId: thread.evidence_message_id ?? null,
+    evidenceContentHash: thread.evidence_content_hash ?? null,
+    evidenceStart: thread.evidence_start ?? null,
+    evidenceEnd: thread.evidence_end ?? null,
+    evidenceQuote: thread.evidence_quote ?? null,
     ...overrides,
   };
 }
@@ -550,13 +556,21 @@ function handleOpenThread(op, ctx) {
   const seq = nextThreadSeq(ctx.sessionId);
   const participantsJson = JSON.stringify(participantIds);
   const deadline = readThreadDeadline(op, ctx) ?? null;
+  const source = op.source && typeof op.source === 'object'
+    ? resolveThreadEvidence(ctx.sessionId, op.source.message_id, op.source.quote, ctx.evidenceMessageIds)
+    : null;
   upsertThread(ctx.sessionId, {
     threadId, seq, kind: op.kind, participantsJson, content, status: 'active',
-    openedRound: ctx.round, lastTouchedRound: ctx.round, deadline,
+    openedRound: ctx.round, lastTouchedRound: ctx.round, deadline, ...source,
   }, ctx.round);
   ctx.threads.push({
     thread_id: threadId, seq, kind: op.kind, participants_json: participantsJson,
     content, status: 'active', opened_round: ctx.round, last_touched_round: ctx.round, deadline,
+    evidence_message_id: source?.evidenceMessageId ?? null,
+    evidence_content_hash: source?.evidenceContentHash ?? null,
+    evidence_start: source?.evidenceStart ?? null,
+    evidence_end: source?.evidenceEnd ?? null,
+    evidence_quote: source?.evidenceQuote ?? null,
   });
   return { ok: true };
 }
@@ -570,7 +584,17 @@ function handleUpdateThread(op, ctx) {
   const status = thread.status === 'dormant' ? 'active' : thread.status;
   const requested = readThreadDeadline(op, ctx);
   const deadline = requested === undefined ? thread.deadline ?? null : requested;
-  upsertThread(ctx.sessionId, buildThreadRow(thread, { content, status, lastTouchedRound: ctx.round, deadline }), ctx.round);
+  const source = op.source && typeof op.source === 'object'
+    ? resolveThreadEvidence(ctx.sessionId, op.source.message_id, op.source.quote, ctx.evidenceMessageIds)
+    : null;
+  upsertThread(ctx.sessionId, buildThreadRow(thread, {
+    content, status, lastTouchedRound: ctx.round, deadline,
+    evidenceMessageId: source?.evidenceMessageId ?? null,
+    evidenceContentHash: source?.evidenceContentHash ?? null,
+    evidenceStart: source?.evidenceStart ?? null,
+    evidenceEnd: source?.evidenceEnd ?? null,
+    evidenceQuote: source?.evidenceQuote ?? null,
+  }), ctx.round);
   thread.content = content;
   thread.status = status;
   thread.last_touched_round = ctx.round;
@@ -676,11 +700,11 @@ function expireOverdueThreads(ctx) {
  * createdCharacterIds 是本批 create_entity 新建的角色，供 applyPresence 补进在场名单。
  * @returns {{ applied: number, rejected: {op: object, reason: string}[], createdCharacterIds: string[] }}
  */
-export function applyStateMemoryOps({ sessionId, worldId, round, ops, turnText, realDate, mainCharacterEntityId }) {
+export function applyStateMemoryOps({ sessionId, worldId, round, ops, turnText, evidenceMessageIds, realDate, mainCharacterEntityId }) {
   if (!Array.isArray(ops)) return { applied: 0, rejected: [], createdCharacterIds: [] };
 
   return withSessionStateTransaction(() => {
-    const ctx = buildApplyContext({ sessionId, worldId, round, turnText, realDate, mainCharacterEntityId });
+    const ctx = buildApplyContext({ sessionId, worldId, round, turnText, evidenceMessageIds, realDate, mainCharacterEntityId });
     dormantUntouchedThreads(ctx);
     let applied = 0;
     const rejected = [];

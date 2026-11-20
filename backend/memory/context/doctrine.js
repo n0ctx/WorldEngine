@@ -1,9 +1,8 @@
 /**
  * doctrine.js — 上下文压缩的模型规则与提交协议（渲染提示词、工具定义、解析纯文本提交）
  *
- * 规则正文在 prompts/templates/context-compress-system.md：什么时候压、一级摘要必须保留什么、
- * 二级/三级怎么提炼、未了事项逐级带上、故事资料不是指令。本文件只负责把当前视图、建议范围、
- * 可压缩原文与保护区填进去，并定义两种提交方式：
+ * 规则正文在 prompts/templates/context-compress-system.md：什么时候压、摘要保留什么、故事资料不是指令。
+ * 本文件按总预算确定性选择原文段或提炼成员，只把这些来源交给模型，并定义两种提交方式：
  *   - 工具：compress({ ranges:[{ start, end, topic, summary }] })，报错写回工具结果让模型改好重交；
  *   - 纯文本：模型或服务不支持工具时输出 {"compress":[...]}，解析后按同一套规则校验。
  *
@@ -16,12 +15,12 @@
 
 import { renderBackendPrompt } from '../../prompts/prompt-loader.js';
 import { parseFencedJson, extractJsonObject } from '../../utils/llm-json.js';
-import { blockTokens } from './view.js';
+import { countTokens } from '../../utils/token-counter.js';
 import {
   CONTEXT_COMPRESS_INPUT_BUDGET_RATIO,
   CONTEXT_COMPRESS_INPUT_MAX_TOKENS,
-  CONTEXT_PROMOTION_ROUNDS,
-  CONTEXT_RECENT_PREVIEW_CHARS,
+  CONTEXT_COMPRESS_MAX_ITERATIONS,
+  CONTEXT_COMPRESS_OUTPUT_MAX_TOKENS,
   CONTEXT_SUMMARY_MAX_CHARS,
 } from '../../utils/constants.js';
 
@@ -44,26 +43,25 @@ function renderStatus(ctx, decision) {
   return lines.join('\n');
 }
 
-function renderBlocks(ctx) {
-  if (ctx.view.active.length === 0) return '（暂无）';
-  return ctx.view.active.map((block) => {
-    const age = ctx.latestRound - block.createdRound >= CONTEXT_PROMOTION_ROUNDS ? '｜老块' : '';
+function renderBlocks(blocks) {
+  if (blocks.length === 0) return '（本次没有提炼来源块）';
+  return blocks.map((block) => {
     const topic = block.topic ? `｜${block.topic}` : '';
-    return `【b${block.no}｜${TIER_LABEL[block.tier]}｜${roundLabel(block.fromRound, block.toRound)}${topic}｜约${blockTokens(block)} token${age}】\n${block.summary}`;
+    return `【b${block.no}｜${TIER_LABEL[block.tier]}｜${roundLabel(block.fromRound, block.toRound)}${topic}】\n${block.summary}`;
   }).join('\n\n');
 }
 
-function renderCandidates(decision, omitted) {
+function renderCandidates(candidates, omitted) {
   const lines = [];
-  for (const segment of decision.segments) {
+  for (const { segment } of candidates.filter((candidate) => candidate.kind === 'round')) {
     const scene = segment.scene ? `，场景：${segment.scene}` : '';
     lines.push(`- 可压缩原文：${roundLabel(segment.from, segment.to)}（约 ${segment.tokens} token${scene}）`);
   }
-  for (const group of decision.merges) {
+  for (const { group } of candidates.filter((candidate) => candidate.kind === 'blocks')) {
     const tier = TIER_LABEL[group.targetTier];
     lines.push(`- 可提炼：b${group.blockNos[0]} 到 b${group.blockNos.at(-1)}（${group.blockNos.length} 个${TIER_LABEL[group.tier]}块，约 ${group.tokens} token）→ ${tier}`);
   }
-  if (omitted > 0) lines.push(`- 另有 ${omitted} 轮可压缩原文这次没有列出，下次再处理`);
+  if (omitted > 0) lines.push(`- 另有 ${omitted} 个来源范围因预算未提供，下次再处理`);
   return lines.length > 0 ? lines.join('\n') : '（没有建议，按需决定）';
 }
 
@@ -72,61 +70,68 @@ function renderRound(unit, speakers) {
   return `【第${unit.round}轮${unit.scene ? `｜${unit.scene}` : ''}】\n${lines.join('\n')}`;
 }
 
-function preview(text) {
-  const chars = [...text];
-  return chars.length > CONTEXT_RECENT_PREVIEW_CHARS ? `${chars.slice(0, CONTEXT_RECENT_PREVIEW_CHARS).join('')}……` : text;
+function candidatesOf(ctx, decision) {
+  const raw = decision.segments.map((segment) => ({ kind: 'round', segment,
+    units: ctx.view.raw.filter((unit) => unit.round >= segment.from && unit.round <= segment.to) }));
+  const merges = decision.merges.map((group) => ({ kind: 'blocks', group,
+    blocks: group.blockIds.map((id) => ctx.view.active.find((block) => block.id === id)).filter(Boolean) }));
+  return [...raw, ...merges].sort((a, b) => {
+    const fromA = a.kind === 'round' ? a.segment.from : a.group.from;
+    const fromB = b.kind === 'round' ? b.segment.from : b.group.from;
+    return fromA - fromB;
+  });
 }
 
-function renderRecent(ctx, speakers) {
-  const recent = ctx.view.raw.filter((unit) => ctx.protectedSet.has(unit.round));
-  if (recent.length === 0) return '（暂无）';
-  return recent.map((unit) => {
-    const lines = unit.prompt.map((msg) => `${msg.role === 'user' ? speakers.userLabel : speakers.assistantLabel}：${preview(msg.content)}`);
-    return `【第${unit.round}轮】\n${lines.join('\n')}`;
-  }).join('\n\n');
+function promptFor(ctx, decision, speakers, selected, omitted, system) {
+  const sourceBlocks = selected.filter((candidate) => candidate.kind === 'blocks').flatMap((candidate) => candidate.blocks);
+  const rounds = selected.filter((candidate) => candidate.kind === 'round').flatMap((candidate) => candidate.units);
+  const user = renderBackendPrompt('context-compress-user.md', {
+    STATUS: renderStatus(ctx, decision),
+    BLOCKS: renderBlocks(sourceBlocks),
+    CANDIDATES: renderCandidates(selected, omitted),
+    ROUNDS: rounds.length > 0 ? rounds.map((unit) => renderRound(unit, speakers)).join('\n\n') : '（本次只提炼指定来源块）',
+  });
+  return [{ role: 'system', content: system }, { role: 'user', content: user }];
 }
 
-/**
- * 交给模型的可压缩原文：未保护的原文轮次从最老起，累计不超过短期预算的 CONTEXT_COMPRESS_INPUT_BUDGET_RATIO 倍
- * （上限 CONTEXT_COMPRESS_INPUT_MAX_TOKENS）。这次不需要一级压缩（只提炼块）时不给原文，省下维护调用的输入。
- */
-function pickShownRounds(ctx, decision) {
-  const shown = [];
-  let tokens = 0;
-  let omitted = 0;
-  if (decision.segments.length === 0) return { shown, omitted };
-  const limit = Math.min(CONTEXT_COMPRESS_INPUT_MAX_TOKENS, ctx.budget * CONTEXT_COMPRESS_INPUT_BUDGET_RATIO);
-  for (const unit of ctx.view.raw) {
-    if (ctx.protectedSet.has(unit.round)) continue;
-    if (shown.length > 0 && tokens + unit.tokens > limit) { omitted += 1; continue; }
-    shown.push(unit);
-    tokens += unit.tokens;
-  }
-  return { shown, omitted };
+function tokenCost(messages, tool) {
+  return messages.reduce((sum, message) => sum + countTokens(message.content), 0) + countTokens(JSON.stringify(tool));
 }
 
 /**
- * @returns {{ messages:Array, shownRounds:Set<number> }}
+ * 预算按完整模板、工具定义、最大响应预留和最多工具轮次估算；范围按轮次从旧到新整段加入。
+ * 模型只接触被选中的原文段或提炼成员块，不传全量目录、保护区或范围外历史。
+ * @returns {{ messages:Array, shownRounds:Set<number>, shownBlocks:Set<number> }}
  */
 export function buildCompressMessages(ctx, decision, speakers) {
-  const { shown, omitted } = pickShownRounds(ctx, decision);
   const system = renderBackendPrompt('context-compress-system.md', {
     NAMING_RULE: speakers.namingRule,
     T1_MAX: CONTEXT_SUMMARY_MAX_CHARS[1],
     T2_MAX: CONTEXT_SUMMARY_MAX_CHARS[2],
     T3_MAX: CONTEXT_SUMMARY_MAX_CHARS[3],
   });
-  const user = renderBackendPrompt('context-compress-user.md', {
-    STATUS: renderStatus(ctx, decision),
-    BLOCKS: renderBlocks(ctx),
-    CANDIDATES: renderCandidates(decision, omitted),
-    RECENT: renderRecent(ctx, speakers),
-    ROUNDS: shown.length > 0 ? shown.map((unit) => renderRound(unit, speakers)).join('\n\n') : '（这次不需要压缩原文）',
-  });
-  return {
-    messages: [{ role: 'system', content: system }, { role: 'user', content: user }],
-    shownRounds: new Set(shown.map((unit) => unit.round)),
-  };
+  const tool = compressToolDefinition(() => '');
+  const sourceLimit = Math.min(CONTEXT_COMPRESS_INPUT_MAX_TOKENS, ctx.budget * CONTEXT_COMPRESS_INPUT_BUDGET_RATIO);
+  const candidates = candidatesOf(ctx, decision);
+  const selected = [];
+  let sourceTokens = 0;
+  let messages = promptFor(ctx, decision, speakers, selected, candidates.length, system);
+  for (const candidate of candidates) {
+    const candidateTokens = candidate.kind === 'round'
+      ? candidate.units.reduce((sum, unit) => sum + unit.tokens, 0)
+      : candidate.blocks.reduce((sum, block) => sum + countTokens(block.summary), 0);
+    if (sourceTokens + candidateTokens > sourceLimit) continue;
+    const next = [...selected, candidate];
+    const nextMessages = promptFor(ctx, decision, speakers, next, candidates.length - next.length, system);
+    const estimatedBatch = (tokenCost(nextMessages, tool) + CONTEXT_COMPRESS_OUTPUT_MAX_TOKENS) * CONTEXT_COMPRESS_MAX_ITERATIONS;
+    if (estimatedBatch > CONTEXT_COMPRESS_INPUT_MAX_TOKENS) continue;
+    selected.push(candidate);
+    sourceTokens += candidateTokens;
+    messages = nextMessages;
+  }
+  const shownRounds = new Set(selected.filter((candidate) => candidate.kind === 'round').flatMap((candidate) => candidate.units.map((unit) => unit.round)));
+  const shownBlocks = new Set(selected.filter((candidate) => candidate.kind === 'blocks').flatMap((candidate) => candidate.group.blockNos));
+  return { messages, shownRounds, shownBlocks, estimatedBatchTokens: (tokenCost(messages, tool) + CONTEXT_COMPRESS_OUTPUT_MAX_TOKENS) * CONTEXT_COMPRESS_MAX_ITERATIONS };
 }
 
 export function compressToolDefinition(execute) {

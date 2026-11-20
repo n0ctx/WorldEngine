@@ -13,6 +13,7 @@
  */
 import { buildPrompt, buildWritingPrompt } from '../../prompts/assembler.js';
 import { getConfig } from '../../services/config.js';
+import { resolveContextLimit } from '../../services/model-context-limit.js';
 import { logPrompt } from '../../utils/logger.js';
 
 const BUILDERS = {
@@ -37,11 +38,12 @@ export async function buildTurnContext(modeId, sessionId, options = {}) {
     turnContext,
   } = await build(sessionId, options);
 
+  const contextLimit = await resolveContextLimit(modeId === 'writing' ? 'writing' : 'main');
   if (getConfig().log_prompt) logPrompt(sessionId, messages);
 
   return {
     messages,
-    overrides: { temperature, maxTokens, sampling, model, cacheableSystem },
+    overrides: { temperature, maxTokens, sampling, model, cacheableSystem, contextLimit },
     turnContext: turnContext ?? '',
     recallHitCount: recallHitCount ?? 0,
     suggestionText: suggestionText ?? null,

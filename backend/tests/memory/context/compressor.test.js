@@ -45,6 +45,26 @@ function stateOf(sessionId) {
   return sandbox.db.prepare('SELECT * FROM context_state WHERE session_id = ?').get(sessionId);
 }
 
+test('维护提示按确定性预算选择来源，且不包含范围外块、保护区或周边历史', async () => {
+  const session = seedSession(10);
+  const { loadSessionContext } = await freshImport('backend/memory/context/session-context.js');
+  const { decideCompression } = await freshImport('backend/memory/context/policy.js');
+  const { buildCompressMessages } = await freshImport('backend/memory/context/doctrine.js');
+  const ctx = loadSessionContext(session.id);
+  const decision = decideCompression({ units: ctx.units, view: ctx.view, protectedSet: ctx.protectedSet, state: ctx.state, budget: ctx.budget });
+  const speakers = { userLabel: '玩家', assistantLabel: '角色', namingRule: '使用原名' };
+  const first = buildCompressMessages(ctx, decision, speakers);
+  const second = buildCompressMessages(ctx, decision, speakers);
+  assert.deepEqual(first, second, '相同视图应得到完全一致的范围选择与提示词');
+  assert.ok(first.estimatedBatchTokens <= 24000);
+  assert.ok(first.shownRounds.size > 0);
+  assert.ok([...first.shownRounds].every((round) => !ctx.protectedSet.has(round)));
+  const prompt = first.messages[1].content;
+  assert.doesNotMatch(prompt, /眼下的剧情|RECENT/);
+  assert.doesNotMatch(prompt, /第10轮：剧/);
+  for (const round of first.shownRounds) assert.match(prompt, new RegExp(`第${round}轮`));
+});
+
 test('原文没超过短期预算时只做门槛判断，不调用模型', async () => {
   process.env.MOCK_LLM_COMPLETE_ERROR = '不应调用模型';
   const session = seedSession(2);
@@ -210,14 +230,14 @@ test('写入前故事线已被删除时什么都不写，也不报错', async ()
 test('提炼：相邻的老一级块合成二级块，子块指向上级块；删除上级块（恢复原文）时子块重新在用', async () => {
   const session = seedSession(30, { chars: 120 });
   const children = [1, 2, 3].map((i) => insertContextBlock(sandbox.db, session.id, {
-    from_round: i * 4 - 3, to_round: i * 4, created_round: i * 4, summary: `第${i}段：${'要'.repeat(380)}`,
+    from_round: i * 4 - 3, to_round: i * 4, created_round: i * 4, summary: `第${i}段：${'要'.repeat(390)}`,
   }));
   process.env.MOCK_LLM_TOOL_TURNS_QUEUE = JSON.stringify([
     compressCall([{ start: `b${children[0].block_no}`, end: `b${children[2].block_no}`, topic: '前情', summary: SUMMARY }]),
     '完成',
   ]);
   const { maintainContext } = await freshImport('backend/memory/context/compressor.js');
-  assert.equal((await settleMaintenance(maintainContext(session.id))).outcome, 'compressed');
+  assert.equal((await settleMaintenance(maintainContext(session.id))).outcome, 'compressed', stateOf(session.id)?.last_error);
 
   const rows = blocksOf(session.id);
   const parent = rows.find((r) => r.tier === 2);

@@ -35,7 +35,9 @@ function allText(messages) {
 
 function lastUserRound(messages) {
   const lastUser = [...messages].reverse().find((msg) => msg.role === 'user');
-  return Number(textOf(lastUser?.content).match(ROUND_MARK)?.[1]) || null;
+  const text = textOf(lastUser?.content);
+  const input = text.slice(Math.max(0, text.lastIndexOf('<user_input>')));
+  return Number(input.match(ROUND_MARK)?.[1]) || null;
 }
 
 /** [调用类型, 判定]，按顺序取第一个命中的 */
@@ -186,7 +188,13 @@ export function startFakeLlm({ corpus, contextLimit, failKinds = [] }) {
 
   function handleCompletion(res, body) {
     const kind = classify(body);
-    const record = { seq: calls.length, kind, promptTokens: countContextTokens(body.messages, body.tools ?? []), round: null };
+    const record = {
+      seq: calls.length,
+      kind,
+      promptTokens: countContextTokens(body.messages, body.tools ?? []),
+      outputAllowance: Number(body.max_completion_tokens ?? body.max_tokens ?? 0),
+      round: kind === 'main' ? lastUserRound(body.messages) : null,
+    };
     calls.push(record);
     if (failKinds.includes(kind)) {
       record.failed = true;

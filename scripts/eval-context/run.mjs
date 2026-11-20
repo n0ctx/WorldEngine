@@ -5,7 +5,10 @@
  * 用法：
  *   node scripts/eval-context/run.mjs --repo <WorldEngine 检出目录> --out <结果.json>
  *        [--rounds 150] [--budget 2000] [--ctx 32768] [--restart-at 75] [--rollback-to 100] [--seed 7]
- *        [--fail compress,middle]   这些调用类型一律失败（维护模型持续不可用）
+ *        [--fail compress,middle] [--max-output 1024] [--assert-main-window 1] [--cadence rapid] [--local-recall 1]
+ *
+ * --fail 模拟指定调用失败。--cadence rapid 不在轮间特意等待维护任务。
+ * --assert-main-window 1 要求所有剧情请求到达主模型且输入与输出预留未超过窗口。
  *
  * 对给定检出目录启动一个独立的后端（临时数据目录，不碰真实数据），模型指向本目录的 fake-llm.mjs，
  * 用固定种子的虚构语料走完 --rounds 轮对话：中途在 --restart-at 轮后重启后端一次，结束后删掉第
@@ -29,10 +32,10 @@ const CHECKPOINTS = [25, 50, 75, 100, 125, 150];
 const ROLLBACK_PROBE = '（第999轮）林遥停下脚步，回头看了一眼。';
 
 function parseArgs(argv) {
-  const args = { rounds: 150, budget: 2000, ctx: 32768, restartAt: 75, rollbackTo: 100, seed: 7 };
+  const args = { rounds: 150, budget: 2000, ctx: 32768, restartAt: 75, rollbackTo: 100, seed: 7, maxOutput: 1024 };
   for (let i = 0; i < argv.length; i += 2) {
     const key = argv[i].replace(/^--/, '').replace(/-([a-z])/g, (_, c) => c.toUpperCase());
-    args[key] = ['repo', 'out', 'fail'].includes(key) ? argv[i + 1] : Number(argv[i + 1]);
+    args[key] = ['repo', 'out', 'fail', 'cadence'].includes(key) ? argv[i + 1] : Number(argv[i + 1]);
   }
   if (!args.repo || !args.out) throw new Error('需要 --repo 与 --out');
   return args;
@@ -83,7 +86,7 @@ async function api(base, method, url, body) {
   return res.status === 204 ? null : res.json();
 }
 
-/** 发一轮对话，读完 SSE（连接在本轮的后台记忆任务结束后才关闭） */
+/** 发一轮对话，分别测首个正文事件和 SSE 结束。压缩不随 SSE 关闭等待。 */
 async function chat(base, sessionId, content) {
   const started = performance.now();
   const res = await fetch(`${base}/api/sessions/${sessionId}/chat`, {
@@ -93,18 +96,23 @@ async function chat(base, sessionId, content) {
   });
   if (!res.ok) throw new Error(`chat → ${res.status} ${await res.text()}`);
   const events = [];
+  let firstTextMs = null;
   const decoder = new TextDecoder();
   let buffer = '';
   for await (const chunk of res.body) {
     buffer += decoder.decode(chunk, { stream: true });
     for (const line of buffer.split('\n')) {
       if (line.startsWith('data: ')) {
-        try { events.push(JSON.parse(line.slice(6))); } catch { /* 非 JSON 行 */ }
+        try {
+          const event = JSON.parse(line.slice(6));
+          if (firstTextMs === null && typeof event.delta === 'string' && event.delta.length > 0) firstTextMs = performance.now() - started;
+          events.push(event);
+        } catch { /* 非 JSON 行 */ }
       }
     }
     buffer = buffer.slice(buffer.lastIndexOf('\n') + 1);
   }
-  return { ms: performance.now() - started, failures: events.filter((event) => /failed|error/.test(event.type ?? '')) };
+  return { ms: performance.now() - started, firstTextMs, failures: events.filter((event) => /failed|error/.test(event.type ?? '')) };
 }
 
 const factKey = (fact) => fact.text.replace(/^※/, '').replace(/。$/, '');
@@ -135,8 +143,9 @@ function percentile(values, p) {
 
 function writeConfig(dataDir, fakePort, args) {
   fs.writeFileSync(path.join(dataDir, 'config.json'), JSON.stringify({
-    llm: { provider: 'llamacpp', base_url: `http://127.0.0.1:${fakePort}`, model: 'fake-model', max_tokens: 1024 },
+    llm: { provider: 'llamacpp', base_url: `http://127.0.0.1:${fakePort}`, model: 'fake-model', max_tokens: args.maxOutput },
     short_term_token_budget: args.budget,
+    local_recall_enabled: args.localRecall === 1,
     memory_expansion_enabled: true,
     suggestion_enabled: false,
   }, null, 2));
@@ -150,14 +159,15 @@ async function playCorpus(repo, dataDir, port, corpus, fake, args) {
   const session = await api(backend.base, 'POST', `/api/characters/${character.id}/sessions`, {});
   const turns = [];
   for (const entry of corpus.rounds) {
-    const { ms, failures } = await chat(backend.base, session.id, entry.user);
-    await fake.idle();
-    turns.push({ round: entry.round, ms, failures: failures.length });
+    const { ms, firstTextMs, failures } = await chat(backend.base, session.id, entry.user);
+    if (args.cadence !== 'rapid' || entry.round === args.restartAt) await fake.idle();
+    turns.push({ round: entry.round, ms, firstTextMs, failures: failures.length });
     if (entry.round === args.restartAt) {
       await stopBackend(backend);
       backend = await startBackend(repo, dataDir, port);
     }
   }
+  await fake.idle();
   return { backend, session, turns };
 }
 
@@ -189,17 +199,25 @@ function summarizeRun({ repo, args, corpus, calls, turns }) {
   const undone = corpus.facts.filter((fact) => fact.round > args.rollbackTo && !keptKeys.has(factKey(fact)));
   const result = {
     repo,
-    params: { rounds: args.rounds, budget: args.budget, contextLimit: args.ctx, restartAt: args.restartAt, rollbackTo: args.rollbackTo, seed: args.seed, fail: args.fail ?? null },
+    params: { rounds: args.rounds, budget: args.budget, contextLimit: args.ctx, restartAt: args.restartAt, rollbackTo: args.rollbackTo, seed: args.seed, fail: args.fail ?? null, localRecall: args.localRecall === 1 },
     checkpoints: CHECKPOINTS.filter((round) => round <= args.rounds).map((round) => ({
       round,
       promptTokens: mainByRound.get(round)?.promptTokens ?? null,
       ...retention(mainByRound.get(round)?.prompt ?? '', corpus, round),
     })),
-    maxPromptTokens: Math.max(...mainCalls.map((call) => call.promptTokens)),
+    mainTurnsReached: turns.filter(({ round }) => mainByRound.has(round)).length,
+    maxPromptTokens: Math.max(0, ...mainCalls.map((call) => call.promptTokens)),
+    inputTokens: {
+      main: mainCalls.reduce((sum, call) => sum + call.promptTokens, 0),
+      all: calls.reduce((sum, call) => sum + call.promptTokens, 0),
+    },
+    windowViolations: calls.filter((call) => call.promptTokens + call.outputAllowance > args.ctx)
+      .map(({ kind, round, promptTokens, outputAllowance }) => ({ kind, round, promptTokens, outputAllowance })),
     aux: auxStats(calls),
     rollback: {
+      probeReachedMain: !!probe,
       undoneFacts: undone.length,
-      leakedFacts: undone.filter((fact) => probe?.prompt.includes(factKey(fact))).length,
+      leakedFacts: probe ? undone.filter((fact) => probe.prompt.includes(factKey(fact))).length : null,
       probePromptTokens: probe?.promptTokens ?? null,
       factsKeptAfterRollback: retention(probe?.prompt ?? '', corpus, args.rollbackTo + 1),
     },
@@ -207,6 +225,7 @@ function summarizeRun({ repo, args, corpus, calls, turns }) {
       p50: percentile(turns.map((turn) => turn.ms), 0.5),
       p95: percentile(turns.map((turn) => turn.ms), 0.95),
       last20p50: percentile(turns.slice(-20).map((turn) => turn.ms), 0.5),
+      firstTextP95: percentile(turns.map((turn) => turn.firstTextMs).filter((ms) => ms !== null), 0.95),
     },
     turnFailures: turns.reduce((sum, turn) => sum + turn.failures, 0),
     promptTokensByRound: mainCalls.filter((call) => call.round && call.round !== 999).map((call) => [call.round, call.promptTokens]),
@@ -233,6 +252,10 @@ async function main() {
     fs.writeFileSync(args.out.replace(/\.json$/, '.prompts.json'), JSON.stringify(prompts, null, 2));
     const { promptTokensByRound: _byRound, ...brief } = result;
     console.log(JSON.stringify(brief, null, 2));
+    if (args.assertMainWindow && (result.mainTurnsReached !== args.rounds || !result.rollback.probeReachedMain
+      || result.windowViolations.some(({ kind }) => kind === 'main'))) {
+      throw new Error('有剧情请求未到达主模型，或输入和输出预留超过了窗口');
+    }
   } finally {
     await fake.close();
     fs.rmSync(dataDir, { recursive: true, force: true });

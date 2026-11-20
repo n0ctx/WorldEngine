@@ -54,20 +54,17 @@ export function planLegacyBlocks(text, coveredTo) {
 
 /**
  * 旧版剧情摘要（turn_records 最新一行的 middle_summary / middle_covered_to）迁移为一级压缩块。
- * - 只迁移每条故事线最新一行的摘要，即当时实际注入正文的那份；更早轮次行里的历史版本只供回滚，随列一起删除。
+ * - 只迁移每条故事线最新一行的摘要，即当时实际注入正文的那份；更早轮次行里的历史版本原样保留作回滚副本。
  * - 块的建块轮次取它自己的止轮：块的内容只来自覆盖范围内的原文，回退到止轮之后仍然有效；
  *   回退到止轮之前时块作废，这几轮原文回到正文。
- * - 范围超出现存轮次的部分截掉；一轮都不剩的块不建，原文照常在正文里，不丢数据。
- * 最后删去 middle_summary / middle_covered_to 两列，旧路径不再有可读的数据。
+ * - 只有 coveredTo 完整落在现存原文内才迁移；越界摘要的来源不可验证，整份跳过，不把截短来源伪装成完整指纹。
+ * - 保留旧列作为回滚/人工核对副本；迁移不删除旧摘要或历史版本。
  */
 export function migrateMiddleSummaryToContextBlocks(db) {
   const columns = new Set(db.pragma('table_info(turn_records)').map((column) => column.name));
-  db.transaction(() => {
-    if (columns.has('middle_summary') && columns.has('middle_covered_to')) migrateLatestSummaries(db);
-    for (const column of ['middle_summary', 'middle_covered_to']) {
-      if (columns.has(column)) db.exec(`ALTER TABLE turn_records DROP COLUMN ${column}`);
-    }
-  })();
+  if (columns.has('middle_summary') && columns.has('middle_covered_to')) {
+    db.transaction(() => migrateLatestSummaries(db))();
+  }
 }
 
 // guard-allow(perf-shape): 一次性数据迁移，按故事线逐条读消息
@@ -89,6 +86,8 @@ function migrateLatestSummaries(db) {
   const now = Date.now();
   for (const row of latestRows) {
     const rounds = splitRounds(selectMessages.all(row.session_id));
+    // 旧摘要覆盖了缺失的原文，无法为其建立可信来源指纹；保留旧列供回滚/人工恢复。
+    if (!Number.isInteger(row.middle_covered_to) || row.middle_covered_to < 1 || row.middle_covered_to > rounds.length) continue;
     const runId = `legacy-${crypto.randomUUID()}`;
     let blockNo = 1;
     for (const planned of planLegacyBlocks(row.middle_summary, row.middle_covered_to)) {

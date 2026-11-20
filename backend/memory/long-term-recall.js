@@ -14,7 +14,8 @@
  *     → { text:string, hitRounds:number[] }
  */
 
-import { getLastTurnMessages } from '../db/queries/messages.js';
+import { getLastTurnMessages, getMessagesBySessionId } from '../db/queries/messages.js';
+import { buildRoundUnits } from './context/view.js';
 import * as llm from '../llm/index.js';
 import { countTokens } from '../utils/token-counter.js';
 import { getConfig } from '../services/config.js';
@@ -29,9 +30,12 @@ import { resolveAuxScope } from '../utils/aux-scope.js';
 import { parseFencedJson } from '../utils/llm-json.js';
 import { toPromptMessage } from '../utils/turn-dialogue.js';
 import { rankDocuments } from './context/search.js';
+import { queryLocalRecall } from '../db/queries/local-recall.js';
+import { resolveContextLimit } from '../services/model-context-limit.js';
 
 const log = createLogger('long-term-recall');
 const SNIPPET_CHARS = 60;
+const LOCAL_EVIDENCE_BUDGET = 600;
 
 /** 将 cast_json 解析为人物名数组，非法或缺失时返回空数组。 */
 function parseCastNames(castJson) {
@@ -145,6 +149,9 @@ export const __testables = {
   pickKnownRounds,
   buildCandidates,
   renderCatalog,
+  currentUnits,
+  usableSnapshotRounds,
+  selectLocalEvidence,
 };
 
 /**
@@ -157,6 +164,30 @@ export const __testables = {
  * @param {{ sessionId:string, mode:'chat'|'writing', recentMessages?:string,
  *   scope: { units:Array, outOfViewRounds:Set<number>, activeBlocks:Array, indexRows:Array } | null }} options
  */
+function currentUnits(sessionId) {
+  return buildRoundUnits(getMessagesBySessionId(sessionId, null), { toPromptMessage });
+}
+
+function usableSnapshotRounds(scope, liveUnits) {
+  return new Set(scope.units.flatMap((unit, index) => (
+    liveUnits[index]?.digest === unit.digest ? [index + 1] : []
+  )));
+}
+
+function selectLocalEvidence(ranked, scope, validRounds, budget) {
+  const allowed = ranked.filter((hit) => validRounds.has(hit.round) && scope.outOfViewRounds.has(hit.round));
+  const selected = [];
+  let used = 0;
+  for (const hit of allowed) {
+    const evidence = renderRecalledTurns([hit.round], scope.units, budget - used);
+    if (!evidence.hitRounds.length) continue;
+    const tokens = countTokens(evidence.text);
+    selected.push({ round: hit.round, tokens });
+    used += tokens;
+  }
+  return selected.sort((a, b) => a.round - b.round).map(({ round }) => round);
+}
+
 export async function recallTurns({ sessionId, mode, recentMessages, scope }) {
   const empty = { rounds: [], candidateCount: 0, droppedCount: 0 };
   if (!scope || scope.outOfViewRounds.size === 0) return empty;
@@ -166,22 +197,50 @@ export async function recallTurns({ sessionId, mode, recentMessages, scope }) {
   if (recallConfig.memory_expansion_enabled === false) return empty;
 
   const contextText = recentMessages ?? buildRecentMessagesText(sessionId);
-  const candidates = buildCandidates(scope);
-  const indexBudget = recallConfig.long_term_index_budget ?? 20000;
-  const { selected, indexTokens } = selectWithinBudget(candidates, indexBudget, contextText);
-  const droppedCount = candidates.length - selected.length;
+  const liveUnits = currentUnits(sessionId);
+  const validRounds = usableSnapshotRounds(scope, liveUnits);
+  if (recallConfig.local_recall_enabled === true) {
+    const ranked = queryLocalRecall(sessionId, liveUnits, contextText);
+    const rounds = selectLocalEvidence(ranked, scope, validRounds, LOCAL_EVIDENCE_BUDGET);
+    if (config.local_recall_shadow_enabled === true) {
+      const comparison = await recallLegacyTurns({ sessionId, contextText, scope, recallConfig, validRounds });
+      log.info(`LOCAL_SHADOW_COMPARE ${formatMeta({ session: sessionId.slice(0, 8), localRounds: rounds, legacyRounds: comparison.rounds })}`);
+    }
+    const stillValid = usableSnapshotRounds(scope, currentUnits(sessionId));
+    const currentRounds = rounds.filter((round) => stillValid.has(round));
+    return { rounds: currentRounds, candidateCount: scope.outOfViewRounds.size, droppedCount: Math.max(0, scope.outOfViewRounds.size - currentRounds.length) };
+  }
+  return recallLegacyTurns({ sessionId, contextText, scope, recallConfig, validRounds });
+}
+
+async function recallLegacyTurns({ sessionId, contextText, scope, recallConfig, validRounds }) {
+  const candidates = buildCandidates(scope).filter((candidate) => validRounds.has(candidate.round));
+  const auxLimit = await resolveContextLimit(resolveAuxScope(sessionId));
+  const promptBudget = Math.max(0, auxLimit - MEMORY_EXPAND_DECISION_MAX_TOKENS - 512);
+  const indexBudget = Math.min(recallConfig.long_term_index_budget ?? 20000, promptBudget);
+  let { selected, indexTokens } = selectWithinBudget(candidates, indexBudget, contextText);
+  let droppedCount = candidates.length - selected.length;
   if (selected.length === 0) {
     log.warn(`索引超预算，本轮无可用候选  ${formatMeta({ session: sessionId.slice(0, 8), candidates: candidates.length, budget: indexBudget })}`);
     return { rounds: [], candidateCount: candidates.length, droppedCount };
   }
 
-  const systemContent = renderBackendPrompt('memory-recall-system.md', {
+  let systemContent = renderBackendPrompt('memory-recall-system.md', {
     INDEX_LINES: renderCatalog(selected, scope.activeBlocks),
   });
   const messages = [
     { role: 'system', content: systemContent },
     { role: 'user', content: renderBackendPrompt('memory-recall-user.md', { CONTEXT_TEXT: contextText }) },
   ];
+  const inputBudget = Math.max(0, auxLimit - MEMORY_EXPAND_DECISION_MAX_TOKENS - 512);
+  while (selected.length && messages.reduce((sum, message) => sum + countTokens(message.content), 0) > inputBudget) {
+    selected = selected.slice(0, -1);
+    indexTokens = selected.reduce((sum, candidate) => sum + candidate.tokens, 0);
+    if (!selected.length) return { rounds: [], candidateCount: candidates.length, droppedCount: candidates.length };
+    systemContent = renderBackendPrompt('memory-recall-system.md', { INDEX_LINES: renderCatalog(selected, scope.activeBlocks) });
+    messages[0].content = systemContent;
+  }
+  droppedCount = candidates.length - selected.length;
 
   const t0 = Date.now();
   let rounds;
@@ -201,6 +260,8 @@ export async function recallTurns({ sessionId, mode, recentMessages, scope }) {
     return { rounds: [], candidateCount: candidates.length, droppedCount };
   }
 
+  const stillValid = usableSnapshotRounds(scope, currentUnits(sessionId));
+  rounds = rounds.filter((round) => stillValid.has(round));
   log.info(`DONE  ${formatMeta({
     session: sessionId.slice(0, 8),
     candidates: candidates.length,

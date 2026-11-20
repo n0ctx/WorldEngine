@@ -541,10 +541,18 @@ const MIGRATIONS = [
   (db) => addColumn(db, 'assistant_tasks', 'context_usage_json', 'TEXT'),
   // 世界卡的采样参数覆盖：只存设置过的项，其余沿用全局设置。
   (db) => addColumn(db, 'worlds', 'sampling_json', "TEXT NOT NULL DEFAULT '{}'"),
-  // 剧情摘要改为可逆的分级压缩块：最新一轮的旧剧情摘要转成一级块，随后删去 turn_records 的两列。
+  // 旧剧情摘要可验证时转成一级块；保留 legacy 列作为回滚与人工恢复副本。
   migrateMiddleSummaryToContextBlocks,
   // 维护模型连续没有写入的次数，压缩重试的增长步长与冷却轮数据此指数退避；重启后保留。
   (db) => addColumn(db, 'context_state', 'no_write_streak', 'INTEGER NOT NULL DEFAULT 0'),
+  // 未了事项的可选原文依据；仅新增字段，旧行与手动写入保持未核验状态。
+  (db) => {
+    addColumn(db, 'state_threads', 'evidence_message_id', 'TEXT');
+    addColumn(db, 'state_threads', 'evidence_content_hash', 'TEXT');
+    addColumn(db, 'state_threads', 'evidence_start', 'INTEGER');
+    addColumn(db, 'state_threads', 'evidence_end', 'INTEGER');
+    addColumn(db, 'state_threads', 'evidence_quote', 'TEXT');
+  },
 ];
 
 export function initSchema(db) {
@@ -709,7 +717,7 @@ function migrateTurnRecordsAndDiary(db) {
   //   user_message_id / asst_message_id — 指针模式，替代已移除的复制内容字段
   //   state_snapshot — 该轮结束时的三层状态，用于 regenerate/删除/编辑后的状态回滚
   //   scene / cast_json — 摘要锚点：场景与在场角色，只用于召回时定位
-  //   middle_summary / middle_covered_to — 旧版滚动摘要；后续迁移 migrateMiddleSummaryToContextBlocks 转成压缩块后删除
+  //   middle_summary / middle_covered_to — 旧版滚动摘要；迁移为压缩块后保留为回滚副本
   for (const [name, type] of [
     ['user_message_id', 'TEXT'],
     ['asst_message_id', 'TEXT'],

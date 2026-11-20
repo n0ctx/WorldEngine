@@ -86,9 +86,10 @@ export const CONTEXT_COMPRESS_MAX_ITERATIONS = 3;
 /** 一次压缩调用最多交给模型的可压缩原文 token：短期预算的 CONTEXT_COMPRESS_INPUT_BUDGET_RATIO 倍，且不超过
  * CONTEXT_COMPRESS_INPUT_MAX_TOKENS；更晚的可压原文留到下一次（积压时不等增长，接着压） */
 export const CONTEXT_COMPRESS_INPUT_BUDGET_RATIO = 2;
+/** 一次维护批次 token 硬预算：输入、模板、工具定义和响应预留合计 */
 export const CONTEXT_COMPRESS_INPUT_MAX_TOKENS = 24000;
-/** 压缩提示里每条近期保护原文的最大字数（只供判断剧情走向，不在压缩范围内） */
-export const CONTEXT_RECENT_PREVIEW_CHARS = 400;
+/** 每个模型响应的 token 预留，合计随工具轮次计入批次预算 */
+export const CONTEXT_COMPRESS_OUTPUT_MAX_TOKENS = 1200;
 /** 长期记忆索引条目单条最大 token 数 */
 export const LONG_TERM_INDEX_MAX_TOKENS = 100;
 /** 每次回填长期记忆索引的 turn record 条数上限 */

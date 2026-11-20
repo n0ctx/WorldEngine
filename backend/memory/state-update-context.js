@@ -289,7 +289,11 @@ export function resolveCurrentRound(messages) {
     .map((m) => m.content)
     .join('\n');
   const activatedEntries = roundMessages.findLast((m) => m.role === 'assistant')?.activated_entries ?? [];
-  return { round, turnText, activatedEntries };
+  const evidenceMessageIds = roundMessages
+    .filter((message) => message.role === 'user' || message.role === 'assistant')
+    .map((message) => message.id)
+    .filter(Boolean);
+  return { round, turnText, activatedEntries, evidenceMessageIds };
 }
 
 /** 会话使用的人设：会话指定的人设，否则世界默认人设。 */

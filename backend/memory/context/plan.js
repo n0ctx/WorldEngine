@@ -73,12 +73,18 @@ function planRounds(from, to, ctx) {
 
 /** bN 到 bM 的在用块 → 上一级块的计划 */
 function planBlocks(startNo, endNo, ctx) {
-  const { view } = ctx;
+  const { view, shownBlocks } = ctx;
+  if (shownBlocks && (!shownBlocks.has(startNo) || !shownBlocks.has(endNo))) {
+    return { error: `b${!shownBlocks.has(startNo) ? startNo : endNo} 这次没有提供来源，不能提炼` };
+  }
   const first = view.active.find((block) => block.no === startNo);
   const last = view.active.find((block) => block.no === endNo);
   if (!first || !last) return { error: `b${!first ? startNo : endNo} 不是在用的块` };
   const [lo, hi] = first.fromRound <= last.fromRound ? [first, last] : [last, first];
   const members = view.active.filter((block) => block.fromRound >= lo.fromRound && block.toRound <= hi.toRound);
+  if (shownBlocks && members.some((block) => !shownBlocks.has(block.no))) {
+    return { error: '提炼范围包含这次未提供的来源块，不能提交' };
+  }
   if (members.length < 2) return { error: `b${startNo}–b${endNo} 只含一个块，提炼至少要两个相邻的块` };
   for (let i = 1; i < members.length; i++) {
     if (members[i].fromRound !== members[i - 1].toRound + 1) {
@@ -134,8 +140,8 @@ function overlaps(a, b) {
 
 /**
  * @param {Array<{start:string, end:string, topic?:string, summary:string}>} actions
- * @param {{ units:Array, view:object, protectedSet:Set<number>, shownRounds?:Set<number> }} ctx
- *   shownRounds：这次交给模型的原文轮次；给了时只能压缩其中的轮次（模型没读过的原文不能替它写摘要）
+ * @param {{ units:Array, view:object, protectedSet:Set<number>, shownRounds?:Set<number>, shownBlocks?:Set<number> }} ctx
+ *   shownRounds / shownBlocks：本次实际提供给模型的来源；给出时只能提交其成员，不能依据未读来源写摘要
  * @returns {{ planned:Array, errors:string[], warnings:string[] }}
  *   planned[i].action 是它对应的原始动作，写入前重新校验时原样再交一次
  */

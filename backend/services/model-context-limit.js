@@ -5,7 +5,7 @@
  * 取不到（接口不返回、请求失败或超时）一律用 DEFAULT_CONTEXT_LIMIT。
  */
 
-import { getConfig, getAuxLlmConfig, getWritingLlmConfig } from './config.js';
+import { getConfig, getAuxLlmConfig, getWritingLlmConfig, getWritingAuxLlmConfig } from './config.js';
 import { fetchModels } from './model-catalog.js';
 import { DEFAULT_BASE_URLS } from '../llm/providers/_shared/base-urls.js';
 import { validateModelFetchBaseUrl } from '../utils/network-safety.js';
@@ -71,7 +71,7 @@ const LOCAL_FETCHERS = {
  */
 export async function resolveContextLimit(configScope) {
   const config = getConfig();
-  const scoped = { aux: getAuxLlmConfig, writing: getWritingLlmConfig }[configScope];
+  const scoped = { aux: getAuxLlmConfig, writing: getWritingLlmConfig, 'writing-aux': getWritingAuxLlmConfig }[configScope];
   const llm = scoped
     ? scoped()
     : { ...config.llm, api_key: config.provider_keys?.[config.llm.provider] || '' };

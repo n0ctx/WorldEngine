@@ -14,15 +14,17 @@ sandbox.setEnv();
 after(() => sandbox.cleanup());
 
 const {
-  resolveEntityRef, resolveSeqRef, buildEntityIndex, normalizeEvidence,
-  isFieldOwnedByUserField, truncateText, truncateListItems,
+  resolveEntityRef, resolveSeqRef, buildEntityIndex,
+  isFieldOwnedByUserField,
   applyStateMemoryOps, applyPresence, applyEntityFields, ensureBaseEntities,
 } = await freshImport('backend/memory/state-memory-apply.js');
 const {
   listCurrentEntities, listCurrentRelations, listThreads, listActiveThreads,
   getCurrentWorldProfile, getEntityDetails, upsertEntity, upsertProfileField, getLatestPresence,
+  isThreadEvidenceCurrent, rollbackStateMemory,
 } = await freshImport('backend/db/queries/state-memory.js');
 const { getEntityStateValues } = await freshImport('backend/db/queries/session-entity-state-values.js');
+const { createMessage, updateMessageContent } = await freshImport('backend/db/queries/messages.js');
 
 function setupSession(patch = {}) {
   const world = insertWorld(sandbox.db, patch.world);
@@ -63,26 +65,13 @@ test('resolveSeqRef 按前缀和 seq 从列表中解析 r<seq>/t<seq>/f<seq>', (
   assert.equal(resolveSeqRef('t12', 'r', relations, 'relation_id'), null);
 });
 
-test('normalizeEvidence 只保留非空字符串依据', () => {
-  assert.equal(normalizeEvidence('  按剧情推断他已离开港口 '), '按剧情推断他已离开港口');
-  assert.equal(normalizeEvidence('   '), null);
-  assert.equal(normalizeEvidence(123), null);
-  assert.equal(normalizeEvidence(undefined), null);
-});
+
 
 test('isFieldOwnedByUserField 按 field_key 或 label 完全匹配', () => {
   const fields = [{ field_key: 'favor', label: '好感' }];
   assert.equal(isFieldOwnedByUserField('favor', fields), true);
   assert.equal(isFieldOwnedByUserField('好感', fields), true);
   assert.equal(isFieldOwnedByUserField('信任', fields), false);
-});
-
-test('truncateText/truncateListItems 截断超长文本、条目与条数', () => {
-  assert.equal(truncateText('字'.repeat(70)).length, 60);
-  const items = Array.from({ length: 12 }, (_, i) => `项${i}`.repeat(10));
-  const truncated = truncateListItems(items);
-  assert.equal(truncated.length, 10);
-  assert.ok(truncated.every((item) => item.length <= 30));
 });
 
 // ─── create_entity / 档案字段可变性 ─────────────────────────────────────────────

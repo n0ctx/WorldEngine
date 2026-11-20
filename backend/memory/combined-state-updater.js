@@ -17,6 +17,8 @@ import { renderBackendPrompt } from '../prompts/prompt-loader.js';
 import { renderTriggeredEntriesSection } from '../prompts/segments.js';
 import { getAllWorldEntries } from '../db/queries/prompt-entries.js';
 import { applyTemplateVars } from '../utils/template-vars.js';
+import { resolveContextLimit } from '../services/model-context-limit.js';
+import { countContextTokens } from '../utils/token-counter.js';
 import { resolveAuxScope } from '../utils/aux-scope.js';
 import { toPromptMessage } from '../utils/turn-dialogue.js';
 import { extractJsonPatch } from './state-update-json.js';
@@ -38,7 +40,7 @@ function buildStateDialogue(messages, primaryName) {
   const recentMsgs = messages
     .filter((message) => message.role === 'user' || message.role === 'assistant')
     .slice(-4);
-  const formatMsg = (message) => `${message.role === 'user' ? '玩家' : primaryName}：${message.content}`;
+  const formatMsg = (message) => `${message.role === 'user' ? '玩家' : primaryName}［message_id=${message.id}］：${message.content}`;
   const currentTurn = recentMsgs.slice(-2);
   // length > 2：无论是单条开场白还是完整的上一轮，都纳入"上一轮"
   const prevTurn = recentMsgs.length > 2 ? recentMsgs.slice(0, -2) : [];
@@ -122,6 +124,12 @@ function buildCacheableSystemPrompt(worldId, targets, { schemaSections, response
  * LLM API 调用本身失败（raw 为空）不重试，直接返回 null。
  */
 async function requestStatePatch(prompt, cacheableSystem, sid, sessionId) {
+  const configScope = resolveAuxScope(sessionId);
+  const contextLimit = await resolveContextLimit(configScope);
+  if (countContextTokens(prompt) + LLM_STATE_UPDATE_MAX_TOKENS > contextLimit) {
+    log.warn(`STATE UPDATE SKIPPED  ${formatMeta({ session: sid, reason: 'aux context budget' })}`);
+    return null;
+  }
   let patch = null;
   let lastRaw = null;
 
@@ -129,7 +137,7 @@ async function requestStatePatch(prompt, cacheableSystem, sid, sessionId) {
     const raw = await llm.complete(prompt, {
       temperature: LLM_TASK_TEMPERATURE,
       maxTokens: LLM_STATE_UPDATE_MAX_TOKENS,
-      configScope: resolveAuxScope(sessionId),
+      configScope,
       callType: 'state_update',
       conversationId: sessionId,
       cacheableSystem,
@@ -172,7 +180,7 @@ export async function updateAllStates(worldId, characterIds, sessionId) {
   // 状态记忆常开：只要会话有消息就调用。
   const messages = getMessagesBySessionId(sessionId, ALL_MESSAGES_LIMIT, 0).map(toPromptMessage);
   if (messages.length === 0) return;
-  const { round, turnText, activatedEntries } = resolveCurrentRound(messages);
+  const { round, turnText, activatedEntries, evidenceMessageIds } = resolveCurrentRound(messages);
 
   // ── 确定各类活跃字段 ──
   const targets = loadStateUpdateTargets(worldId, characterIds, world);
@@ -240,7 +248,7 @@ export async function updateAllStates(worldId, characterIds, sessionId) {
   await writeStatePatch(patch, {
     sid, sessionId, worldId, world, targets,
     valueMaps: { worldValueMap, charValueMaps, personaValueMap },
-    round, turnText, realDate, mainCharacterEntityId,
+    round, turnText, evidenceMessageIds, realDate, mainCharacterEntityId,
   });
 }
 

@@ -12,11 +12,7 @@ function upgradeLegacyDb(seed) {
   db.pragma('foreign_keys = ON');
   const migrate = () => initSchema(db);
   migrate();
-  db.exec(`
-    ALTER TABLE turn_records ADD COLUMN middle_summary TEXT;
-    ALTER TABLE turn_records ADD COLUMN middle_covered_to INTEGER;
-    DELETE FROM context_blocks; DELETE FROM context_state;
-  `);
+  db.exec('DELETE FROM context_blocks; DELETE FROM context_state;');
   db.pragma('user_version = 5');
   seed(db);
   migrate();
@@ -48,7 +44,7 @@ const EVENTS = [
   '【第4轮｜三月初八｜北岸｜林遥】\n结果：看见灯塔亮灯',
 ].join('\n');
 
-test('旧剧情摘要按事件迁移为一级块：范围、小标题、来源指纹与当前原文一致，建块轮次取止轮；随后删去两列', () => {
+test('旧剧情摘要按事件迁移为一级块：范围、小标题、来源指纹与原文一致；旧列保留供回滚', () => {
   const db = upgradeLegacyDb((legacy) => {
     seedSession(legacy, 's1', 8);
     seedRecord(legacy, 's1', 7, '更早一轮的旧版本，不迁移', 3);
@@ -56,7 +52,9 @@ test('旧剧情摘要按事件迁移为一级块：范围、小标题、来源�
   });
   try {
     const columns = db.pragma('table_info(turn_records)').map((c) => c.name);
-    assert.ok(!columns.includes('middle_summary') && !columns.includes('middle_covered_to'));
+    assert.ok(columns.includes('middle_summary') && columns.includes('middle_covered_to'));
+    assert.equal(db.prepare('SELECT middle_summary FROM turn_records WHERE id = ?').get('s1-r8').middle_summary, EVENTS);
+    assert.equal(db.prepare('SELECT middle_summary FROM turn_records WHERE id = ?').get('s1-r7').middle_summary, '更早一轮的旧版本，不迁移');
     const blocks = db.prepare('SELECT * FROM context_blocks WHERE session_id = ? ORDER BY block_no').all('s1');
     assert.deepEqual(blocks.map((b) => [b.block_no, b.tier, b.from_round, b.to_round, b.topic, b.created_round, b.origin, b.consumed_by]), [
       [1, 1, 1, 1, '前情', 1, 'legacy', null],
@@ -74,7 +72,7 @@ test('旧剧情摘要按事件迁移为一级块：范围、小标题、来源�
   }
 });
 
-test('标题对不上（倒序、越界）时整段作为一个块覆盖到 coveredTo；范围超出现存轮次的截掉，一轮不剩的不建', () => {
+test('标题对不上（倒序、越界）时保留整段；来源超出现存轮次的摘要跳过，原文不删', () => {
   const db = upgradeLegacyDb((legacy) => {
     seedSession(legacy, 'bad', 6);
     seedRecord(legacy, 'bad', 6, '【第4–5轮｜甲】\n后\n【第1–2轮｜乙】\n前', 5);
@@ -87,8 +85,8 @@ test('标题对不上（倒序、越界）时整段作为一个块覆盖到 cove
     const rows = db.prepare('SELECT session_id, from_round, to_round, summary FROM context_blocks ORDER BY session_id').all();
     assert.deepEqual(rows, [
       { session_id: 'bad', from_round: 1, to_round: 5, summary: '【第4–5轮｜甲】\n后\n【第1–2轮｜乙】\n前' },
-      { session_id: 'short', from_round: 1, to_round: 2, summary: '没有标题的旧摘要' },
     ]);
+    assert.equal(db.prepare('SELECT middle_summary FROM turn_records WHERE id = ?').get('short-r2').middle_summary, '没有标题的旧摘要');
     assert.equal(db.prepare('SELECT COUNT(*) AS n FROM messages').get().n, 22);
   } finally {
     db.close();

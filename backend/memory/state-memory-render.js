@@ -22,6 +22,7 @@ import {
   listActiveThreads,
   getCurrentWorldProfile,
   getLatestPresence,
+  getCurrentThreadEvidenceStatus,
 } from '../db/queries/state-memory.js';
 import { getEntityStateValues } from '../db/queries/session-entity-state-values.js';
 import { getCharacterStateFieldsByWorldId } from '../db/queries/character-state-fields.js';
@@ -433,11 +434,15 @@ function buildRelationLines(relations, nameOf) {
     .filter(Boolean);
 }
 
-function buildThreadLines(threads, nameOf) {
+function buildThreadLines(threads, nameOf, sessionId) {
+  const verifiedEvidence = getCurrentThreadEvidenceStatus(sessionId, threads);
   return threads.map((t) => {
     const participants = JSON.parse(t.participants_json || '[]').map(nameOf).filter(Boolean);
     const deadline = t.deadline && t.deadline !== THREAD_NO_DEADLINE ? `，期限 ${t.deadline}` : '';
-    return `进行中：［${t.kind}］${t.content}（${participants.join('、')}，第 ${t.opened_round} 轮起${deadline}）`;
+    const source = verifiedEvidence.has(t.thread_id)
+      ? `，原文依据「${t.evidence_quote}」`
+      : '';
+    return `进行中：［${t.kind}］${t.content}（${participants.join('、')}，第 ${t.opened_round} 轮起${deadline}${source}）`;
   });
 }
 
@@ -527,7 +532,7 @@ export function renderStoryState(sessionId, opts = {}) {
 
   buildRelationLines(ctx.relations, nameOf)
     .forEach((line) => fragments.push(makeSimpleFragment(4, line, () => resultRelations.push(line))));
-  buildThreadLines(ctx.threads, nameOf)
+  buildThreadLines(ctx.threads, nameOf, sessionId)
     .forEach((line) => fragments.push(makeSimpleFragment(5, line, () => resultThreads.push(line))));
 
   fragments.sort((a, b) => a.bucket - b.bucket);

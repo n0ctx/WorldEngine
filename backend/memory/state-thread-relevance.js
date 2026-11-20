@@ -1,4 +1,4 @@
-import { listCurrentEntities, listThreads } from '../db/queries/state-memory.js';
+import { listCurrentEntities, listThreads, getCurrentThreadEvidenceStatus } from '../db/queries/state-memory.js';
 import { STATE_NAME_MATCH_MIN } from '../utils/constants.js';
 
 function sharesPhrase(text, context) {
@@ -24,13 +24,17 @@ export function threadMatchesTurn(thread, turnText, names) {
 export function renderRelevantThreadsForUpdate(sessionId, turnText) {
   const names = new Map(listCurrentEntities(sessionId).map((entity) => [entity.entity_id, entity.name]));
   const nameOf = (id) => names.get(id) || '';
-  return listThreads(sessionId)
+  const relevantThreads = listThreads(sessionId)
     .filter((thread) => thread.status === 'active' || thread.status === 'dormant')
-    .filter((thread) => threadMatchesTurn(thread, turnText, names))
-    .map((thread) => {
-      const participants = JSON.parse(thread.participants_json || '[]').map(nameOf).filter(Boolean);
-      const dormant = thread.status === 'dormant' ? '［搁置］' : '';
-      const deadline = `｜期限 ${thread.deadline || '未定'}`;
-      return `t${thread.seq}｜${dormant}［${thread.kind}］${thread.content}${participants.length ? `（${participants.join('、')}）` : ''}${deadline}`;
-    }).join('\n');
+    .filter((thread) => threadMatchesTurn(thread, turnText, names));
+  const verifiedEvidence = getCurrentThreadEvidenceStatus(sessionId, relevantThreads);
+  return relevantThreads.map((thread) => {
+    const participants = JSON.parse(thread.participants_json || '[]').map(nameOf).filter(Boolean);
+    const dormant = thread.status === 'dormant' ? '［搁置］' : '';
+    const deadline = `｜期限 ${thread.deadline || '未定'}`;
+    const source = verifiedEvidence.has(thread.thread_id)
+      ? `｜已核验原文 ${thread.evidence_message_id}：「${thread.evidence_quote}」`
+      : '｜来源未核验';
+    return `t${thread.seq}｜${dormant}［${thread.kind}］${thread.content}${participants.length ? `（${participants.join('、')}）` : ''}${deadline}${source}`;
+  }).join('\n');
 }

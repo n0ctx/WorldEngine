@@ -13,13 +13,14 @@ after(() => sandbox.cleanup());
 
 const {
   upsertEntity, upsertProfileField, upsertDynamicState, upsertRelation, upsertThread,
-  upsertWorldProfile, upsertPresence, nextEntitySeq, nextThreadSeq, nextRelationSeq,
+  upsertWorldProfile, upsertPresence, nextEntitySeq, nextThreadSeq, nextRelationSeq, resolveThreadEvidence,
 } = await freshImport('backend/db/queries/state-memory.js');
 const {
   selectRelevantEntities, renderStoryState, renderEntityDirectory,
   renderEntityDetailsForUpdate, renderEntityProfileText, renderProfileGapsForUpdate,
 } = await freshImport('backend/memory/state-memory-render.js');
 const { renderRelevantThreadsForUpdate } = await freshImport('backend/memory/state-thread-relevance.js');
+const { createMessage } = await freshImport('backend/db/queries/messages.js');
 
 function setupSession() {
   const world = insertWorld(sandbox.db);
@@ -327,6 +328,24 @@ test('renderEntityDetailsForUpdate：档案与关系；相关事项单独渲染�
   assert.match(text, /r1｜沈彦 —盟友→ 林乔/);
   assert.doesNotMatch(text, /三日内归还账本/);
   assert.match(renderRelevantThreadsForUpdate(sessionId, '沈彦收到账本'), /t1｜［承诺］三日内归还账本（沈彦、林乔）/);
+});
+
+test('事项仅在消息内容版本仍匹配时渲染可核验原文，legacy 行保持未核验', () => {
+  const { sessionId } = setupSession();
+  const message = createMessage({ session_id: sessionId, role: 'user', content: '我答应明天归还账本。' });
+  const evidence = resolveThreadEvidence(sessionId, message.id, '我答应明天归还账本', [message.id]);
+  upsertThread(sessionId, {
+    threadId: 'verified', seq: nextThreadSeq(sessionId), kind: '承诺', participantsJson: '[]',
+    content: '明天归还账本', status: 'active', openedRound: 1, ...evidence,
+  }, 1);
+  upsertThread(sessionId, {
+    threadId: 'legacy', seq: nextThreadSeq(sessionId), kind: '任务', participantsJson: '[]',
+    content: '寻找宝石', status: 'active', openedRound: 1,
+  }, 1);
+
+  const rendered = renderRelevantThreadsForUpdate(sessionId, '归还账本与寻找宝石');
+  assert.match(rendered, /已核验原文 .*我答应明天归还账本/);
+  assert.match(rendered, /寻找宝石.*来源未核验/);
 });
 
 test('无参与者事项按本轮内容命中；无关事项不注入', () => {

@@ -179,6 +179,63 @@ test('目录超预算时按相关度挑候选：与近期对话相关的老轮�
   setIndexBudget(20_000);
 });
 
+test('本地优先召回按中文词法排序，不调用模型且证据受展开预算限制', async () => {
+  resetMockEnv();
+  const { session } = setupSession();
+  seedRounds(session.id, 4, { contents: ['青铜罗盘被放进木箱。', '酒馆里遇见商人。', '罗盘指向北方森林。', '在山路上休息。'] });
+  const next = sandbox.readConfig();
+  next.local_recall_enabled = true;
+  next.long_term_index_budget = 20_000;
+  sandbox.writeConfig(next);
+  process.env.MOCK_LLM_COMPLETE_ERROR = 'local recall must not call the model';
+  const { recallTurns } = await freshImport('backend/memory/long-term-recall.js');
+  const scope = await scopeFor(session.id, [1, 2, 3, 4]);
+  const result = await recallTurns({ sessionId: session.id, mode: 'chat', scope, recentMessages: '青铜罗盘在哪里？' });
+  assert.ok(result.rounds.includes(1));
+  assert.ok(result.rounds.includes(3));
+  assert.equal(result.candidateCount, 4);
+  const { renderRecalledTurns } = await import('../../memory/long-term-recall.js');
+  assert.ok(countTokens(renderRecalledTurns(result.rounds, scope.units).text) <= 4096);
+  next.local_recall_enabled = false;
+  sandbox.writeConfig(next);
+});
+
+test('本地索引同步编辑和回滚后的原文版本，旧 scope 不会返回陈旧轮次', async () => {
+  resetMockEnv();
+  const { session } = setupSession();
+  seedRounds(session.id, 3, { contents: ['旧版本包含青铜罗盘。', '另一段历史。', '更多历史。'] });
+  const next = sandbox.readConfig();
+  next.local_recall_enabled = true;
+  sandbox.writeConfig(next);
+  const { updateMessageContent, deleteMessagesAfter } = await import('../../db/queries/messages.js');
+  const { getMessagesBySessionId } = await import('../../db/queries/messages.js');
+  const { recallTurns } = await freshImport('backend/memory/long-term-recall.js');
+  const staleScope = await scopeFor(session.id, [1, 2, 3]);
+  const originalAssistant = getMessagesBySessionId(session.id, null).find((message) => message.role === 'assistant');
+  updateMessageContent(originalAssistant.id, '新版本不再提及物品。');
+  const edited = await recallTurns({ sessionId: session.id, mode: 'chat', scope: staleScope, recentMessages: '青铜罗盘在哪里？' });
+  assert.deepEqual(edited.rounds, []);
+
+  const freshScope = await scopeFor(session.id, [1, 2, 3]);
+  const allMessages = getMessagesBySessionId(session.id, null);
+  deleteMessagesAfter(allMessages[1].id);
+  const rolledBack = await recallTurns({ sessionId: session.id, mode: 'chat', scope: freshScope, recentMessages: '青铜罗盘在哪里？' });
+  assert.deepEqual(rolledBack.rounds, []);
+  next.local_recall_enabled = false;
+  sandbox.writeConfig(next);
+});
+
+test('legacy 召回输入超过 aux 窗口时跳过模型请求', async () => {
+  resetMockEnv();
+  const { session } = setupSession();
+  seedRounds(session.id, 1);
+  process.env.MOCK_LLM_COMPLETE = JSON.stringify({ turns: [1] });
+  const { recallTurns } = await freshImport('backend/memory/long-term-recall.js');
+  const scope = await scopeFor(session.id, [1]);
+  const result = await recallTurns({ sessionId: session.id, mode: 'chat', scope, recentMessages: '超长上下文'.repeat(32_000) });
+  assert.deepEqual(result.rounds, []);
+});
+
 test('模型调用异常或输出非 JSON 时静默降级为不召回', async () => {
   resetMockEnv();
   const { session } = setupSession();

@@ -3,26 +3,26 @@
  *
  * 队列里的部分只做快速判断，模型调用在队列外后台进行，不占用同故事线的队列（队列串行，运行中的任务不会被
  * 抢占，模型调用放在队列里会让下一轮的 turn-record 排在它后面），下一轮组装提示词也不等它：压缩写入之前
- * 一直用当前视图，提示词不会超限靠组装端的兜底移出。
+ * 一直用当前视图，必要时仍由组装端的兜底移出原文。
  *
  * 流程（每一步失败都不改动原文；块的写入只发生在最后一步、单个事务内）：
  *   1. 读取视图，删掉来源已失效的块（子块重新在用）。
  *   2. 增长门槛判断（policy.js）；没到门槛只更新低水位基线，不调用模型。需要压缩时把各轮指纹留底，
  *      启动后台运行并立刻返回（同一故事线已有一次在运行时直接返回 busy）。
- *   3. 调用副模型：它看到在用块、建议范围、可压缩原文与保护区，自己决定压哪里、写多细。
- *      工具调用的提交当场校验，报错写回工具结果，模型可在 CONTEXT_COMPRESS_MAX_ITERATIONS 轮内改好重交；
+ *   3. 调用副模型：按完整批次预算确定性选择来源，只给它可压缩原文段或提炼成员块，不提供周边历史。
+ *      它决定范围内如何压缩。工具调用提交当场校验，报错写回工具结果，模型可在 CONTEXT_COMPRESS_MAX_ITERATIONS 轮内重交；
  *      模型或服务不支持工具时按纯文本 JSON 提交，校验失败给一次重交机会。
  *   4. 模型返回后同步重读视图并按同一套规则重新校验（期间用户可能改了块或原文），
  *      与重读之间没有 await，校验通过的范围在同一个事务里写入。模型调用期间回退、编辑、删除、重新生成不会等它
  *      （回退只等队列空闲），所以写入前还要核对留底的各轮指纹：有任何一轮被改或被删，整批不写
- *      （摘要只能配它读到的那份原文；模型也读过受保护区的预览，被撤销的剧情不能经摘要带进来）。
+ *      （摘要只能配它读到的那份原文，被撤销的剧情不能经摘要带进来）。
  * 重复执行是安全的：已被块覆盖的轮次、已被吸收的块不能再压，同一批提交再写一次时重新校验全部落空。
  * 结果写进 context_state：compressed / declined / stale / failed；放弃（含提交全部没通过校验）、过期与失败时
  * 把当时的可见量记作基线，原文再增长一个步长才会再次尝试，并让连续未写入次数加一（policy.js 据此指数退避），
  * 成功写入后清零。
  * 后台运行不会让任务抛错：模型调用出错只记日志与 context_state.last_error（剧情摘要弹窗可见），不再经 SSE 弹提示——
  * 压缩不占用本轮的 SSE 连接，否则连接要等它结束才关。副模型不可用时同一轮的状态整理、turn-record 照样会提示。
- * 视图不变，兜底移出保证提示词不超限。
+ * 维护提示和每轮后续请求都受显式 token 预算限制。
  *
  * 维护调用与剧情生成完全隔离：主模型从不看到压缩规则、工具或块号，副模型的输出只进 context_blocks。
  *
@@ -36,10 +36,13 @@ import crypto from 'node:crypto';
 import * as llm from '../../llm/index.js';
 import { commitContextRun, saveContextState } from '../../db/queries/context-blocks.js';
 import { resolveAuxScope } from '../../utils/aux-scope.js';
-import { countTokens } from '../../utils/token-counter.js';
+import { resolveContextLimit } from '../../services/model-context-limit.js';
+import { countContextTokens, countTokens } from '../../utils/token-counter.js';
 import { createLogger, formatMeta } from '../../utils/logger.js';
 import {
+  CONTEXT_COMPRESS_INPUT_MAX_TOKENS,
   CONTEXT_COMPRESS_MAX_ITERATIONS,
+  CONTEXT_COMPRESS_OUTPUT_MAX_TOKENS,
   CONTEXT_COMPRESS_TIMEOUT_MS,
   LLM_TASK_TEMPERATURE,
 } from '../../utils/constants.js';
@@ -57,8 +60,8 @@ import {
 
 const log = createLogger('context');
 
-function planContext(ctx, shownRounds) {
-  return { units: ctx.units, view: ctx.view, protectedSet: ctx.protectedSet, shownRounds };
+function planContext(ctx, shownRounds, shownBlocks) {
+  return { units: ctx.units, view: ctx.view, protectedSet: ctx.protectedSet, shownRounds, shownBlocks };
 }
 
 /** 一次压缩写入的块共用一个 runId（由视图算出，便于在日志与库里把同一次写入的块对上） */
@@ -90,26 +93,55 @@ function acceptActions(actions, planCtx, accepted) {
 /** 工具提交优先；最终回复里带 JSON 提交时按纯文本协议处理，校验失败给一次重交机会 */
 async function requestActions(messages, planCtx, sessionId) {
   const accepted = [];
+  let inputTokens = 0;
+  let toolTurns = 0;
   const options = {
     configScope: resolveAuxScope(sessionId),
     callType: 'context_compress',
     conversationId: sessionId,
     timeoutMs: CONTEXT_COMPRESS_TIMEOUT_MS,
     temperature: LLM_TASK_TEMPERATURE,
+    maxTokens: CONTEXT_COMPRESS_OUTPUT_MAX_TOKENS,
   };
   const tool = compressToolDefinition((args) => acceptActions(args?.ranges, planCtx, accepted));
-  const { text } = await llm.completeWithToolsDetailed(messages, [tool], { ...options, maxIterations: CONTEXT_COMPRESS_MAX_ITERATIONS });
+  const contextLimit = await resolveContextLimit(options.configScope);
+  const toolTokens = countTokens(JSON.stringify(tool));
+  if (countContextTokens(messages, [tool]) + options.maxTokens > contextLimit) {
+    return { accepted, reason: '副模型窗口不足，本次不压缩' };
+  }
+  const beforeTurn = (turnMessages) => {
+    toolTurns += 1;
+    const turnTokens = countContextTokens(turnMessages, [tool]);
+    if (turnTokens + options.maxTokens > contextLimit) throw new Error('压缩请求超过副模型窗口');
+    inputTokens += turnTokens + CONTEXT_COMPRESS_OUTPUT_MAX_TOKENS;
+    if (inputTokens > CONTEXT_COMPRESS_INPUT_MAX_TOKENS) {
+      throw new Error('上下文压缩维护批次达到 token 预算上限，已停止后续模型调用');
+    }
+    return null;
+  };
+  const { text } = await llm.completeWithToolsDetailed(messages, [tool], {
+    ...options, maxIterations: CONTEXT_COMPRESS_MAX_ITERATIONS, beforeTurn,
+  });
+  // 不支持工具的 provider 在 wrapper 内直连 complete，不会触发 beforeTurn；为其文本重交补记首轮成本。
+  if (toolTurns === 0) inputTokens = messages.reduce((sum, message) => sum + countTokens(message.content ?? ''), 0)
+    + toolTokens + CONTEXT_COMPRESS_OUTPUT_MAX_TOKENS;
   if (accepted.length > 0) return { accepted, reason: '' };
 
   const submitted = parseTextActions(text ?? '');
   if (!submitted) return { accepted, reason: String(text ?? '').trim().slice(0, 200) };
   let feedback = acceptActions(submitted.actions, planCtx, accepted);
   if (accepted.length === 0 && submitted.actions.length > 0) {
-    const retry = await llm.complete([
+    const retryMessages = [
       ...messages,
       { role: 'assistant', content: text },
       { role: 'user', content: `${feedback}\n只输出修正后的 JSON。` },
-    ], options);
+    ];
+    const retryTokens = countContextTokens(retryMessages);
+    if (retryTokens + options.maxTokens > contextLimit || inputTokens + retryTokens + CONTEXT_COMPRESS_OUTPUT_MAX_TOKENS > CONTEXT_COMPRESS_INPUT_MAX_TOKENS) {
+      return { accepted, reason: `${feedback}\n维护批次 token 预算已用尽，未进行额外重试` };
+    }
+    inputTokens += retryTokens;
+    const retry = await llm.complete(retryMessages, options);
     const again = parseTextActions(retry ?? '');
     feedback = again ? acceptActions(again.actions, planCtx, accepted) : feedback;
   }
@@ -150,12 +182,12 @@ function absorbsEditedBlock(block, ctx, seenSummaries) {
  *   - summaries：各在用块的摘要；吸收的块在这之后被手改过的提炼动作丢弃。
  * 故事线已被删除时返回 { gone: true }。
  */
-function commitAccepted(sessionId, accepted, shownRounds, runId, seen = null) {
+function commitAccepted(sessionId, accepted, shownRounds, runId, seen = null, shownBlocks = null) {
   const loaded = loadSessionContext(sessionId);
   if (!loaded) return { gone: true, blocks: [], dropped: accepted.length };
   if (seen && roundsChangedSince(loaded.units, seen.digests)) return { ctx: loaded, blocks: [], dropped: accepted.length };
   const ctx = repairStaleBlocks(loaded);
-  const result = planCompression(accepted.map((item) => item.action), planContext(ctx, shownRounds));
+  const result = planCompression(accepted.map((item) => item.action), planContext(ctx, shownRounds, shownBlocks));
   const planned = result.planned.filter((block) => !absorbsEditedBlock(block, ctx, seen?.summaries));
   if (planned.length === 0) return { ctx, blocks: [], dropped: accepted.length };
   const blocks = planned.map((block) => ({
@@ -195,16 +227,20 @@ async function attemptCompression(sessionId, ctx, decision, meta) {
     digests: unitDigests(ctx.units),
     summaries: new Map(ctx.view.active.map((block) => [block.id, block.summary])),
   };
-  const { messages, shownRounds } = buildCompressMessages(ctx, decision, resolveSpeakers(ctx.session));
-  log.info(`START  ${formatMeta({ ...meta, segments: decision.segments.length, merges: decision.merges.length })}`);
-  const requested = await requestActions(messages, planContext(ctx, shownRounds), sessionId);
+  const { messages, shownRounds, shownBlocks } = buildCompressMessages(ctx, decision, resolveSpeakers(ctx.session));
+  log.info(`START  ${formatMeta({ ...meta, segments: shownRounds.size, merges: shownBlocks.size })}`);
+  if (shownRounds.size === 0 && shownBlocks.size === 0) {
+    finish(sessionId, 'declined', '没有来源范围能纳入压缩维护预算');
+    return { outcome: 'declined', decision };
+  }
+  const requested = await requestActions(messages, planContext(ctx, shownRounds, shownBlocks), sessionId);
   if (requested.accepted.length === 0) {
     finish(sessionId, 'declined', requested.reason || null);
     log.info(`DECLINED  ${formatMeta({ session: sid, reason: requested.reason })}`);
     return { outcome: 'declined', decision };
   }
 
-  const { gone, blocks, dropped } = commitAccepted(sessionId, requested.accepted, shownRounds, runId, seen);
+  const { gone, blocks, dropped } = commitAccepted(sessionId, requested.accepted, shownRounds, runId, seen, shownBlocks);
   if (gone) {
     log.info(`GONE  ${formatMeta({ session: sid })}`);
     return { outcome: 'skip', decision };

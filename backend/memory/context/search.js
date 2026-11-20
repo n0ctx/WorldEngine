@@ -8,22 +8,10 @@
  *   rankDocuments(query, docs) → [{ id, score }]  只返回得分大于 0 的文档，按得分降序
  */
 
-const CJK_RUN = /[㐀-䶿一-鿿]+/gu;
-const WORD_RUN = /[\p{L}\p{N}]+/gu;
+import { lexicalTerms } from '../../utils/lexical-terms.js';
+
 const K1 = 1.2;
 const B = 0.75;
-
-function searchTerms(text) {
-  const source = String(text ?? '').toLowerCase();
-  const terms = [];
-  for (const run of source.match(CJK_RUN) ?? []) {
-    const chars = [...run];
-    if (chars.length === 1) terms.push(run);
-    for (let i = 0; i + 1 < chars.length; i++) terms.push(chars[i] + chars[i + 1]);
-  }
-  for (const word of source.replace(CJK_RUN, ' ').match(WORD_RUN) ?? []) terms.push(word);
-  return terms;
-}
 
 function termCounts(terms) {
   const counts = new Map();
@@ -37,10 +25,10 @@ function termCounts(terms) {
  * @returns {Array<{id:string|number, score:number}>}
  */
 export function rankDocuments(query, docs) {
-  const queryTerms = [...new Set(searchTerms(query))];
+  const queryTerms = [...new Set(lexicalTerms(query))];
   if (queryTerms.length === 0 || docs.length === 0) return [];
   const indexed = docs.map((doc) => {
-    const terms = searchTerms(doc.text);
+    const terms = lexicalTerms(doc.text);
     return { id: doc.id, length: terms.length, counts: termCounts(terms) };
   });
   const avgLength = indexed.reduce((sum, doc) => sum + doc.length, 0) / indexed.length || 1;
