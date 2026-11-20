@@ -211,14 +211,8 @@ async function pushLongTermRecall(sessionId, mode, recallScope, tv, turnContextP
   return expanded.hitRounds.length;
 }
 
-/**
- * 消息给模型看的正文（msg 须是 allMessages 里的同一对象）。选项功能开启时 assistant 末尾接回当轮选项：
- * 每轮都以选项收尾，模型才会稳定在本轮末尾输出选项。玩家已回应的那轮，每条选项标上已选或未选，
- * 玩家自行输入时 4 条都是未选，未选的选项没有发生，不被当成既成剧情。
- */
-function renderHistoryContent(msg, allMessages, { withOptions, worldId, mode }) {
-  const content = applyRules(msg.content, 'prompt_only', worldId, mode);
-  if (!withOptions || msg.role !== 'assistant' || !msg.next_options?.length) return content;
+/** 历史选项是本轮参考资料，不是 assistant 回复示例。 */
+function renderPastOptions(msg, allMessages, { worldId, mode }) {
   const next = allMessages[allMessages.indexOf(msg) + 1];
   // 玩家点选项时原文发出，与某条选项完全一致就算选了那条
   const chosen = next?.role === 'user' ? next.content.trim() : null;
@@ -226,16 +220,16 @@ function renderHistoryContent(msg, allMessages, { withOptions, worldId, mode }) 
     ? msg.next_options
     : msg.next_options.map((option) => `${option === chosen ? '（已选）' : '（未选）'}${option}`);
   const optionsText = applyRules(lines.join('\n'), 'prompt_only', worldId, mode);
-  return `${content}\n\n<next_prompt>\n${optionsText}\n</next_prompt>`;
+  return `<past_options>\n${optionsText}\n</past_options>`;
 }
 
-/** [12] 历史消息；续写时被续写的那条不接旧选项，它的选项在续写完成后重新生成 */
-function pushHistoryMessages(messages, history, allMessages, { continuation, ...ctx }) {
-  history.forEach((msg, index) => {
-    const withOptions = ctx.withOptions && !(continuation && index === history.length - 1);
-    const content = renderHistoryContent(msg, allMessages, { ...ctx, withOptions });
-    messages.push(formatMessageForLLM({ ...msg, content }));
-  });
+function recentPastOptions(history, allMessages, ctx, continuation) {
+  if (!ctx.withOptions) return '';
+  const earlier = continuation ? history.slice(0, -1) : history;
+  return earlier.filter((msg) => msg.role === 'assistant' && msg.next_options?.length)
+    .slice(-3)
+    .map((msg) => renderPastOptions(msg, allMessages, ctx))
+    .join('\n\n');
 }
 
 /**
@@ -247,15 +241,19 @@ function buildBaseMessages(systemContent, uncompressedMessages, visibleRounds, h
   const messages = [];
   if (systemContent) messages.push({ role: 'system', content: systemContent });
   const history = visibleHistory(continuation ? uncompressedMessages : omitLatestUserMessage(uncompressedMessages), visibleRounds);
-  pushHistoryMessages(messages, history, uncompressedMessages, { ...historyCtx, continuation });
-  return { messages, history };
+  const { worldId, mode } = historyCtx;
+  for (const msg of history) {
+    const content = applyRules(msg.content, 'prompt_only', worldId, mode);
+    messages.push(formatMessageForLLM({ ...msg, content }));
+  }
+  return { messages, history, pastOptions: recentPastOptions(history, uncompressedMessages, historyCtx, continuation) };
 }
 
 /** [13+14] 当前用户消息 + 后置提示词合并为一条 user message；没有当前用户消息时单独发后置提示词 */
 function pushCurrentUserTurn(messages, uncompressedMessages, postParts, ctx) {
   const currentUserMsg = getCurrentUserMessage(uncompressedMessages);
   if (currentUserMsg?.role === 'user') {
-    const text = renderHistoryContent(currentUserMsg, uncompressedMessages, ctx);
+    const text = applyRules(currentUserMsg.content, 'prompt_only', ctx.worldId, ctx.mode);
     const formatted = formatMessageForLLM({ ...currentUserMsg, content: text ? renderUserInputSection(text) : text });
     if (postParts.length > 0) {
       const postContent = postParts.join('\n\n');
@@ -417,7 +415,7 @@ export async function buildPrompt(sessionId, options = {}) {
   // ─── CONSTRUCT MESSAGES ───
   // [1-4] + [8.5] 合并为单条 system message，[12] 历史消息
   const historyCtx = { withOptions: !!config.suggestion_enabled, worldId: world.id, mode: 'chat' };
-  const { messages, history } = buildBaseMessages(systemContent, uncompressedMessages, promptContext.visibleRounds, historyCtx, continuation);
+  const { messages, history, pastOptions } = buildBaseMessages(systemContent, uncompressedMessages, promptContext.visibleRounds, historyCtx, continuation);
   log.debug(`│  [12] history  raw_messages=${history.length}`);
 
   // [13+14] 后置提示词 + 当前用户消息：合并为一条 user message，后置提示词追加在用户消息之后。
@@ -430,7 +428,7 @@ export async function buildPrompt(sessionId, options = {}) {
   const baseMaxTokens = world.max_tokens ?? config.llm.max_tokens;
   const maxTokens = resolveMaxTokens(baseMaxTokens, config.suggestion_enabled);
   const contextLimit = await resolveContextLimit('main');
-  const budget = budgetTurn(messages, { turnContext, cachedContent, contextLimit, maxTokens, mode: 'chat' });
+  const budget = budgetTurn(messages, { turnContext: [turnContext, pastOptions].filter(Boolean).join('\n\n'), cachedContent, contextLimit, maxTokens, mode: 'chat' });
   messages.splice(0, messages.length, ...budget.messages);
   recordPromptUsage(sessionId, messages, promptContext);
   // 世界卡只覆盖设置过的采样参数，与全局设置逐项合并见 llm/index.js 的 buildLLMConfig
@@ -565,7 +563,7 @@ export async function buildWritingPrompt(sessionId, options = {}) {
   // ─── CONSTRUCT MESSAGES ───
   // [1-3] + [8.5] 合并为单条 system message，[12] 历史消息；代拟不带写作指令也不要选项，历史里同样不接选项
   const historyCtx = { withOptions: !!writing.suggestion_enabled && !skipWritingInstructions, worldId: world.id, mode: 'writing' };
-  const { messages } = buildBaseMessages(systemContent, uncompressedMessages, promptContext.visibleRounds, historyCtx, continuation);
+  const { messages, pastOptions } = buildBaseMessages(systemContent, uncompressedMessages, promptContext.visibleRounds, historyCtx, continuation);
 
   // [13+14] 后置提示词 + 当前用户消息：合并为一条 user message，后置提示词追加在用户消息之后。
   // 续写模式无"本轮新输入"，后置提示词/suggestion 由 buildContinuationMessages 在续写指令里统一拼一次，
@@ -587,7 +585,7 @@ export async function buildWritingPrompt(sessionId, options = {}) {
   const baseMaxTokens = world.max_tokens ?? writing.max_tokens ?? config.llm.max_tokens;
   const maxTokens = resolveMaxTokens(baseMaxTokens, writing.suggestion_enabled);
   const contextLimit = await resolveContextLimit('writing');
-  const budget = budgetTurn(messages, { turnContext, cachedContent, contextLimit, maxTokens, mode: 'writing' });
+  const budget = budgetTurn(messages, { turnContext: [turnContext, pastOptions].filter(Boolean).join('\n\n'), cachedContent, contextLimit, maxTokens, mode: 'writing' });
   messages.splice(0, messages.length, ...budget.messages);
   recordPromptUsage(sessionId, messages, promptContext);
   const sampling = parseSamplingOverrides(world.sampling_json);
