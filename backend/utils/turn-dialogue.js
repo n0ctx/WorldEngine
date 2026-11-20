@@ -26,8 +26,12 @@ export function stripUserContext(raw) {
   return stripDialoguePrefix(stripTrailingStateBlocks(raw), ['{{user}}：', '用户：']);
 }
 
+export function stripPastOptions(raw) {
+  return (raw ?? '').replace(/<past_options>[\s\S]*?(?:<\/past_options>|$)/g, '');
+}
+
 export function stripAsstContext(raw) {
-  return stripDialoguePrefix(stripTrailingStateBlocks(raw), ['{{char}}：', 'AI：']);
+  return stripDialoguePrefix(stripTrailingStateBlocks(stripPastOptions(raw)), ['{{char}}：', 'AI：']);
 }
 
 // think block 剥除:栈式深度计数 + EOF 兜底布尔回退,与前端 next-prompt.js / think-blocks.js 保持一致。
@@ -150,7 +154,7 @@ const INTERRUPTED_REPLY_TEXT = '（回复中断）';
  */
 export function toPromptMessage(msg) {
   if (msg?.role !== 'assistant' || typeof msg.content !== 'string') return msg;
-  const visible = stripThinkBlocksFromText(msg.content).replace(STRAY_THINK_CLOSE_RE, '').trim();
+  const visible = stripPastOptions(stripThinkBlocksFromText(msg.content)).replace(STRAY_THINK_CLOSE_RE, '').trim();
   return { ...msg, content: visible || (msg.content.trim() ? INTERRUPTED_REPLY_TEXT : msg.content) };
 }
 

@@ -9,6 +9,7 @@ import { createMessage, touchSession } from './sessions.js';
 import { applyRules } from '../utils/regex-runner.js';
 import {
   stripAsstContext,
+  stripPastOptions,
   extractNextPromptOptions,
   unwrapSoloThinkBlock,
   stripThinkBlocksFromText,
@@ -173,7 +174,7 @@ async function resolveSuggestionOptions({
       assistantText: visibleContent,
       configScope,
     });
-    const extracted = extractNextPromptOptions(raw);
+    const extracted = extractNextPromptOptions(stripPastOptions(raw));
     if (extracted.options.length > 0) {
       onSuggestionFallbackSucceeded?.({ mode });
       let cleanedContent = content;

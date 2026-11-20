@@ -62,6 +62,15 @@ describe('think blocks', () => {
 });
 
 describe('next prompt stream', () => {
+  it('不显示模型抄回的历史选项，保留之后的正文和新选项', () => {
+    for (const tail of ['<past_', '<past_options>（未选）旧选项']) {
+      expect(parseNextPromptStream('正文' + tail, true)).toEqual({ display: '正文', options: [] });
+    }
+    const body = '正文<past_options>（未选）旧选项</past_options>接续正文';
+    expect(parseStreamingBlocks(body)).toEqual([{ type: 'text', content: '正文接续正文', open: false }]);
+    expect(parseNextPromptStream(body + '<next_prompt>新选项</next_prompt>', true))
+      .toEqual({ display: '正文接续正文', options: ['新选项'] });
+  });
   it('去掉模型从历史抄来的已选/未选标注', () => {
     const { options } = parseNextPromptStream('正文\n<next_prompt>\n（未选）选项A\n(已选) 选项B\n选项C\n</next_prompt>');
     expect(options).toEqual(['选项A', '选项B', '选项C']);

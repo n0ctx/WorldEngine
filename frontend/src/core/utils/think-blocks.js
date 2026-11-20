@@ -107,8 +107,17 @@ function booleanParse(source) {
   return blocks;
 }
 
+export function stripPastOptions(text, isStreaming = false) {
+  const clean = (text || '').replace(/<past_options>[\s\S]*?(?:<\/past_options>|$)/g, '');
+  const lastTag = clean.lastIndexOf('<');
+  if (isStreaming && lastTag !== -1 && '<past_options>'.startsWith(clean.slice(lastTag))) {
+    return clean.slice(0, lastTag);
+  }
+  return clean;
+}
+
 export function parseStreamingBlocks(text, opts = {}) {
-  const raw = text || '';
+  const raw = stripPastOptions(text, opts.isStreaming);
   const source = opts.isStreaming ? raw.replace(PARTIAL_THINK_TAG_RE, '') : raw;
   // 流式:外层 think 闭合前保持单个 open thinking 块,内部重复 <think>/</think> 一律当纯文本,
   //   禁止提前裂出正文/第二个 think(stackParse keepOpen)。

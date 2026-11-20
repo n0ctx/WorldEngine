@@ -1,4 +1,4 @@
-import { matchThinkTags } from './think-blocks.js';
+import { matchThinkTags, stripPastOptions } from './think-blocks.js';
 
 const OPEN_TAG = '<think>';
 const CLOSE_TAG = '</think>';
@@ -116,7 +116,7 @@ const OPTION_CHOICE_TAG_RE = /^[（(]\s*[已未]选\s*[)）]\s*/;
  *   就把后续正文一刀切掉。
  */
 export function parseNextPromptStream(text, isStreaming = false) {
-  const raw = text || '';
+  const raw = stripPastOptions(text, isStreaming);
   const { stripped, spans } = scanStrip(raw, isStreaming);
   const idxInCleaned = stripped.lastIndexOf(NEXT_OPEN);
   if (idxInCleaned === -1) return { display: raw, options: [] };

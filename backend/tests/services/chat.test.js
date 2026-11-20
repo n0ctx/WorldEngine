@@ -84,6 +84,21 @@ test('processStreamOutput 在正常完成时会剥离选项、套 ai_output 规�
   assert.deepEqual(row, { role: 'assistant', content: 'bar' });
 });
 
+test('processStreamOutput 不保存模型复述的历史选项，保留后续正文和新选项', async () => {
+  resetMockEnv();
+  const world = insertWorld(sandbox.db, { name: '历史选项回显' });
+  const session = insertSession(sandbox.db, { character_id: insertCharacter(sandbox.db, world.id).id });
+  const { processStreamOutput } = await freshImport('backend/services/chat.js');
+  const result = await processStreamOutput(
+    '正文<past_options>（未选）旧选项</past_options>接续正文\n<next_prompt>新选项</next_prompt>',
+    false,
+    world.id,
+    session.id,
+  );
+  assert.equal(result.savedAssistant.content, '正文接续正文');
+  assert.deepEqual(result.savedAssistant.next_options, ['新选项']);
+});
+
 test('processStreamOutput 在 aborted 时保留原始内容并追加中断标记', async () => {
   resetMockEnv();
   const world = insertWorld(sandbox.db, { name: '聊天世界-中断' });
