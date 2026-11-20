@@ -33,30 +33,16 @@
  */
 
 import crypto from 'node:crypto';
-import * as llm from '../../llm/index.js';
 import { commitContextRun, saveContextState } from '../../db/queries/context-blocks.js';
-import { resolveAuxScope } from '../../utils/aux-scope.js';
-import { resolveContextLimit } from '../../services/model-context-limit.js';
-import { countContextTokens, countTokens } from '../../utils/token-counter.js';
+import { countTokens } from '../../utils/token-counter.js';
 import { createLogger, formatMeta } from '../../utils/logger.js';
-import {
-  CONTEXT_COMPRESS_INPUT_MAX_TOKENS,
-  CONTEXT_COMPRESS_MAX_ITERATIONS,
-  CONTEXT_COMPRESS_OUTPUT_MAX_TOKENS,
-  CONTEXT_COMPRESS_TIMEOUT_MS,
-  LLM_TASK_TEMPERATURE,
-} from '../../utils/constants.js';
 import { resolveSpeakers } from '../speakers.js';
 import { loadSessionContext, repairStaleBlocks } from './session-context.js';
 import { decideCompression } from './policy.js';
 import { planCompression } from './plan.js';
 import { digestOfRange, roundsChangedSince, unitDigests } from './view.js';
-import {
-  buildCompressMessages,
-  compressToolDefinition,
-  formatPlanFeedback,
-  parseTextActions,
-} from './doctrine.js';
+import { buildCompressMessages } from './doctrine.js';
+import { acceptActions, requestActions } from './submit.js';
 
 const log = createLogger('context');
 
@@ -71,81 +57,6 @@ function runIdOf(ctx) {
   for (const block of ctx.view.active) hash.update(`${block.id},`);
   for (const unit of ctx.view.raw) hash.update(`${unit.digest},`);
   return hash.digest('hex');
-}
-
-function overlapsAny(block, accepted) {
-  return accepted.some((other) => block.fromRound <= other.toRound && other.fromRound <= block.toRound);
-}
-
-/**
- * 校验一次提交并把通过的动作并入 accepted；返回写回给模型的说明。
- * 与之前已通过的范围重叠的动作跳过（同一批内的重叠由 planCompression 处理）。
- */
-function acceptActions(actions, planCtx, accepted) {
-  const result = planCompression(actions, planCtx);
-  const fresh = result.planned.filter((block) => !overlapsAny(block, accepted.map((a) => a.block)));
-  const skipped = result.planned.length - fresh.length;
-  for (const block of fresh) accepted.push({ block, action: block.action });
-  const feedback = formatPlanFeedback({ ...result, planned: fresh });
-  return skipped > 0 ? `${feedback}\n- 提示：${skipped} 个范围与之前已记录的范围重叠，已跳过` : feedback;
-}
-
-/** 工具提交优先；最终回复里带 JSON 提交时按纯文本协议处理，校验失败给一次重交机会 */
-async function requestActions(messages, planCtx, sessionId) {
-  const accepted = [];
-  let inputTokens = 0;
-  let toolTurns = 0;
-  const options = {
-    configScope: resolveAuxScope(sessionId),
-    callType: 'context_compress',
-    conversationId: sessionId,
-    timeoutMs: CONTEXT_COMPRESS_TIMEOUT_MS,
-    temperature: LLM_TASK_TEMPERATURE,
-    maxTokens: CONTEXT_COMPRESS_OUTPUT_MAX_TOKENS,
-  };
-  const tool = compressToolDefinition((args) => acceptActions(args?.ranges, planCtx, accepted));
-  const contextLimit = await resolveContextLimit(options.configScope);
-  const toolTokens = countTokens(JSON.stringify(tool));
-  if (countContextTokens(messages, [tool]) + options.maxTokens > contextLimit) {
-    return { accepted, reason: '副模型窗口不足，本次不压缩' };
-  }
-  const beforeTurn = (turnMessages) => {
-    toolTurns += 1;
-    const turnTokens = countContextTokens(turnMessages, [tool]);
-    if (turnTokens + options.maxTokens > contextLimit) throw new Error('压缩请求超过副模型窗口');
-    inputTokens += turnTokens + CONTEXT_COMPRESS_OUTPUT_MAX_TOKENS;
-    if (inputTokens > CONTEXT_COMPRESS_INPUT_MAX_TOKENS) {
-      throw new Error('上下文压缩维护批次达到 token 预算上限，已停止后续模型调用');
-    }
-    return null;
-  };
-  const { text } = await llm.completeWithToolsDetailed(messages, [tool], {
-    ...options, maxIterations: CONTEXT_COMPRESS_MAX_ITERATIONS, beforeTurn,
-  });
-  // 不支持工具的 provider 在 wrapper 内直连 complete，不会触发 beforeTurn；为其文本重交补记首轮成本。
-  if (toolTurns === 0) inputTokens = messages.reduce((sum, message) => sum + countTokens(message.content ?? ''), 0)
-    + toolTokens + CONTEXT_COMPRESS_OUTPUT_MAX_TOKENS;
-  if (accepted.length > 0) return { accepted, reason: '' };
-
-  const submitted = parseTextActions(text ?? '');
-  if (!submitted) return { accepted, reason: String(text ?? '').trim().slice(0, 200) };
-  let feedback = acceptActions(submitted.actions, planCtx, accepted);
-  if (accepted.length === 0 && submitted.actions.length > 0) {
-    const retryMessages = [
-      ...messages,
-      { role: 'assistant', content: text },
-      { role: 'user', content: `${feedback}\n只输出修正后的 JSON。` },
-    ];
-    const retryTokens = countContextTokens(retryMessages);
-    if (retryTokens + options.maxTokens > contextLimit || inputTokens + retryTokens + CONTEXT_COMPRESS_OUTPUT_MAX_TOKENS > CONTEXT_COMPRESS_INPUT_MAX_TOKENS) {
-      return { accepted, reason: `${feedback}\n维护批次 token 预算已用尽，未进行额外重试` };
-    }
-    inputTokens += retryTokens;
-    const retry = await llm.complete(retryMessages, options);
-    const again = parseTextActions(retry ?? '');
-    feedback = again ? acceptActions(again.actions, planCtx, accepted) : feedback;
-  }
-  return { accepted, reason: accepted.length > 0 ? '' : (submitted.reason || feedback) };
 }
 
 /**
@@ -240,7 +151,12 @@ async function attemptCompression(sessionId, ctx, decision, meta) {
     return { outcome: 'declined', decision };
   }
 
-  const { gone, blocks, dropped } = commitAccepted(sessionId, requested.accepted, shownRounds, runId, seen, shownBlocks);
+  const committed = commitAccepted(sessionId, requested.accepted, shownRounds, runId, seen, shownBlocks);
+  return reportCommit(sessionId, decision, committed);
+}
+
+function reportCommit(sessionId, decision, { gone, blocks, dropped }) {
+  const sid = sessionId.slice(0, 8);
   if (gone) {
     log.info(`GONE  ${formatMeta({ session: sid })}`);
     return { outcome: 'skip', decision };
@@ -258,15 +174,21 @@ async function attemptCompression(sessionId, ctx, decision, meta) {
   return { outcome: 'compressed', decision, blocks };
 }
 
-/** 永不 reject：失败记进 context_state 与日志，由调用方决定要不要等 */
-async function runCompression(sessionId, ctx, decision, meta) {
-  try {
-    return await attemptCompression(sessionId, ctx, decision, meta);
-  } catch (err) {
-    finish(sessionId, 'failed', err.message);
-    log.warn(`FAILED  ${formatMeta({ session: sessionId.slice(0, 8), error: err.message })}`);
-    return { outcome: 'failed', decision, error: err.message };
-  }
+/** 失败记进 context_state；若记库失败，也要释放该故事线的运行名额。 */
+function runCompression(sessionId, ctx, decision, meta) {
+  return attemptCompression(sessionId, ctx, decision, meta)
+    .catch((err) => {
+      finish(sessionId, 'failed', err.message);
+      return reportFailure(sessionId, decision, err);
+    })
+    .catch((err) => reportFailure(sessionId, decision, err))
+    .finally(() => inFlight.delete(sessionId));
+}
+
+function reportFailure(sessionId, decision, err) {
+  const error = err?.message;
+  log.warn(`FAILED  ${formatMeta({ session: sessionId.slice(0, 8), error })}`);
+  return { outcome: 'failed', decision, error };
 }
 
 export async function maintainContext(sessionId) {
@@ -280,23 +202,22 @@ export async function maintainContext(sessionId) {
   const ctx = repairStaleBlocks(loaded);
   const decision = decideCompression({ units: ctx.units, view: ctx.view, protectedSet: ctx.protectedSet, state: ctx.state, budget: ctx.budget });
   if (decision.reference !== ctx.state.baselineTokens) saveContextState(sessionId, { baselineTokens: decision.reference });
-  const meta = {
-    session: sid, round: decision.latestRound, raw: decision.rawTokens, summary: decision.summaryTokens,
-    reference: decision.reference, budget: ctx.budget, backoff: decision.backoff, reasons: decision.reasons.join(',') || null,
-  };
+  const meta = maintenanceLogFields(sid, ctx.budget, decision);
   if (!decision.run) {
     log.info(`IDLE  ${formatMeta(meta)}`);
     return { outcome: 'idle', decision };
   }
   // 此处到登记之间没有 await：inFlight 的检查与登记在同一个同步片段里完成
-  const completion = runCompression(sessionId, ctx, decision, meta)
-    .catch((err) => {
-      log.warn(`FAILED  ${formatMeta({ session: sid, error: err?.message })}`);
-      return { outcome: 'failed', decision, error: err?.message };
-    })
-    .finally(() => inFlight.delete(sessionId));
+  const completion = runCompression(sessionId, ctx, decision, meta);
   inFlight.set(sessionId, completion);
   return { outcome: 'started', decision, completion };
+}
+
+function maintenanceLogFields(session, budget, decision) {
+  return {
+    session, round: decision.latestRound, raw: decision.rawTokens, summary: decision.summaryTokens,
+    reference: decision.reference, budget, backoff: decision.backoff, reasons: decision.reasons.join(',') || null,
+  };
 }
 
 export const __testables = { commitAccepted, acceptActions };

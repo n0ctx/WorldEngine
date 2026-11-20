@@ -14,8 +14,13 @@
  *     → { text:string, hitRounds:number[] }
  */
 
-import { getLastTurnMessages, getMessagesBySessionId } from '../db/queries/messages.js';
-import { buildRoundUnits } from './context/view.js';
+import {
+  currentUnits,
+  usableSnapshotRounds,
+  selectRankedLocalEvidence,
+  buildRecentMessagesText,
+  recallLocalTurns,
+} from './long-term-recall-local.js';
 import * as llm from '../llm/index.js';
 import { countTokens } from '../utils/token-counter.js';
 import { getConfig } from '../services/config.js';
@@ -28,9 +33,7 @@ import { createLogger, formatMeta } from '../utils/logger.js';
 import { renderBackendPrompt } from '../prompts/prompt-loader.js';
 import { resolveAuxScope } from '../utils/aux-scope.js';
 import { parseFencedJson } from '../utils/llm-json.js';
-import { toPromptMessage } from '../utils/turn-dialogue.js';
 import { rankDocuments } from './context/search.js';
-import { queryLocalRecall } from '../db/queries/local-recall.js';
 import { resolveContextLimit } from '../services/model-context-limit.js';
 
 const log = createLogger('long-term-recall');
@@ -117,15 +120,9 @@ function renderCatalog(selected, activeBlocks) {
   return groups.map((group) => `${group.title}\n${group.lines.join('\n')}`).join('\n');
 }
 
-/** 默认取「上一条 AI 回复 + 当前用户消息」拼接文本；调用方可用 recentMessages 覆盖。 */
-function buildRecentMessagesText(sessionId) {
-  const lastTurn = getLastTurnMessages(sessionId).map(toPromptMessage);
-  const lastUser = lastTurn.find((m) => m.role === 'user');
-  const lastAsst = lastTurn.find((m) => m.role === 'assistant');
-  return [
-    lastAsst ? `AI：${lastAsst.content}` : '',
-    lastUser ? `用户：${lastUser.content}` : '',
-  ].filter(Boolean).join('\n');
+/** 保留测试入口，按预算选择本地召回证据。 */
+function selectLocalEvidence(ranked, scope, validRounds, budget) {
+  return selectRankedLocalEvidence(ranked, scope, validRounds, budget, renderRecalledTurns);
 }
 
 /** 从模型返回的轮次编号列表里，只保留候选中存在的整数，去重并保持模型给出的顺序。 */
@@ -164,30 +161,6 @@ export const __testables = {
  * @param {{ sessionId:string, mode:'chat'|'writing', recentMessages?:string,
  *   scope: { units:Array, outOfViewRounds:Set<number>, activeBlocks:Array, indexRows:Array } | null }} options
  */
-function currentUnits(sessionId) {
-  return buildRoundUnits(getMessagesBySessionId(sessionId, null), { toPromptMessage });
-}
-
-function usableSnapshotRounds(scope, liveUnits) {
-  return new Set(scope.units.flatMap((unit, index) => (
-    liveUnits[index]?.digest === unit.digest ? [index + 1] : []
-  )));
-}
-
-function selectLocalEvidence(ranked, scope, validRounds, budget) {
-  const allowed = ranked.filter((hit) => validRounds.has(hit.round) && scope.outOfViewRounds.has(hit.round));
-  const selected = [];
-  let used = 0;
-  for (const hit of allowed) {
-    const evidence = renderRecalledTurns([hit.round], scope.units, budget - used);
-    if (!evidence.hitRounds.length) continue;
-    const tokens = countTokens(evidence.text);
-    selected.push({ round: hit.round, tokens });
-    used += tokens;
-  }
-  return selected.sort((a, b) => a.round - b.round).map(({ round }) => round);
-}
-
 export async function recallTurns({ sessionId, mode, recentMessages, scope }) {
   const empty = { rounds: [], candidateCount: 0, droppedCount: 0 };
   if (!scope || scope.outOfViewRounds.size === 0) return empty;
@@ -200,15 +173,18 @@ export async function recallTurns({ sessionId, mode, recentMessages, scope }) {
   const liveUnits = currentUnits(sessionId);
   const validRounds = usableSnapshotRounds(scope, liveUnits);
   if (recallConfig.local_recall_enabled === true) {
-    const ranked = queryLocalRecall(sessionId, liveUnits, contextText);
-    const rounds = selectLocalEvidence(ranked, scope, validRounds, LOCAL_EVIDENCE_BUDGET);
-    if (config.local_recall_shadow_enabled === true) {
-      const comparison = await recallLegacyTurns({ sessionId, contextText, scope, recallConfig, validRounds });
-      log.info(`LOCAL_SHADOW_COMPARE ${formatMeta({ session: sessionId.slice(0, 8), localRounds: rounds, legacyRounds: comparison.rounds })}`);
-    }
-    const stillValid = usableSnapshotRounds(scope, currentUnits(sessionId));
-    const currentRounds = rounds.filter((round) => stillValid.has(round));
-    return { rounds: currentRounds, candidateCount: scope.outOfViewRounds.size, droppedCount: Math.max(0, scope.outOfViewRounds.size - currentRounds.length) };
+    return recallLocalTurns({
+      sessionId,
+      contextText,
+      scope,
+      liveUnits,
+      validRounds,
+      shadowEnabled: config.local_recall_shadow_enabled === true,
+      budget: LOCAL_EVIDENCE_BUDGET,
+      renderEvidence: renderRecalledTurns,
+      legacyRecall: () => recallLegacyTurns({ sessionId, contextText, scope, recallConfig, validRounds }),
+      logShadow: (rounds, legacyRounds) => log.info(`LOCAL_SHADOW_COMPARE ${formatMeta({ session: sessionId.slice(0, 8), localRounds: rounds, legacyRounds })}`),
+    });
   }
   return recallLegacyTurns({ sessionId, contextText, scope, recallConfig, validRounds });
 }

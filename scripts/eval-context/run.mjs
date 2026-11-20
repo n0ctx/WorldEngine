@@ -234,11 +234,19 @@ function summarizeRun({ repo, args, corpus, calls, turns }) {
   return { result, prompts };
 }
 
+function writeResult(out, { result, prompts }) {
+  fs.mkdirSync(path.dirname(path.resolve(out)), { recursive: true });
+  fs.writeFileSync(out, JSON.stringify(result, null, 2));
+  fs.writeFileSync(out.replace(/\.json$/, '.prompts.json'), JSON.stringify(prompts, null, 2));
+  const { promptTokensByRound: _byRound, ...brief } = result;
+  console.log(JSON.stringify(brief, null, 2));
+}
+
 async function main() {
   const args = parseArgs(process.argv.slice(2));
   const repo = path.resolve(args.repo);
   const corpus = buildStoryCorpus({ rounds: args.rounds, seed: args.seed });
-  const fake = await startFakeLlm({ corpus, contextLimit: args.ctx, failKinds: args.fail ? args.fail.split(',') : [] });
+  const fake = await startFakeLlm({ corpus, contextLimit: args.ctx, failKinds: args.fail?.split(',') });
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'we-eval-context-'));
   writeConfig(dataDir, fake.port, args);
   const port = await freePort();
@@ -246,12 +254,9 @@ async function main() {
     const { backend, session, turns } = await playCorpus(repo, dataDir, port, corpus, fake, args);
     await rollbackAndProbe(backend, session, fake, args);
     await stopBackend(backend);
-    const { result, prompts } = summarizeRun({ repo, args, corpus, calls: fake.calls, turns });
-    fs.mkdirSync(path.dirname(path.resolve(args.out)), { recursive: true });
-    fs.writeFileSync(args.out, JSON.stringify(result, null, 2));
-    fs.writeFileSync(args.out.replace(/\.json$/, '.prompts.json'), JSON.stringify(prompts, null, 2));
-    const { promptTokensByRound: _byRound, ...brief } = result;
-    console.log(JSON.stringify(brief, null, 2));
+    const report = summarizeRun({ repo, args, corpus, calls: fake.calls, turns });
+    writeResult(args.out, report);
+    const { result } = report;
     if (args.assertMainWindow && (result.mainTurnsReached !== args.rounds || !result.rollback.probeReachedMain
       || result.windowViolations.some(({ kind }) => kind === 'main'))) {
       throw new Error('有剧情请求未到达主模型，或输入和输出预留超过了窗口');
